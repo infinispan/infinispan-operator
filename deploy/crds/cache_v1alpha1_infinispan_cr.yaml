@@ -1,0 +1,8 @@
+apiVersion: cache.infinispan.org/v1alpha1
+kind: Infinispan
+metadata:
+  name: cache-infinispan
+spec:
+  # Add fields here
+  size: 3
+  clustername: helloworldcluster
