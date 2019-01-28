@@ -47,6 +47,9 @@ run-local: build
 	oc apply -f deploy/crd.yaml
 	WATCH_NAMESPACE="default" ./tmp/_output/bin/infinispan-server-operator -kubeconfig openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
 
+## test:        Run e2e tests
+test: build
+	GOCACHE=off go test -v ./test/e2e
 
 help : Makefile
 	@sed -n 's/^##//p' $<

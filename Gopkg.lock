@@ -268,11 +268,34 @@
   version = "1.0.1"
 
 [[projects]]
+  digest = "1:8bc8f43d2332d035857c92581df240f247c287629d5f60c751df609f9b6215c5"
+  name = "github.com/openshift/api"
+  packages = [
+    "authorization/v1",
+    "pkg/serialization",
+    "user/v1",
+  ]
+  pruneopts = "NT"
+  revision = "0d921e363e951d89f583292c60d013c318df64dc"
+  version = "v3.9.0"
+
+[[projects]]
+  digest = "1:45382a6540b02c3cf96c92dd724aefaaff91cae8e326aa3794e7370927b9a537"
+  name = "github.com/openshift/client-go"
+  packages = [
+    "authorization/clientset/versioned/scheme",
+    "authorization/clientset/versioned/typed/authorization/v1",
+    "user/clientset/versioned/scheme",
+    "user/clientset/versioned/typed/user/v1",
+  ]
+  pruneopts = "NT"
+  revision = "8fb54357b899c50a2c5b96408cb909818c3e25c8"
+
+[[projects]]
   digest = "1:0b2dd5813eba320fd99869c1a5c4b54eb6950544259f2389c5b137be2168429a"
   name = "github.com/operator-framework/operator-sdk"
   packages = [
     "pkg/k8sutil",
-    "pkg/leader",
     "version",
   ]
   pruneopts = "NT"
@@ -564,6 +587,18 @@
   revision = "b503174bad5991eb66f18247f52e41c3258f6348"
 
 [[projects]]
+  digest = "1:82b4765488fd2a8bcefb93e196fdbfe342d33b16ae073a6f51bb4fb13e81e102"
+  name = "k8s.io/apiextensions-apiserver"
+  packages = [
+    "pkg/apis/apiextensions",
+    "pkg/apis/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset/scheme",
+    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
+  ]
+  pruneopts = "NT"
+  revision = "0cd23ebeb6882bd1cdc2cb15fc7b2d72e8a86a5b"
+
+[[projects]]
   digest = "1:868de7cbaa0ecde6dc231c1529a10ae01bb05916095c0c992186e2a5cac57e79"
   name = "k8s.io/apimachinery"
   packages = [
@@ -804,11 +839,15 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/openshift/api/authorization/v1",
+    "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1",
+    "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1",
     "github.com/operator-framework/operator-sdk/pkg/k8sutil",
-    "github.com/operator-framework/operator-sdk/pkg/leader",
     "github.com/operator-framework/operator-sdk/version",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
+    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
@@ -818,13 +857,18 @@
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/runtime",
+    "k8s.io/apimachinery/pkg/util/wait",
+    "k8s.io/apimachinery/pkg/util/yaml",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/discovery",
     "k8s.io/client-go/discovery/fake",
+    "k8s.io/client-go/kubernetes/typed/apps/v1",
+    "k8s.io/client-go/kubernetes/typed/core/v1",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/testing",
     "k8s.io/client-go/tools/cache",
+    "k8s.io/client-go/tools/clientcmd",
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/code-generator/cmd/conversion-gen",
