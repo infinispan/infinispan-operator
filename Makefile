@@ -10,6 +10,9 @@ PROG  := infinispan-server-operator
 dep:
 	dep ensure
 
+## codegen:     Run k8s code generator for custom resources (https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
+codegen:
+	./build/codegen.sh
 
 ## build:       Compile and build the operator
 build: dep
