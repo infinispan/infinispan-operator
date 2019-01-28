@@ -33,7 +33,7 @@ run:
 	oc create configmap infinispan-app-configuration --from-file=./config || echo "Config map already present"
 	oc apply -f deploy/rbac.yaml
 	oc apply -f deploy/operator.yaml
-	oc apply -f deploy/crds/infinispan_v1_infinispan_crd.yaml
+	oc apply -f deploy/crd.yaml
 
 ## run-local:   Run the operator locally in a running OKD cluster
 run-local: build
@@ -41,7 +41,7 @@ run-local: build
 	oc project default
 	oc create configmap infinispan-app-configuration --from-file=./config || echo "Config map already present"
 	oc apply -f deploy/rbac.yaml
-	oc apply -f deploy/crds/infinispan_v1_infinispan_crd.yaml
+	oc apply -f deploy/crd.yaml
 	WATCH_NAMESPACE="default" ./tmp/_output/bin/infinispan-server-operator -kubeconfig openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
 
 
