@@ -16,6 +16,7 @@ type InfinispanStatus struct {
 	Nodes []string `json:"nodes"`
 }
 
+// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Infinispan is the Schema for the infinispans API
