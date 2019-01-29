@@ -11,6 +11,12 @@ Requirements:
 * [operator-sdk](https://github.com/operator-framework/operator-sdk/) v0.4.0    
 
 
+```
+src git clone https://github.com/jboss-dockerfiles/infinispan-server-operator.git $GOPATH/src/github.com/jboss-dockerfiles/infinispan-server-operator
+cd $GOPATH/src/github.com/jboss-dockerfiles/infinispan-server-operator
+
+```
+
 Run ```dep ensure``` the first time to download dependencies.
 
 
