@@ -12,7 +12,8 @@ Requirements:
 
 
 ```
-src git clone https://github.com/jboss-dockerfiles/infinispan-server-operator.git $GOPATH/src/github.com/jboss-dockerfiles/infinispan-server-operator
+git clone https://github.com/jboss-dockerfiles/infinispan-server-operator.git $GOPATH/src/github.com/jboss-dockerfiles/infinispan-server-operator
+
 cd $GOPATH/src/github.com/jboss-dockerfiles/infinispan-server-operator
 
 ```
