@@ -1,0 +1,21 @@
+language: go
+
+sudo: required
+
+services:
+  - docker
+
+cache:
+  directories:
+  - $GOPATH/pkg/dep
+
+before_script:
+  - go get -u github.com/golang/dep/cmd/dep
+  - sudo mount --make-shared /
+  - sudo sed 's/DOCKER_OPTS="/DOCKER_OPTS="--insecure-registry 172.30.0.0\/16 / ' -i /etc/default/docker
+  - sudo service docker restart
+  - ci/start-okd-3.11.sh
+
+script:
+  - make test
+
