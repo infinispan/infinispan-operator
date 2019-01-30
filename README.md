@@ -1,4 +1,6 @@
-## Infinispan Server Operator
+## Infinispan Server Operator 
+
+[![Build Status](https://travis-ci.org/jboss-dockerfiles/infinispan-server-operator.svg?branch=master)](https://travis-ci.org/jboss-dockerfiles/infinispan-server-operator)
 
 This is an Openshift operator to run and rule Infinispan.
 
