@@ -10,19 +10,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 // Provides methods to install and uninstall the operator and dependencies.
-func RunOperator(okd *ExternalOKD, ns, config string) {
-	installConfigMap(ns, okd)
+func RunOperator(okd *ExternalOKD, ns, config string) chan struct{} {
 	installRBAC(ns, okd)
 	installCRD(okd)
-	go runOperatorLocally(ns, config)
+	stopCh := make(chan struct{})
+	go runOperatorLocally(ns, config, stopCh)
+	return stopCh
 }
 
-func Cleanup(client ExternalOKD, namespace string) {
-	StopOperator()
+func Cleanup(client ExternalOKD, namespace string, stopCh chan struct{}) {
+	close(stopCh)
 	client.DeleteProject(namespace)
 	client.DeleteCRD("infinispans.infinispan.org")
 }
@@ -72,14 +72,10 @@ func installCRD(okd *ExternalOKD) {
 }
 
 // Run the operator locally
-func runOperatorLocally(ns string, configLocation string) {
+func runOperatorLocally(ns string, configLocation string, stopCh chan struct{}) {
 	_ = os.Setenv("WATCH_NAMESPACE", ns)
 	_ = os.Setenv("KUBECONFIG", configLocation)
-	launcher.Launch()
-}
-
-func StopOperator() {
-	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
 }
 
 // Obtain the file absolute path given a relative path

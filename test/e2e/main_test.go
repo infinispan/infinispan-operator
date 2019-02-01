@@ -6,6 +6,7 @@ import (
 	"github.com/jboss-dockerfiles/infinispan-server-operator/test/e2e/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -21,6 +22,8 @@ func getConfigLocation() string {
 
 var ConfigLocation = getConfigLocation()
 
+var okd = util.NewOKDClient(ConfigLocation)
+
 // Simple smoke test to check if the OKD is alive
 func TestSimple(t *testing.T) {
 	okd := util.NewOKDClient(ConfigLocation)
@@ -29,20 +32,20 @@ func TestSimple(t *testing.T) {
 	fmt.Printf("%s\n", okd.Pods("default", ""))
 }
 
-// Test for operator installation and creation of a cluster
-func TestCreateCluster(t *testing.T) {
-	// Client OKD client
-	okd := util.NewOKDClient(ConfigLocation)
-
+// Test for operator installation and creation of a cluster, using configuration from the config map
+func TestCreateClusterWithConfigMap(t *testing.T) {
 	// Create a namespace for the test
-	namespace := "ispn-operator-test"
+	namespace := strings.ToLower(t.Name())
 	okd.NewProject(namespace)
 
+	// Install config map from deploy folder
+	util.InstallConfigMap(namespace, okd)
+
 	// Run operator locally
-	util.RunOperator(okd, namespace, ConfigLocation)
+	stopCh := util.RunOperator(okd, namespace, ConfigLocation)
 
 	// Cleanup when done
-	defer util.Cleanup(*okd, namespace)
+	defer util.Cleanup(*okd, namespace, stopCh)
 
 	// Create a resource
 	spec := v1.Infinispan{
