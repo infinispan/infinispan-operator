@@ -22,7 +22,11 @@ func printVersion() {
 	logf.Log.Info(fmt.Sprintf("operator-sdk Version: %v", sdkVersion.Version))
 }
 
-func Launch() {
+type Parameters struct {
+	StopChannel chan struct{}
+}
+
+func Launch(params Parameters) {
 	printVersion()
 	flag.Parse()
 
@@ -69,8 +73,12 @@ func Launch() {
 
 	log.Info("Starting the Cmd.")
 
-	// Start the Cmd
-	stopCh := signals.SetupSignalHandler()
+	var stopCh <-chan struct{}
+	if params.StopChannel != nil {
+		stopCh = params.StopChannel
+	} else {
+		stopCh = signals.SetupSignalHandler()
+	}
 	if err := mgr.Start(stopCh); err != nil {
 		log.Error(err, "manager exited non-zero")
 		os.Exit(1)

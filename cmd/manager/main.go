@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	launcher.Launch()
+	launcher.Launch(launcher.Parameters{})
 }
