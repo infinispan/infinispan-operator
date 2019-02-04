@@ -26,10 +26,10 @@ import (
 
 var log = logf.Log.WithName("controller_infinispan")
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
+// Folder to map external config files
+const ConfigMapping = "custom"
+const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
+const DefaultConfig = "cloud.xml"
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -81,8 +81,6 @@ type ReconcileInfinispan struct {
 
 // Reconcile reads that state of the cluster for a Infinispan object and makes changes based on the state read
 // and what is in the Infinispan.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// an Infinispan Deployment for each Infinispan CR
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -166,6 +164,15 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan) *appsv1.Deployment {
 	ls := labelsForInfinispan(m.Name, m.Spec.ClusterName)
 
+	infinispanConfig := m.Config
+	var configPath string
+
+	if infinispanConfig.SourceType == infinispanv1.ConfigMap {
+		configPath = ConfigMapping + "/" + infinispanConfig.Name
+	} else {
+		configPath = DefaultConfig
+	}
+
 	dep := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -193,7 +200,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Containers: []corev1.Container{{
 						Image: "jboss/infinispan-server:9.4.4.Final",
 						Name:  "infinispan",
-						Args:  []string{"custom/cloud-ephemeral.xml", "-Djboss.default.jgroups.stack=kubernetes"},
+						Args:  []string{configPath, "-Djboss.default.jgroups.stack=kubernetes"},
 						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.Namespace}, // TODO this is the right place for namespace?
 							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.Spec.ClusterName},
 							{Name: "MGMT_USER", Value: "infinispan"},
@@ -219,15 +226,25 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							TimeoutSeconds:      80},
 						Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{"cpu": resource.MustParse("0.5"),
 							"memory": resource.MustParse("512Mi")}},
-						VolumeMounts: []corev1.VolumeMount{{MountPath: "/opt/jboss/infinispan-server/standalone/configuration/custom", Name: "infinispan-app-configuration"}},
 					}},
-					Volumes: []corev1.Volume{{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "infinispan-app-configuration"}}}, Name: "infinispan-app-configuration"}},
 					ServiceAccountName: "infinispan-server-operator",
 				},
 			},
 		},
 	}
+
+	// If using a config map, attach a volume to the container and mount it under 'custom' dir inside the configuration folder
+	if infinispanConfig.SourceType == infinispanv1.ConfigMap {
+		dep.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+			{
+				MountPath: CustomConfigPath, Name: infinispanConfig.SourceRef,
+			},
+		}
+
+		dep.Spec.Template.Spec.Volumes = []corev1.Volume{{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{Name: infinispanConfig.SourceRef}}}, Name: infinispanConfig.SourceRef}}
+	}
+
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
