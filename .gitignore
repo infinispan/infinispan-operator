@@ -75,6 +75,7 @@ tags
 .vscode/*
 .history
 openshift.local.clusterup/*
-tmp/_output
+build/_output
 vendor/
+.idea/
 # End of https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
