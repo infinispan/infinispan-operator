@@ -27,9 +27,9 @@ func Cleanup(client ExternalOKD, namespace string, stopCh chan struct{}) {
 	client.DeleteCRD("infinispans.infinispan.org")
 }
 
-func installConfigMap(ns string, okd *ExternalOKD) {
-	dir := GetAbsolutePath("../../config/cloud-ephemeral.xml")
-	okd.CreateOrUpdateConfigMap("infinispan-app-configuration", dir, ns)
+func InstallConfigMap(ns string, name string, okd *ExternalOKD) {
+	file := GetAbsolutePath("../../config/cloud-ephemeral.xml")
+	okd.CreateOrUpdateConfigMap(name, file, ns)
 }
 
 // Install resources from rbac.yaml required by the Infinispan operator

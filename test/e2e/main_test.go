@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"fmt"
-	"github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
 	"github.com/jboss-dockerfiles/infinispan-server-operator/test/e2e/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
@@ -39,7 +39,8 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 	okd.NewProject(namespace)
 
 	// Install config map from deploy folder
-	util.InstallConfigMap(namespace, okd)
+	configMapName := "test-config-map"
+	util.InstallConfigMap(namespace, configMapName, okd)
 
 	// Run operator locally
 	stopCh := util.RunOperator(okd, namespace, ConfigLocation)
@@ -48,7 +49,7 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 	defer util.Cleanup(*okd, namespace, stopCh)
 
 	// Create a resource
-	spec := v1.Infinispan{
+	spec := ispnv1.Infinispan{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v1",
 			Kind:       "Infinispan",
@@ -56,7 +57,12 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "cache-infinispan",
 		},
-		Spec: v1.InfinispanSpec{
+		Config: ispnv1.InfinispanConfig{
+			SourceType: ispnv1.ConfigMap,
+			SourceRef:  configMapName,
+			Name:       "cloud-ephemeral.xml",
+		},
+		Spec: ispnv1.InfinispanSpec{
 			Size:        2,
 			ClusterName: "helloworldcluster",
 		},
