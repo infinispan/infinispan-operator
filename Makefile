@@ -28,7 +28,7 @@ push: image
 
 ## clean:       Remove all generated files during build
 clean:
-	rm -rf tmp
+	rm -rf build/_output
 
 ## run:         Run the operator from jboss/infinispan-server-operator in a running OKD cluster
 run:
@@ -45,7 +45,7 @@ run-local: build
 	oc create configmap infinispan-app-configuration --from-file=./config || echo "Config map already present"
 	oc apply -f deploy/rbac.yaml
 	oc apply -f deploy/crd.yaml
-	WATCH_NAMESPACE="default" ./tmp/_output/bin/infinispan-server-operator -kubeconfig openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
+	WATCH_NAMESPACE="default" ./build/_output/bin/infinispan-server-operator -kubeconfig openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
 
 ## test:        Run e2e tests
 test: build

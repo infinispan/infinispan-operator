@@ -4,7 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-BIN_DIR="$(pwd)/tmp/_output/bin"
+BIN_DIR="$(pwd)/build/_output/bin"
 mkdir -p ${BIN_DIR}
 PROJECT_NAME="infinispan-server-operator"
 REPO_PATH="github.com/jboss-dockerfiles/infinispan-server-operator"
