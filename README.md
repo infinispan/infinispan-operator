@@ -39,6 +39,14 @@ To launch the operator locally, pointing to a running OKD cluster, make sure OKD
 make run-local
 ```
 
+(Optional) You can pass in KUBECONFIG to the task to specify the config location. 
+
+E.g., for OKD 3.11 started with ```oc cluster up```, that'd be:
+
+```
+make run-local KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
+```
+
 On other terminal, apply the resource template to instruct the operator to create a 3-node Infinispan cluster: 
 ```
 oc apply -f deploy/crds/infinispan_v1_infinispan_cr.yaml
@@ -61,6 +69,8 @@ Make sure OKD is started, e.g. with ```oc cluster up```. Then run:
 ```
 make run
 ```
+
+(Optional) Specify the kube config path with the ```KUBECONFIG=/path/to/admin.kubeconfig``` cmd line arg 
 
 To create a cluster, apply
 

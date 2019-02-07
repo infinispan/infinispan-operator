@@ -30,22 +30,13 @@ push: image
 clean:
 	rm -rf build/_output
 
-## run:         Run the operator from jboss/infinispan-server-operator in a running OKD cluster
+## run:         Run the operator from jboss/infinispan-server-operator in a running OKD cluster. Specify the config path with the cmd line arg 'KUBECONFIG=/path/to/config'
 run:
-	oc login -u system:admin
-	oc create configmap infinispan-app-configuration --from-file=./config || echo "Config map already present"
-	oc apply -f deploy/rbac.yaml
-	oc apply -f deploy/operator.yaml
-	oc apply -f deploy/crd.yaml
+	build/run-okd.sh ${KUBECONFIG}
 
-## run-local:   Run the operator locally in a running OKD cluster
+## run-local:   Run the operator locally in a running OKD cluster. Specify the config path with the cmd line arg 'KUBECONFIG=/path/to/config'
 run-local: build
-	oc login -u system:admin
-	oc project default
-	oc create configmap infinispan-app-configuration --from-file=./config || echo "Config map already present"
-	oc apply -f deploy/rbac.yaml
-	oc apply -f deploy/crd.yaml
-	WATCH_NAMESPACE="default" ./build/_output/bin/infinispan-server-operator -kubeconfig openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
+	build/run-local.sh ${KUBECONFIG}
 
 ## test:        Run e2e tests
 test: build
