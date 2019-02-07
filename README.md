@@ -49,12 +49,12 @@ make run-local KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver
 
 On other terminal, apply the resource template to instruct the operator to create a 3-node Infinispan cluster: 
 ```
-oc apply -f deploy/cr/cr_with_configmap.yaml
+oc apply -f deploy/cr/cr_minimal.yaml
 ```
 
 Check with ```oc get pods```.
 
-You can have fun and change the size parameter in infinispan_v1_infinispan_cr.yaml and apply it again to see the operator in action.  
+You can have fun and change the size parameter in ```deploy/cr/cr_minimal.yaml`` and apply it again to see the operator in action.  
 
 ### Publishing the Docker image
 
@@ -75,12 +75,69 @@ make run
 To create a cluster, apply
 
 ```
-oc apply -f deploy/cr/cr_with_configmap.yaml
+oc apply -f deploy/cr/cr_minimal.yaml
+```
+
+### Custom Resource Definition
+
+The Infinispan resource definition is detailed at [infinispan-types.go](https://github.com/jboss-dockerfiles/infinispan-server-operator/blob/master/pkg/apis/infinispan/v1/infinispan_types.go).
+
+Below are some example of creating different kinds of clusters:
+
+#### Minimal custer
+
+A cluster created using ```cloud.xml``` configuration can be created with:
+
+```yaml
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-minimal
+spec:
+  size: 3
+  clustername: cluster1
+```
+
+#### Using an internal configuration
+
+To point to any pre-existing configuration from Infinispan, for e.g. ```clustered.xml```:
+
+```yaml
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-minimal
+config:
+  name: clustered.xml
+spec:
+  size: 3
+  clustername: cluster1
+```
+
+
+#### Using a config map
+
+
+To use a file ```my-config.xml``` stored in a config map with name ```my-config-map``` as configuration:
+
+```yaml
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+config:
+  sourceType: ConfigMap
+  sourceRef:  my-config-map
+  name: my-config.xml
+spec:
+  size: 3
+  clustername: helloworldcluster
+
 ```
 
 ### Running tests
 
-The Makefile has a target for testing that can target a particular external running cluster. E.g: 
+The Makefile has a goal for testing that can target a particular external running cluster. E.g: 
 
 To run tests against 3.11 clusters started with ``` oc cluster up```:
 
