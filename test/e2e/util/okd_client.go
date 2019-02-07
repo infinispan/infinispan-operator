@@ -145,18 +145,6 @@ func (c ExternalOKD) DeleteInfinispan(name string, namespace string) {
 	if e != nil {
 		panic(e)
 	}
-	// Wait until deleted
-	err := wait.Poll(period, timeout, func() (done bool, err error) {
-		ispn, err := ispnSvc.Get(name, metaV1.GetOptions{})
-
-		if reflect.DeepEqual(api.Infinispan{}, *ispn) { // Non existent
-			return true, nil
-		}
-		return false, nil
-	})
-	if err != nil {
-		panic(err)
-	}
 }
 
 // Creates or updates a config map based on a file

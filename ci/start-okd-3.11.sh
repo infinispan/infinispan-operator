@@ -21,7 +21,7 @@ function download_oc_client {
 
 function start_cluster {
   echo "==== Starting up cluster ===="
-  ./oc cluster up
+  ./oc cluster up --skip-registry-check=true --enable="-automation-service-broker -centos-imagestreams -persistent-volumes -registry -rhel-imagestreams -router -sample-templates -service-catalog -template-service-broker -web-console"
 
 }
 
