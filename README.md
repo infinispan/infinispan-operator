@@ -78,3 +78,21 @@ To create a cluster, apply
 oc apply -f deploy/crds/infinispan_v1_infinispan_cr.yaml
 ```
 
+### Running tests
+
+The Makefile has a target for testing that can target a particular external running cluster. E.g: 
+
+To run tests against 3.11 clusters started with ``` oc cluster up```:
+
+```make test```
+
+or 
+
+``` make test KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/admin.kubeconfig```  
+
+in case the cluster was started in a different directory than the Makefile.
+
+To run against 4.0.0 cluster:
+
+
+``` make test KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig```  

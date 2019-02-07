@@ -48,7 +48,7 @@ var timeout = 120 * time.Second
 // constructs a new ExternalOKD client providing the path of kubeconfig file.
 func NewOKDClient(kubeConfigLocation string) *ExternalOKD {
 	c := new(ExternalOKD)
-	dir := GetRelativeDir(kubeConfigLocation)
+	dir := GetAbsolutePath(kubeConfigLocation)
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: dir},
 		&clientcmd.ConfigOverrides{})
@@ -135,6 +135,27 @@ func (c ExternalOKD) CreateInfinispan(infinispan *api.Infinispan, namespace stri
 	_, e := c.ispnClient.Infinispans(namespace).Create(infinispan)
 	if e != nil {
 		panic(e)
+	}
+}
+
+// Deletes an Infinispan resource in the given namespace
+func (c ExternalOKD) DeleteInfinispan(name string, namespace string) {
+	ispnSvc := c.ispnClient.Infinispans(namespace)
+	e := ispnSvc.Delete(name, &deleteOpts)
+	if e != nil {
+		panic(e)
+	}
+	// Wait until deleted
+	err := wait.Poll(period, timeout, func() (done bool, err error) {
+		ispn, err := ispnSvc.Get(name, metaV1.GetOptions{})
+
+		if reflect.DeepEqual(api.Infinispan{}, *ispn) { // Non existent
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -329,7 +350,7 @@ func (c ExternalOKD) WaitForPods(ns, label string, required int, timeout time.Du
 			podReady := false
 			conditions := pod.Status.Conditions
 			for _, cond := range conditions {
-				if (cond.Type) == v1.ContainersReady {
+				if (cond.Type) == v1.ContainersReady && cond.Status == "True" {
 					podReady = true
 				}
 			}

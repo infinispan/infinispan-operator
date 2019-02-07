@@ -11,11 +11,12 @@ cache:
 
 before_script:
   - go get -u github.com/golang/dep/cmd/dep
-  - sudo mount --make-shared /
-  - sudo sed 's/DOCKER_OPTS="/DOCKER_OPTS="--insecure-registry 172.30.0.0\/16 / ' -i /etc/default/docker
-  - sudo service docker restart
-  - ci/start-okd-3.11.sh
+  - ci/start-okd-4.0.0.sh
+
+after_failure:
+  - docker ps -a
+  - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
 
 script:
-  - make test
+  - make test KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
 

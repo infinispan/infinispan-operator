@@ -5,11 +5,21 @@ import (
 	"github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
 	"github.com/jboss-dockerfiles/infinispan-server-operator/test/e2e/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
 	"testing"
 	"time"
 )
 
-const ConfigLocation = "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
+func getConfigLocation() string {
+	kubeConfig := os.Getenv("KUBECONFIG")
+	if kubeConfig != "" {
+		return kubeConfig
+	} else {
+		return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
+	}
+}
+
+var ConfigLocation = getConfigLocation()
 
 // Simple smoke test to check if the OKD is alive
 func TestSimple(t *testing.T) {
