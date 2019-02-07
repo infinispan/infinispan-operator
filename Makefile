@@ -38,9 +38,9 @@ run:
 run-local: build
 	build/run-local.sh ${KUBECONFIG}
 
-## test:        Run e2e tests
+## test:        Run e2e tests. A KUBECONFIG can be specified with cmd line arg 'KUBECONFIG=/path/to/config'
 test: build
-	GOCACHE=off go test -v ./test/e2e
+	build/run-tests.sh ${KUBECONFIG}
 
 help : Makefile
 	@sed -n 's/^##//p' $<

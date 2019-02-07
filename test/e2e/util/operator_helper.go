@@ -28,13 +28,13 @@ func Cleanup(client ExternalOKD, namespace string) {
 }
 
 func installConfigMap(ns string, okd *ExternalOKD) {
-	dir := GetRelativeDir("../../config/cloud-ephemeral.xml")
+	dir := GetAbsolutePath("../../config/cloud-ephemeral.xml")
 	okd.CreateOrUpdateConfigMap("infinispan-app-configuration", dir, ns)
 }
 
 // Install resources from rbac.yaml required by the Infinispan operator
 func installRBAC(ns string, okd *ExternalOKD) {
-	filename := GetRelativeDir("../../deploy/rbac.yaml")
+	filename := GetAbsolutePath("../../deploy/rbac.yaml")
 	f, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -58,7 +58,7 @@ func installRBAC(ns string, okd *ExternalOKD) {
 }
 
 func installCRD(okd *ExternalOKD) {
-	filename := GetRelativeDir("../../deploy/crd.yaml")
+	filename := GetAbsolutePath("../../deploy/crd.yaml")
 	f, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -82,8 +82,12 @@ func StopOperator() {
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 }
 
-func GetRelativeDir(path string) string {
+// Obtain the file absolute path given a relative path
+func GetAbsolutePath(relativeFilePath string) string {
+	if !strings.HasPrefix(relativeFilePath, ".") {
+		return relativeFilePath
+	}
 	dir, _ := os.Getwd()
-	absPath, _ := filepath.Abs(dir + "/" + path)
+	absPath, _ := filepath.Abs(dir + "/" + relativeFilePath)
 	return absPath
 }
