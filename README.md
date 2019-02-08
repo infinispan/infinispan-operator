@@ -54,7 +54,7 @@ oc apply -f deploy/cr/cr_minimal.yaml
 
 Check with ```oc get pods```.
 
-You can have fun and change the size parameter in ```deploy/cr/cr_minimal.yaml`` and apply it again to see the operator in action.  
+You can have fun and change the size parameter in ```deploy/cr/cr_minimal.yaml``` and apply it again to see the operator in action.  
 
 ### Publishing the Docker image
 
