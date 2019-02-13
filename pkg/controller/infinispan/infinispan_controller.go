@@ -115,6 +115,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			reqLogger.Error(err, "failed to create new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
 			return reconcile.Result{}, err
 		}
+
+		ser := r.serviceForInfinispan(infinispan)
+		err = r.client.Create(context.TODO(), ser)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			reqLogger.Error(err,"failed to create Service", "Service", ser)
+			return reconcile.Result{}, err
+		}
+
 		// Deployment created successfully - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
@@ -268,4 +276,37 @@ func getPodNames(pods []corev1.Pod) []string {
 		podNames = append(podNames, pod.Name)
 	}
 	return podNames
+}
+
+func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *corev1.Service {
+	ls := labelsForInfinispan(m.Name, m.Spec.ClusterName)
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      m.Name,
+			Namespace: m.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeClusterIP,
+			Selector: ls,
+			Ports: []corev1.ServicePort{
+				{
+					Name: "hotrod",
+					Port: 11222,
+				},
+				{
+					Name: "http",
+					Port: 8080,
+				},
+			},
+		},
+	}
+
+	// Set Infinispan instance as the owner and controller
+	controllerutil.SetControllerReference(m, service, r.scheme)
+
+	return service
 }
