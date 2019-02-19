@@ -294,12 +294,12 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 			Selector: ls,
 			Ports: []corev1.ServicePort{
 				{
-					Name: "hotrod",
-					Port: 11222,
-				},
-				{
 					Name: "http",
 					Port: 8080,
+				},
+				{
+					Name: "hotrod",
+					Port: 11222,
 				},
 			},
 		},
