@@ -42,5 +42,9 @@ run-local: build
 test: build
 	build/run-tests.sh ${KUBECONFIG}
 
+## copy-kubeconfig:   Copy cluster adming kubernetes config file to cmd line arg 'KUBECONFIG=/path/to/config' location
+copy-kubeconfig:
+	build/copy-kubeconfig.sh ${KUBECONFIG}
+
 help : Makefile
 	@sed -n 's/^##//p' $<
