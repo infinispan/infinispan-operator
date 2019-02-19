@@ -4,12 +4,16 @@ import (
 	"errors"
 	api "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
 	ispnv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
-	osv1 "github.com/openshift/api/authorization/v1"
-	authV1 "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
-	userV1 "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	authv1 "github.com/openshift/api/authorization/v1"
+	routev1 "github.com/openshift/api/route/v1"
+	authclient "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
+	userclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	routeclient "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	"io/ioutil"
 	"k8s.io/client-go/tools/clientcmd"
+	"net/http"
 	"path"
+	"strconv"
 
 	"k8s.io/api/core/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -17,6 +21,7 @@ import (
 	apiv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"time"
 
@@ -27,8 +32,9 @@ import (
 // ExternalOKD provides a simplified client for a running OKD cluster
 type ExternalOKD struct {
 	coreClient *coreV1.CoreV1Client
-	userClient *userV1.UserV1Client
-	authClient *authV1.AuthorizationV1Client
+	userClient *userclient.UserV1Client
+	routeClient *routeclient.RouteV1Client
+	authClient *authclient.AuthorizationV1Client
 	appsClient *appsV1.AppsV1Client
 	extensions *apiextclient.ApiextensionsV1beta1Client
 	ispnClient *ispnv1.InfinispanV1Client
@@ -66,13 +72,19 @@ func NewOKDClient(kubeConfigLocation string) *ExternalOKD {
 	}
 	c.coreClient = coreClient
 
-	userV1Client, err := userV1.NewForConfig(config)
+	userV1Client, err := userclient.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
 	c.userClient = userV1Client
 
-	authV1Client, err := authV1.NewForConfig(config)
+	routeV1Client, err := routeclient.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	c.routeClient = routeV1Client
+
+	authV1Client, err := authclient.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -178,10 +190,10 @@ func (c ExternalOKD) CreateOrUpdateConfigMap(name string, filePath string, names
 }
 
 // Creates or updates a Role in the given namespace
-func (c ExternalOKD) CreateOrUpdateRole(role *osv1.Role, namespace string) {
+func (c ExternalOKD) CreateOrUpdateRole(role *authv1.Role, namespace string) {
 	existing, _ := c.authClient.Roles(namespace).Get(role.ObjectMeta.Name, metaV1.GetOptions{})
 
-	if reflect.DeepEqual(osv1.Role{}, *existing) { // is empty
+	if reflect.DeepEqual(authv1.Role{}, *existing) { // is empty
 		_, e := c.authClient.Roles(namespace).Create(role)
 		if e != nil {
 			panic(e)
@@ -195,12 +207,12 @@ func (c ExternalOKD) CreateOrUpdateRole(role *osv1.Role, namespace string) {
 }
 
 // Creates or updates a RoleBinding in the given namespace
-func (c ExternalOKD) CreateOrUpdateRoleBinding(binding *osv1.RoleBinding, namespace string) {
+func (c ExternalOKD) CreateOrUpdateRoleBinding(binding *authv1.RoleBinding, namespace string) {
 	bindingsSvc := c.authClient.RoleBindings(namespace)
 
 	existing, _ := bindingsSvc.Get(binding.Name, metaV1.GetOptions{})
 
-	if reflect.DeepEqual(osv1.RoleBinding{}, *existing) { // is empty
+	if reflect.DeepEqual(authv1.RoleBinding{}, *existing) { // is empty
 		_, e := bindingsSvc.Create(binding)
 		if e != nil {
 			panic(e)
@@ -352,6 +364,27 @@ func (c ExternalOKD) WaitForPods(ns, label string, required int, timeout time.Du
 	return nil
 }
 
+func (c ExternalOKD) WaitForRoute(url string, client *http.Client, timeout time.Duration) {
+	err := wait.Poll(period, timeout, func() (done bool, err error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return false, err
+		}
+		req.SetBasicAuth("infinispan", "infinispan")
+		resp, err := client.Do(req)
+		if err != nil {
+			return false, err
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+}
+
 // Return the currently authenticated user name
 func (c ExternalOKD) WhoAmI() string {
 	user, e := c.userClient.Users().Get("~", metaV1.GetOptions{})
@@ -360,4 +393,49 @@ func (c ExternalOKD) WhoAmI() string {
 	}
 
 	return user.Name
+}
+
+func (c ExternalOKD) CreateRoute(ns, serviceName string, portString string) *routev1.Route {
+	route := &routev1.Route{
+		TypeMeta: metaV1.TypeMeta{APIVersion: routev1.SchemeGroupVersion.String(), Kind: "Route"},
+		ObjectMeta: metaV1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: routev1.RouteSpec{
+			To: routev1.RouteTargetReference{
+				Name: serviceName,
+			},
+			Port: resolveRoutePort(portString),
+		},
+	}
+
+	router, err := c.routeClient.Routes(ns).Create(route)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return router
+}
+
+func (c ExternalOKD) DeleteRoute(routeName string, namespace string) {
+	err := c.routeClient.Routes(namespace).Delete(routeName, &deleteOpts)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func resolveRoutePort(portString string) *routev1.RoutePort {
+	if len(portString) == 0 {
+		return nil
+	}
+	var routePort intstr.IntOrString
+	integer, err := strconv.Atoi(portString)
+	if err != nil {
+		routePort = intstr.FromString(portString)
+	} else {
+		routePort = intstr.FromInt(integer)
+	}
+	return &routev1.RoutePort{
+		TargetPort: routePort,
+	}
 }
