@@ -1,6 +1,6 @@
-IMAGE ?= jboss/infinispan-server-operator
+IMAGE ?= jboss/infinispan-operator
 TAG ?= latest
-PROG  := infinispan-server-operator
+PROG  := infinispan-operator
 
 .PHONY: dep build image push run clean help
 
@@ -30,7 +30,7 @@ push: image
 clean:
 	rm -rf build/_output
 
-## run:         Run the operator from jboss/infinispan-server-operator in a running OKD cluster. Specify the config path with the cmd line arg 'KUBECONFIG=/path/to/config'
+## run:         Run the operator from jboss/infinispan-operator in a running OKD cluster. Specify the config path with the cmd line arg 'KUBECONFIG=/path/to/config'
 run:
 	build/run-okd.sh ${KUBECONFIG}
 

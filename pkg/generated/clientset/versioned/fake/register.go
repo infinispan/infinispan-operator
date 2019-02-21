@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	infinispanv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
+	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

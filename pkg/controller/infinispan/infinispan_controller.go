@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	infinispanv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
+	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -235,7 +235,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{"cpu": resource.MustParse("0.5"),
 							"memory": resource.MustParse("512Mi")}},
 					}},
-					ServiceAccountName: "infinispan-server-operator",
+					ServiceAccountName: "infinispan-operator",
 				},
 			},
 		},

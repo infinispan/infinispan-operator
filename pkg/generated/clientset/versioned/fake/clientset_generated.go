@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/clientset/versioned"
-	infinispanv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
-	fakeinfinispanv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/clientset/versioned/typed/infinispan/v1/fake"
+	clientset "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned"
+	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
+	fakeinfinispanv1 "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned/typed/infinispan/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

@@ -21,10 +21,10 @@ package v1
 import (
 	time "time"
 
-	infinispanv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
-	versioned "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/clientset/versioned"
-	internalinterfaces "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/informers/externalversions/internalinterfaces"
-	v1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/listers/infinispan/v1"
+	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	versioned "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned"
+	internalinterfaces "github.com/infinispan/infinispan-operator/pkg/generated/informers/externalversions/internalinterfaces"
+	v1 "github.com/infinispan/infinispan-operator/pkg/generated/listers/infinispan/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

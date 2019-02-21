@@ -1,6 +1,6 @@
 ## Infinispan Server Operator 
 
-[![Build Status](https://travis-ci.org/jboss-dockerfiles/infinispan-server-operator.svg?branch=master)](https://travis-ci.org/jboss-dockerfiles/infinispan-server-operator)
+[![Build Status](https://travis-ci.org/infinispan/infinispan-operator.svg?branch=master)](https://travis-ci.org/infinispan/infinispan-operator)
 
 This is an Openshift operator to run and rule Infinispan.
 
@@ -17,9 +17,9 @@ This is an Openshift operator to run and rule Infinispan.
 
 Checkout sources under $GOPATH:
 ```
-git clone https://github.com/jboss-dockerfiles/infinispan-server-operator.git $GOPATH/src/github.com/jboss-dockerfiles/infinispan-server-operator
+git clone https://github.com/infinispan/infinispan-operator.git $GOPATH/src/github.com/infinispan/infinispan-operator
 
-cd $GOPATH/src/github.com/jboss-dockerfiles/infinispan-server-operator
+cd $GOPATH/src/github.com/infinispan/infinispan-operator
 
 ```
 
@@ -58,11 +58,11 @@ You can have fun and change the size parameter in ```deploy/cr/cr_minimal.yaml``
 
 ### Publishing the Docker image
 
-```make push``` will build the image and push it to [Dockerhub](https://hub.docker.com/r/jboss/infinispan-server-operator). 
+```make push``` will build the image and push it to [Dockerhub](https://hub.docker.com/r/jboss/infinispan-operator). 
 
 ### Running the operator inside OKD
 
-To run the operator inside OKD, using the public image [jboss/infinispan-server-operator](https://hub.docker.com/r/jboss/infinispan-server-operator) :
+To run the operator inside OKD, using the public image [jboss/infinispan-operator](https://hub.docker.com/r/jboss/infinispan-operator) :
 
 Make sure OKD is started, e.g. with ```oc cluster up```. Then run:
 
@@ -80,7 +80,7 @@ oc apply -f deploy/cr/cr_minimal.yaml
 
 ### Custom Resource Definition
 
-The Infinispan resource definition is detailed at [infinispan-types.go](https://github.com/jboss-dockerfiles/infinispan-server-operator/blob/master/pkg/apis/infinispan/v1/infinispan_types.go).
+The Infinispan resource definition is detailed at [infinispan-types.go](https://github.com/infinispan/infinispan-operator/blob/master/pkg/apis/infinispan/v1/infinispan_types.go).
 
 Below are some example of creating different kinds of clusters:
 

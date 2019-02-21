@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: infinispan-server-operator
+  name: infinispan-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: infinispan-server-operator
+      name: infinispan-operator
   template:
     metadata:
       labels:
-        name: infinispan-server-operator
+        name: infinispan-operator
     spec:
-      serviceAccountName: infinispan-server-operator
+      serviceAccountName: infinispan-operator
       containers:
-        - name: infinispan-server-operator
-          image: jboss/infinispan-server-operator
+        - name: infinispan-operator
+          image: jboss/infinispan-operator
           ports:
           - containerPort: 60000
             name: metrics
           command:
-          - infinispan-server-operator
+          - infinispan-operator
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
@@ -32,4 +32,4 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
-              value: "infinispan-server-operator"
+              value: "infinispan-operator"
