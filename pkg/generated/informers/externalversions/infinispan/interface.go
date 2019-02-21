@@ -19,8 +19,8 @@ limitations under the License.
 package infinispan
 
 import (
-	v1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/informers/externalversions/infinispan/v1"
-	internalinterfaces "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/informers/externalversions/internalinterfaces"
+	v1 "github.com/infinispan/infinispan-operator/pkg/generated/informers/externalversions/infinispan/v1"
+	internalinterfaces "github.com/infinispan/infinispan-operator/pkg/generated/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

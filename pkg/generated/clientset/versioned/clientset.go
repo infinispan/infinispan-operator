@@ -19,7 +19,7 @@ limitations under the License.
 package versioned
 
 import (
-	infinispanv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
+	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

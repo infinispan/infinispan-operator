@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/clientset/versioned"
-	infinispan "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/informers/externalversions/infinispan"
-	internalinterfaces "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/informers/externalversions/internalinterfaces"
+	versioned "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned"
+	infinispan "github.com/infinispan/infinispan-operator/pkg/generated/informers/externalversions/infinispan"
+	internalinterfaces "github.com/infinispan/infinispan-operator/pkg/generated/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

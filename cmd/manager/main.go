@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/jboss-dockerfiles/infinispan-server-operator/pkg/launcher"
+	"github.com/infinispan/infinispan-operator/pkg/launcher"
 )
 
 func main() {

@@ -4,4 +4,4 @@ RUN apk upgrade --update --no-cache
 
 USER nobody
 
-ADD build/_output/bin/infinispan-server-operator /usr/local/bin/infinispan-server-operator
+ADD build/_output/bin/infinispan-operator /usr/local/bin/infinispan-operator

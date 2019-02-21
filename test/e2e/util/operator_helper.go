@@ -2,7 +2,7 @@ package util
 
 import (
 	"bufio"
-	"github.com/jboss-dockerfiles/infinispan-server-operator/pkg/launcher"
+	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	osv1 "github.com/openshift/api/authorization/v1"
 	"k8s.io/api/core/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"

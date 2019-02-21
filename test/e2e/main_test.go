@@ -3,8 +3,8 @@ package e2e
 import (
 	"bytes"
 	"fmt"
-	ispnv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
-	"github.com/jboss-dockerfiles/infinispan-server-operator/test/e2e/util"
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/test/e2e/util"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"

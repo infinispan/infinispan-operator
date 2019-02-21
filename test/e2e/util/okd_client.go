@@ -2,8 +2,8 @@ package util
 
 import (
 	"errors"
-	api "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
-	ispnv1 "github.com/jboss-dockerfiles/infinispan-server-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
+	api "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
 	authv1 "github.com/openshift/api/authorization/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	authclient "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"

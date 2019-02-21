@@ -1,7 +1,7 @@
 package apis
 
 import (
-	"github.com/jboss-dockerfiles/infinispan-server-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 )
 
 func init() {

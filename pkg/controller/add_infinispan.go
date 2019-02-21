@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/jboss-dockerfiles/infinispan-server-operator/pkg/controller/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 )
 
 func init() {

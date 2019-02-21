@@ -2,7 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   creationTimestamp: null
-  name: infinispan-server-operator
+  name: infinispan-operator
 rules:
   - apiGroups:
       - ""
@@ -50,18 +50,18 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: infinispan-server-operator
+  name: infinispan-operator
 
 ---
 
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: infinispan-server-operator
+  name: infinispan-operator
 subjects:
   - kind: ServiceAccount
-    name: infinispan-server-operator
+    name: infinispan-operator
 roleRef:
   kind: Role
-  name: infinispan-server-operator
+  name: infinispan-operator
   apiGroup: rbac.authorization.k8s.io

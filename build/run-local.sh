@@ -9,4 +9,4 @@ oc project default
 oc create configmap infinispan-app-configuration --from-file=./config || echo "Config map already present"
 oc apply -f deploy/rbac.yaml
 oc apply -f deploy/crd.yaml
-WATCH_NAMESPACE="default" ./build/_output/bin/infinispan-server-operator -kubeconfig $KUBECONFIG
+WATCH_NAMESPACE="default" ./build/_output/bin/infinispan-operator -kubeconfig $KUBECONFIG
