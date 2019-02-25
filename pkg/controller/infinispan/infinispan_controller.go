@@ -31,6 +31,9 @@ const ConfigMapping = "custom"
 const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
 const DefaultConfig = "cloud.xml"
 
+// DefaultImageName is used if a specific image name is not provided
+const DefaultImageName = "jboss/infinispan-server:latest"
+
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -165,6 +168,16 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
+	// Check if pods container runs the right image
+	for _, pod := range podList.Items {
+		if len(pod.Spec.Containers) == 1 {
+			if pod.Spec.Containers[0].Image != infinispan.Spec.Image {
+				// TODO: invent a reconciliation policy if images doesn't match
+				// reqLogger.Info("Pod " + pod.ObjectMeta.Name + " runs wrong image " + pod.Spec.Containers[0].Image + " != " + infinispan.Spec.Image)
+			}
+		}
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -181,6 +194,12 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		configPath = DefaultConfig
 	}
 
+	var imageName string
+	if m.Spec.Image != "" {
+		imageName = m.Spec.Image
+	} else {
+		imageName = DefaultImageName
+	}
 	dep := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -206,7 +225,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Image: "jboss/infinispan-server:9.4.6.Final",
+						Image: imageName,
 						Name:  "infinispan",
 						Args:  []string{configPath, "-Djboss.default.jgroups.stack=kubernetes"},
 						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.Namespace}, // TODO this is the right place for namespace?
