@@ -3,15 +3,16 @@ package e2e
 import (
 	"bytes"
 	"fmt"
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	"github.com/infinispan/infinispan-operator/test/e2e/util"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/test/e2e/util"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func getConfigLocation() string {
@@ -60,8 +61,7 @@ func TestExternalService(t *testing.T) {
 			Name: "cache-infinispan-0",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size:        1,
-			ClusterName: "single",
+			Size: 1,
 		},
 	}
 
@@ -78,7 +78,7 @@ func TestExternalService(t *testing.T) {
 	route := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
 	defer okd.DeleteRoute("cache-infinispan-0", Namespace)
 
-	url := "http://"+route.Spec.Host+"/rest/default/test"
+	url := "http://" + route.Spec.Host + "/rest/default/test"
 	client := &http.Client{}
 	okd.WaitForRoute(url, client, RouteTimeout)
 
@@ -146,8 +146,7 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 			Name:       "cloud-ephemeral.xml",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size:        2,
-			ClusterName: "helloworldcluster",
+			Size: 2,
 		},
 	}
 
@@ -172,11 +171,10 @@ func TestCreateWithInternalConfig(t *testing.T) {
 			Kind:       "Infinispan",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "cache-infinispan-1",
+			Name: "cache-infinispan-minimal",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size:        2,
-			ClusterName: "minimal",
+			Size: 2,
 		},
 	}
 
@@ -184,42 +182,40 @@ func TestCreateWithInternalConfig(t *testing.T) {
 	okd.CreateInfinispan(&spec, Namespace)
 
 	// Make sure 2 pods are started
-	err := okd.WaitForPods(Namespace, "clusterName=minimal", 2, TestTimeout)
+	err := okd.WaitForPods(Namespace, "clusterName=cache-infinispan-minimal", 2, TestTimeout)
 
 	// Cleanup resource
-	defer okd.DeleteInfinispan("cache-infinispan-1", Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan-minimal", Namespace)
 
 	if err != nil {
 		panic(err.Error())
 	}
 
 	// Create another cluster with a pre-canned config
-	resourceName := "cache-infinispan-2"
 	spec = ispnv1.Infinispan{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v1",
 			Kind:       "Infinispan",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: resourceName,
+			Name: "cache-infinispan-precanned-config",
 		},
 		Config: ispnv1.InfinispanConfig{
 			SourceType: ispnv1.Internal,
 			Name:       "clustered.xml",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size:        2,
-			ClusterName: "pre-canned-config",
+			Size: 2,
 		},
 	}
 
 	// Register it
 	okd.CreateInfinispan(&spec, Namespace)
 	// Cleanup resource
-	defer okd.DeleteInfinispan(resourceName, Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan-precanned-config", Namespace)
 
 	// Make sure 2 pods are started
-	err = okd.WaitForPods(Namespace, "clusterName=pre-canned-config", 2, TestTimeout)
+	err = okd.WaitForPods(Namespace, "clusterName=cache-infinispan-precanned-config", 2, TestTimeout)
 
 	if err != nil {
 		panic(err.Error())

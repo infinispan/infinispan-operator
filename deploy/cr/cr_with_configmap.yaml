@@ -8,4 +8,3 @@ config:
   name: cloud-ephemeral.xml
 spec:
   size: 3
-  clustername: helloworldcluster

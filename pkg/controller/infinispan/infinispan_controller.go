@@ -119,7 +119,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		ser := r.serviceForInfinispan(infinispan)
 		err = r.client.Create(context.TODO(), ser)
 		if err != nil && !errors.IsAlreadyExists(err) {
-			reqLogger.Error(err,"failed to create Service", "Service", ser)
+			reqLogger.Error(err, "failed to create Service", "Service", ser)
 			return reconcile.Result{}, err
 		}
 
@@ -170,7 +170,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan) *appsv1.Deployment {
-	ls := labelsForInfinispan(m.Name, m.Spec.ClusterName)
+	ls := labelsForInfinispan(m.Name, m.ObjectMeta.Name)
 
 	infinispanConfig := m.Config
 	var configPath string
@@ -210,7 +210,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Name:  "infinispan",
 						Args:  []string{configPath, "-Djboss.default.jgroups.stack=kubernetes"},
 						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.Namespace}, // TODO this is the right place for namespace?
-							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.Spec.ClusterName},
+							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
 							{Name: "MGMT_USER", Value: "infinispan"},
 							{Name: "MGMT_PASS", Value: "infinispan"},
 							{Name: "APP_USER", Value: "infinispan"},
@@ -279,7 +279,7 @@ func getPodNames(pods []corev1.Pod) []string {
 }
 
 func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *corev1.Service {
-	ls := labelsForInfinispan(m.Name, m.Spec.ClusterName)
+	ls := labelsForInfinispan(m.Name, m.ObjectMeta.Name)
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",

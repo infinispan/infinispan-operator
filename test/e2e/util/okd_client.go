@@ -2,28 +2,30 @@ package util
 
 import (
 	"errors"
+	"io/ioutil"
+	"net/http"
+	"path"
+	"strconv"
+
 	api "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
 	authv1 "github.com/openshift/api/authorization/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	authclient "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
-	userclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	routeclient "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
-	"io/ioutil"
+	userclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	"k8s.io/client-go/tools/clientcmd"
-	"net/http"
-	"path"
-	"strconv"
 
-	"k8s.io/api/core/v1"
+	"reflect"
+	"time"
+
+	v1 "k8s.io/api/core/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	apiv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"reflect"
-	"time"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -31,13 +33,13 @@ import (
 
 // ExternalOKD provides a simplified client for a running OKD cluster
 type ExternalOKD struct {
-	coreClient *coreV1.CoreV1Client
-	userClient *userclient.UserV1Client
+	coreClient  *coreV1.CoreV1Client
+	userClient  *userclient.UserV1Client
 	routeClient *routeclient.RouteV1Client
-	authClient *authclient.AuthorizationV1Client
-	appsClient *appsV1.AppsV1Client
-	extensions *apiextclient.ApiextensionsV1beta1Client
-	ispnClient *ispnv1.InfinispanV1Client
+	authClient  *authclient.AuthorizationV1Client
+	appsClient  *appsV1.AppsV1Client
+	extensions  *apiextclient.ApiextensionsV1beta1Client
+	ispnClient  *ispnv1.InfinispanV1Client
 }
 
 // Options used when deleting resources
