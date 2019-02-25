@@ -95,7 +95,6 @@ metadata:
   name: example-minimal
 spec:
   size: 3
-  clustername: cluster1
 ```
 
 #### Using an internal configuration
@@ -111,7 +110,6 @@ config:
   name: clustered.xml
 spec:
   size: 3
-  clustername: cluster1
 ```
 
 
@@ -131,7 +129,6 @@ config:
   name: my-config.xml
 spec:
   size: 3
-  clustername: helloworldcluster
 
 ```
 

@@ -4,4 +4,3 @@ metadata:
   name: example-infinispan
 spec:
   size: 3
-  clustername: helloworldcluster

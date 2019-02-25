@@ -6,8 +6,7 @@ import (
 
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
-	Size        int32  `json:"size"`
-	ClusterName string `json:"clustername"`
+	Size int32 `json:"size"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan
