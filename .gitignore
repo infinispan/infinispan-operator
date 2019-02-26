@@ -79,3 +79,5 @@ build/_output
 vendor/
 .idea/
 # End of https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
+### Backup files ###
+*.backup

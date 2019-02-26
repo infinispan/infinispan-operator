@@ -46,5 +46,9 @@ test: build
 copy-kubeconfig:
 	build/copy-kubeconfig.sh ${KUBECONFIG}
 
+## release      Release a versioned operator. Requires 'RELEASE_NAME=X.Y.Z'. Defaults to dry run so pass 'DRY_RUN=false' to commit the release.
+release:
+	build/release.sh
+
 help : Makefile
 	@sed -n 's/^##//p' $<
