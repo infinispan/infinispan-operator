@@ -153,3 +153,12 @@ To run against 4.0.0 cluster:
 
 
 ``` make test KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig```  
+
+
+### Releases
+
+To make a release, invoke:
+
+```bash
+make DRY_RUN=false RELEASE_NAME=X.Y.Z release
+```
