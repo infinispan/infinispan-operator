@@ -28,7 +28,7 @@ var ConfigLocation = getConfigLocation()
 
 const Namespace = "namespace-for-testing"
 const TestTimeout = 5 * time.Minute
-const SinglePodTimeout = 1 * time.Minute
+const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 10 * time.Second
 
 var okd = util.NewOKDClient(ConfigLocation)

@@ -29,6 +29,8 @@ import (
 
 	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 // ExternalOKD provides a simplified client for a running OKD cluster
@@ -41,6 +43,8 @@ type ExternalOKD struct {
 	extensions  *apiextclient.ApiextensionsV1beta1Client
 	ispnClient  *ispnv1.InfinispanV1Client
 }
+
+var log = logf.Log.WithName("main_test")
 
 // Options used when deleting resources
 var deletePropagation = apiv1.DeletePropagationBackground
@@ -345,6 +349,7 @@ func (c ExternalOKD) WaitForPods(ns, label string, required int, timeout time.Du
 		pods := podList.Items
 
 		if len(pods) != required {
+			debugPods(required, pods)
 			return false, nil
 		}
 		allReady := true
@@ -364,6 +369,13 @@ func (c ExternalOKD) WaitForPods(ns, label string, required int, timeout time.Du
 		return err
 	}
 	return nil
+}
+
+func debugPods(required int, pods []v1.Pod) {
+	log.Info("pod list incomplete", "required", required, "pod list size", len(pods))
+	for _, pod := range pods {
+		log.Info("pod info", "name", pod.ObjectMeta.Name, "statuses", pod.Status.ContainerStatuses)
+	}
 }
 
 func (c ExternalOKD) WaitForRoute(url string, client *http.Client, timeout time.Duration) {
