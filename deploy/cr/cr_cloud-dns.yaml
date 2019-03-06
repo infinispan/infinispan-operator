@@ -1,0 +1,14 @@
+# This defines an Infinispan resource named example-infinispan
+# that runs dns-ping discover protocol
+
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+config:
+  sourceType: ConfigMap
+  sourceRef:  infinispan-app-configuration
+  name: cloud-dns.xml
+spec:
+  size: 3
+  jgroups-stack: dns-ping

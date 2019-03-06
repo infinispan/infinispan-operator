@@ -30,6 +30,7 @@ var log = logf.Log.WithName("controller_infinispan")
 const ConfigMapping = "custom"
 const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
 const DefaultConfig = "cloud.xml"
+const DefaultJGroupsStack = "kubernetes"
 
 // DefaultImageName is used if a specific image name is not provided
 const DefaultImageName = "jboss/infinispan-server:latest"
@@ -126,6 +127,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
+		serDns := r.serviceForDnsPing(infinispan)
+		err = r.client.Create(context.TODO(), serDns)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			reqLogger.Error(err, "failed to create Service", "Service", serDns)
+			return reconcile.Result{}, err
+		}
 		// Deployment created successfully - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
@@ -193,6 +200,12 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	} else {
 		configPath = DefaultConfig
 	}
+	var jGroupsStack string
+	if m.Spec.JGroupsStack != "" {
+		jGroupsStack = m.Spec.JGroupsStack
+	} else {
+		jGroupsStack = DefaultJGroupsStack
+	}
 
 	var imageName string
 	if m.Spec.Image != "" {
@@ -227,7 +240,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
-						Args:  []string{configPath, "-Djboss.default.jgroups.stack=kubernetes"},
+						Args: []string{configPath, "-Djboss.default.jgroups.stack=" + jGroupsStack,
+							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping.default.svc.cluster.local"},
 						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.Namespace}, // TODO this is the right place for namespace?
 							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
 							{Name: "MGMT_USER", Value: "infinispan"},
@@ -319,6 +333,36 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 				{
 					Name: "hotrod",
 					Port: 11222,
+				},
+			},
+		},
+	}
+
+	// Set Infinispan instance as the owner and controller
+	controllerutil.SetControllerReference(m, service, r.scheme)
+
+	return service
+}
+
+func (r *ReconcileInfinispan) serviceForDnsPing(m *infinispanv1.Infinispan) *corev1.Service {
+	ls := labelsForInfinispan(m.Name, m.ObjectMeta.Name)
+	service := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      m.Name + "-ping",
+			Namespace: m.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: "None",
+			Selector:  ls,
+			Ports: []corev1.ServicePort{
+				{
+					Name: "ping",
+					Port: 8888,
 				},
 			},
 		},

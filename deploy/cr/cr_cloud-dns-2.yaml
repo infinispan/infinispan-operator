@@ -1,0 +1,16 @@
+# This defines an Infinispan resource named example-infinispan-2
+# that runs dns-ping discover protocol
+# Used combined with cr_cloud-dns.yaml to check if
+# different cluster can coexist
+
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan-2
+config:
+  sourceType: ConfigMap
+  sourceRef:  infinispan-app-configuration
+  name: cloud-dns.xml
+spec:
+  size: 3
+  jgroups-stack: dns-ping

@@ -8,6 +8,7 @@ import (
 type InfinispanSpec struct {
 	Size  int32  `json:"size"`
 	Image string `json:"image"`
+	JGroupsStack string `json:"jgroups-stack"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan
