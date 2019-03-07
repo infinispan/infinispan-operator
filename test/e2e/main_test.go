@@ -164,35 +164,8 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 }
 
 func TestCreateWithInternalConfig(t *testing.T) {
-	// Create a resource without passing any config
+	// Create a cluster with a pre-canned config
 	spec := ispnv1.Infinispan{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v1",
-			Kind:       "Infinispan",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "cache-infinispan-minimal",
-		},
-		Spec: ispnv1.InfinispanSpec{
-			Size: 2,
-		},
-	}
-
-	// Register it
-	okd.CreateInfinispan(&spec, Namespace)
-
-	// Make sure 2 pods are started
-	err := okd.WaitForPods(Namespace, "clusterName=cache-infinispan-minimal", 2, TestTimeout)
-
-	// Cleanup resource
-	defer okd.DeleteInfinispan("cache-infinispan-minimal", Namespace)
-
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// Create another cluster with a pre-canned config
-	spec = ispnv1.Infinispan{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v1",
 			Kind:       "Infinispan",
@@ -215,7 +188,7 @@ func TestCreateWithInternalConfig(t *testing.T) {
 	defer okd.DeleteInfinispan("cache-infinispan-precanned-config", Namespace)
 
 	// Make sure 2 pods are started
-	err = okd.WaitForPods(Namespace, "clusterName=cache-infinispan-precanned-config", 2, TestTimeout)
+	err := okd.WaitForPods(Namespace, "clusterName=cache-infinispan-precanned-config", 2, TestTimeout)
 
 	if err != nil {
 		panic(err.Error())
