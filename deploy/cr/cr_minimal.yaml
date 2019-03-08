@@ -1,7 +1,9 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
+  # Set a name for the Infinispan pods.
   name: example-infinispan
 spec:
+  # Configure the cluster size.
   size: 3
   image: jboss/infinispan-server:latest

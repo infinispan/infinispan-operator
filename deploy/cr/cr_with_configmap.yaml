@@ -1,10 +1,12 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
+  # Set a name for the Infinispan pods.
   name: example-infinispan
 config:
   sourceType: ConfigMap
   sourceRef:  infinispan-app-configuration
   name: cloud-ephemeral.xml
 spec:
+  #Configure the cluster size.
   size: 3
