@@ -6,49 +6,63 @@ PROG  := infinispan-operator
 
 .DEFAULT_GOAL := help
 
-## dep:         Ensure deps as available locally
+## dep         Ensure deps is locally available.
 dep:
 	dep ensure
 
-## codegen:     Run k8s code generator for custom resources (https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
+## codegen     Run the k8s code generator for custom resources.
+##             See https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/
 codegen:
 	./build/codegen.sh
 
-## build:       Compile and build the operator
+## build       Compile and build the Infinispan operator.
 build: dep
 	./build/build.sh
 
-## image:       Build the Docker image for the operator
+## image       Build a Docker image for the Infinispan operator.
 image: build
 	docker build -t "$(IMAGE):$(TAG)" . -f build/Dockerfile
 
-## push:        Push the image to dockerhub
+## push        Push Docker images to Docker Hub.
 push: image
 	docker push $(IMAGE):$(TAG)
 
-## clean:       Remove all generated files during build
+## clean       Remove all generated build files.
 clean:
 	rm -rf build/_output
 
-## run:         Run the operator from jboss/infinispan-operator in a running OKD cluster. Specify the config path with the cmd line arg 'KUBECONFIG=/path/to/config'
+## run         Create the Infinispan operator on OKD with the public image.
+##             - Specify cluster access configuration with KUBECONFIG.
+##             - Example: "make run KUBECONFIG=/path/to/admin.kubeconfig"
+##
 run:
 	build/run-okd.sh ${KUBECONFIG}
 
-## run-local:   Run the operator locally in a running OKD cluster. Specify the config path with the cmd line arg 'KUBECONFIG=/path/to/config'
+## run-local   Create the Infinispan operator image on OKD from a local image.
+##             - Specify cluster access configuration with KUBECONFIG.
+##             - Example: "make run-local KUBECONFIG=/path/to/admin.kubeconfig"
+##
 run-local: build
 	build/run-local.sh ${KUBECONFIG}
 
-## test:        Run e2e tests. A KUBECONFIG can be specified with cmd line arg 'KUBECONFIG=/path/to/config'
+## test        Perform end to end (e2e) tests on running clusters.
+##             - Specify the target cluster with KUBECONFIG.
+##             - Example: "make test KUBECONFIG=/path/to/admin.kubeconfig"
+##
 test: build
 	build/run-tests.sh ${KUBECONFIG}
 
-## copy-kubeconfig:   Copy cluster adming kubernetes config file to cmd line arg 'KUBECONFIG=/path/to/config' location
-copy-kubeconfig:
-	build/copy-kubeconfig.sh ${KUBECONFIG}
-
-## release      Release a versioned operator. Requires 'RELEASE_NAME=X.Y.Z'. Defaults to dry run so pass 'DRY_RUN=false' to commit the release.
+## release     Release a versioned operator.
+##             - Requires 'RELEASE_NAME=X.Y.Z'. Defaults to dry run.
+##             - Pass 'DRY_RUN=false' to commit the release.
+##             - Example: "make DRY_RUN=false RELEASE_NAME=X.Y.Z release"
+##
 release:
 	build/release.sh
+
+## copy-kubeconfig   Copy admin.kubeconfig for the OKD cluster to the location of KUBECONFIG
+copy-kubeconfig:
+	build/copy-kubeconfig.sh ${KUBECONFIG}
 
 help : Makefile
 	@sed -n 's/^##//p' $<

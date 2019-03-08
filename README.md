@@ -1,161 +1,120 @@
-## Infinispan Server Operator 
+## Infinispan Operator
 
 [![Build Status](https://travis-ci.org/infinispan/infinispan-operator.svg?branch=master)](https://travis-ci.org/infinispan/infinispan-operator)
 
 This is an Openshift operator to run and rule Infinispan.
 
-### Requirements
+### System Requirements
 
-
-* go (GOPATH=$HOME/go)
+* [go](https://github.com/golang/go) with `$GOPATH` set to `$HOME/go`
 * Docker
 * [dep](https://github.com/golang/dep#installation)    
-* An [OKD cluster](https://www.okd.io/download.html) 
+* A running [OKD cluster](https://www.okd.io/download.html) with `system:admin` access.
 
+### Building the Infinispan Operator
 
-### Build
-
-Checkout sources under $GOPATH:
+1. Add the source under `$GOPATH`:
 ```
-git clone https://github.com/infinispan/infinispan-operator.git $GOPATH/src/github.com/infinispan/infinispan-operator
-
-cd $GOPATH/src/github.com/infinispan/infinispan-operator
-
+$ git clone https://github.com/infinispan/infinispan-operator.git $GOPATH/src/github.com/infinispan/infinispan-operator
 ```
-
-The project has a self-documented Makefile. To see the available targets, execute ```make``` without any parameters.
-
-
-```make build``` will compile the operator.
-
-
-### Running the operator outside OKD
-
-
-To launch the operator locally, pointing to a running OKD cluster, make sure OKD is started, e.g. with ```oc cluster up```. Then run:
-
-
+2. Change to the source directory.
 ```
-make run-local
+$ cd $GOPATH/src/github.com/infinispan/infinispan-operator
+```
+3. Review the available build targets.
+```
+$ make
+```
+4. Run any build target. For example, compile and build the Infinispan Operator with:
+```
+$ make build
 ```
 
-(Optional) You can pass in KUBECONFIG to the task to specify the config location. 
+### Running the Infinispan Operator
 
-E.g., for OKD 3.11 started with ```oc cluster up```, that'd be:
-
+1. Start OKD. For example:
 ```
-make run-local KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
+$ oc cluster up
 ```
-
-On other terminal, apply the resource template to instruct the operator to create a 3-node Infinispan cluster: 
+2. Specify the Kube configuration for the OKD cluster.
 ```
-oc apply -f deploy/cr/cr_minimal.yaml
+$ export KUBECONFIG=/path/to/admin.kubeconfig
 ```
-
-Check with ```oc get pods```.
-
-You can have fun and change the size parameter in ```deploy/cr/cr_minimal.yaml``` and apply it again to see the operator in action.  
-
-### Publishing the Docker image
-
-```make push``` will build the image and push it to [Dockerhub](https://hub.docker.com/r/jboss/infinispan-operator). 
-
-### Running the operator inside OKD
-
-To run the operator inside OKD, using the public image [jboss/infinispan-operator](https://hub.docker.com/r/jboss/infinispan-operator) :
-
-Make sure OKD is started, e.g. with ```oc cluster up```. Then run:
-
+3. Create the Infinispan operator on OKD.
+  * Use the public  [jboss/infinispan-operator](https://hub.docker.com/r/jboss/infinispan-operator) image:
+  ```
+  $ make run
+  ```
+  * Use a locally built image:
+  ```
+  $ make run-local
+  ```
+4. Open a new terminal window and create an Infinispan cluster with three nodes:
 ```
-make run
+$ oc apply -f deploy/cr/cr_minimal.yaml
+infinispan.infinispan.org/example-infinispan configured
 ```
-
-(Optional) Specify the kube config path with the ```KUBECONFIG=/path/to/admin.kubeconfig``` cmd line arg 
-
-To create a cluster, apply
-
+5. Watch the pods start until they start running.
 ```
-oc apply -f deploy/cr/cr_minimal.yaml
+$ oc get pods -w
+NAME                                   READY     STATUS              RESTARTS   AGE
+example-infinispan-54c66fd755-28lvx    0/1       ContainerCreating   0          4s
+example-infinispan-54c66fd755-7c4zc    0/1       ContainerCreating   0          4s
+example-infinispan-54c66fd755-8gbxf    0/1       ContainerCreating   0          5s
+infinispan-operator-69d7d4469d-f62ws   1/1       Running             0          3m
+example-infinispan-54c66fd755-8gbxf    1/1       Running             0          8s
+example-infinispan-54c66fd755-7c4zc    1/1       Running             0          8s
+example-infinispan-54c66fd755-28lvx    1/1       Running             0          8s
 ```
 
-### Custom Resource Definition
+Now it's time to have some fun. Let's see the Infinispan operator in action.
 
-The Infinispan resource definition is detailed at [infinispan-types.go](https://github.com/infinispan/infinispan-operator/blob/master/pkg/apis/infinispan/v1/infinispan_types.go).
+Change the cluster size in `deploy/cr/cr_minimal.yaml` and then apply it again. The Infinispan operator scales the number of nodes in the cluster up or down.
 
-Below are some example of creating different kinds of clusters:
+### Custom Resource Definitions
 
-#### Minimal custer
+Custom resources allow you to dynamically configure Infinispan clusters using the Kubernetes API.
 
-A cluster created using ```cloud.xml``` configuration can be created with:
+Infinispan resources are defined in [infinispan-types.go](https://github.com/infinispan/infinispan-operator/blob/master/pkg/apis/infinispan/v1/infinispan_types.go).
+
+#### Minimal Configuration
+Use this resource to create Infinispan clusters using the `cloud.xml` configuration. This is the default configuration and uses the Kubernetes JGroups stack to form clusters with the `KUBE_PING` protocol.
 
 ```yaml
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: example-minimal
+  name: example-infinispan-minimal
 spec:
   size: 3
 ```
 
-#### Using an internal configuration
-
-To point to any pre-existing configuration from Infinispan, for e.g. ```clustered.xml```:
+#### Infinispan Configuration
+Use this resource to create Infinispan clusters using a configuration such as `clustered.xml` from `/opt/jboss/infinispan-server/standalone/configuration/`.
 
 ```yaml
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: example-minimal
+  name: example-infinispan-config
 config:
   name: clustered.xml
 spec:
   size: 3
 ```
 
-
-#### Using a config map
-
-
-To use a file ```my-config.xml``` stored in a config map with name ```my-config-map``` as configuration:
+#### Custom Configuration
+Use this resource to create Infinispan clusters with custom configuration via a ConfigMap. For example, configure clusters with `my-config.xml` with a ConfigMap named `my-config-map`.
 
 ```yaml
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: example-infinispan
+  name: example-infinispan-custom
 config:
   sourceType: ConfigMap
   sourceRef:  my-config-map
   name: my-config.xml
 spec:
   size: 3
-
-```
-
-### Running tests
-
-The Makefile has a goal for testing that can target a particular external running cluster. E.g: 
-
-To run tests against 3.11 clusters started with ``` oc cluster up```:
-
-```make test```
-
-or 
-
-``` make test KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/admin.kubeconfig```  
-
-in case the cluster was started in a different directory than the Makefile.
-
-To run against 4.0.0 cluster:
-
-
-``` make test KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig```  
-
-
-### Releases
-
-To make a release, invoke:
-
-```bash
-make DRY_RUN=false RELEASE_NAME=X.Y.Z release
 ```
