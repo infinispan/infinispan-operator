@@ -30,7 +30,7 @@ var log = logf.Log.WithName("controller_infinispan")
 const ConfigMapping = "custom"
 const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
 const DefaultConfig = "cloud.xml"
-const DefaultJGroupsStack = "kubernetes"
+const DefaultJGroupsStack = "dns-ping"
 
 // DefaultImageName is used if a specific image name is not provided
 const DefaultImageName = "jboss/infinispan-server:latest"
