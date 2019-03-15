@@ -43,6 +43,9 @@ type InfinispanConfig struct {
 
 	// If the source is external, the reference to the resource
 	SourceRef string `json:"sourceRef,omitempty"`
+
+	// Name of the secrets volume if any
+	Secret string `json:"secret"`
 }
 
 // +genclient

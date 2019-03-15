@@ -28,7 +28,9 @@ var log = logf.Log.WithName("controller_infinispan")
 
 // Folder to map external config files
 const ConfigMapping = "custom"
+const ClusterSecrets = "cluster-secrets"
 const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
+const ClusterSecretsPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ClusterSecrets
 const DefaultConfig = "cloud.xml"
 
 // DefaultImageName is used if a specific image name is not provided
@@ -241,7 +243,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Image: imageName,
 						Name:  "infinispan",
 						Args: []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
-							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local"},
+							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local",
+							"-Dcluster.secrets.dir=" + ClusterSecretsPath},
 						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.ObjectMeta.Namespace}, // TODO this is the right place for namespace?
 							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
 							{Name: "MGMT_USER", Value: "infinispan"},
@@ -273,7 +276,6 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			},
 		},
 	}
-
 	// If using a config map, attach a volume to the container and mount it under 'custom' dir inside the configuration folder
 	if infinispanConfig.SourceType == infinispanv1.ConfigMap {
 		dep.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
@@ -285,7 +287,12 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		dep.Spec.Template.Spec.Volumes = []corev1.Volume{{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 			LocalObjectReference: corev1.LocalObjectReference{Name: infinispanConfig.SourceRef}}}, Name: infinispanConfig.SourceRef}}
 	}
-
+	// If config provides a non empty secret field mount the volume
+	if infinispanConfig.Secret != "" {
+		dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{MountPath: ClusterSecretsPath, Name: infinispanConfig.Secret})
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+			SecretName: infinispanConfig.Secret}}, Name: infinispanConfig.Secret})
+	}
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep

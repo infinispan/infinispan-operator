@@ -214,6 +214,15 @@ func (c ExternalOKD) CreateOrUpdateConfigMap(name string, filePath string, names
 	}
 }
 
+// DeleteConfigMap deletes a ConfigMap resource in the given namespace
+func (c ExternalOKD) DeleteConfigMap(name string, namespace string) {
+	configSvc := c.coreClient.ConfigMaps(namespace)
+	e := configSvc.Delete(name, &deleteOpts)
+	if e != nil {
+		panic(e)
+	}
+}
+
 // Creates or updates a Role in the given namespace
 func (c ExternalOKD) CreateOrUpdateRole(role *authv1.Role, namespace string) {
 	existing, _ := c.authClient.Roles(namespace).Get(role.ObjectMeta.Name, metaV1.GetOptions{})
@@ -516,5 +525,22 @@ func resolveRoutePort(portString string) *routev1.RoutePort {
 	}
 	return &routev1.RoutePort{
 		TargetPort: routePort,
+	}
+}
+
+// CreateSecret creates a Secret resource in the given namespace
+func (c ExternalOKD) CreateSecret(secret *v1.Secret, namespace string) {
+	_, e := c.coreClient.Secrets(namespace).Create(secret)
+	if e != nil {
+		panic(e)
+	}
+}
+
+// DeleteSecret deletes a Secret resource in the given namespace
+func (c ExternalOKD) DeleteSecret(name string, namespace string) {
+	secretSvc := c.coreClient.Secrets(namespace)
+	e := secretSvc.Delete(name, &deleteOpts)
+	if e != nil {
+		panic(e)
 	}
 }

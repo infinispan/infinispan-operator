@@ -14,6 +14,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/test/e2e/util"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -73,6 +74,7 @@ func TestClusterFormation(t *testing.T) {
 	defer okd.DeleteInfinispan("cache-infinispan", Namespace, "app=infinispan-pod", SinglePodTimeout)
 
 	// Wait that 2 pods are up
+
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 2, SinglePodTimeout)
 	if err != nil {
 		panic(err.Error())
@@ -246,4 +248,74 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 		panic(err.Error())
 	}
 
+}
+
+// Test if a secret is mounted correctly as a folder
+// if Config.secret is specified
+func TestSecretMountedAsFolder(t *testing.T) {
+	// Create the secret
+	secretString := "I'm a secret!"
+	secretSpec := v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster-secrets",
+		},
+		Type:       "Opaque",
+		StringData: map[string]string{"secret": secretString},
+	}
+	okd.CreateSecret(&secretSpec, Namespace)
+	defer okd.DeleteSecret(secretSpec.ObjectMeta.Name, Namespace)
+
+	// Install config map from deploy folder
+	configMapName := "test-config-map"
+	util.InstallConfigMap(Namespace, configMapName, okd)
+
+	// Create a resource using external config from a ConfigMap
+	// and a secret as a folder
+	spec := ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cache-infinispan",
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Size: 1,
+		},
+		Config: ispnv1.InfinispanConfig{
+			SourceType: ispnv1.ConfigMap,
+			SourceRef:  configMapName,
+			Name:       "cloud-ephemeral.xml",
+			Secret:     secretSpec.ObjectMeta.Name,
+		},
+	}
+	okd.CreateInfinispan(&spec, Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan", Namespace, "app=infinispan-pod", SinglePodTimeout)
+	// Make sure 1 pod is started
+	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, TestTimeout)
+	if err != nil {
+		panic(err.Error())
+	}
+	pods, err := okd.GetPods(Namespace, "app=infinispan-pod")
+	if err != nil {
+		panic(err.Error())
+	}
+	podName := pods[0].Name
+	// Cat the secret file from the pod a match the result
+	commands := []string{"cat", "/opt/jboss/infinispan-server/standalone/configuration/cluster-secrets/secret"}
+	var execIn, execOut, execErr bytes.Buffer
+	err = okd.ExecuteCmdOnPod(Namespace, podName, commands,
+		&execIn, &execOut, &execErr)
+	if err == nil {
+		result := execOut.String()
+		if result == secretString {
+			return
+		}
+		panic("Secret doesn't match: expected " + secretString + " got " + result)
+	}
+	panic(err.Error())
 }
