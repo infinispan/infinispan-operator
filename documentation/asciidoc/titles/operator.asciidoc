@@ -1,0 +1,12 @@
+//Community attributes
+:toc2:
+:icons: font
+:toclevels: 3
+:numbered:
+include::topics/attributes/community-attributes.adoc[]
+
+= Deploying {brandname} with the Operator
+
+[id='infinispan_operator-{context}']
+== {brandname} Operator
+include::stories.adoc[]
