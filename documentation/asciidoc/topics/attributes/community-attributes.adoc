@@ -1,0 +1,11 @@
+:brandname: Infinispan
+:ispn_operator: Infinispan Operator
+:infinispanversion: 9.4.0
+:k8s: Kubernetes
+
+//Linking for API docs
+:javadocroot:
+:configdocroot:
+:wildflydocroot: https://docs.jboss.org/author/display/WFLY11
+:jdkdocroot:
+:javaeedocroot:

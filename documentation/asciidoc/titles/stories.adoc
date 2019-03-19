@@ -1,0 +1,2 @@
+include::topics/con_infinispan_operator.adoc[]
+include::stories/spinning-up-clusters.adoc[]
