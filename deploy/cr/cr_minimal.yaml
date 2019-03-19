@@ -1,7 +1,7 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  # Set a name for the Infinispan pods.
+  # Set a name for the Infinispan cluster.
   name: example-infinispan
 spec:
   # Configure the cluster size.
