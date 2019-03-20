@@ -72,49 +72,75 @@ Now it's time to have some fun. Let's see the Infinispan operator in action.
 Change the cluster size in `deploy/cr/cr_minimal.yaml` and then apply it again. The Infinispan operator scales the number of nodes in the cluster up or down.
 
 ### Custom Resource Definitions
-
-Custom resources allow you to dynamically configure Infinispan clusters using the Kubernetes API.
+The Infinispan Operator creates clusters based on custom resource definitions that specify the number of nodes and configuration to use.
 
 Infinispan resources are defined in [infinispan-types.go](https://github.com/infinispan/infinispan-operator/blob/master/pkg/apis/infinispan/v1/infinispan_types.go).
 
 #### Minimal Configuration
-Use this resource to create Infinispan clusters using the `cloud.xml` configuration. This is the default configuration and uses the Kubernetes JGroups stack to form clusters with the `KUBE_PING` protocol.
+Creates Infinispan clusters with `cloud.xml` that uses the Kubernetes JGroups stack to form clusters with the `KUBE_PING` protocol.
 
 ```yaml
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
+  # Sets a name for the Infinispan cluster.
   name: example-infinispan-minimal
 spec:
+  # Sets the number of nodes in the cluster.
   size: 3
 ```
 
 #### Infinispan Configuration
-Use this resource to create Infinispan clusters using a configuration such as `clustered.xml` from `/opt/jboss/infinispan-server/standalone/configuration/`.
+Creates Infinispan clusters using `clustered.xml` in the `/opt/jboss/infinispan-server/standalone/configuration/` directory on the image.
 
 ```yaml
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
+  # Sets a name for the Infinispan cluster.
   name: example-infinispan-config
 config:
   name: clustered.xml
 spec:
+  # Sets the number of nodes in the cluster.
   size: 3
 ```
 
 #### Custom Configuration
-Use this resource to create Infinispan clusters with custom configuration via a ConfigMap. For example, configure clusters with `my-config.xml` with a ConfigMap named `my-config-map`.
+Creates Infinispan clusters with custom configuration through the ConfigMap API.
 
 ```yaml
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
+  # Sets a name for the Infinispan cluster.
   name: example-infinispan-custom
 config:
   sourceType: ConfigMap
+  # Specifies the name of the ConfigMap.
   sourceRef:  my-config-map
+  # Specifies the custom configuration file.
   name: my-config.xml
 spec:
+  # Sets the number of nodes in the cluster.
   size: 3
+```
+
+### Testing the Infinispan Operator
+Use the `test` target to test the Infinispan Operator on a specific OKD cluster.
+
+To test a locally running cluster, run:
+```
+$ make test
+```
+
+Alternatively, pass `KUBECONFIG` to specify cluster access:
+```
+$ make test KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
+```
+
+### Releases
+To create releases, run:
+```
+$ make DRY_RUN=false RELEASE_NAME=X.Y.Z release
 ```
