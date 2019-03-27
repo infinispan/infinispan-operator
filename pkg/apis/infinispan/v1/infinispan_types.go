@@ -45,6 +45,11 @@ type InfinispanConfig struct {
 	SourceRef string `json:"sourceRef,omitempty"`
 }
 
+// InfinispanCloud defines the conf variable for the default cloud.xml configuration
+type InfinispanCloud struct {
+	Secret string `json:"secret"`
+}
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -57,6 +62,7 @@ type Infinispan struct {
 	Config InfinispanConfig `json:"config,omitempty"`
 	Spec   InfinispanSpec   `json:"spec,omitempty"`
 	Status InfinispanStatus `json:"status,omitempty"`
+	Cloud  InfinispanCloud  `json:"cloud,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

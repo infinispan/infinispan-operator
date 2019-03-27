@@ -1,0 +1,19 @@
+# This define an Infinispan cluster that wants app and mgmt user/pass
+# specified in a secret. If the secret's name is specified the secret
+# must contains all the authentication keys:
+#       APP_USER
+#       APP_PASS
+#       MGMT_USER
+#       MGMT_PASS
+# the cr_cloudsecret.yaml file is an example and can be used like this:
+# oc apply -f cloud_secret.yaml
+#
+
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+cloud:
+  secret: cloudsecret
+spec:
+  size: 3

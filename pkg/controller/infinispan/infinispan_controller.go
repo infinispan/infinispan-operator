@@ -30,6 +30,8 @@ var log = logf.Log.WithName("controller_infinispan")
 const ConfigMapping = "custom"
 const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
 const DefaultConfig = "cloud.xml"
+const DefaultUser = "infinispan"
+const DefaultPass = "infinispan"
 
 // DefaultImageName is used if a specific image name is not provided
 const DefaultImageName = "jboss/infinispan-server:latest"
@@ -192,6 +194,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	ls := labelsForInfinispan(m.ObjectMeta.Name)
 
 	infinispanConfig := m.Config
+	infinispanCloud := m.Cloud
 	var configPath string
 
 	switch infinispanConfig.SourceType {
@@ -212,6 +215,79 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		imageName = m.Spec.Image
 	} else {
 		imageName = DefaultImageName
+	}
+
+	falseVal := false
+	var appUser, appPass, mgmtUser, mgmtPass corev1.EnvVar
+	if infinispanCloud.Secret != "" {
+		appUser = corev1.EnvVar{
+			Name: "APP_USER",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: infinispanCloud.Secret},
+					Key:                  "APP_USER",
+					Optional:             &falseVal,
+				},
+			},
+		}
+		appPass = corev1.EnvVar{
+			Name: "APP_PASS",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: infinispanCloud.Secret},
+					Key:                  "APP_PASS",
+					Optional:             &falseVal,
+				},
+			},
+		}
+
+		mgmtUser = corev1.EnvVar{
+			Name: "MGMT_USER",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: infinispanCloud.Secret},
+					Key:                  "MGMT_USER",
+					Optional:             &falseVal,
+				},
+			},
+		}
+		mgmtPass = corev1.EnvVar{
+			Name: "MGMT_PASS",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: infinispanCloud.Secret},
+					Key:                  "MGMT_PASS",
+					Optional:             &falseVal,
+				},
+			},
+		}
+	} else {
+		appUser = corev1.EnvVar{
+			Name:  "APP_USER",
+			Value: "infinispan",
+		}
+
+		appPass = corev1.EnvVar{
+			Name:  "APP_PASS",
+			Value: "infinispan",
+		}
+		mgmtUser = corev1.EnvVar{
+			Name:  "MGMT_USER",
+			Value: "infinispan",
+		}
+		mgmtPass = corev1.EnvVar{
+			Name:  "MGMT_PASS",
+			Value: "infinispan",
+		}
+	}
+
+	containerEnv := []corev1.EnvVar{
+		{Name: "KUBERNETES_NAMESPACE", Value: m.ObjectMeta.Namespace}, // TODO this is the right place for namespace?
+		{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
+		appUser,
+		appPass,
+		mgmtUser,
+		mgmtPass,
 	}
 	dep := &appsv1beta1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
@@ -242,12 +318,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Name:  "infinispan",
 						Args: []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
 							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local"},
-						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.ObjectMeta.Namespace}, // TODO this is the right place for namespace?
-							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
-							{Name: "MGMT_USER", Value: "infinispan"},
-							{Name: "MGMT_PASS", Value: "infinispan"},
-							{Name: "APP_USER", Value: "infinispan"},
-							{Name: "APP_PASS", Value: "infinispan"}},
+						Env: containerEnv,
 						LivenessProbe: &corev1.Probe{Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/usr/local/bin/is_running.sh"}}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
@@ -285,7 +356,12 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		dep.Spec.Template.Spec.Volumes = []corev1.Volume{{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 			LocalObjectReference: corev1.LocalObjectReference{Name: infinispanConfig.SourceRef}}}, Name: infinispanConfig.SourceRef}}
 	}
-
+	// // If config provides a non empty cluster-secrets field mount the volume
+	// if infinispanCloud.Secret != "" {
+	// 	dep.Spec.Template.Spec.Containers[0].VolumeMounts = append(dep.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{MountPath: ClusterSecretsPath, Name: "cluster-secrets"})
+	// 	dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, corev1.Volume{VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+	// 		SecretName: infinispanConfig.ClusterSecrets}}, Name: infinispanConfig.ClusterSecrets})
+	// }
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
