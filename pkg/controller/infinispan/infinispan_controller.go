@@ -30,7 +30,6 @@ var log = logf.Log.WithName("controller_infinispan")
 const ConfigMapping = "custom"
 const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
 const DefaultConfig = "cloud.xml"
-const DefaultJGroupsStack = "dns-ping"
 
 // DefaultImageName is used if a specific image name is not provided
 const DefaultImageName = "jboss/infinispan-server:latest"
@@ -200,12 +199,6 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	} else {
 		configPath = DefaultConfig
 	}
-	var jGroupsStack string
-	if m.Spec.JGroupsStack != "" {
-		jGroupsStack = m.Spec.JGroupsStack
-	} else {
-		jGroupsStack = DefaultJGroupsStack
-	}
 
 	var imageName string
 	if m.Spec.Image != "" {
@@ -240,7 +233,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
-						Args: []string{configPath, "-Djboss.default.jgroups.stack=" + jGroupsStack,
+						Args: []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
 							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping.default.svc.cluster.local"},
 						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.Namespace}, // TODO this is the right place for namespace?
 							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
