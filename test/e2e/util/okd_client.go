@@ -14,7 +14,10 @@ import (
 	authclient "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1"
 	routeclient "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	userclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
 
 	"reflect"
 	"time"
@@ -30,6 +33,8 @@ import (
 	appsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
+	"bytes"
+
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -42,6 +47,7 @@ type ExternalOKD struct {
 	appsClient  *appsV1.AppsV1Client
 	extensions  *apiextclient.ApiextensionsV1beta1Client
 	ispnClient  *ispnv1.InfinispanV1Client
+	restConfig  *restclient.Config
 }
 
 var log = logf.Log.WithName("main_test")
@@ -66,7 +72,7 @@ func NewOKDClient(kubeConfigLocation string) *ExternalOKD {
 		&clientcmd.ConfigOverrides{})
 
 	config, err := clientConfig.ClientConfig()
-
+	c.restConfig = config
 	if err != nil {
 		panic(err.Error())
 	}
@@ -334,6 +340,40 @@ func (c ExternalOKD) Pods(namespace, label string) []string {
 		s = append(s, element.Name)
 	}
 	return s
+}
+
+// ExecuteCmdOnPod Excecutes command on pod
+// commands array example { "/usr/bin/ls", "folderName" }
+// execIn, execOut, execErr stdin, stdout, stderr stream for the command
+func (c ExternalOKD) ExecuteCmdOnPod(namespace, podName string, commands []string,
+	execIn, execOut, execErr *bytes.Buffer) error {
+	// Create a POST request
+	execRequest := c.coreClient.RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&v1.PodExecOptions{
+			Container: "infinispan",
+			Command:   commands,
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+	// Create an executor
+	exec, err := remotecommand.NewSPDYExecutor(c.restConfig, "POST", execRequest.URL())
+	if err != nil {
+		return err
+	}
+	// Run the command
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdin:  execIn,
+		Stdout: execOut,
+		Stderr: execErr,
+		Tty:    false,
+	})
+	return err
 }
 
 // Waits for pods in the given namespace, having a certain label to reach the desired count in ContainersReady state.

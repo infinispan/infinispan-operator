@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +15,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/test/e2e/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 func getConfigLocation() string {
@@ -48,6 +51,67 @@ func TestSimple(t *testing.T) {
 	fmt.Printf("%v\n", okd.Nodes())
 	fmt.Printf("%s\n", okd.WhoAmI())
 	fmt.Printf("%s\n", okd.Pods("default", ""))
+}
+
+// Test if the cluster is working correctly
+func TestClusterFormation(t *testing.T) {
+	// Create a resource without passing any config
+	spec := ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cache-infinispan",
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Size: 3,
+		},
+	}
+	// Register it
+	okd.CreateInfinispan(&spec, Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan", Namespace)
+
+	// Wait that 3 pods are up
+	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 3, SinglePodTimeout)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Check that the cluster size is 3 querying the first pod
+	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
+		value, err := getClusterSize(Namespace, "cache-infinispan-0")
+		if err != nil {
+			return false, err
+		}
+		return (value == 3), nil
+	})
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+}
+
+// This function get the cluster size via the ISPN cli
+func getClusterSize(namespace, namePod string) (int, error) {
+	cliCommand := "/subsystem=datagrid-infinispan/cache-container=clustered/:read-attribute(name=cluster-size)\n"
+	commands := []string{"/opt/jboss/infinispan-server/bin/ispn-cli.sh", "--connect"}
+	var execIn, execOut, execErr bytes.Buffer
+	execIn.WriteString(cliCommand)
+	err := okd.ExecuteCmdOnPod(namespace, namePod, commands,
+		&execIn, &execOut, &execErr)
+	if err == nil {
+		result := execOut.String()
+		// Match the correct line in the output
+		resultRegExp := regexp.MustCompile("\"result\" => \"3\"")
+		// Match the result value
+		valueRegExp := regexp.MustCompile("\\d+")
+		resultLine := resultRegExp.FindString(result)
+		resultValueStr := valueRegExp.FindString(resultLine)
+		return strconv.Atoi(resultValueStr)
+	}
+	return 0, err
 }
 
 func TestExternalService(t *testing.T) {
