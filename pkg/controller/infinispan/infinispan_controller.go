@@ -194,9 +194,16 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	infinispanConfig := m.Config
 	var configPath string
 
-	if infinispanConfig.SourceType == infinispanv1.ConfigMap {
+	switch infinispanConfig.SourceType {
+	case infinispanv1.ConfigMap:
 		configPath = ConfigMapping + "/" + infinispanConfig.Name
-	} else {
+	case infinispanv1.Internal:
+		if infinispanConfig.Name != "" {
+			configPath = infinispanConfig.Name
+		} else {
+			configPath = DefaultConfig
+		}
+	default:
 		configPath = DefaultConfig
 	}
 

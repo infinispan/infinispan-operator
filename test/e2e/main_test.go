@@ -65,26 +65,26 @@ func TestClusterFormation(t *testing.T) {
 			Name: "cache-infinispan",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size: 3,
+			Size: 2,
 		},
 	}
 	// Register it
 	okd.CreateInfinispan(&spec, Namespace)
 	defer okd.DeleteInfinispan("cache-infinispan", Namespace)
 
-	// Wait that 3 pods are up
-	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 3, SinglePodTimeout)
+	// Wait that 2 pods are up
+	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 2, SinglePodTimeout)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	// Check that the cluster size is 3 querying the first pod
+	// Check that the cluster size is 2 querying the first pod
 	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
 		value, err := getClusterSize(Namespace, "cache-infinispan-0")
 		if err != nil {
 			return false, err
 		}
-		return (value == 3), nil
+		return (value == 2), nil
 	})
 
 	if err != nil {
@@ -104,7 +104,7 @@ func getClusterSize(namespace, namePod string) (int, error) {
 	if err == nil {
 		result := execOut.String()
 		// Match the correct line in the output
-		resultRegExp := regexp.MustCompile("\"result\" => \"3\"")
+		resultRegExp := regexp.MustCompile("\"result\" => \"\\d+\"")
 		// Match the result value
 		valueRegExp := regexp.MustCompile("\\d+")
 		resultLine := resultRegExp.FindString(result)
@@ -221,40 +221,17 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 	// Make sure 2 pods are started
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 2, TestTimeout)
 
-	if err != nil {
-		panic(err.Error())
-	}
-
-}
-
-func TestCreateWithInternalConfig(t *testing.T) {
-	// Create a cluster with a pre-canned config
-	spec := ispnv1.Infinispan{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v1",
-			Kind:       "Infinispan",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "cache-infinispan-precanned-config",
-		},
-		Config: ispnv1.InfinispanConfig{
-			SourceType: ispnv1.Internal,
-			Name:       "clustered.xml",
-		},
-		Spec: ispnv1.InfinispanSpec{
-			Size: 2,
-		},
-	}
-
-	// Register it
-	okd.CreateInfinispan(&spec, Namespace)
-	// Cleanup resource
-	defer okd.DeleteInfinispan("cache-infinispan-precanned-config", Namespace)
-
-	// Make sure 2 pods are started
-	err := okd.WaitForPods(Namespace, "clusterName=cache-infinispan-precanned-config", 2, TestTimeout)
+	// Check that the cluster size is 2 querying the first pod
+	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
+		value, err := getClusterSize(Namespace, "cache-infinispan-0")
+		if err != nil {
+			return false, err
+		}
+		return (value == 2), nil
+	})
 
 	if err != nil {
 		panic(err.Error())
 	}
+
 }
