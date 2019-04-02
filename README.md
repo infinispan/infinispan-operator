@@ -139,6 +139,47 @@ Alternatively, pass `KUBECONFIG` to specify cluster access:
 $ make test KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
 ```
 
+### Testing Infinispan operatorhub.io submissions
+
+Testing submissions to operatorhub.io is a two-step process:
+
+First, you need to push the operator to a quay.io application repository.
+Details on this will be provided ASAP.
+
+Once the operatorhub.io submission is on a quay.io repository, it has to be tested on `minikube`.
+This repository contains a Makefile and a series of scripts to help achieve this.
+With `minikube` in your path, type:
+
+```bash
+cd operatorhub
+make all
+```
+
+This command will trigger the creation of a new `minikube` profile, 
+with the optimal configuration for testing the Infinispan operator. 
+
+#### Troubleshooting
+
+"no matches for kind" errors
+
+These kind of errors mean the installation of Kubernetes elements did not complete.
+This can sometimes happen when installation of descriptors happens too quickly for changes to take effect.
+To solve the issue, identify the make target that failed and re-execute it.
+
+E.g. this is an example where target `make install-olm` did not complete:
+
+```bash
++ kubectl create -f deploy/upstream/manifests/latest/
+unable to recognize "deploy/upstream/manifests/latest/0000_50_olm_11-olm-operators.catalogsource.yaml": no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"
+```
+
+E.g. this an example where the target `make install-operator` did not complete:
+
+```bash
++ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/0.1.0/deploy/cr/cr_minimal.yaml -n local-operators
+error: unable to recognize "https://raw.githubusercontent.com/infinispan/infinispan-operator/0.1.0/deploy/cr/cr_minimal.yaml": no matches for kind "Infinispan" in version "infinispan.org/v1"
+```
+
 ### Releases
 To create releases, run:
 ```
