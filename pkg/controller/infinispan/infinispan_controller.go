@@ -234,7 +234,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Image: imageName,
 						Name:  "infinispan",
 						Args: []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
-							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping.default.svc.cluster.local"},
+							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.Namespace + ".svc.cluster.local"},
 						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.Namespace}, // TODO this is the right place for namespace?
 							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
 							{Name: "MGMT_USER", Value: "infinispan"},
