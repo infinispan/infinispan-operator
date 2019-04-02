@@ -126,10 +126,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		serDns := r.serviceForDnsPing(infinispan)
-		err = r.client.Create(context.TODO(), serDns)
+		serDNS := r.serviceForDNSPing(infinispan)
+		err = r.client.Create(context.TODO(), serDNS)
 		if err != nil && !errors.IsAlreadyExists(err) {
-			reqLogger.Error(err, "failed to create Service", "Service", serDns)
+			reqLogger.Error(err, "failed to create Service", "Service", serDNS)
 			return reconcile.Result{}, err
 		}
 		// Deployment created successfully - return and requeue
@@ -189,7 +189,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan) *appsv1beta1.StatefulSet {
-	ls := labelsForInfinispan(m.Name, m.ObjectMeta.Name)
+	ls := labelsForInfinispan(m.ObjectMeta.Name)
 
 	infinispanConfig := m.Config
 	var configPath string
@@ -212,8 +212,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.Name,
-			Namespace: m.Namespace,
+			Name:      m.ObjectMeta.Name,
+			Namespace: m.ObjectMeta.Namespace,
 			Annotations: map[string]string{"description": "Infinispan 9 (Ephemeral)",
 				"iconClass":                      "icon-infinispan",
 				"openshift.io/display-name":      "Infinispan 9 (Ephemeral)",
@@ -234,8 +234,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Image: imageName,
 						Name:  "infinispan",
 						Args: []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
-							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.Namespace + ".svc.cluster.local"},
-						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.Namespace}, // TODO this is the right place for namespace?
+							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local"},
+						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.ObjectMeta.Namespace}, // TODO this is the right place for namespace?
 							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
 							{Name: "MGMT_USER", Value: "infinispan"},
 							{Name: "MGMT_PASS", Value: "infinispan"},
@@ -285,8 +285,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 }
 
 // labelsForInfinispan returns the labels that must me applied to the pod
-func labelsForInfinispan(name string, clusterName string) map[string]string {
-	return map[string]string{"app": "infinispan-pod", "infinispan_cr": name, "clusterName": clusterName}
+func labelsForInfinispan(name string) map[string]string {
+	return map[string]string{"app": "infinispan-pod", "infinispan_cr": name, "clusterName": name}
 }
 
 // labelsForInfinispanSelector returns the labels for selecting the resources
@@ -305,15 +305,15 @@ func getPodNames(pods []corev1.Pod) []string {
 }
 
 func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *corev1.Service {
-	ls := labelsForInfinispan(m.Name, m.ObjectMeta.Name)
+	ls := labelsForInfinispan(m.ObjectMeta.Name)
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.Name,
-			Namespace: m.Namespace,
+			Name:      m.ObjectMeta.Name,
+			Namespace: m.ObjectMeta.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
@@ -337,16 +337,16 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 	return service
 }
 
-func (r *ReconcileInfinispan) serviceForDnsPing(m *infinispanv1.Infinispan) *corev1.Service {
-	ls := labelsForInfinispan(m.Name, m.ObjectMeta.Name)
+func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *corev1.Service {
+	ls := labelsForInfinispan(m.ObjectMeta.Name)
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.Name + "-ping",
-			Namespace: m.Namespace,
+			Name:      m.ObjectMeta.Name + "-ping",
+			Namespace: m.ObjectMeta.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
