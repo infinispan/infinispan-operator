@@ -155,14 +155,20 @@ Details on this will be provided ASAP.
 Then, you need to test them on either Minikube or OpenShift depending on the submissions.
 Next sessions explain how to test each.
 
+**NOTE:** All testing included below assumes that the operator will be installed in the `local-operators` namespace.
+If you want to use a different namespace, both YAML descriptor files and `make` calls need to be adjusted.
+For the descriptors, simply replace `local-operators` for your desired namespace.
+For the scripts, add the desired namespace as env variable, e.g. `make NAMESPACE=<name> ....`.
+
+
 #### Upstream and Minikube
 
 The `operatorhub/minikube` folder contains a `Makefile` and a series of scripts to help achieve this.
 With `minikube` in your path, type:
 
 ```bash
-cd operatorhub/minikube
-make all
+$ cd operatorhub/minikube
+$ make all
 ```
 
 This command will trigger the creation of a new `minikube` profile, 
@@ -235,13 +241,10 @@ and tested all in one step:
 Installing the operator into the desired namespace is done via the Operator Hub user interface in the OpenShift console.
 Finally, the operator can be tested by calling `make test`.
 
-  **NOTE:** `make test` assumes that the operator is installed in `local-operators` namespace.
-  You can test against a different namespace by calling `make NAMESPACE=<name> test`.
-
-
 #### Community and OpenShift 3.11
 
 TODO
+
 
 ### Releases
 To create releases, run:
