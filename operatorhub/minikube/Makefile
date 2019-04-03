@@ -2,7 +2,7 @@ TMP_DIR ?= /tmp
 PROFILE ?= operatorhub.io
 NAMESPACE ?= local-operators
 
-PROG  := infinispan-operatorhub
+PROG  := infinispan-operatorhub-minikube
 
 .PHONY: config clean start test help
 

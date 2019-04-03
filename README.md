@@ -157,7 +157,7 @@ Next sessions explain how to test each.
 
 #### Upstream and Minikube
 
-The `operatorhub/minkube` folder contains a `Makefile` and a series of scripts to help achieve this.
+The `operatorhub/minikube` folder contains a `Makefile` and a series of scripts to help achieve this.
 With `minikube` in your path, type:
 
 ```bash
