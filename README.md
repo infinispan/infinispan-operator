@@ -215,7 +215,29 @@ local-operators   infinispan-operator-5549f446f-9mqkp    1/1     Running   0    
 
 #### Community and OpenShift 4
 
-TODO
+The `operatorhub/openshift4` folder contains a `Makefile` and a series of scripts to help achieve this.
+
+**NOTE:** This section assumes you have a running OpenShift 4 cluster,
+an OpenShift client configured to talk to it,
+and you are using an administrator account.
+
+OpenShift 4 already comes with Operator Lifecycle Manager (OLM) and Operator Marketplace components installed,
+so it's not necessary to install them again.
+
+Testing on OpenShift 4 can be done automatically or manually:
+
+* In the automatic test, the operator is added to the operator hub,
+then it's installed in the defined namespace,
+and tested all in one step:
+`make all`
+
+* In the manual test, `make install-operatorsource` is called to add the operator to the operator hub.
+Installing the operator into the desired namespace is done via the Operator Hub user interface in the OpenShift console.
+Finally, the operator can be tested by calling `make test`.
+
+  **NOTE:** `make test` assumes that the operator is installed in `local-operators` namespace.
+  You can test against a different namespace by calling `make NAMESPACE=<name> test`.
+
 
 #### Community and OpenShift 3.11
 
