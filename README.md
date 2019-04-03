@@ -139,32 +139,50 @@ Alternatively, pass `KUBECONFIG` to specify cluster access:
 $ make test KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
 ```
 
-### Testing Infinispan operatorhub.io submissions
+### Infinispan on OperatorHub.io
 
-Testing submissions to operatorhub.io is a two-step process:
+Submissions to [operatorhub.io](https://operatorhub.io/) fall into 2 categories:
+upstream and community.
 
+Upstream submissions should work on vanilla Kubernetes (e.g. Minikube),
+whereas community submissions should work on OpenShift
+(see [here](https://github.com/operator-framework/community-operators) for minimum requirements). 
+
+Testing submissions is a two-step process:
 First, you need to push the operator to a quay.io application repository.
 Details on this will be provided ASAP.
 
-Once the operatorhub.io submission is on a quay.io repository, it has to be tested on `minikube`.
-This repository contains a Makefile and a series of scripts to help achieve this.
+Then, you need to test them on either Minikube or OpenShift depending on the submissions.
+Next sessions explain how to test each.
+
+#### Upstream and Minikube
+
+The `operatorhub/minkube` folder contains a `Makefile` and a series of scripts to help achieve this.
 With `minikube` in your path, type:
 
 ```bash
-cd operatorhub
+cd operatorhub/minikube
 make all
 ```
 
 This command will trigger the creation of a new `minikube` profile, 
-with the optimal configuration for testing the Infinispan operator. 
+with the optimal configuration for testing the Infinispan operator.
+Next, it installs Operator Lifecycle Manager (OLM) and Operator Marketplace components.
+These components are necessary for the operator to run. 
+Then, the operator gets installed and a sample Infinispan cluster is instantiated.
 
-#### Troubleshooting
-
-"no matches for kind" errors
+This process is not yet failproof due to the asynchronous nature of Kubernetes.
+So, while executing the the script you might encounter `no matches for kind` errors.
 
 These kind of errors mean the installation of Kubernetes elements did not complete.
 This can sometimes happen when installation of descriptors happens too quickly for changes to take effect.
 To solve the issue, identify the make target that failed and re-execute it.
+
+Once you re-execute the failing target you might see errors saying that some elements already exist, you can ignore those.
+Do verify that all pods are running before continuing with the process.
+This can be done with `kubectl get pods --all-namespaces`.
+
+Once all pods are running, look at the `Makefile` and detect which targets are still to run.
 
 E.g. this is an example where target `make install-olm` did not complete:
 
@@ -176,9 +194,32 @@ unable to recognize "deploy/upstream/manifests/latest/0000_50_olm_11-olm-operato
 E.g. this an example where the target `make install-operator` did not complete:
 
 ```bash
-+ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/0.1.0/deploy/cr/cr_minimal.yaml -n local-operators
-error: unable to recognize "https://raw.githubusercontent.com/infinispan/infinispan-operator/0.1.0/deploy/cr/cr_minimal.yaml": no matches for kind "Infinispan" in version "infinispan.org/v1"
++ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml -n local-operators
+error: unable to recognize "https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml": no matches for kind "Infinispan" in version "infinispan.org/v1"
 ```
+
+To be able to run the test that instantiates an Infinispan cluster with the operatorhub submission,
+the Infinispan CRD needs to be installed and the infinispan-operator needs to be running, e.g.
+
+```bash
+$ kubectl get crd
+NAME                                          CREATED AT
+infinispans.infinispan.org                    2019-04-03T09:15:48Z
+```
+
+```bash
+$ kubectl get pods --all-namespaces
+NAMESPACE         NAME                                   READY   STATUS    RESTARTS   AGE
+local-operators   infinispan-operator-5549f446f-9mqkp    1/1     Running   0          44s
+```
+
+#### Community and OpenShift 4
+
+TODO
+
+#### Community and OpenShift 3.11
+
+TODO
 
 ### Releases
 To create releases, run:
