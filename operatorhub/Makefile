@@ -23,9 +23,6 @@ checkout-olm:
 	9ba3512
 
 install-olm:
-	./build/install-olm.sh ${TMP_DIR} true
-
-install-olm-ff:
 	./build/install-olm.sh ${TMP_DIR}
 
 checkout-marketplace:
@@ -36,15 +33,9 @@ checkout-marketplace:
 	2ccd923
 
 install-marketplace:
-	./build/install-marketplace.sh ${TMP_DIR} true
-
-install-marketplace-ff:
 	./build/install-marketplace.sh ${TMP_DIR}
 
 install-operator:
-	./build/install-operator.sh ${NAMESPACE} true
-
-install-operator-ff:
 	./build/install-operator.sh ${NAMESPACE}
 
 test:
@@ -53,4 +44,4 @@ test:
 delete:
 	./build/delete.sh ${PROFILE}
 
-all: config start checkout-olm install-olm-ff checkout-marketplace install-marketplace-ff install-operator-ff test
+all: config start checkout-olm install-olm checkout-marketplace install-marketplace install-operator test

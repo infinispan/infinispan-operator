@@ -4,7 +4,7 @@ metadata:
   name: infinispan
   namespace: local-operators
 spec:
-  channel: stable
+  channel: alpha
   name: infinispan
   source: gzamarre-operators
   sourceNamespace: local-operators
