@@ -162,13 +162,26 @@ func (c ExternalOKD) CreateInfinispan(infinispan *api.Infinispan, namespace stri
 	}
 }
 
-// Deletes an Infinispan resource in the given namespace
-func (c ExternalOKD) DeleteInfinispan(name string, namespace string) {
-	ispnSvc := c.ispnClient.Infinispans(namespace)
+// DeleteInfinispan deletes the infinispan resource
+// and waits that all the pods are gone
+func (c ExternalOKD) DeleteInfinispan(name string, ns string, label string, timeout time.Duration) error {
+	ispnSvc := c.ispnClient.Infinispans(ns)
 	e := ispnSvc.Delete(name, &deleteOpts)
 	if e != nil {
 		panic(e)
 	}
+	podSvc := c.coreClient.Pods(ns)
+	err := wait.Poll(period, timeout, func() (done bool, err error) {
+		podList, err := podSvc.List(metaV1.ListOptions{
+			LabelSelector: label,
+		})
+		pods := podList.Items
+		if err != nil || len(pods) != 0 {
+			return false, nil
+		}
+		return true, nil
+	})
+	return err
 }
 
 // Creates or updates a config map based on a file
@@ -409,6 +422,18 @@ func (c ExternalOKD) WaitForPods(ns, label string, required int, timeout time.Du
 		return err
 	}
 	return nil
+}
+
+// GetPods return an array of pods matching the selector label in the given namespace
+func (c ExternalOKD) GetPods(ns, label string) ([]v1.Pod, error) {
+	podSvc := c.coreClient.Pods(ns)
+	podList, err := podSvc.List(metaV1.ListOptions{
+		LabelSelector: label,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return podList.Items, nil
 }
 
 func debugPods(required int, pods []v1.Pod) {
