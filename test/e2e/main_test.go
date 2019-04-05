@@ -70,7 +70,7 @@ func TestClusterFormation(t *testing.T) {
 	}
 	// Register it
 	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan("cache-infinispan", Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan", Namespace, "app=infinispan-pod", SinglePodTimeout)
 
 	// Wait that 2 pods are up
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 2, SinglePodTimeout)
@@ -78,9 +78,15 @@ func TestClusterFormation(t *testing.T) {
 		panic(err.Error())
 	}
 
+	pods, err := okd.GetPods(Namespace, "app=infinispan-pod")
+	if err != nil {
+		panic(err.Error())
+	}
+	podName := pods[0].Name
+
 	// Check that the cluster size is 2 querying the first pod
 	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := getClusterSize(Namespace, "cache-infinispan-0")
+		value, err := getClusterSize(Namespace, podName)
 		if err != nil {
 			return false, err
 		}
@@ -131,7 +137,7 @@ func TestExternalService(t *testing.T) {
 
 	// Register it
 	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan("cache-infinispan-0", Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan-0", Namespace, "app=infinispan-pod", SinglePodTimeout)
 
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
 
@@ -216,14 +222,20 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 
 	// Register it
 	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan("cache-infinispan", Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan", Namespace, "app=infinispan-pod", SinglePodTimeout)
 
 	// Make sure 2 pods are started
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 2, TestTimeout)
 
+	pods, err := okd.GetPods(Namespace, "app=infinispan-pod")
+	if err != nil {
+		panic(err.Error())
+	}
+	podName := pods[0].Name
+
 	// Check that the cluster size is 2 querying the first pod
 	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := getClusterSize(Namespace, "cache-infinispan-0")
+		value, err := getClusterSize(Namespace, podName)
 		if err != nil {
 			return false, err
 		}
