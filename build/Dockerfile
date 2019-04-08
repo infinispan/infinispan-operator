@@ -5,7 +5,7 @@ WORKDIR /go/src/github.com/infinispan/infinispan-operator/
 RUN dep ensure -vendor-only
 COPY . /go/src/github.com/infinispan/infinispan-operator/
 RUN rm -rf build/_output
-RUN ./build/build.sh /bin
+RUN ./build/build.sh linux /bin
 
 FROM scratch
 COPY --from=build /bin/infinispan-operator /usr/local/bin/infinispan-operator
