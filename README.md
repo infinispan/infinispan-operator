@@ -9,7 +9,8 @@ This is an Openshift operator to run and rule Infinispan.
 * [go](https://github.com/golang/go) with `$GOPATH` set to `$HOME/go`
 * Docker
 * [dep](https://github.com/golang/dep#installation)    
-* A running [OKD cluster](https://www.okd.io/download.html) with `system:admin` access.
+* A running [OKD cluster](https://www.okd.io/download.html) with `system:admin` access,
+or a [Minikube cluster](https://kubernetes.io/docs/setup/minikube/).
 
 ### Building the Infinispan Operator
 
@@ -31,6 +32,8 @@ $ make build
 ```
 
 ### Running the Infinispan Operator
+
+#### OpenShift
 
 1. Start OKD. For example:
 ```
@@ -66,6 +69,35 @@ example-infinispan-54c66fd755-8gbxf    1/1       Running             0          
 example-infinispan-54c66fd755-7c4zc    1/1       Running             0          8s
 example-infinispan-54c66fd755-28lvx    1/1       Running             0          8s
 ```
+
+#### Minikube
+
+1. Configure Minikube virtual machine. You only need to do this once:
+```bash
+$ make minikube-config
+```
+2. Start Minikube:
+```bash
+$ make minikube-start
+```
+3. Build the operator and run it locally:
+```bash
+$ make minikube-run-local
+```
+4. Open a new terminal window and create an Infinispan cluster with three nodes:
+```bash
+$ kubectl apply -f deploy/cr/cr_minimal.yaml -n local-operators
+```
+5. Watch the pods start until the start running
+```bash
+$ kubectl get pods -w
+NAME                   READY   STATUS    RESTARTS   AGE
+example-infinispan-0   1/1     Running   0          8m29s
+example-infinispan-1   1/1     Running   0          5m53s
+example-infinispan-2   1/1     Running   0          5m36s
+```
+
+#### Next Steps
 
 Now it's time to have some fun. Let's see the Infinispan operator in action.
 

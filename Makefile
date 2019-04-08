@@ -1,5 +1,6 @@
 IMAGE ?= jboss/infinispan-operator
 TAG ?= latest
+GOOS ?= linux
 PROG  := infinispan-operator
 
 .PHONY: dep build image push run clean help
@@ -17,7 +18,7 @@ codegen:
 
 ## build       Compile and build the Infinispan operator.
 build: dep
-	./build/build.sh
+	./build/build.sh ${GOOS}
 
 ## image       Build a Docker image for the Infinispan operator.
 image: build
@@ -63,6 +64,25 @@ release:
 ## copy-kubeconfig   Copy admin.kubeconfig for the OKD cluster to the location of KUBECONFIG
 copy-kubeconfig:
 	build/copy-kubeconfig.sh ${KUBECONFIG}
+
+
+# Minikube parameters
+PROFILE ?= operator-minikube
+VMDRIVER ?= virtualbox
+NAMESPACE ?= local-operators
+
+minikube-config:
+	build/minikube/config.sh ${PROFILE} ${VMDRIVER}
+
+minikube-start:
+	build/minikube/start.sh ${PROFILE}
+
+minikube-run-local: build
+	build/minikube/run-local.sh ${NAMESPACE}
+
+minikube-clean: clean
+	build/minikube/clean.sh ${NAMESPACE}
+
 
 help : Makefile
 	@sed -n 's/^##//p' $<
