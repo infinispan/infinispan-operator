@@ -2,6 +2,7 @@ TMP_DIR ?= /tmp
 PROFILE ?= operatorhub.io
 VMDRIVER ?= virtualbox
 NAMESPACE ?= local-operators
+VERSION ?= 0.2.1
 
 PROG  := infinispan-operatorhub-minikube
 
@@ -11,7 +12,7 @@ config:
 	./build/config.sh ${PROFILE} ${VMDRIVER}
 
 clean:
-	./build/clean.sh
+	./build/clean.s ${NAMESPACE} ${VERSION}
 
 start:
 	./build/start.sh ${PROFILE}
