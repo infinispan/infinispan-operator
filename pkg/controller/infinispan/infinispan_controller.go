@@ -167,7 +167,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(podNames, infinispan.Status.Nodes) {
 		infinispan.Status.Nodes = podNames
-		err := r.client.Update(context.TODO(), infinispan)
+		err := r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan status")
 			return reconcile.Result{}, err
