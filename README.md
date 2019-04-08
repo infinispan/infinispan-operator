@@ -171,6 +171,10 @@ $ cd operatorhub/minikube
 $ make all
 ```
 
+**NOTE:** By default it uses Virtual Box VM driver.
+You can pass in different VM drivers using `make VMDRIVER=... `.
+If you don't want to pass any VM driver pass in an empty driver, e.g. `make VMDRIVER= all`.
+
 This command will trigger the creation of a new `minikube` profile, 
 with the optimal configuration for testing the Infinispan operator.
 Next, it installs Operator Lifecycle Manager (OLM) and Operator Marketplace components.
