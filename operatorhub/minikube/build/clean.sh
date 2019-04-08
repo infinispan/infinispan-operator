@@ -2,14 +2,14 @@
 
 set -e -x
 
-kubectl delete ns operators || true
-kubectl delete ns olm || true
-kubectl delete clusterrole system:controller:operator-lifecycle-manager || true
-kubectl delete clusterrole olm-operators-edit || true
-kubectl delete clusterrole olm-operators-view || true
-kubectl delete clusterrolebinding olm-operator-binding-olm || true
-kubectl delete crd clusterserviceversions.operators.coreos.com || true
-kubectl delete crd installplans.operators.coreos.com || true
-kubectl delete crd subscriptions.operators.coreos.com || true
-kubectl delete crd catalogsources.operators.coreos.com || true
-kubectl delete crd operatorgroups.operators.coreos.com || true
+NAMESPACE=${1}
+VERSION=${2}
+
+# Delete operator group instances
+# Names are random and there are not match selectors, so list them and delete each
+kubectl get og -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' -n ${NAMESPACE} | xargs oc delete og || true
+
+kubectl delete infinispan example-infinispan -n ${NAMESPACE} || true
+kubectl delete csv infinispan-operator.v${VERSION} -n ${NAMESPACE} || true
+kubectl delete subscription infinispan -n ${NAMESPACE} || true
+kubectl delete opsrc gzamarre-operators -n openshift-marketplace || true
