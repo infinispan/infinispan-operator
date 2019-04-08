@@ -1,5 +1,6 @@
 TMP_DIR ?= /tmp
 PROFILE ?= operatorhub.io
+VMDRIVER ?= virtualbox
 NAMESPACE ?= local-operators
 
 PROG  := infinispan-operatorhub-minikube
@@ -7,7 +8,7 @@ PROG  := infinispan-operatorhub-minikube
 .PHONY: config clean start test help
 
 config:
-	./build/config.sh ${PROFILE}
+	./build/config.sh ${PROFILE} ${VMDRIVER}
 
 clean:
 	./build/clean.sh
