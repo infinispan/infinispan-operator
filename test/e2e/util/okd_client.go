@@ -518,3 +518,20 @@ func resolveRoutePort(portString string) *routev1.RoutePort {
 		TargetPort: routePort,
 	}
 }
+
+// CreateSecret creates a Secret resource in the given namespace
+func (c ExternalOKD) CreateSecret(secret *v1.Secret, namespace string) {
+	_, e := c.coreClient.Secrets(namespace).Create(secret)
+	if e != nil {
+		panic(e)
+	}
+}
+
+// DeleteSecret deletes a Secret resource in the given namespace
+func (c ExternalOKD) DeleteSecret(name string, namespace string) {
+	secretSvc := c.coreClient.Secrets(namespace)
+	e := secretSvc.Delete(name, &deleteOpts)
+	if e != nil {
+		panic(e)
+	}
+}

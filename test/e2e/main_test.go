@@ -14,6 +14,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/test/e2e/util"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -245,5 +246,75 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
+}
 
+// Test if a secret is mounted correctly as set
+// of environment variables
+func TestSecretMountedAsEnvVars(t *testing.T) {
+	// Create the secret
+	secretAppUser := "testappuser"
+	secretAppPass := "testapppass"
+	secretMgmtUser := "testmgmtuser"
+	secretMgmtPass := "testmgmtpass"
+	expectedResult := "testappuser testapppass testmgmtuser testmgmtpass"
+	secretSpec := v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster-secrets",
+		},
+		Type: "Opaque",
+		StringData: map[string]string{"APP_USER": secretAppUser,
+			"APP_PASS":  secretAppPass,
+			"MGMT_USER": secretMgmtUser,
+			"MGMT_PASS": secretMgmtPass},
+	}
+	okd.CreateSecret(&secretSpec, Namespace)
+	defer okd.DeleteSecret(secretSpec.ObjectMeta.Name, Namespace)
+
+	// Create a resource using external config from a ConfigMap
+	// and a secret as a folder
+	spec := ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cache-infinispan",
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Size: 1,
+		},
+		Cloud: ispnv1.InfinispanCloud{
+			Secret: "cluster-secrets",
+		},
+	}
+	okd.CreateInfinispan(&spec, Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan", Namespace, "app=infinispan-pod", SinglePodTimeout)
+	// Make sure 1 pod is started
+
+	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, TestTimeout)
+	if err != nil {
+		panic(err.Error())
+	}
+	pods, err := okd.GetPods(Namespace, "app=infinispan-pod")
+	if err != nil {
+		panic(err.Error())
+	}
+	podName := pods[0].Name
+	// Cat the secret file from the pod a match the result
+	commands := []string{"bash", "-c", "echo -n $APP_USER $APP_PASS $MGMT_USER $MGMT_PASS"}
+	var execIn, execOut, execErr bytes.Buffer
+	err = okd.ExecuteCmdOnPod(Namespace, podName, commands,
+		&execIn, &execOut, &execErr)
+	if err == nil {
+		result := execOut.String()
+		if result == expectedResult {
+			return
+		}
+		panic("Secret doesn't match: expected " + expectedResult + " got " + result)
+	}
+	panic(err.Error() + " stderr:	" + execErr.String())
 }
