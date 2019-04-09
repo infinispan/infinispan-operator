@@ -96,5 +96,8 @@ minikube-clean: clean
 minikube-delete:
 	build/minikube/delete.sh ${PROFILE}
 
+minikube-stop:
+	build/minikube/stop.sh ${PROFILE}
+
 help : Makefile
 	@sed -n 's/^##//p' $<

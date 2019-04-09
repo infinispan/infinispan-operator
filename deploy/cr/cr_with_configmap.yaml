@@ -7,4 +7,4 @@ config:
   sourceRef:  infinispan-app-configuration
   name: cloud-ephemeral.xml
 spec:
-  size: 3
+  size: 2
