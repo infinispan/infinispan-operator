@@ -6,13 +6,15 @@ VERSION ?= 0.2.1
 
 PROG  := infinispan-operatorhub-minikube
 
-.PHONY: config clean start test help
+.PHONY: config clean start checkout-olm install-olm checkout-marketplace install-marketplace install-operator test delete
+
+all: config start checkout-olm install-olm checkout-marketplace install-marketplace install-operator test
 
 config:
 	./build/config.sh ${PROFILE} ${VMDRIVER}
 
 clean:
-	./build/clean.s ${NAMESPACE} ${VERSION}
+	./build/clean.sh ${NAMESPACE} ${VERSION}
 
 start:
 	./build/start.sh ${PROFILE}
@@ -41,9 +43,7 @@ install-operator:
 	./build/install-operator.sh ${NAMESPACE}
 
 test:
-	./build/test.sh ${NAMESPACE}
+	./build/test.sh ${NAMESPACE} ${VERSION}
 
 delete:
 	./build/delete.sh ${PROFILE}
-
-all: config start checkout-olm install-olm checkout-marketplace install-marketplace install-operator test
