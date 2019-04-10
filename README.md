@@ -223,6 +223,10 @@ NAMESPACE         NAME                                   READY   STATUS    RESTA
 local-operators   infinispan-operator-5549f446f-9mqkp    1/1     Running   0          44s
 ```
 
+Finally, `make clean` removes example Infinispan custom resource, as well as Infinispan operator, from the Kubernetes cluster.
+The rest of Kubernetes components, as well as OLM and Marketplace, remain for further testing.
+Also, `make delete` destroys the Minikube virtual machine altogether.
+
 #### Community and OpenShift 4
 
 The `operatorhub/openshift4` folder contains a `Makefile` and a series of scripts to help achieve this.
@@ -244,6 +248,9 @@ and tested all in one step:
 * In the manual test, `make install-operatorsource` is called to add the operator to the operator hub.
 Installing the operator into the desired namespace is done via the Operator Hub user interface in the OpenShift console.
 Finally, the operator can be tested by calling `make test`.
+
+Finally, `make clean` removes example Infinispan custom resource, as well as Infinispan operator, from the Kubernetes cluster.
+The rest of Kubernetes components, as well as OLM and Marketplace, remain for further testing.
 
 #### Community and OpenShift 3.11
 
