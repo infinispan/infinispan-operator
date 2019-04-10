@@ -4,4 +4,4 @@ KUBECONFIG=${1-openshift.local.clusterup/openshift-apiserver/admin.kubeconfig}
 
 echo "Using KUBECONFIG '$KUBECONFIG'"
 
-GOCACHE=off go test -v ./test/e2e
+GOCACHE=off go test -timeout 900s -v ./test/e2e

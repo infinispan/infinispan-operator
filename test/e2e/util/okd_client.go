@@ -443,13 +443,13 @@ func debugPods(required int, pods []v1.Pod) {
 	}
 }
 
-func (c ExternalOKD) WaitForRoute(url string, client *http.Client, timeout time.Duration) {
+func (c ExternalOKD) WaitForRoute(url string, user string, pass string, client *http.Client, timeout time.Duration) {
 	err := wait.Poll(period, timeout, func() (done bool, err error) {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return false, err
 		}
-		req.SetBasicAuth("infinispan", "infinispan")
+		req.SetBasicAuth(user, pass)
 		resp, err := client.Do(req)
 		if err != nil {
 			return false, err

@@ -151,21 +151,21 @@ func TestExternalService(t *testing.T) {
 
 	url := "http://" + route.Spec.Host + "/rest/default/test"
 	client := &http.Client{}
-	okd.WaitForRoute(url, client, RouteTimeout)
+	okd.WaitForRoute(url, "infinispan", "infinispan", client, RouteTimeout)
 
 	value := "test-operator"
 
-	putViaRoute(url, value, client)
-	actual := getViaRoute(url, client)
+	putViaRoute(url, value, "infinispan", "infinispan", client)
+	actual := getViaRoute(url, "infinispan", "infinispan", client)
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
 }
 
-func getViaRoute(url string, client *http.Client) string {
+func getViaRoute(url string, user string, pass string, client *http.Client) string {
 	req, err := http.NewRequest("GET", url, nil)
-	req.SetBasicAuth("infinispan", "infinispan")
+	req.SetBasicAuth(user, pass)
 	resp, err := client.Do(req)
 	if err != nil {
 		panic(err.Error())
@@ -181,11 +181,11 @@ func getViaRoute(url string, client *http.Client) string {
 	return string(bodyBytes)
 }
 
-func putViaRoute(url string, value string, client *http.Client) {
+func putViaRoute(url string, value string, user string, pass string, client *http.Client) {
 	body := bytes.NewBuffer([]byte(value))
 	req, err := http.NewRequest("POST", url, body)
 	req.Header.Set("Content-Type", "text/plain")
-	req.SetBasicAuth("infinispan", "infinispan")
+	req.SetBasicAuth(user, pass)
 	fmt.Printf("Put request via route: %v\n", req)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -317,4 +317,71 @@ func TestSecretMountedAsEnvVars(t *testing.T) {
 		panic("Secret doesn't match: expected " + expectedResult + " got " + result)
 	}
 	panic(err.Error() + " stderr:	" + execErr.String())
+}
+
+func TestExternalServiceWithAuth(t *testing.T) {
+	// Create the secret
+	secretAppUser := "testappuser"
+	secretAppPass := "testapppass"
+	secretMgmtUser := "testmgmtuser"
+	secretMgmtPass := "testmgmtpass"
+	secretSpec := v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster-secrets",
+		},
+		Type: "Opaque",
+		StringData: map[string]string{"APP_USER": secretAppUser,
+			"APP_PASS":  secretAppPass,
+			"MGMT_USER": secretMgmtUser,
+			"MGMT_PASS": secretMgmtPass},
+	}
+	okd.CreateSecret(&secretSpec, Namespace)
+	defer okd.DeleteSecret(secretSpec.ObjectMeta.Name, Namespace)
+
+	// Create a resource using external config from a ConfigMap
+	// and a secret as a folder
+	spec := ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cache-infinispan-0",
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Size: 1,
+		},
+		Cloud: ispnv1.InfinispanCloud{
+			Secret: "cluster-secrets",
+		},
+	}
+	okd.CreateInfinispan(&spec, Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan-0", Namespace, "app=infinispan-pod", SinglePodTimeout)
+	// Make sure 1 pod is started
+
+	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	route := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
+	defer okd.DeleteRoute("cache-infinispan-0", Namespace)
+
+	url := "http://" + route.Spec.Host + "/rest/default/test"
+	client := &http.Client{}
+	okd.WaitForRoute(url, secretAppUser, secretAppPass, client, RouteTimeout)
+
+	value := "test-operator"
+
+	putViaRoute(url, value, secretAppUser, secretAppPass, client)
+	actual := getViaRoute(url, secretAppUser, secretAppPass, client)
+
+	if actual != value {
+		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
+	}
 }
