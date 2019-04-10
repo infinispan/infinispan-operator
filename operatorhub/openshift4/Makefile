@@ -3,7 +3,9 @@ VERSION ?= 0.2.1
 
 PROG  := infinispan-operatorhub-openshift4
 
-.PHONY: clean test help
+.PHONY: clean install-operatorsource install-operator test help
+
+all: install-operatorsource install-operator test
 
 clean:
 	./build/clean.sh ${NAMESPACE} ${VERSION}
@@ -16,5 +18,3 @@ install-operator:
 
 test:
 	./build/test.sh ${NAMESPACE} ${VERSION}
-
-all: install-operatorsource install-operator test
