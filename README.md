@@ -140,122 +140,121 @@ $ make test KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/ad
 ```
 
 ### Infinispan on OperatorHub.io
+There are two categories for submissions to [operatorhub.io](https://operatorhub.io/), upstream and community.
 
-Submissions to [operatorhub.io](https://operatorhub.io/) fall into 2 categories:
-upstream and community.
-
-Upstream submissions should work on vanilla Kubernetes (e.g. Minikube),
-whereas community submissions should work on OpenShift
-(see [here](https://github.com/operator-framework/community-operators) for minimum requirements). 
+* Upstream submissions should run on vanilla Kubernetes, such as Minikube.
+* Community submissions should run on Red Hat OpenShift. See the  [community-operators](https://github.com/operator-framework/community-operators) site for minimum requirements.
 
 Testing submissions is a two-step process:
-First, you need to push the operator to a quay.io application repository.
-Details on this will be provided ASAP.
 
-Then, you need to test them on either Minikube or OpenShift depending on the submissions.
-Next sessions explain how to test each.
+1. Push the operator to a quay.io application repository. Details on this will be provided ASAP.
+2. Test the operator on Minikube or OpenShift.
+  * Upstream submissions, see [Testing Upstream Submissions with Minikube](#test_upstream).
+  * Community submissions, see [Testing Community Submissions with OpenShift](#test_community).
 
-**NOTE:** All testing included below assumes that the operator will be installed in the `local-operators` namespace.
-If you want to use a different namespace, both YAML descriptor files and `make` calls need to be adjusted.
-For the descriptors, simply replace `local-operators` for your desired namespace.
-For the scripts, add the desired namespace as env variable, e.g. `make NAMESPACE=<name> ....`.
+ **Modifying the Namespace:** The test procedures in this `README` assume that the operator is installed in the `local-operators` namespace.
 
+ To use a different namespace, you must modify the YAML descriptor files and `make` calls. For descriptors, replace `local-operators` with your desired namespace. For scripts, add your desired namespace as an environment variable; for example, `make NAMESPACE=my_namespace ${make_target}`.
 
-#### Upstream and Minikube
+<a name="test_upstream"></a>
+#### Testing Upstream Submissions with Minikube
+The `operatorhub/minikube` folder contains a `Makefile` and several `make` targets that you can use to test upstream submissions of the Infinispan Operator.
 
-The `operatorhub/minikube` folder contains a `Makefile` and a series of scripts to help achieve this.
-With `minikube` in your path, type:
+Minikube does not provide the Operator Lifecycle Manager (OLM) and Operator Marketplace components. You must install them before you can install and test the Infinispan Operator.
 
-```bash
-$ cd operatorhub/minikube
-$ make all
-```
+1. Ensure `minikube` is in your `$PATH`.
+2. Run the appropriate `make` target. For example, run the `make all` target as follows:
+  ```
+  $ cd operatorhub/minikube
+  $ make all
+  ```
 
-**NOTE:** By default it uses Virtual Box VM driver.
-You can pass in different VM drivers using `make VMDRIVER=... `.
-If you don't want to pass any VM driver pass in an empty driver, e.g. `make VMDRIVER= all`.
+##### Specifying Hypervisor Drivers
+The `Makefile` uses a `minikube` profile with an optimal configuration for testing the Infinispan Operator.
 
-This command will trigger the creation of a new `minikube` profile, 
-with the optimal configuration for testing the Infinispan operator.
-Next, it installs Operator Lifecycle Manager (OLM) and Operator Marketplace components.
-These components are necessary for the operator to run. 
-Then, the operator gets installed and a sample Infinispan cluster is instantiated.
+By default, the profile uses Virtual Box VM drivers. Use the `VMDRIVER` argument to specify a different hypervisor.
 
-This process is not yet failproof due to the asynchronous nature of Kubernetes.
-So, while executing the the script you might encounter `no matches for kind` errors.
+* `make VMDRIVER=${vm_driver_name} ${make_target}` to specify different VM drivers.
+* `make VMDRIVER= ${make_target}` if you do not want to specify VM drivers (pass an empty value).
 
-These kind of errors mean the installation of Kubernetes elements did not complete.
-This can sometimes happen when installation of descriptors happens too quickly for changes to take effect.
-To solve the issue, identify the make target that failed and re-execute it.
+See the [Minikube docs](https://github.com/kubernetes/minikube) for information about supported hypervisors.
 
-Once you re-execute the failing target you might see errors saying that some elements already exist, you can ignore those.
-Do verify that all pods are running before continuing with the process.
-This can be done with `kubectl get pods --all-namespaces`.
+##### Make Targets
 
-Once all pods are running, look at the `Makefile` and detect which targets are still to run.
+* `make all` runs each make target in sequence.
+* `make test` instantiates an Infinispan cluster with the upstream submission. Note that the `make test` target requires the Infinispan CRD and the Infinispan Operator must be running.
 
-E.g. this is an example where target `make install-olm` did not complete:
+  Check that the Infinispan CRD is installed:
+  ```bash
+  $ kubectl get crd
+  NAME                                          CREATED AT
+  infinispans.infinispan.org                    2019-04-03T09:15:48Z
+  ```
+  Check that the Infinispan Operator is running:
+  ```bash
+  $ kubectl get pods --all-namespaces
+  NAMESPACE         NAME                                   READY   STATUS    RESTARTS   AGE
+  local-operators   infinispan-operator-5549f446f-9mqkp    1/1     Running   0          44s
+  ```
+* `make clean` removes the example Infinispan custom resource and Infinispan Operator from the Kubernetes cluster.
+* `make delete` destroys the Minikube virtual machine.
 
-```bash
-+ kubectl create -f deploy/upstream/manifests/latest/
-unable to recognize "deploy/upstream/manifests/latest/0000_50_olm_11-olm-operators.catalogsource.yaml": no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"
-```
+##### Troubleshooting Errors
+`no matches for kind` errors can occur when Kubernetes elements are not installed correctly, such as when descriptors are installed too quickly for changes to take effect.
 
-E.g. this an example where the target `make install-operator` did not complete:
+First, you need to identify the `make` target that failed.
 
-```bash
-+ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml -n local-operators
-error: unable to recognize "https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml": no matches for kind "Infinispan" in version "infinispan.org/v1"
-```
+* Example where the `make install-olm` target did not complete:
+  ```
+  + kubectl create -f deploy/upstream/manifests/latest/
+  unable to recognize \
+  "deploy/upstream/manifests/latest/0000_50_olm_11-olm-operators.catalogsource.yaml": \
+  no matches for kind "CatalogSource" in version "operators.coreos.com/v1alpha1"
+  ```
 
-To be able to run the test that instantiates an Infinispan cluster with the operatorhub submission,
-the Infinispan CRD needs to be installed and the infinispan-operator needs to be running, e.g.
+* Example where the `make install-operator` target did not complete:
+  ```
+  + kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml -n local-operators \
+  error: unable to recognize "https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml": \
+  no matches for kind "Infinispan" in version "infinispan.org/v1"
+  ```
 
-```bash
-$ kubectl get crd
-NAME                                          CREATED AT
-infinispans.infinispan.org                    2019-04-03T09:15:48Z
-```
+To resolve the error and continue testing, do the following:
 
-```bash
-$ kubectl get pods --all-namespaces
-NAMESPACE         NAME                                   READY   STATUS    RESTARTS   AGE
-local-operators   infinispan-operator-5549f446f-9mqkp    1/1     Running   0          44s
-```
+1. Run the `make` target again. Note that you might notice errors about existing elements but you can ignore them.
+2. Verify pods are running. For example, run:
+  ```
+  $ kubectl get pods --all-namespaces
+  ```
+3. Open the `Makefile` and determine which target is next in the sequence. For example, if errors occur for the `make install-olm` target, the next target in the sequence is `make checkout-marketplace`.
+4. Manually run the remaining `make` targets.
 
-Finally, `make clean` removes example Infinispan custom resource, as well as Infinispan operator, from the Kubernetes cluster.
-The rest of Kubernetes components, as well as OLM and Marketplace, remain for further testing.
-Also, `make delete` destroys the Minikube virtual machine altogether.
+<a name="test_community"></a>
+#### Testing Community Submissions with OpenShift
+Test community submissions of the Infinispan Operator with either OpenShift 4 or OpenShift 3.11.
 
-#### Community and OpenShift 4
+##### Testing with OpenShift 4
+The `operatorhub/openshift4` folder contains a `Makefile` and several `make` targets that you can use to test community submissions of the Infinispan Operator.
 
-The `operatorhub/openshift4` folder contains a `Makefile` and a series of scripts to help achieve this.
+OpenShift 4 includes the Operator Lifecycle Manager (OLM) and Operator Marketplace components. You do not need to install them separately.
 
-**NOTE:** This section assumes you have a running OpenShift 4 cluster,
-an OpenShift client configured to talk to it,
-and you are using an administrator account.
+**Before You Begin:** You must have a running OpenShift 4 cluster with an `oc` client that is configured for the cluster. You must also be logged in with an administrator account.
 
-OpenShift 4 already comes with Operator Lifecycle Manager (OLM) and Operator Marketplace components installed,
-so it's not necessary to install them again.
+Run the appropriate `make` target. For example, run the `make all` target as follows:
+  ```
+  $ cd operatorhub/openshift4
+  $ make all
+  ```
 
-Testing on OpenShift 4 can be done automatically or manually:
+###### Make Targets
 
-* In the automatic test, the operator is added to the operator hub,
-then it's installed in the defined namespace,
-and tested all in one step:
-`make all`
+* `make all` adds the Infinispan Operator to the OperatorHub, installs it in the defined namespace, and then instantiates an Infinispan cluster with the community submission.
+* `make install-operatorsource` adds the Infinispan Operator to the OperatorHub. You can then manually install the operator through the OperatorHub user interface in the OpenShift console.
+* `make test` instantiates an Infinispan cluster with the community submission.
+* `make clean` removes the example Infinispan custom resource and Infinispan Operator from the Kubernetes cluster.
 
-* In the manual test, `make install-operatorsource` is called to add the operator to the operator hub.
-Installing the operator into the desired namespace is done via the Operator Hub user interface in the OpenShift console.
-Finally, the operator can be tested by calling `make test`.
-
-Finally, `make clean` removes example Infinispan custom resource, as well as Infinispan operator, from the Kubernetes cluster.
-The rest of Kubernetes components, as well as OLM and Marketplace, remain for further testing.
-
-#### Community and OpenShift 3.11
-
+##### Testing Community with OpenShift 3.11
 TODO
-
 
 ### Releases
 To create releases, run:
