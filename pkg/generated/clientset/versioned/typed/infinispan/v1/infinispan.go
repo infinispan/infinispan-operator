@@ -172,3 +172,4 @@ func (c *infinispans) Patch(name string, pt types.PatchType, data []byte, subres
 		Into(result)
 	return
 }
+

@@ -18,6 +18,11 @@ env:
 
 jobs:
   include:
+    - stage: "Unit Test"
+      name: "Unit Test"
+      script:
+        - go get -u github.com/golang/dep/cmd/dep
+        - make unit-test
     - stage: "Test"
       name: "OpenShift"
       script:

@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -94,7 +92,7 @@ func TestClusterFormation(t *testing.T) {
 
 	// Check that the cluster size is 2 querying the first pod
 	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := getClusterSize(Namespace, podName)
+		value, err := okd.GetClusterSize(Namespace, podName)
 		if err != nil {
 			return false, err
 		}
@@ -105,27 +103,6 @@ func TestClusterFormation(t *testing.T) {
 		panic(err.Error())
 	}
 
-}
-
-// This function get the cluster size via the ISPN cli
-func getClusterSize(namespace, namePod string) (int, error) {
-	cliCommand := "/subsystem=datagrid-infinispan/cache-container=clustered/:read-attribute(name=cluster-size)\n"
-	commands := []string{getEnvWithDefault("CLI_CMD", defaultCliPath), "--connect"}
-	var execIn, execOut, execErr bytes.Buffer
-	execIn.WriteString(cliCommand)
-	err := okd.ExecuteCmdOnPod(namespace, namePod, commands,
-		&execIn, &execOut, &execErr)
-	if err == nil {
-		result := execOut.String()
-		// Match the correct line in the output
-		resultRegExp := regexp.MustCompile("\"result\" => \"\\d+\"")
-		// Match the result value
-		valueRegExp := regexp.MustCompile("\\d+")
-		resultLine := resultRegExp.FindString(result)
-		resultValueStr := valueRegExp.FindString(resultLine)
-		return strconv.Atoi(resultValueStr)
-	}
-	return 0, err
 }
 
 func getEnvWithDefault(name, defVal string) string {
@@ -305,7 +282,7 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 
 	// Check that the cluster size is 2 querying the first pod
 	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := getClusterSize(Namespace, podName)
+		value, err := okd.GetClusterSize(Namespace, podName)
 		if err != nil {
 			return false, err
 		}

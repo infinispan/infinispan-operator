@@ -2,14 +2,13 @@ package infinispan
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"reflect"
+	"strings"
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-
-	"os"
-
-	"encoding/json"
-
+	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,6 +37,8 @@ const defaultJGroupsPingProtocol = "openshift.DNS_PING"
 
 // DefaultImageName is used if a specific image name is not provided
 var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "jboss/infinispan-server:latest")
+
+var ispnCliHelper *ispnutil.IspnCliHelper
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -157,7 +158,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	// Update the Infinispan status with the pod names
+	// Update the Infinispan status with the pod status
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
 	labelSelector := labels.SelectorFromSet(labelsForInfinispanSelector(infinispan.Name))
@@ -167,11 +168,16 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
 		return reconcile.Result{}, err
 	}
-	podNames := getPodNames(podList.Items)
 
+	if ispnCliHelper == nil {
+		ispnCliHelper = ispnutil.NewIspnCliHelper()
+	}
+
+	currConds := getInfinispanConditions(ispnCliHelper, podList.Items)
+	infinispan.Status.StatefulSetName = found.ObjectMeta.Name
 	// Update status.Nodes if needed
-	if !reflect.DeepEqual(podNames, infinispan.Status.Nodes) {
-		infinispan.Status.Nodes = podNames
+	if !reflect.DeepEqual(currConds, infinispan.Status.Conditions) {
+		infinispan.Status.Conditions = currConds
 		err := r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan status")
@@ -180,11 +186,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Check if pods container runs the right image
-	for _, pod := range podList.Items {
-		if len(pod.Spec.Containers) == 1 {
-			if pod.Spec.Containers[0].Image != infinispan.Spec.Image {
+	for _, item := range podList.Items {
+		if len(item.Spec.Containers) == 1 {
+			if !strings.HasSuffix(item.Spec.Containers[0].Image, infinispan.Spec.Image) {
 				// TODO: invent a reconciliation policy if images doesn't match
-				// reqLogger.Info("Pod " + pod.ObjectMeta.Name + " runs wrong image " + pod.Spec.Containers[0].Image + " != " + infinispan.Spec.Image)
+				// Attention: this is something that can conflict with StatefulSet rolling upgrade
+				reqLogger.Info("Pod " + item.Name + " runs wrong image " + item.Spec.Containers[0].Image + " != " + infinispan.Spec.Image)
 			}
 		}
 	}
@@ -330,13 +337,47 @@ func labelsForInfinispanSelector(name string) map[string]string {
 	return map[string]string{"app": "infinispan-pod", "infinispan_cr": name}
 }
 
-// getPodNames returns the pod names of the array of pods passed in
-func getPodNames(pods []corev1.Pod) []string {
-	var podNames []string
+type clusterInterface interface {
+	GetClusterMembers(ns, name string) (string, error)
+}
+
+// getInfinispanConditions returns the pods status and a summary status for the cluster
+func getInfinispanConditions(ispnCliHelper clusterInterface, pods []corev1.Pod) []infinispanv1.InfinispanCondition {
+	var status []infinispanv1.InfinispanCondition
+	var wellFormedErr error
+	clusterViews := make(map[string]bool)
+	var errors []string
 	for _, pod := range pods {
-		podNames = append(podNames, pod.Name)
+		var clusterView string
+		clusterView, wellFormedErr = ispnCliHelper.GetClusterMembers(pod.Namespace, pod.Name)
+		if wellFormedErr == nil {
+			clusterViews[clusterView] = true
+		} else {
+			errors = append(errors, pod.Name+": "+wellFormedErr.Error())
+		}
 	}
-	return podNames
+	// Evaluating WellFormed condition
+	wellformed := infinispanv1.InfinispanCondition{Type: "wellFormed"}
+	views := make([]string, len(clusterViews))
+	i := 0
+	for k := range clusterViews {
+		views[i] = k
+		i++
+	}
+	if len(errors) == 0 {
+		if len(views) == 1 {
+			wellformed.Status = "True"
+			wellformed.Message = "View: " + views[0]
+		} else {
+			wellformed.Status = "False"
+			wellformed.Message = "Views: " + strings.Join(views, ",")
+		}
+	} else {
+		wellformed.Status = "Unknown"
+		wellformed.Message = "Errors: " + strings.Join(errors, ",") + " Views: " + strings.Join(views, ",")
+	}
+	status = append(status, wellformed)
+	return status
 }
 
 func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *corev1.Service {

@@ -28,10 +28,21 @@ type InfinispanSpec struct {
 	Management InfinispanManagementInfo `json:"management"`
 }
 
+// InfinispanCondition define a condition of the cluster
+type InfinispanCondition struct {
+	// Type is the type of the condition.
+	Type string `json:"type"`
+	// Status is the status of the condition.
+	Status string `json:"status"`
+	// Human-readable message indicating details about last transition.
+	Message string `json:"message"`
+}
+
 // InfinispanStatus defines the observed state of Infinispan
 type InfinispanStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	Nodes []string `json:"nodes"`
+	Conditions      []InfinispanCondition `json:"conditions"`
+	StatefulSetName string                `json:"statefulSetName"`
 }
 
 type Config struct {
