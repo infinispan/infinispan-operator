@@ -29,6 +29,15 @@ $ make
 ```
 $ make build
 ```
+5. (Optional) The docker image can be build running:
+```
+$ make image IMAGE=image_name TAG=image_tag
+```
+or if your docker version doesn't have multistage build
+```
+$ make image IMAGE=image_name TAG=image_tag MULTISTAGE=NO
+```
+
 
 ### Running the Infinispan Operator
 
