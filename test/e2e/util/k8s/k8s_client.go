@@ -34,17 +34,19 @@ import (
 
 	"bytes"
 
+	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-// ExternalOKD provides a simplified client for a running OKD cluster
+// ExternalK8s provides a simplified client for a running OKD cluster
 type ExternalK8s struct {
-	coreClient *coreclient.CoreV1Client
-	rbacClient *rbacclient.RbacV1Client
-	appsClient *appsV1.AppsV1Client
-	extensions *apiextclient.ApiextensionsV1beta1Client
-	ispnClient *ispnv1.InfinispanV1Client
-	restConfig *restclient.Config
+	coreClient    *coreclient.CoreV1Client
+	rbacClient    *rbacclient.RbacV1Client
+	appsClient    *appsV1.AppsV1Client
+	extensions    *apiextclient.ApiextensionsV1beta1Client
+	ispnClient    *ispnv1.InfinispanV1Client
+	restConfig    *restclient.Config
+	ispnCliHelper *ispnutil.IspnCliHelper
 }
 
 var log = logf.Log.WithName("main_test")
@@ -104,6 +106,8 @@ func NewK8sClient(kubeConfigLocation string) *ExternalK8s {
 		panic(err.Error())
 	}
 	c.ispnClient = ispnClient
+
+	c.ispnCliHelper = ispnutil.NewIspnCliHelper()
 
 	return c
 }
@@ -551,4 +555,9 @@ func (c ExternalK8s) DeleteRoute(ns, serviceName string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// GetClusterSize returns the # of cluster members
+func (c ExternalK8s) GetClusterSize(namespace, namePod string) (int, error) {
+	return c.ispnCliHelper.GetClusterSize(namespace, namePod)
 }
