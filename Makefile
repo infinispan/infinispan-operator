@@ -21,8 +21,18 @@ build: dep
 
 ## image       Build a Docker image for the Infinispan operator.
 image: build
+ifeq ($(MULTISTAGE),NO)
+## This branch builds the image in a docker container which provides multistage build
+## for distro that doesn't provide multistage build directly (i.e. Fedora 29)
+	-docker run -d --rm --privileged -p 23751:2375 --name dind docker:stable-dind --storage-driver overlay2
+	-docker --host=:23751 build -t "$(IMAGE):$(TAG)" . -f build/Dockerfile
+	-docker --host=:23751 save -o ./make.image.out.tar "$(IMAGE):$(TAG)"
+	-docker load -i ./make.image.out.tar
+	-rm -f make.image.out.tar
+	-docker stop dind
+else
 	docker build -t "$(IMAGE):$(TAG)" . -f build/Dockerfile
-
+endif
 ## push        Push Docker images to Docker Hub.
 push: image
 	docker push $(IMAGE):$(TAG)
