@@ -144,6 +144,18 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	image := infinispan.Spec.Image
+	if found.Spec.Template.Spec.Containers[0].Image != image {
+		found.Spec.Template.Spec.Containers[0].Image = image
+		err = r.client.Update(context.TODO(), found)
+		if err != nil {
+			reqLogger.Error(err, "failed to update Deployment", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+			return reconcile.Result{}, err
+		}
+		// Spec updated - return and requeue
+		return reconcile.Result{Requeue: true}, nil
+	}
+
 	// Ensure the deployment size is the same as the spec
 	replicas := infinispan.Spec.Replicas
 	if *found.Spec.Replicas != replicas {
@@ -298,6 +310,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					ServiceAccountName: "infinispan-operator",
 				},
 			},
+			UpdateStrategy: appsv1beta1.StatefulSetUpdateStrategy{Type: "RollingUpdate"},
 		},
 	}
 
