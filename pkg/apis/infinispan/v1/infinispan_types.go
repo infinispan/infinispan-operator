@@ -6,8 +6,20 @@ import (
 
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
-	Size  int32  `json:"size"`
-	Image string `json:"image"`
+	Size      int32  `json:"size"`
+	Image     string `json:"image"`
+	Connector struct {
+		Secret struct {
+			Type       string `json:"type"`
+			SecretName string `json:"secretName"`
+		} `json:"secret"`
+	} `json:"connector"`
+	Management struct {
+		Secret struct {
+			Type       string `json:"type"`
+			SecretName string `json:"secretName"`
+		} `json:"secret"`
+	} `json:"management"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan

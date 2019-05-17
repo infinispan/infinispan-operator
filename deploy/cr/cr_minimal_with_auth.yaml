@@ -1,0 +1,15 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+spec:
+  size: 2
+  image: jboss/infinispan-server:latest
+  connector:
+    secret:
+      type: Credentials
+      secretName: auth-secret
+  management:
+    secret:
+      type: Credentials
+      secretName: auth-secret
