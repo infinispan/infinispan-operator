@@ -7,5 +7,5 @@ COPY . /go/src/github.com/infinispan/infinispan-operator/
 RUN rm -rf build/_output
 RUN ./build/build.sh linux /bin
 
-FROM scratch
+FROM registry.access.redhat.com/ubi8/ubi-minimal
 COPY --from=build /bin/infinispan-operator /usr/local/bin/infinispan-operator
