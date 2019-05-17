@@ -213,6 +213,41 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	} else {
 		imageName = DefaultImageName
 	}
+
+	var appUser, appPass string
+	if m.Spec.Connector.Secret.Type == "Credentials" &&
+		m.Spec.Connector.Secret.SecretName != "" {
+		secretFound := &corev1.Secret{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Connector.Secret.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
+		if err == nil {
+			appUser = string(secretFound.Data["connector-username"][:])
+			appPass = string(secretFound.Data["connector-password"][:])
+		}
+	}
+	if appUser == "" {
+		appUser = "infinispan"
+	}
+	if appPass == "" {
+		appPass = "infinispan"
+	}
+
+	var mgmtUser, mgmtPass string
+	if m.Spec.Management.Secret.Type == "Credentials" &&
+		m.Spec.Management.Secret.SecretName != "" {
+		secretFound := &corev1.Secret{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Management.Secret.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
+		if err == nil {
+			mgmtUser = string(secretFound.Data["management-username"][:])
+			mgmtPass = string(secretFound.Data["management-password"][:])
+		}
+	}
+	if mgmtUser == "" {
+		mgmtUser = "infinispan"
+	}
+	if mgmtPass == "" {
+		mgmtPass = "infinispan"
+	}
+
 	dep := &appsv1beta1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1beta1",
@@ -244,10 +279,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local"},
 						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.ObjectMeta.Namespace}, // TODO this is the right place for namespace?
 							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
-							{Name: "MGMT_USER", Value: "infinispan"},
-							{Name: "MGMT_PASS", Value: "infinispan"},
-							{Name: "APP_USER", Value: "infinispan"},
-							{Name: "APP_PASS", Value: "infinispan"}},
+							{Name: getPropertyFromConfig("MGMT_USER"), Value: mgmtUser},
+							{Name: getPropertyFromConfig("MGMT_PASS"), Value: mgmtPass},
+							{Name: getPropertyFromConfig("APP_USER"), Value: appUser},
+							{Name: getPropertyFromConfig("APP_PASS"), Value: appPass}},
 						LivenessProbe: &corev1.Probe{Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/usr/local/bin/is_running.sh"}}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
@@ -372,4 +407,14 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 	controllerutil.SetControllerReference(m, service, r.scheme)
 
 	return service
+}
+
+// getPropertyFromConfig maps property to correct image value
+// The Infinispan operator is supposed to work with different
+// infinispan-based datagrid: these different flavors may need
+// different setup. This function will do the operator/image mapping.
+// Now just returns the input value because we're very likely running
+// a vanilla Infinispan cluster
+func getPropertyFromConfig(propName string) string {
+	return propName
 }
