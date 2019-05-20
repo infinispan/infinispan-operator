@@ -123,10 +123,14 @@ func NewOKDClient(kubeConfigLocation string) *ExternalOKD {
 	return c
 }
 
+// CoreClient returns a ready to use core client
+func (c ExternalOKD) CoreClient() *coreV1.CoreV1Client {
+	return c.coreClient
+}
+
 // Creates a Custom Resource Definition, waiting it to become ready.
 func (c ExternalOKD) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition) {
 	customResourceSvc := c.extensions.CustomResourceDefinitions()
-
 	existing, _ := customResourceSvc.Get(crd.Name, metaV1.GetOptions{})
 
 	if reflect.DeepEqual(apiextv1beta1.CustomResourceDefinition{}, *existing) {
@@ -254,7 +258,6 @@ func (c ExternalOKD) CreateOrUpdateRoleBinding(binding *authv1.RoleBinding, name
 func (c ExternalOKD) CreateOrUpdateSa(sa *v1.ServiceAccount, namespace string) {
 	accountsSvc := c.coreClient.ServiceAccounts(namespace)
 	existing, _ := accountsSvc.Get(sa.Name, metaV1.GetOptions{})
-
 	if reflect.DeepEqual(v1.ServiceAccount{}, *existing) {
 		_, e := accountsSvc.Create(sa)
 		if e != nil {
@@ -443,13 +446,13 @@ func debugPods(required int, pods []v1.Pod) {
 	}
 }
 
-func (c ExternalOKD) WaitForRoute(url string, client *http.Client, timeout time.Duration) {
+func (c ExternalOKD) WaitForRoute(url string, client *http.Client, timeout time.Duration, user string, pass string) {
 	err := wait.Poll(period, timeout, func() (done bool, err error) {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return false, err
 		}
-		req.SetBasicAuth("infinispan", "infinispan")
+		req.SetBasicAuth(user, pass)
 		resp, err := client.Do(req)
 		if err != nil {
 			return false, err

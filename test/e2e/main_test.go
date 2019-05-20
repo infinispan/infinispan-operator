@@ -14,6 +14,8 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/test/e2e/util"
+	corev1 "k8s.io/api/core/v1"
+	apiv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -33,6 +35,11 @@ const Namespace = "namespace-for-testing"
 const TestTimeout = 5 * time.Minute
 const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 60 * time.Second
+
+// Options used when deleting resources
+var deletePropagation = apiv1.DeletePropagationBackground
+var gracePeriod = int64(0)
+var deleteOpts = apiv1.DeleteOptions{PropagationPolicy: &deletePropagation, GracePeriodSeconds: &gracePeriod}
 
 var okd = util.NewOKDClient(ConfigLocation)
 
@@ -150,21 +157,74 @@ func TestExternalService(t *testing.T) {
 
 	url := "http://" + route.Spec.Host + "/rest/default/test"
 	client := &http.Client{}
-	okd.WaitForRoute(url, client, RouteTimeout)
+	okd.WaitForRoute(url, client, RouteTimeout, "infinispan", "infinispan")
 
 	value := "test-operator"
 
-	putViaRoute(url, value, client)
-	actual := getViaRoute(url, client)
+	putViaRoute(url, value, client, "infinispan", "infinispan")
+	actual := getViaRoute(url, client, "infinispan", "infinispan")
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
 }
 
-func getViaRoute(url string, client *http.Client) string {
+func TestExternalServiceWithAuth(t *testing.T) {
+	// Create secret with credentials
+	secret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: "auth-secret-test"},
+		Type:       "Opaque",
+		StringData: map[string]string{"connector-username": "connectorusr", "connector-password": "connectorpass"},
+	}
+	okd.CoreClient().Secrets(Namespace).Create(&secret)
+	defer okd.CoreClient().Secrets(Namespace).Delete("auth-secret-test", &deleteOpts)
+
+	// Create Infinispan
+	spec := ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cache-infinispan-0",
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Size:      1,
+			Connector: ispnv1.InfinispanAuthInfo{Secret: ispnv1.InfinispanSecret{Type: "Credentials", SecretName: "auth-secret-test"}},
+		},
+	}
+	okd.CreateInfinispan(&spec, Namespace)
+	defer okd.DeleteInfinispan("cache-infinispan-0", Namespace, "app=infinispan-pod", SinglePodTimeout)
+	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	route := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
+	defer okd.DeleteRoute("cache-infinispan-0", Namespace)
+
+	url := "http://" + route.Spec.Host + "/rest/default/test"
+	client := &http.Client{}
+	okd.WaitForRoute(url, client, RouteTimeout, "connectorusr", "connectorpass")
+
+	value := "test-operator"
+
+	putViaRoute(url, value, client, "connectorusr", "connectorpass")
+	actual := getViaRoute(url, client, "connectorusr", "connectorpass")
+
+	if actual != value {
+		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
+	}
+}
+
+func getViaRoute(url string, client *http.Client, user string, pass string) string {
 	req, err := http.NewRequest("GET", url, nil)
-	req.SetBasicAuth("infinispan", "infinispan")
+	req.SetBasicAuth(user, pass)
 	resp, err := client.Do(req)
 	if err != nil {
 		panic(err.Error())
@@ -180,11 +240,11 @@ func getViaRoute(url string, client *http.Client) string {
 	return string(bodyBytes)
 }
 
-func putViaRoute(url string, value string, client *http.Client) {
+func putViaRoute(url string, value string, client *http.Client, user string, pass string) {
 	body := bytes.NewBuffer([]byte(value))
 	req, err := http.NewRequest("POST", url, body)
 	req.Header.Set("Content-Type", "text/plain")
-	req.SetBasicAuth("infinispan", "infinispan")
+	req.SetBasicAuth(user, pass)
 	fmt.Printf("Put request via route: %v\n", req)
 	resp, err := client.Do(req)
 	if err != nil {

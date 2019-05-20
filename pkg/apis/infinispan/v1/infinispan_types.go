@@ -4,22 +4,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// InfinispanSecret references a secret into namespace
+type InfinispanSecret struct {
+	Type       string `json:"type"`
+	SecretName string `json:"secretName"`
+}
+
+// InfinispanAuthInfo authentication info
+type InfinispanAuthInfo struct {
+	Secret InfinispanSecret `json:"secret"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
-	Size      int32  `json:"size"`
-	Image     string `json:"image"`
-	Connector struct {
-		Secret struct {
-			Type       string `json:"type"`
-			SecretName string `json:"secretName"`
-		} `json:"secret"`
-	} `json:"connector"`
-	Management struct {
-		Secret struct {
-			Type       string `json:"type"`
-			SecretName string `json:"secretName"`
-		} `json:"secret"`
-	} `json:"management"`
+	Size       int32              `json:"size"`
+	Image      string             `json:"image"`
+	Connector  InfinispanAuthInfo `json:"connector"`
+	Management InfinispanAuthInfo `json:"management"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan
