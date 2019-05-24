@@ -13,9 +13,9 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	utilk8s "github.com/infinispan/infinispan-operator/test/e2e/util/k8s"
 	corev1 "k8s.io/api/core/v1"
 	apiv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilk8s "github.com/infinispan/infinispan-operator/test/e2e/util/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -34,6 +34,7 @@ const Namespace = "namespace-for-testing"
 const TestTimeout = 5 * time.Minute
 const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 60 * time.Second
+const defaultCliPath = "/opt/jboss/infinispan-server/bin/ispn-cli.sh"
 
 // Options used when deleting resources
 var deletePropagation = apiv1.DeletePropagationBackground
@@ -71,7 +72,8 @@ func TestClusterFormation(t *testing.T) {
 			Name: "cache-infinispan",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size: 2,
+			Size:  2,
+			Image: getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
 	}
 	// Register it
@@ -108,7 +110,7 @@ func TestClusterFormation(t *testing.T) {
 // This function get the cluster size via the ISPN cli
 func getClusterSize(namespace, namePod string) (int, error) {
 	cliCommand := "/subsystem=datagrid-infinispan/cache-container=clustered/:read-attribute(name=cluster-size)\n"
-	commands := []string{"/opt/jboss/infinispan-server/bin/ispn-cli.sh", "--connect"}
+	commands := []string{getEnvWithDefault("CLI_CMD", defaultCliPath), "--connect"}
 	var execIn, execOut, execErr bytes.Buffer
 	execIn.WriteString(cliCommand)
 	err := okd.ExecuteCmdOnPod(namespace, namePod, commands,
@@ -126,6 +128,14 @@ func getClusterSize(namespace, namePod string) (int, error) {
 	return 0, err
 }
 
+func getEnvWithDefault(name, defVal string) string {
+	str := os.Getenv(name)
+	if str != "" {
+		return str
+	}
+	return defVal
+}
+
 func TestExternalService(t *testing.T) {
 	// Create a resource without passing any config
 	spec := ispnv1.Infinispan{
@@ -137,7 +147,8 @@ func TestExternalService(t *testing.T) {
 			Name: "cache-infinispan-0",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size: 1,
+			Size:  1,
+			Image: getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
 	}
 
@@ -195,6 +206,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		Spec: ispnv1.InfinispanSpec{
 			Size:      1,
 			Connector: ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Secret: ispnv1.InfinispanSecret{Type: "Credentials", SecretName: "conn-secret-test"}}},
+			Image:     getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
 	}
 	okd.CreateInfinispan(&spec, Namespace)
@@ -206,7 +218,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	}
 
 	nodePort := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
-	defer okd.DeleteRoute(Namespace,"cache-infinispan-0-http")
+	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
 
 	host := okd.PublicIp()
 	url := "http://" + host + ":" + fmt.Sprint(nodePort) + "/rest/default/test"
@@ -277,7 +289,8 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 			Name:       "cloud-ephemeral.xml",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size: 2,
+			Size:  2,
+			Image: getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
 	}
 
