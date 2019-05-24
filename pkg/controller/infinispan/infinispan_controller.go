@@ -6,6 +6,10 @@ import (
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 
+	"os"
+
+	"encoding/json"
+
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,9 +34,10 @@ var log = logf.Log.WithName("controller_infinispan")
 const ConfigMapping = "custom"
 const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
 const DefaultConfig = "cloud.xml"
+const defaultJGroupsPingProtocol = "openshift.DNS_PING"
 
 // DefaultImageName is used if a specific image name is not provided
-const DefaultImageName = "jboss/infinispan-server:latest"
+var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "jboss/infinispan-server:latest")
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -189,23 +194,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan) *appsv1beta1.StatefulSet {
+	// This field specifies the flavor of the
+	// Infinispan cluster. "" is plain community edition (vanilla)
 	ls := labelsForInfinispan(m.ObjectMeta.Name)
-
-	infinispanConfig := m.Config
-	var configPath string
-
-	switch infinispanConfig.SourceType {
-	case infinispanv1.ConfigMap:
-		configPath = ConfigMapping + "/" + infinispanConfig.Name
-	case infinispanv1.Internal:
-		if infinispanConfig.Name != "" {
-			configPath = infinispanConfig.Name
-		} else {
-			configPath = DefaultConfig
-		}
-	default:
-		configPath = DefaultConfig
-	}
 
 	var imageName string
 	if m.Spec.Image != "" {
@@ -247,7 +238,14 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	if mgmtPass == "" {
 		mgmtPass = "infinispan"
 	}
-
+	envVars := []corev1.EnvVar{{Name: getImageVarNameFromOperatorEnv("MGMT_USER"), Value: mgmtUser},
+		{Name: getImageVarNameFromOperatorEnv("MGMT_PASS"), Value: mgmtPass},
+		{Name: getImageVarNameFromOperatorEnv("APP_USER"), Value: appUser},
+		{Name: getImageVarNameFromOperatorEnv("APP_PASS"), Value: appPass},
+		{Name: "IMAGE", Value: m.Spec.Image},
+		{Name: "JGROUPS_PING_PROTOCOL", Value: getEnvWithDefault("JGROUPS_PING_PROTOCOL", defaultJGroupsPingProtocol)},
+		{Name: "OPENSHIFT_DNS_PING_SERVICE_NAME", Value: m.ObjectMeta.Name + "-ping"},
+		{Name: getImageVarNameFromOperatorEnv("NUMBER_OF_INSTANCE"), Value: string(m.Spec.Size)}}
 	dep := &appsv1beta1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1beta1",
@@ -275,15 +273,9 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
-						Args: []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
-							"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local"},
-						Env: []corev1.EnvVar{{Name: "KUBERNETES_NAMESPACE", Value: m.ObjectMeta.Namespace}, // TODO this is the right place for namespace?
-							{Name: "KUBERNETES_LABELS", Value: "clusterName=" + m.ObjectMeta.Name},
-							{Name: getPropertyFromConfig("MGMT_USER"), Value: mgmtUser},
-							{Name: getPropertyFromConfig("MGMT_PASS"), Value: mgmtPass},
-							{Name: getPropertyFromConfig("APP_USER"), Value: appUser},
-							{Name: getPropertyFromConfig("APP_PASS"), Value: appPass}},
-						LivenessProbe: &corev1.Probe{Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/usr/local/bin/is_running.sh"}}},
+						Args:  getEntryPointArgs(m),
+						Env:   envVars,
+						LivenessProbe: &corev1.Probe{Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{getProbes("liveness")}}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       60,
@@ -294,7 +286,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							{ContainerPort: 8888, Name: "ping", Protocol: corev1.ProtocolTCP},
 							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
 						},
-						ReadinessProbe: &corev1.Probe{Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/usr/local/bin/is_healthy.sh"}}},
+						ReadinessProbe: &corev1.Probe{Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{getProbes("readiness")}}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       10,
@@ -310,16 +302,18 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	}
 
 	// If using a config map, attach a volume to the container and mount it under 'custom' dir inside the configuration folder
-	if infinispanConfig.SourceType == infinispanv1.ConfigMap {
+	if m.Config.SourceType == infinispanv1.ConfigMap {
 		dep.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 			{
-				MountPath: CustomConfigPath, Name: infinispanConfig.SourceRef,
+				MountPath: CustomConfigPath, Name: m.Config.SourceRef,
 			},
 		}
 
 		dep.Spec.Template.Spec.Volumes = []corev1.Volume{{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
-			LocalObjectReference: corev1.LocalObjectReference{Name: infinispanConfig.SourceRef}}}, Name: infinispanConfig.SourceRef}}
+			LocalObjectReference: corev1.LocalObjectReference{Name: m.Config.SourceRef}}}, Name: m.Config.SourceRef}}
 	}
+
+	appendVolumes(m, dep)
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
@@ -409,12 +403,123 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 	return service
 }
 
-// getPropertyFromConfig maps property to correct image value
+// getImageVarNameFromOperatorEnv maps default env var name to fit non default Infinispan image
 // The Infinispan operator is supposed to work with different
 // infinispan-based datagrid: these different flavors may need
-// different setup. This function will do the operator/image mapping.
-// Now just returns the input value because we're very likely running
-// a vanilla Infinispan cluster
-func getPropertyFromConfig(propName string) string {
+// different environment variables set. This function will do the operator/image mapping
+// relying on the environment: if "propName" env var is defined its value is
+// used as env var name in place of "propName"
+func getImageVarNameFromOperatorEnv(propName string) string {
+	envVar, defined := os.LookupEnv(propName)
+	if defined {
+		return envVar
+	}
 	return propName
+}
+
+func getEnvWithDefault(name, defVal string) string {
+	str := os.Getenv(name)
+	if str != "" {
+		return str
+	}
+	return defVal
+}
+
+// getEntryPointArgs returns the arguments for the image entrypoint command
+// Returns ENTRY_POINT_ARGS env var if defined otherwise the default value.
+// Dafault value is not an empty string, so if an empty string is needed it must
+// be exmplicltly passed to the operator (i.e. ENTRY_POINT_ARGS="")
+func getEntryPointArgs(m *infinispanv1.Infinispan) []string {
+	envVar, defined := os.LookupEnv("ENTRY_POINT_ARGS")
+	if defined {
+		var arr []string
+		err := json.Unmarshal([]byte(envVar), &arr)
+		if err == nil {
+			return arr
+		}
+		// In case of error return default entry args
+		logf.Log.Error(err, "Using default for ENTRY_POINT_ARGS. Error in parsing user value: (%s)", envVar)
+	}
+	var configPath string
+	switch m.Config.SourceType {
+	case infinispanv1.ConfigMap:
+		configPath = ConfigMapping + "/" + m.Config.Name
+	case infinispanv1.Internal:
+		if m.Config.Name != "" {
+			configPath = m.Config.Name
+		} else {
+			configPath = DefaultConfig
+		}
+	default:
+		configPath = DefaultConfig
+	}
+	return []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
+		"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local"}
+}
+
+// Specific definitions for different subkind of Infinispan cluster
+var defaultProbesMap = map[string]string{"readiness": "/usr/local/bin/is_healthy.sh", "liveness": "/usr/local/bin/is_running.sh"}
+
+func getProbes(probeName string) string {
+	envVar, defined := os.LookupEnv("PROBES")
+	if defined {
+		var probesMap map[string]string
+		err := json.Unmarshal([]byte(envVar), &probesMap)
+		if err == nil {
+			return probesMap[probeName]
+		}
+	}
+	return defaultProbesMap[probeName]
+}
+
+func appendVolumes(m *infinispanv1.Infinispan, dep *appsv1beta1.StatefulSet) {
+	var volumeMounts []corev1.VolumeMount
+	envVar, defined := os.LookupEnv("VOLUME_MOUNTS")
+	if defined {
+		err := json.Unmarshal([]byte(envVar), &volumeMounts)
+		if err != nil {
+			// In case of error return default add nothing and exit
+			logf.Log.Error(err, "No volume mounts added. Error in parsing user VOLUME_MOUNTS value: (%s)", envVar)
+			return
+		}
+	}
+
+	var volumeRefs []string
+	envVar, defined = os.LookupEnv("VOLUME_REFS")
+	if defined {
+		err := json.Unmarshal([]byte(envVar), &volumeRefs)
+		if err != nil {
+			// In case of error return default add nothing
+			logf.Log.Error(err, "No volume mounts added. Error in parsing user VOLUME_REFS value: (%s)", envVar)
+			return
+		}
+	}
+
+	var volumeClaims []corev1.PersistentVolumeClaim
+	envVar, defined = os.LookupEnv("VOLUME_CLAIMS")
+	if defined {
+		err := json.Unmarshal([]byte(envVar), &volumeClaims)
+		if err != nil {
+			// In case of error return default add nothing
+			logf.Log.Error(err, "No volume mounts added. Error in parsing user VOLUME_CLAIMS value: (%s)", envVar)
+			return
+		}
+	}
+
+	vm := dep.Spec.Template.Spec.Containers[0].VolumeMounts
+	for _, vol := range volumeMounts {
+		vm = append(vm, vol)
+	}
+
+	v := dep.Spec.Template.Spec.Volumes
+	for _, volRef := range volumeRefs {
+		v = append(v, corev1.Volume{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{Name: volRef}}}, Name: volRef})
+	}
+
+	vc := dep.Spec.VolumeClaimTemplates
+	for _, volClaim := range volumeClaims {
+		vc = append(vc, volClaim)
+	}
+
 }
