@@ -497,7 +497,7 @@ metadata:
   name: cluster-encrypt-secret
 type: Opaque
 data:
-  “keystore.p12”: FQSmxHHvFvrhEfKIq15axg==
+  keystore.p12: "FQSmxHHvFvrhEfKIq15axg=="
 stringData:
   password: opensesame
 ----
@@ -588,5 +588,5 @@ metadata:
   name: aws-secret
 type: Opaque
 stringData:
-  token: jd1r/deZpYmY/mpvofUKWQ==
+  token: "jd1r/deZpYmY/mpvofUKWQ=="
 ----
