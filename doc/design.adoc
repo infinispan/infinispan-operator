@@ -39,9 +39,6 @@ This document describes the types introduced by the Infinispan Operator to be co
 
 `InfinispanSpec` is a specification of the desired behavior of the Infinispan resource.
 
-TODO:fix
-It uses a `StatefulSet` with a pod spec that mounts the volume specified by `storage` on `/opt/jboss/wildfly/standalone/data`.
-
 [options="header,footer"]
 |=======================
 | Field | Description | Scheme | Required | Default
@@ -65,7 +62,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | `1`
 
 | `size`
-| Number of instances for a `Infinispan` resource.
+| Number of instances for a Infinispan resource.
 | int32
 | true
 |
@@ -112,20 +109,20 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 [[infinispanclusterspec]]
 #### `InfinispanClusterSpec`
 
-`InfinispanClusterSpec` configures how `InfinispanSpec` instances talk to each other.
+`InfinispanClusterSpec` configures how Infinispan instances talk to each other.
 
 [options="header,footer"]
 |=======================
 | Field | Description | Scheme | Required | Default
 
 | `encryption`
-| Enables `InfinispanSpec` cluster encryption.
+| Enables cluster encryption.
 | <<infinispanencryptionspec>>
 | false
 |
 
 | `secret`
-| Enables `InfinispanSpec` cluster authentication.
+| Enables cluster authentication.
 | <<infinispansecretspec>>
 | false
 |
@@ -144,7 +141,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 
 | `type`
 | Type of encryption
-| `Symmetric` / `Asymmetric`
+| `Symmetric` or `Asymmetric`
 | true
 |
 
@@ -152,7 +149,7 @@ It uses a `StatefulSet` with a pod spec that mounts the volume specified by `sto
 | Encrypted secret information.
 Only required with `Symmetric` encryption type.
 | <<infinispansecretspec>>
-| true
+| false
 |
 
 |=======================
@@ -168,9 +165,9 @@ Only required with `Symmetric` encryption type.
 | Field | Description | Scheme | Required | Default
 
 | `secret`
-| Secret information for authenticating access.
+| Authenticates access to Infinispan connectors.
 | <<infinispansecretspec>>
-| false
+| true
 |
 
 |=======================
@@ -192,20 +189,20 @@ Only required with `Symmetric` encryption type.
 |
 
 | `memory`
-| Memory allocated for each `Infinispan` container.
+| Memory allocated for each Infinispan container.
 Described as indicated
 https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory[here].
 | string
 | false
-| `"512Mi"`
+| `512Mi`
 
 | `storage`
-| Storage per `Infinispan` container (only data grid service).
+| Storage per Infinispan container (only data grid service).
 Described as indicated
 https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#local-ephemeral-storage[here].
 | string
 | false
-| `"1Gi"`
+| `1Gi`
 
 |=======================
 
@@ -258,7 +255,7 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | `secret`
 | Management authentication information.
 | <<infinispansecretspec>>
-| false
+| true
 |
 
 |=======================
@@ -323,7 +320,7 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 
 | `type`
 | Type of remote site configuration.
-| `Static` / `Dynamic`
+| `Static` or `Dynamic`
 | true
 |
 
@@ -359,7 +356,7 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 
 | `type`
 | Type of secret.
-| `Credentials` / `Keystore` / `Token`.
+| `Credentials`, `Keystore` or `Token`
 | true
 |
 
@@ -371,16 +368,13 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 
 |=======================
 
-If type is `Credentials`,
-`Secret` is expected to contain username and password credentials,
-in `stringData/username` and `stringData/password` fields respectively.
+If type is `Credentials`, Secret` is expected to contain username and password credentials.
+These would be defined in `stringData/username` and `stringData/password` fields respectively.
 
-If type is `Keystore`,
-`Secret` is expected to contain base64 encoded data in `data/keystore.p12` field.
-Optional keystore password would be located in `stringData.password` field.
+If type is `Keystore`, `Secret` is expected to contain base64 encoded data in `data/keystore.p12` field.
+Optional keystore password would be located in `stringData/password` field.
 
-If type is `Token`,
-`Secret` is expected to contain base64 encoded data in `stringData/token` field.
+If type is `Token`, `Secret` is expected to contain base64 encoded data in `stringData/token` field.
 
 
 [[infinispanstatus]]
