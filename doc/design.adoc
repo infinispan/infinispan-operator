@@ -1,0 +1,598 @@
+= Infinispan Operator - API Documentation
+:toc:               left
+
+This document describes the types introduced by the Infinispan Operator to be consumed by users.
+
+
+[[infinispan]]
+## `Infinispan`
+
+`Infinispan` defines a custom Infinispan resource.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required
+
+| `metadata`
+| Standard object’s metadata
+(https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#metadata[more info])
+| https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#objectmeta-v1-meta[metav1.ObjectMeta]
+| false
+
+| `spec`
+| Specification of the desired behaviour of the Infinispan deployment
+(https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status[more info])
+| <<infinispanspec>>
+| true
+
+| `status`
+| Most recent observed status of the Infinispan deployment. Read-only.
+(https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status#spec-and-status[more info])
+| <<infinispanstatus>>
+| false
+
+|
+|=======================
+
+[[infinispanspec]]
+### `InfinispanSpec`
+
+`InfinispanSpec` is a specification of the desired behavior of the Infinispan resource.
+
+TODO:fix
+It uses a `StatefulSet` with a pod spec that mounts the volume specified by `storage` on `/opt/jboss/wildfly/standalone/data`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `evictionPolicy`
+| Eviction policy (only cache service?).
+| `Reject` / `Evict`
+| false
+| `Evict`
+
+| `image`
+| Operator image
+| string
+| false
+| `jboss/infinispan-server:latest`
+
+| `replicationFactor`
+| Replication factor (only cache service?).
+| int32
+| false
+| `1`
+
+| `size`
+| Number of instances for a `Infinispan` resource.
+| int32
+| true
+|
+
+| `cluster`
+| Cluster configuration.
+| <<infinispanclusterspec>>
+| false
+|
+
+| `connector`
+| Connector configuration.
+| <<infinispanconnectorspec>>
+| false
+|
+
+| `container`
+| Per instance configuration.
+| <<infinispancontainerspec>>
+| false
+|
+
+| `datasources`
+| Datasource list
+| []<<infinispandatasourcespec>>
+| false
+|
+
+| `management`
+| Management configuration.
+| <<infinispanmgmtspec>>
+| false
+|
+
+| `sites`
+| Cross-site configuration
+| <<infinispansitesspec>>
+| false
+|
+
+|=======================
+
+
+[[infinispanclusterspec]]
+#### `InfinispanClusterSpec`
+
+`InfinispanClusterSpec` configures how `InfinispanSpec` instances talk to each other.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `encryption`
+| Enables `InfinispanSpec` cluster encryption.
+| <<infinispanencryptionspec>>
+| false
+|
+
+| `secret`
+| Enables `InfinispanSpec` cluster authentication.
+| <<infinispansecretspec>>
+| false
+|
+
+|=======================
+
+
+[[infinispanencryptionspec]]
+##### `InfinispanEncryptionSpec`
+
+`InfinispanEncryptionSpec` configures how encryption between `InfinispanSpec` instances happens.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `type`
+| Type of encryption
+| `Symmetric` / `Asymmetric`
+| true
+|
+
+| `secret`
+| Encrypted secret information.
+Only required with `Symmetric` encryption type.
+| <<infinispansecretspec>>
+| true
+|
+
+|=======================
+
+
+[[infinispanconnectorspec]]
+#### `InfinispanConnectorSpec`
+
+`InfinispanConnectorSpec` defines how Infinispan is accessed.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `secret`
+| Secret information for authenticating access.
+| <<infinispansecretspec>>
+| false
+|
+
+|=======================
+
+
+[[infinispancontainerspec]]
+#### `InfinispanContainerSpec`
+
+`InfinispanContainerSpec` is a specification of each Infinispan instance managed by `InfinispanSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `jvmOptionsAppend`
+| Extra JVM options to pass to each `Infinispan` container.
+| string
+| false
+|
+
+| `memory`
+| Memory allocated for each `Infinispan` container.
+Described as indicated
+https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory[here].
+| string
+| false
+| `"512Mi"`
+
+| `storage`
+| Storage per `Infinispan` container (only data grid service).
+Described as indicated
+https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#local-ephemeral-storage[here].
+| string
+| false
+| `"1Gi"`
+
+|=======================
+
+
+[[infinispandatasourcespec]]
+#### `InfinispanDatasourceSpec`
+
+`InfinispanDatasourceSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `name`
+| Name of datasource.
+| string
+| true
+|
+
+| `driver`
+| Driver for datasource.
+| string
+| true
+|
+
+| `secret`
+| Secret for accessing datasource.
+| <<infinispansecretspec>>
+| true
+|
+
+|=======================
+
+
+[[infinispanmgmtspec]]
+#### `InfinispanManagementSpec`
+
+`InfinispanManagementSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `prometheus`
+| Enable prometheus.
+| boolean
+| false
+| false
+
+| `secret`
+| Management authentication information.
+| <<infinispansecretspec>>
+| false
+|
+
+|=======================
+
+
+[[infinispansitesspec]]
+#### `InfinispanSitesSpec`
+
+`InfinispanSpitesSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `local`
+| Local site information.
+| <<infinispanlocalsitespec>>
+| true
+|
+
+| `remotes`
+| Remote site information.
+| []<<infinispanremotesitespec>>
+| true
+|
+
+|=======================
+
+
+[[infinispanlocalsitespec]]
+#### `InfinispanLocalSiteSpec`
+
+`InfinispanLocalSiteSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `externalService`
+| External service that is accessible from other sites.
+| https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#service-v1-core[coreV1.Service]
+| true
+|
+
+|=======================
+
+
+[[infinispanremotesitespec]]
+#### `InfinispanRemoteSiteSpec`
+
+`InfinispanRemoteSiteSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `name`
+| Name of remote site.
+| string
+| true
+|
+
+| `type`
+| Type of remote site configuration.
+| `Static` / `Dynamic`
+| true
+|
+
+| `host`
+| Remote site host name.
+| string
+| true
+|
+
+| `port`
+| Remote site host port (only for `Static` type).
+| int32
+| false
+|
+
+| `secret`
+| Secret to connect to remote site (only for `Dynamic` type).
+| <<infinispansecretspec>>
+| false
+|
+
+|=======================
+
+
+[[infinispansecretspec]]
+##### `InfinispanSecretSpec`
+
+`InfinispanSecretSpec` defines how `InfinispanSpec` secrets are configured.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `type`
+| Type of secret.
+| `Credentials` / `Keystore` / `Token`.
+| true
+|
+
+| `secretName`
+| Name of referenced secret.
+| string
+| true
+|
+
+|=======================
+
+If type is `Credentials`,
+`Secret` is expected to contain username and password credentials,
+in `stringData/username` and `stringData/password` fields respectively.
+
+If type is `Keystore`,
+`Secret` is expected to contain base64 encoded data in `data/keystore.p12` field.
+Optional keystore password would be located in `stringData.password` field.
+
+If type is `Token`,
+`Secret` is expected to contain base64 encoded data in `stringData/token` field.
+
+
+[[infinispanstatus]]
+### `InfinispanStatus`
+
+`InfinispanStatus` is the most recent observed status of the `InfinispanSpec`. Read-only.
+
+TODO: @Vittorio, update with your proposal
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required
+
+| `pods`
+| Status of the pods.
+| []<<podstatus>>
+| true
+
+|=======================
+
+
+[[podstatus]]
+#### `PodStatus`
+
+`PodStatus` is the most recent observed status of a pod running `InfinispanSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required
+
+| `name`
+| Name of the Pod.
+| string
+| true
+
+| `podIP`
+| IP address allocated to the pod.
+| string
+| true
+
+|=======================
+
+## Full Example
+
+.full-example.yaml
+[source,yaml]
+----
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: full-example-infinispan
+spec:
+  evictionPolicy: Reject
+  image: jboss/infinispan-server:latest
+  replicationFactory: 3
+  size: 4
+  cluster:
+    encryption:
+      type: Symmetric
+      secret:
+        type: Keystore
+        secretName: cluster-encrypt-secret
+    secret:
+      type: Credentials
+      secretName: cluster-auth-secret
+  connector:
+    secret:
+      type: Credentials
+      secretName: connect-auth-secret
+  container:
+    jvmOptionsAppend: "-XX:NativeMemoryTracking=summary"
+    memory: 1Gi
+    storage: 2Gi
+  datasources:
+  - name: test-pg
+    driver: postgresql
+    secret:
+      type: Credentials
+      secretName: postgresql-secret
+  - name: test-mysql
+    driver: mysql
+    secret:
+      type: Credentials
+      secretName: mysql-secret
+  management:
+    prometheus: true
+    secret:
+      type: Credentials
+      secretName: mgmt-secret
+  sites:
+    local:
+      externalService:
+        type: LoadBalancer
+        ports:
+          port: 12345
+    remotes:
+    - name: google
+      type: Static
+      host: google.host
+      port: 23456
+    - name: azure
+      type: Dynamic
+      host: azure.host
+      secret:
+        type: Credentials
+        secretName: azure-secret
+    - name: aws
+      type: Dynamic
+      secret:
+        type: Token
+        secretName: aws-secret
+----
+
+.cluster-encrypt-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-encrypt-secret
+type: Opaque
+data:
+  “keystore.p12”: FQSmxHHvFvrhEfKIq15axg==
+stringData:
+  password: opensesame
+----
+
+.cluster-auth-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-auth-secret
+type: Opaque
+stringData:
+  password: clusterpass
+----
+
+.connect-auth-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: connect-auth-secret
+type: Opaque
+stringData:
+  username: connectusr
+  password: connectpass
+----
+
+.postgresql-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql-secret
+type: Opaque
+stringData:
+  username: pgusr
+  password: pgpass
+----
+
+.mysql-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+type: Opaque
+stringData:
+  username: myusr
+  password: mypass
+----
+
+.mgmt-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mgmt-secret
+type: Opaque
+stringData:
+  username: mgmtusr
+  password: mgmtpass
+----
+
+.azure-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-secret
+type: Opaque
+stringData:
+  username: azusr
+  password: azpass
+----
+
+.aws-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-secret
+type: Opaque
+stringData:
+  token: jd1r/deZpYmY/mpvofUKWQ==
+----
