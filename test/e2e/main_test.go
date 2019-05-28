@@ -13,9 +13,9 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	"github.com/infinispan/infinispan-operator/test/e2e/util"
 	corev1 "k8s.io/api/core/v1"
 	apiv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilk8s "github.com/infinispan/infinispan-operator/test/e2e/util/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -40,23 +40,23 @@ var deletePropagation = apiv1.DeletePropagationBackground
 var gracePeriod = int64(0)
 var deleteOpts = apiv1.DeleteOptions{PropagationPolicy: &deletePropagation, GracePeriodSeconds: &gracePeriod}
 
-var okd = util.NewOKDClient(ConfigLocation)
+var okd = utilk8s.NewK8sClient(ConfigLocation)
 
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
 	okd.NewProject(namespace)
-	stopCh := util.RunOperator(okd, Namespace, ConfigLocation)
+	stopCh := utilk8s.RunOperator(okd, Namespace, ConfigLocation)
 	code := m.Run()
-	util.Cleanup(*okd, Namespace, stopCh)
+	utilk8s.Cleanup(*okd, Namespace, stopCh)
 	os.Exit(code)
 }
 
 // Simple smoke test to check if the OKD is alive
 func TestSimple(t *testing.T) {
-	okd := util.NewOKDClient(ConfigLocation)
+	okd := utilk8s.NewK8sClient(ConfigLocation)
 	fmt.Printf("%v\n", okd.Nodes())
-	fmt.Printf("%s\n", okd.WhoAmI())
 	fmt.Printf("%s\n", okd.Pods("default", ""))
+	fmt.Printf("%s\n", okd.PublicIp())
 }
 
 // Test if the cluster is working correctly
@@ -151,10 +151,11 @@ func TestExternalService(t *testing.T) {
 		panic(err.Error())
 	}
 
-	route := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
-	defer okd.DeleteRoute("cache-infinispan-0", Namespace)
+	nodePort := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
+	defer okd.DeleteRoute(Namespace, "cache-infinispan-0")
 
-	url := "http://" + route.Spec.Host + "/rest/default/test"
+	host := okd.PublicIp()
+	url := "http://" + host + ":" + fmt.Sprint(nodePort) + "/rest/default/test"
 	client := &http.Client{}
 	okd.WaitForRoute(url, client, RouteTimeout, "infinispan", "infinispan")
 
@@ -204,10 +205,11 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		panic(err.Error())
 	}
 
-	route := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
+	nodePort := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
 	defer okd.DeleteRoute("cache-infinispan-0", Namespace)
 
-	url := "http://" + route.Spec.Host + "/rest/default/test"
+	host := okd.PublicIp()
+	url := "http://" + host + ":" + fmt.Sprint(nodePort) + "/rest/default/test"
 	client := &http.Client{}
 	okd.WaitForRoute(url, client, RouteTimeout, "connectorusr", "connectorpass")
 
@@ -258,7 +260,7 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 func TestCreateClusterWithConfigMap(t *testing.T) {
 	// Install config map from deploy folder
 	configMapName := "test-config-map"
-	util.InstallConfigMap(Namespace, configMapName, okd)
+	utilk8s.InstallConfigMap(Namespace, configMapName, okd)
 
 	// Create a resource using external config from a ConfigMap
 	spec := ispnv1.Infinispan{

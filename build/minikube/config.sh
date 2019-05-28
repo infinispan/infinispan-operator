@@ -6,8 +6,8 @@ PROFILE=${1}
 VMDRIVER=${2}
 
 minikube profile ${PROFILE}
-minikube config set memory 2048
-minikube config set cpus 2
+minikube config set memory 4096
+minikube config set cpus 4
 minikube config set disk-size 10GB
 
 if [[ -n "${VMDRIVER}" ]]; then
