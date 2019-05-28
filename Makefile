@@ -90,6 +90,9 @@ minikube-start:
 minikube-run-local: build
 	build/minikube/run-local.sh ${NAMESPACE}
 
+minikube-test: build
+	build/minikube/run-tests.sh ${NAMESPACE}
+
 minikube-clean: clean
 	build/minikube/clean.sh ${NAMESPACE}
 
