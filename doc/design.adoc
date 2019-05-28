@@ -91,6 +91,12 @@ This document describes the types introduced by the Infinispan Operator to be co
 | false
 |
 
+| `logging`
+| Logging categories
+| []<<infinispanloggingcategoryspec>>
+| false
+|
+
 | `management`
 | Management configuration.
 | <<infinispanmgmtspec>>
@@ -231,6 +237,30 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | `secret`
 | Secret for accessing datasource.
 | <<infinispansecretspec>>
+| true
+|
+
+|=======================
+
+
+[[infinispanloggingcategoryspec]]
+#### `InfinispanLoggingCategorySpec`
+
+`InfinispanLoggingCategorySpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `category`
+| Name of logging category.
+| string
+| true
+|
+
+| `level`
+| Logging level for category.
+| string
 | true
 |
 
@@ -459,6 +489,11 @@ spec:
     secret:
       type: Credentials
       secretName: mysql-secret
+  logging:
+  - category: org.infinispan
+    level: trace
+  - category: org.jgroups
+    level: trace
   management:
     prometheus: true
     secret:
