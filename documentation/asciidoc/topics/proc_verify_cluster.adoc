@@ -1,0 +1,26 @@
+Review log messages to verify that the {ispn_operator} has successfully created a {brandname} cluster.
+
+.Procedure
+ifndef::productized[]
+* Check that the {brandname} nodes have received a clustered view, for example:
+
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_logs_ispn_clusterview.adoc[]
+----
+endif::productized[]
+ifdef::productized[]
+. Verify that the {brandname} nodes can discover each other, for example:
++
+[source,options="nowrap",subs="attributes"]
+----
+include::cmd_examples/oc_logs_grep_kube_ping.adoc[]
+----
++
+. Verify that the nodes have received a clustered view, for example:
++
+[source,options="nowrap",subs="attributes"]
+----
+include::cmd_examples/oc_logs_rhdg_clusterview.adoc[]
+----
+endif::productized[]

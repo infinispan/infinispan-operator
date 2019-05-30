@@ -1,0 +1,16 @@
+Add the custom resource definition and role-based access control (RBAC) resources for the {ispn_operator}.
+
+.Procedure
+. Apply the custom resource definition.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_apply_deploy_crd.adoc[]
+----
++
+. Install RBAC resources.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_apply_deploy_rbac.adoc[]
+----

@@ -1,3 +1,7 @@
 include::topics/con_infinispan_operator.adoc[]
-include::stories/spinning-up-clusters.adoc[]
+ifdef::productized[]
+include::topics/ref_tech_preview.adoc[]
+endif::productized[]
+include::stories/manually_deploying_operator.adoc[]
+include::stories/spinning_up_clusters.adoc[]
 include::stories/managing_cluster_credentials.adoc[]

@@ -1,0 +1,16 @@
+== Technology Preview
+
+The {ispn_operator} is currently a Technology Preview.
+
+[IMPORTANT]
+====
+Technology Preview features or capabilities are not supported with Red Hat
+production service-level agreements (SLAs) and might not be functionally
+complete. Red Hat does not recommend using them for production. These features
+provide early access to upcoming product features, enabling customers to test
+functionality and provide feedback during the development process.
+
+For more information see
+link:https://access.redhat.com/support/offerings/techpreview/[Red Hat
+Technology Preview Features Support Scope].
+====

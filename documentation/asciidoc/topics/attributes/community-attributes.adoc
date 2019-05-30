@@ -2,6 +2,10 @@
 :ispn_operator: Infinispan Operator
 :infinispanversion: 9.4.0
 :k8s: Kubernetes
+:okd: OKD
+
+:github_root: https://github.com/infinispan/infinispan-operator/
+:github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
 
 //Linking for API docs
 :javadocroot:

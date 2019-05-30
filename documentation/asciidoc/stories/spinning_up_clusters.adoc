@@ -1,0 +1,25 @@
+[id='spinning_up_clusters']
+== Spinning Up {brandname} Clusters
+:context: spinning_up_clusters
+
+You create {brandname} clusters from custom resource definitions.
+
+.Prerequisites
+ifndef::productized[]
+Either install the {ispn_operator} from link:https://www.operatorhub.io/[OperatorHub.io] or link:#deploying_operator_manually[manually deploy it].
+endif::productized[]
+ifdef::productized[]
+link:#deploying_operator_manually[Manually deploy the {ispn_operator}].
+endif::productized[]
+
+[id='creating_minimal_clusters-{context}']
+=== Creating Minimal {brandname} Clusters
+include::topics/proc_create_cluster_minimal.adoc[]
+
+[id='verifying_clusters-{context}']
+=== Verifying {brandname} Clusters
+include::topics/proc_verify_cluster.adoc[]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]
