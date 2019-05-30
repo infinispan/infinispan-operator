@@ -5,8 +5,7 @@
 :numbered:
 include::topics/attributes/community-attributes.adoc[]
 
-= Deploying {brandname} with the Operator
+[id='infinispan_operator']
+= Running the {ispn_operator}
 
-[id='infinispan_operator-{context}']
-== {brandname} Operator
 include::stories.adoc[]

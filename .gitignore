@@ -1,6 +1,13 @@
 # Temporary Build Files
 build/_output
 build/_test
+*~
+build/
+html/
+.DS_Store
+*/.DS_Store
+*.zip
+*.html
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
 # -*- mode: gitignore; -*-

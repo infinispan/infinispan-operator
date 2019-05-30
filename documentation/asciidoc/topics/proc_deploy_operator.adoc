@@ -1,0 +1,9 @@
+Manually deploying the {ispn_operator} to {k8s} involves applying the `yaml` template that defines metadata and container specifications.
+
+.Procedure
+* Apply the {ispn_operator} template as follows:
+
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_apply_deploy_operator.adoc[]
+----

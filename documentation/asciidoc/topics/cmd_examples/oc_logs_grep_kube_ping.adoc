@@ -1,0 +1,4 @@
+$ oc logs datagrid-minimal-0 | grep KUBE
+
+INFO Configuring JGroups discovery protocol to openshift.KUBE_PING
+INFO  [org.jgroups.protocols.openshift.KUBE_PING] (MSC service thread 1-2) namespace [dg-op1] set; clustering enabled
