@@ -24,9 +24,8 @@ func getConfigLocation() string {
 	kubeConfig := os.Getenv("KUBECONFIG")
 	if kubeConfig != "" {
 		return kubeConfig
-	} else {
-		return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 	}
+	return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 }
 
 var ConfigLocation = getConfigLocation()
@@ -176,12 +175,12 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
-		ObjectMeta: metav1.ObjectMeta{Name: "auth-secret-test"},
+		ObjectMeta: metav1.ObjectMeta{Name: "conn-secret-test"},
 		Type:       "Opaque",
-		StringData: map[string]string{"connector-username": "connectorusr", "connector-password": "connectorpass"},
+		StringData: map[string]string{"username": "connectorusr", "password": "connectorpass"},
 	}
 	okd.CoreClient().Secrets(Namespace).Create(&secret)
-	defer okd.CoreClient().Secrets(Namespace).Delete("auth-secret-test", &deleteOpts)
+	defer okd.CoreClient().Secrets(Namespace).Delete("conn-secret-test", &deleteOpts)
 
 	// Create Infinispan
 	spec := ispnv1.Infinispan{
@@ -194,7 +193,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Size:      1,
-			Connector: ispnv1.InfinispanAuthInfo{Secret: ispnv1.InfinispanSecret{Type: "Credentials", SecretName: "auth-secret-test"}},
+			Connector: ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Secret: ispnv1.InfinispanSecret{Type: "Credentials", SecretName: "conn-secret-test"}}},
 		},
 	}
 	okd.CreateInfinispan(&spec, Namespace)

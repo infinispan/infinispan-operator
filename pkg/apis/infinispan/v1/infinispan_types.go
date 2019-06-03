@@ -15,12 +15,22 @@ type InfinispanAuthInfo struct {
 	Secret InfinispanSecret `json:"secret"`
 }
 
+// InfinispanConnectorInfo info for the user application connection
+type InfinispanConnectorInfo struct {
+	Authentication InfinispanAuthInfo `json:"authentication"`
+}
+
+// InfinispanManagementInfo info for the management connection
+type InfinispanManagementInfo struct {
+	Authentication InfinispanAuthInfo `json:"authentication"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
-	Size       int32              `json:"size"`
-	Image      string             `json:"image"`
-	Connector  InfinispanAuthInfo `json:"connector"`
-	Management InfinispanAuthInfo `json:"management"`
+	Size       int32                    `json:"size"`
+	Image      string                   `json:"image"`
+	Connector  InfinispanConnectorInfo  `json:"connector"`
+	Management InfinispanManagementInfo `json:"management"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan

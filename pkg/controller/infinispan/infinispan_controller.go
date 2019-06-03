@@ -215,13 +215,13 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	}
 
 	var appUser, appPass string
-	if m.Spec.Connector.Secret.Type == "Credentials" &&
-		m.Spec.Connector.Secret.SecretName != "" {
+	if m.Spec.Connector.Authentication.Secret.Type == "Credentials" &&
+		m.Spec.Connector.Authentication.Secret.SecretName != "" {
 		secretFound := &corev1.Secret{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Connector.Secret.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Connector.Authentication.Secret.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
 		if err == nil {
-			appUser = string(secretFound.Data["connector-username"][:])
-			appPass = string(secretFound.Data["connector-password"][:])
+			appUser = string(secretFound.Data["username"][:])
+			appPass = string(secretFound.Data["password"][:])
 		}
 	}
 	if appUser == "" {
@@ -232,13 +232,13 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	}
 
 	var mgmtUser, mgmtPass string
-	if m.Spec.Management.Secret.Type == "Credentials" &&
-		m.Spec.Management.Secret.SecretName != "" {
+	if m.Spec.Management.Authentication.Secret.Type == "Credentials" &&
+		m.Spec.Management.Authentication.Secret.SecretName != "" {
 		secretFound := &corev1.Secret{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Management.Secret.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Management.Authentication.Secret.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
 		if err == nil {
-			mgmtUser = string(secretFound.Data["management-username"][:])
-			mgmtPass = string(secretFound.Data["management-password"][:])
+			mgmtUser = string(secretFound.Data["username"][:])
+			mgmtPass = string(secretFound.Data["password"][:])
 		}
 	}
 	if mgmtUser == "" {

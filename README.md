@@ -131,6 +131,43 @@ spec:
   size: 3
 ```
 
+#### Configure authentication credentials
+The defaults credential for connector and management connection can be customized as follows.
+First step is create a secret that contains the authentication credentials for connector (e.g. `deploy/cr/cr_conn_secret.yaml`).
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: conn-auth-secret
+type: Opaque
+stringData:
+  username: connectorusr
+  password: connectorpass
+```
+Management connection credential are also configurable via secret (e.g. `deploy/cr/cr_mngt_secret.yaml`).
+
+Then create the cluster refering to the secrets for the authentication details (`deploy/cr/cr_minimal_with_auth.yaml`).
+
+```yaml
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+spec:
+  size: 2
+  image: jboss/infinispan-server:latest
+  connector:
+    authentication:
+      secret:
+        type: Credentials
+        secretName: conn-auth-secret
+  management:
+    authentication:
+      secret:
+        type: Credentials
+        secretName: mngt-auth-secret
+```
+
 #### Infinispan Configuration
 Creates Infinispan clusters using `clustered.xml` in the `/opt/jboss/infinispan-server/standalone/configuration/` directory on the image.
 
