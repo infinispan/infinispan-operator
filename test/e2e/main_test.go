@@ -152,7 +152,7 @@ func TestExternalService(t *testing.T) {
 	}
 
 	nodePort := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
-	defer okd.DeleteRoute(Namespace, "cache-infinispan-0")
+	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
 
 	host := okd.PublicIp()
 	url := "http://" + host + ":" + fmt.Sprint(nodePort) + "/rest/default/test"
@@ -206,7 +206,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	}
 
 	nodePort := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
-	defer okd.DeleteRoute("cache-infinispan-0", Namespace)
+	defer okd.DeleteRoute(Namespace,"cache-infinispan-0-http")
 
 	host := okd.PublicIp()
 	url := "http://" + host + ":" + fmt.Sprint(nodePort) + "/rest/default/test"
