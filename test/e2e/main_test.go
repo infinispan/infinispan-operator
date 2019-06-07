@@ -72,8 +72,8 @@ func TestClusterFormation(t *testing.T) {
 			Name: "cache-infinispan",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size:  2,
-			Image: getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Replicas: 2,
+			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
 	}
 	// Register it
@@ -147,8 +147,8 @@ func TestExternalService(t *testing.T) {
 			Name: "cache-infinispan-0",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size:  1,
-			Image: getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Replicas: 1,
+			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
 	}
 
@@ -204,7 +204,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			Name: "cache-infinispan-0",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size:      1,
+			Replicas:  1,
 			Connector: ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Secret: ispnv1.InfinispanSecret{Type: "Credentials", SecretName: "conn-secret-test"}}},
 			Image:     getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
@@ -289,8 +289,8 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 			Name:       "cloud-ephemeral.xml",
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Size:  2,
-			Image: getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Replicas: 2,
+			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
 	}
 

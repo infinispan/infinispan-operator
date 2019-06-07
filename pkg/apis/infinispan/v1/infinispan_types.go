@@ -27,7 +27,7 @@ type InfinispanManagementInfo struct {
 
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
-	Size       int32                    `json:"size"`
+	Replicas   int32                    `json:"replicas"`
 	Image      string                   `json:"image"`
 	Connector  InfinispanConnectorInfo  `json:"connector"`
 	Management InfinispanManagementInfo `json:"management"`
