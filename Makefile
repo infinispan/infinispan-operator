@@ -49,7 +49,7 @@ clean:
 run:
 	build/run-okd.sh ${KUBECONFIG}
 
-## run-local   Create the Infinispan operator image on OKD from a local image.
+## run-local   Run Infinispan operator image locally deploying descriptors to OKD.
 ##             - Specify cluster access configuration with KUBECONFIG.
 ##             - Example: "make run-local KUBECONFIG=/path/to/admin.kubeconfig"
 ##
@@ -81,24 +81,31 @@ PROFILE ?= operator-minikube
 VMDRIVER ?= virtualbox
 NAMESPACE ?= local-operators
 
+## minikube-config        Configure Minikube VM with adequate options.
 minikube-config:
 	build/minikube/config.sh ${PROFILE} ${VMDRIVER}
 
+## minikube-start         Start Minikube.
 minikube-start:
 	build/minikube/start.sh ${PROFILE}
 
+## minikube-run-local     Run Infinispan operator image locally deploying descriptors to Minikube.
 minikube-run-local: build
 	build/minikube/run-local.sh ${NAMESPACE}
 
+## minikube-run-local     Run testsuite on Minikube
 minikube-test: build
 	build/minikube/run-tests.sh ${NAMESPACE}
 
+## minikube-clean         Remove Infinispan operator descriptors from Minikube.
 minikube-clean: clean
 	build/minikube/clean.sh ${NAMESPACE}
 
+## minikube-delete        Delete Minikube virtual machine.
 minikube-delete:
 	build/minikube/delete.sh ${PROFILE}
 
+## minikube-stop          Stop Minikube virtual machine.
 minikube-stop:
 	build/minikube/stop.sh ${PROFILE}
 
