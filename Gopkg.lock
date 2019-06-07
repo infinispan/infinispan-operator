@@ -279,33 +279,6 @@
   version = "1.0.1"
 
 [[projects]]
-  digest = "1:8bc8f43d2332d035857c92581df240f247c287629d5f60c751df609f9b6215c5"
-  name = "github.com/openshift/api"
-  packages = [
-    "authorization/v1",
-    "pkg/serialization",
-    "route/v1",
-    "user/v1",
-  ]
-  pruneopts = "NT"
-  revision = "0d921e363e951d89f583292c60d013c318df64dc"
-  version = "v3.9.0"
-
-[[projects]]
-  digest = "1:45382a6540b02c3cf96c92dd724aefaaff91cae8e326aa3794e7370927b9a537"
-  name = "github.com/openshift/client-go"
-  packages = [
-    "authorization/clientset/versioned/scheme",
-    "authorization/clientset/versioned/typed/authorization/v1",
-    "route/clientset/versioned/scheme",
-    "route/clientset/versioned/typed/route/v1",
-    "user/clientset/versioned/scheme",
-    "user/clientset/versioned/typed/user/v1",
-  ]
-  pruneopts = "NT"
-  revision = "8fb54357b899c50a2c5b96408cb909818c3e25c8"
-
-[[projects]]
   digest = "1:0b2dd5813eba320fd99869c1a5c4b54eb6950544259f2389c5b137be2168429a"
   name = "github.com/operator-framework/operator-sdk"
   packages = [
@@ -861,11 +834,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/openshift/api/authorization/v1",
-    "github.com/openshift/api/route/v1",
-    "github.com/openshift/client-go/authorization/clientset/versioned/typed/authorization/v1",
-    "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1",
-    "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1",
     "github.com/operator-framework/operator-sdk/pkg/k8sutil",
     "github.com/operator-framework/operator-sdk/version",
     "k8s.io/api/apps/v1beta1",
