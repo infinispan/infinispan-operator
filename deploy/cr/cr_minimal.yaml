@@ -3,5 +3,5 @@ kind: Infinispan
 metadata:
   name: example-infinispan
 spec:
-  size: 2
+  replicas: 2
   image: jboss/infinispan-server:latest

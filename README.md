@@ -128,7 +128,7 @@ metadata:
   name: example-infinispan-minimal
 spec:
   # Sets the number of nodes in the cluster.
-  size: 3
+  replicas: 3
 ```
 
 #### Configure authentication credentials
@@ -154,7 +154,7 @@ kind: Infinispan
 metadata:
   name: example-infinispan
 spec:
-  size: 2
+  replicas: 2
   image: jboss/infinispan-server:latest
   connector:
     authentication:
@@ -181,7 +181,7 @@ config:
   name: clustered.xml
 spec:
   # Sets the number of nodes in the cluster.
-  size: 3
+  replicas: 3
 ```
 
 #### Custom Configuration
@@ -201,7 +201,7 @@ config:
   name: my-config.xml
 spec:
   # Sets the number of nodes in the cluster.
-  size: 3
+  replicas: 3
 ```
 
 ### Testing the Infinispan Operator
