@@ -43,33 +43,33 @@ This document describes the types introduced by the Infinispan Operator to be co
 |=======================
 | Field | Description | Scheme | Required | Default
 
-| `evictionPolicy`
-| Eviction policy (only cache service?).
-| `Reject` / `Evict`
-| false
-| `Evict`
-
 | `image`
 | Operator image
 | string
 | false
 | `jboss/infinispan-server:latest`
 
-| `replicationFactor`
-| Replication factor (only cache service?).
-| int32
-| false
-| `1`
-
-| `size`
+| `replicas`
 | Number of instances for a Infinispan resource.
 | int32
 | true
 |
 
-| `cluster`
-| Cluster configuration.
-| <<infinispanclusterspec>>
+| `profile`
+| Profile in use. See <<infinispanprofiles,profiles>> for details.
+| `Secured` / `Performance` / `Development`
+| false
+| `Secured`
+
+| `cache`
+| Cache configuration.
+| <<infinispancachespec>>
+| false
+|
+
+| `datagrid`
+| Datagrid configuration.
+| <<infinispandatagridspec>>
 | false
 |
 
@@ -85,12 +85,6 @@ This document describes the types introduced by the Infinispan Operator to be co
 | false
 |
 
-| `datasources`
-| Datasource list
-| []<<infinispandatasourcespec>>
-| false
-|
-
 | `logging`
 | Logging categories
 | []<<infinispanloggingcategoryspec>>
@@ -103,59 +97,57 @@ This document describes the types introduced by the Infinispan Operator to be co
 | false
 |
 
-| `sites`
-| Cross-site configuration
-| <<infinispansitesspec>>
-| false
-|
-
 |=======================
 
 
-[[infinispanclusterspec]]
-#### `InfinispanClusterSpec`
+[[infinispancachespec]]
+#### `InfinispanCacheSpec`
 
-`InfinispanClusterSpec` configures how Infinispan instances talk to each other.
+`InfinispanCacheSpec` configures how Infinispan is used as a cache.
 
 [options="header,footer"]
 |=======================
 | Field | Description | Scheme | Required | Default
 
-| `encryption`
-| Enables cluster encryption.
-| <<infinispanencryptionspec>>
+| `evictionPolicy`
+| Eviction policy
+| `Reject` / `Evict`
 | false
-|
+| `Evict`
 
-| `secret`
-| Enables cluster authentication.
-| <<infinispansecretspec>>
+| `replicationFactor`
+| Replication factor
+| int32
 | false
-|
+| `1`
 
 |=======================
 
 
-[[infinispanencryptionspec]]
-##### `InfinispanEncryptionSpec`
+[[infinispanprofiles]]
 
-`InfinispanEncryptionSpec` configures how encryption between `InfinispanSpec` instances happens.
+#### Profiles
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Profile | Connector Authentication | Connector Encryption | Cluster Authentication | Cluster Encryption
 
-| `type`
-| Type of encryption
-| `Symmetric` or `Asymmetric`
-| true
+| `Secured`
+| X
+| X
+| X
+| X
+
+| `Performance`
+| X
+| X
+| X
 |
 
-| `secret`
-| Encrypted secret information.
-Only required with `Symmetric` encryption type.
-| <<infinispansecretspec>>
-| false
+| `Development`
+|
+|
+|
 |
 
 |=======================
@@ -170,10 +162,10 @@ Only required with `Symmetric` encryption type.
 |=======================
 | Field | Description | Scheme | Required | Default
 
-| `secret`
+| `authentication`
 | Authenticates access to Infinispan connectors.
-| <<infinispansecretspec>>
-| true
+| <<infinispanauthenticationspec>>
+| false
 |
 
 |=======================
@@ -194,6 +186,14 @@ Only required with `Symmetric` encryption type.
 | false
 |
 
+| `cpu`
+| CPU allocated for each Infinispan container.
+Described as indicated
+https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-cpu[here].
+| string
+| false
+| `500m`
+
 | `memory`
 | Memory allocated for each Infinispan container.
 Described as indicated
@@ -202,13 +202,37 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | false
 | `512Mi`
 
+|=======================
+
+
+[[infinispandatagridspec]]
+#### `InfinispanDatagridSpec`
+
+`InfinispanDatagridSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
 | `storage`
-| Storage per Infinispan container (only data grid service).
+| Storage per Infinispan container.
 Described as indicated
 https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#local-ephemeral-storage[here].
 | string
 | false
 | `1Gi`
+
+| `datasources`
+| Datasource list
+| []<<infinispandatasourcespec>>
+| false
+|
+
+| `sites`
+| Cross-site configuration
+| <<infinispansitesspec>>
+| false
+|
 
 |=======================
 
@@ -234,33 +258,45 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | true
 |
 
-| `secret`
-| Secret for accessing datasource.
-| <<infinispansecretspec>>
+| `authentication`
+| Authentication information for accessing datasource.
+| <<infinispanauthenticationspec>>
 | true
 |
 
 |=======================
 
 
-[[infinispanloggingcategoryspec]]
-#### `InfinispanLoggingCategorySpec`
+[[infinispanloggingspec]]
+#### `InfinispanLoggingSpec`
 
-`InfinispanLoggingCategorySpec`.
+`InfinispanLoggingSpec` configures logging.
 
 [options="header,footer"]
 |=======================
 | Field | Description | Scheme | Required | Default
 
-| `category`
-| Name of logging category.
-| string
-| true
+| `categories`
+| Logging categories
+| <<infinispanloggingcategoriesspec>>
+| false
 |
 
-| `level`
-| Logging level for category.
-| string
+|=======================
+
+
+[[infinispanloggingcategoriesspec]]
+#### `InfinispanLoggingCategoriesSpec`
+
+`InfinispanLoggingCategoriesSpec` configures logging categories.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `<category-name>`
+| Logging category name, e.g. `org.infinispan`
+| `error` / `warn` / `info` / `debug` / `trace`
 | true
 |
 
@@ -277,16 +313,34 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | Field | Description | Scheme | Required | Default
 
 | `prometheus`
+| Prometheus configuration.
+| <<infinispanprometheusspec>>
+| false
+|
+
+| `authentication`
+| Management authentication information.
+| <<infinispanauthenticationspec>>
+| false
+|
+
+|=======================
+
+
+[[infinispanprometheusspec]]
+#### `InfinispanPrometheusSpec`
+
+`InfinispanPrometheusSpec`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `enabled`
 | Enable prometheus.
 | boolean
 | false
 | false
-
-| `secret`
-| Management authentication information.
-| <<infinispansecretspec>>
-| true
-|
 
 |=======================
 
@@ -366,19 +420,19 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | false
 |
 
-| `secret`
-| Secret to connect to remote site (only for `Dynamic` type).
-| <<infinispansecretspec>>
+| `authentication`
+| Authentication information to connect to remote site (only for `Dynamic` type).
+| <<infinispanauthenticationspec>>
 | false
 |
 
 |=======================
 
 
-[[infinispansecretspec]]
-##### `InfinispanSecretSpec`
+[[infinispanauthenticationspec]]
+##### `InfinispanAuthenticationSpec`
 
-`InfinispanSecretSpec` defines how `InfinispanSpec` secrets are configured.
+`InfinispanAuthenticationSpec` defines how authentication secrets are configured.
 
 [options="header,footer"]
 |=======================
@@ -447,106 +501,135 @@ TODO: @Vittorio, update with your proposal
 
 |=======================
 
-## Full Example
+## Full Cache Example
 
-.full-example.yaml
+.full-cache-example.yaml
 [source,yaml]
 ----
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: full-example-infinispan
+  name: full-cache-example-infinispan
 spec:
-  evictionPolicy: Reject
   image: jboss/infinispan-server:latest
-  replicationFactory: 3
-  size: 4
-  cluster:
-    encryption:
-      type: Symmetric
-      secret:
-        type: Keystore
-        secretName: cluster-encrypt-secret
-    secret:
-      type: Credentials
-      secretName: cluster-auth-secret
+  replicas: 4
+  profile: Development
+  cache:
+    evictionPolicy: Reject
+    replicationFactor: 3
   connector:
-    secret:
+    authentication:
       type: Credentials
+      secretName: connect-secret
+  container:
+    jvmOptionsAppend: "-XX:NativeMemoryTracking=summary"
+    cpu: "2000m"
+    memory: 1Gi
+  logging:
+    categories:
+      org.infinispan: trace
+      org.jgroups: trace
+  management:
+    prometheus:
+      enabled: true
+    authentication:
+      type: Credentials
+      secretName: mgmt-secret
+----
+
+.connect-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: connect-secret
+type: Opaque
+stringData:
+  username: connectusr
+  password: connectpass
+----
+
+.mgmt-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mgmt-secret
+type: Opaque
+stringData:
+  username: mgmtusr
+  password: mgmtpass
+----
+
+
+## Full DataGrid Example
+
+.full-datagrid-example.yaml
+[source,yaml]
+----
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: full-datagrid-example-infinispan
+spec:
+  image: jboss/infinispan-server:latest
+  replicas: 6
+  profile: Performance
+  datagrid:
+    storage: 2Gi
+    datasources:
+    - name: test-pg
+      driver: postgresql
+      authentication:
+        type: Credentials
+        secretName: postgresql-secret
+    - name: test-mysql
+      driver: mysql
+      authentication:
+        type: Credentials
+        secretName: mysql-secret
+    sites:
+      local:
+        externalService:
+          type: LoadBalancer
+          ports:
+            port: 12345
+      remotes:
+      - name: google
+        type: Static
+        host: google.host
+        port: 23456
+      - name: azure
+        type: Dynamic
+        host: azure.host
+        authentication:
+          type: Credentials
+          secretName: azure-secret
+      - name: aws
+        type: Dynamic
+        authentication:
+          type: Token
+          secretName: aws-secret
+  connector:
+    authentication:
+      type: Keystore
       secretName: connect-auth-secret
   container:
     jvmOptionsAppend: "-XX:NativeMemoryTracking=summary"
+    cpu: "1000m"
     memory: 1Gi
-    storage: 2Gi
-  datasources:
-  - name: test-pg
-    driver: postgresql
-    secret:
-      type: Credentials
-      secretName: postgresql-secret
-  - name: test-mysql
-    driver: mysql
-    secret:
-      type: Credentials
-      secretName: mysql-secret
   logging:
-  - category: org.infinispan
-    level: trace
-  - category: org.jgroups
-    level: trace
+    categories:
+      org.infinispan: debug
+      org.jgroups: debug
   management:
-    prometheus: true
-    secret:
+    prometheus:
+      enabled: true
+    authentication:
       type: Credentials
       secretName: mgmt-secret
-  sites:
-    local:
-      externalService:
-        type: LoadBalancer
-        ports:
-          port: 12345
-    remotes:
-    - name: google
-      type: Static
-      host: google.host
-      port: 23456
-    - name: azure
-      type: Dynamic
-      host: azure.host
-      secret:
-        type: Credentials
-        secretName: azure-secret
-    - name: aws
-      type: Dynamic
-      secret:
-        type: Token
-        secretName: aws-secret
-----
-
-.cluster-encrypt-secret.yaml
-[source,yaml]
-----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: cluster-encrypt-secret
-type: Opaque
-data:
-  keystore.p12: "FQSmxHHvFvrhEfKIq15axg=="
-stringData:
-  password: opensesame
-----
-
-.cluster-auth-secret.yaml
-[source,yaml]
-----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: cluster-auth-secret
-type: Opaque
-stringData:
-  password: clusterpass
 ----
 
 .connect-auth-secret.yaml
@@ -557,9 +640,8 @@ kind: Secret
 metadata:
   name: connect-auth-secret
 type: Opaque
-stringData:
-  username: connectusr
-  password: connectpass
+data:
+  keystore.p12: "FQSmxHHvFvrhEfKIq15axg=="
 ----
 
 .postgresql-secret.yaml
