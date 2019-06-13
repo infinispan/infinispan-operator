@@ -2,17 +2,19 @@ package k8s
 
 import (
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path"
+
 	api "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/generated/clientset/versioned/typed/infinispan/v1"
-	"io/ioutil"
 	"k8s.io/client-go/kubernetes/scheme"
 	rbacclient "k8s.io/client-go/kubernetes/typed/rbac/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
-	"net/http"
-	"net/url"
-	"path"
 
 	"reflect"
 	"time"
@@ -37,12 +39,12 @@ import (
 
 // ExternalOKD provides a simplified client for a running OKD cluster
 type ExternalK8s struct {
-	coreClient  *coreclient.CoreV1Client
-	rbacClient  *rbacclient.RbacV1Client
-	appsClient  *appsV1.AppsV1Client
-	extensions  *apiextclient.ApiextensionsV1beta1Client
-	ispnClient  *ispnv1.InfinispanV1Client
-	restConfig  *restclient.Config
+	coreClient *coreclient.CoreV1Client
+	rbacClient *rbacclient.RbacV1Client
+	appsClient *appsV1.AppsV1Client
+	extensions *apiextclient.ApiextensionsV1beta1Client
+	ispnClient *ispnv1.InfinispanV1Client
+	restConfig *restclient.Config
 }
 
 var log = logf.Log.WithName("main_test")
@@ -439,34 +441,57 @@ func debugPods(required int, pods []v1.Pod) {
 	}
 }
 
-func (c ExternalK8s) WaitForRoute(url string, client *http.Client, timeout time.Duration, user string, pass string) {
+// WaitForRoute checks if an http server is listening at the endpoint exposed by the service (ns, name)
+func (c ExternalK8s) WaitForRoute(client *http.Client, ns string, name string, timeout time.Duration, user string, pass string) string {
+	var hostAndPort string
 	err := wait.Poll(period, timeout, func() (done bool, err error) {
-		req, err := http.NewRequest("GET", url, nil)
+		// depending on the c8s cluster setting, service is sometime available
+		// via Ingress address sometime via node port. So trying both the methods
+		// Try node port first
+		hostAndPort = getNodePortAddress(c, ns, name)
+		result := checkExternalAddress(client, hostAndPort, ns, name, user, pass)
+		if result {
+			return result, nil
+		}
+		// then try ingress
+		hostAndPort, err = getExternalAddress(c, ns, name)
 		if err != nil {
-			return false, err
+			return false, nil
 		}
-		req.SetBasicAuth(user, pass)
-		resp, err := client.Do(req)
-		if err != nil {
-			return false, err
-		}
-		if resp.StatusCode == http.StatusNotFound {
-			return true, nil
-		}
-		return false, nil
+		return checkExternalAddress(client, hostAndPort, ns, name, user, pass), nil
 	})
 	if err != nil {
 		panic(err.Error())
 	}
+	return hostAndPort
 }
 
-func (c ExternalK8s) CreateRoute(ns, serviceName string, portString string) int32 {
-	svc, err := c.coreClient.Services(ns).Get(serviceName, metaV1.GetOptions{})
+func checkExternalAddress(client *http.Client, hostAndPort, ns, name, user, pass string) bool {
+	req, err := http.NewRequest("GET", "http://"+hostAndPort+"/rest/default/test", nil)
+	if err != nil {
+		// If we can't create a request just panic
+		panic(err.Error())
+	}
+	req.SetBasicAuth(user, pass)
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnauthorized {
+		return true
+	}
+	return false
+}
+
+// CreateRoute exposes the port 8080 of the Infinispan cluster clusterName
+// It return the public address a string: the IP address if available else the hostname
+func (c ExternalK8s) CreateRoute(ns, clusterName string, portString string) {
+	svc, err := c.coreClient.Services(ns).Get(clusterName, metaV1.GetOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
 
-	// An external route can be simply achieved with a NodePort service,
+	// An external route can be simply achieved with a LoadBalancer
 	// that has same selectors as original service.
 	route := &v1.Service{
 		TypeMeta: metaV1.TypeMeta{
@@ -474,29 +499,53 @@ func (c ExternalK8s) CreateRoute(ns, serviceName string, portString string) int3
 			Kind:       "Service",
 		},
 		ObjectMeta: metaV1.ObjectMeta{
-			Name:      serviceName + "-" + portString,
+			Name:      clusterName + "-" + portString,
 			Namespace: ns,
 		},
 		Spec: v1.ServiceSpec{
-			Type:      v1.ServiceTypeNodePort,
-			Selector:  svc.Spec.Selector,
+			Type:     v1.ServiceTypeLoadBalancer,
+			Selector: svc.Spec.Selector,
 			Ports: []corev1.ServicePort{
 				{
-					Port: 8080,
+					Port:       8080,
 					TargetPort: intstr.FromInt(8080),
 				},
 			},
 		},
 	}
-
-	router, err := c.coreClient.Services(ns).Create(route)
+	_, err = c.coreClient.Services(ns).Create(route)
 	if err != nil {
 		panic(err.Error())
 	}
-
-	return router.Spec.Ports[0].NodePort
 }
 
+func getExternalAddress(c ExternalK8s, ns string, name string) (string, error) {
+	router, err := c.coreClient.Services(ns).Get(name, metaV1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	// If the cluster exposes external IP then return it
+	if len(router.Status.LoadBalancer.Ingress) == 1 {
+		if router.Status.LoadBalancer.Ingress[0].IP != "" {
+			return router.Status.LoadBalancer.Ingress[0].IP + ":8080", nil
+		}
+		if router.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			return router.Status.LoadBalancer.Ingress[0].Hostname + ":8080", nil
+		}
+	}
+	// Return empty address if nothing available
+	return "", errors.New("External address not found")
+}
+
+func getNodePortAddress(c ExternalK8s, ns string, name string) string {
+	router, err := c.coreClient.Services(ns).Get(name, metaV1.GetOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	return c.PublicIp() + ":" + fmt.Sprint(router.Spec.Ports[0].NodePort)
+}
+
+// DeleteRoute delete a service
 func (c ExternalK8s) DeleteRoute(ns, serviceName string) {
 	err := c.coreClient.Services(ns).Delete(serviceName, &deleteOpts)
 	if err != nil {

@@ -33,7 +33,7 @@ var ConfigLocation = getConfigLocation()
 const Namespace = "namespace-for-testing"
 const TestTimeout = 5 * time.Minute
 const SinglePodTimeout = 5 * time.Minute
-const RouteTimeout = 60 * time.Second
+const RouteTimeout = 240 * time.Second
 const defaultCliPath = "/opt/jboss/infinispan-server/bin/ispn-cli.sh"
 
 // Options used when deleting resources
@@ -162,18 +162,16 @@ func TestExternalService(t *testing.T) {
 		panic(err.Error())
 	}
 
-	nodePort := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
+	okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
 	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
 
-	host := okd.PublicIp()
-	url := "http://" + host + ":" + fmt.Sprint(nodePort) + "/rest/default/test"
 	client := &http.Client{}
-	okd.WaitForRoute(url, client, RouteTimeout, "infinispan", "infinispan")
+	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, "infinispan", "infinispan")
 
 	value := "test-operator"
 
-	putViaRoute(url, value, client, "infinispan", "infinispan")
-	actual := getViaRoute(url, client, "infinispan", "infinispan")
+	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, "infinispan", "infinispan")
+	actual := getViaRoute("http://"+hostAddr+"/rest/default/test", client, "infinispan", "infinispan")
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
@@ -217,18 +215,16 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		panic(err.Error())
 	}
 
-	nodePort := okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
+	okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
 	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
 
-	host := okd.PublicIp()
-	url := "http://" + host + ":" + fmt.Sprint(nodePort) + "/rest/default/test"
 	client := &http.Client{}
-	okd.WaitForRoute(url, client, RouteTimeout, "connectorusr", "connectorpass")
+	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, "connectorusr", "connectorpass")
 
 	value := "test-operator"
 
-	putViaRoute(url, value, client, "connectorusr", "connectorpass")
-	actual := getViaRoute(url, client, "connectorusr", "connectorpass")
+	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, "connectorusr", "connectorpass")
+	actual := getViaRoute("http://"+hostAddr+"/rest/default/test", client, "connectorusr", "connectorpass")
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
