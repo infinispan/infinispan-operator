@@ -4,15 +4,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// InfinispanSecret references a secret into namespace
-type InfinispanSecret struct {
-	Type       string `json:"type"`
-	SecretName string `json:"secretName"`
-}
-
 // InfinispanAuthInfo authentication info
 type InfinispanAuthInfo struct {
-	Secret InfinispanSecret `json:"secret"`
+	Type       string `json:"type"`
+	SecretName string `json:"secretName"`
 }
 
 // InfinispanConnectorInfo info for the user application connection
