@@ -295,7 +295,6 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{"cpu": resource.MustParse("0.5"),
 							"memory": resource.MustParse("512Mi")}},
 					}},
-					ServiceAccountName: "infinispan-operator",
 				},
 			},
 		},
