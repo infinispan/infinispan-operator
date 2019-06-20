@@ -203,7 +203,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas:  1,
-			Connector: ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Secret: ispnv1.InfinispanSecret{Type: "Credentials", SecretName: "conn-secret-test"}}},
+			Connector: ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "conn-secret-test"}},
 			Image:     getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
 		},
 	}
