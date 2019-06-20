@@ -16,8 +16,12 @@ dep:
 codegen:
 	./build/codegen.sh
 
+## vet         Inspects the source code for suspicious constructs.
+vet:
+	go vet ./...
+
 ## build       Compile and build the Infinispan operator.
-build: dep
+build: dep vet
 	./build/build.sh ${GOOS}
 
 ## image       Build a Docker image for the Infinispan operator.
