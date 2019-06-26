@@ -20,12 +20,20 @@ type InfinispanManagementInfo struct {
 	Authentication InfinispanAuthInfo `json:"authentication"`
 }
 
+// InfinispanContainerSpec specify resource requirements per container
+type InfinispanContainerSpec struct {
+	JvmOptionsAppend string `json:"jvmOptionsAppend"`
+	Memory           string `json:"memory"`
+	CPU              string `json:"cpu"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	Replicas   int32                    `json:"replicas"`
 	Image      string                   `json:"image"`
 	Connector  InfinispanConnectorInfo  `json:"connector"`
 	Management InfinispanManagementInfo `json:"management"`
+	Container  InfinispanContainerSpec  `json:"container"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan
