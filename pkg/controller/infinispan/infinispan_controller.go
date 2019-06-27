@@ -505,20 +505,20 @@ func appendVolumes(m *infinispanv1.Infinispan, dep *appsv1beta1.StatefulSet) {
 		}
 	}
 
-	vm := dep.Spec.Template.Spec.Containers[0].VolumeMounts
+	vm := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
 	for _, vol := range volumeMounts {
-		vm = append(vm, vol)
+		*vm = append(*vm, vol)
 	}
 
-	v := dep.Spec.Template.Spec.Volumes
+	v := &dep.Spec.Template.Spec.Volumes
 	for _, volRef := range volumeRefs {
-		v = append(v, corev1.Volume{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+		*v = append(*v, corev1.Volume{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
 			LocalObjectReference: corev1.LocalObjectReference{Name: volRef}}}, Name: volRef})
 	}
 
-	vc := dep.Spec.VolumeClaimTemplates
+	vc := &dep.Spec.VolumeClaimTemplates
 	for _, volClaim := range volumeClaims {
-		vc = append(vc, volClaim)
+		*vc = append(*vc, volClaim)
 	}
 
 }
