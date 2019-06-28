@@ -12,8 +12,8 @@ cache:
 env:
   global:
     - VM_DRIVER=none
-    - KUBE_VERSION=v1.14.2
-    - MINIKUBE_VERSION=v1.1.0
+    - KUBE_VERSION=v1.15.0
+    - MINIKUBE_VERSION=v1.2.0
     - CHANGE_MINIKUBE_NONE_USER=true
 
 jobs:
