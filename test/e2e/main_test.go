@@ -139,20 +139,35 @@ func TestExternalService(t *testing.T) {
 		panic(err.Error())
 	}
 
+	pods, err := okd.GetPods(Namespace, "app=infinispan-pod")
+	if err != nil {
+		panic(err.Error())
+	}
+	appUser := getEnvVar(pods[0].Spec.Containers[0].Env, "APP_USER")
+	appPass := getEnvVar(pods[0].Spec.Containers[0].Env, "APP_PASS")
 	okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
 	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
 
 	client := &http.Client{}
-	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, "infinispan", "infinispan")
+	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, appUser, appPass)
 
 	value := "test-operator"
 
-	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, "infinispan", "infinispan")
-	actual := getViaRoute("http://"+hostAddr+"/rest/default/test", client, "infinispan", "infinispan")
+	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, appUser, appPass)
+	actual := getViaRoute("http://"+hostAddr+"/rest/default/test", client, appUser, appPass)
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
+}
+
+func getEnvVar(env []corev1.EnvVar, name string) string {
+	for _, v := range env {
+		if v.Name == name {
+			return v.Value
+		}
+	}
+	return ""
 }
 
 func TestExternalServiceWithAuth(t *testing.T) {
