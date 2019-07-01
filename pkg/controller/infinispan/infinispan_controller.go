@@ -2,7 +2,9 @@ package infinispan
 
 import (
 	"context"
+	"math/rand"
 	"reflect"
+	"time"
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 
@@ -216,10 +218,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		}
 	}
 	if appUser == "" {
-		appUser = "infinispan"
+		appUser = getRandomStringForAuth(16)
 	}
 	if appPass == "" {
-		appPass = "infinispan"
+		appPass = getRandomStringForAuth(16)
 	}
 
 	var mgmtUser, mgmtPass string
@@ -233,10 +235,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		}
 	}
 	if mgmtUser == "" {
-		mgmtUser = "infinispan"
+		mgmtUser = getRandomStringForAuth(16)
 	}
 	if mgmtPass == "" {
-		mgmtPass = "infinispan"
+		mgmtPass = getRandomStringForAuth(16)
 	}
 	envVars := []corev1.EnvVar{{Name: getImageVarNameFromOperatorEnv("MGMT_USER"), Value: mgmtUser},
 		{Name: getImageVarNameFromOperatorEnv("MGMT_PASS"), Value: mgmtPass},
@@ -317,6 +319,27 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+var acceptedChars = []byte(",-./=@\\abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var alphaChars = acceptedChars[8:]
+
+// getRandomStringForAuth generate a random string that can be used as a
+// user or pass for Infinispan
+func getRandomStringForAuth(size int) string {
+	b := make([]byte, size)
+	for i := range b {
+		if i == 0 {
+			b[0] = alphaChars[rand.Intn(len(alphaChars))]
+		} else {
+			b[i] = acceptedChars[rand.Intn(len(acceptedChars))]
+		}
+	}
+	return string(b)
 }
 
 // labelsForInfinispan returns the labels that must me applied to the pod
