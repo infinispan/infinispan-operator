@@ -1,4 +1,5 @@
 
+.Procedure
 . Specify a custom resource definition for the {brandname} cluster.
 +
 [source,options="nowrap"]
@@ -8,15 +9,7 @@ $ oc apply -f example-infinispan.yaml
 +
 . Verify that the {ispn_operator} creates the pods.
 +
-[source,options="nowrap"]
+[source,options="nowrap",subs=attributes+]
 ----
-$ oc get pods -w
-NAME                                   READY     STATUS              RESTARTS   AGE
-example-infinispan-54c66fd755-28lvx    0/1       ContainerCreating   0          4s
-example-infinispan-54c66fd755-7c4zc    0/1       ContainerCreating   0          4s
-example-infinispan-54c66fd755-8gbxf    0/1       ContainerCreating   0          5s
-infinispan-operator-69d7d4469d-f62ws   1/1       Running             0          3m
-example-infinispan-54c66fd755-8gbxf    1/1       Running             0          8s
-example-infinispan-54c66fd755-7c4zc    1/1       Running             0          8s
-example-infinispan-54c66fd755-28lvx    1/1       Running             0          8s
+include::cmd_examples/oc_get_pods_w.adoc[]
 ----
