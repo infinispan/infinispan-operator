@@ -225,7 +225,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		}
 	}
 	if appUser == "" {
-		appUser = getRandomStringForAuth(16)
+		appUser = "developer"
 	}
 	if appPass == "" {
 		appPass = getRandomStringForAuth(16)
@@ -242,7 +242,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		}
 	}
 	if mgmtUser == "" {
-		mgmtUser = getRandomStringForAuth(16)
+		mgmtUser = "admin"
 	}
 	if mgmtPass == "" {
 		mgmtPass = getRandomStringForAuth(16)
