@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
@@ -378,6 +379,7 @@ func getInfinispanConditions(ispnCliHelper clusterInterface, pods []corev1.Pod) 
 		views[i] = k
 		i++
 	}
+	sort.Strings(views)
 	if len(errors) == 0 {
 		if len(views) == 1 {
 			wellformed.Status = "True"
