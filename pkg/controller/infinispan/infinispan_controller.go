@@ -3,6 +3,7 @@ package infinispan
 import (
 	"context"
 	"encoding/json"
+	"github.com/go-logr/logr"
 	"math/rand"
 	"os"
 	"reflect"
@@ -118,8 +119,22 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	found := &appsv1beta1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
+		// Define or locate application user secret
+		appSecret, err := r.secretForUser("developer", "app", infinispan, reqLogger)
+		if err != nil {
+			reqLogger.Error(err, "could not find or create application Secret")
+			return reconcile.Result{}, err
+		}
+
+		// Define or locate management user secret
+		mgmtSecret, err := r.secretForUser("admin", "mgmt", infinispan, reqLogger)
+		if err != nil {
+			reqLogger.Error(err, "could not find or create management Secret")
+			return reconcile.Result{}, err
+		}
+
 		// Define a new deployment
-		dep := r.deploymentForInfinispan(infinispan)
+		dep := r.deploymentForInfinispan(infinispan, appSecret, mgmtSecret)
 		reqLogger.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
 		err = r.client.Create(context.TODO(), dep)
 		if err != nil {
@@ -202,7 +217,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
-func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan) *appsv1beta1.StatefulSet {
+func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, appSecret *corev1.Secret, mgmtSecret *corev1.Secret) *appsv1beta1.StatefulSet {
 	// This field specifies the flavor of the
 	// Infinispan cluster. "" is plain community edition (vanilla)
 	ls := labelsForInfinispan(m.ObjectMeta.Name)
@@ -214,39 +229,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		imageName = DefaultImageName
 	}
 
-	var appUser, appPass string
-	if m.Spec.Connector.Authentication.Type == "Credentials" &&
-		m.Spec.Connector.Authentication.SecretName != "" {
-		secretFound := &corev1.Secret{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Connector.Authentication.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
-		if err == nil {
-			appUser = string(secretFound.Data["username"][:])
-			appPass = string(secretFound.Data["password"][:])
-		}
-	}
-	if appUser == "" {
-		appUser = "developer"
-	}
-	if appPass == "" {
-		appPass = getRandomStringForAuth(16)
-	}
-
-	var mgmtUser, mgmtPass string
-	if m.Spec.Management.Authentication.Type == "Credentials" &&
-		m.Spec.Management.Authentication.SecretName != "" {
-		secretFound := &corev1.Secret{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Management.Authentication.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
-		if err == nil {
-			mgmtUser = string(secretFound.Data["username"][:])
-			mgmtPass = string(secretFound.Data["password"][:])
-		}
-	}
-	if mgmtUser == "" {
-		mgmtUser = "admin"
-	}
-	if mgmtPass == "" {
-		mgmtPass = getRandomStringForAuth(16)
-	}
+	var mgmtUserRef = envVarFromSecret("username", mgmtSecret)
+	var mgmtPassRef = envVarFromSecret("password", mgmtSecret)
+	var appUserRef = envVarFromSecret("username", appSecret)
+	var appPassRef = envVarFromSecret("password", appSecret)
 
 	memory := "512Mi"
 
@@ -260,10 +246,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		cpu = m.Spec.Container.CPU
 	}
 
-	envVars := []corev1.EnvVar{{Name: getImageVarNameFromOperatorEnv("MGMT_USER"), Value: mgmtUser},
-		{Name: getImageVarNameFromOperatorEnv("MGMT_PASS"), Value: mgmtPass},
-		{Name: getImageVarNameFromOperatorEnv("APP_USER"), Value: appUser},
-		{Name: getImageVarNameFromOperatorEnv("APP_PASS"), Value: appPass},
+	envVars := []corev1.EnvVar{{Name: getImageVarNameFromOperatorEnv("MGMT_USER"), ValueFrom: mgmtUserRef},
+		{Name: getImageVarNameFromOperatorEnv("MGMT_PASS"), ValueFrom: mgmtPassRef},
+		{Name: getImageVarNameFromOperatorEnv("APP_USER"), ValueFrom: appUserRef},
+		{Name: getImageVarNameFromOperatorEnv("APP_PASS"), ValueFrom: appPassRef},
 		{Name: "IMAGE", Value: m.Spec.Image},
 		{Name: "JGROUPS_PING_PROTOCOL", Value: getEnvWithDefault("JGROUPS_PING_PROTOCOL", defaultJGroupsPingProtocol)},
 		{Name: "OPENSHIFT_DNS_PING_SERVICE_NAME", Value: m.ObjectMeta.Name + "-ping"},
@@ -340,6 +326,15 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
+}
+
+func envVarFromSecret(key string, secret *corev1.Secret) *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{Name: secret.Name},
+			Key:                  key,
+		},
+	}
 }
 
 func init() {
@@ -448,6 +443,45 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 	controllerutil.SetControllerReference(m, service, r.scheme)
 
 	return service
+}
+
+func (r *ReconcileInfinispan) secretForUser(user string, realm string, m *infinispanv1.Infinispan, reqLogger logr.Logger) (*corev1.Secret, error) {
+	if m.Spec.Connector.Authentication.Type == "Credentials" &&
+		m.Spec.Connector.Authentication.SecretName != "" {
+		secretFound := &corev1.Secret{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Connector.Authentication.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
+		if err == nil {
+			return secretFound, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	pass := getRandomStringForAuth(16)
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      m.ObjectMeta.Name + "-" + realm + "-generated-secret",
+			Namespace: m.ObjectMeta.Namespace,
+		},
+		Type:       corev1.SecretType("Opaque"),
+		StringData: map[string]string{"username": user, "password": pass},
+	}
+
+	// Set Infinispan instance as the owner and controller
+	controllerutil.SetControllerReference(m, secret, r.scheme)
+
+	reqLogger.Info("Creating a new Secret", "Secret.Name", secret.Name)
+	err := r.client.Create(context.TODO(), secret)
+	if err != nil {
+		reqLogger.Error(err, "failed to create new Secret", "Secret.Name", secret.Name)
+		return nil, err
+	}
+
+	return secret, nil
 }
 
 func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *corev1.Service {

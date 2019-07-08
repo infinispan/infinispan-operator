@@ -561,3 +561,11 @@ func (c ExternalK8s) DeleteRoute(ns, serviceName string) {
 func (c ExternalK8s) GetClusterSize(namespace, namePod string) (int, error) {
 	return c.ispnCliHelper.GetClusterSize(namespace, namePod)
 }
+
+func (c ExternalK8s) GetSecret(ns, field string, name string) string {
+	secret, err := c.coreClient.Secrets(ns).Get(name, metaV1.GetOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	return string(secret.Data[field])
+}
