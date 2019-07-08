@@ -4,14 +4,7 @@ metadata:
   name: example-infinispan
 spec:
   replicas: 2
-  image: jboss/infinispan-server:latest
   connector:
     authentication:
-      secret:
-        type: Credentials
-        secretName: conn-auth-secret
-  management:
-    authentication:
-      secret:
-        type: Credentials
-        secretName: mngt-auth-secret
+      type: Credentials
+      secretName: connect-secret

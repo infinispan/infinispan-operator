@@ -4,4 +4,3 @@ metadata:
   name: example-infinispan
 spec:
   replicas: 2
-  image: jboss/infinispan-server:latest
