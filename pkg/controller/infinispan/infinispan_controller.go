@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -396,6 +397,7 @@ func getInfinispanConditions(ispnCliHelper clusterInterface, pods []corev1.Pod) 
 		views[i] = k
 		i++
 	}
+	sort.Strings(views)
 	if len(errors) == 0 {
 		if len(views) == 1 {
 			wellformed.Status = "True"
