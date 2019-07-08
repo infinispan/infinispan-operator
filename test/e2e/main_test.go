@@ -139,12 +139,9 @@ func TestExternalService(t *testing.T) {
 		panic(err.Error())
 	}
 
-	pods, err := okd.GetPods(Namespace, "app=infinispan-pod")
-	if err != nil {
-		panic(err.Error())
-	}
-	appUser := getEnvVar(pods[0].Spec.Containers[0].Env, "APP_USER")
-	appPass := getEnvVar(pods[0].Spec.Containers[0].Env, "APP_PASS")
+	appUser := okd.GetSecret(Namespace, "username", "cache-infinispan-0-app-generated-secret")
+	appPass := okd.GetSecret(Namespace, "password", "cache-infinispan-0-app-generated-secret")
+
 	okd.CreateRoute(Namespace, "cache-infinispan-0", "http")
 	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
 
