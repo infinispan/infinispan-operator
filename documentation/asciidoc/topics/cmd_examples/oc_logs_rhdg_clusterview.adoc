@@ -1,8 +1,0 @@
-$ oc logs datagrid-minimal-0 | grep ISPN000094
-
-INFO  [org.infinispan.CLUSTER] (MSC service thread 1-2) \
-ISPN000094: Received new cluster view for channel cluster: \
-[example-datagrid-0|0] (1) [example-datagrid-0] \
-INFO  [org.infinispan.CLUSTER] (jgroups-3,example-rhdg-0) \
-ISPN000094: Received new cluster view for channel cluster: \
-[example-datagrid-0|1] (2) [example-datagrid-0, example-datagrid-1]

@@ -1,3 +1,5 @@
+[id='installing_operator-{context}']
+= Deploying the {ispn_operator}
 Manually deploying the {ispn_operator} to {k8s} involves applying the `yaml` template that defines metadata and container specifications.
 
 .Procedure

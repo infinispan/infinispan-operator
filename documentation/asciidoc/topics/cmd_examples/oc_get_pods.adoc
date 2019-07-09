@@ -1,5 +1,5 @@
 $ oc get pods
 
 NAME                   READY     STATUS    RESTARTS   AGE
-example-infinispan-0   1/1       Running   0          1m
-example-infinispan-1   1/1       Running   0          49s
+{example_crd_name}-0        1/1       Running   0          1m
+{example_crd_name}-1        1/1       Running   0          49s

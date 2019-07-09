@@ -2,7 +2,7 @@ $ cat > cr_minimal.yaml<<EOF
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: datagrid-minimal
+  name: {example_crd_name}
 spec:
   replicas: 2
 EOF

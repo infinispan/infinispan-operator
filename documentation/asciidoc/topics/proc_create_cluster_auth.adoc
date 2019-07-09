@@ -1,0 +1,59 @@
+[id='creating_auth_clusters-{context}']
+= Creating {brandname} Clusters with Credentials
+Create secrets that contain credentials so application users can authenticate to {brandname} nodes. You can then specify the name of the secret in a custom resource `yaml` and spin up clusters with the {ispn_operator}.
+
+.Procedure
+. Create a secret that contains credentials for the application user.
+.. Add an authentication secret `yaml`, for example:
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/cat_connect_secret.adoc[]
+----
++
+The secret must:
++
+* Be `type: Opaque`.
+* Have `username` and `password` fields.
++
+.. Apply the authentication secret `yaml`.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc apply -f connect_secret.yaml
+----
++
+ifdef::productized[]
+. Create a custom resource `yaml` for the cluster that includes the name of the secret that contains your credentials.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/cat_cr_auth.adoc[]
+----
++
+* `replicas` specifies the number of nodes in the {brandname} cluster.
+* `connector` configures how users connect to {brandname} nodes to store and retrieve data.
++
+endif::productized[]
+. Apply the custom resource `yaml`.
++
+ifndef::productized[]
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_apply_cr_auth.adoc[]
+----
++
+endif::productized[]
+ifdef::productized[]
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_apply_local_cr_auth.adoc[]
+----
+endif::productized[]
++
+. Verify that the {ispn_operator} creates the pods.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_get_pods_w.adoc[]
+----

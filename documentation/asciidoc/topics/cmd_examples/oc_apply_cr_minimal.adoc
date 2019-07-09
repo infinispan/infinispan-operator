@@ -1,1 +1,1 @@
-$ oc apply -f {github_raw}master/deploy/cr/cr_minimal.yaml
+$ oc apply -f {github_raw}{github_tag}/deploy/cr/cr_minimal.yaml

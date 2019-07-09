@@ -6,6 +6,9 @@
 
 :github_root: https://github.com/infinispan/infinispan-operator/
 :github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
+:github_tag: master
+
+:example_crd_name: example-ispn
 
 //Linking for API docs
 :javadocroot:

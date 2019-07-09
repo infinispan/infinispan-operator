@@ -1,3 +1,5 @@
+[id='verifying_clusters-{context}']
+= Verifying {brandname} Clusters
 Review log messages to verify that the {ispn_operator} has successfully created a {brandname} cluster.
 
 .Procedure
@@ -8,7 +10,7 @@ ifndef::productized[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/oc_logs_ispn_clusterview.adoc[]
+include::cmd_examples/oc_logs_clusterview.adoc[]
 ----
 +
 ** Retrieve the custom resource type for the {ispn_operator}.
@@ -22,10 +24,7 @@ The output of the preceding command contains the following message to indicate t
 +
 [source,options="nowrap",subs=attributes+]
 ----
-conditions:
-    - message: 'View: [example-infinispan-0, example-infinispan-1]'
-      status: "True"
-      type: wellFormed
+include::yaml_examples/cluster_view_message.yaml[]
 ----
 endif::productized[]
 ifdef::productized[]
@@ -42,7 +41,7 @@ include::cmd_examples/oc_logs_grep_kube_ping.adoc[]
 +
 [source,options="nowrap",subs="attributes"]
 ----
-include::cmd_examples/oc_logs_rhdg_clusterview.adoc[]
+include::cmd_examples/oc_logs_clusterview.adoc[]
 ----
 +
 ** Retrieve the custom resource type for the {ispn_operator}.
@@ -56,9 +55,6 @@ The output of the preceding command contains the following message to indicate t
 +
 [source,options="nowrap",subs=attributes+]
 ----
-conditions:
-    - message: 'View: [example-datagrid-0, example-datagrid-1]'
-      status: "True"
-      type: wellFormed
+include::yaml_examples/cluster_view_message.yaml[]
 ----
 endif::productized[]

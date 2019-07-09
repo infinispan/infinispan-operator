@@ -18,6 +18,9 @@
 
 :github_root: https://github.com/infinispan/infinispan-operator/
 :github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
+:github_tag: master
+
+:example_crd_name: example-rhdg
 
 // Community Doc Roots
 :javadocroot: https://access.redhat.com/webassets/avalon/d/red-hat-data-grid/7.3/api

@@ -1,6 +1,6 @@
 [id='spinning_up_clusters']
-== Spinning Up {brandname} Clusters
-:context: spinning_up_clusters
+= Spinning Up {brandname} Clusters
+:context: create_cluster
 
 You create {brandname} clusters from custom resource definitions.
 
@@ -12,13 +12,9 @@ ifdef::productized[]
 link:#deploying_operator_manually[Manually deploy the {ispn_operator}].
 endif::productized[]
 
-[id='creating_minimal_clusters-{context}']
-=== Creating Minimal {brandname} Clusters
-include::topics/proc_create_cluster_minimal.adoc[]
-
-[id='verifying_clusters-{context}']
-=== Verifying {brandname} Clusters
-include::topics/proc_verify_cluster.adoc[]
+include::topics/proc_create_cluster_minimal.adoc[leveloffset=+1]
+include::topics/proc_create_cluster_auth.adoc[leveloffset=+1]
+include::topics/proc_verify_cluster.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]
