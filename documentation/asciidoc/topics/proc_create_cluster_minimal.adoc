@@ -1,8 +1,10 @@
-The {ispn_operator} lets you quickly and easily spin up {brandname} clusters. The following procedure demonstrates how to create minimal clusters with two nodes using a simple `yaml` template.
+[id='creating_minimal_clusters-{context}']
+= Creating Minimal {brandname} Clusters
+Quickly spin up a {brandname} cluster with two nodes and let the {ispn_operator} generate credentials. You can retrieve the credentials from the pods after you create the {brandname} cluster. However, because {brandname} clusters require authentication, you cannot connect to the pods without the credentials.
 
 .Procedure
 ifdef::productized[]
-. Create a custom resource a minimal cluster.
+. Create a custom resource `yaml` for the minimal cluster.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -10,26 +12,15 @@ include::cmd_examples/cat_cr_minimal.adoc[]
 ----
 +
 * `replicas` specifies the number of nodes in the {brandname} cluster.
-* `image` creates the cluster from the {osproductshort} image.
-+
-[NOTE]
-====
-The custom resource does not set credentials so the {ispn_operator} generates them automatically. You can retrieve the credentials from the pods after you create the {brandname} cluster.
-====
 +
 endif::productized[]
-. Apply the custom resource `yaml` for minimal clusters.
+. Apply the custom resource `yaml`.
 +
 ifndef::productized[]
 [source,options="nowrap",subs=attributes+]
 ----
 include::cmd_examples/oc_apply_cr_minimal.adoc[]
 ----
-+
-[NOTE]
-====
-The custom resource does not set credentials so the {ispn_operator} generates them automatically. You can retrieve the credentials from the pods after you create the {brandname} cluster.
-====
 +
 endif::productized[]
 ifdef::productized[]
@@ -41,18 +32,7 @@ endif::productized[]
 +
 . Verify that the {ispn_operator} creates the pods.
 +
-ifndef::productized[]
 [source,options="nowrap",subs=attributes+]
 ----
 include::cmd_examples/oc_get_pods_w.adoc[]
 ----
-endif::productized[]
-ifdef::productized[]
-[source,options="nowrap"]
-----
-include::cmd_examples/oc_get_rhdg_pods_w.adoc[]
-----
-endif::productized[]
-
-.Additional Resources
-* link:#getting_credentials-managing_cluster_credentials[Retrieving Cluster Credentials]

@@ -1,6 +1,0 @@
-$ oc get pods -w
-
-NAME                          READY     STATUS    RESTARTS   AGE
-infinispan-operator-<id>      1/1       Running   0          25s
-datagrid-minimal-0            1/1       Running   0          2m
-datagrid-minimal-1            1/1       Running   0          15s

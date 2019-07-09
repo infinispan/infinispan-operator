@@ -1,0 +1,4 @@
+conditions:
+    - message: 'View: [{example_crd_name}-0, {example_crd_name}-1]'
+      status: "True"
+      type: wellFormed
