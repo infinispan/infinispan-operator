@@ -2,7 +2,6 @@
 build/_output
 build/_test
 *~
-build/
 html/
 .DS_Store
 */.DS_Store
