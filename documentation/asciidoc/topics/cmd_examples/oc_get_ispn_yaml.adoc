@@ -1,0 +1,1 @@
+$ oc get infinispan -o yaml

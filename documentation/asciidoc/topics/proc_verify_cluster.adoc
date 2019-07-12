@@ -2,11 +2,30 @@ Review log messages to verify that the {ispn_operator} has successfully created 
 
 .Procedure
 ifndef::productized[]
-* Check that the {brandname} nodes have received a clustered view, for example:
+* Check that the {brandname} nodes have received a clustered view. Do either of the following:
 
+** Retrieve the cluster view from the pod log files.
++
 [source,options="nowrap",subs=attributes+]
 ----
 include::cmd_examples/oc_logs_ispn_clusterview.adoc[]
+----
++
+** Retrieve the custom resource type for the {ispn_operator}.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_get_ispn_yaml.adoc[]
+----
++
+The output of the preceding command contains the following message to indicate that the {brandname} nodes have received a clustered view:
++
+[source,options="nowrap",subs=attributes+]
+----
+conditions:
+    - message: 'View: [example-infinispan-0, example-infinispan-1]'
+      status: "True"
+      type: wellFormed
 ----
 endif::productized[]
 ifdef::productized[]
@@ -17,10 +36,29 @@ ifdef::productized[]
 include::cmd_examples/oc_logs_grep_kube_ping.adoc[]
 ----
 +
-. Verify that the nodes have received a clustered view, for example:
+. Verify that the nodes have received a clustered view. Do either of the following:
+
+** Retrieve the cluster view from the pod log files.
 +
 [source,options="nowrap",subs="attributes"]
 ----
 include::cmd_examples/oc_logs_rhdg_clusterview.adoc[]
+----
++
+** Retrieve the custom resource type for the {ispn_operator}.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_get_ispn_yaml.adoc[]
+----
++
+The output of the preceding command contains the following message to indicate that the {brandname} nodes have received a clustered view:
++
+[source,options="nowrap",subs=attributes+]
+----
+conditions:
+    - message: 'View: [example-datagrid-0, example-datagrid-1]'
+      status: "True"
+      type: wellFormed
 ----
 endif::productized[]
