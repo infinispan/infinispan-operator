@@ -10,6 +10,11 @@ validate() {
      echo "Env variable RELEASE_NAME, which sets version to be released is unset or set to the empty string"
      exit 1
   fi
+
+  if [ -z "${SERVER_VERSION}" ]; then
+     echo "Env variable SERVER_VERSION, which sets server version to be use is unset or set to the empty string"
+     exit 1
+  fi
 }
 
 
@@ -20,7 +25,8 @@ branch() {
 
 
 replace() {
-  sed -i'.backup' "s/latest/${RELEASE_NAME}/g" deploy/operator.yaml
+  sed -i'.backup' "s/infinispan-server:latest/infinispan-server:${SERVER_VERSION}/g" deploy/operator.yaml
+  sed -i'.backup' "s/infinispan-operator:latest/infinispan-operator:${RELEASE_NAME}/g" deploy/operator.yaml
 }
 
 
