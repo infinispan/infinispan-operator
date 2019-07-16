@@ -337,5 +337,5 @@ TODO
 ### Releases
 To create releases, run:
 ```
-$ make DRY_RUN=false RELEASE_NAME=X.Y.Z release
+$ make DRY_RUN=false RELEASE_NAME=X.Y.Z SERVER_VERSION=a.b.c release
 ```
