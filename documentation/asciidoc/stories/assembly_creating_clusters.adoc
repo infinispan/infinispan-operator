@@ -8,9 +8,9 @@ You create {brandname} clusters from custom resource definitions.
 ifndef::productized[]
 Either install the {ispn_operator} from link:https://www.operatorhub.io/[OperatorHub.io] or link:#deploying_operator_manually[manually deploy it].
 endif::productized[]
-ifdef::productized[]
-link:#deploying_operator_manually[Manually deploy the {ispn_operator}].
-endif::productized[]
+//ifdef::productized[]
+//link:#deploying_operator_manually[Manually deploy the {ispn_operator}].
+//endif::productized[]
 
 include::topics/proc_create_cluster_minimal.adoc[leveloffset=+1]
 include::topics/proc_create_cluster_auth.adoc[leveloffset=+1]
