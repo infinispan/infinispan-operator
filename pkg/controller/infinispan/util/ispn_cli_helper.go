@@ -15,25 +15,28 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
+// IspnCliHelper represent an helper for running CLI commands
 type IspnCliHelper struct {
 	coreClient *coreV1.CoreV1Client
 	restConfig *rest.Config
+	cliCmd     string
 }
 
 func getConfigLocation() string {
 	kubeConfig := os.Getenv("KUBECONFIG")
 	if kubeConfig != "" {
 		return kubeConfig
-	} else {
-		return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 	}
+	return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 }
 
 var configLocation = getConfigLocation()
 
+// NewIspnCliHelper create an IspnCliHelper
 func NewIspnCliHelper() *IspnCliHelper {
 	help := new(IspnCliHelper)
 	help.restConfig, _ = rest.InClusterConfig()
+	help.cliCmd = GetEnvWithDefault("CLI_CMD", "/opt/jboss/infinispan-server/bin/ispn-cli.sh")
 	if help.restConfig == nil {
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: configLocation},
@@ -82,7 +85,7 @@ func (help *IspnCliHelper) ExecuteCmdOnPod(namespace, podName string, commands [
 // GetClusterSize get the cluster size via the ISPN cli
 func (help *IspnCliHelper) GetClusterSize(namespace, namePod string) (int, error) {
 	cliCommand := "/subsystem=datagrid-infinispan/cache-container=clustered/:read-attribute(name=cluster-size)\n"
-	commands := []string{"/opt/jboss/infinispan-server/bin/ispn-cli.sh", "--connect"}
+	commands := []string{help.cliCmd, "--connect"}
 	var execIn, execOut, execErr bytes.Buffer
 	execIn.WriteString(cliCommand)
 	err := help.ExecuteCmdOnPod(namespace, namePod, commands,
@@ -103,7 +106,7 @@ func (help *IspnCliHelper) GetClusterSize(namespace, namePod string) (int, error
 // GetClusterMembers get the cluster members via the ISPN cli
 func (help *IspnCliHelper) GetClusterMembers(namespace, namePod string) (string, error) {
 	cliCommand := "/subsystem=datagrid-infinispan/cache-container=clustered/:read-attribute(name=members)\n"
-	commands := []string{"/opt/jboss/infinispan-server/bin/ispn-cli.sh", "--connect"}
+	commands := []string{help.cliCmd, "--connect"}
 	var execIn, execOut, execErr bytes.Buffer
 	execIn.WriteString(cliCommand)
 	err := help.ExecuteCmdOnPod(namespace, namePod, commands,
@@ -119,4 +122,14 @@ func (help *IspnCliHelper) GetClusterMembers(namespace, namePod string) (string,
 		return resultValue, nil
 	}
 	return "-error-", err
+}
+
+// GetEnvWithDefault return GetEnv(name) if exists else
+// return defVal
+func GetEnvWithDefault(name, defVal string) string {
+	str := os.Getenv(name)
+	if str != "" {
+		return str
+	}
+	return defVal
 }

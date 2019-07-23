@@ -3,13 +3,14 @@ package infinispan
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-logr/logr"
 	"math/rand"
 	"os"
 	"reflect"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/go-logr/logr"
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
@@ -40,7 +41,7 @@ const DefaultConfig = "cloud.xml"
 const defaultJGroupsPingProtocol = "openshift.DNS_PING"
 
 // DefaultImageName is used if a specific image name is not provided
-var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "jboss/infinispan-server:latest")
+var DefaultImageName = ispnutil.GetEnvWithDefault("DEFAULT_IMAGE", "jboss/infinispan-server:latest")
 
 var ispnCliHelper *ispnutil.IspnCliHelper
 
@@ -252,7 +253,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		{Name: getImageVarNameFromOperatorEnv("APP_USER"), ValueFrom: appUserRef},
 		{Name: getImageVarNameFromOperatorEnv("APP_PASS"), ValueFrom: appPassRef},
 		{Name: "IMAGE", Value: m.Spec.Image},
-		{Name: "JGROUPS_PING_PROTOCOL", Value: getEnvWithDefault("JGROUPS_PING_PROTOCOL", defaultJGroupsPingProtocol)},
+		{Name: "JGROUPS_PING_PROTOCOL", Value: ispnutil.GetEnvWithDefault("JGROUPS_PING_PROTOCOL", defaultJGroupsPingProtocol)},
 		{Name: "OPENSHIFT_DNS_PING_SERVICE_NAME", Value: m.ObjectMeta.Name + "-ping"},
 		{Name: getImageVarNameFromOperatorEnv("NUMBER_OF_INSTANCE"), Value: string(m.Spec.Replicas)},
 		{Name: getImageVarNameFromOperatorEnv("JAVA_OPTS_VARNAME"), Value: m.Spec.Container.JvmOptionsAppend}}
@@ -535,14 +536,6 @@ func getImageVarNameFromOperatorEnv(propName string) string {
 		return val
 	}
 	return propName
-}
-
-func getEnvWithDefault(name, defVal string) string {
-	str := os.Getenv(name)
-	if str != "" {
-		return str
-	}
-	return defVal
 }
 
 // getEntryPointArgs returns the arguments for the image entrypoint command
