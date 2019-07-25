@@ -122,14 +122,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		// Define or locate application user secret
-		appSecret, err := r.secretForUser("developer", "app", infinispan, reqLogger)
+		appSecret, err := r.secretForUser("developer", "app", infinispan, infinispan.Spec.Connector.Authentication, reqLogger)
 		if err != nil {
 			reqLogger.Error(err, "could not find or create application Secret")
 			return reconcile.Result{}, err
 		}
 
 		// Define or locate management user secret
-		mgmtSecret, err := r.secretForUser("admin", "mgmt", infinispan, reqLogger)
+		mgmtSecret, err := r.secretForUser("admin", "mgmt", infinispan, infinispan.Spec.Management.Authentication, reqLogger)
 		if err != nil {
 			reqLogger.Error(err, "could not find or create management Secret")
 			return reconcile.Result{}, err
@@ -448,18 +448,20 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 	return service
 }
 
-func (r *ReconcileInfinispan) secretForUser(user string, realm string, m *infinispanv1.Infinispan, reqLogger logr.Logger) (*corev1.Secret, error) {
-	if m.Spec.Connector.Authentication.Type == "Credentials" &&
-		m.Spec.Connector.Authentication.SecretName != "" {
+func (r *ReconcileInfinispan) secretForUser(user string, realm string, m *infinispanv1.Infinispan, authInfo infinispanv1.InfinispanAuthInfo, reqLogger logr.Logger) (*corev1.Secret, error) {
+	if authInfo.Type == "Credentials" &&
+		authInfo.SecretName != "" {
 		secretFound := &corev1.Secret{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: m.Spec.Connector.Authentication.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: authInfo.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
 		if err == nil {
 			return secretFound, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
+	return r.createSecretForAuthentication(user, realm, m, reqLogger)
+}
 
+func (r *ReconcileInfinispan) createSecretForAuthentication(user, realm string, m *infinispanv1.Infinispan, reqLogger logr.Logger) (*corev1.Secret, error) {
 	pass := getRandomStringForAuth(16)
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -483,7 +485,6 @@ func (r *ReconcileInfinispan) secretForUser(user string, realm string, m *infini
 		reqLogger.Error(err, "failed to create new Secret", "Secret.Name", secret.Name)
 		return nil, err
 	}
-
 	return secret, nil
 }
 

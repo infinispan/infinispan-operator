@@ -489,7 +489,7 @@ func checkExternalAddress(client *http.Client, hostAndPort, ns, name, user, pass
 
 // CreateRoute exposes the port 8080 of the Infinispan cluster clusterName
 // It return the public address a string: the IP address if available else the hostname
-func (c ExternalK8s) CreateRoute(ns, clusterName string, portString string) {
+func (c ExternalK8s) CreateRoute(ns, clusterName string, port int, portString string) {
 	svc, err := c.coreClient.Services(ns).Get(clusterName, metaV1.GetOptions{})
 	if err != nil {
 		panic(err.Error())
@@ -511,8 +511,8 @@ func (c ExternalK8s) CreateRoute(ns, clusterName string, portString string) {
 			Selector: svc.Spec.Selector,
 			Ports: []corev1.ServicePort{
 				{
-					Port:       8080,
-					TargetPort: intstr.FromInt(8080),
+					Port:       int32(port),
+					TargetPort: intstr.FromInt(port),
 				},
 			},
 		},
