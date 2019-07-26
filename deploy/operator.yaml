@@ -15,7 +15,7 @@ spec:
       serviceAccountName: infinispan-operator
       containers:
         - name: infinispan-operator
-          image: jboss/infinispan-operator:latest
+          image: jboss/infinispan-operator:0.3.2
           ports:
           - containerPort: 60000
             name: metrics
@@ -34,4 +34,4 @@ spec:
             - name: OPERATOR_NAME
               value: "infinispan-operator"
             - name: DEFAULT_IMAGE
-              value: "jboss/infinispan-server:latest"
+              value: "jboss/infinispan-server:9.4.11.Final"
