@@ -40,6 +40,11 @@ tag() {
 }
 
 
+untag() {
+  git tag --delete "${RELEASE_NAME}"
+}
+
+
 push() {
   git push --tags origin
 }
@@ -60,6 +65,7 @@ main() {
   cleanup
 
   if [[ "${DRY_RUN}" = true ]] ; then
+    untag
     echo "DRY_RUN is set to true. Skipping..."
   else
     push
