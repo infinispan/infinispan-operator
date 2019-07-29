@@ -600,32 +600,16 @@ func appendVolumes(m *infinispanv1.Infinispan, dep *appsv1beta1.StatefulSet) {
 
 	v := &dep.Spec.Template.Spec.Volumes
 
-	var volumeKeystore string
-	envVar, defined = os.LookupEnv("VOLUME_KEYSTORE_NAME")
+	volumeKeystore, defined := os.LookupEnv("VOLUME_KEYSTORE_NAME")
 	if defined {
-		err := json.Unmarshal([]byte(envVar), &volumeKeystore)
-		if err != nil {
-			// In case of error return default add nothing
-			logf.Log.Error(err, "No volume mounts added. Error in parsing user VOLUME_KEYSTORE_NAME value: (%s)", envVar)
-			return
-		}
-
 		*v = append(*v, corev1.Volume{
 			Name:         volumeKeystore,
 			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 		})
 	}
 
-	var volumeSecretName string
-	envVar, defined = os.LookupEnv("VOLUME_SECRET_NAME")
+	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
 	if defined {
-		err := json.Unmarshal([]byte(envVar), &volumeSecretName)
-		if err != nil {
-			// In case of error return default add nothing
-			logf.Log.Error(err, "No volume mounts added. Error in parsing user VOLUME_SECRET_NAME value: (%s)", envVar)
-			return
-		}
-
 		*v = append(*v, corev1.Volume{
 			Name:         volumeSecretName,
 			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: volumeSecretName}},
