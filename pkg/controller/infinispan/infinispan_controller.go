@@ -257,6 +257,22 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		{Name: "OPENSHIFT_DNS_PING_SERVICE_NAME", Value: m.ObjectMeta.Name + "-ping"},
 		{Name: getImageVarNameFromOperatorEnv("NUMBER_OF_INSTANCE"), Value: string(m.Spec.Replicas)},
 		{Name: getImageVarNameFromOperatorEnv("JAVA_OPTS_VARNAME"), Value: m.Spec.Container.JvmOptionsAppend}}
+
+	// Adding additional variables listed in ADDITIONAL_VARS env var
+	envVar, defined := os.LookupEnv("ADDITIONAL_VARS")
+	if defined {
+		var addVars []string
+		err := json.Unmarshal([]byte(envVar), &addVars)
+		if err == nil {
+			for _, name := range addVars {
+				value, defined := os.LookupEnv(name)
+				if defined {
+					envVars = append(envVars, corev1.EnvVar{Name: name, Value: value})
+				}
+			}
+		}
+	}
+
 	dep := &appsv1beta1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1beta1",
