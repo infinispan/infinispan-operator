@@ -175,7 +175,7 @@ func TestExternalService(t *testing.T) {
 	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
 
 	client := &http.Client{}
-	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, appUser, appPass)
+	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout)
 
 	value := "test-operator"
 
@@ -256,8 +256,8 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-mgmt")
 
 	client := &http.Client{}
-	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, "connectorusr", "connectorpass")
-	mgmtEnabled := os.Getenv("TEST_MGMT_ENABLED")
+	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout)
+
 	value := "test-operator"
 
 	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, "connectorusr", "connectorpass")
@@ -266,8 +266,9 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
 
+	mgmtEnabled := os.Getenv("TEST_MGMT_ENABLED")
 	if mgmtEnabled != "false" {
-		hostAddrMgmt := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-mgmt", RouteTimeout, "connectorusr", "connectorpass")
+		hostAddrMgmt := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-mgmt", RouteTimeout)
 		mgmtConnectViaRoute("http://"+hostAddrMgmt+"/management", value, client, "connectormgmtusr", "connectormgmtpass")
 	}
 }
