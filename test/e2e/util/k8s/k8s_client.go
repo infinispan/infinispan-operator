@@ -446,14 +446,14 @@ func debugPods(required int, pods []v1.Pod) {
 }
 
 // WaitForRoute checks if an http server is listening at the endpoint exposed by the service (ns, name)
-func (c ExternalK8s) WaitForRoute(client *http.Client, ns string, name string, timeout time.Duration, user string, pass string) string {
+func (c ExternalK8s) WaitForRoute(client *http.Client, ns string, name string, timeout time.Duration) string {
 	var hostAndPort string
 	err := wait.Poll(period, timeout, func() (done bool, err error) {
 		// depending on the c8s cluster setting, service is sometime available
 		// via Ingress address sometime via node port. So trying both the methods
 		// Try node port first
 		hostAndPort = getNodePortAddress(c, ns, name)
-		result := checkExternalAddress(client, hostAndPort, ns, name, user, pass)
+		result := checkExternalAddress(client, hostAndPort, ns, name)
 		if result {
 			return result, nil
 		}
@@ -462,7 +462,7 @@ func (c ExternalK8s) WaitForRoute(client *http.Client, ns string, name string, t
 		if err != nil {
 			return false, nil
 		}
-		return checkExternalAddress(client, hostAndPort, ns, name, user, pass), nil
+		return checkExternalAddress(client, hostAndPort, ns, name), nil
 	})
 	if err != nil {
 		panic(err.Error())
@@ -470,13 +470,12 @@ func (c ExternalK8s) WaitForRoute(client *http.Client, ns string, name string, t
 	return hostAndPort
 }
 
-func checkExternalAddress(client *http.Client, hostAndPort, ns, name, user, pass string) bool {
+func checkExternalAddress(client *http.Client, hostAndPort, ns, name string) bool {
 	req, err := http.NewRequest("GET", "http://"+hostAndPort+"/rest/default/test", nil)
 	if err != nil {
 		// If we can't create a request just panic
 		panic(err.Error())
 	}
-	req.SetBasicAuth(user, pass)
 	resp, err := client.Do(req)
 	if err != nil {
 		return false
