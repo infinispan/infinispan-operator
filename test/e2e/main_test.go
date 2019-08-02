@@ -155,8 +155,10 @@ func TestExternalService(t *testing.T) {
 	value := "test-operator"
 
 	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, appUser, appPass)
-	actual := getViaRoute("http://"+hostAddr+"/rest/default/test", client, appUser, appPass)
-
+	actual, resp := getViaRoute("http://"+hostAddr+"/rest/default/test", client, appUser, appPass)
+	if resp.StatusCode != http.StatusOK {
+		panic(fmt.Errorf("unexpected response %v", resp))
+	}
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
@@ -175,6 +177,10 @@ func getEnvVar(env []corev1.EnvVar, name string) string {
 // and management connection with authentication
 func TestExternalServiceWithAuth(t *testing.T) {
 	// Create secret with application credentials
+	appUser := "connectorusr"
+	appPass := "connectorpass"
+	mgmtUser := "connectormgmtuser"
+	mgmtPass := "connectormgmtpass"
 	secret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -182,7 +188,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{Name: "conn-secret-test"},
 		Type:       "Opaque",
-		StringData: map[string]string{"username": "connectorusr", "password": "connectorpass"},
+		StringData: map[string]string{"username": appUser, "password": appPass},
 	}
 	okd.CoreClient().Secrets(Namespace).Create(&secret)
 	defer okd.CoreClient().Secrets(Namespace).Delete("conn-secret-test", &deleteOpts)
@@ -195,7 +201,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{Name: "mgmt-secret-test"},
 		Type:       "Opaque",
-		StringData: map[string]string{"username": "connectormgmtusr", "password": "connectormgmtpass"},
+		StringData: map[string]string{"username": mgmtUser, "password": mgmtPass},
 	}
 	okd.CoreClient().Secrets(Namespace).Create(&mgmtSecret)
 	defer okd.CoreClient().Secrets(Namespace).Delete("mgmt-secret-test", &deleteOpts)
@@ -231,22 +237,43 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-mgmt")
 
 	client := &http.Client{}
-	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, "connectorusr", "connectorpass")
+	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, appUser, appPass)
 
-	hostAddrMgmt := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-mgmt", RouteTimeout, "connectorusr", "connectorpass")
+	hostAddrMgmt := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-mgmt", RouteTimeout, appUser, appPass)
 
 	value := "test-operator"
-
-	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, "connectorusr", "connectorpass")
-	actual := getViaRoute("http://"+hostAddr+"/rest/default/test", client, "connectorusr", "connectorpass")
+	resp := putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, appUser, appPass)
+	if resp.StatusCode != http.StatusOK {
+		panic(fmt.Errorf("unexpected response %v", resp))
+	}
+	actual, resp := getViaRoute("http://"+hostAddr+"/rest/default/test", client, appUser, appPass)
+	if resp.StatusCode != http.StatusOK {
+		panic(fmt.Errorf("unexpected response %v", resp))
+	}
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
-
-	mgmtConnectViaRoute("http://"+hostAddrMgmt+"/management", value, client, "connectormgmtusr", "connectormgmtpass")
+	resp = mgmtConnectViaRoute("http://"+hostAddrMgmt+"/management", value, client, mgmtUser, mgmtPass)
+	if resp.StatusCode != http.StatusOK {
+		panic(fmt.Errorf("unexpected response %v", resp))
+	}
+	// Test with wrong credentials. Swap the credentials use application
+	// creds for management and mgmt for app
+	resp = putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, mgmtPass, mgmtPass)
+	if resp.StatusCode != http.StatusUnauthorized {
+		panic(fmt.Errorf("unexpected response %v", resp))
+	}
+	_, resp = getViaRoute("http://"+hostAddr+"/rest/default/test", client, mgmtPass, mgmtPass)
+	if resp.StatusCode != http.StatusUnauthorized {
+		panic(fmt.Errorf("unexpected response %v", resp))
+	}
+	resp = mgmtConnectViaRoute("http://"+hostAddrMgmt+"/management", value, client, appUser, appPass)
+	if resp.StatusCode != http.StatusUnauthorized {
+		panic(fmt.Errorf("unexpected response %v", resp))
+	}
 }
 
-func getViaRoute(url string, client *http.Client, user string, pass string) string {
+func getViaRoute(url string, client *http.Client, user string, pass string) (string, *http.Response) {
 	req, err := http.NewRequest("GET", url, nil)
 	req.SetBasicAuth(user, pass)
 	resp, err := client.Do(req)
@@ -255,16 +282,16 @@ func getViaRoute(url string, client *http.Client, user string, pass string) stri
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("unexpected response %v", resp))
+		return "", resp
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		panic(err.Error())
 	}
-	return string(bodyBytes)
+	return string(bodyBytes), resp
 }
 
-func putViaRoute(url string, value string, client *http.Client, user string, pass string) {
+func putViaRoute(url string, value string, client *http.Client, user string, pass string) *http.Response {
 	body := bytes.NewBuffer([]byte(value))
 	req, err := http.NewRequest("POST", url, body)
 	req.Header.Set("Content-Type", "text/plain")
@@ -274,14 +301,12 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 	if err != nil {
 		panic(err.Error())
 	}
-	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("unexpected response %v", resp))
-	}
+	return resp
 }
 
 // mgmtConnectViaRoute tests the connection to the management interface
 // authenticating with digest-md5
-func mgmtConnectViaRoute(url string, value string, client *http.Client, user string, pass string) {
+func mgmtConnectViaRoute(url string, value string, client *http.Client, user string, pass string) *http.Response {
 	body := bytes.NewBuffer([]byte(value))
 	req, err := http.NewRequest("GET", url, body)
 	resp, err := client.Do(req)
@@ -306,9 +331,7 @@ func mgmtConnectViaRoute(url string, value string, client *http.Client, user str
 	if err != nil {
 		panic(err.Error())
 	}
-	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("unexpected response %v", resp))
-	}
+	return resp
 }
 
 func getNonce(resp *http.Response) string {
