@@ -49,9 +49,34 @@ func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
 	okd.NewProject(namespace)
 	stopCh := utilk8s.RunOperator(okd, Namespace, ConfigLocation)
+	setupNamespace()
 	code := m.Run()
+	cleanupNamespace()
 	utilk8s.Cleanup(*okd, Namespace, stopCh)
 	os.Exit(code)
+}
+
+func setupNamespace() {
+	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
+	if defined {
+		secret := corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{Name: volumeSecretName},
+			Type:       "Opaque",
+			StringData: map[string]string{"username": "connectorusr", "password": "connectorpass"},
+		}
+		okd.CoreClient().Secrets(Namespace).Create(&secret)
+	}
+}
+
+func cleanupNamespace() {
+	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
+	if defined {
+		okd.CoreClient().Secrets(Namespace).Delete(volumeSecretName, &deleteOpts)
+	}
 }
 
 // Simple smoke test to check if the OKD is alive
@@ -232,9 +257,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 
 	client := &http.Client{}
 	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout, "connectorusr", "connectorpass")
-
-	hostAddrMgmt := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-mgmt", RouteTimeout, "connectorusr", "connectorpass")
-
+	mgmtEnabled := os.Getenv("TEST_MGMT_ENABLED")
 	value := "test-operator"
 
 	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, "connectorusr", "connectorpass")
@@ -243,7 +266,10 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
 
-	mgmtConnectViaRoute("http://"+hostAddrMgmt+"/management", value, client, "connectormgmtusr", "connectormgmtpass")
+	if mgmtEnabled != "false" {
+		hostAddrMgmt := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-mgmt", RouteTimeout, "connectorusr", "connectorpass")
+		mgmtConnectViaRoute("http://"+hostAddrMgmt+"/management", value, client, "connectormgmtusr", "connectormgmtpass")
+	}
 }
 
 func getViaRoute(url string, client *http.Client, user string, pass string) string {
