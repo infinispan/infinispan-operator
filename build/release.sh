@@ -36,6 +36,7 @@ commit() {
 
 
 tag() {
+  git tag -d "${RELEASE_NAME}" || echo "Tag does not exist"
   git tag "${RELEASE_NAME}"
 }
 
