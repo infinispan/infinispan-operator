@@ -3,6 +3,7 @@
 set -e -x
 
 DRY_RUN=${DRY_RUN:-true}
+CURRENT_BRANCH=$(git branch | grep \* | cut -d ' ' -f2)
 
 
 validate() {
@@ -47,7 +48,7 @@ push() {
 
 
 cleanup() {
-  git checkout master
+  git checkout ${CURRENT_BRANCH}
   git branch -D Release_${RELEASE_NAME} || true
 }
 
