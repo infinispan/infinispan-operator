@@ -16,6 +16,13 @@ The secret must:
 * Be `type: Opaque`.
 * Have `username` and `password` fields.
 +
+[IMPORTANT]
+====
+The preceding authentication secret contains sample values for the `username`
+and `password` fields. You should replace these values with credentials that
+conform to your organization's security requirements.
+====
++
 .. Apply the authentication secret `yaml`.
 +
 [source,options="nowrap",subs=attributes+]

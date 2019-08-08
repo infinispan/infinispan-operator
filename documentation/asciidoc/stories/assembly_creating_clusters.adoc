@@ -4,8 +4,8 @@
 
 You create {brandname} clusters from custom resource definitions.
 
-.Prerequisites
 ifndef::productized[]
+.Prerequisites
 Either install the {ispn_operator} from link:https://www.operatorhub.io/[OperatorHub.io] or link:#deploying_operator_manually[manually deploy it].
 endif::productized[]
 //ifdef::productized[]
