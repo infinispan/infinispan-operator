@@ -57,25 +57,19 @@ This document describes the types introduced by the Infinispan Operator to be co
 
 | `profile`
 | Profile in use. See <<infinispanprofiles,profiles>> for details.
-| `Secured` / `Performance` / `Development`
+| `Default` / `Performance` / `Development`
 | false
-| `Secured`
+| `Default`
 
-| `cache`
-| Cache configuration.
-| <<infinispancachespec>>
-| false
-|
-
-| `datagrid`
-| Datagrid configuration.
-| <<infinispandatagridspec>>
+| `service`
+| Service specific configuration.
+| <<infinispanservicespec>>
 | false
 |
 
-| `connector`
-| Connector configuration.
-| <<infinispanconnectorspec>>
+| `security`
+| Security configuration.
+| <<infinispansecurityspec>>
 | false
 |
 
@@ -91,35 +85,67 @@ This document describes the types introduced by the Infinispan Operator to be co
 | false
 |
 
-| `management`
-| Management configuration.
-| <<infinispanmgmtspec>>
+|=======================
+
+
+[[infinispanservicespec]]
+#### `InfinispanServiceSpec`
+
+`InfinispanCacheSpec` configures aspects related to the cache or datagrid service.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `type`
+| Type of service
+| `Cache` / `Data Grid`
+| true
+| `Cache`
+
+| `evictionPolicy`
+| Cache service eviction policy
+| `Reject` / `Evict`
+| false
+| `Evict`
+
+| `replicationFactor`
+| Cache service replication factor
+| int32
+| false
+| `1`
+
+| `container`
+| Service specific container configuration.
+| <<infinispanservicecontainerspec>>
+| false
+|
+
+| `sites`
+| Cross-site configuration
+| <<infinispansitesspec>>
 | false
 |
 
 |=======================
 
 
-[[infinispancachespec]]
-#### `InfinispanCacheSpec`
+[[infinispanservicecontainerspec]]
+#### `InfinispanServiceContainerSpec`
 
-`InfinispanCacheSpec` configures how Infinispan is used as a cache.
+`InfinispanServiceContainerSpec` defines service specific container configurations.
 
 [options="header,footer"]
 |=======================
 | Field | Description | Scheme | Required | Default
 
-| `evictionPolicy`
-| Eviction policy
-| `Reject` / `Evict`
+| `storage`
+| Storage per Infinispan container in the data grid service.
+Defines as indicated
+https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#local-ephemeral-storage[here].
+| string
 | false
-| `Evict`
-
-| `replicationFactor`
-| Replication factor
-| int32
-| false
-| `1`
+| `1Gi`
 
 |=======================
 
@@ -132,7 +158,7 @@ This document describes the types introduced by the Infinispan Operator to be co
 |=======================
 | Profile | Connector Authentication | Connector Encryption | Cluster Authentication | Cluster Encryption
 
-| `Secured`
+| `Default`
 | X
 | X
 | X
@@ -153,19 +179,52 @@ This document describes the types introduced by the Infinispan Operator to be co
 |=======================
 
 
-[[infinispanconnectorspec]]
-#### `InfinispanConnectorSpec`
+[[infinispansecurityspec]]
+#### `InfinispanSecuritySpec`
 
-`InfinispanConnectorSpec` defines how Infinispan is accessed.
+`InfinispanSecuritySpec` defines Infinispan security settings.
 
 [options="header,footer"]
 |=======================
 | Field | Description | Scheme | Required | Default
 
-| `authentication`
-| Authenticates access to Infinispan connectors.
-| <<infinispanauthenticationspec>>
+| `roles`
+| Roles for interacting with Infinispan.
+| []<<infinispanrolespec>>
 | false
+|
+
+| `endpointSecret`
+| Secret containing identities allowed to interact with Infinispan.
+The format of the metadata in the secret can be found <<identities,here>>.
+| string
+| false
+|
+
+|=======================
+
+
+[[infinispanrolespec]]
+#### `InfinispanRoleSpec`
+
+`InfinispanRoleSpec` defines Infinispan role definitions.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `name`
+| Name of role.
+| string
+| true
+|
+
+| `permissions`
+| List of permissions.
+Valid values are defined
+https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_permissions[here].
+| []string
+| true
 |
 
 |=======================
@@ -180,87 +239,15 @@ This document describes the types introduced by the Infinispan Operator to be co
 |=======================
 | Field | Description | Scheme | Required | Default
 
-| `jvmOptionsAppend`
-| Extra JVM options to pass to each `Infinispan` container.
-| string
-| false
-|
-
-| `cpu`
-| CPU allocated for each Infinispan container.
-Described as indicated
-https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-cpu[here].
-| string
-| false
-| `500m`
-
-| `memory`
-| Memory allocated for each Infinispan container.
-Described as indicated
-https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory[here].
-| string
-| false
-| `512Mi`
-
-|=======================
-
-
-[[infinispandatagridspec]]
-#### `InfinispanDatagridSpec`
-
-`InfinispanDatagridSpec`.
-
-[options="header,footer"]
-|=======================
-| Field | Description | Scheme | Required | Default
-
-| `storage`
-| Storage per Infinispan container.
-Described as indicated
-https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#local-ephemeral-storage[here].
-| string
-| false
-| `1Gi`
-
-| `datasources`
-| Datasource list
-| []<<infinispandatasourcespec>>
-| false
-|
-
-| `sites`
-| Cross-site configuration
-| <<infinispansitesspec>>
-| false
-|
-
-|=======================
-
-
-[[infinispandatasourcespec]]
-#### `InfinispanDatasourceSpec`
-
-`InfinispanDatasourceSpec`.
-
-[options="header,footer"]
-|=======================
-| Field | Description | Scheme | Required | Default
-
 | `name`
-| Name of datasource.
+| Name of role.
 | string
 | true
 |
 
-| `driver`
-| Driver for datasource.
-| string
-| true
-|
-
-| `authentication`
-| Authentication information for accessing datasource.
-| <<infinispanauthenticationspec>>
+| `permissions`
+| Permissions associated with this role
+| []string
 | true
 |
 
@@ -298,30 +285,6 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | Logging category name, e.g. `org.infinispan`
 | `error` / `warn` / `info` / `debug` / `trace`
 | true
-|
-
-|=======================
-
-
-[[infinispanmgmtspec]]
-#### `InfinispanManagementSpec`
-
-`InfinispanManagementSpec`.
-
-[options="header,footer"]
-|=======================
-| Field | Description | Scheme | Required | Default
-
-| `prometheus`
-| Prometheus configuration.
-| <<infinispanprometheusspec>>
-| false
-|
-
-| `authentication`
-| Management authentication information.
-| <<infinispanauthenticationspec>>
-| false
 |
 
 |=======================
@@ -402,63 +365,22 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | true
 |
 
-| `type`
-| Type of remote site configuration.
-| `Static` or `Dynamic`
-| true
-|
-
-| `host`
-| Remote site host name.
+| `url`
+| URL for remote site.
+`xsite://` scheme denotes that the remote site is configured with static host:port combination.
+`openshift://` scheme denotes that site external setting sare extracted from the remote OpenShift host:port.
 | string
 | true
 |
 
-| `port`
-| Remote site host port (only for `Static` type).
-| int32
-| false
-|
-
-| `authentication`
-| Authentication information to connect to remote site (only for `Dynamic` type).
-| <<infinispanauthenticationspec>>
-| false
-|
-
-|=======================
-
-
-[[infinispanauthenticationspec]]
-##### `InfinispanAuthenticationSpec`
-
-`InfinispanAuthenticationSpec` defines how authentication secrets are configured.
-
-[options="header,footer"]
-|=======================
-| Field | Description | Scheme | Required | Default
-
-| `type`
-| Type of secret.
-| `Credentials`, `Keystore` or `Token`
-| true
-|
-
-| `secretName`
-| Name of referenced secret.
+| `secret`
+| Only in use with OpenShift URLs.
+Contains the secret details for accessing remote OpenShift instances.
 | string
-| true
+| false
 |
 
 |=======================
-
-If type is `Credentials`, Secret` is expected to contain username and password credentials.
-These would be defined in `stringData/username` and `stringData/password` fields respectively.
-
-If type is `Keystore`, `Secret` is expected to contain base64 encoded data in `data/keystore.p12` field.
-Optional keystore password would be located in `stringData/password` field.
-
-If type is `Token`, `Secret` is expected to contain base64 encoded data in `stringData/token` field.
 
 
 [[infinispanstatus]]
@@ -501,6 +423,132 @@ TODO: @Vittorio, update with your proposal
 
 |=======================
 
+
+[[identities]]
+#### `Identities`
+
+`Identities` defines the identities configuration that's stored within a Secret.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required
+
+| `credentials`
+| Credentials (username and password) based identities.
+| []<<credentials>>
+| true
+
+| `certificates`
+| Certificate (p12 format) based identities.
+| []<<certificate>>
+| true
+
+| `oauth`
+| Identities provided by OAuth servers.
+| []<<oauth>>
+| true
+
+| `tokens`
+| Token-based identities.
+| []<<token>>
+| true
+
+|=======================
+
+
+[[credentials]]
+#### `Credentials`
+
+`Credentials`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required
+
+| `username`
+| Username.
+| string
+| false
+
+| `password`
+| Password.
+| string
+| true
+
+| `roles`
+| Roles of credentials
+| []string
+| false
+
+|=======================
+
+
+[[certificate]]
+#### `Certificate`
+
+`Certificate`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required
+
+| `p12`
+| Certificate encoded in base 64 format.
+| string
+| true
+
+| `roles`
+| Roles of credentials
+| []string
+| false
+
+|=======================
+
+
+[[oauth]]
+#### `OAuth`
+
+`OAuth`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required
+
+| `clientId`
+| TODO
+| string
+| true
+
+| `clientSecret`
+| TODO
+| string
+| true
+
+| `introspectionUrl`
+| TODO
+| string
+| true
+
+|=======================
+
+
+[[token]]
+#### `Token`
+
+`Token`.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required
+
+| `token`
+| Authentication token for an identity.
+| string
+| true
+
+|=======================
+
+
 ## Full Cache Example
 
 .full-cache-example.yaml
@@ -514,53 +562,57 @@ spec:
   image: jboss/infinispan-server:latest
   replicas: 4
   profile: Development
-  cache:
+  service:
+    type: Cache
     evictionPolicy: Reject
     replicationFactor: 3
-  connector:
-    authentication:
-      type: Credentials
-      secretName: connect-secret
+  security:
+    roles:
+    - name: admin
+      permissions:
+      - ADMIN
+    - name: developer
+      permissions:
+      - WRITE
+    - name: collaborator
+      permissions:
+      - READ
+    endpointSecret: endpoint-identities
   container:
-    jvmOptionsAppend: "-XX:NativeMemoryTracking=summary"
+    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "2000m"
     memory: 1Gi
   logging:
     categories:
       org.infinispan: trace
       org.jgroups: trace
-  management:
-    prometheus:
-      enabled: true
-    authentication:
-      type: Credentials
-      secretName: mgmt-secret
 ----
 
-.connect-secret.yaml
+.endpoint-identities.yaml
 [source,yaml]
 ----
 apiVersion: v1
 kind: Secret
 metadata:
-  name: connect-secret
+  name: endpoint-identities
 type: Opaque
 stringData:
-  username: connectusr
-  password: connectpass
-----
-
-.mgmt-secret.yaml
-[source,yaml]
-----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mgmt-secret
-type: Opaque
-stringData:
-  username: mgmtusr
-  password: mgmtpass
+  identities.yaml: |-
+    credentials
+    - username: connectusr
+      password: connectpass
+      roles:
+      - admin
+      - developer
+      - collaborator
+    certificates:
+    - p12: "FQSmxHHvFvrhEfKIq15axg=="
+      roles:
+      - admin
+    oauth:
+    - clientId: infinispan-server
+      clientSecret: 1fdca4ec-c416-47e0-867a-3d471af7050f
+      introspectionUrl: "http://..."
 ----
 
 
@@ -577,133 +629,62 @@ spec:
   image: jboss/infinispan-server:latest
   replicas: 6
   profile: Performance
-  datagrid:
-    storage: 2Gi
-    datasources:
-    - name: test-pg
-      driver: postgresql
-      authentication:
-        type: Credentials
-        secretName: postgresql-secret
-    - name: test-mysql
-      driver: mysql
-      authentication:
-        type: Credentials
-        secretName: mysql-secret
+  service:
+    type: Data Grid
+    container:
+      storage: 2Gi
     sites:
       local:
         externalService:
           type: LoadBalancer
           ports:
-            port: 12345
+            - port: 12345
       remotes:
       - name: google
-        type: Static
-        host: google.host
-        port: 23456
+        url: xsite://google.host:23456
       - name: azure
-        type: Dynamic
-        host: azure.host
-        authentication:
-          type: Credentials
-          secretName: azure-secret
+        url: openshift://api.azure.host:6443
+        secret: azure-identities
       - name: aws
-        type: Dynamic
-        authentication:
-          type: Token
-          secretName: aws-secret
-  connector:
-    authentication:
-      type: Keystore
-      secretName: connect-auth-secret
+        url: openshift://api.aws.host:6443
+        secret: aws-identities
   container:
-    jvmOptionsAppend: "-XX:NativeMemoryTracking=summary"
+    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "1000m"
     memory: 1Gi
   logging:
     categories:
       org.infinispan: debug
       org.jgroups: debug
-  management:
-    prometheus:
-      enabled: true
-    authentication:
-      type: Credentials
-      secretName: mgmt-secret
 ----
 
-.connect-auth-secret.yaml
+.azure-identities.yaml
 [source,yaml]
 ----
 apiVersion: v1
 kind: Secret
 metadata:
-  name: connect-auth-secret
-type: Opaque
-data:
-  keystore.p12: "FQSmxHHvFvrhEfKIq15axg=="
-----
-
-.postgresql-secret.yaml
-[source,yaml]
-----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgresql-secret
+  name: azure-identities
 type: Opaque
 stringData:
-  username: pgusr
-  password: pgpass
+  identities.yaml: |-
+    credentials:
+    - username: openshifazrusr
+      password: openshifazrpass
+    tokens:
+    - gl8xTESu_j_tzMQhpe_P-It6IcWFQUm94WsuR3VFkUw
 ----
 
-.mysql-secret.yaml
+.aws-identities.yaml
 [source,yaml]
 ----
 apiVersion: v1
 kind: Secret
 metadata:
-  name: mysql-secret
+  name: aws-identities
 type: Opaque
 stringData:
-  username: myusr
-  password: mypass
-----
-
-.mgmt-secret.yaml
-[source,yaml]
-----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mgmt-secret
-type: Opaque
-stringData:
-  username: mgmtusr
-  password: mgmtpass
-----
-
-.azure-secret.yaml
-[source,yaml]
-----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: azure-secret
-type: Opaque
-stringData:
-  username: azusr
-  password: azpass
-----
-
-.aws-secret.yaml
-[source,yaml]
-----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: aws-secret
-type: Opaque
-stringData:
-  token: "jd1r/deZpYmY/mpvofUKWQ=="
+  identities.yaml: |-
+    tokens:
+    - LdqA1uM0e3wxhwOf0WRaP7Je3RdOjtrpai1jONQg7z0
 ----
