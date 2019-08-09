@@ -3,6 +3,7 @@ package infinispan
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"os"
 	"reflect"
@@ -177,6 +178,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{Requeue: true}, nil
 	}
 
+	updateStatus := false
+	updateStatefulSetSpec := false
+
 	// Update the Infinispan status with the pod status
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
@@ -197,11 +201,67 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(currConds, infinispan.Status.Conditions) {
 		infinispan.Status.Conditions = currConds
-		err := r.client.Status().Update(context.TODO(), infinispan)
-		if err != nil {
-			reqLogger.Error(err, "failed to update Infinispan status")
-			return reconcile.Result{}, err
+		updateStatus = true
+	}
+
+	// Check if reconciliation is needed for the Connection.Authentication part
+	if !reflect.DeepEqual(infinispan.Spec.Connector.Authentication, infinispan.Status.Connector.Authentication) {
+		reqLogger.Info(fmt.Sprintf("Namespace: %s Name: %s Reconcile Status.Connector: %v with new spec: %v", infinispan.Namespace, infinispan.Name, infinispan.Status.Connector, infinispan.Spec.Connector))
+		if infinispan.Spec.Connector.Authentication.Type == "Credentials" {
+			appSecret, err := r.secretForUser("developer", "app", infinispan, infinispan.Spec.Connector.Authentication, reqLogger)
+			if err == nil {
+				env := &found.Spec.Template.Spec.Containers[0].Env
+				appUserRef := envVarFromSecret("username", appSecret)
+				appPassRef := envVarFromSecret("password", appSecret)
+				replaceOrAppendEnvVarSource(env, getImageVarNameFromOperatorEnv("APP_USER"), appUserRef)
+				replaceOrAppendEnvVarSource(env, getImageVarNameFromOperatorEnv("APP_PASS"), appPassRef)
+				infinispan.Status.Connector.Authentication = infinispan.Spec.Connector.Authentication
+				updateStatefulSetSpec = true
+				updateStatus = true
+			} else {
+				reqLogger.Error(err, "could not find or create application Secret")
+			}
 		}
+	}
+
+	// Check if reconciliation is needed for the Management.Authentication part
+	if !reflect.DeepEqual(infinispan.Spec.Management.Authentication, infinispan.Status.Management.Authentication) {
+		reqLogger.Info(fmt.Sprintf("Namespace: %s Name: %s Reconcile Status.Management: %v with new spec: %v", infinispan.Namespace, infinispan.Name, infinispan.Status.Connector, infinispan.Spec.Connector))
+		if infinispan.Spec.Management.Authentication.Type == "Credentials" {
+			appSecret, err := r.secretForUser("admin", "mgmt", infinispan, infinispan.Spec.Management.Authentication, reqLogger)
+			if err == nil {
+				env := &found.Spec.Template.Spec.Containers[0].Env
+				appUserRef := envVarFromSecret("username", appSecret)
+				appPassRef := envVarFromSecret("password", appSecret)
+				replaceOrAppendEnvVarSource(env, getImageVarNameFromOperatorEnv("MGMT_USER"), appUserRef)
+				replaceOrAppendEnvVarSource(env, getImageVarNameFromOperatorEnv("MGMT_PASS"), appPassRef)
+				infinispan.Status.Management.Authentication = infinispan.Spec.Management.Authentication
+				updateStatefulSetSpec = true
+				updateStatus = true
+			} else {
+				reqLogger.Error(err, "could not find or create application Secret")
+			}
+		}
+	}
+
+	// Check if reconciliation is needed for the Container part
+	if !reflect.DeepEqual(infinispan.Spec.Container, infinispan.Status.Container) {
+		memory := "512Mi"
+		if infinispan.Spec.Container.Memory != "" {
+			memory = infinispan.Spec.Container.Memory
+		}
+		cpu := "0.5"
+		if infinispan.Spec.Container.CPU != "" {
+			cpu = infinispan.Spec.Container.CPU
+		}
+		found.Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{Requests: corev1.ResourceList{"cpu": resource.MustParse(cpu),
+			"memory": resource.MustParse(memory)}}
+
+		env := &found.Spec.Template.Spec.Containers[0].Env
+		replaceOrAppendEnvVarValue(env, getImageVarNameFromOperatorEnv("JAVA_OPTS_VARNAME"), infinispan.Spec.Container.JvmOptionsAppend)
+		infinispan.Status.Container = infinispan.Spec.Container
+		updateStatefulSetSpec = true
+		updateStatus = true
 	}
 
 	// Check if pods container runs the right image
@@ -215,7 +275,26 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
-	return reconcile.Result{}, nil
+	// If Spec update fails don't update the status
+	// and requeue.
+	if updateStatefulSetSpec {
+		err = r.client.Update(context.TODO(), found)
+		if err != nil {
+			reqLogger.Error(err, "failed to update Deployment", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+			return reconcile.Result{}, err
+		}
+	}
+
+	if updateStatus {
+		err := r.client.Status().Update(context.TODO(), infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to update Infinispan status")
+			return reconcile.Result{}, err
+		}
+	}
+
+	// If Spec has been changed, requeue
+	return reconcile.Result{Requeue: updateStatefulSetSpec}, nil
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
@@ -292,6 +371,9 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
+			UpdateStrategy: appsv1beta1.StatefulSetUpdateStrategy{
+				Type: "RollingUpdate",
+			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: ls,
@@ -327,6 +409,11 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		},
 	}
 
+	// Update the Status field so it matches the Spec after the deployment
+	m.Status.Connector.Authentication = m.Spec.Connector.Authentication
+	m.Status.Management.Authentication = m.Spec.Management.Authentication
+	m.Status.Container = m.Spec.Container
+
 	// If using a config map, attach a volume to the container and mount it under 'custom' dir inside the configuration folder
 	if m.Config.SourceType == infinispanv1.ConfigMap {
 		dep.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
@@ -344,6 +431,26 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
+}
+
+func replaceOrAppendEnvVarSource(env *[]corev1.EnvVar, varName string, varSource *corev1.EnvVarSource) {
+	for i := range *env {
+		if (*env)[i].Name == varName {
+			(*env)[i].ValueFrom = varSource
+			return
+		}
+	}
+	*env = append(*env, corev1.EnvVar{Name: varName, ValueFrom: varSource})
+}
+
+func replaceOrAppendEnvVarValue(env *[]corev1.EnvVar, varName, varValue string) {
+	for i := range *env {
+		if (*env)[i].Name == varName {
+			(*env)[i].Value = varValue
+			return
+		}
+	}
+	*env = append(*env, corev1.EnvVar{Name: varName, Value: varValue})
 }
 
 func envVarFromSecret(key string, secret *corev1.Secret) *corev1.EnvVarSource {

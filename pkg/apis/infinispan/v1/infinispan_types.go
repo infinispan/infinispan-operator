@@ -49,8 +49,11 @@ type InfinispanCondition struct {
 // InfinispanStatus defines the observed state of Infinispan
 type InfinispanStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	Conditions      []InfinispanCondition `json:"conditions"`
-	StatefulSetName string                `json:"statefulSetName"`
+	Conditions      []InfinispanCondition    `json:"conditions"`
+	StatefulSetName string                   `json:"statefulSetName"`
+	Connector       InfinispanConnectorInfo  `json:"connector"`
+	Management      InfinispanManagementInfo `json:"management"`
+	Container       InfinispanContainerSpec  `json:"container"`
 }
 
 type Config struct {

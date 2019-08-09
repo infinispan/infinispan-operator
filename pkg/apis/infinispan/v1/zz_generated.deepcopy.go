@@ -243,6 +243,9 @@ func (in *InfinispanStatus) DeepCopyInto(out *InfinispanStatus) {
 		*out = make([]InfinispanCondition, len(*in))
 		copy(*out, *in)
 	}
+	out.Connector = in.Connector
+	out.Management = in.Management
+	out.Container = in.Container
 	return
 }
 
