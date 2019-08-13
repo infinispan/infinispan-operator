@@ -182,26 +182,6 @@ spec:
   replicas: 3
 ```
 
-#### Custom Configuration
-Creates Infinispan clusters with custom configuration through the ConfigMap API.
-
-```yaml
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  # Sets a name for the Infinispan cluster.
-  name: example-infinispan-custom
-config:
-  sourceType: ConfigMap
-  # Specifies the name of the ConfigMap.
-  sourceRef:  my-config-map
-  # Specifies the custom configuration file.
-  name: my-config.xml
-spec:
-  # Sets the number of nodes in the cluster.
-  replicas: 3
-```
-
 ### Testing the Infinispan Operator
 Use the `test` target to test the Infinispan Operator on a specific OKD cluster.
 

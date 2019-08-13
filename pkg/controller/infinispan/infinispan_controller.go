@@ -35,8 +35,6 @@ import (
 var log = logf.Log.WithName("controller_infinispan")
 
 // Folder to map external config files
-const ConfigMapping = "custom"
-const CustomConfigPath = "/opt/jboss/infinispan-server/standalone/configuration/" + ConfigMapping
 const DefaultConfig = "cloud.xml"
 const defaultJGroupsPingProtocol = "openshift.DNS_PING"
 
@@ -327,18 +325,6 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		},
 	}
 
-	// If using a config map, attach a volume to the container and mount it under 'custom' dir inside the configuration folder
-	if m.Config.SourceType == infinispanv1.ConfigMap {
-		dep.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-			{
-				MountPath: CustomConfigPath, Name: m.Config.SourceRef,
-			},
-		}
-
-		dep.Spec.Template.Spec.Volumes = []corev1.Volume{{VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
-			LocalObjectReference: corev1.LocalObjectReference{Name: m.Config.SourceRef}}}, Name: m.Config.SourceRef}}
-	}
-
 	appendVolumes(m, dep)
 
 	// Set Infinispan instance as the owner and controller
@@ -570,19 +556,7 @@ func getEntryPointArgs(m *infinispanv1.Infinispan) []string {
 		// In case of error return default entry args
 		logf.Log.Error(err, "Using default for ENTRY_POINT_ARGS. Error in parsing user value: (%s)", envVar)
 	}
-	var configPath string
-	switch m.Config.SourceType {
-	case infinispanv1.ConfigMap:
-		configPath = ConfigMapping + "/" + m.Config.Name
-	case infinispanv1.Internal:
-		if m.Config.Name != "" {
-			configPath = m.Config.Name
-		} else {
-			configPath = DefaultConfig
-		}
-	default:
-		configPath = DefaultConfig
-	}
+	var configPath = DefaultConfig
 	return []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
 		"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local"}
 }
