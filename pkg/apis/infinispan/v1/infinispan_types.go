@@ -53,35 +53,6 @@ type InfinispanStatus struct {
 	StatefulSetName string                `json:"statefulSetName"`
 }
 
-type Config struct {
-	Name string `json:"name"`
-}
-
-type ConfigMapConfig struct {
-	Name string `json:"name"`
-}
-
-type ConfigSource string
-
-const (
-	// Internal means a configuration already shipped with Infinispan
-	Internal ConfigSource = "Internal"
-
-	ConfigMap ConfigSource = "ConfigMap"
-)
-
-// InfinispanConfig defines the profile (configuration) to start the cluster
-type InfinispanConfig struct {
-	// The path to the xml of the config to use, e.g. "cloud.xml". This must be relative to "/opt/jboss/infinispan-server/standalone/configuration"
-	Name string `json:"name,omitempty"`
-
-	// Where to find the config
-	SourceType ConfigSource `json:"sourceType,omitempty"`
-
-	// If the source is external, the reference to the resource
-	SourceRef string `json:"sourceRef,omitempty"`
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -91,7 +62,6 @@ type Infinispan struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Config InfinispanConfig `json:"config,omitempty"`
 	Spec   InfinispanSpec   `json:"spec,omitempty"`
 	Status InfinispanStatus `json:"status,omitempty"`
 }
