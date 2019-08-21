@@ -22,9 +22,9 @@ type InfinispanManagementInfo struct {
 
 // InfinispanContainerSpec specify resource requirements per container
 type InfinispanContainerSpec struct {
-	JvmOptionsAppend string `json:"jvmOptionsAppend"`
-	Memory           string `json:"memory"`
-	CPU              string `json:"cpu"`
+	ExtraJvmOpts string `json:"extraJvmOpts"`
+	Memory       string `json:"memory"`
+	CPU          string `json:"cpu"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan

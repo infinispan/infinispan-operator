@@ -256,7 +256,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		{Name: "JGROUPS_PING_PROTOCOL", Value: ispnutil.GetEnvWithDefault("JGROUPS_PING_PROTOCOL", defaultJGroupsPingProtocol)},
 		{Name: "OPENSHIFT_DNS_PING_SERVICE_NAME", Value: m.ObjectMeta.Name + "-ping"},
 		{Name: getImageVarNameFromOperatorEnv("NUMBER_OF_INSTANCE"), Value: string(m.Spec.Replicas)},
-		{Name: getImageVarNameFromOperatorEnv("JAVA_OPTS_VARNAME"), Value: m.Spec.Container.JvmOptionsAppend}}
+		{Name: getImageVarNameFromOperatorEnv("JAVA_OPTS_VARNAME"), Value: m.Spec.Container.ExtraJvmOpts}}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var
 	envVar, defined := os.LookupEnv("ADDITIONAL_VARS")
