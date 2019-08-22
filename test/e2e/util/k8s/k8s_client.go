@@ -453,7 +453,7 @@ func (c ExternalK8s) WaitForRoute(client *http.Client, ns string, name string, t
 		// via Ingress address sometime via node port. So trying both the methods
 		// Try node port first
 		hostAndPort = getNodePortAddress(c, ns, name)
-		result := checkExternalAddress(client, hostAndPort, ns, name)
+		result := checkExternalAddress(client, hostAndPort)
 		if result {
 			return result, nil
 		}
@@ -462,7 +462,7 @@ func (c ExternalK8s) WaitForRoute(client *http.Client, ns string, name string, t
 		if err != nil {
 			return false, nil
 		}
-		return checkExternalAddress(client, hostAndPort, ns, name), nil
+		return checkExternalAddress(client, hostAndPort), nil
 	})
 	if err != nil {
 		panic(err.Error())
@@ -470,7 +470,7 @@ func (c ExternalK8s) WaitForRoute(client *http.Client, ns string, name string, t
 	return hostAndPort
 }
 
-func checkExternalAddress(client *http.Client, hostAndPort, ns, name string) bool {
+func checkExternalAddress(client *http.Client, hostAndPort string) bool {
 	req, err := http.NewRequest("GET", "http://"+hostAndPort+"/rest/default/test", nil)
 	if err != nil {
 		// If we can't create a request just panic
@@ -486,9 +486,9 @@ func checkExternalAddress(client *http.Client, hostAndPort, ns, name string) boo
 	return false
 }
 
-// CreateRoute exposes the port 8080 of the Infinispan cluster clusterName
+// CreateRoute exposes the port 11222 of the Infinispan cluster clusterName
 // It return the public address a string: the IP address if available else the hostname
-func (c ExternalK8s) CreateRoute(ns, clusterName string, port int, portString string) {
+func (c ExternalK8s) CreateRoute(ns, clusterName string, port int, routeName string) {
 	svc, err := c.coreClient.Services(ns).Get(clusterName, metaV1.GetOptions{})
 	if err != nil {
 		panic(err.Error())
@@ -502,7 +502,7 @@ func (c ExternalK8s) CreateRoute(ns, clusterName string, port int, portString st
 			Kind:       "Service",
 		},
 		ObjectMeta: metaV1.ObjectMeta{
-			Name:      clusterName + "-" + portString,
+			Name:      routeName,
 			Namespace: ns,
 		},
 		Spec: v1.ServiceSpec{
@@ -530,10 +530,10 @@ func getExternalAddress(c ExternalK8s, ns string, name string) (string, error) {
 	// If the cluster exposes external IP then return it
 	if len(router.Status.LoadBalancer.Ingress) == 1 {
 		if router.Status.LoadBalancer.Ingress[0].IP != "" {
-			return router.Status.LoadBalancer.Ingress[0].IP + ":8080", nil
+			return router.Status.LoadBalancer.Ingress[0].IP + ":11222", nil
 		}
 		if router.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			return router.Status.LoadBalancer.Ingress[0].Hostname + ":8080", nil
+			return router.Status.LoadBalancer.Ingress[0].Hostname + ":11222", nil
 		}
 	}
 	// Return empty address if nothing available
@@ -557,14 +557,15 @@ func (c ExternalK8s) DeleteRoute(ns, serviceName string) {
 }
 
 // GetClusterSize returns the # of cluster members
-func (c ExternalK8s) GetClusterSize(namespace, namePod string) (int, error) {
-	return c.ispnCliHelper.GetClusterSize(namespace, namePod)
+func (c ExternalK8s) GetClusterSize(namespace, namePod, name string) (int, error) {
+	return c.ispnCliHelper.GetClusterSize(namespace, namePod, name)
 }
 
-func (c ExternalK8s) GetSecret(ns, field string, name string) string {
-	secret, err := c.coreClient.Secrets(ns).Get(name, metaV1.GetOptions{})
+func (c ExternalK8s) GetSecret(usr, name, ns string) string {
+	pass, err := ispnutil.GetPassword(usr, name, ns, c.coreClient)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
-	return string(secret.Data[field])
+
+	return pass
 }

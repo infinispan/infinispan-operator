@@ -3,15 +3,6 @@ package infinispan
 import (
 	"context"
 	"encoding/json"
-	"math/rand"
-	"os"
-	"reflect"
-	"sort"
-	"strings"
-	"time"
-
-	"github.com/go-logr/logr"
-
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
@@ -22,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"os"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -30,16 +23,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sort"
+	"strings"
 )
 
 var log = logf.Log.WithName("controller_infinispan")
 
-// Folder to map external config files
-const DefaultConfig = "cloud.xml"
-const defaultJGroupsPingProtocol = "openshift.DNS_PING"
-
 // DefaultImageName is used if a specific image name is not provided
-var DefaultImageName = ispnutil.GetEnvWithDefault("DEFAULT_IMAGE", "jboss/infinispan-server:latest")
+var DefaultImageName = ispnutil.GetEnvWithDefault("DEFAULT_IMAGE", "quay.io/remerson/server")
 
 var ispnCliHelper *ispnutil.IspnCliHelper
 
@@ -119,22 +110,35 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	found := &appsv1beta1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		// Define or locate application user secret
-		appSecret, err := r.secretForUser("developer", "app", infinispan, infinispan.Spec.Connector.Authentication, reqLogger)
+		identities, err := r.findCredentials(infinispan)
 		if err != nil {
-			reqLogger.Error(err, "could not find or create application Secret")
+			reqLogger.Error(err, "could not find create identities")
 			return reconcile.Result{}, err
 		}
 
-		// Define or locate management user secret
-		mgmtSecret, err := r.secretForUser("admin", "mgmt", infinispan, infinispan.Spec.Management.Authentication, reqLogger)
+		secret := r.secretForInfinispan(identities, infinispan)
+		reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
+		err = r.client.Create(context.TODO(), secret)
 		if err != nil {
-			reqLogger.Error(err, "could not find or create management Secret")
+			reqLogger.Error(err, "could not find or create identities Secret")
+			return reconcile.Result{}, err
+		}
+
+		configMap, err := r.configMapForInfinispan(infinispan)
+		if err != nil {
+			reqLogger.Error(err, "could not create Infinispan configuration")
+			return reconcile.Result{}, err
+		}
+
+		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "ConfigMap.Name", configMap.Name)
+		err = r.client.Create(context.TODO(), configMap)
+		if err != nil {
+			reqLogger.Error(err, "failed to create new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "ConfigMap.Name", configMap.Name)
 			return reconcile.Result{}, err
 		}
 
 		// Define a new deployment
-		dep := r.deploymentForInfinispan(infinispan, appSecret, mgmtSecret)
+		dep := r.deploymentForInfinispan(infinispan, secret, configMap)
 		reqLogger.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
 		err = r.client.Create(context.TODO(), dep)
 		if err != nil {
@@ -190,7 +194,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		ispnCliHelper = ispnutil.NewIspnCliHelper()
 	}
 
-	currConds := getInfinispanConditions(ispnCliHelper, podList.Items)
+	currConds := getInfinispanConditions(ispnCliHelper, podList.Items, infinispan.Name)
 	infinispan.Status.StatefulSetName = found.ObjectMeta.Name
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(currConds, infinispan.Status.Conditions) {
@@ -217,7 +221,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
-func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, appSecret *corev1.Secret, mgmtSecret *corev1.Secret) *appsv1beta1.StatefulSet {
+func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) *appsv1beta1.StatefulSet {
 	// This field specifies the flavor of the
 	// Infinispan cluster. "" is plain community edition (vanilla)
 	ls := labelsForInfinispan(m.ObjectMeta.Name)
@@ -228,11 +232,6 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	} else {
 		imageName = DefaultImageName
 	}
-
-	var mgmtUserRef = envVarFromSecret("username", mgmtSecret)
-	var mgmtPassRef = envVarFromSecret("password", mgmtSecret)
-	var appUserRef = envVarFromSecret("username", appSecret)
-	var appPassRef = envVarFromSecret("password", appSecret)
 
 	memory := "512Mi"
 
@@ -246,15 +245,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		cpu = m.Spec.Container.CPU
 	}
 
-	envVars := []corev1.EnvVar{{Name: getImageVarNameFromOperatorEnv("MGMT_USER"), ValueFrom: mgmtUserRef},
-		{Name: getImageVarNameFromOperatorEnv("MGMT_PASS"), ValueFrom: mgmtPassRef},
-		{Name: getImageVarNameFromOperatorEnv("APP_USER"), ValueFrom: appUserRef},
-		{Name: getImageVarNameFromOperatorEnv("APP_PASS"), ValueFrom: appPassRef},
-		{Name: "IMAGE", Value: m.Spec.Image},
-		{Name: "JGROUPS_PING_PROTOCOL", Value: ispnutil.GetEnvWithDefault("JGROUPS_PING_PROTOCOL", defaultJGroupsPingProtocol)},
-		{Name: "OPENSHIFT_DNS_PING_SERVICE_NAME", Value: m.ObjectMeta.Name + "-ping"},
-		{Name: getImageVarNameFromOperatorEnv("NUMBER_OF_INSTANCE"), Value: string(m.Spec.Replicas)},
-		{Name: getImageVarNameFromOperatorEnv("JAVA_OPTS_VARNAME"), Value: m.Spec.Container.JvmOptionsAppend}}
+	envVars := []corev1.EnvVar{
+		{Name: "CONFIG_PATH", Value: "/etc/config/infinispan.yaml"},
+		{Name: "IDENTITIES_PATH", Value: "/etc/security/identities.yaml"},
+	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var
 	envVar, defined := os.LookupEnv("ADDITIONAL_VARS")
@@ -279,9 +273,9 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      m.ObjectMeta.Name,
 			Namespace: m.ObjectMeta.Namespace,
-			Annotations: map[string]string{"description": "Infinispan 9 (Ephemeral)",
+			Annotations: map[string]string{"description": "Infinispan 10 (Ephemeral)",
 				"iconClass":                      "icon-infinispan",
-				"openshift.io/display-name":      "Infinispan 9 (Ephemeral)",
+				"openshift.io/display-name":      "Infinispan 10 (Ephemeral)",
 				"openshift.io/documentation-url": "http://infinispan.org/documentation/",
 			},
 			Labels: map[string]string{"template": "infinispan-ephemeral"},
@@ -298,20 +292,20 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
-						Args:  getEntryPointArgs(m),
 						Env:   envVars,
-						LivenessProbe: &corev1.Probe{Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{getProbes("liveness")}}},
+						LivenessProbe: &corev1.Probe{
+							Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/opt/infinispan/bin/livenessProbe.sh"}}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       60,
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
-						Ports: []corev1.ContainerPort{{ContainerPort: 8080, Name: "http", Protocol: corev1.ProtocolTCP},
-							{ContainerPort: 9990, Name: "management", Protocol: corev1.ProtocolTCP},
+						Ports: []corev1.ContainerPort{
 							{ContainerPort: 8888, Name: "ping", Protocol: corev1.ProtocolTCP},
 							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
 						},
-						ReadinessProbe: &corev1.Probe{Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{getProbes("readiness")}}},
+						ReadinessProbe: &corev1.Probe{
+							Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/opt/infinispan/bin/readinessProbe.sh"}}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       10,
@@ -319,47 +313,106 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							TimeoutSeconds:      80},
 						Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{"cpu": resource.MustParse(cpu),
 							"memory": resource.MustParse(memory)}},
+						VolumeMounts: []corev1.VolumeMount{{
+							Name: "config-volume",
+							MountPath: "/etc/config",
+						}, {
+							Name: "identities-volume",
+							MountPath: "/etc/security",
+						}},
+					}},
+					Volumes: []corev1.Volume{{
+						Name: "config-volume",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
+							},
+						},
+					}, {
+						Name: "identities-volume",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: secret.Name,
+							},
+						},
 					}},
 				},
 			},
 		},
 	}
 
-	appendVolumes(m, dep)
+//	appendVolumes(m, dep)
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep
 }
 
-func envVarFromSecret(key string, secret *corev1.Secret) *corev1.EnvVarSource {
-	return &corev1.EnvVarSource{
-		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{Name: secret.Name},
-			Key:                  key,
+func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
+	name := m.ObjectMeta.Name
+	namespace := m.ObjectMeta.Namespace
+
+	config, err := ispnutil.InfinispanConfiguration(name, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
 		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name + "-configuration",
+			Namespace: namespace,
+		},
+		Data: map[string]string{"infinispan.yaml": config},
 	}
+
+	// Set Infinispan instance as the owner and controller
+	controllerutil.SetControllerReference(m, configMap, r.scheme)
+	return configMap, nil
 }
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-var acceptedChars = []byte(",-./=@\\abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-var alphaChars = acceptedChars[8:]
-
-// getRandomStringForAuth generate a random string that can be used as a
-// user or pass for Infinispan
-func getRandomStringForAuth(size int) string {
-	b := make([]byte, size)
-	for i := range b {
-		if i == 0 {
-			b[0] = alphaChars[rand.Intn(len(alphaChars))]
-		} else {
-			b[i] = acceptedChars[rand.Intn(len(acceptedChars))]
+func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) (string, error) {
+	authInfo := m.Spec.Connector.Authentication
+	if authInfo.Type == "Credentials" && authInfo.SecretName != "" {
+		secret := &corev1.Secret{}
+		ns := types.NamespacedName{Name: authInfo.SecretName, Namespace: m.ObjectMeta.Namespace}
+		err := r.client.Get(context.TODO(), ns, secret)
+		if err != nil {
+			return "", err
 		}
+
+		return string(secret.Data["identities.yaml"]), nil
 	}
-	return string(b)
+
+	identities, err := ispnutil.CreateIdentities()
+	if err != nil {
+		return "", err
+	}
+
+	return identities, nil
+}
+
+func (r *ReconcileInfinispan) secretForInfinispan(identities string, m *infinispanv1.Infinispan) *corev1.Secret {
+	secretName := ispnutil.GetSecretName(m.ObjectMeta.Name)
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: m.ObjectMeta.Namespace,
+		},
+		Type:       corev1.SecretType("Opaque"),
+		StringData: map[string]string{"identities.yaml": identities},
+	}
+
+	// Set Infinispan instance as the owner and controller
+	controllerutil.SetControllerReference(m, secret, r.scheme)
+	return secret
 }
 
 // labelsForInfinispan returns the labels that must me applied to the pod
@@ -374,18 +427,20 @@ func labelsForInfinispanSelector(name string) map[string]string {
 }
 
 type clusterInterface interface {
-	GetClusterMembers(ns, name string) (string, error)
+	GetClusterMembers(ns, podName string, name string) ([]string, error)
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(ispnCliHelper clusterInterface, pods []corev1.Pod) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(ispnCliHelper clusterInterface, pods []corev1.Pod, name string) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	var wellFormedErr error
 	clusterViews := make(map[string]bool)
 	var errors []string
 	for _, pod := range pods {
 		var clusterView string
-		clusterView, wellFormedErr = ispnCliHelper.GetClusterMembers(pod.Namespace, pod.Name)
+		var members []string
+		members, wellFormedErr = ispnCliHelper.GetClusterMembers(pod.Namespace, pod.Name, name)
+		clusterView = strings.Join(members, ",")
 		if wellFormedErr == nil {
 			clusterViews[clusterView] = true
 		} else {
@@ -433,11 +488,6 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 			Selector: ls,
 			Ports: []corev1.ServicePort{
 				{
-					Name: "http",
-					Port: 8080,
-				},
-				{
-					Name: "hotrod",
 					Port: 11222,
 				},
 			},
@@ -448,46 +498,6 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 	controllerutil.SetControllerReference(m, service, r.scheme)
 
 	return service
-}
-
-func (r *ReconcileInfinispan) secretForUser(user string, realm string, m *infinispanv1.Infinispan, authInfo infinispanv1.InfinispanAuthInfo, reqLogger logr.Logger) (*corev1.Secret, error) {
-	if authInfo.Type == "Credentials" &&
-		authInfo.SecretName != "" {
-		secretFound := &corev1.Secret{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Name: authInfo.SecretName, Namespace: m.ObjectMeta.Namespace}, secretFound)
-		if err == nil {
-			return secretFound, nil
-		}
-		return nil, err
-	}
-	return r.createSecretForAuthentication(user, realm, m, reqLogger)
-}
-
-func (r *ReconcileInfinispan) createSecretForAuthentication(user, realm string, m *infinispanv1.Infinispan, reqLogger logr.Logger) (*corev1.Secret, error) {
-	pass := getRandomStringForAuth(16)
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name + "-" + realm + "-generated-secret",
-			Namespace: m.ObjectMeta.Namespace,
-		},
-		Type:       corev1.SecretType("Opaque"),
-		StringData: map[string]string{"username": user, "password": pass},
-	}
-
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(m, secret, r.scheme)
-
-	reqLogger.Info("Creating a new Secret", "Secret.Name", secret.Name)
-	err := r.client.Create(context.TODO(), secret)
-	if err != nil {
-		reqLogger.Error(err, "failed to create new Secret", "Secret.Name", secret.Name)
-		return nil, err
-	}
-	return secret, nil
 }
 
 func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *corev1.Service {
@@ -518,113 +528,4 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 	controllerutil.SetControllerReference(m, service, r.scheme)
 
 	return service
-}
-
-var envVarName = map[string]string{"JAVA_OPTS_VARNAME": "JAVA_OPTS"}
-
-// getImageVarNameFromOperatorEnv maps default env var name to fit non default Infinispan image
-// The Infinispan operator is supposed to work with different
-// infinispan-based datagrid: these different flavors may need
-// different environment variables set. This function will do the operator/image mapping
-// relying on the environment:
-// if "propName" env var is defined its value is used env var name in place of "propName"
-// elseif envVarName[propName] exists then it's returned
-// else propName is returned
-func getImageVarNameFromOperatorEnv(propName string) string {
-	envVar, defined := os.LookupEnv(propName)
-	if defined {
-		return envVar
-	}
-	if val, ok := envVarName[propName]; ok {
-		return val
-	}
-	return propName
-}
-
-// getEntryPointArgs returns the arguments for the image entrypoint command
-// Returns ENTRY_POINT_ARGS env var if defined otherwise the default value.
-// Dafault value is not an empty string, so if an empty string is needed it must
-// be explicitly passed to the operator (i.e. ENTRY_POINT_ARGS="")
-func getEntryPointArgs(m *infinispanv1.Infinispan) []string {
-	envVar, defined := os.LookupEnv("ENTRY_POINT_ARGS")
-	if defined {
-		var arr []string
-		err := json.Unmarshal([]byte(envVar), &arr)
-		if err == nil {
-			return arr
-		}
-		// In case of error return default entry args
-		logf.Log.Error(err, "Using default for ENTRY_POINT_ARGS. Error in parsing user value: (%s)", envVar)
-	}
-	var configPath = DefaultConfig
-	return []string{configPath, "-Djboss.default.jgroups.stack=dns-ping",
-		"-Djgroups.dns_ping.dns_query=" + m.ObjectMeta.Name + "-ping." + m.ObjectMeta.Namespace + ".svc.cluster.local"}
-}
-
-// Specific definitions for different subkind of Infinispan cluster
-var defaultProbesMap = map[string]string{"readiness": "/usr/local/bin/is_healthy.sh", "liveness": "/usr/local/bin/is_running.sh"}
-
-func getProbes(probeName string) string {
-	envVar, defined := os.LookupEnv("PROBES")
-	if defined {
-		var probesMap map[string]string
-		err := json.Unmarshal([]byte(envVar), &probesMap)
-		if err == nil {
-			return probesMap[probeName]
-		}
-	}
-	return defaultProbesMap[probeName]
-}
-
-func appendVolumes(m *infinispanv1.Infinispan, dep *appsv1beta1.StatefulSet) {
-	var volumeMounts []corev1.VolumeMount
-	envVar, defined := os.LookupEnv("VOLUME_MOUNTS")
-	if defined {
-		err := json.Unmarshal([]byte(envVar), &volumeMounts)
-		if err != nil {
-			// In case of error return default add nothing and exit
-			logf.Log.Error(err, "No volume mounts added. Error in parsing user VOLUME_MOUNTS value: (%s)", envVar)
-			return
-		}
-	}
-
-	v := &dep.Spec.Template.Spec.Volumes
-
-	volumeKeystore, defined := os.LookupEnv("VOLUME_KEYSTORE_NAME")
-	if defined {
-		*v = append(*v, corev1.Volume{
-			Name:         volumeKeystore,
-			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-		})
-	}
-
-	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
-	if defined {
-		*v = append(*v, corev1.Volume{
-			Name:         volumeSecretName,
-			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: volumeSecretName}},
-		})
-	}
-
-	var volumeClaims []corev1.PersistentVolumeClaim
-	envVar, defined = os.LookupEnv("VOLUME_CLAIMS")
-	if defined {
-		err := json.Unmarshal([]byte(envVar), &volumeClaims)
-		if err != nil {
-			// In case of error return default add nothing
-			logf.Log.Error(err, "No volume mounts added. Error in parsing user VOLUME_CLAIMS value: (%s)", envVar)
-			return
-		}
-	}
-
-	vm := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
-	for _, vol := range volumeMounts {
-		*vm = append(*vm, vol)
-	}
-
-	vc := &dep.Spec.VolumeClaimTemplates
-	for _, volClaim := range volumeClaims {
-		*vc = append(*vc, volClaim)
-	}
-
 }

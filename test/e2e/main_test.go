@@ -2,11 +2,8 @@ package e2e
 
 import (
 	"bytes"
-	"crypto/md5"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"io"
+	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -36,7 +33,6 @@ const Namespace = "namespace-for-testing"
 const TestTimeout = 5 * time.Minute
 const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 240 * time.Second
-const defaultCliPath = "/opt/jboss/infinispan-server/bin/ispn-cli.sh"
 
 // Options used when deleting resources
 var deletePropagation = apiv1.DeletePropagationBackground
@@ -90,22 +86,23 @@ func TestSimple(t *testing.T) {
 // Test if the cluster is working correctly
 func TestClusterFormation(t *testing.T) {
 	// Create a resource without passing any config
+	name := "test-cluster-formation"
 	spec := ispnv1.Infinispan{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v1",
 			Kind:       "Infinispan",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "cache-infinispan",
+			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas: 2,
-			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
 		},
 	}
 	// Register it
 	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan("cache-infinispan", Namespace, "app=infinispan-pod", SinglePodTimeout)
+	defer okd.DeleteInfinispan(name, Namespace, "app=infinispan-pod", SinglePodTimeout)
 
 	// Wait that 2 pods are up
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 2, SinglePodTimeout)
@@ -121,7 +118,7 @@ func TestClusterFormation(t *testing.T) {
 
 	// Check that the cluster size is 2 querying the first pod
 	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := okd.GetClusterSize(Namespace, podName)
+		value, err := okd.GetClusterSize(Namespace, podName, name)
 		if err != nil {
 			return false, err
 		}
@@ -143,6 +140,9 @@ func getEnvWithDefault(name, defVal string) string {
 }
 
 func TestExternalService(t *testing.T) {
+	name := "test-external-service"
+	usr := "developer"
+
 	// Create a resource without passing any config
 	spec := ispnv1.Infinispan{
 		TypeMeta: metav1.TypeMeta{
@@ -150,55 +150,53 @@ func TestExternalService(t *testing.T) {
 			Kind:       "Infinispan",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "cache-infinispan-0",
+			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas: 1,
-			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
 		},
 	}
 
 	// Register it
 	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan("cache-infinispan-0", Namespace, "app=infinispan-pod", SinglePodTimeout)
+	defer okd.DeleteInfinispan(name, Namespace, "app=infinispan-pod", SinglePodTimeout)
 
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
+	ExpectNoError(err)
 
-	if err != nil {
-		panic(err.Error())
-	}
+	pass := okd.GetSecret(usr, name, Namespace)
 
-	appUser := okd.GetSecret(Namespace, "username", "cache-infinispan-0-app-generated-secret")
-	appPass := okd.GetSecret(Namespace, "password", "cache-infinispan-0-app-generated-secret")
-
-	okd.CreateRoute(Namespace, "cache-infinispan-0", 8080, "http")
-	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
-
+	routeName := fmt.Sprintf("%s-external", name)
+	okd.CreateRoute(Namespace, name, 11222, routeName)
+	defer okd.DeleteRoute(Namespace, routeName)
 	client := &http.Client{}
-	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout)
+	hostAddr := okd.WaitForRoute(client, Namespace, routeName, RouteTimeout)
 
+	cacheName := "test"
+	createCache(cacheName, usr, pass, hostAddr, client)
+	defer deleteCache(cacheName, usr, pass, hostAddr, client)
+
+	key := "test"
 	value := "test-operator"
-
-	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, appUser, appPass)
-	actual := getViaRoute("http://"+hostAddr+"/rest/default/test", client, appUser, appPass)
+	keyUrl := fmt.Sprintf("%v/%v", cacheUrl(cacheName, hostAddr), key)
+	putViaRoute(keyUrl, value, client, usr, pass)
+	actual := getViaRoute(keyUrl, client, usr, pass)
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
 }
 
-func getEnvVar(env []corev1.EnvVar, name string) string {
-	for _, v := range env {
-		if v.Name == name {
-			return v.Value
-		}
-	}
-	return ""
-}
-
 // TestExternalServiceWithAuth starts a cluster and checks application
 // and management connection with authentication
 func TestExternalServiceWithAuth(t *testing.T) {
+	usr := "connectorusr"
+	pass := "connectorpass"
+
+	identities, err := util.CreateIdentitiesFor(usr, pass)
+	ExpectNoError(err)
+
 	// Create secret with application credentials
 	secret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -207,23 +205,12 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{Name: "conn-secret-test"},
 		Type:       "Opaque",
-		StringData: map[string]string{"username": "connectorusr", "password": "connectorpass"},
+		StringData: map[string]string{"identities.yaml": identities},
 	}
 	okd.CoreClient().Secrets(Namespace).Create(&secret)
 	defer okd.CoreClient().Secrets(Namespace).Delete("conn-secret-test", &deleteOpts)
 
-	// Create secret with management credentials
-	mgmtSecret := corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{Name: "mgmt-secret-test"},
-		Type:       "Opaque",
-		StringData: map[string]string{"username": "connectormgmtusr", "password": "connectormgmtpass"},
-	}
-	okd.CoreClient().Secrets(Namespace).Create(&mgmtSecret)
-	defer okd.CoreClient().Secrets(Namespace).Delete("mgmt-secret-test", &deleteOpts)
+	name := "text-external-service-with-auth"
 
 	// Create Infinispan
 	spec := ispnv1.Infinispan{
@@ -232,44 +219,67 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			Kind:       "Infinispan",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "cache-infinispan-0",
+			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas:   1,
 			Connector:  ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "conn-secret-test"}},
-			Management: ispnv1.InfinispanManagementInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "mgmt-secret-test"}},
-			Image:      getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Image:      getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
 		},
 	}
 	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan("cache-infinispan-0", Namespace, "app=infinispan-pod", SinglePodTimeout)
-	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
+	defer okd.DeleteInfinispan(name, Namespace, "app=infinispan-pod", SinglePodTimeout)
+	err = okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
+	ExpectNoError(err)
 
-	if err != nil {
-		panic(err.Error())
-	}
-
-	okd.CreateRoute(Namespace, "cache-infinispan-0", 8080, "http")
-	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-http")
-
-	okd.CreateRoute(Namespace, "cache-infinispan-0", 9990, "mgmt")
-	defer okd.DeleteRoute(Namespace, "cache-infinispan-0-mgmt")
+	routeName := fmt.Sprintf("%s-external", name)
+	okd.CreateRoute(Namespace, name, 11222, routeName)
+	defer okd.DeleteRoute(Namespace, routeName)
 
 	client := &http.Client{}
-	hostAddr := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-http", RouteTimeout)
+	hostAddr := okd.WaitForRoute(client, Namespace, routeName, RouteTimeout)
 
+	cacheName := "test"
+	createCache(cacheName, usr, pass, hostAddr, client)
+	defer deleteCache(cacheName, usr, pass, hostAddr, client)
+
+	key := "test"
 	value := "test-operator"
+	keyUrl := fmt.Sprintf("%v/%v", cacheUrl(cacheName, hostAddr), key)
+	putViaRoute(keyUrl, value, client, usr, pass)
+	actual := getViaRoute(keyUrl, client, usr, pass)
 
-	putViaRoute("http://"+hostAddr+"/rest/default/test", value, client, "connectorusr", "connectorpass")
-	actual := getViaRoute("http://"+hostAddr+"/rest/default/test", client, "connectorusr", "connectorpass")
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
+}
 
-	mgmtEnabled := os.Getenv("TEST_MGMT_ENABLED")
-	if mgmtEnabled != "false" {
-		hostAddrMgmt := okd.WaitForRoute(client, Namespace, "cache-infinispan-0-mgmt", RouteTimeout)
-		mgmtConnectViaRoute("http://"+hostAddrMgmt+"/management", value, client, "connectormgmtusr", "connectormgmtpass")
+func cacheUrl(cacheName, hostAddr string) string {
+	return fmt.Sprintf("http://%v/rest/v2/caches/%s", hostAddr, cacheName)
+}
+
+func createCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
+	httpUrl := cacheUrl(cacheName, hostAddr)
+	fmt.Printf("Create cache: %v\n", httpUrl)
+	httpEmpty(httpUrl, "POST", usr, pass, client)
+}
+
+func deleteCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
+	httpUrl := cacheUrl(cacheName, hostAddr)
+	fmt.Printf("Delete cache: %v\n", httpUrl)
+	httpEmpty(httpUrl, "DELETE", usr, pass, client)
+}
+
+func httpEmpty(httpUrl string, method string, usr string, pass string, client *http.Client) {
+	req, err := http.NewRequest(method, httpUrl, nil)
+	ExpectNoError(err)
+
+	req.SetBasicAuth(usr, pass)
+	resp, err := client.Do(req)
+	ExpectNoError(err)
+
+	if resp.StatusCode != http.StatusOK {
+		panic(fmt.Errorf("unexpected response %v", resp))
 	}
 }
 
@@ -306,70 +316,8 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 	}
 }
 
-// mgmtConnectViaRoute tests the connection to the management interface
-// authenticating with digest-md5
-func mgmtConnectViaRoute(url string, value string, client *http.Client, user string, pass string) {
-	body := bytes.NewBuffer([]byte(value))
-	req, err := http.NewRequest("GET", url, body)
-	resp, err := client.Do(req)
+func ExpectNoError(err error) {
 	if err != nil {
 		panic(err.Error())
 	}
-	if resp.StatusCode != http.StatusUnauthorized {
-		panic(fmt.Errorf("unexpected response %v", resp))
-	}
-
-	digestParts := map[string]string{}
-	digestParts["nonce"] = getNonce(resp)
-	digestParts["realm"] = "ManagementRealm"
-	digestParts["qop"] = "auth"
-	digestParts["uri"] = url
-	digestParts["method"] = "GET"
-	digestParts["username"] = user
-	digestParts["password"] = pass
-	req, err = http.NewRequest("GET", url, body)
-	req.Header.Set("Authorization", getDigestAuthrization(digestParts))
-	resp, err = client.Do(req)
-	if err != nil {
-		panic(err.Error())
-	}
-	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("unexpected response %v", resp))
-	}
-}
-
-func getNonce(resp *http.Response) string {
-	if len(resp.Header["Www-Authenticate"]) > 0 {
-		responseHeaders := strings.Split(resp.Header["Www-Authenticate"][0], ",")
-		for _, r := range responseHeaders {
-			if strings.Contains(r, "nonce") {
-				return strings.Split(r, `"`)[1]
-			}
-		}
-	}
-	return ""
-}
-
-func getMD5(text string) string {
-	hasher := md5.New()
-	hasher.Write([]byte(text))
-	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-func getCnonce() string {
-	b := make([]byte, 8)
-	io.ReadFull(rand.Reader, b)
-	return fmt.Sprintf("%x", b)[:16]
-}
-
-func getDigestAuthrization(digestParts map[string]string) string {
-	d := digestParts
-	ha1 := getMD5(d["username"] + ":" + d["realm"] + ":" + d["password"])
-	ha2 := getMD5(d["method"] + ":" + d["uri"])
-	nonceCount := 00000001
-	cnonce := getCnonce()
-	response := getMD5(fmt.Sprintf("%s:%s:%v:%s:%s:%s", ha1, d["nonce"], nonceCount, cnonce, d["qop"], ha2))
-	authorization := fmt.Sprintf(`Digest username="%s", realm="%s", nonce="%s", uri="%s", cnonce="%s", nc="%v", qop="%s", response="%s"`,
-		d["username"], d["realm"], d["nonce"], d["uri"], cnonce, nonceCount, d["qop"], response)
-	return authorization
 }
