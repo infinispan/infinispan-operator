@@ -441,6 +441,10 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 			},
 		},
 	}
+	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
+	if defined {
+		service.ObjectMeta.SetAnnotations(map[string]string{"service.alpha.openshift.io/serving-cert-secret-name": volumeSecretName})
+	}
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, service, r.scheme)
