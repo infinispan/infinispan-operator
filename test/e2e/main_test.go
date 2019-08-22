@@ -49,34 +49,9 @@ func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
 	okd.NewProject(namespace)
 	stopCh := utilk8s.RunOperator(okd, Namespace, ConfigLocation)
-	setupNamespace()
 	code := m.Run()
-	cleanupNamespace()
 	utilk8s.Cleanup(*okd, Namespace, stopCh)
 	os.Exit(code)
-}
-
-func setupNamespace() {
-	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
-	if defined {
-		secret := corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{Name: volumeSecretName},
-			Type:       "Opaque",
-			StringData: map[string]string{"username": "connectorusr", "password": "connectorpass"},
-		}
-		okd.CoreClient().Secrets(Namespace).Create(&secret)
-	}
-}
-
-func cleanupNamespace() {
-	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
-	if defined {
-		okd.CoreClient().Secrets(Namespace).Delete(volumeSecretName, &deleteOpts)
-	}
 }
 
 // Simple smoke test to check if the OKD is alive
