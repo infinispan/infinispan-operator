@@ -40,13 +40,12 @@ import (
 
 // ExternalK8s provides a simplified client for a running OKD cluster
 type ExternalK8s struct {
-	coreClient    *coreclient.CoreV1Client
-	rbacClient    *rbacclient.RbacV1Client
-	appsClient    *appsV1.AppsV1Client
-	extensions    *apiextclient.ApiextensionsV1beta1Client
-	ispnClient    *ispnv1.InfinispanV1Client
-	restConfig    *restclient.Config
-	ispnCliHelper *ispnutil.IspnCliHelper
+	coreClient *coreclient.CoreV1Client
+	rbacClient *rbacclient.RbacV1Client
+	appsClient *appsV1.AppsV1Client
+	extensions *apiextclient.ApiextensionsV1beta1Client
+	ispnClient *ispnv1.InfinispanV1Client
+	restConfig *restclient.Config
 }
 
 var log = logf.Log.WithName("main_test")
@@ -106,8 +105,6 @@ func NewK8sClient(kubeConfigLocation string) *ExternalK8s {
 		panic(err.Error())
 	}
 	c.ispnClient = ispnClient
-
-	c.ispnCliHelper = ispnutil.NewIspnCliHelper()
 
 	return c
 }
@@ -557,12 +554,12 @@ func (c ExternalK8s) DeleteRoute(ns, serviceName string) {
 }
 
 // GetClusterSize returns the # of cluster members
-func (c ExternalK8s) GetClusterSize(namespace, namePod, name string) (int, error) {
-	return c.ispnCliHelper.GetClusterSize(namespace, namePod, name)
+func (c ExternalK8s) GetClusterSize(secretName, podName, namespace string) (int, error) {
+	return ispnutil.GetClusterSize(secretName, podName, namespace)
 }
 
-func (c ExternalK8s) GetSecret(usr, name, ns string) string {
-	pass, err := ispnutil.GetPassword(usr, name, ns, c.coreClient)
+func (c ExternalK8s) GetSecret(usr, secretName, namespace string) string {
+	pass, err := ispnutil.GetPassword(usr, secretName, namespace)
 	if err != nil {
 		panic(err)
 	}
