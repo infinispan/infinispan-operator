@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration>
+	<!-- APPENDERS LIST -->
+	<appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+			<level>${log.level:-INFO}</level>
+		</filter>
+		<encoder>
+			<pattern>[%date{HH:mm:ss.SSS}] %-5p- %m%n</pattern>
+		</encoder>
+	</appender>
+	<appender name="asyncConsoleAppender" class="ch.qos.logback.classic.AsyncAppender">
+		<queueSize>300</queueSize>
+		<appender-ref ref="consoleAppender"/>
+	</appender>
+
+	<appender name="testAppender" class="ch.qos.logback.core.FileAppender">
+		<file>log/test.log</file>
+		<append>false</append>
+		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+			<level>DEBUG</level>
+		</filter>
+		<encoder>
+			<pattern>[%d] %-5p- %m%n</pattern>
+		</encoder>
+	</appender>
+	<appender name="asyncTestAppender" class="ch.qos.logback.classic.AsyncAppender">
+		<queueSize>300</queueSize>
+		<appender-ref ref="testAppender"/>
+	</appender>
+
+	<appender name="defaulAppender" class="ch.qos.logback.core.FileAppender">
+		<file>log/everything.log</file>
+		<append>false</append>
+		<encoder>
+			<pattern>[%d] %-5p- %m%n</pattern>
+		</encoder>
+	</appender>
+	<appender name="asyncDefaulAppender" class="ch.qos.logback.classic.AsyncAppender">
+		<queueSize>300</queueSize>
+		<appender-ref ref="defaulAppender"/>
+	</appender>
+
+	<!-- LOGGER LIST -->
+	<logger name="org.infinispan" level="DEBUG">
+		<appender-ref ref="asyncTestAppender"/>
+		<appender-ref ref="asyncConsoleAppender"/>
+	</logger>
+
+	<logger name="cz.xtf" level="DEBUG">
+		<appender-ref ref="asyncTestAppender"/>
+		<appender-ref ref="asyncConsoleAppender"/>
+	</logger>
+
+	<root level="INFO">
+		<appender-ref ref="asyncDefaulAppender"/>
+	</root>
+</configuration>

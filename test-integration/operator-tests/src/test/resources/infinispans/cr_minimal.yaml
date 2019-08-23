@@ -1,0 +1,6 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: infinispan-minimal
+spec:
+  replicas: 1
