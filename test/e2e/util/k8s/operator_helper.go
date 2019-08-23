@@ -3,8 +3,8 @@ package k8s
 import (
 	"bufio"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"os"
@@ -25,11 +25,6 @@ func Cleanup(client ExternalK8s, namespace string, stopCh chan struct{}) {
 	close(stopCh)
 	client.DeleteProject(namespace)
 	client.DeleteCRD("infinispans.infinispan.org")
-}
-
-func InstallConfigMap(ns string, name string, okd *ExternalK8s) {
-	file := GetAbsolutePath("../../config/cloud-ephemeral.xml")
-	okd.CreateOrUpdateConfigMap(name, file, ns)
 }
 
 // Install resources from rbac.yaml required by the Infinispan operator

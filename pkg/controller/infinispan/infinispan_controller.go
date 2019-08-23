@@ -30,9 +30,7 @@ import (
 var log = logf.Log.WithName("controller_infinispan")
 
 // DefaultImageName is used if a specific image name is not provided
-var DefaultImageName = ispnutil.GetEnvWithDefault("DEFAULT_IMAGE", "quay.io/remerson/server")
-
-var ispnCliHelper *ispnutil.IspnCliHelper
+var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "quay.io/remerson/server")
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -190,11 +188,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	if ispnCliHelper == nil {
-		ispnCliHelper = ispnutil.NewIspnCliHelper()
-	}
-
-	currConds := getInfinispanConditions(ispnCliHelper, podList.Items, infinispan.Name)
+	currConds := getInfinispanConditions(podList.Items, infinispan.Name, ispnutil.GetClusterMembers)
 	infinispan.Status.StatefulSetName = found.ObjectMeta.Name
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(currConds, infinispan.Status.Conditions) {
@@ -294,7 +288,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Name:  "infinispan",
 						Env:   envVars,
 						LivenessProbe: &corev1.Probe{
-							Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/opt/infinispan/bin/livenessProbe.sh"}}},
+							Handler:             corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/opt/infinispan/bin/livenessProbe.sh"}}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       60,
@@ -305,7 +299,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
 						},
 						ReadinessProbe: &corev1.Probe{
-							Handler: corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/opt/infinispan/bin/readinessProbe.sh"}}},
+							Handler:             corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/opt/infinispan/bin/readinessProbe.sh"}}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       10,
@@ -314,10 +308,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{"cpu": resource.MustParse(cpu),
 							"memory": resource.MustParse(memory)}},
 						VolumeMounts: []corev1.VolumeMount{{
-							Name: "config-volume",
+							Name:      "config-volume",
 							MountPath: "/etc/config",
 						}, {
-							Name: "identities-volume",
+							Name:      "identities-volume",
 							MountPath: "/etc/security",
 						}},
 					}},
@@ -341,7 +335,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		},
 	}
 
-//	appendVolumes(m, dep)
+	//	appendVolumes(m, dep)
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
@@ -426,20 +420,17 @@ func labelsForInfinispanSelector(name string) map[string]string {
 	return map[string]string{"app": "infinispan-pod", "infinispan_cr": name}
 }
 
-type clusterInterface interface {
-	GetClusterMembers(ns, podName string, name string) ([]string, error)
-}
-
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(ispnCliHelper clusterInterface, pods []corev1.Pod, name string) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, name string, clusterMembers ispnutil.ClusterMembers) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	var wellFormedErr error
 	clusterViews := make(map[string]bool)
 	var errors []string
+	secretName := ispnutil.GetSecretName(name)
 	for _, pod := range pods {
 		var clusterView string
 		var members []string
-		members, wellFormedErr = ispnCliHelper.GetClusterMembers(pod.Namespace, pod.Name, name)
+		members, wellFormedErr = clusterMembers(secretName, pod.Name, pod.Namespace)
 		clusterView = strings.Join(members, ",")
 		if wellFormedErr == nil {
 			clusterViews[clusterView] = true
@@ -528,4 +519,14 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 	controllerutil.SetControllerReference(m, service, r.scheme)
 
 	return service
+}
+
+// getEnvWithDefault return GetEnv(name) if exists else
+// return defVal
+func getEnvWithDefault(name, defVal string) string {
+	str := os.Getenv(name)
+	if str != "" {
+		return str
+	}
+	return defVal
 }

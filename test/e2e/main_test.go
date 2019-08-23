@@ -116,12 +116,18 @@ func TestClusterFormation(t *testing.T) {
 	}
 	podName := pods[0].Name
 
+	secretName := util.GetSecretName(name)
+	expectedClusterSize := 2
 	// Check that the cluster size is 2 querying the first pod
 	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := okd.GetClusterSize(Namespace, podName, name)
+		value, err := okd.GetClusterSize(secretName, podName, Namespace)
 		if err != nil {
 			return false, err
 		}
+		if value > expectedClusterSize {
+			return true, fmt.Errorf("more than expected nodes in cluster (expected=%v, actual=%v)", expectedClusterSize, value)
+		}
+
 		return (value == 2), nil
 	})
 
@@ -165,7 +171,7 @@ func TestExternalService(t *testing.T) {
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
 	ExpectNoError(err)
 
-	pass := okd.GetSecret(usr, name, Namespace)
+	pass := okd.GetSecret(usr, util.GetSecretName(name), Namespace)
 
 	routeName := fmt.Sprintf("%s-external", name)
 	okd.CreateRoute(Namespace, name, 11222, routeName)
@@ -222,9 +228,9 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Replicas:   1,
-			Connector:  ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "conn-secret-test"}},
-			Image:      getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
+			Replicas:  1,
+			Connector: ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "conn-secret-test"}},
+			Image:     getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
 		},
 	}
 	okd.CreateInfinispan(&spec, Namespace)
