@@ -32,7 +32,7 @@ ifdef::productized[]
 +
 [source,options="nowrap",subs="attributes"]
 ----
-include::cmd_examples/oc_logs_grep_kube_ping.adoc[]
+include::cmd_examples/oc_logs_grep_dns_ping.adoc[]
 ----
 +
 . Verify that the nodes have received a clustered view. Do either of the following:
