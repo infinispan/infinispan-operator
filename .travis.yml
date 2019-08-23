@@ -62,25 +62,27 @@ jobs:
         - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get events --all-namespaces
         - docker ps -a
         - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
-# Minikube test is unstable (lack of resources?). Disabling temporarily
-#    - stage: "Test"
-#      name: "Minikube"
-#      dist: xenial
-#      script:
-#        - go get -u github.com/golang/dep/cmd/dep
-#        - curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl
-#        - chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-#        - curl -Lo minikube https://storage.googleapis.com/minikube/releases/${MINIKUBE_VERSION}/minikube-linux-amd64
-#        - chmod +x minikube && sudo mv minikube /usr/local/bin/
-#        - sudo minikube start --vm-driver=none --kubernetes-version=${KUBE_VERSION}
-#        - minikube update-context
-#        - JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}'; until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do sleep 1; done
-#        - make test KUBECONFIG=${HOME}/.kube/config
-#        - kubectl get events --all-namespaces
-#        - kubectl cluster-info
-#        - df -h
-#        - sudo minikube status
-#        - sudo minikube logs
-#        - docker ps -a
-#        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
-#        - sudo minikube stop
+    - stage: "Test"
+      env:
+        - 'INFINISPAN_CPU=0.25'
+        - INFINISPAN_MEMORY=384Mi
+      name: "Minikube"
+      dist: xenial
+      script:
+        - go get -u github.com/golang/dep/cmd/dep
+        - curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl
+        - chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+        - curl -Lo minikube https://storage.googleapis.com/minikube/releases/${MINIKUBE_VERSION}/minikube-linux-amd64
+        - chmod +x minikube && sudo mv minikube /usr/local/bin/
+        - sudo minikube start --vm-driver=none --kubernetes-version=${KUBE_VERSION}
+        - minikube update-context
+        - JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}'; until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do sleep 1; done
+        - make test KUBECONFIG=${HOME}/.kube/config
+        - kubectl get events --all-namespaces
+        - kubectl cluster-info
+        - df -h
+        - sudo minikube status
+        - sudo minikube logs
+        - docker ps -a
+        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
+        - sudo minikube stop
