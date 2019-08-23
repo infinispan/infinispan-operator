@@ -7,6 +7,12 @@ html/
 */.DS_Store
 *.zip
 *.html
+target/
+log/
+tmp/
+log.txt
+test.properties
+*.iml
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
 # -*- mode: gitignore; -*-

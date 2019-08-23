@@ -1,0 +1,11 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: infinispan-encryption-provided
+spec:
+  replicas: 1
+  security:
+    endpointEncryption:
+      type: service
+      certServiceName: service.beta.openshift.io
+      certSecretName: tls-secret
