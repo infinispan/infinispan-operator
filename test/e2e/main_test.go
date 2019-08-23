@@ -34,6 +34,9 @@ const TestTimeout = 5 * time.Minute
 const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 240 * time.Second
 
+var Cpu = getEnvWithDefault("INFINISPAN_CPU", "0.5")
+var Memory = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
+
 // Options used when deleting resources
 var deletePropagation = apiv1.DeletePropagationBackground
 var gracePeriod = int64(0)
@@ -96,8 +99,12 @@ func TestClusterFormation(t *testing.T) {
 			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Replicas: 2,
+			Container: ispnv1.InfinispanContainerSpec{
+				CPU:    Cpu,
+				Memory: Memory,
+			},
 			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
+			Replicas: 2,
 		},
 	}
 	// Register it
@@ -159,8 +166,12 @@ func TestExternalService(t *testing.T) {
 			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Replicas: 1,
+			Container: ispnv1.InfinispanContainerSpec{
+				CPU:    Cpu,
+				Memory: Memory,
+			},
 			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
+			Replicas: 1,
 		},
 	}
 
@@ -228,9 +239,13 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Replicas:  1,
 			Connector: ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "conn-secret-test"}},
-			Image:     getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
+			Container: ispnv1.InfinispanContainerSpec{
+				CPU:    Cpu,
+				Memory: Memory,
+			},
+			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
+			Replicas: 1,
 		},
 	}
 	okd.CreateInfinispan(&spec, Namespace)
