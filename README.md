@@ -1,4 +1,4 @@
-## Infinispan Operator
+## Infinispan Operator Test
 
 [![Build Status](https://travis-ci.org/infinispan/infinispan-operator.svg?branch=master)](https://travis-ci.org/infinispan/infinispan-operator)
 
