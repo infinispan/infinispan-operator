@@ -33,35 +33,35 @@ jobs:
         - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get events --all-namespaces
         - docker ps -a
         - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
-    - stage: "Test"
-      env:
-        - WATCH_NAMESPACE=namespace-for-testing
-        - APP_USER=APPLICATION_USER
-        - APP_PASS=APPLICATION_PASSWORD
-        - MGMT_USER=ADMIN_USER
-        - MGMT_PASS=ADMIN_PASSWORD
-        - 'ENTRY_POINT_ARGS="[]"'
-        - 'PROBES="{\"readiness\": \"/opt/datagrid/bin/readinessProbe.sh\", \"liveness\": \"/opt/datagrid/bin/livenessProbe.sh\"}"'
-        - 'ADDITIONAL_VARS="[\"IMAGE\",\"NUMBER_OF_INSTANCE\",\"HOTROD_AUTHENTICATION\"]"'
-        - 'VOLUME_MOUNTS="[{\"MountPath\": \"/opt/datagrid/standalone/data\", \"Name": \"srv-data\"},{\"MountPath\": \"/var/run/secrets/java.io/keystores\", \"Name\": \"keystore-volume\"},{\"MountPath\": \"/var/run/secrets/openshift.io/serviceaccount\", \"Name\": \"service-certs\"}]"'
-        - 'VOLUME_CLAIMS=[{\"metadata\": {\"Name\": \"srv-data\"}, \"Spec\":{\"AccessModes\": [\"ReadWriteOnce\"], \"Resources\": {\"Requests\": {\"storage\": \"1Gi\"}}}}]"'
-        - 'IMAGE=registry.access.redhat.com/jboss-datagrid-7/datagrid73-openshift:latest'
-        - CLI_CMD=/opt/datagrid/bin/cli.sh
-        - 'DEFAULT_IMAGE=registry.access.redhat.com/jboss-datagrid-7/datagrid73-openshift:latest'
-        - HOTROD_AUTHENTICATION=true
-        - VOLUME_KEYSTORE_NAME=keystore-volume
-        - VOLUME_SECRET_NAME=service-certs
-        - TEST_MGMT_ENABLED=false
-      name: "OpenShift Custom Image"
-      script:
-        - env
-        - go get -u github.com/golang/dep/cmd/dep
-        - ci/start-okd-4.0.0.sh
-        - make test KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
-        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get pods --all-namespaces
-        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get events --all-namespaces
-        - docker ps -a
-        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
+#    - stage: "Test"
+#      env:
+#        - WATCH_NAMESPACE=namespace-for-testing
+#        - APP_USER=APPLICATION_USER
+#        - APP_PASS=APPLICATION_PASSWORD
+#        - MGMT_USER=ADMIN_USER
+#        - MGMT_PASS=ADMIN_PASSWORD
+#        - 'ENTRY_POINT_ARGS="[]"'
+#        - 'PROBES="{\"readiness\": \"/opt/datagrid/bin/readinessProbe.sh\", \"liveness\": \"/opt/datagrid/bin/livenessProbe.sh\"}"'
+#        - 'ADDITIONAL_VARS="[\"IMAGE\",\"NUMBER_OF_INSTANCE\",\"HOTROD_AUTHENTICATION\"]"'
+#        - 'VOLUME_MOUNTS="[{\"MountPath\": \"/opt/datagrid/standalone/data\", \"Name": \"srv-data\"},{\"MountPath\": \"/var/run/secrets/java.io/keystores\", \"Name\": \"keystore-volume\"},{\"MountPath\": \"/var/run/secrets/openshift.io/serviceaccount\", \"Name\": \"service-certs\"}]"'
+#        - 'VOLUME_CLAIMS=[{\"metadata\": {\"Name\": \"srv-data\"}, \"Spec\":{\"AccessModes\": [\"ReadWriteOnce\"], \"Resources\": {\"Requests\": {\"storage\": \"1Gi\"}}}}]"'
+#        - 'IMAGE=registry.access.redhat.com/jboss-datagrid-7/datagrid73-openshift:latest'
+#        - CLI_CMD=/opt/datagrid/bin/cli.sh
+#        - 'DEFAULT_IMAGE=registry.access.redhat.com/jboss-datagrid-7/datagrid73-openshift:latest'
+#        - HOTROD_AUTHENTICATION=true
+#        - VOLUME_KEYSTORE_NAME=keystore-volume
+#        - VOLUME_SECRET_NAME=service-certs
+#        - TEST_MGMT_ENABLED=false
+#      name: "OpenShift Custom Image"
+#      script:
+#        - env
+#        - go get -u github.com/golang/dep/cmd/dep
+#        - ci/start-okd-4.0.0.sh
+#        - make test KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
+#        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get pods --all-namespaces
+#        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get events --all-namespaces
+#        - docker ps -a
+#        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
     - stage: "Test"
       env:
         - 'INFINISPAN_CPU=0.25'
