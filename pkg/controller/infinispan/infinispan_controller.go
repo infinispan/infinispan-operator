@@ -371,10 +371,10 @@ func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan)
 }
 
 func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) ([]byte, error) {
-	authInfo := m.Spec.Connector.Authentication
-	if authInfo.Type == "Credentials" && authInfo.SecretName != "" {
+	endpointSecretName := m.Spec.Security.EndpointSecret
+	if endpointSecretName != "" {
 		secret := &corev1.Secret{}
-		ns := types.NamespacedName{Name: authInfo.SecretName, Namespace: m.ObjectMeta.Namespace}
+		ns := types.NamespacedName{Name: endpointSecretName, Namespace: m.ObjectMeta.Namespace}
 		err := r.client.Get(context.TODO(), ns, secret)
 		if err != nil {
 			return nil, err

@@ -240,7 +240,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Connector: ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "conn-secret-test"}},
+			Security: ispnv1.InfinispanSecurity{EndpointSecret: "conn-secret-test"},
 			Container: ispnv1.InfinispanContainerSpec{
 				CPU:    Cpu,
 				Memory: Memory,
