@@ -211,7 +211,8 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	usr := "connectorusr"
 	pass := "connectorpass"
 
-	identities, err := util.CreateIdentitiesFor(usr, pass)
+	identities := util.CreateIdentitiesFor(usr, pass)
+	yaml, err := util.ToYaml(&identities)
 	ExpectNoError(err)
 
 	// Create secret with application credentials
@@ -222,7 +223,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{Name: "conn-secret-test"},
 		Type:       "Opaque",
-		StringData: map[string]string{"identities.yaml": identities},
+		StringData: map[string]string{"identities.yaml": string(yaml)},
 	}
 	okd.CoreClient().Secrets(Namespace).Create(&secret)
 	defer okd.CoreClient().Secrets(Namespace).Delete("conn-secret-test", &deleteOpts)

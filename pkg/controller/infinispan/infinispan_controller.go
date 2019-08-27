@@ -347,7 +347,8 @@ func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan)
 	name := m.ObjectMeta.Name
 	namespace := m.ObjectMeta.Namespace
 
-	config, err := ispnutil.InfinispanConfiguration(name, namespace)
+	config := ispnutil.CreateInfinispanConfiguration(name, namespace)
+	yaml, err := ispnutil.ToYaml(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +362,7 @@ func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan)
 			Name:      name + "-configuration",
 			Namespace: namespace,
 		},
-		Data: map[string]string{"infinispan.yaml": config},
+		Data: map[string]string{"infinispan.yaml": string(yaml)},
 	}
 
 	// Set Infinispan instance as the owner and controller
@@ -369,28 +370,29 @@ func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan)
 	return configMap, nil
 }
 
-func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) (string, error) {
+func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) ([]byte, error) {
 	authInfo := m.Spec.Connector.Authentication
 	if authInfo.Type == "Credentials" && authInfo.SecretName != "" {
 		secret := &corev1.Secret{}
 		ns := types.NamespacedName{Name: authInfo.SecretName, Namespace: m.ObjectMeta.Namespace}
 		err := r.client.Get(context.TODO(), ns, secret)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		return string(secret.Data["identities.yaml"]), nil
+		return secret.Data["identities.yaml"], nil
 	}
 
-	identities, err := ispnutil.CreateIdentities()
+	identities := ispnutil.CreateIdentities()
+	data, err := ispnutil.ToYaml(&identities)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return identities, nil
+	return data, nil
 }
 
-func (r *ReconcileInfinispan) secretForInfinispan(identities string, m *infinispanv1.Infinispan) *corev1.Secret {
+func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinispanv1.Infinispan) *corev1.Secret {
 	secretName := ispnutil.GetSecretName(m.ObjectMeta.Name)
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -402,7 +404,7 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities string, m *infinisp
 			Namespace: m.ObjectMeta.Namespace,
 		},
 		Type:       corev1.SecretType("Opaque"),
-		StringData: map[string]string{"identities.yaml": identities},
+		StringData: map[string]string{"identities.yaml": string(identities)},
 	}
 
 	// Set Infinispan instance as the owner and controller

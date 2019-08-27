@@ -2,11 +2,10 @@ package util
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 )
 
-// Infinispan is the top level configuration type
-type Infinispan struct {
+// InfinispanConfiguration is the top level configuration type
+type InfinispanConfiguration struct {
 	ClusterName string `yaml:"clusterName"`
 	JGroups     JGroups
 }
@@ -22,15 +21,10 @@ type DNSPing struct {
 	Query string
 }
 
-// InfinispanConfiguration generates a server configuration
-func InfinispanConfiguration(name, namespace string) (string, error) {
+// CreateInfinispanConfiguration generates a server configuration
+func CreateInfinispanConfiguration(name, namespace string) InfinispanConfiguration {
 	query := fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace)
 	jgroups := JGroups{Transport: "tcp", DNSPing: DNSPing{Query: query}}
-	config := Infinispan{ClusterName: name, JGroups: jgroups}
-	serialized, err := yaml.Marshal(&config)
-	if err != nil {
-		return "", err
-	}
-
-	return string(serialized), nil
+	config := InfinispanConfiguration{ClusterName: name, JGroups: jgroups}
+	return config
 }

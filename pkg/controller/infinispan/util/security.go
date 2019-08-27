@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
-
-	"gopkg.in/yaml.v2"
 )
 
 func init() {
@@ -25,16 +23,11 @@ type Credentials struct {
 }
 
 // CreateIdentities generates default identities
-func CreateIdentities() (string, error) {
+func CreateIdentities() Identities {
 	developer := Credentials{Username: "developer", Password: getRandomStringForAuth(16)}
 	operator := Credentials{Username: "operator", Password: getRandomStringForAuth(16)}
 	identities := Identities{Credentials: []Credentials{developer, operator}}
-	serialized, err := yaml.Marshal(&identities)
-	if err != nil {
-		return "", err
-	}
-
-	return string(serialized), nil
+	return identities
 }
 
 // TODO certain characters having issues, so reduce sample for now
@@ -57,21 +50,16 @@ func getRandomStringForAuth(size int) string {
 }
 
 // CreateIdentitiesFor creates identities for a given username/password combination
-func CreateIdentitiesFor(usr string, pass string) (string, error) {
+func CreateIdentitiesFor(usr string, pass string) Identities {
 	credentials := Credentials{Username: usr, Password: pass}
 	identities := Identities{Credentials: []Credentials{credentials}}
-	serialized, err := yaml.Marshal(&identities)
-	if err != nil {
-		return "", err
-	}
-
-	return string(serialized), nil
+	return identities
 }
 
 // FindPassword finds a user's password
 func FindPassword(usr string, descriptor []byte) (string, error) {
 	var identities Identities
-	err := yaml.Unmarshal(descriptor, &identities)
+	err := FromYaml(descriptor, &identities)
 	if err != nil {
 		return "", err
 	}
