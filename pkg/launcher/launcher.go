@@ -7,7 +7,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/controller"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // blank import (?)
 	"os"
 	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -22,10 +22,12 @@ func printVersion() {
 	logf.Log.Info(fmt.Sprintf("operator-sdk Version: %v", sdkVersion.Version))
 }
 
+// Parameters represent operator launcher parameters
 type Parameters struct {
 	StopChannel chan struct{}
 }
 
+// Launch launches operator
 func Launch(params Parameters) {
 	printVersion()
 	flag.Parse()

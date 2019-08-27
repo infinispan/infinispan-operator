@@ -15,6 +15,7 @@ import (
 var client *corev1.CoreV1Client
 var config *rest.Config
 
+// GetSecret returns secret associated with given secret name
 func GetSecret(secretName, namespace string) (*v1.Secret, error) {
 	secret, err := client.
 		Secrets(namespace).
@@ -26,7 +27,8 @@ func GetSecret(secretName, namespace string) (*v1.Secret, error) {
 	return secret, nil
 }
 
-func GetPodIp(podName, namespace string) (string, error) {
+// GetPodIP returns a pod's IP address
+func GetPodIP(podName, namespace string) (string, error) {
 	pod, err := client.
 		Pods(namespace).
 		Get(podName, metav1.GetOptions{})
@@ -36,6 +38,7 @@ func GetPodIp(podName, namespace string) (string, error) {
 	return pod.Status.PodIP, nil
 }
 
+// ExecOptions specify execution options
 type ExecOptions struct {
 	Command   []string
 	Namespace string

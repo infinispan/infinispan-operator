@@ -83,6 +83,10 @@ release:
 copy-kubeconfig:
 	build/copy-kubeconfig.sh ${KUBECONFIG}
 
+## lint        Invoke linter to promote Go lang best practices
+lint:
+	golint pkg/...
+	golint test/...
 
 # Minikube parameters
 PROFILE ?= operator-minikube

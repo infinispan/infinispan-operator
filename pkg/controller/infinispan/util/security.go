@@ -13,18 +13,21 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+// Identities represent identities that can interact with server
 type Identities struct {
 	Credentials []Credentials
 }
 
+// Credentials represent individual username/password combinations
 type Credentials struct {
 	Username string
 	Password string
 }
 
+// CreateIdentities generates default identities
 func CreateIdentities() (string, error) {
 	developer := Credentials{Username: "developer", Password: getRandomStringForAuth(16)}
-	operator  := Credentials{Username: "operator", Password: getRandomStringForAuth(16)}
+	operator := Credentials{Username: "operator", Password: getRandomStringForAuth(16)}
 	identities := Identities{Credentials: []Credentials{developer, operator}}
 	serialized, err := yaml.Marshal(&identities)
 	if err != nil {
@@ -53,6 +56,7 @@ func getRandomStringForAuth(size int) string {
 	return string(b)
 }
 
+// CreateIdentitiesFor creates identities for a given username/password combination
 func CreateIdentitiesFor(usr string, pass string) (string, error) {
 	credentials := Credentials{Username: usr, Password: pass}
 	identities := Identities{Credentials: []Credentials{credentials}}
@@ -64,6 +68,7 @@ func CreateIdentitiesFor(usr string, pass string) (string, error) {
 	return string(serialized), nil
 }
 
+// FindPassword finds a user's password
 func FindPassword(usr string, descriptor []byte) (string, error) {
 	var identities Identities
 	err := yaml.Unmarshal(descriptor, &identities)
@@ -80,6 +85,7 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 	return "", errors.New("no operator credentials found")
 }
 
+// GetSecretName returns the secret name associated with a server
 func GetSecretName(name string) string {
 	return fmt.Sprintf("%v-generated-secret", name)
 }
