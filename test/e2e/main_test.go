@@ -127,7 +127,7 @@ func TestClusterFormation(t *testing.T) {
 	expectedClusterSize := 2
 	// Check that the cluster size is 2 querying the first pod
 	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := okd.GetClusterSize(secretName, podName, Namespace)
+		value, err := util.GetClusterSize(secretName, podName, Namespace)
 		if err != nil {
 			return false, err
 		}
@@ -182,7 +182,8 @@ func TestExternalService(t *testing.T) {
 	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
 	ExpectNoError(err)
 
-	pass := okd.GetSecret(usr, util.GetSecretName(name), Namespace)
+	pass, err := util.GetPassword(usr, util.GetSecretName(name), Namespace)
+	ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
 	okd.CreateRoute(Namespace, name, 11222, routeName)
