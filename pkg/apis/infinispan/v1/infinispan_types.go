@@ -6,18 +6,12 @@ import (
 
 // InfinispanAuthInfo authentication info
 type InfinispanAuthInfo struct {
-	Type       string `json:"type"`
-	SecretName string `json:"secretName"`
+	Type string `json:"type"`
 }
 
-// InfinispanConnectorInfo info for the user application connection
-type InfinispanConnectorInfo struct {
-	Authentication InfinispanAuthInfo `json:"authentication"`
-}
-
-// InfinispanManagementInfo info for the management connection
-type InfinispanManagementInfo struct {
-	Authentication InfinispanAuthInfo `json:"authentication"`
+// InfinispanSecurity info for the user application connection
+type InfinispanSecurity struct {
+	EndpointSecret string `json:"endpointSecret"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container
@@ -29,11 +23,10 @@ type InfinispanContainerSpec struct {
 
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
-	Replicas   int32                    `json:"replicas"`
-	Image      string                   `json:"image"`
-	Connector  InfinispanConnectorInfo  `json:"connector"`
-	Management InfinispanManagementInfo `json:"management"`
-	Container  InfinispanContainerSpec  `json:"container"`
+	Replicas  int32                   `json:"replicas"`
+	Image     string                  `json:"image"`
+	Security  InfinispanSecurity      `json:"security"`
+	Container InfinispanContainerSpec `json:"container"`
 }
 
 // InfinispanCondition define a condition of the cluster
