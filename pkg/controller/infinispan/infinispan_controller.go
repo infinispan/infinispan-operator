@@ -242,6 +242,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	envVars := []corev1.EnvVar{
 		{Name: "CONFIG_PATH", Value: "/etc/config/infinispan.yaml"},
 		{Name: "IDENTITIES_PATH", Value: "/etc/security/identities.yaml"},
+		{Name: "JAVA_OPTIONS", Value: m.Spec.Container.ExtraJvmOpts},
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var
