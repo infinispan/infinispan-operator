@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	"gopkg.in/yaml.v2"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +33,12 @@ var log = logf.Log.WithName("controller_infinispan")
 // DefaultImageName is used if a specific image name is not provided
 var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "quay.io/remerson/server")
 
+// Kubernetes object
+var kubernetes *ispnutil.Kubernetes
+
+// Cluster object
+var cluster *ispnutil.Cluster
+
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -40,6 +47,8 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+	kubernetes = ispnutil.NewKubernetesFromController(mgr)
+	cluster = ispnutil.NewCluster(kubernetes)
 	return &ReconcileInfinispan{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
@@ -188,7 +197,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	currConds := getInfinispanConditions(podList.Items, infinispan.Name, ispnutil.GetClusterMembers)
+	currConds := getInfinispanConditions(podList.Items, infinispan.Name, cluster)
 	infinispan.Status.StatefulSetName = found.ObjectMeta.Name
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(currConds, infinispan.Status.Conditions) {
@@ -348,7 +357,7 @@ func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan)
 	namespace := m.ObjectMeta.Namespace
 
 	config := ispnutil.CreateInfinispanConfiguration(name, namespace)
-	yaml, err := ispnutil.ToYaml(&config)
+	configYaml, err := yaml.Marshal(config)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +371,7 @@ func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan)
 			Name:      name + "-configuration",
 			Namespace: namespace,
 		},
-		Data: map[string]string{"infinispan.yaml": string(yaml)},
+		Data: map[string]string{"infinispan.yaml": string(configYaml)},
 	}
 
 	// Set Infinispan instance as the owner and controller
@@ -373,7 +382,7 @@ func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan)
 func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) ([]byte, error) {
 	secretName := m.Spec.Security.EndpointSecret
 	if secretName != "" {
-		secret, err := ispnutil.GetSecret(secretName, m.ObjectMeta.Namespace)
+		secret, err := kubernetes.GetSecret(secretName, m.ObjectMeta.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -382,7 +391,7 @@ func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) ([]byt
 	}
 
 	identities := ispnutil.CreateIdentities()
-	data, err := ispnutil.ToYaml(&identities)
+	data, err := yaml.Marshal(identities)
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +431,7 @@ func labelsForInfinispanSelector(name string) map[string]string {
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(pods []corev1.Pod, name string, clusterMembers ispnutil.ClusterMembers) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, name string, cluster ispnutil.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	var wellFormedErr error
 	clusterViews := make(map[string]bool)
@@ -431,7 +440,7 @@ func getInfinispanConditions(pods []corev1.Pod, name string, clusterMembers ispn
 	for _, pod := range pods {
 		var clusterView string
 		var members []string
-		members, wellFormedErr = clusterMembers(secretName, pod.Name, pod.Namespace)
+		members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace)
 		clusterView = strings.Join(members, ",")
 		if wellFormedErr == nil {
 			clusterViews[clusterView] = true

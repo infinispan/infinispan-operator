@@ -8,12 +8,24 @@ import (
 
 var log = logf.Log.WithName("cluster_util")
 
-// ClusterMembers is a lambda function for getting cluster members from server
-type ClusterMembers func(secretName, podName, namespace string) ([]string, error)
+// Cluster abstracts interaction with an Infinispan cluster
+type Cluster struct {
+	Kubernetes *Kubernetes
+}
+
+// NewCluster creates a new instance of Cluster
+func NewCluster(kubernetes *Kubernetes) *Cluster {
+	return &Cluster{Kubernetes: kubernetes}
+}
+
+// ClusterInterface represents the interface of a Cluster instance
+type ClusterInterface interface {
+	GetClusterMembers(secretName, podName, namespace string) ([]string, error)
+}
 
 // GetPassword returns password associated with a user in a given secret
-func GetPassword(user, secretName, namespace string) (string, error) {
-	secret, err := GetSecret(secretName, namespace)
+func (c Cluster) GetPassword(user, secretName, namespace string) (string, error) {
+	secret, err := c.Kubernetes.GetSecret(secretName, namespace)
 	if err != nil {
 		return "", nil
 	}
@@ -28,8 +40,8 @@ func GetPassword(user, secretName, namespace string) (string, error) {
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
-func GetClusterSize(secretName, podName, namespace string) (int, error) {
-	members, err := GetClusterMembers(secretName, podName, namespace)
+func (c Cluster) GetClusterSize(secretName, podName, namespace string) (int, error) {
+	members, err := c.GetClusterMembers(secretName, podName, namespace)
 	if err != nil {
 		return -1, err
 	}
@@ -48,13 +60,13 @@ type Health struct {
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
-func GetClusterMembers(secretName, podName, namespace string) ([]string, error) {
-	podIP, err := GetPodIP(podName, namespace)
+func (c Cluster) GetClusterMembers(secretName, podName, namespace string) ([]string, error) {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	pass, err := GetPassword("operator", secretName, namespace)
+	pass, err := c.GetPassword("operator", secretName, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +78,7 @@ func GetClusterMembers(secretName, podName, namespace string) ([]string, error) 
 	logger.Info("get cluster members", "url", httpURL)
 
 	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := ExecWithOptions(execOptions)
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err == nil {
 		result := execOut.Bytes()
 

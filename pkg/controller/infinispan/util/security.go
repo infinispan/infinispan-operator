@@ -3,6 +3,7 @@ package util
 import (
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"math/rand"
 	"time"
 )
@@ -59,7 +60,7 @@ func CreateIdentitiesFor(usr string, pass string) Identities {
 // FindPassword finds a user's password
 func FindPassword(usr string, descriptor []byte) (string, error) {
 	var identities Identities
-	err := FromYaml(descriptor, &identities)
+	err := yaml.Unmarshal(descriptor, &identities)
 	if err != nil {
 		return "", err
 	}

@@ -2,40 +2,98 @@ package util
 
 import (
 	"bytes"
+	"context"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-var client *corev1.CoreV1Client
-var config *rest.Config
+// Kubernetes abstracts interaction with a Kubernetes cluster
+type Kubernetes struct {
+	Client     client.Client
+	restClient *rest.RESTClient
+	RestConfig *rest.Config
+}
 
-// GetSecret returns secret associated with given secret name
-func GetSecret(secretName, namespace string) (*v1.Secret, error) {
-	secret, err := client.
-		Secrets(namespace).
-		Get(secretName, metav1.GetOptions{})
+// MapperProvider is a function that provides RESTMapper instances
+type MapperProvider func(c *rest.Config) (meta.RESTMapper, error)
+
+// NewKubernetesFromConfig creates a new Kubernetes instance from configuration.
+// The configuration is resolved locally from known locations.
+func NewKubernetesFromConfig(scheme *runtime.Scheme, mapperProvider MapperProvider) (*Kubernetes, error) {
+	config := resolveConfig()
+	config = setConfigDefaults(config)
+	mapper, err := mapperProvider(config)
+	if err != nil {
+		return nil, err
+	}
+	kubernetes, err := client.New(config, createOptions(scheme, mapper))
+	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
 		return nil, err
 	}
 
-	return secret, nil
+	return &Kubernetes{
+		Client:     kubernetes,
+		restClient: restClient,
+		RestConfig: config,
+	}, err
+}
+
+func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Options {
+	return client.Options{
+		Scheme: scheme,
+		Mapper: mapper,
+	}
+}
+
+// NewKubernetesFromController creates a new Kubernetes instance from controller runtime Manager
+func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
+	config := mgr.GetConfig()
+	config = setConfigDefaults(config)
+	restClient, err := rest.RESTClientFor(config)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return &Kubernetes{
+		Client:     mgr.GetClient(),
+		restClient: restClient,
+		RestConfig: config,
+	}
+}
+
+// GetSecret returns secret associated with given secret name
+func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) {
+	secret := &v1.Secret{}
+	ns := types.NamespacedName{Name: secretName, Namespace: namespace}
+	err := k.Client.Get(context.TODO(), ns, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	return secret, err
 }
 
 // GetPodIP returns a pod's IP address
-func GetPodIP(podName, namespace string) (string, error) {
-	pod, err := client.
-		Pods(namespace).
-		Get(podName, metav1.GetOptions{})
+func (k Kubernetes) GetPodIP(podName, namespace string) (string, error) {
+	pod := &v1.Pod{}
+	ns := types.NamespacedName{Name: podName, Namespace: namespace}
+	err := k.Client.Get(context.TODO(), ns, pod)
 	if err != nil {
 		return "", err
 	}
-	return pod.Status.PodIP, nil
+
+	return pod.Status.PodIP, err
 }
 
 // ExecOptions specify execution options
@@ -47,9 +105,9 @@ type ExecOptions struct {
 
 // ExecWithOptions executes command on pod
 // command example { "/usr/bin/ls", "folderName" }
-func ExecWithOptions(options ExecOptions) (bytes.Buffer, string, error) {
+func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, error) {
 	// Create a POST request
-	execRequest := client.RESTClient().Post().
+	execRequest := k.restClient.Post().
 		Resource("pods").
 		Name(options.PodName).
 		Namespace(options.Namespace).
@@ -64,7 +122,7 @@ func ExecWithOptions(options ExecOptions) (bytes.Buffer, string, error) {
 		}, scheme.ParameterCodec)
 	var execOut, execErr bytes.Buffer
 	// Create an executor
-	exec, err := remotecommand.NewSPDYExecutor(config, "POST", execRequest.URL())
+	exec, err := remotecommand.NewSPDYExecutor(k.RestConfig, "POST", execRequest.URL())
 	if err != nil {
 		return execOut, "", err
 	}
@@ -78,17 +136,10 @@ func ExecWithOptions(options ExecOptions) (bytes.Buffer, string, error) {
 	return execOut, "", err
 }
 
-func init() {
-	config = resolveConfig()
-	if config != nil {
-		client, _ = corev1.NewForConfig(config)
-	}
-}
-
 func resolveConfig() *rest.Config {
 	internal, _ := rest.InClusterConfig()
 	if internal == nil {
-		kubeConfig := findKubeConfig()
+		kubeConfig := FindKubeConfig()
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
 			&clientcmd.ConfigOverrides{})
@@ -98,10 +149,20 @@ func resolveConfig() *rest.Config {
 	return internal
 }
 
-func findKubeConfig() string {
+// FindKubeConfig returns local Kubernetes configuration
+func FindKubeConfig() string {
 	kubeConfig := os.Getenv("KUBECONFIG")
 	if kubeConfig != "" {
 		return kubeConfig
 	}
 	return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
+}
+
+func setConfigDefaults(config *rest.Config) *rest.Config {
+	gv := v1.SchemeGroupVersion
+	config.GroupVersion = &gv
+	config.APIPath = "/api"
+	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	config.UserAgent = rest.DefaultKubernetesUserAgent()
+	return config
 }

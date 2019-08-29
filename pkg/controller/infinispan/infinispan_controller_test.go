@@ -36,10 +36,13 @@ var testTable = []struct {
 	{podsDifferentView, resPodsDifferentView},
 	{podsErroredView, resPodsErroredView}}
 
+// mockCluster produce fake cluster member infos
+type mockCluster struct{}
+
 // GetClusterMembers returns a fake cluster view, produced returning the substring
 // after the - char of the `name` arg. If the substring doesn't start with View and error
 // will be also returned
-func MockGetClusterMembers(_, podName, _ string) ([]string, error) {
+func (m mockCluster) GetClusterMembers(_, podName, _ string) ([]string, error) {
 	arr := strings.Split(podName, "-")
 	if (len(arr) > 1) && strings.HasPrefix(arr[1], "View") {
 		return []string{arr[1]}, nil
@@ -49,8 +52,10 @@ func MockGetClusterMembers(_, podName, _ string) ([]string, error) {
 
 // TestGetInfinispanConditions test for getInfinispanConditions func
 func TestGetInfinispanConditions(t *testing.T) {
+	var m mockCluster
+
 	for _, tup := range testTable {
-		conditions := getInfinispanConditions(tup.pods, "", MockGetClusterMembers)
+		conditions := getInfinispanConditions(tup.pods, "", m)
 		if len(conditions) != 1 {
 			t.Errorf("Expected exaclty 1 condition got %d", len(conditions))
 		}
