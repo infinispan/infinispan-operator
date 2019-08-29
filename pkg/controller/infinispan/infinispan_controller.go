@@ -31,7 +31,7 @@ import (
 var log = logf.Log.WithName("controller_infinispan")
 
 // DefaultImageName is used if a specific image name is not provided
-var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "quay.io/remerson/server")
+var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "registry.hub.docker.com/infinispan/server")
 
 // Kubernetes object
 var kubernetes *ispnutil.Kubernetes
