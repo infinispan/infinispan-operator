@@ -64,7 +64,7 @@ func TestClusterFormation(t *testing.T) {
 				CPU:    CPU,
 				Memory: Memory,
 			},
-			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
+			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
 			Replicas: 2,
 		},
 	}
@@ -122,7 +122,7 @@ func TestExternalService(t *testing.T) {
 				CPU:    CPU,
 				Memory: Memory,
 			},
-			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
+			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
 			Replicas: 1,
 		},
 	}
@@ -197,7 +197,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 				CPU:    CPU,
 				Memory: Memory,
 			},
-			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
+			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
 			Replicas: 1,
 		},
 	}
