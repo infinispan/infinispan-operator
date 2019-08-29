@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -12,78 +14,37 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	utilk8s "github.com/infinispan/infinispan-operator/test/e2e/util/k8s"
 	corev1 "k8s.io/api/core/v1"
-	apiv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
-
-func getConfigLocation() string {
-	kubeConfig := os.Getenv("KUBECONFIG")
-	if kubeConfig != "" {
-		return kubeConfig
-	}
-	return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
-}
-
-var ConfigLocation = getConfigLocation()
 
 const Namespace = "namespace-for-testing"
 const TestTimeout = 5 * time.Minute
 const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 240 * time.Second
 
-var Cpu = getEnvWithDefault("INFINISPAN_CPU", "0.5")
+var CPU = getEnvWithDefault("INFINISPAN_CPU", "0.5")
 var Memory = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 
-// Options used when deleting resources
-var deletePropagation = apiv1.DeletePropagationBackground
-var gracePeriod = int64(0)
-var deleteOpts = apiv1.DeleteOptions{PropagationPolicy: &deletePropagation, GracePeriodSeconds: &gracePeriod}
-
-var okd = utilk8s.NewK8sClient(ConfigLocation)
+var kubernetes = testutil.NewTestKubernetes()
+var cluster = util.NewCluster(kubernetes.Kubernetes)
 
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
-	okd.NewProject(namespace)
-	stopCh := utilk8s.RunOperator(okd, Namespace, ConfigLocation)
-	setupNamespace()
+	kubernetes.DeleteNamespace(namespace)
+	kubernetes.DeleteCRD("infinispans.infinispan.org")
+	kubernetes.NewNamespace(namespace)
+	stopCh := kubernetes.RunOperator(Namespace)
 	code := m.Run()
-	cleanupNamespace()
-	utilk8s.Cleanup(*okd, Namespace, stopCh)
+	close(stopCh)
 	os.Exit(code)
 }
 
-func setupNamespace() {
-	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
-	if defined {
-		secret := corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{Name: volumeSecretName},
-			Type:       "Opaque",
-			StringData: map[string]string{"username": "connectorusr", "password": "connectorpass"},
-		}
-		okd.CoreClient().Secrets(Namespace).Create(&secret)
-	}
-}
-
-func cleanupNamespace() {
-	volumeSecretName, defined := os.LookupEnv("VOLUME_SECRET_NAME")
-	if defined {
-		okd.CoreClient().Secrets(Namespace).Delete(volumeSecretName, &deleteOpts)
-	}
-}
-
-// Simple smoke test to check if the OKD is alive
+// Simple smoke test to check if the Kubernetes/OpenShift is alive
 func TestSimple(t *testing.T) {
-	okd := utilk8s.NewK8sClient(ConfigLocation)
-	fmt.Printf("%v\n", okd.Nodes())
-	fmt.Printf("%s\n", okd.Pods("default", ""))
-	fmt.Printf("%s\n", okd.PublicIp())
+	fmt.Printf("%v\n", kubernetes.Nodes())
+	fmt.Printf("%s\n", kubernetes.PublicIP())
 }
 
 // Test if the cluster is working correctly
@@ -100,7 +61,7 @@ func TestClusterFormation(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Container: ispnv1.InfinispanContainerSpec{
-				CPU:    Cpu,
+				CPU:    CPU,
 				Memory: Memory,
 			},
 			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
@@ -108,26 +69,20 @@ func TestClusterFormation(t *testing.T) {
 		},
 	}
 	// Register it
-	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan(name, Namespace, "app=infinispan-pod", SinglePodTimeout)
+	kubernetes.CreateInfinispan(&spec, Namespace)
+	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
 
 	// Wait that 2 pods are up
-	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 2, SinglePodTimeout)
-	if err != nil {
-		panic(err.Error())
-	}
+	kubernetes.WaitForPods("app=infinispan-pod", 2, SinglePodTimeout, Namespace)
 
-	pods, err := okd.GetPods(Namespace, "app=infinispan-pod")
-	if err != nil {
-		panic(err.Error())
-	}
+	pods := kubernetes.GetPods("app=infinispan-pod", Namespace)
 	podName := pods[0].Name
 
 	secretName := util.GetSecretName(name)
 	expectedClusterSize := 2
 	// Check that the cluster size is 2 querying the first pod
-	err = wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := util.GetClusterSize(secretName, podName, Namespace)
+	err := wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
+		value, err := cluster.GetClusterSize(secretName, podName, Namespace)
 		if err != nil {
 			return false, err
 		}
@@ -138,10 +93,7 @@ func TestClusterFormation(t *testing.T) {
 		return (value == 2), nil
 	})
 
-	if err != nil {
-		panic(err.Error())
-	}
-
+	testutil.ExpectNoError(err)
 }
 
 func getEnvWithDefault(name, defVal string) string {
@@ -167,7 +119,7 @@ func TestExternalService(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Container: ispnv1.InfinispanContainerSpec{
-				CPU:    Cpu,
+				CPU:    CPU,
 				Memory: Memory,
 			},
 			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
@@ -176,20 +128,19 @@ func TestExternalService(t *testing.T) {
 	}
 
 	// Register it
-	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan(name, Namespace, "app=infinispan-pod", SinglePodTimeout)
+	kubernetes.CreateInfinispan(&spec, Namespace)
+	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
 
-	err := okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
-	ExpectNoError(err)
+	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
 
-	pass, err := util.GetPassword(usr, util.GetSecretName(name), Namespace)
-	ExpectNoError(err)
+	pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+	testutil.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
-	okd.CreateRoute(Namespace, name, 11222, routeName)
-	defer okd.DeleteRoute(Namespace, routeName)
+	route := kubernetes.CreateRoute(name, 11222, routeName, Namespace)
+	defer kubernetes.DeleteRoute(route)
 	client := &http.Client{}
-	hostAddr := okd.WaitForRoute(client, Namespace, routeName, RouteTimeout)
+	hostAddr := kubernetes.WaitForRoute(routeName, RouteTimeout, client, Namespace)
 
 	cacheName := "test"
 	createCache(cacheName, usr, pass, hostAddr, client)
@@ -197,9 +148,9 @@ func TestExternalService(t *testing.T) {
 
 	key := "test"
 	value := "test-operator"
-	keyUrl := fmt.Sprintf("%v/%v", cacheUrl(cacheName, hostAddr), key)
-	putViaRoute(keyUrl, value, client, usr, pass)
-	actual := getViaRoute(keyUrl, client, usr, pass)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	putViaRoute(keyURL, value, client, usr, pass)
+	actual := getViaRoute(keyURL, client, usr, pass)
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
@@ -213,8 +164,8 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	pass := "connectorpass"
 
 	identities := util.CreateIdentitiesFor(usr, pass)
-	yaml, err := util.ToYaml(&identities)
-	ExpectNoError(err)
+	identitiesYaml, err := yaml.Marshal(identities)
+	testutil.ExpectNoError(err)
 
 	// Create secret with application credentials
 	secret := corev1.Secret{
@@ -224,10 +175,10 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{Name: "conn-secret-test"},
 		Type:       "Opaque",
-		StringData: map[string]string{"identities.yaml": string(yaml)},
+		StringData: map[string]string{"identities.yaml": string(identitiesYaml)},
 	}
-	okd.CoreClient().Secrets(Namespace).Create(&secret)
-	defer okd.CoreClient().Secrets(Namespace).Delete("conn-secret-test", &deleteOpts)
+	kubernetes.CreateSecret(&secret, Namespace)
+	defer kubernetes.DeleteSecret(&secret)
 
 	name := "text-external-service-with-auth"
 
@@ -243,24 +194,24 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		Spec: ispnv1.InfinispanSpec{
 			Security: ispnv1.InfinispanSecurity{EndpointSecret: "conn-secret-test"},
 			Container: ispnv1.InfinispanContainerSpec{
-				CPU:    Cpu,
+				CPU:    CPU,
 				Memory: Memory,
 			},
 			Image:    getEnvWithDefault("IMAGE", "quay.io/remerson/server"),
 			Replicas: 1,
 		},
 	}
-	okd.CreateInfinispan(&spec, Namespace)
-	defer okd.DeleteInfinispan(name, Namespace, "app=infinispan-pod", SinglePodTimeout)
-	err = okd.WaitForPods(Namespace, "app=infinispan-pod", 1, SinglePodTimeout)
-	ExpectNoError(err)
+	kubernetes.CreateInfinispan(&spec, Namespace)
+	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
+
+	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
 
 	routeName := fmt.Sprintf("%s-external", name)
-	okd.CreateRoute(Namespace, name, 11222, routeName)
-	defer okd.DeleteRoute(Namespace, routeName)
+	route := kubernetes.CreateRoute(name, 11222, routeName, Namespace)
+	defer kubernetes.DeleteRoute(route)
 
 	client := &http.Client{}
-	hostAddr := okd.WaitForRoute(client, Namespace, routeName, RouteTimeout)
+	hostAddr := kubernetes.WaitForRoute(routeName, RouteTimeout, client, Namespace)
 
 	cacheName := "test"
 	createCache(cacheName, usr, pass, hostAddr, client)
@@ -268,38 +219,38 @@ func TestExternalServiceWithAuth(t *testing.T) {
 
 	key := "test"
 	value := "test-operator"
-	keyUrl := fmt.Sprintf("%v/%v", cacheUrl(cacheName, hostAddr), key)
-	putViaRoute(keyUrl, value, client, usr, pass)
-	actual := getViaRoute(keyUrl, client, usr, pass)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	putViaRoute(keyURL, value, client, usr, pass)
+	actual := getViaRoute(keyURL, client, usr, pass)
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
 }
 
-func cacheUrl(cacheName, hostAddr string) string {
+func cacheURL(cacheName, hostAddr string) string {
 	return fmt.Sprintf("http://%v/rest/v2/caches/%s", hostAddr, cacheName)
 }
 
 func createCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
-	httpUrl := cacheUrl(cacheName, hostAddr)
-	fmt.Printf("Create cache: %v\n", httpUrl)
-	httpEmpty(httpUrl, "POST", usr, pass, client)
+	httpURL := cacheURL(cacheName, hostAddr)
+	fmt.Printf("Create cache: %v\n", httpURL)
+	httpEmpty(httpURL, "POST", usr, pass, client)
 }
 
 func deleteCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
-	httpUrl := cacheUrl(cacheName, hostAddr)
-	fmt.Printf("Delete cache: %v\n", httpUrl)
-	httpEmpty(httpUrl, "DELETE", usr, pass, client)
+	httpURL := cacheURL(cacheName, hostAddr)
+	fmt.Printf("Delete cache: %v\n", httpURL)
+	httpEmpty(httpURL, "DELETE", usr, pass, client)
 }
 
-func httpEmpty(httpUrl string, method string, usr string, pass string, client *http.Client) {
-	req, err := http.NewRequest(method, httpUrl, nil)
-	ExpectNoError(err)
+func httpEmpty(httpURL string, method string, usr string, pass string, client *http.Client) {
+	req, err := http.NewRequest(method, httpURL, nil)
+	testutil.ExpectNoError(err)
 
 	req.SetBasicAuth(usr, pass)
 	resp, err := client.Do(req)
-	ExpectNoError(err)
+	testutil.ExpectNoError(err)
 
 	if resp.StatusCode != http.StatusOK {
 		panic(fmt.Errorf("unexpected response %v", resp))
@@ -336,11 +287,5 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 	}
 	if resp.StatusCode != http.StatusOK {
 		panic(fmt.Errorf("unexpected response %v", resp))
-	}
-}
-
-func ExpectNoError(err error) {
-	if err != nil {
-		panic(err.Error())
 	}
 }
