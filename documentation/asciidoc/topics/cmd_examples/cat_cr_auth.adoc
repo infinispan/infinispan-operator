@@ -5,8 +5,6 @@ metadata:
   name: {example_crd_name}
 spec:
   replicas: 2
-  connector:
-    authentication:
-      type: Credentials
-      secretName: connect-secret
+  security:
+    endpointSecret: connect-secret
 EOF

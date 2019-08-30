@@ -14,7 +14,7 @@ include::cmd_examples/cat_connect_secret.adoc[]
 The secret must:
 +
 * Be `type: Opaque`.
-* Have `username` and `password` fields.
+* `identities.yaml` field containing a YAML-formatted list of application user credentials.
 +
 [IMPORTANT]
 ====
@@ -39,7 +39,7 @@ include::cmd_examples/cat_cr_auth.adoc[]
 ----
 +
 * `replicas` specifies the number of nodes in the {brandname} cluster.
-* `connector` configures how users connect to {brandname} nodes to store and retrieve data.
+* `security.endpointSecret` configures how users connect to {brandname} nodes to store and retrieve data.
 +
 endif::productized[]
 . Apply the custom resource `yaml`.
