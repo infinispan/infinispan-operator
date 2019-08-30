@@ -1,4 +1,0 @@
-$ oc logs {example_crd_name}-0 | grep DNS_PING
-
-INFO Configuring JGroups discovery protocol to openshift.DNS_PING
-INFO  [org.jgroups.protocols.openshift.DNS_PING] (MSC service thread 1-2) serviceName [my-namespace] set; clustering enabled
