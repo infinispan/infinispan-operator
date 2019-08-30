@@ -63,7 +63,7 @@ $ export KUBECONFIG=/path/to/admin.kubeconfig
   ```
 4. Open a new terminal window and create an Infinispan cluster with three nodes:
 ```
-$ oc apply -f deploy/cr/cr_minimal.yaml
+$ oc apply -f deploy/cr/minimal/cr_minimal.yaml
 infinispan.infinispan.org/example-infinispan configured
 ```
 5. Watch the pods start until they start running.
@@ -95,7 +95,7 @@ $ make minikube-run-local
 ```
 4. Open a new terminal window and create an Infinispan cluster with three nodes:
 ```bash
-$ kubectl apply -f deploy/cr/cr_minimal.yaml -n local-operators
+$ kubectl apply -f deploy/cr/minimal/cr_minimal.yaml -n local-operators
 ```
 5. Watch the pods start until the start running
 ```bash
@@ -110,7 +110,7 @@ example-infinispan-2   1/1     Running   0          5m36s
 
 Now it's time to have some fun. Let's see the Infinispan operator in action.
 
-Change the cluster size in `deploy/cr/cr_minimal.yaml` and then apply it again. The Infinispan operator scales the number of nodes in the cluster up or down.
+Change the cluster size in `deploy/cr/minimal/cr_minimal.yaml` and then apply it again. The Infinispan operator scales the number of nodes in the cluster up or down.
 
 ### Custom Resource Definitions
 The Infinispan Operator creates clusters based on custom resource definitions that specify the number of nodes and configuration to use.
@@ -118,7 +118,7 @@ The Infinispan Operator creates clusters based on custom resource definitions th
 Infinispan resources are defined in [infinispan-types.go](https://github.com/infinispan/infinispan-operator/blob/master/pkg/apis/infinispan/v1/infinispan_types.go).
 
 #### Minimal Configuration
-Creates Infinispan clusters with `cloud.xml` that uses the Kubernetes JGroups stack to form clusters with the `KUBE_PING` protocol.
+Creates Infinispan clusters:
 
 ```yaml
 apiVersion: infinispan.org/v1
@@ -131,56 +131,12 @@ spec:
   replicas: 3
 ```
 
-#### Configure authentication credentials
-The defaults credential for connector and management connection can be customized as follows.
-First step is create a secret that contains the authentication credentials for connector (e.g. `deploy/cr/cr_conn_secret.yaml`).
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: conn-auth-secret
-type: Opaque
-stringData:
-  username: connectorusr
-  password: connectorpass
-```
-Management connection credential are also configurable via secret (e.g. `deploy/cr/cr_mngt_secret.yaml`).
+### Further Configurtation
 
-Then create the cluster refering to the secrets for the authentication details (`deploy/cr/cr_minimal_with_auth.yaml`).
-
-```yaml
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: example-infinispan
-spec:
-  replicas: 2
-  image: jboss/infinispan-server:latest
-  connector:
-    authentication:
-      type: Credentials
-      secretName: conn-auth-secret
-  management:
-    authentication:
-      type: Credentials
-      secretName: mngt-auth-secret
-```
-
-#### Infinispan Configuration
-Creates Infinispan clusters using `clustered.xml` in the `/opt/jboss/infinispan-server/standalone/configuration/` directory on the image.
-
-```yaml
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  # Sets a name for the Infinispan cluster.
-  name: example-infinispan-config
-config:
-  name: clustered.xml
-spec:
-  # Sets the number of nodes in the cluster.
-  replicas: 3
-```
+Infinispan operator has other capabilities.
+Check the
+[official operator documentation](https://infinispan.org/infinispan-operator/master/documentation/asciidoc/titles/operator.html)
+for more details.
 
 ### Testing the Infinispan Operator
 Use the `test` target to test the Infinispan Operator on a specific OKD cluster.
@@ -308,9 +264,6 @@ Run the appropriate `make` target. For example, run the `make all` target as fol
 * `make install-operatorsource` adds the Infinispan Operator to the OperatorHub. You can then manually install the operator through the OperatorHub user interface in the OpenShift console.
 * `make test` instantiates an Infinispan cluster with the community submission.
 * `make clean` removes the example Infinispan custom resource and Infinispan Operator from the Kubernetes cluster.
-
-##### Testing Community with OpenShift 3.11
-TODO
 
 ### Releases
 To create releases, run:
