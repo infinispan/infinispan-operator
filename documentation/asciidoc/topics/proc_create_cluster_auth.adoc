@@ -3,7 +3,7 @@
 Create secrets that contain credentials so application users can authenticate to {brandname} nodes. You can then specify the name of the secret in a custom resource `yaml` and spin up clusters with the {ispn_operator}.
 
 .Procedure
-. Create a secret that contains credentials for the application user.
+. Create a secret that contains credentials for at least one application user.
 .. Add an authentication secret `yaml`, for example:
 +
 [source,options="nowrap",subs=attributes+]
@@ -11,16 +11,13 @@ Create secrets that contain credentials so application users can authenticate to
 include::cmd_examples/cat_connect_secret.adoc[]
 ----
 +
-The secret must:
-+
-* Be `type: Opaque`.
-* `identities.yaml` field containing a YAML-formatted list of application user credentials.
+* `type: Opaque` authentication secrets must be `Opaque`.
+* `identities.yaml` specifies credentials for application users in `YAML` format. These credentials allow access to data in the {brandname} cluster.
 +
 [IMPORTANT]
 ====
-The preceding authentication secret contains sample values for the `username`
-and `password` fields. You should replace these values with credentials that
-conform to your organization's security requirements.
+Do not use example passwords from this documentation. You should always replace
+example credentials with ones that conform to the relevant security guidelines.
 ====
 +
 .. Apply the authentication secret `yaml`.
@@ -31,7 +28,7 @@ $ oc apply -f connect_secret.yaml
 ----
 +
 ifdef::productized[]
-. Create a custom resource `yaml` for the cluster that includes the name of the secret that contains your credentials.
+. Create a custom resource `yaml` for your cluster.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -39,7 +36,8 @@ include::cmd_examples/cat_cr_auth.adoc[]
 ----
 +
 * `replicas` specifies the number of nodes in the {brandname} cluster.
-* `security.endpointSecret` configures how users connect to {brandname} nodes to store and retrieve data.
+* `security.endpointSecret` specifies the authentication secret that contains
+your credentials.
 +
 endif::productized[]
 . Apply the custom resource `yaml`.
