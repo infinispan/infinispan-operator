@@ -1,4 +1,4 @@
-== Technology Preview
+= Technology Preview
 
 The {ispn_operator} is currently a Technology Preview.
 
