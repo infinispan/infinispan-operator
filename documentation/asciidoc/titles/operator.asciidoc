@@ -3,7 +3,13 @@
 :icons: font
 :toclevels: 3
 :numbered:
-include::topics/attributes/community-attributes.adoc[]
+
+//Avoid symlinks in community docs
+:topics: ../topics
+:stories: ../stories
+
+//Include community attributes
+include::{topics}/attributes/community-attributes.adoc[]
 
 [id='infinispan_operator']
 = Running the {ispn_operator}

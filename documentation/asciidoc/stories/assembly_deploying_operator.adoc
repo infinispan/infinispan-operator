@@ -2,18 +2,14 @@
 = Manually Deploying the {ispn_operator}
 :context: deploying_manual
 
-ifndef::productized[]
-You can manually deploy the {ispn_operator} as an alternative to installing it from link:https://www.operatorhub.io/[OperatorHub.io].
-endif::productized[]
-ifdef::productized[]
-Deploy the {ispn_operator} manually to your {k8s} environment.
-endif::productized[]
+You can manually deploy the {ispn_operator} as an alternative to installing it
+from link:https://www.operatorhub.io/[OperatorHub.io].
 
 .Prerequisites
-include::topics/ref_cluster_admin.adoc[]
+include::{topics}/ref_cluster_admin.adoc[]
 
-include::topics/proc_install_crd_rbac.adoc[leveloffset=+1]
-include::topics/proc_deploy_operator.adoc[leveloffset=+1]
+include::{topics}/proc_install_crd_rbac.adoc[leveloffset=+1]
+include::{topics}/proc_deploy_operator.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]
