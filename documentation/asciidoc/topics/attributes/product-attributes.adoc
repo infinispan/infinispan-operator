@@ -1,28 +1,77 @@
 //
-// This file contains attributes for building Red Hat Data Grid documentation.
+// Attributes for building Red Hat Data Grid documentation.
 //
 
 //
-// Attributes Shared with Community Docs
+// Operator resources
 //
-:brandname: Data Grid
-:wildflybrandname: EAP
-:tomcatbrandname: JWS
-:infinispanversion: 7.3.0
-
-// Community Operator
-
-:ispn_operator: Data Grid Operator
-:k8s: OpenShift
-:okd: OpenShift Container Platform
-
 :github_root: https://github.com/infinispan/infinispan-operator/
 :github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
-:github_tag: master
+:github_tag: 0.x
 
 :example_crd_name: example-rhdg
 
-// Community Doc Roots
+//
+// Conditional statements
+//
+:productized:
+:server:
+:library:
+
+//
+// Directory attributes
+//
+:images_dir: images
+:stories: stories
+:topics: topics
+
+//
+// Product names and versions
+// These attributes should always be conditional for product only
+//
+:RedHat: Red Hat
+:portal: Red Hat customer portal
+
+:FullProductName: Red Hat Data Grid
+:ProductName: Data Grid
+:ProductShortName: RHDG
+:ProductVersion: 7.3
+
+:ProductRelease: 7.3
+:FullProductRelease: 7.3
+:FullProductVersion: 7.3
+:DocInfoProductNumber: 7.3
+:ProductPreviousVersion: 7.2
+:ProductNextVersion: 7.3
+:ProductPreviousRelease: 6
+:ProductPreviousPreviousRelease: 5
+
+//Doc Home
+:doc_home: https://access.redhat.com/documentation/en-us/red_hat_data_grid/
+
+//
+// Special characters
+//
+:plusplus: ++
+:underscores: ___
+
+//
+// Community attributes
+// In the main Infinispan repo, these attributes are defined in
+// documentation/pom.xml
+//
+:brandname: Data Grid
+:fullbrandname: Red Hat Data Grid
+:wildflybrandname: EAP
+
+:infinispanversion: 7.3
+:infinispancomponentversion: 10.0.0-SNAPSHOT
+
+:brandcli: cli
+:moduleprefix: jdg
+:infinispanslot: jdg-7.3
+
+:download_url: https://access.redhat.com/downloads
 :javadocroot: https://access.redhat.com/webassets/avalon/d/red-hat-data-grid/7.3/api
 :configdocroot: https://access.redhat.com/webassets/avalon/d/red-hat-data-grid/7.3/Configuration/
 :wildflydocroot: https://docs.jboss.org/author/display/WFLY11
@@ -30,35 +79,11 @@
 :javaeedocroot: https://docs.oracle.com/javaee/7/api
 
 //
-// Define conditional statement for product docs
+// Operator
 //
-:productized:
-
-//
-// RH Product Names and Versions
-//
-:FullProductName: Red Hat Data Grid
-:ProductName: Data Grid
-:ProductShortName: RHDG
-:ProductEAP: Jboss Enterprise Application Platform (EAP)
-:ProductJWS: JBoss Web Server (JWS)
-:ProductRelease: 7.3
-:ProductVersion: 7.3
-:FullProductRelease: 7.3.1
-:FullProductVersion: 7.3.1
-:DocInfoProductNumber: 7.3
-:ProductPreviousVersion: 7.2
-:ProductNextVersion: 8.0
-:ProductPreviousRelease: 6
-:ProductPreviousPreviousRelease: 5
-:plusplus: ++
-:underscores: ___
-
-//Doc Home
-:doc_home: https://access.redhat.com/documentation/en-us/red_hat_data_grid/
-
-//HR Docs URL for Product
-:hr_url: https://access.redhat.com/webassets/avalon/d/red-hat-data-grid/7.3/java/org/infinispan/client/hotrod/
+:ispn_operator: Data Grid Operator
+:k8s: Kubernetes
+:okd: OKD
 
 //
 // OpenShift
@@ -66,12 +91,13 @@
 :openshift: Red Hat OpenShift
 :openshiftshort: OpenShift
 :openshiftplatform: Red Hat OpenShift Container Platform
-:ossecrets: OpenShift Secrets
+:ocp: OpenShift Container Platform
 :osweb: OpenShift Web Console
+
+//
+// Product only OpenShift
+//
 :osproduct: Red Hat Data Grid for OpenShift
 :osproductshort: Data Grid for OpenShift
 :datagridservice: datagrid-service
 :cacheservice: cache-service
-:os_url: https://access.redhat.com/documentation/en-us/red_hat_data_grid/7.3/html-single/data_grid_for_openshift/
-:os_quickstarts: https://github.com/jboss-developer/jboss-jdg-quickstarts/tree/jdg-7.3.x/openshift/
-:os_resources: https://github.com/jboss-container-images/jboss-datagrid-7-openshift-image/tree/7.3-v1.1/
