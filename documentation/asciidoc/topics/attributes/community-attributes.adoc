@@ -1,18 +1,69 @@
-:brandname: Infinispan
-:ispn_operator: Infinispan Operator
-:infinispanversion: 9.4.0
-:k8s: Kubernetes
-:okd: OKD
+//
+// This file contains attributes for building community documentation.
+// Global community attributes are defined in the pom.xml.
+//
 
+//
+// Operator resources
+//
 :github_root: https://github.com/infinispan/infinispan-operator/
 :github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
-:github_tag: master
+:github_tag: 0.x
 
 :example_crd_name: example-ispn
 
-//Linking for API docs
-:javadocroot:
-:configdocroot:
+//
+// Conditional statements
+//
+:server:
+:library:
+
+//
+// Special characters
+//
+:plusplus: ++
+:underscores: ___
+
+//Doc Home
+:doc_home: https://infinispan.org/documentation/
+
+//
+// Operator
+//
+:ispn_operator: Infinispan Operator
+:k8s: Kubernetes
+:okd: OKD
+
+//
+// OpenShift
+//
+:openshift: Red Hat OpenShift
+:openshiftshort: OpenShift
+:openshiftplatform: Red Hat OpenShift Container Platform
+:ocp: OpenShift Container Platform
+:osweb: OpenShift Web Console
+
+//
+// Community attributes
+// In the main Infinispan repo, these attributes are defined in
+// documentation/pom.xml
+// In other Infinispan repos, uncomment these attributes to include them
+// in the source content.
+//
+:brandname: Infinispan
+:fullbrandname: Infinispan
+:wildflybrandname: WildFly
+
+:infinispanversion: 9.4
+:infinispancomponentversion: 9.4.0-SNAPSHOT
+
+:brandcli: cli
+:moduleprefix: ispn
+:infinispanslot: ispn-9.4
+
+:download_url: https://infinispan.org/download/
+:javadocroot: https://docs.jboss.org/infinispan/9.4/apidocs
+:configdocroot: https://docs.jboss.org/infinispan/9.4/configdocs/
 :wildflydocroot: https://docs.jboss.org/author/display/WFLY11
-:jdkdocroot:
-:javaeedocroot:
+:jdkdocroot: https://docs.oracle.com/javase/8/docs/api
+:javaeedocroot: https://docs.oracle.com/javaee/7/api
