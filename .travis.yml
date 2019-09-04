@@ -25,7 +25,7 @@ jobs:
         - make unit-test
     - stage: "Test"
       env:
-        - 'DEFAULT_IMAGE=jboss/infinispan-server:latest'
+        - 'DEFAULT_IMAGE=jboss/infinispan-server:9.4.11.Final'
       name: "OpenShift"
       script:
         - go get -u github.com/golang/dep/cmd/dep
