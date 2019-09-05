@@ -3,6 +3,16 @@
 Create secrets that contain credentials so application users can authenticate to {brandname} nodes. You can then specify the name of the secret in a custom resource `yaml` and spin up clusters with the {ispn_operator}.
 
 .Procedure
+ifndef::productized[]
+. Apply an authentication secret `yaml`.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_apply_connect_secret.adoc[]
+----
++
+endif::productized[]
+ifdef::productized[]
 . Create a secret that contains credentials for at least one application user.
 .. Add an authentication secret `yaml`, for example:
 +
@@ -11,6 +21,7 @@ Create secrets that contain credentials so application users can authenticate to
 include::cmd_examples/cat_connect_secret.adoc[]
 ----
 +
+endif::productized[]
 * `type: Opaque` authentication secrets must be `Opaque`.
 * `identities.yaml` specifies credentials for application users in `YAML` format. These credentials allow access to data in the {brandname} cluster.
 +
@@ -20,6 +31,7 @@ Do not use example passwords from this documentation. You should always replace
 example credentials with ones that conform to the relevant security guidelines.
 ====
 +
+ifndef::productized[]
 .. Apply the authentication secret `yaml`.
 +
 [source,options="nowrap",subs=attributes+]
@@ -27,7 +39,6 @@ example credentials with ones that conform to the relevant security guidelines.
 $ oc apply -f connect_secret.yaml
 ----
 +
-ifdef::productized[]
 . Create a custom resource `yaml` for your cluster.
 +
 [source,options="nowrap",subs=attributes+]
@@ -54,8 +65,8 @@ ifdef::productized[]
 ----
 include::cmd_examples/oc_apply_local_cr_auth.adoc[]
 ----
-endif::productized[]
 +
+endif::productized[]
 . Verify that the {ispn_operator} creates the pods.
 +
 [source,options="nowrap",subs=attributes+]
