@@ -1,1 +1,1 @@
-$ oc apply -f {github_raw}{github_tag}/deploy/cr/cr_minimal_with_auth.yaml
+$ oc apply -f {github_raw}{github_tag}/deploy/cr/auth/cr_minimal_with_auth.yaml
