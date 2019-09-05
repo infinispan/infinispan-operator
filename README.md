@@ -155,7 +155,7 @@ metadata:
   name: example-infinispan
 spec:
   replicas: 2
-  image: jboss/infinispan-server:latest
+  image: jboss/infinispan-server:9.4.11.Final
   connector:
     authentication:
       secret:
