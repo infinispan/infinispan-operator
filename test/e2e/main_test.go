@@ -75,7 +75,7 @@ func TestClusterFormation(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas: 2,
-			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:9.4.11.Final"),
 		},
 	}
 	// Register it
@@ -129,7 +129,7 @@ func TestExternalService(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas: 1,
-			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:9.4.11.Final"),
 		},
 	}
 
@@ -213,7 +213,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			Replicas:   1,
 			Connector:  ispnv1.InfinispanConnectorInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "conn-secret-test"}},
 			Management: ispnv1.InfinispanManagementInfo{Authentication: ispnv1.InfinispanAuthInfo{Type: "Credentials", SecretName: "mgmt-secret-test"}},
-			Image:      getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Image:      getEnvWithDefault("IMAGE", "jboss/infinispan-server:9.4.11.Final"),
 		},
 	}
 	okd.CreateInfinispan(&spec, Namespace)
@@ -370,7 +370,7 @@ func TestCreateClusterWithConfigMap(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas: 2,
-			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:latest"),
+			Image:    getEnvWithDefault("IMAGE", "jboss/infinispan-server:9.4.11.Final"),
 		},
 	}
 

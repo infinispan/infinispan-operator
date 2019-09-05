@@ -41,7 +41,7 @@ const DefaultConfig = "cloud.xml"
 const defaultJGroupsPingProtocol = "openshift.DNS_PING"
 
 // DefaultImageName is used if a specific image name is not provided
-var DefaultImageName = ispnutil.GetEnvWithDefault("DEFAULT_IMAGE", "jboss/infinispan-server:latest")
+var DefaultImageName = ispnutil.GetEnvWithDefault("DEFAULT_IMAGE", "jboss/infinispan-server:9.4.11.Final")
 
 var ispnCliHelper *ispnutil.IspnCliHelper
 
