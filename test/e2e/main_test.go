@@ -214,6 +214,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	hostAddr := kubernetes.WaitForRoute(routeName, RouteTimeout, client, Namespace)
 
 	cacheName := "test"
+	createCacheBadCreds(cacheName, "badUser", "badPass", hostAddr, client)
 	createCache(cacheName, usr, pass, hostAddr, client)
 	defer deleteCache(cacheName, usr, pass, hostAddr, client)
 
@@ -232,10 +233,32 @@ func cacheURL(cacheName, hostAddr string) string {
 	return fmt.Sprintf("http://%v/rest/v2/caches/%s", hostAddr, cacheName)
 }
 
+type httpError struct {
+	status int
+}
+
+func (e *httpError) Error() string {
+	return fmt.Sprintf("unexpected response %v", e.status)
+}
+
 func createCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
 	httpURL := cacheURL(cacheName, hostAddr)
 	fmt.Printf("Create cache: %v\n", httpURL)
 	httpEmpty(httpURL, "POST", usr, pass, client)
+}
+
+func createCacheBadCreds(cacheName, usr, pass, hostAddr string, client *http.Client) {
+	defer func() {
+		data := recover()
+		if data == nil {
+			panic("createCacheBadCred should fail, but it doesn't")
+		}
+		err := data.(httpError)
+		if err.status != http.StatusUnauthorized {
+			panic(err)
+		}
+	}()
+	createCache(cacheName, usr, pass, hostAddr, client)
 }
 
 func deleteCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
@@ -253,7 +276,7 @@ func httpEmpty(httpURL string, method string, usr string, pass string, client *h
 	testutil.ExpectNoError(err)
 
 	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("unexpected response %v", resp))
+		panic(httpError{resp.StatusCode})
 	}
 }
 
@@ -266,7 +289,7 @@ func getViaRoute(url string, client *http.Client, user string, pass string) stri
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("unexpected response %v", resp))
+		panic(httpError{resp.StatusCode})
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -286,6 +309,6 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 		panic(err.Error())
 	}
 	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("unexpected response %v", resp))
+		panic(httpError{resp.StatusCode})
 	}
 }
