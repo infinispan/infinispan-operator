@@ -424,7 +424,8 @@ TODO: @Vittorio, update with your proposal
 |=======================
 
 
-[[identities]]
+[[
+ies]]
 #### `Identities`
 
 `Identities` defines the identities configuration that's stored within a Secret.
@@ -598,7 +599,7 @@ metadata:
 type: Opaque
 stringData:
   identities.yaml: |-
-    credentials
+    credentials:
     - username: connectusr
       password: connectpass
       roles:
