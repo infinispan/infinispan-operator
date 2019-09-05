@@ -82,7 +82,7 @@
 // Operator
 //
 :ispn_operator: Data Grid Operator
-:k8s: Kubernetes
+:k8s: OpenShift
 :okd: OKD
 
 //

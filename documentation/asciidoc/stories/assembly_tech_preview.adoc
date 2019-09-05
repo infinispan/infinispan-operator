@@ -1,7 +1,7 @@
-[id='operator_overview']
-:context: operator_overview
+[id='operator_tech_preview']
+:context: operator_tech_preview
 
-include::{topics}/con_infinispan_operator.adoc[]
+include::{topics}/ref_tech_preview.adoc[]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

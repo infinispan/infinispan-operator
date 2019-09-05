@@ -1,4 +1,7 @@
 include::{stories}/assembly_operator_overview.adoc[leveloffset=+1]
+ifdef::productized[]
+include::{stories}/assembly_tech_preview.adoc[leveloffset=+1]
+endif::productized[]
 ifndef::productized[]
 include::{stories}/assembly_deploying_operator.adoc[leveloffset=+1]
 endif::productized[]
