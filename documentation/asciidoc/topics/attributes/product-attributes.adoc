@@ -9,7 +9,7 @@
 :github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
 :github_tag: master
 
-:example_crd_name: example-rhdg
+:example_crd_name: example-rhdatagrid
 
 //
 // Conditional statements
