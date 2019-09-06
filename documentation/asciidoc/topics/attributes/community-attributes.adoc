@@ -10,7 +10,7 @@
 :github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
 :github_tag: master
 
-:example_crd_name: example-ispn
+:example_crd_name: example-infinispan
 
 //
 // Conditional statements
