@@ -81,7 +81,7 @@ operatorhub() {
   local upstreamDir=upstream-community-operators/infinispan
   local communityDir=community-operators/infinispan
 
-  rm -drf ${repoDir} || echo "Operatorhub repo does not exist"
+  rm -rf ${repoDir} || echo "Operatorhub repo does not exist"
   git clone git@github.com:${GITHUB_USERNAME}/community-operators.git ${repoDir}
   prepareBranches ${repoDir} ${OPERATORHUB_UPSTREAM_BRANCH} ${upstreamDir}
   prepareBranches ${repoDir} ${OPERATORHUB_COMMUNITY_BRANCH} ${communityDir}
@@ -147,11 +147,15 @@ updatePackageFile() {
 sendPRs() {
   git checkout OPERATORHUB_UPSTREAM_BRANCH
   git push origin OPERATORHUB_UPSTREAM_BRANCH
-  hub pull-request -m "[upstream] Updated Infinispan Operator to ${RELEASE_NAME}"
+  if [[ "${NO_PR}" != true ]] ; then
+    hub pull-request -m "[upstream] Updated Infinispan Operator to ${RELEASE_NAME}"
+  fi
 
   git checkout OPERATORHUB_COMMUNITY_BRANCH
   git push origin OPERATORHUB_COMMUNITY_BRANCH
-  hub pull-request -m "[community] Updated Infinispan Operator to ${RELEASE_NAME}"
+  if [[ "${NO_PR}" != true ]] ; then
+     hub pull-request -m "[community] Updated Infinispan Operator to ${RELEASE_NAME}"
+  fi
 }
 
 

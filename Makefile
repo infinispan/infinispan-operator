@@ -29,7 +29,8 @@ image: build
 ifeq ($(MULTISTAGE),NO)
 ## This branch builds the image in a docker container which provides multistage build
 ## for distro that doesn't provide multistage build directly (i.e. Fedora 29)
-	-docker run -d --rm --privileged -p 23751:2375 --name dind docker:stable-dind --storage-driver overlay2
+	-docker run -d --rm --privileged -p 23751:2375 --name dind docker:18-dind --storage-driver overlay2
+	-sleep 5
 	-docker --host=:23751 build -t "$(IMAGE):$(TAG)" . -f build/Dockerfile
 	-docker --host=:23751 save -o ./make.image.out.tar "$(IMAGE):$(TAG)"
 	-docker load -i ./make.image.out.tar
