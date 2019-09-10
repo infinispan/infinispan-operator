@@ -158,14 +158,12 @@ spec:
   image: jboss/infinispan-server:9.4.11.Final
   connector:
     authentication:
-      secret:
-        type: Credentials
-        secretName: conn-auth-secret
+      type: Credentials
+      secretName: conn-auth-secret
   management:
     authentication:
-      secret:
-        type: Credentials
-        secretName: mngt-auth-secret
+      type: Credentials
+      secretName: mngt-auth-secret
 ```
 
 #### Infinispan Configuration
