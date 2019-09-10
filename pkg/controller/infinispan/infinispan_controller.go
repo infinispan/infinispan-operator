@@ -3,6 +3,7 @@ package infinispan
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"gopkg.in/yaml.v2"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"os"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -166,6 +168,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			reqLogger.Error(err, "failed to create Service", "Service", serDNS)
 			return reconcile.Result{}, err
 		}
+
+		externalService := r.serviceExternal(ser, infinispan)
+		err = r.client.Create(context.TODO(), externalService)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			reqLogger.Error(err, "failed to create external Service", "Service", ser)
+			return reconcile.Result{}, err
+		}
+
 		// Deployment created successfully - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
@@ -529,6 +539,37 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 	controllerutil.SetControllerReference(m, service, r.scheme)
 
 	return service
+}
+
+// ServiceExternal creates an external service that's linked to the internal service
+func (r *ReconcileInfinispan) serviceExternal(internalService *corev1.Service, m *infinispanv1.Infinispan) *corev1.Service {
+	// An external service can be simply achieved with a LoadBalancer
+	// that has same selectors as original service.
+	externalServiceName := fmt.Sprintf("%s-external", internalService.Name)
+	externalService := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      externalServiceName,
+			Namespace: m.ObjectMeta.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeLoadBalancer,
+			Selector: internalService.Spec.Selector,
+			Ports: []corev1.ServicePort{
+				{
+					Port:       int32(11222),
+					TargetPort: intstr.FromInt(11222),
+				},
+			},
+		},
+	}
+
+	// Set Infinispan instance as the owner and controller
+	controllerutil.SetControllerReference(m, externalService, r.scheme)
+	return externalService
 }
 
 // getEnvWithDefault return GetEnv(name) if exists else

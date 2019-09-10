@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"net/http"
@@ -239,44 +238,8 @@ func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDef
 	ExpectNoError(err)
 }
 
-// CreateRoute exposes the port 11222 of the Infinispan cluster clusterName
-// It return the public address a string: the IP address if available else the hostname
-func (k TestKubernetes) CreateRoute(clusterName string, port int, routeName, namespace string) *v1.Service {
-	internalSvc := &v1.Service{}
-	ns := types.NamespacedName{Name: clusterName, Namespace: namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, internalSvc)
-	ExpectNoError(err)
-
-	// An external route can be simply achieved with a LoadBalancer
-	// that has same selectors as original service.
-	route := &v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      routeName,
-			Namespace: namespace,
-		},
-		Spec: v1.ServiceSpec{
-			Type:     v1.ServiceTypeLoadBalancer,
-			Selector: internalSvc.Spec.Selector,
-			Ports: []v1.ServicePort{
-				{
-					Port:       int32(port),
-					TargetPort: intstr.FromInt(port),
-				},
-			},
-		},
-	}
-
-	err = k.Kubernetes.Client.Create(context.TODO(), route)
-	ExpectNoError(err)
-	return route
-}
-
-// WaitForRoute checks if an http server is listening at the endpoint exposed by the service (ns, name)
-func (k TestKubernetes) WaitForRoute(routeName string, timeout time.Duration, client *http.Client, namespace string) string {
+// WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
+func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Duration, client *http.Client, namespace string) string {
 	var hostAndPort string
 	err := wait.Poll(period, timeout, func() (done bool, err error) {
 		route := &v1.Service{}
@@ -334,12 +297,6 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service, namespace string) 
 
 func (k TestKubernetes) getNodePortAddress(route *v1.Service, namespace string) string {
 	return k.PublicIP() + ":" + fmt.Sprint(route.Spec.Ports[0].NodePort)
-}
-
-// DeleteRoute delete a service
-func (k TestKubernetes) DeleteRoute(svc *v1.Service) {
-	err := k.Kubernetes.Client.Delete(context.TODO(), svc, deleteOpts...)
-	ExpectNoError(err)
 }
 
 // WaitForPods waits for pods in the given namespace, having a certain label to reach the desired count in ContainersReady state

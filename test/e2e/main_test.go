@@ -137,10 +137,8 @@ func TestExternalService(t *testing.T) {
 	testutil.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
-	route := kubernetes.CreateRoute(name, 11222, routeName, Namespace)
-	defer kubernetes.DeleteRoute(route)
 	client := &http.Client{}
-	hostAddr := kubernetes.WaitForRoute(routeName, RouteTimeout, client, Namespace)
+	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)
 
 	cacheName := "test"
 	createCache(cacheName, usr, pass, hostAddr, client)
@@ -207,11 +205,8 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
 
 	routeName := fmt.Sprintf("%s-external", name)
-	route := kubernetes.CreateRoute(name, 11222, routeName, Namespace)
-	defer kubernetes.DeleteRoute(route)
-
 	client := &http.Client{}
-	hostAddr := kubernetes.WaitForRoute(routeName, RouteTimeout, client, Namespace)
+	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)
 
 	cacheName := "test"
 	createCache(cacheName, usr, pass, hostAddr, client)
