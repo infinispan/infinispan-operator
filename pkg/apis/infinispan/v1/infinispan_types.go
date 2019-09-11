@@ -11,7 +11,14 @@ type InfinispanAuthInfo struct {
 
 // InfinispanSecurity info for the user application connection
 type InfinispanSecurity struct {
-	EndpointSecret string `json:"endpointSecret"`
+	EndpointSecret     string             `json:"endpointSecret"`
+	EndpointEncryption EndpointEncryption `json:"endpointEncryption"`
+}
+
+// EndpointEncryption configuration
+type EndpointEncryption struct {
+	CertService    string `json:"certService"`
+	CertSecretName string `json:"certSecretName"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container

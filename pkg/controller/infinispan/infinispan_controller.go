@@ -156,6 +156,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		ser := r.serviceForInfinispan(infinispan)
+		setupServiceForEncryption(infinispan, ser)
 		err = r.client.Create(context.TODO(), ser)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			reqLogger.Error(err, "failed to create Service", "Service", ser)
@@ -354,7 +355,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			},
 		},
 	}
-
+	setupVolumesForEncryption(m, dep)
 	//	appendVolumes(m, dep)
 
 	// Set Infinispan instance as the owner and controller
@@ -362,11 +363,87 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	return dep
 }
 
+func getEncryptionSecretName(m *infinispanv1.Infinispan) string {
+	cs := m.Spec.Security.EndpointEncryption.CertService
+	if strings.Contains(cs, "openshift.io") {
+		// Using platform service. Only OpenShift is integrated atm
+		return "service-certs"
+	}
+	return m.Spec.Security.EndpointEncryption.CertSecretName
+}
+
+func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) {
+	cs := m.Spec.Security.EndpointEncryption.CertService
+	if strings.Contains(cs, "openshift.io") {
+		// Using platform service. Only OpenShift is integrated atm
+		secretName := getEncryptionSecretName(m)
+		if ser.ObjectMeta.Annotations == nil {
+			ser.ObjectMeta.Annotations = map[string]string{}
+		}
+		ser.ObjectMeta.Annotations[cs] = secretName
+	}
+}
+
+func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1beta1.StatefulSet) error {
+	secretName := getEncryptionSecretName(m)
+	if secretName != "" {
+		v := &dep.Spec.Template.Spec.Volumes
+		vm := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
+		*vm = append(*vm, corev1.VolumeMount{Name: "encrypt-volume", MountPath: "/etc/encrypt"})
+		*v = append(*v, corev1.Volume{Name: "encrypt-volume",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: secretName,
+				}}})
+	}
+	return nil
+}
+
+func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
+	cs := m.Spec.Security.EndpointEncryption.CertService
+	if strings.Contains(cs, "openshift.io") {
+		c.Keystore.CrtPath = "/etc/encrypt"
+		c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
+		c.Keystore.Password = "password"
+		c.Keystore.Alias = "server"
+		return nil
+	}
+	// Fetch the tls secret if name is provided
+	tlsSecretName := getEncryptionSecretName(m)
+	if tlsSecretName != "" {
+		tlsSecret := &corev1.Secret{}
+		err := client.Get(context.TODO(), types.NamespacedName{Name: tlsSecretName, Namespace: m.Namespace}, tlsSecret)
+		if err != nil {
+			reqLogger := log.WithValues("Infinispan.Namespace", m.Namespace, "Infinispan.Name", m.Name)
+			if errors.IsNotFound(err) {
+				reqLogger.Error(err, "Secret %s for endpoint encryption not found.", tlsSecretName)
+				return err
+			}
+			reqLogger.Error(err, "Error in getting secret %s for endpoint encryption.", tlsSecretName)
+			return err
+		}
+		if _, ok := tlsSecret.Data["keystore.p12"]; ok {
+			// If user provide a keystore in secret then use it ...
+			c.Keystore.Path = "/etc/encrypt/keystore.p12"
+			c.Keystore.Password = string(tlsSecret.Data["password"])
+			c.Keystore.Alias = string(tlsSecret.Data["alias"])
+		} else {
+			// ... else suppose tls.key and tls.crt are provided
+			c.Keystore.CrtPath = "/etc/encrypt"
+			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
+			c.Keystore.Password = "password"
+			c.Keystore.Alias = "server"
+		}
+	}
+	return nil
+}
+
 func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
 	name := m.ObjectMeta.Name
 	namespace := m.ObjectMeta.Namespace
 
 	config := ispnutil.CreateInfinispanConfiguration(name, namespace)
+	setupConfigForEncryption(m, &config, r.client)
 	configYaml, err := yaml.Marshal(config)
 	if err != nil {
 		return nil, err

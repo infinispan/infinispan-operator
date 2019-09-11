@@ -8,6 +8,15 @@ import (
 type InfinispanConfiguration struct {
 	ClusterName string `yaml:"clusterName"`
 	JGroups     JGroups
+	Keystore    Keystore
+}
+
+// Keystore configuration info for connector encryption
+type Keystore struct {
+	Path     string
+	Password string
+	Alias    string
+	CrtPath  string `yaml:"crtPath,omitempty"`
 }
 
 // JGroups configures clustering layer
