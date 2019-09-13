@@ -52,6 +52,7 @@ type InfinispanStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	Conditions      []InfinispanCondition `json:"conditions"`
 	StatefulSetName string                `json:"statefulSetName"`
+	Security        InfinispanSecurity    `json:"security"`
 }
 
 // +genclient
