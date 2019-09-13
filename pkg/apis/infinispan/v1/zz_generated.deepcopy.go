@@ -176,6 +176,7 @@ func (in *InfinispanStatus) DeepCopyInto(out *InfinispanStatus) {
 		*out = make([]InfinispanCondition, len(*in))
 		copy(*out, *in)
 	}
+	out.Security = in.Security
 	return
 }
 

@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
@@ -16,6 +17,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -198,7 +200,7 @@ func TestExternalService(t *testing.T) {
 func TestExternalServiceWithAuth(t *testing.T) {
 	usr := "connectorusr"
 	pass := "connectorpass"
-
+	newpass := "connectornewpass"
 	identities := util.CreateIdentitiesFor(usr, pass)
 	identitiesYaml, err := yaml.Marshal(identities)
 	testutil.ExpectNoError(err)
@@ -241,7 +243,35 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
 
 	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
+	testAuthentication(name, usr, pass)
+	// Update the auth credentials.
+	identities = util.CreateIdentitiesFor(usr, newpass)
+	identitiesYaml, err = yaml.Marshal(identities)
+	testutil.ExpectNoError(err)
 
+	// Create secret with application credentials
+	secret1 := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: "conn-secret-test-1"},
+		Type:       "Opaque",
+		StringData: map[string]string{"identities.yaml": string(identitiesYaml)},
+	}
+	kubernetes.CreateSecret(&secret1, Namespace)
+	defer kubernetes.DeleteSecret(&secret1)
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &spec)
+	spec.Spec.Security.EndpointSecret = "conn-secret-test-1"
+	er := kubernetes.Kubernetes.Client.Update(context.TODO(), &spec)
+	if er != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
+	testAuthentication(name, usr, newpass)
+}
+
+func testAuthentication(name, usr, pass string) {
 	routeName := fmt.Sprintf("%s-external", name)
 	client := &http.Client{}
 	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)

@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sort"
 	"strings"
+	"time"
 )
 
 var log = logf.Log.WithName("controller_infinispan")
@@ -178,10 +179,55 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		// Deployment created successfully - return and requeue
+
+		// Update Status.Security to match
+		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
+		err = r.client.Status().Update(context.TODO(), infinispan)
+
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
 		reqLogger.Error(err, "failed to get Deployment")
 		return reconcile.Result{}, err
+	}
+
+	// Here where to reconcile with spec updates
+
+	// If secretName for identities has changed reprocess all the
+	// identities secrets and then upgrade the cluster
+	if infinispan.Spec.Security.EndpointSecret != infinispan.Status.Security.EndpointSecret {
+		identities, err := r.findCredentials(infinispan)
+		if err != nil {
+			reqLogger.Error(err, "could not find create identities")
+			return reconcile.Result{}, err
+		}
+
+		secret := r.secretForInfinispan(identities, infinispan)
+		currSecret := &corev1.Secret{}
+		r.client.Get(context.TODO(), types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}, currSecret)
+		if currSecret == nil {
+			reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
+			err = r.client.Create(context.TODO(), secret)
+		} else {
+			reqLogger.Info("Updating Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
+			currSecret.StringData = secret.StringData
+			r.client.Update(context.TODO(), secret)
+		}
+		if err != nil {
+			reqLogger.Error(err, "could not find or create identities Secret")
+			return reconcile.Result{}, err
+		}
+
+		found.Spec.Template.ObjectMeta.Annotations["updateDate"] = time.Now().String()
+		err = r.client.Update(context.TODO(), found)
+
+		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
+		err = r.client.Status().Update(context.TODO(), infinispan)
+
+		if err != nil {
+			reqLogger.Error(err, "failed to update Infinispan", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
 	}
 
 	// Ensure the deployment size is the same as the spec
@@ -286,6 +332,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	}
 
 	dep := &appsv1beta1.StatefulSet{
+
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1beta1",
 			Kind:       "StatefulSet",
@@ -301,12 +348,14 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			Labels: map[string]string{"template": "infinispan-ephemeral"},
 		},
 		Spec: appsv1beta1.StatefulSetSpec{
+			UpdateStrategy: appsv1beta1.StatefulSetUpdateStrategy{Type: appsv1beta1.RollingUpdateStatefulSetStrategyType},
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: ls,
+					Labels:      ls,
+					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
