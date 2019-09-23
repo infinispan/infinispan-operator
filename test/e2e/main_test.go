@@ -71,7 +71,45 @@ func TestClusterFormation(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(&spec, Namespace)
 	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
+	waitForPodsOrFail(name, "http")
+}
 
+// Test if the cluster is working correctly
+func TestClusterFormationWithTLS(t *testing.T) {
+	// Create a resource without passing any config
+	name := "test-cluster-formation"
+	kubernetes.CreateSecret(&encryptionSecret, Namespace)
+	defer kubernetes.DeleteSecret(&encryptionSecret)
+	spec := ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Container: ispnv1.InfinispanContainerSpec{
+				CPU:    CPU,
+				Memory: Memory,
+			},
+			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+			Replicas: 2,
+			Security: ispnv1.InfinispanSecurity{
+				EndpointEncryption: ispnv1.EndpointEncryption{
+					Type:           "secret",
+					CertSecretName: "secret-certs",
+				},
+			},
+		},
+	}
+	// Register it
+	kubernetes.CreateInfinispan(&spec, Namespace)
+	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
+	waitForPodsOrFail(name, "https")
+}
+
+func waitForPodsOrFail(name, protocol string) {
 	// Wait that 2 pods are up
 	kubernetes.WaitForPods("app=infinispan-pod", 2, SinglePodTimeout, Namespace)
 
@@ -82,7 +120,7 @@ func TestClusterFormation(t *testing.T) {
 	expectedClusterSize := 2
 	// Check that the cluster size is 2 querying the first pod
 	err := wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
-		value, err := cluster.GetClusterSize(secretName, podName, Namespace)
+		value, err := cluster.GetClusterSize(secretName, podName, Namespace, protocol)
 		if err != nil {
 			return false, err
 		}

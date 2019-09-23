@@ -42,7 +42,7 @@ type mockCluster struct{}
 // GetClusterMembers returns a fake cluster view, produced returning the substring
 // after the - char of the `name` arg. If the substring doesn't start with View and error
 // will be also returned
-func (m mockCluster) GetClusterMembers(_, podName, _ string) ([]string, error) {
+func (m mockCluster) GetClusterMembers(_, podName, _, _ string) ([]string, error) {
 	arr := strings.Split(podName, "-")
 	if (len(arr) > 1) && strings.HasPrefix(arr[1], "View") {
 		return []string{arr[1]}, nil
@@ -55,7 +55,7 @@ func TestGetInfinispanConditions(t *testing.T) {
 	var m mockCluster
 
 	for _, tup := range testTable {
-		conditions := getInfinispanConditions(tup.pods, "", m)
+		conditions := getInfinispanConditions(tup.pods, "", "http", m)
 		if len(conditions) != 1 {
 			t.Errorf("Expected exaclty 1 condition got %d", len(conditions))
 		}
