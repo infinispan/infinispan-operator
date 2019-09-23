@@ -38,7 +38,11 @@ or if your docker version doesn't have multistage build
 ```
 $ make image IMAGE=image_name TAG=image_tag MULTISTAGE=NO
 ```
-
+#### Cekit
+There also a Cekit build environment under `build/cekit`
+```
+$ cekit build --overrides "{version: <version_default_is_latest>}" docker
+```
 
 ### Running the Infinispan Operator
 

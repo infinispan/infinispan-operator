@@ -1,0 +1,13 @@
+schema_version: 1
+
+name: infinispan-operator
+version: latest
+
+artifacts:
+    - name: application
+      image: builder-infinispan-operator
+      path: /usr/local/bin/infinispan-operator
+
+execute:
+  - script: install
+
