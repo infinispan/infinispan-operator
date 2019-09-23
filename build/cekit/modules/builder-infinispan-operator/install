@@ -1,0 +1,38 @@
+#!/bin/sh
+
+set -x -e
+
+#INSTALL_PKGS="go-toolset"
+OPERATOR_PATH=/usr/local/bin/infinispan-operator
+
+# yum -y install ${INSTALL_PKGS}
+
+REPO=infinispan-operator
+GHORG=github.com/infinispan
+GHFULL=${GHORG}/${REPO}
+GOPATH=$(go env GOPATH)
+go version
+
+mkdir -p ${GOPATH}/src/${GHFULL}
+tar xfz /tmp/artifacts/operator.tar.gz --strip-components=1 -C ${GOPATH}/src/${GHFULL}
+cd ${GOPATH}/src/${GHFULL} && pwd
+
+go generate ./...
+dep ensure -vendor-only
+#go vet ./...
+#go test ./...
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -a -o ${OPERATOR_PATH} github.com/infinispan/infinispan-operator/cmd/manager
+if [[ ! -f ${OPERATOR_PATH} ]] ; then
+    echo "${OPERATOR_PATH} does not exist, aborting."
+    exit 1
+fi
+
+#mv build/_output/bin/* /usr/local/bin/
+#mv build/manifests /manifests
+#mv deploy/crds/kieapp.crd.yaml /manifests
+#/usr/local/bin/user_setup
+
+#yum -y autoremove ${INSTALL_PKGS}
+#yum -y update-minimal --setopt=tsflags=nodocs --security --sec-severity=Important --sec-severity=Critical
+#yum clean all
+#rm -rf /var/cache/yum ${GOPATH}

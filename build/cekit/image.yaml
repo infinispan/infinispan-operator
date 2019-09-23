@@ -1,0 +1,30 @@
+- name: "builder-infinispan-operator"
+  description: "Builder for Infinispan Operator"
+  version: latest
+  from: "fedora:29"
+  modules:
+    repositories:
+      - path: modules
+        name: modules
+    install:
+      - name: builder-infinispan-operator
+
+- name: "jboss/infinispan-operator"
+  description: "Infinispan Operator"
+  version: latest
+  from: "registry.access.redhat.com/ubi8/ubi-minimal"
+  labels:
+    - name: "name"
+      value: "jboss/infinispan-operator"
+    - name: "url"
+      value: "https://github.com/infinispan/infinispan-operator"
+  modules:
+    install:
+      - name: infinispan-operator
+  run:
+    entrypoint:
+      - /usr/local/bin/infinispan-operator
+    user: "1001"
+  artifacts:
+    - name: operator.tar.gz
+      url: https://github.com/infinispan/infinispan-operator/tarball/master
