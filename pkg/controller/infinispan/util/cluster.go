@@ -20,7 +20,7 @@ func NewCluster(kubernetes *Kubernetes) *Cluster {
 
 // ClusterInterface represents the interface of a Cluster instance
 type ClusterInterface interface {
-	GetClusterMembers(secretName, podName, namespace string) ([]string, error)
+	GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error)
 }
 
 // GetPassword returns password associated with a user in a given secret
@@ -40,8 +40,8 @@ func (c Cluster) GetPassword(user, secretName, namespace string) (string, error)
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
-func (c Cluster) GetClusterSize(secretName, podName, namespace string) (int, error) {
-	members, err := c.GetClusterMembers(secretName, podName, namespace)
+func (c Cluster) GetClusterSize(secretName, podName, namespace, protocol string) (int, error) {
+	members, err := c.GetClusterMembers(secretName, podName, namespace, protocol)
 	if err != nil {
 		return -1, err
 	}
@@ -60,7 +60,7 @@ type Health struct {
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
-func (c Cluster) GetClusterMembers(secretName, podName, namespace string) ([]string, error) {
+func (c Cluster) GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error) {
 	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
 	if err != nil {
 		return nil, err
@@ -71,8 +71,8 @@ func (c Cluster) GetClusterMembers(secretName, podName, namespace string) ([]str
 		return nil, err
 	}
 
-	httpURL := fmt.Sprintf("http://%v:11222/rest/v2/cache-managers/DefaultCacheManager/health", podIP)
-	commands := []string{"curl", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
+	httpURL := fmt.Sprintf(protocol+"://%v:11222/rest/v2/cache-managers/DefaultCacheManager/health", podIP)
+	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
 	logger.Info("get cluster members", "url", httpURL)
