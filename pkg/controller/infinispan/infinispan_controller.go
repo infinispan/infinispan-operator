@@ -207,8 +207,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
 		return reconcile.Result{}, err
 	}
-
-	currConds := getInfinispanConditions(podList.Items, infinispan.Name, cluster)
+	var protocol string
+	if infinispan.Spec.Security.EndpointEncryption.Type != "" {
+		protocol = "http"
+	} else {
+		protocol = "https"
+	}
+	currConds := getInfinispanConditions(podList.Items, infinispan.Name, protocol, cluster)
 	infinispan.Status.StatefulSetName = found.ObjectMeta.Name
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(currConds, infinispan.Status.Conditions) {
@@ -524,7 +529,7 @@ func labelsForInfinispanSelector(name string) map[string]string {
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(pods []corev1.Pod, name string, cluster ispnutil.ClusterInterface) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, name, protocol string, cluster ispnutil.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	var wellFormedErr error
 	clusterViews := make(map[string]bool)
@@ -533,7 +538,7 @@ func getInfinispanConditions(pods []corev1.Pod, name string, cluster ispnutil.Cl
 	for _, pod := range pods {
 		var clusterView string
 		var members []string
-		members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace)
+		members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace, "http")
 		clusterView = strings.Join(members, ",")
 		if wellFormedErr == nil {
 			clusterViews[clusterView] = true
