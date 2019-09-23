@@ -17,6 +17,7 @@ type InfinispanSecurity struct {
 
 // EndpointEncryption configuration
 type EndpointEncryption struct {
+	Type           string `json:"type"`
 	CertService    string `json:"certService"`
 	CertSecretName string `json:"certSecretName"`
 }

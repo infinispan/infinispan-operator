@@ -364,23 +364,27 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 }
 
 func getEncryptionSecretName(m *infinispanv1.Infinispan) string {
-	cs := m.Spec.Security.EndpointEncryption.CertService
-	if strings.Contains(cs, "openshift.io") {
-		// Using platform service. Only OpenShift is integrated atm
-		return "service-certs"
+	ee := m.Spec.Security.EndpointEncryption
+	if ee.Type == "service" {
+		if strings.Contains(ee.CertService, "openshift.io") {
+			// Using platform service. Only OpenShift is integrated atm
+			return "service-certs"
+		}
 	}
-	return m.Spec.Security.EndpointEncryption.CertSecretName
+	return ee.CertSecretName
 }
 
 func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) {
-	cs := m.Spec.Security.EndpointEncryption.CertService
-	if strings.Contains(cs, "openshift.io") {
-		// Using platform service. Only OpenShift is integrated atm
-		secretName := getEncryptionSecretName(m)
-		if ser.ObjectMeta.Annotations == nil {
-			ser.ObjectMeta.Annotations = map[string]string{}
+	ee := m.Spec.Security.EndpointEncryption
+	if ee.Type == "service" {
+		if strings.Contains(ee.CertService, "openshift.io") {
+			// Using platform service. Only OpenShift is integrated atm
+			secretName := getEncryptionSecretName(m)
+			if ser.ObjectMeta.Annotations == nil {
+				ser.ObjectMeta.Annotations = map[string]string{}
+			}
+			ser.ObjectMeta.Annotations[ee.CertService] = secretName
 		}
-		ser.ObjectMeta.Annotations[cs] = secretName
 	}
 }
 
@@ -400,13 +404,15 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1beta1.Stat
 }
 
 func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
-	cs := m.Spec.Security.EndpointEncryption.CertService
-	if strings.Contains(cs, "openshift.io") {
-		c.Keystore.CrtPath = "/etc/encrypt"
-		c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
-		c.Keystore.Password = "password"
-		c.Keystore.Alias = "server"
-		return nil
+	ee := m.Spec.Security.EndpointEncryption
+	if ee.Type == "service" {
+		if strings.Contains(ee.CertService, "openshift.io") {
+			c.Keystore.CrtPath = "/etc/encrypt"
+			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
+			c.Keystore.Password = "password"
+			c.Keystore.Alias = "server"
+			return nil
+		}
 	}
 	// Fetch the tls secret if name is provided
 	tlsSecretName := getEncryptionSecretName(m)
