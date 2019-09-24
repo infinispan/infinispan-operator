@@ -12,6 +12,8 @@
 
 :example_crd_name: example-infinispan
 
+include::oc_cmds.adoc[]
+
 //
 // Conditional statements
 //

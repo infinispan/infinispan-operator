@@ -1,75 +1,28 @@
 [id='creating_auth_clusters-{context}']
-= Creating {brandname} Clusters with Credentials
-Create secrets that contain credentials so application users can authenticate to {brandname} nodes. You can then specify the name of the secret in a custom resource `yaml` and spin up clusters with the {ispn_operator}.
+= Using Custom Authentication Secrets
+Create a custom authentication secret and configure {brandname} pods to use it.
 
 .Procedure
-ifndef::productized[]
-. Apply an authentication secret `yaml`.
+
+. Create an authentication secret.
++
+For example, to create `connect_secret.yaml` see link:#ref_auth_secret-cluster_auth[Credentials Secret].
++
+. Add the authentication secret to your {openshiftshort} namespace.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/oc_apply_connect_secret.adoc[]
+$ {oc_apply_cr} connect_secret.yaml
 ----
 +
-endif::productized[]
-ifdef::productized[]
-. Create a secret that contains credentials for at least one application user.
-.. Add an authentication secret `yaml`, for example:
+. Define a custom resource for the authentication secret.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/cat_connect_secret.adoc[]
+include::yaml_annotated/cr_auth.yaml[]
 ----
 +
-endif::productized[]
-* `type: Opaque` authentication secrets must be `Opaque`.
-* `identities.yaml` specifies credentials for application users in `YAML` format. These credentials allow access to data in the {brandname} cluster.
+<1> specifies the authentication secret.
 +
-[IMPORTANT]
-====
-Do not use example passwords from this documentation. You should always replace
-example credentials with ones that conform to the relevant security guidelines.
-====
-+
-ifndef::productized[]
-.. Apply the authentication secret `yaml`.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ oc apply -f connect_secret.yaml
-----
-+
-. Create a custom resource `yaml` for your cluster.
-+
-[source,options="nowrap",subs=attributes+]
-----
-include::cmd_examples/cat_cr_auth.adoc[]
-----
-+
-* `replicas` specifies the number of nodes in the {brandname} cluster.
-* `security.endpointSecret` specifies the authentication secret that contains
-your credentials.
-+
-endif::productized[]
-. Apply the custom resource `yaml`.
-+
-ifndef::productized[]
-[source,options="nowrap",subs=attributes+]
-----
-include::cmd_examples/oc_apply_cr_auth.adoc[]
-----
-+
-endif::productized[]
-ifdef::productized[]
-[source,options="nowrap",subs=attributes+]
-----
-include::cmd_examples/oc_apply_local_cr_auth.adoc[]
-----
-+
-endif::productized[]
-. Verify that the {ispn_operator} creates the pods.
-+
-[source,options="nowrap",subs=attributes+]
-----
-include::cmd_examples/oc_get_pods_w.adoc[]
-----
+. Apply the custom resource with `{oc_apply_cr}`.
+. Use `{oc_get_pods_w}` to watch the {ispn_operator} apply the custom resources.

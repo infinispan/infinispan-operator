@@ -7,12 +7,10 @@ spec:
   security:
     endpointEncryption:
             # Define the certificate to encrypt endpoint traffic.
-            # `type: service` uses platform certificate.
+            # `type: service` uses platform service certificate.
             # `type: secret` uses custom certificates.
             type: secret
-            # Set the location of encryption certificates.
             # If `type: service`, uncomment the following `certService` line:
             # certService: service.beta.openshift.io
-            # If `type: service`, secret will be created in `certSecretName`.
-            # If `type: secret`, user must provide a secret named `certSecretName`.
+            # Name the secret that contains encryption certificates.
             certSecretName: tls-secret

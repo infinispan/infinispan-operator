@@ -1,8 +1,10 @@
 [id='managing_cluster_credentials']
-= Managing Cluster Credentials
+= Configuring Authentication
 :context: cluster_auth
+Application users must authenticate with {brandname} pods to access data.
 
-Perform tasks to manage authentication for {brandname} clusters.
+The {ispn_operator} generates default credentials and stores them in secrets.
+You can use the default credentials or add custom authentication secrets.
 
 .Prerequisites
 ifndef::productized[]
@@ -13,6 +15,8 @@ ifdef::productized[]
 endif::productized[]
 
 include::{topics}/proc_get_cluster_credentials.adoc[leveloffset=+1]
+include::{topics}/proc_create_cluster_auth.adoc[leveloffset=+1]
+include::{topics}/ref_secret_auth.adoc[leveloffset=+2]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

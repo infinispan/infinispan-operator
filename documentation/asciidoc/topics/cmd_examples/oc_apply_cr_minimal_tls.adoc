@@ -1,0 +1,1 @@
+$ {oc_apply_cr} {github_raw}{github_tag}/deploy/cr/tls/cr_minimal_with_tls.yaml
