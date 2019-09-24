@@ -209,9 +209,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 	var protocol string
 	if infinispan.Spec.Security.EndpointEncryption.Type != "" {
-		protocol = "http"
-	} else {
 		protocol = "https"
+	} else {
+		protocol = "http"
 	}
 	currConds := getInfinispanConditions(podList.Items, infinispan.Name, protocol, cluster)
 	infinispan.Status.StatefulSetName = found.ObjectMeta.Name
@@ -533,7 +533,7 @@ func getInfinispanConditions(pods []corev1.Pod, name, protocol string, cluster i
 	for _, pod := range pods {
 		var clusterView string
 		var members []string
-		members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace, "http")
+		members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace, protocol)
 		clusterView = strings.Join(members, ",")
 		if wellFormedErr == nil {
 			clusterViews[clusterView] = true
