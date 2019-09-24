@@ -12,7 +12,7 @@ spec:
             type: secret
             # Set the location of encryption certificates.
             # If `type: service`, uncomment the following `certService` line:
-            #certService: service.beta.openshift.io/serving-cert-secret-name
-            # If `type: service`, also remove `certSecretName`.
-            # If `type: secret`, specify the secret with `certSecretName`.
+            # certService: service.beta.openshift.io
+            # If `type: service`, secret will be created in `certSecretName`.
+            # If `type: secret`, user must provide a secret named `certSecretName`.
             certSecretName: tls-secret
