@@ -369,14 +369,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 }
 
 func getEncryptionSecretName(m *infinispanv1.Infinispan) string {
-	ee := m.Spec.Security.EndpointEncryption
-	if ee.Type == "service" {
-		if strings.Contains(ee.CertService, "openshift.io") {
-			// Using platform service. Only OpenShift is integrated atm
-			return "service-certs"
-		}
-	}
-	return ee.CertSecretName
+	return m.Spec.Security.EndpointEncryption.CertSecretName
 }
 
 func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) {
@@ -388,7 +381,7 @@ func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) 
 			if ser.ObjectMeta.Annotations == nil {
 				ser.ObjectMeta.Annotations = map[string]string{}
 			}
-			ser.ObjectMeta.Annotations[ee.CertService] = secretName
+			ser.ObjectMeta.Annotations[ee.CertService+"/serving-cert-secret-name"] = secretName
 		}
 	}
 }
