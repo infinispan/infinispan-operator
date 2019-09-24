@@ -393,7 +393,7 @@ func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) 
 	}
 }
 
-func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1beta1.StatefulSet) error {
+func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1beta1.StatefulSet) {
 	secretName := getEncryptionSecretName(m)
 	if secretName != "" {
 		v := &dep.Spec.Template.Spec.Volumes
@@ -405,7 +405,6 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1beta1.Stat
 					SecretName: secretName,
 				}}})
 	}
-	return nil
 }
 
 func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
@@ -454,7 +453,10 @@ func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan)
 	namespace := m.ObjectMeta.Namespace
 
 	config := ispnutil.CreateInfinispanConfiguration(name, namespace)
-	setupConfigForEncryption(m, &config, r.client)
+	err := setupConfigForEncryption(m, &config, r.client)
+	if err != nil {
+		return nil, err
+	}
 	configYaml, err := yaml.Marshal(config)
 	if err != nil {
 		return nil, err
