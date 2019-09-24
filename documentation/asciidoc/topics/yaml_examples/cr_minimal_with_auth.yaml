@@ -1,8 +1,8 @@
-$ cat > cr_minimal.yaml<<EOF
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
   name: {example_crd_name}
 spec:
-  replicas: 3
-EOF
+  replicas: 2
+  security:
+    endpointSecret: connect-secret

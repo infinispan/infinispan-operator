@@ -1,0 +1,24 @@
+[id='minimal_crd-{context}']
+= {brandname} Custom Resources
+The {ispn_operator} adds a resource type and custom resource definition (CRD)
+with recommended defaults for {brandname} pods.
+
+You configure {brandname} pods dynamically by changing defaults and adding
+custom resources.
+
+The minimum resources to define a {brandname} cluster are as follows:
+
+----
+include::yaml_annotated/cr_minimal.yaml[]
+----
+<1> declares the version.
+<2> sets the resource type that the {ispn_operator} uses to handle the lifecycle of {brandname} clusters.
+<3> names the {brandname} cluster.
+<4> sets the number of pods in the {brandname} cluster.
+
+//Product
+ifdef::productized[]
+.Reference
+
+link:https://docs.openshift.com/container-platform/4.1/applications/operators/olm-managing-resources-from-crds.html[Managing resources from Custom Resource Definitions] in the {openshift} documentation.
+endif::productized[]

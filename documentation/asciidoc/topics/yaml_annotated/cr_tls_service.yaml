@@ -1,0 +1,7 @@
+spec:
+  ...
+  security:
+    endpointEncryption: <1>
+            type: service <2>
+            certService: service.beta.openshift.io <3>
+            certSecretName: tls-secret <4>

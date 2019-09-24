@@ -1,6 +1,7 @@
 [id='ref_services-{context}']
-= Services for Cluster Access
-The {ispn_operator} automatically creates services to handle network traffic.
+= Services
+The {ispn_operator} automatically creates services to route network traffic.
+These services use the names that you give to your {brandname} clusters.
 
 Internal services::
 +
@@ -26,8 +27,6 @@ Internal services::
 
 |===
 
-Where `${cluster_name}` is the name that you define for the {brandname} cluster.
-
 External services::
 Provide access to {brandname} endpoints from clients outside the {k8s} namespace.
 +
@@ -44,5 +43,3 @@ Provide access to {brandname} endpoints from clients outside the {k8s} namespace
 | {brandname} endpoints
 
 |===
-
-Where `${cluster_name}` is the name that you define for the {brandname} cluster.

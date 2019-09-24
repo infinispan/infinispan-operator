@@ -1,38 +1,33 @@
 [id='creating_minimal_clusters-{context}']
-= Creating Minimal {brandname} Clusters
-Quickly spin up a {brandname} cluster with two nodes and let the {ispn_operator} generate credentials. You can retrieve the credentials from the pods after you create the {brandname} cluster. However, because {brandname} clusters require authentication, you cannot connect to the pods without the credentials.
+= Spinning Up {brandname} Clusters
+Use the {ispn_operator} to create clusters of two or more {brandname} pods.
 
 .Procedure
-ifdef::productized[]
-. Create a custom resource `yaml` for the minimal cluster.
+
+. Create a custom resource that sets `replicas: 3`.
++
+For example, create a `cr_minimal.yaml` file as follows:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::cmd_examples/cat_cr_minimal.adoc[]
 ----
 +
-* `replicas` specifies the number of nodes in the {brandname} cluster.
+. Apply your custom resources.
 +
-endif::productized[]
-. Apply the custom resource `yaml`.
-+
-ifndef::productized[]
 [source,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/oc_apply_cr_minimal.adoc[]
+$ {oc_apply_cr} cr_minimal.yaml
 ----
 +
-endif::productized[]
-ifdef::productized[]
-[source,options="nowrap",subs=attributes+]
-----
-include::cmd_examples/oc_apply_local_cr_minimal.adoc[]
-----
-endif::productized[]
-+
-. Verify that the {ispn_operator} creates the pods.
+. Watch the {ispn_operator} create the {brandname} pods.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::cmd_examples/oc_get_pods_w.adoc[]
 ----
+
+.Next Steps
+
+Try changing the value of `replicas:` and watching the {ispn_operator}
+scale the cluster up or down.

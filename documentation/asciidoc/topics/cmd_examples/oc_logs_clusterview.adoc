@@ -1,4 +1,4 @@
-$ oc logs {example_crd_name}-0 | grep ISPN000094
+$ {oc_logs} {example_crd_name}-0 | grep ISPN000094
 
 INFO  [org.infinispan.CLUSTER] (MSC service thread 1-2) \
 ISPN000094: Received new cluster view for channel infinispan: \

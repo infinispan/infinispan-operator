@@ -1,19 +1,29 @@
 [id='spinning_up_clusters']
-= Spinning Up {brandname} Clusters
+= Creating {brandname} Clusters
 :context: create_cluster
-
-You create {brandname} clusters from custom resource definitions.
+You create, configure, and manage {brandname} clusters with the {ispn_operator}
+by defining custom resource objects in `yaml` format and applying them to
+{brandname} pods. Get started here and learn the basics for using the
+{ispn_operator}.
 
 .Prerequisites
+//Community
 ifndef::productized[]
-Either install the {ispn_operator} from link:https://www.operatorhub.io/[OperatorHub.io] or link:#deploying_operator_manually[manually deploy it].
+* Either install the {ispn_operator} from link:https://www.operatorhub.io/[OperatorHub.io] or link:#deploying_operator_manually[deploy it manually].
+* Have a `kubectl` client in your `$PATH`.
 endif::productized[]
+//Product
 ifdef::productized[]
-Install the {ispn_operator} from the OperatorHub.
+* Install the {ispn_operator} from the OperatorHub.
+* Have an `oc` client in your `$PATH`.
 endif::productized[]
 
+//Community
+ifndef::productized[]
+include::{topics}/proc_using_default_crs.adoc[leveloffset=+1]
+endif::productized[]
+include::{topics}/con_crd.adoc[leveloffset=+1]
 include::{topics}/proc_create_cluster_minimal.adoc[leveloffset=+1]
-include::{topics}/proc_create_cluster_auth.adoc[leveloffset=+1]
 include::{topics}/proc_verify_cluster.adoc[leveloffset=+1]
 
 // Restore the parent context.

@@ -1,12 +1,12 @@
 [id='verifying_clusters-{context}']
-= Verifying {brandname} Clusters
-Review log messages to verify that the {ispn_operator} has successfully created a {brandname} cluster.
+= Verifying that {brandname} Pods Receive Clustered Views
+Review log messages to verify that {brandname} pods successfully form clusters.
 
 .Procedure
 
-* Check that the {brandname} nodes have received a clustered view. Do either of the following:
+* Do either of the following:
 
-** Retrieve the cluster view from the pod log files.
+** Retrieve the cluster view from pod logs.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -17,13 +17,12 @@ include::cmd_examples/oc_logs_clusterview.adoc[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/oc_get_ispn_yaml.adoc[]
+$ {oc_get_infinispan}
 ----
 +
-The {ispn_operator} responds with the following message to indicate that the
-{brandname} nodes have received a clustered view:
+The response indicates that {brandname} pods have received clustered views:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_examples/cluster_view_message.yaml[]
+include::yaml_examples/verify_cluster_view.yaml[]
 ----
