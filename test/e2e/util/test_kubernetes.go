@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -69,7 +68,7 @@ func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 // NewTestKubernetes creates a new instance of TestKubernetes
 func NewTestKubernetes() *TestKubernetes {
 	mapperProvider := NewDynamicRESTMapper
-	kubernetes, err := util.NewKubernetesFromConfig(scheme, mapperProvider)
+	kubernetes, err := util.NewKubernetesFromLocalConfig(scheme, mapperProvider)
 	ExpectNoError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
 }
@@ -252,7 +251,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		// depending on the c8s cluster setting, service is sometime available
 		// via Ingress address sometime via node port. So trying both the methods
 		// Try node port first
-		hostAndPort = k.getNodePortAddress(route, namespace)
+		hostAndPort = fmt.Sprintf("%s:%d", k.Kubernetes.PublicIP(), k.Kubernetes.GetNodePort(route))
 		result := checkExternalAddress(client, user, password, hostAndPort)
 		if result {
 			return result, nil
@@ -308,10 +307,6 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service, namespace string) 
 
 	// Return empty address if nothing available
 	return "", fmt.Errorf("external address not found")
-}
-
-func (k TestKubernetes) getNodePortAddress(route *v1.Service, namespace string) string {
-	return k.PublicIP() + ":" + fmt.Sprint(route.Spec.Ports[0].NodePort)
 }
 
 // WaitForPods waits for pods in the given namespace, having a certain label to reach the desired count in ContainersReady state
@@ -383,13 +378,6 @@ func (k TestKubernetes) Nodes() []string {
 		s = append(s, element.Name)
 	}
 	return s
-}
-
-// PublicIP returns the public IP address of the Kubernetes cluster
-func (k TestKubernetes) PublicIP() string {
-	u, err := url.Parse(k.Kubernetes.RestConfig.Host)
-	ExpectNoError(err)
-	return u.Hostname()
 }
 
 // GetPods return an array of pods matching the selector label in the given namespace

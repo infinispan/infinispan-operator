@@ -1,0 +1,2 @@
+FROM registry.access.redhat.com/ubi8/ubi-minimal
+ADD build/_output/bin/infinispan-operator /usr/local/bin/infinispan-operator

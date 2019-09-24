@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 // Simple smoke test to check if the Kubernetes/OpenShift is alive
 func TestSimple(t *testing.T) {
 	fmt.Printf("%v\n", kubernetes.Nodes())
-	fmt.Printf("%s\n", kubernetes.PublicIP())
+	fmt.Printf("%s\n", kubernetes.Kubernetes.PublicIP())
 }
 
 var DefaultSpec = ispnv1.Infinispan{

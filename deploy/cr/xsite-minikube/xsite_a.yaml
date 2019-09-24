@@ -1,0 +1,20 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+spec:
+  image: quay.io/remerson/server
+  replicas: 2
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: SiteA
+        expose:
+          type: NodePort
+          externalIPs:
+            - 192.168.99.147
+      backups:
+      - name: SiteB
+        url: minikube://192.168.99.148:8443
+        secret: site-b-secrets
