@@ -6,13 +6,13 @@ spec:
   replicas: 2
   security:
     endpointEncryption:
-            # type=service to use the cert service provided by the platform
-            # tape=secret to use a user provided secret with certs inside
+            # Define the certificate to encrypt endpoint traffic.
+            # `type: service` uses platform certificate.
+            # `type: secret` uses custom certificates.
             type: secret
-            # certSecretName is the name of the secret containing certificates,
-            # see e.g. deploy/cr/tls/tls_secret.yaml
+            # Set the location of encryption certificates.
+            # If `type: service`, uncomment the following `certService` line:
+            #certService: service.beta.openshift.io/serving-cert-secret-name
+            # If `type: service`, also remove `certSecretName`.
+            # If `type: secret`, specify the secret with `certSecretName`.
             certSecretName: tls-secret
-            # certService is the platform service that provides the certificats
-            # If you want your certificates to be served by OpenShift
-            # uncomment the following line and change above type to service
-            # certService: service.beta.openshift.io/serving-cert-secret-name
