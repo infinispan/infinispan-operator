@@ -1,6 +1,7 @@
 package v1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,6 +32,7 @@ type InfinispanServiceContainerSpec struct {
 type InfinispanServiceSpec struct {
 	Type      string                         `json:"type"`
 	Container InfinispanServiceContainerSpec `json:"container"`
+	Sites     InfinispanSitesSpec            `json:"sites"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container
@@ -38,6 +40,22 @@ type InfinispanContainerSpec struct {
 	ExtraJvmOpts string `json:"extraJvmOpts"`
 	Memory       string `json:"memory"`
 	CPU          string `json:"cpu"`
+}
+
+type InfinispanSitesLocalSpec struct {
+	Name   string         `json:"name"`
+	Expose v1.ServiceSpec `json:"expose"`
+}
+
+type InfinispanSitesBackupSpec struct {
+	Name   string `json:"name"`
+	URL    string `json:"url"`
+	Secret string `json:"secret"`
+}
+
+type InfinispanSitesSpec struct {
+	Local   InfinispanSitesLocalSpec    `json:"local"`
+	Backups []InfinispanSitesBackupSpec `json:"backups"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan

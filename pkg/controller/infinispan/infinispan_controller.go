@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"gopkg.in/yaml.v2"
@@ -16,6 +17,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"net/url"
 	"os"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -123,25 +127,33 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		infinispan.Status.Conditions = []infinispanv1.InfinispanCondition{}
 	}
 
+	// Check x-site configuration first.
+	// Must be done before creating any Infinispan resources,
+	// because remote site host:port combinations need to be injected into Infinispan.
+	reqLogger.Info("check if cross-site is configured")
+	xsite, err := r.computeXSite(infinispan, reqLogger)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1beta1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		identities, err := r.findCredentials(infinispan)
 		if err != nil {
-			reqLogger.Error(err, "could not find create identities")
+			reqLogger.Error(err, "could not find or create identities")
 			return reconcile.Result{}, err
 		}
 
 		secret := r.secretForInfinispan(identities, infinispan)
-		reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
 		err = r.client.Create(context.TODO(), secret)
 		if err != nil {
 			reqLogger.Error(err, "could not find or create identities Secret")
 			return reconcile.Result{}, err
 		}
 
-		configMap, err := r.configMapForInfinispan(infinispan)
+		configMap, err := r.configMapForInfinispan(xsite, infinispan)
 		if err != nil {
 			reqLogger.Error(err, "could not create Infinispan configuration")
 			return reconcile.Result{}, err
@@ -336,6 +348,47 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, logger logr.Logger) (*ispnutil.XSite, error) {
+	if hasSites(infinispan) {
+		siteServiceName := getSiteServiceName(infinispan)
+		siteService, err := r.getOrCreateSiteService(siteServiceName, infinispan, logger)
+		if err != nil {
+			logger.Error(err, "could not get or create site service")
+			return nil, err
+		}
+
+		backupSites := infinispan.Spec.Service.Sites.Backups
+
+		localSiteHost := infinispan.Spec.Service.Sites.Local.Expose.ExternalIPs[0]
+		localSitePort := kubernetes.GetNodePort(siteService)
+
+		logger.Info("local site service",
+			"service name", siteServiceName,
+			"host", localSiteHost,
+			"port", localSitePort,
+		)
+
+		xsite := &ispnutil.XSite{
+			Address: localSiteHost,
+			Name:    infinispan.Spec.Service.Sites.Local.Name,
+			Port:    localSitePort,
+		}
+
+		for _, backupSite := range backupSites {
+			err := appendBackupSite(xsite, infinispan, &backupSite, logger)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		logger.Info("x-site configured", "configuration", *xsite)
+		return xsite, nil
+	}
+
+	logger.Info("no sites configured")
+	return nil, nil
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
@@ -586,11 +639,11 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.Infinispan
 	return nil
 }
 
-func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
+func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
 	name := m.ObjectMeta.Name
 	namespace := m.ObjectMeta.Namespace
 
-	config := ispnutil.CreateInfinispanConfiguration(name, namespace)
+	config := ispnutil.CreateInfinispanConfiguration(name, xsite, namespace)
 	err := setupConfigForEncryption(m, &config, r.client)
 	if err != nil {
 		return nil, err
@@ -801,6 +854,154 @@ func (r *ReconcileInfinispan) serviceExternal(internalService *corev1.Service, m
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, externalService, r.scheme)
 	return externalService
+}
+
+func isDataGrid(infinispan *infinispanv1.Infinispan) bool {
+	return strings.EqualFold("DataGrid", infinispan.Spec.Service.Type)
+}
+
+func hasSites(infinispan *infinispanv1.Infinispan) bool {
+	return isDataGrid(infinispan) && len(infinispan.Spec.Service.Sites.Backups) > 0
+}
+
+func getSiteServiceName(infinispan *infinispanv1.Infinispan) string {
+	return fmt.Sprintf("%v-site", infinispan.Name)
+}
+
+func (r *ReconcileInfinispan) getOrCreateSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
+	siteService := &corev1.Service{}
+	ns := types.NamespacedName{
+		Name:      siteServiceName,
+		Namespace: infinispan.ObjectMeta.Namespace,
+	}
+	err := r.client.Get(context.TODO(), ns, siteService)
+
+	if errors.IsNotFound(err) {
+		return r.createSiteService(siteServiceName, infinispan, logger)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return siteService, nil
+}
+
+func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
+	ls := labelsForInfinispan(infinispan.ObjectMeta.Name)
+	exposeSpec := infinispan.Spec.Service.Sites.Local.Expose
+	exposeSpec.Selector = ls
+
+	switch exposeSpec.Type {
+	case corev1.ServiceTypeNodePort:
+		exposeSpec.Ports = []corev1.ServicePort{
+			{
+				Port:     7900,
+				NodePort: 32660,
+			},
+		}
+	}
+
+	logger.Info("create exposed site service", "configuration", exposeSpec)
+
+	siteService := corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      siteServiceName,
+			Namespace: infinispan.ObjectMeta.Namespace,
+		},
+		Spec: exposeSpec,
+	}
+
+	// Set Infinispan instance as the owner and controller
+	controllerutil.SetControllerReference(infinispan, &siteService, r.scheme)
+
+	err := r.client.Create(context.TODO(), &siteService)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return nil, err
+	}
+
+	return &siteService, nil
+}
+
+func appendBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, backup *infinispanv1.InfinispanSitesBackupSpec, logger logr.Logger) error {
+	backupSiteURL, err := url.Parse(backup.URL)
+	if err != nil {
+		return err
+	}
+	switch scheme := backupSiteURL.Scheme; scheme {
+	case "minikube":
+		logger.Info("connect to backup minikube cluster", "url", backupSiteURL)
+		// Copy URL to make modify it for backup access
+		copyURL, _ := url.Parse(backupSiteURL.String())
+		copyURL.Scheme = "https"
+		restConfig, err := GetVanillaKubernetesRESTConfig(copyURL.String(), backup.Secret, infinispan, logger)
+		if err != nil {
+			return err
+		}
+
+		remoteKubernetes, err := ispnutil.NewKubernetesFromConfig(restConfig)
+		if err != nil {
+			logger.Error(err, "could not connect to master URL", "URL", copyURL.String())
+			return err
+		}
+
+		err = appendKubernetesBackupSite(xsite, infinispan, backup, remoteKubernetes, logger)
+		if err != nil {
+			return err
+		}
+		return nil
+	default:
+		return fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
+	}
+}
+
+func GetVanillaKubernetesRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
+	if err != nil {
+		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
+		return nil, err
+	}
+
+	secret, err := kubernetes.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
+	if err != nil {
+		logger.Error(err, "unable to find Secret", "secret name", secretName)
+		return nil, err
+	}
+
+	config.CAData = secret.Data["certificate-authority"]
+	config.CertData = secret.Data["client-certificate"]
+	config.KeyData = secret.Data["client-key"]
+
+	return config, nil
+}
+
+func appendKubernetesBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, backup *infinispanv1.InfinispanSitesBackupSpec, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) error {
+	siteServiceName := getSiteServiceName(infinispan)
+	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
+	siteService := &corev1.Service{}
+	err := remoteKubernetes.Client.Get(context.TODO(), namespacedName, siteService)
+	if err != nil {
+		logger.Error(err, "could not find x-site service in remote cluster", "site service name", siteServiceName)
+		return err
+	}
+
+	host := remoteKubernetes.PublicIP()
+	port := remoteKubernetes.GetNodePort(siteService)
+
+	logger.Info("remote site service",
+		"service name", siteServiceName,
+		"host", host,
+		"port", port,
+	)
+
+	backupSite := ispnutil.BackupSite{
+		Address: host,
+		Name:    backup.Name,
+		Port:    port,
+	}
+
+	xsite.Backups = append(xsite.Backups, backupSite)
+	return nil
 }
 
 // getEnvWithDefault return GetEnv(name) if exists else

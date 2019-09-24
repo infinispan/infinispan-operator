@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
+	"net/url"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -29,7 +30,7 @@ type MapperProvider func(c *rest.Config) (meta.RESTMapper, error)
 
 // NewKubernetesFromConfig creates a new Kubernetes instance from configuration.
 // The configuration is resolved locally from known locations.
-func NewKubernetesFromConfig(scheme *runtime.Scheme, mapperProvider MapperProvider) (*Kubernetes, error) {
+func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperProvider) (*Kubernetes, error) {
 	config := resolveConfig()
 	config = setConfigDefaults(config)
 	mapper, err := mapperProvider(config)
@@ -49,13 +50,6 @@ func NewKubernetesFromConfig(scheme *runtime.Scheme, mapperProvider MapperProvid
 	}, err
 }
 
-func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Options {
-	return client.Options{
-		Scheme: scheme,
-		Mapper: mapper,
-	}
-}
-
 // NewKubernetesFromController creates a new Kubernetes instance from controller runtime Manager
 func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 	config := mgr.GetConfig()
@@ -70,6 +64,25 @@ func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 		restClient: restClient,
 		RestConfig: config,
 	}
+}
+
+// NewKubernetesFromMasterURL creates a new Kubernetes from the Kubernetes master URL to connect to
+func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
+	kubeClient, err := client.New(config, client.Options{})
+	if err != nil {
+		return nil, err
+	}
+	config = setConfigDefaults(config)
+	restClient, err := rest.RESTClientFor(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	kubernetes := &Kubernetes{
+		Client:     kubeClient,
+		restClient: restClient,
+		RestConfig: config,
+	}
+	return kubernetes, nil
 }
 
 // GetSecret returns secret associated with given secret name
@@ -149,6 +162,20 @@ func resolveConfig() *rest.Config {
 	return internal
 }
 
+//func (k Kubernetes) GetPort(service *v1.Service) int32 {
+//	return service.Spec.Ports[0].Port
+//}
+
+func (k Kubernetes) GetNodePort(service *v1.Service) int32 {
+	return service.Spec.Ports[0].NodePort
+}
+
+// PublicIP returns the public IP address of the Kubernetes cluster
+func (k Kubernetes) PublicIP() string {
+	u, _ := url.Parse(k.RestConfig.Host)
+	return u.Hostname()
+}
+
 // FindKubeConfig returns local Kubernetes configuration
 func FindKubeConfig() string {
 	kubeConfig := os.Getenv("KUBECONFIG")
@@ -165,4 +192,11 @@ func setConfigDefaults(config *rest.Config) *rest.Config {
 	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 	return config
+}
+
+func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Options {
+	return client.Options{
+		Scheme: scheme,
+		Mapper: mapper,
+	}
 }
