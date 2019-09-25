@@ -83,6 +83,12 @@ operatorhub() {
 
   rm -rf ${repoDir} || echo "Operatorhub repo does not exist"
   git clone git@github.com:${GITHUB_USERNAME}/community-operators.git ${repoDir}
+  pushd ${repoDir}
+  git remote add upstream https://github.com/operator-framework/community-operators
+  git fetch upstream
+  git merge upstream/master
+  git push origin master
+  popd
   prepareBranches ${repoDir} ${OPERATORHUB_UPSTREAM_BRANCH} ${upstreamDir}
   prepareBranches ${repoDir} ${OPERATORHUB_COMMUNITY_BRANCH} ${communityDir}
 }
@@ -108,8 +114,13 @@ prepareBranches() {
   cp deploy/olm-catalog/${packageFile} ${packagePath}
 
   pushd ${repoDir}
+  git add -f ${dir}/${csvFile}/${CSV_FILE}
+  git add -f ${dir}/${packageFile}
+  git commit -m "Copy Infinispan manifests for ${RELEASE_NAME} release"
+  popd
+
+  pushd ${repoDir}
   updateCsvFile ${dir}
-  git commit -a -m "Copy Infinispan manifests for ${RELEASE_NAME} release"
   popd
 
   updatePackageFile ${packagePath}
