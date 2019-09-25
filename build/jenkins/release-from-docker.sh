@@ -26,7 +26,10 @@ validate() {
 
 build() {
 docker build -t releaser -f build/jenkins/Dockerfile .
-eval "$(ssh-agent -s)" && ssh-add "${keyfile}" && docker run --privileged=true -v ${SSH_AUTH_SOCK}:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent releaser \
+  if [ -z "${GITHUB_TOKEN}" ]; then
+     echo "WARN: Env variable GITHUB_TOKEN is null, this can lead to API limits exceeded"
+  fi
+eval "$(ssh-agent -s)" && ssh-add "${keyfile}" && docker run --privileged=true -v ${SSH_AUTH_SOCK}:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent -e GITHUB_TOKEN="${GITHUB_TOKEN}" releaser \
 	bash -c "(mkdir ~/.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts) && git config --global user.email "infinispan@infinispan.org" && git config --global user.name "Infinispan" &&  make release RELEASE_NAME=${RELEASE_NAME} SERVER_VERSION=${SERVER_VERSION} KEEP_BRANCH=true REPLACES_RELEASE_NAME=${REPLACES_RELEASE_NAME} GITHUB_USERNAME=${GITHUB_USERNAME} DRY_RUN=${DRY_RUN} NO_PR=${NO_PR}"
 }
 
