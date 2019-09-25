@@ -90,6 +90,9 @@ operatorhub() {
   git push origin master
   popd
   prepareBranches ${repoDir} ${OPERATORHUB_UPSTREAM_BRANCH} ${upstreamDir}
+  pushd ${repoDir}
+  git checkout master
+  popd
   prepareBranches ${repoDir} ${OPERATORHUB_COMMUNITY_BRANCH} ${communityDir}
 }
 
