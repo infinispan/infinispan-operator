@@ -190,7 +190,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Here where to reconcile with spec updates
+	// Here where to reconcile with spec updates that not reflect into
+	// changes to statefulset.spec.container
 
 	// If secretName for identities has changed reprocess all the
 	// identities secrets and then upgrade the cluster
@@ -230,10 +231,44 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, nil
 	}
 
+	// Here where to reconcile with spec updates that reflect into
+	// changes to statefulset.spec.container.
+
+	updateNeeded := false
 	// Ensure the deployment size is the same as the spec
 	replicas := infinispan.Spec.Replicas
 	if *found.Spec.Replicas != replicas {
 		found.Spec.Replicas = &replicas
+		updateNeeded = true
+	}
+
+	// Changes to statefulset.spec.template.spec.containers[].resources
+	res := &found.Spec.Template.Spec.Containers[0].Resources
+	env := &found.Spec.Template.Spec.Containers[0].Env
+	ispnContr := &infinispan.Spec.Container
+	quantity := resource.MustParse(ispnContr.Memory)
+	if quantity.Cmp(res.Requests["memory"]) != 0 {
+		res.Requests["memory"] = quantity
+		updateNeeded = true
+	}
+
+	quantity = resource.MustParse(ispnContr.CPU)
+	if quantity.Cmp(res.Requests["cpu"]) != 0 {
+		res.Requests["cpu"] = quantity
+		updateNeeded = true
+	}
+
+	index := 0
+	for i, value := range *env {
+		if value.Name == "JAVA_OPTIONS" {
+			index = i
+		}
+	}
+	if (*env)[index].Value != ispnContr.ExtraJvmOpts {
+		(*env)[index].Value = ispnContr.ExtraJvmOpts
+		updateNeeded = true
+	}
+	if updateNeeded {
 		err = r.client.Update(context.TODO(), found)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Deployment", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
@@ -242,7 +277,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		// Spec updated - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	}
-
 	// Update the Infinispan status with the pod status
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}

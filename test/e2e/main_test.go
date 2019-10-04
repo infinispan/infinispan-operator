@@ -15,7 +15,9 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -25,6 +27,7 @@ const Namespace = "namespace-for-testing"
 const TestTimeout = 5 * time.Minute
 const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 240 * time.Second
+const DefaultPollPeriod = 1 * time.Second
 
 var CPU = getEnvWithDefault("INFINISPAN_CPU", "0.5")
 var Memory = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
@@ -47,6 +50,37 @@ func TestMain(m *testing.M) {
 func TestSimple(t *testing.T) {
 	fmt.Printf("%v\n", kubernetes.Nodes())
 	fmt.Printf("%s\n", kubernetes.PublicIP())
+}
+
+var DefaultClusterName = "test-node-startup"
+var DefaultSpec = ispnv1.Infinispan{
+	TypeMeta: metav1.TypeMeta{
+		APIVersion: "infinispan.org/v1",
+		Kind:       "Infinispan",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name: DefaultClusterName,
+	},
+	Spec: ispnv1.InfinispanSpec{
+		Container: ispnv1.InfinispanContainerSpec{
+			CPU:    CPU,
+			Memory: Memory,
+		},
+		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+		Replicas: 1,
+	},
+}
+
+// Test if single node working correctly
+func TestNodeStartup(t *testing.T) {
+	// Create a resource without passing any config
+	// Register it
+	spec := DefaultSpec.DeepCopy()
+	name := "test-node-startup"
+	spec.ObjectMeta.Name = name
+	kubernetes.CreateInfinispan(spec, Namespace)
+	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
+	waitForPodsOrFail(name, "http", 1)
 }
 
 // Test if the cluster is working correctly
@@ -73,7 +107,7 @@ func TestClusterFormation(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(&spec, Namespace)
 	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
-	waitForPodsOrFail(name, "http")
+	waitForPodsOrFail(name, "http", 2)
 }
 
 // Test if the cluster is working correctly
@@ -108,19 +142,115 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(&spec, Namespace)
 	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
-	waitForPodsOrFail(name, "https")
+	waitForPodsOrFail(name, "https", 2)
 }
 
-func waitForPodsOrFail(name, protocol string) {
-	// Wait that 2 pods are up
-	kubernetes.WaitForPods("app=infinispan-pod", 2, SinglePodTimeout, Namespace)
+// Test if spec.container.cpu update is handled
+func TestContainerCPUUpdate(t *testing.T) {
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Container.CPU = "250m"
+	}
+	var verifier = func(ss *appsv1beta1.StatefulSet) {
+		if resource.MustParse("250m") != ss.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"] {
+			panic("CPU field not updated")
+		}
+	}
+	genericTestForContainerUpdated(modifier, verifier)
+}
+
+// Test if spec.container.memory update is handled
+func TestContainerMemoryUpdate(t *testing.T) {
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Container.Memory = "256Mi"
+	}
+	var verifier = func(ss *appsv1beta1.StatefulSet) {
+		if resource.MustParse("256Mi") != ss.Spec.Template.Spec.Containers[0].Resources.Requests["memory"] {
+			panic("Memory field not updated")
+		}
+	}
+	genericTestForContainerUpdated(modifier, verifier)
+}
+
+func TestContainerJavaOptsUpdate(t *testing.T) {
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Container.ExtraJvmOpts = "-XX:NativeMemoryTracking=summary"
+	}
+	var verifier = func(ss *appsv1beta1.StatefulSet) {
+		env := ss.Spec.Template.Spec.Containers[0].Env
+		for _, value := range env {
+			if value.Name == "JAVA_OPTIONS" {
+				if value.Value != "-XX:NativeMemoryTracking=summary" {
+					panic("JAVA_OPTIONS not updated")
+				} else {
+					return
+				}
+			}
+		}
+		panic("JAVA_OPTIONS not updated")
+	}
+	genericTestForContainerUpdated(modifier, verifier)
+}
+
+// Test if single node working correctly
+func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier func(*appsv1beta1.StatefulSet)) {
+	// Create a resource without passing any config
+	// Register it
+	spec := DefaultSpec.DeepCopy()
+	name := "test-node-startup"
+	spec.ObjectMeta.Name = name
+	kubernetes.CreateInfinispan(spec, Namespace)
+	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
+	waitForPodsOrFail(name, "http", 1)
+	// Get the latest version of the Infinispan resource
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
+
+	// Get the associate statefulset
+	ss := appsv1beta1.StatefulSet{}
+
+	// Get the current generation
+	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+	if err != nil {
+		panic(err.Error())
+	}
+	generation := *ss.Status.ObservedGeneration
+
+	// Change the Infinispan spec
+	modifier(spec)
+	kubernetes.Kubernetes.Client.Update(context.TODO(), spec)
+
+	// Wait for a new generation to appear
+	err = wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
+		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+		return *ss.Status.ObservedGeneration == generation+1, nil
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Wait that current and update revisions match
+	// this ensure that the rolling upgrade completes
+	err = wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
+		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Check that the update has been propagated
+	verifier(&ss)
+}
+
+func waitForPodsOrFail(name, protocol string, num int) {
+	// Wait that "num" pods are up
+	kubernetes.WaitForPods("app=infinispan-pod", num, SinglePodTimeout, Namespace)
 
 	pods := kubernetes.GetPods("app=infinispan-pod", Namespace)
 	podName := pods[0].Name
 
 	secretName := util.GetSecretName(name)
-	expectedClusterSize := 2
-	// Check that the cluster size is 2 querying the first pod
+	expectedClusterSize := num
+	// Check that the cluster size is num querying the first pod
 	err := wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
 		value, err := cluster.GetClusterSize(secretName, podName, Namespace, protocol)
 		if err != nil {
@@ -130,7 +260,7 @@ func waitForPodsOrFail(name, protocol string) {
 			return true, fmt.Errorf("more than expected nodes in cluster (expected=%v, actual=%v)", expectedClusterSize, value)
 		}
 
-		return (value == 2), nil
+		return (value == num), nil
 	})
 
 	testutil.ExpectNoError(err)
