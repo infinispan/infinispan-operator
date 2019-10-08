@@ -487,6 +487,11 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.Infinispan
 			c.Keystore.Alias = "server"
 		}
 	}
+	// If no service nor tls secret name are provided
+	// and the user profile is Development. Request a self signed certificate
+	if m.Spec.Profile == "Development" {
+		c.Keystore.SelfSignCert = true
+	}
 	return nil
 }
 

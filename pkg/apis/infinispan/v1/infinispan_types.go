@@ -35,6 +35,7 @@ type InfinispanSpec struct {
 	Image     string                  `json:"image"`
 	Security  InfinispanSecurity      `json:"security"`
 	Container InfinispanContainerSpec `json:"container"`
+	Profile   string                  `json:"profile"`
 }
 
 // InfinispanCondition define a condition of the cluster

@@ -111,6 +111,34 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	waitForPodsOrFail(name, "https")
 }
 
+// Test if the cluster is working correctly
+func TestClusterFormationWithTLSSelfSign(t *testing.T) {
+	// Create a resource without passing any config
+	name := "test-cluster-formation"
+	spec := ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Container: ispnv1.InfinispanContainerSpec{
+				CPU:    CPU,
+				Memory: Memory,
+			},
+			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+			Replicas: 2,
+			Profile:  "Development",
+		},
+	}
+	// Register it
+	kubernetes.CreateInfinispan(&spec, Namespace)
+	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
+	waitForPodsOrFail(name, "https")
+}
+
 func waitForPodsOrFail(name, protocol string) {
 	// Wait that 2 pods are up
 	kubernetes.WaitForPods("app=infinispan-pod", 2, SinglePodTimeout, Namespace)
