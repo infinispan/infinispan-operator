@@ -233,23 +233,29 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 [[infinispancontainerspec]]
 #### `InfinispanContainerSpec`
 
-`InfinispanContainerSpec` is a specification of each Infinispan instance managed by `InfinispanSpec`.
+`InfinispanContainerSpec` is a specification of the resource needed by the Infinispan container.
 
 [options="header,footer"]
 |=======================
 | Field | Description | Scheme | Required | Default
 
-| `name`
-| Name of role.
+| `extraJvmOpts`
+| Extra Java opts to pass to Infinispan JVM
 | string
-| true
+| false
 |
 
-| `permissions`
-| Permissions associated with this role
-| []string
-| true
-|
+| `memory`
+| Amount of memory required by the container
+| string
+| false
+| 512Mi
+
+| `cpu`
+| Cpu to be allocated to the Infinispan container
+| string
+| false
+| 0.5
 
 |=======================
 
