@@ -35,6 +35,8 @@ var Memory = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 var kubernetes = testutil.NewTestKubernetes()
 var cluster = util.NewCluster(kubernetes.Kubernetes)
 
+var DefaultClusterName = "test-node-startup"
+
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
 	kubernetes.DeleteNamespace(namespace)
@@ -52,7 +54,6 @@ func TestSimple(t *testing.T) {
 	fmt.Printf("%s\n", kubernetes.PublicIP())
 }
 
-var DefaultClusterName = "test-node-startup"
 var DefaultSpec = ispnv1.Infinispan{
 	TypeMeta: metav1.TypeMeta{
 		APIVersion: "infinispan.org/v1",
@@ -241,6 +242,69 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 	verifier(&ss)
 }
 
+// TestPermanentCache creates a permanent caches the stop/start
+// the cluster and checks that the cache is still there
+func TestPermanentCache(t *testing.T) {
+	name := "test-permament-cache"
+	usr := "developer"
+	cacheName := "test"
+	// Define function for the generic stop/start test procedure
+	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
+		pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+		testutil.ExpectNoError(err)
+		routeName := fmt.Sprintf("%s-external", name)
+		client := &http.Client{}
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)
+		createCache(cacheName, usr, pass, hostAddr, "PERMANENT", client)
+	}
+
+	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
+		pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+		testutil.ExpectNoError(err)
+		routeName := fmt.Sprintf("%s-external", name)
+		client := &http.Client{}
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)
+		key := "test"
+		value := "test-operator"
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		putViaRoute(keyURL, value, client, usr, pass)
+		actual := getViaRoute(keyURL, client, usr, pass)
+		if actual != value {
+			panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
+		}
+		deleteCache(cacheName, usr, pass, hostAddr, client)
+	}
+
+	genericTestForPersistenceVolume(name, createPermanentCache, usePermanentCache)
+}
+
+// Test if single node working correctly
+func genericTestForPersistenceVolume(clusterName string, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan)) {
+	// Create a resource without passing any config
+	// Register it
+	spec := DefaultSpec.DeepCopy()
+	spec.ObjectMeta.Name = clusterName
+	kubernetes.CreateInfinispan(spec, Namespace)
+	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
+	waitForPodsOrFail(clusterName, "http", 1)
+
+	// Do something that needs to be permanent
+	modifier(spec)
+
+	// Delete the cluster
+	kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
+
+	// Restart cluster
+	spec = DefaultSpec.DeepCopy()
+	spec.ObjectMeta.Name = clusterName
+	kubernetes.CreateInfinispan(spec, Namespace)
+
+	waitForPodsOrFail(clusterName, "http", 1)
+
+	// Do something that checks that permanent changes are there again
+	verifier(spec)
+}
+
 func waitForPodsOrFail(name, protocol string, num int) {
 	// Wait that "num" pods are up
 	kubernetes.WaitForPods("app=infinispan-pod", num, SinglePodTimeout, Namespace)
@@ -311,7 +375,7 @@ func TestExternalService(t *testing.T) {
 	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 
 	cacheName := "test"
-	createCache(cacheName, usr, pass, hostAddr, client)
+	createCache(cacheName, usr, pass, hostAddr, "", client)
 	defer deleteCache(cacheName, usr, pass, hostAddr, client)
 
 	key := "test"
@@ -408,7 +472,7 @@ func testAuthentication(name, usr, pass string) {
 
 	cacheName := "test"
 	createCacheBadCreds(cacheName, "badUser", "badPass", hostAddr, client)
-	createCache(cacheName, usr, pass, hostAddr, client)
+	createCache(cacheName, usr, pass, hostAddr, "", client)
 	defer deleteCache(cacheName, usr, pass, hostAddr, client)
 
 	key := "test"
@@ -434,10 +498,10 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected response %v", e.status)
 }
 
-func createCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
+func createCache(cacheName, usr, pass, hostAddr string, flags string, client *http.Client) {
 	httpURL := cacheURL(cacheName, hostAddr)
 	fmt.Printf("Create cache: %v\n", httpURL)
-	httpEmpty(httpURL, "POST", usr, pass, client)
+	httpEmpty(httpURL, "POST", usr, pass, flags, client)
 }
 
 func createCacheBadCreds(cacheName, usr, pass, hostAddr string, client *http.Client) {
@@ -451,17 +515,20 @@ func createCacheBadCreds(cacheName, usr, pass, hostAddr string, client *http.Cli
 			panic(err)
 		}
 	}()
-	createCache(cacheName, usr, pass, hostAddr, client)
+	createCache(cacheName, usr, pass, hostAddr, "", client)
 }
 
 func deleteCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
 	httpURL := cacheURL(cacheName, hostAddr)
 	fmt.Printf("Delete cache: %v\n", httpURL)
-	httpEmpty(httpURL, "DELETE", usr, pass, client)
+	httpEmpty(httpURL, "DELETE", usr, pass, "", client)
 }
 
-func httpEmpty(httpURL string, method string, usr string, pass string, client *http.Client) {
+func httpEmpty(httpURL string, method string, usr string, pass string, flags string, client *http.Client) {
 	req, err := http.NewRequest(method, httpURL, nil)
+	if flags != "" {
+		req.Header.Set("flags", flags)
+	}
 	testutil.ExpectNoError(err)
 
 	req.SetBasicAuth(usr, pass)

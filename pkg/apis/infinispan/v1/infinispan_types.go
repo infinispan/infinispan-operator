@@ -22,6 +22,17 @@ type EndpointEncryption struct {
 	CertSecretName string `json:"certSecretName"`
 }
 
+// InfinispanServiceContainerSpec resource requirements specific for service
+type InfinispanServiceContainerSpec struct {
+	Storage string `json:"storage"`
+}
+
+// InfinispanServiceSpec specify configuration for specific service
+type InfinispanServiceSpec struct {
+	Type      string                         `json:"type"`
+	Container InfinispanServiceContainerSpec `json:"container"`
+}
+
 // InfinispanContainerSpec specify resource requirements per container
 type InfinispanContainerSpec struct {
 	ExtraJvmOpts string `json:"extraJvmOpts"`
@@ -35,6 +46,7 @@ type InfinispanSpec struct {
 	Image     string                  `json:"image"`
 	Security  InfinispanSecurity      `json:"security"`
 	Container InfinispanContainerSpec `json:"container"`
+	Service   InfinispanServiceSpec   `json:"service"`
 }
 
 // InfinispanCondition define a condition of the cluster
