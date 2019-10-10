@@ -91,7 +91,7 @@ This document describes the types introduced by the Infinispan Operator to be co
 [[infinispanservicespec]]
 #### `InfinispanServiceSpec`
 
-`InfinispanCacheSpec` configures aspects related to the cache or datagrid service.
+`InfinispanServiceSpec` configures aspects related to the cache or datagrid service.
 
 [options="header,footer"]
 |=======================

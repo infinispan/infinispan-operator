@@ -36,6 +36,9 @@ var log = logf.Log.WithName("controller_infinispan")
 // DefaultImageName is used if a specific image name is not provided
 var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "registry.hub.docker.com/infinispan/server")
 
+// DefaultPVSize default size for persistent volume
+var DefaultPVSize = resource.MustParse("1Gi")
+
 // Kubernetes object
 var kubernetes *ispnutil.Kubernetes
 
@@ -148,7 +151,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		// Define a new deployment
-		dep := r.deploymentForInfinispan(infinispan, secret, configMap)
+		dep, err := r.deploymentForInfinispan(infinispan, secret, configMap)
+		if err != nil {
+			reqLogger.Error(err, "failed to configure new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+			return reconcile.Result{}, err
+		}
 		reqLogger.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
 		err = r.client.Create(context.TODO(), dep)
 		if err != nil {
@@ -323,7 +330,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
-func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) *appsv1beta1.StatefulSet {
+func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1beta1.StatefulSet, error) {
 	// This field specifies the flavor of the
 	// Infinispan cluster. "" is plain community edition (vanilla)
 	ls := labelsForInfinispan(m.ObjectMeta.Name)
@@ -367,7 +374,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			}
 		}
 	}
-
+	replicas := m.Spec.Replicas
 	dep := &appsv1beta1.StatefulSet{
 
 		TypeMeta: metav1.TypeMeta{
@@ -389,6 +396,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
+			Replicas: &replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      ls,
@@ -446,12 +454,40 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			},
 		},
 	}
+	pvSize := DefaultPVSize
+	if m.Spec.Service.Type == "Data Grid" && m.Spec.Service.Container.Storage != "" {
+		var pvErr error
+		pvSize, pvErr = resource.ParseQuantity(m.Spec.Service.Container.Storage)
+		if pvErr != nil {
+			return nil, pvErr
+		}
+	}
+	dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      m.ObjectMeta.Name,
+			Namespace: m.ObjectMeta.Namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				"ReadWriteOnce",
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: pvSize,
+				},
+			},
+		}}}
+	v := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
+	*v = append(*v, corev1.VolumeMount{
+		Name:      m.ObjectMeta.Name,
+		MountPath: "/opt/infinispan/server/data",
+	})
 	setupVolumesForEncryption(m, dep)
 	//	appendVolumes(m, dep)
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
-	return dep
+	return dep, nil
 }
 
 func getEncryptionSecretName(m *infinispanv1.Infinispan) string {
