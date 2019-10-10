@@ -454,7 +454,7 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.Infinispan
 	if ee.Type == "service" {
 		if strings.Contains(ee.CertService, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"
-			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
+			c.Keystore.Path = "/opt/infinispan/server/conf/keystore.p12"
 			c.Keystore.Password = "password"
 			c.Keystore.Alias = "server"
 			return nil
@@ -482,7 +482,7 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.Infinispan
 		} else {
 			// ... else suppose tls.key and tls.crt are provided
 			c.Keystore.CrtPath = "/etc/encrypt"
-			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
+			c.Keystore.Path = "/opt/infinispan/server/conf/keystore.p12"
 			c.Keystore.Password = "password"
 			c.Keystore.Alias = "server"
 		}

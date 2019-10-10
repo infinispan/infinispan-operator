@@ -13,11 +13,11 @@ type InfinispanConfiguration struct {
 
 // Keystore configuration info for connector encryption
 type Keystore struct {
-	Path         string
-	Password     string
-	Alias        string
+	Path     string `yaml:"path,omitempty"`
+	Password string `yaml:"password,omitempty"`
+	Alias    string `yaml:"alias,omitempty"`
 	CrtPath      string `yaml:"crtPath,omitempty"`
-	SelfSignCert bool   `yaml:"selfSignCert"`
+	SelfSignCert bool   `yaml:"selfSignCert,omitempty"`
 }
 
 // JGroups configures clustering layer
