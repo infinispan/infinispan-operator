@@ -3,6 +3,7 @@ package infinispan
 import (
 	"context"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
@@ -450,8 +451,8 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1beta1.Stat
 }
 
 func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
-	ee := m.Spec.Security.EndpointEncryption
-	if ee.Type == "service" {
+	switch ee := m.Spec.Security.EndpointEncryption; ee.Type {
+	case "service":
 		if strings.Contains(ee.CertService, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"
 			c.Keystore.Path = "/opt/infinispan/server/conf/keystore.p12"
@@ -459,40 +460,47 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.Infinispan
 			c.Keystore.Alias = "server"
 			return nil
 		}
-	}
-	// Fetch the tls secret if name is provided
-	tlsSecretName := getEncryptionSecretName(m)
-	if tlsSecretName != "" {
-		tlsSecret := &corev1.Secret{}
-		err := client.Get(context.TODO(), types.NamespacedName{Name: tlsSecretName, Namespace: m.Namespace}, tlsSecret)
-		if err != nil {
-			reqLogger := log.WithValues("Infinispan.Namespace", m.Namespace, "Infinispan.Name", m.Name)
-			if errors.IsNotFound(err) {
-				reqLogger.Error(err, "Secret %s for endpoint encryption not found.", tlsSecretName)
+		return goerrors.New("Error in encryption setup. Type = service but CertService = " + ee.CertService + " unknown")
+	case "secret":
+		// Fetch the tls secret if name is provided
+		tlsSecretName := getEncryptionSecretName(m)
+		if tlsSecretName != "" {
+			tlsSecret := &corev1.Secret{}
+			err := client.Get(context.TODO(), types.NamespacedName{Name: tlsSecretName, Namespace: m.Namespace}, tlsSecret)
+			if err != nil {
+				reqLogger := log.WithValues("Infinispan.Namespace", m.Namespace, "Infinispan.Name", m.Name)
+				if errors.IsNotFound(err) {
+					reqLogger.Error(err, "Secret %s for endpoint encryption not found.", tlsSecretName)
+					return err
+				}
+				reqLogger.Error(err, "Error in getting secret %s for endpoint encryption.", tlsSecretName)
 				return err
 			}
-			reqLogger.Error(err, "Error in getting secret %s for endpoint encryption.", tlsSecretName)
-			return err
+			if _, ok := tlsSecret.Data["keystore.p12"]; ok {
+				// If user provide a keystore in secret then use it ...
+				c.Keystore.Path = "/etc/encrypt/keystore.p12"
+				c.Keystore.Password = string(tlsSecret.Data["password"])
+				c.Keystore.Alias = string(tlsSecret.Data["alias"])
+			} else {
+				// ... else suppose tls.key and tls.crt are provided
+				c.Keystore.CrtPath = "/etc/encrypt"
+				c.Keystore.Path = "/opt/infinispan/server/conf/keystore.p12"
+				c.Keystore.Password = "password"
+				c.Keystore.Alias = "server"
+			}
 		}
-		if _, ok := tlsSecret.Data["keystore.p12"]; ok {
-			// If user provide a keystore in secret then use it ...
-			c.Keystore.Path = "/etc/encrypt/keystore.p12"
-			c.Keystore.Password = string(tlsSecret.Data["password"])
-			c.Keystore.Alias = string(tlsSecret.Data["alias"])
-		} else {
-			// ... else suppose tls.key and tls.crt are provided
-			c.Keystore.CrtPath = "/etc/encrypt"
-			c.Keystore.Path = "/opt/infinispan/server/conf/keystore.p12"
-			c.Keystore.Password = "password"
-			c.Keystore.Alias = "server"
+		return goerrors.New("Error in encryption setup. Type = secret but CertSecretName is empty")
+	case "selfSigned":
+		// If no service nor tls secret name are provided
+		// and the user profile is Development. Request a self signed certificate
+		if m.Spec.Profile == "Development" {
+			c.Keystore.SelfSignCert = true
+			return nil
 		}
+		return goerrors.New("Error in encryption setup. Type = selfSigned but spec.Profile != Development")
+	default:
+		return goerrors.New("Error in encryption setup. Type is not in service, secret, selfSigned")
 	}
-	// If no service nor tls secret name are provided
-	// and the user profile is Development. Request a self signed certificate
-	if m.Spec.Profile == "Development" {
-		c.Keystore.SelfSignCert = true
-	}
-	return nil
 }
 
 func (r *ReconcileInfinispan) configMapForInfinispan(m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
