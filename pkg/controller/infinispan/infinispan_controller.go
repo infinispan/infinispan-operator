@@ -246,16 +246,19 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	res := &found.Spec.Template.Spec.Containers[0].Resources
 	env := &found.Spec.Template.Spec.Containers[0].Env
 	ispnContr := &infinispan.Spec.Container
-	quantity := resource.MustParse(ispnContr.Memory)
-	if quantity.Cmp(res.Requests["memory"]) != 0 {
-		res.Requests["memory"] = quantity
-		updateNeeded = true
+	if ispnContr.Memory != "" {
+		quantity := resource.MustParse(ispnContr.Memory)
+		if quantity.Cmp(res.Requests["memory"]) != 0 {
+			res.Requests["memory"] = quantity
+			updateNeeded = true
+		}
 	}
-
-	quantity = resource.MustParse(ispnContr.CPU)
-	if quantity.Cmp(res.Requests["cpu"]) != 0 {
-		res.Requests["cpu"] = quantity
-		updateNeeded = true
+	if ispnContr.CPU != "" {
+		quantity := resource.MustParse(ispnContr.CPU)
+		if quantity.Cmp(res.Requests["cpu"]) != 0 {
+			res.Requests["cpu"] = quantity
+			updateNeeded = true
+		}
 	}
 
 	index := 0
