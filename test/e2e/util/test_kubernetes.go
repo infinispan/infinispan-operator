@@ -263,7 +263,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		// so try using cluster ip instead
 		if strings.Contains(hostAndPort, "127.0.0.1") {
 			log.Info("Running on kind (kubernetes-inside-docker), try cluster ip")
-			hostAndPort = route.Spec.ClusterIP + ":11222"
+			hostAndPort = route.Spec.ClusterIP + ":" + fmt.Sprint(route.Spec.Ports[0].NodePort)
 			result := checkExternalAddress(client, user, password, hostAndPort)
 			if result {
 				return result, nil
