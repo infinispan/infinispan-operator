@@ -241,7 +241,7 @@ func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDef
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
-func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Duration, client *http.Client, namespace string) string {
+func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Duration, client *http.Client, user, password, namespace string) string {
 	var hostAndPort string
 	err := wait.Poll(period, timeout, func() (done bool, err error) {
 		route := &v1.Service{}
@@ -253,7 +253,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		// via Ingress address sometime via node port. So trying both the methods
 		// Try node port first
 		hostAndPort = k.getNodePortAddress(route, namespace)
-		result := checkExternalAddress(client, hostAndPort)
+		result := checkExternalAddress(client, user, password, hostAndPort)
 		if result {
 			return result, nil
 		}
@@ -262,24 +262,24 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		if err != nil {
 			return false, nil
 		}
-		return checkExternalAddress(client, hostAndPort), nil
+		return false, nil
 	})
 	ExpectNoError(err)
 	return hostAndPort
 }
 
-func checkExternalAddress(client *http.Client, hostAndPort string) bool {
-	httpURL := fmt.Sprintf("http://%s/rest/default/test", hostAndPort)
+func checkExternalAddress(client *http.Client, user, password, hostAndPort string) bool {
+	httpURL := fmt.Sprintf("http://%s/rest/v2/cache-managers/DefaultCacheManager/health", hostAndPort)
 	req, err := http.NewRequest("GET", httpURL, nil)
 	ExpectNoError(err)
+	req.SetBasicAuth(user, password)
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Error(err, "Unable to complete HTTP request for external address")
 		return false
 	}
-	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnauthorized {
-		return true
-	}
-	return false
+	log.Info("Received response for external address", "response code", resp.StatusCode)
+	return resp.StatusCode == http.StatusOK
 }
 
 func (k TestKubernetes) getExternalAddress(route *v1.Service, namespace string) (string, error) {
