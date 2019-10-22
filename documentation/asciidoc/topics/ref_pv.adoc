@@ -1,0 +1,17 @@
+[id='ref_pv-{context}']
+= Persistent Volume Claims
+The {ispn_operator} creates persistent volume claims for each {brandname} pod at: +
+// Community
+ifndef::productized[]
+`/opt/infinispan/server/data`
+endif::productized[]
+// Product
+ifdef::productized[]
+`/opt/datagrid/server/data`
+endif::productized[]
+
+Persistent volume claims:
+
+* Store metadata for {brandname} such as permanent cache definitions.
+* Have a default size of `1Gi`.
+* Use the `ReadWriteOnce (RWO)` access mode.
