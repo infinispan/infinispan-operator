@@ -258,17 +258,17 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 			return result, nil
 		}
 
-		//// if node port fails and it points to 127.0.0.1,
-		//// it could be running kubernetes-inside-docker,
-		//// so try using cluster ip instead
-		//if strings.Contains(hostAndPort, "127.0.0.1") {
-		//	log.Info("Running on kind (kubernetes-inside-docker), try cluster ip")
-		//	hostAndPort = route.Spec.ClusterIP + ":" + fmt.Sprint(route.Spec.Ports[0].NodePort)
-		//	result := checkExternalAddress(client, user, password, hostAndPort)
-		//	if result {
-		//		return result, nil
-		//	}
-		//}
+		// if node port fails and it points to 127.0.0.1,
+		// it could be running kubernetes-inside-docker,
+		// so try using cluster ip instead
+		if strings.Contains(hostAndPort, "127.0.0.1") {
+			log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
+			hostAndPort = "127.0.0.1:11222"
+			result := checkExternalAddress(client, user, password, hostAndPort)
+			if result {
+				return result, nil
+			}
+		}
 
 		// then try to get ingress information
 		hostAndPort, err = k.getExternalAddress(route, namespace)
