@@ -68,9 +68,6 @@ jobs:
 #        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
 
     - stage: "Test"
-      env:
-        - 'INFINISPAN_CPU=0.25'
-        - INFINISPAN_MEMORY=384Mi
       name: "Minikube"
       before_script:
         # Download and install kubectl
