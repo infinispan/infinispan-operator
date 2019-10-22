@@ -26,16 +26,17 @@ jobs:
       script:
         - go get -u github.com/golang/dep/cmd/dep
         - make unit-test
-    - stage: "Test"
-      name: "OpenShift"
-      script:
-        - go get -u github.com/golang/dep/cmd/dep
-        - ci/start-okd-4.0.0.sh
-        - make test KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
-        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get pods --all-namespaces
-        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get events --all-namespaces
-        - docker ps -a
-        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
+#    - stage: "Test"
+#      name: "OpenShift"
+#      script:
+#        - go get -u github.com/golang/dep/cmd/dep
+#        - ci/start-okd-4.0.0.sh
+#        - make test KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig
+#        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get pods --all-namespaces
+#        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get events --all-namespaces
+#        - docker ps -a
+#        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
+
 #    - stage: "Test"
 #      env:
 #        - WATCH_NAMESPACE=namespace-for-testing
