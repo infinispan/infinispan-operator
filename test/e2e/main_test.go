@@ -245,7 +245,7 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 // TestPermanentCache creates a permanent caches the stop/start
 // the cluster and checks that the cache is still there
 func TestPermanentCache(t *testing.T) {
-	name := "test-permament-cache"
+	name := "test-permanent-cache"
 	usr := "developer"
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
@@ -254,7 +254,7 @@ func TestPermanentCache(t *testing.T) {
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
-		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 		createCache(cacheName, usr, pass, hostAddr, "PERMANENT", client)
 	}
 
@@ -263,7 +263,7 @@ func TestPermanentCache(t *testing.T) {
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
-		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 		key := "test"
 		value := "test-operator"
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
