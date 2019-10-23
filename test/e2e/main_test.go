@@ -308,7 +308,7 @@ func TestExternalService(t *testing.T) {
 
 	routeName := fmt.Sprintf("%s-external", name)
 	client := &http.Client{}
-	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)
+	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 
 	cacheName := "test"
 	createCache(cacheName, usr, pass, hostAddr, client)
@@ -404,7 +404,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 func testAuthentication(name, usr, pass string) {
 	routeName := fmt.Sprintf("%s-external", name)
 	client := &http.Client{}
-	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, Namespace)
+	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 
 	cacheName := "test"
 	createCacheBadCreds(cacheName, "badUser", "badPass", hostAddr, client)

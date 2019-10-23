@@ -725,12 +725,15 @@ func (r *ReconcileInfinispan) serviceExternal(internalService *corev1.Service, m
 			Namespace: m.ObjectMeta.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeLoadBalancer,
+			// TODO: temporarily set to NodePort to make kind work (soon it'll be configurable)
+			Type:     corev1.ServiceTypeNodePort,
 			Selector: internalService.Spec.Selector,
 			Ports: []corev1.ServicePort{
 				{
 					Port:       int32(11222),
 					TargetPort: intstr.FromInt(11222),
+					// Fix NodePort to match exported port in kind configuration
+					NodePort: int32(30222),
 				},
 			},
 		},
