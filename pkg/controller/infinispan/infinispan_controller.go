@@ -403,6 +403,15 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{{
+						Image:   "busybox",
+						Name:    "chmod-pv",
+						Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
+						VolumeMounts: []corev1.VolumeMount{{
+							Name:      m.ObjectMeta.Name,
+							MountPath: "/opt/infinispan/server/data",
+						}},
+					}},
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
