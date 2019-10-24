@@ -57,6 +57,7 @@ jobs:
         - GO111MODULE=on go get sigs.k8s.io/kind
         - kind create cluster --config kind-config.yaml
         - export KUBECONFIG="$(kind get kubeconfig-path)"
+        - export MAKE_DATADIR_WRITABLE=true
       script:
         - go get -u github.com/golang/dep/cmd/dep
         - make test

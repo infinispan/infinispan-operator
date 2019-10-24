@@ -403,15 +403,6 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
-					InitContainers: []corev1.Container{{
-						Image:   "busybox",
-						Name:    "chmod-pv",
-						Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      m.ObjectMeta.Name,
-							MountPath: "/opt/infinispan/server/data",
-						}},
-					}},
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
@@ -486,11 +477,25 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 				},
 			},
 		}}}
+
+	// Adding persistent volume mount
 	v := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
 	*v = append(*v, corev1.VolumeMount{
 		Name:      m.ObjectMeta.Name,
 		MountPath: "/opt/infinispan/server/data",
 	})
+	// Adding chmod if needed
+	if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
+		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
+			Image:   "busybox",
+			Name:    "chmod-pv",
+			Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      m.ObjectMeta.Name,
+				MountPath: "/opt/infinispan/server/data",
+			}},
+		}}
+	}
 	setupVolumesForEncryption(m, dep)
 	//	appendVolumes(m, dep)
 
