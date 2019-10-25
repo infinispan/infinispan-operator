@@ -34,7 +34,7 @@ import (
 var log = logf.Log.WithName("controller_infinispan")
 
 // DefaultImageName is used if a specific image name is not provided
-var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "registry.hub.docker.com/infinispan/server")
+var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
 
 // DefaultPVSize default size for persistent volume
 var DefaultPVSize = resource.MustParse("1Gi")

@@ -176,7 +176,7 @@ spec:
                       - name: OPERATOR_NAME
                         value: "infinispan-operator"
                       - name: DEFAULT_IMAGE
-                        value: "jboss/infinispan-server:latest"
+                        value: "infinispan/server:latest"
   customresourcedefinitions:
     owned:
       - name: infinispans.infinispan.org
