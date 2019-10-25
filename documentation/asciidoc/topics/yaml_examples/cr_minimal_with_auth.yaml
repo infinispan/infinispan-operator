@@ -5,4 +5,4 @@ metadata:
 spec:
   replicas: 2
   security:
-    endpointSecret: connect-secret
+    endpointSecretName: connect-secret

@@ -424,7 +424,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Security: ispnv1.InfinispanSecurity{EndpointSecret: "conn-secret-test"},
+			Security: ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"},
 			Container: ispnv1.InfinispanContainerSpec{
 				CPU:    CPU,
 				Memory: Memory,
@@ -456,7 +456,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	kubernetes.CreateSecret(&secret1, Namespace)
 	defer kubernetes.DeleteSecret(&secret1)
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &spec)
-	spec.Spec.Security.EndpointSecret = "conn-secret-test-1"
+	spec.Spec.Security.EndpointSecretName = "conn-secret-test-1"
 	er := kubernetes.Kubernetes.Client.Update(context.TODO(), &spec)
 	if er != nil {
 		panic(fmt.Errorf(err.Error()))

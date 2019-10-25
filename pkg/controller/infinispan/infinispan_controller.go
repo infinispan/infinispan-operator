@@ -218,7 +218,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// If secretName for identities has changed reprocess all the
 	// identities secrets and then upgrade the cluster
-	if infinispan.Spec.Security.EndpointSecret != infinispan.Status.Security.EndpointSecret {
+	if infinispan.Spec.Security.EndpointSecretName != infinispan.Status.Security.EndpointSecretName {
 		identities, err := r.findCredentials(infinispan)
 		if err != nil {
 			reqLogger.Error(err, "could not find create identities")
@@ -573,13 +573,13 @@ func getEncryptionSecretName(m *infinispanv1.Infinispan) string {
 func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) {
 	ee := m.Spec.Security.EndpointEncryption
 	if ee.Type == "service" {
-		if strings.Contains(ee.CertService, "openshift.io") {
+		if strings.Contains(ee.CertServiceName, "openshift.io") {
 			// Using platform service. Only OpenShift is integrated atm
 			secretName := getEncryptionSecretName(m)
 			if ser.ObjectMeta.Annotations == nil {
 				ser.ObjectMeta.Annotations = map[string]string{}
 			}
-			ser.ObjectMeta.Annotations[ee.CertService+"/serving-cert-secret-name"] = secretName
+			ser.ObjectMeta.Annotations[ee.CertServiceName+"/serving-cert-secret-name"] = secretName
 		}
 	}
 }
@@ -601,7 +601,7 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1beta1.Stat
 func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
 	ee := m.Spec.Security.EndpointEncryption
 	if ee.Type == "service" {
-		if strings.Contains(ee.CertService, "openshift.io") {
+		if strings.Contains(ee.CertServiceName, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"
 			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
 			c.Keystore.Password = "password"
@@ -671,7 +671,7 @@ func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *i
 }
 
 func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) ([]byte, error) {
-	secretName := m.Spec.Security.EndpointSecret
+	secretName := m.Spec.Security.EndpointSecretName
 	if secretName != "" {
 		secret, err := kubernetes.GetSecret(secretName, m.ObjectMeta.Namespace)
 		if err != nil {
