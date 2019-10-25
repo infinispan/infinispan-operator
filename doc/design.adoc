@@ -47,7 +47,7 @@ This document describes the types introduced by the Infinispan Operator to be co
 | Operator image
 | string
 | false
-| `jboss/infinispan-server:latest`
+| `infinispan/server:latest`
 
 | `replicas`
 | Number of instances for a Infinispan resource.
@@ -566,7 +566,7 @@ kind: Infinispan
 metadata:
   name: full-cache-example-infinispan
 spec:
-  image: jboss/infinispan-server:latest
+  image: infinispan/server:latest
   replicas: 4
   profile: Development
   service:
@@ -633,7 +633,7 @@ kind: Infinispan
 metadata:
   name: full-datagrid-example-infinispan
 spec:
-  image: jboss/infinispan-server:latest
+  image: infinispan/server:latest
   replicas: 6
   profile: Performance
   service:

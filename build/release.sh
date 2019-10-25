@@ -46,7 +46,7 @@ branch() {
 
 
 replace() {
-  sed -i'.backup' "s/infinispan-server:latest/infinispan-server:${SERVER_VERSION}/g" deploy/operator.yaml
+  sed -i'.backup' "s/infinispan\/server:latest/infinispan\/server:${SERVER_VERSION}/g" deploy/operator.yaml
   sed -i'.backup' "s/infinispan-operator:latest/infinispan-operator:${RELEASE_NAME}/g" deploy/operator.yaml
 
   updateCsvFile deploy/olm-catalog
@@ -142,7 +142,7 @@ updateCsvFile() {
 
   sed -i'.backup' "s/9.9.9/${RELEASE_NAME}/g" ${path}
   sed -i'.backup' "s/9.9.8/${REPLACES_RELEASE_NAME}/g" ${path}
-  sed -i'.backup' "s/infinispan-server:latest/infinispan-server:${SERVER_VERSION}/g" ${path}
+  sed -i'.backup' "s/infinispan\/server:latest/infinispan\/server:${SERVER_VERSION}/g" ${path}
   sed -i'.backup' "s/infinispan-operator:latest/infinispan-operator:${RELEASE_NAME}/g" ${path}
 
   local now="$(date +"%Y-%m-%dT%H:%M:%SZ")"
