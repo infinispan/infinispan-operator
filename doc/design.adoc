@@ -194,7 +194,7 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | false
 |
 
-| `endpointSecret`
+| `endpointSecretName`
 | Secret containing identities allowed to interact with Infinispan.
 The format of the metadata in the secret can be found <<identities,here>>.
 | string
@@ -593,7 +593,7 @@ spec:
     - name: collaborator
       permissions:
       - READ
-    endpointSecret: endpoint-identities
+    endpointSecretName: endpoint-identities
   container:
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "2000m"

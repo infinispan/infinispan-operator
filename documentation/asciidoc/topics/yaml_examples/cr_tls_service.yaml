@@ -7,5 +7,5 @@ spec:
   security:
     endpointEncryption:
             type: service
-            certService: service.beta.openshift.io
+            certServiceName: service.beta.openshift.io
             certSecretName: tls-secret

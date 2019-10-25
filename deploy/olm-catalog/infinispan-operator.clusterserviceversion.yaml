@@ -43,14 +43,13 @@ spec:
     * **High availability:** Always have access to data.
 
     ### Infinispan Operator Features
-    * HTTP endpoint at `8080`.
-    * HotRod endpoint at `11222`.
+    * Single port HTTP/HotRod endpoint at `11222`.
     * Supports custom configuration for different use cases.
 
     The default user for accessing data is `developer`.
     The Infinispan Operator generates a password for the default user and stores it in a Secret on startup.
 
-    Each Infinispan pod requests `0.5` CPUs and 512MiB of memory.
+    Each Infinispan pod requests `0.5` CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent volume.
     You can adjust resource allocation with the `.spec.container.cpu` and `.spec.container.memory` fields.
   keywords: ['infinispan', 'key value', 'database', 'datagrid', 'open source']
   version: 9.9.9
@@ -205,15 +204,11 @@ spec:
           - description: Appends JVM options to each Infinispan node.
             displayName: Extra JVM Options
             path: container.jvmOptionsAppend
-          - description: Specifies the Connector authentication method, either `Credentials` or `Keystore`.
-            displayName: Connector Authentication Type
-            path: connector.authentication.type
-          - description: Specifies the name of the Connector authentication secret.
-            displayName: Connector Authentication Secret Name
-            path: connector.authentication.secretName
-          - description: Specifies the Management authentication method, either `Credentials` or `Keystore`.
-            displayName: Management Authentication Type
-            path: management.authentication.type
-          - description: Specifies the name of the Management authentication secret.
-            displayName: Management Authentication Secret Name
-            path: management.authentication.secretName
+          - description: Name of the secrect that contains auth info
+            path: security.endpointSecretName
+          - description: Select how encrption certificates are provided [Secret,Service]
+            path: security.endpointEncryption.type
+          - description: Platform service that serves certificates (openshift.io/service-cert is supported)
+            path: security.endpointEncryption.certServiceName
+          - description: Name of the secrect that contains certificates
+            path: security.endpointEncryption.certSecretName

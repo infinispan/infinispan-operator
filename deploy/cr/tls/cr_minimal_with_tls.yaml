@@ -10,7 +10,7 @@ spec:
             # `type: service` uses platform service certificate.
             # `type: secret` uses custom certificates.
             type: secret
-            # If `type: service`, uncomment the following `certService` line:
-            # certService: service.beta.openshift.io
+            # If `type: service`, uncomment the following `certServiceName` line:
+            # certServiceName: service.beta.openshift.io
             # Name the secret that contains encryption certificates.
             certSecretName: tls-secret
