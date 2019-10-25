@@ -119,6 +119,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	if infinispan.Status.Conditions == nil {
+		infinispan.Status.Conditions = []infinispanv1.InfinispanCondition{}
+	}
+
 	// Check if the deployment already exists, if not create a new one
 	found := &appsv1beta1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
