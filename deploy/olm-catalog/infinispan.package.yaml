@@ -1,4 +1,7 @@
-packageName: infinispan
 channels:
-- name: alpha
-  currentCSV: infinispan-operator.v9.9.9
+- currentCSV: infinispan-operator.v9.9.9
+  name: dev-preview
+- currentCSV: infinispan-operator.v1.0.0
+  name: stable
+defaultChannel: stable
+packageName: infinispan
