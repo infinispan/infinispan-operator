@@ -315,6 +315,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
+	// View didn't form, requeue until view has formed
+	if currConds[0].Status == "False" {
+		return reconcile.Result{Requeue: true}, nil
+	}
+
 	// Check if pods container runs the right image
 	for _, item := range podList.Items {
 		if len(item.Spec.Containers) == 1 {
