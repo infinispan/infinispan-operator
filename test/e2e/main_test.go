@@ -568,7 +568,7 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 	if err != nil {
 		panic(err.Error())
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusNoContent {
 		throwHttpError(resp)
 	}
 }
