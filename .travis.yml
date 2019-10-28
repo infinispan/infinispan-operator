@@ -12,6 +12,9 @@ cache:
   directories:
   - $GOPATH/pkg/dep
 
+env:
+  - KIND_VERSION=v0.5.1
+
 jobs:
   include:
     - stage: "Unit Test"
@@ -54,7 +57,7 @@ jobs:
       name: "Kubernetes"
       before_script:
         - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-        - GO111MODULE=on go get sigs.k8s.io/kind
+        - curl -Lo kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64 && chmod +x kind && sudo mv kind /usr/local/bin/
         - kind create cluster --config kind-config.yaml
         - export KUBECONFIG="$(kind get kubeconfig-path)"
         - export MAKE_DATADIR_WRITABLE=true
