@@ -549,7 +549,7 @@ func getViaRoute(url string, client *http.Client, user string, pass string) stri
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		panic(httpError{resp.StatusCode})
+		throwHttpError(resp)
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -569,6 +569,11 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 		panic(err.Error())
 	}
 	if resp.StatusCode != http.StatusOK {
-		panic(httpError{resp.StatusCode})
+		throwHttpError(resp)
 	}
+}
+
+func throwHttpError(resp *http.Response) {
+	errorBytes, _ := ioutil.ReadAll(resp.Body)
+	panic(fmt.Errorf("unexpected HTTP status code (%d): %s", resp.StatusCode, string(errorBytes)))
 }
