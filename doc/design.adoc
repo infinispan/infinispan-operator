@@ -213,8 +213,42 @@ The format of the metadata in the secret can be found <<identities,here>>.
 | false
 |
 
+| `endpointEncryption`
+| Encryption configuration for client.
+| EndpointEncryption
+| false
+|
+
 |=======================
 
+[[endpointencryption]]
+#### `EndpointEncryption`
+
+`EndpointEncryption` encryption configuration for client.
+
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Default
+
+| `type`
+| Certificates provider type
+| `service`/`secret`
+| false
+|
+
+| `certServiceName`
+| Name of the certs service provider
+| string
+| false
+|
+
+| `certSecretName`
+| Name of the secret containing the certificates
+| string
+| false
+|
+
+|=======================
 
 [[infinispanrolespec]]
 #### `InfinispanRoleSpec`
