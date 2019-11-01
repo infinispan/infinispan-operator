@@ -48,9 +48,9 @@ type InfinispanSitesLocalSpec struct {
 }
 
 type InfinispanSitesBackupSpec struct {
-	Name   string `json:"name"`
-	URL    string `json:"url"`
-	Secret string `json:"secret"`
+	Name       string `json:"name"`
+	URL        string `json:"url"`
+	SecretName string `json:"secretName"`
 }
 
 type InfinispanSitesSpec struct {

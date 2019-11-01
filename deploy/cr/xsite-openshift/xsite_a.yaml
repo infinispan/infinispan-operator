@@ -14,4 +14,4 @@ spec:
       backups:
       - name: SiteB
         url: openshift://api.datagrid1031-site-b.devcluster.openshift.com:6443
-        secret: site-b-secrets
+        secretName: site-b-secrets

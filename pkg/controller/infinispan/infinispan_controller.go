@@ -1035,15 +1035,15 @@ func GetRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, backup *infini
 
 	switch scheme := backupSiteURL.Scheme; scheme {
 	case "minikube":
-		return GetMinikubeRESTConfig(copyURL.String(), backup.Secret, infinispan, logger)
+		return getMinikubeRESTConfig(copyURL.String(), backup.SecretName, infinispan, logger)
 	case "openshift":
-		return GetOpenShiftRESTConfig(copyURL.String(), backup.Secret, infinispan, logger)
+		return getOpenShiftRESTConfig(copyURL.String(), backup.SecretName, infinispan, logger)
 	default:
 		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
 	}
 }
 
-func GetMinikubeRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+func getMinikubeRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
 	logger.Info("connect to backup minikube cluster", "url", masterURL)
 
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
@@ -1065,7 +1065,7 @@ func GetMinikubeRESTConfig(masterURL string, secretName string, infinispan *infi
 	return config, nil
 }
 
-func GetOpenShiftRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+func getOpenShiftRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
 		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
