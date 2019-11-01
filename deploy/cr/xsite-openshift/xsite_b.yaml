@@ -1,0 +1,17 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+spec:
+  replicas: 1
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: SiteB
+        expose:
+          type: LoadBalancer
+      backups:
+      - name: SiteA
+        url: openshift://api.datagrid1031-site-a.devcluster.openshift.com:6443
+        secret: site-a-secrets
