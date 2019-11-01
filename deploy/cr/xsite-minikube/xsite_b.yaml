@@ -3,7 +3,6 @@ kind: Infinispan
 metadata:
   name: example-infinispan
 spec:
-  image: quay.io/remerson/server
   replicas: 2
   service:
     type: DataGrid
