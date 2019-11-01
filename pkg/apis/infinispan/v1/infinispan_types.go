@@ -58,6 +58,10 @@ type InfinispanSitesSpec struct {
 	Backups []InfinispanSitesBackupSpec `json:"backups"`
 }
 
+type InfinispanLoggingSpec struct {
+	Categories map[string]string `json:"categories"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	Replicas  int32                   `json:"replicas"`
@@ -65,6 +69,7 @@ type InfinispanSpec struct {
 	Security  InfinispanSecurity      `json:"security"`
 	Container InfinispanContainerSpec `json:"container"`
 	Service   InfinispanServiceSpec   `json:"service"`
+	Logging   InfinispanLoggingSpec   `json:"logging"`
 }
 
 // InfinispanCondition define a condition of the cluster
