@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"net"
 	"net/url"
 	"os"
 	"reflect"
@@ -359,10 +360,17 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 			return nil, err
 		}
 
-		backupSites := infinispan.Spec.Service.Sites.Backups
+		localSiteHost, localSitePort, err := getLocalSiteServiceHostPort(siteService, logger)
+		if err != nil {
+			logger.Error(err, "error retrieving local x-site service information")
+			return nil, err
+		}
 
-		localSiteHost := infinispan.Spec.Service.Sites.Local.Expose.ExternalIPs[0]
-		localSitePort := kubernetes.GetNodePort(siteService)
+		if localSiteHost == "" {
+			msg := "local x-site service host not yet available"
+			logger.Info(msg)
+			return nil, fmt.Errorf(msg)
+		}
 
 		logger.Info("local site service",
 			"service name", siteServiceName,
@@ -376,6 +384,7 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 			Port:    localSitePort,
 		}
 
+		backupSites := infinispan.Spec.Service.Sites.Backups
 		for _, backupSite := range backupSites {
 			err := appendBackupSite(xsite, infinispan, &backupSite, logger)
 			if err != nil {
@@ -389,6 +398,50 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 
 	logger.Info("no sites configured")
 	return nil, nil
+}
+
+func getLocalSiteServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
+	switch serviceType := service.Spec.Type; serviceType {
+	case corev1.ServiceTypeNodePort:
+		// If configuring NodePort, expect external IPs to be configured
+		return service.Spec.ExternalIPs[0], kubernetes.GetNodePort(service), nil
+	case corev1.ServiceTypeLoadBalancer:
+		return getLoadBalancerServiceHostPort(service, logger)
+	default:
+		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
+	}
+}
+
+func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
+	port := service.Spec.Ports[0].Port
+
+	// If configuring load balancer, look for external ingress
+	if len(service.Status.LoadBalancer.Ingress) > 0 {
+		ingress := service.Status.LoadBalancer.Ingress[0]
+		if ingress.IP != "" {
+			return ingress.IP, port, nil
+		}
+		if ingress.Hostname != "" {
+			// Resolve load balancer host
+			ip, err := lookupHost(ingress.Hostname, logger)
+
+			// Load balancer gets created asynchronously,
+			// so it might take time for the status to be updated.
+			return ip, port, err
+		}
+	}
+
+	return "", port, nil
+}
+
+func lookupHost(host string, logger logr.Logger) (string, error) {
+	addresses, err := net.LookupHost(host)
+	if err != nil {
+		logger.Error(err, "host does not resolve")
+		return "", err
+	}
+	logger.Info("host resolved", "host", host, "addresses", addresses)
+	return host, nil
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
@@ -900,6 +953,12 @@ func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinisp
 				NodePort: 32660,
 			},
 		}
+	case corev1.ServiceTypeLoadBalancer:
+		exposeSpec.Ports = []corev1.ServicePort{
+			{
+				Port: 7900,
+			},
+		}
 	}
 
 	logger.Info("create exposed site service", "configuration", exposeSpec)
@@ -908,6 +967,9 @@ func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinisp
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      siteServiceName,
 			Namespace: infinispan.ObjectMeta.Namespace,
+			Annotations: map[string]string{
+				"service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp",
+			},
 		},
 		Spec: exposeSpec,
 	}
@@ -924,38 +986,52 @@ func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinisp
 }
 
 func appendBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, backup *infinispanv1.InfinispanSitesBackupSpec, logger logr.Logger) error {
-	backupSiteURL, err := url.Parse(backup.URL)
+	restConfig, err := GetRemoteSiteRESTConfig(infinispan, backup, logger)
 	if err != nil {
 		return err
 	}
+
+	remoteKubernetes, err := ispnutil.NewKubernetesFromConfig(restConfig)
+	if err != nil {
+		logger.Error(err, "could not connect to master URL", "URL", backup.URL)
+		return err
+	}
+
+	err = appendKubernetesBackupSite(xsite, infinispan, backup, remoteKubernetes, logger)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, backup *infinispanv1.InfinispanSitesBackupSpec, logger logr.Logger) (*restclient.Config, error) {
+	backupSiteURL, err := url.Parse(backup.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	// Copy URL to make modify it for backup access
+	copyURL, err := url.Parse(backupSiteURL.String())
+	if err != nil {
+		return nil, err
+	}
+
+	// All remote sites masters are accessed via encrypted http
+	copyURL.Scheme = "https"
+
 	switch scheme := backupSiteURL.Scheme; scheme {
 	case "minikube":
-		logger.Info("connect to backup minikube cluster", "url", backupSiteURL)
-		// Copy URL to make modify it for backup access
-		copyURL, _ := url.Parse(backupSiteURL.String())
-		copyURL.Scheme = "https"
-		restConfig, err := GetVanillaKubernetesRESTConfig(copyURL.String(), backup.Secret, infinispan, logger)
-		if err != nil {
-			return err
-		}
-
-		remoteKubernetes, err := ispnutil.NewKubernetesFromConfig(restConfig)
-		if err != nil {
-			logger.Error(err, "could not connect to master URL", "URL", copyURL.String())
-			return err
-		}
-
-		err = appendKubernetesBackupSite(xsite, infinispan, backup, remoteKubernetes, logger)
-		if err != nil {
-			return err
-		}
-		return nil
+		return GetMinikubeRESTConfig(copyURL.String(), backup.Secret, infinispan, logger)
+	case "openshift":
+		return GetOpenShiftRESTConfig(copyURL.String(), backup.Secret, infinispan, logger)
 	default:
-		return fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
+		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
 	}
 }
 
-func GetVanillaKubernetesRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+func GetMinikubeRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+	logger.Info("connect to backup minikube cluster", "url", masterURL)
+
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
 		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
@@ -975,6 +1051,30 @@ func GetVanillaKubernetesRESTConfig(masterURL string, secretName string, infinis
 	return config, nil
 }
 
+func GetOpenShiftRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
+	if err != nil {
+		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
+		return nil, err
+	}
+
+	// Skip-tls for accessing other OpenShift clusters
+	config.Insecure = true
+
+	secret, err := kubernetes.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
+	if err != nil {
+		logger.Error(err, "unable to find Secret", "secret name", secretName)
+		return nil, err
+	}
+
+	if token, ok := secret.Data["token"]; ok {
+		config.BearerToken = string(token)
+		return config, nil
+	}
+
+	return nil, fmt.Errorf("token required connect to OpenShift cluster")
+}
+
 func appendKubernetesBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, backup *infinispanv1.InfinispanSitesBackupSpec, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) error {
 	siteServiceName := getSiteServiceName(infinispan)
 	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
@@ -985,8 +1085,17 @@ func appendKubernetesBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.
 		return err
 	}
 
-	host := remoteKubernetes.PublicIP()
-	port := remoteKubernetes.GetNodePort(siteService)
+	host, port, err := getRemoteSiteServiceHostPort(siteService, remoteKubernetes, logger)
+	if err != nil {
+		logger.Error(err, "error retrieving remote x-site service information")
+		return err
+	}
+
+	if host == "" {
+		msg := "remote x-site service host not yet available"
+		logger.Info(msg)
+		return fmt.Errorf(msg)
+	}
 
 	logger.Info("remote site service",
 		"service name", siteServiceName,
@@ -1002,6 +1111,18 @@ func appendKubernetesBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.
 
 	xsite.Backups = append(xsite.Backups, backupSite)
 	return nil
+}
+
+func getRemoteSiteServiceHostPort(service *corev1.Service, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
+	switch serviceType := service.Spec.Type; serviceType {
+	case corev1.ServiceTypeNodePort:
+		// If configuring NodePort, expect external IPs to be configured
+		return remoteKubernetes.PublicIP(), remoteKubernetes.GetNodePort(service), nil
+	case corev1.ServiceTypeLoadBalancer:
+		return getLoadBalancerServiceHostPort(service, logger)
+	default:
+		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
+	}
 }
 
 // getEnvWithDefault return GetEnv(name) if exists else
