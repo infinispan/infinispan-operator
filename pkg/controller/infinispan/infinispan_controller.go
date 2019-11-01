@@ -696,7 +696,8 @@ func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *i
 	name := m.ObjectMeta.Name
 	namespace := m.ObjectMeta.Namespace
 
-	config := ispnutil.CreateInfinispanConfiguration(name, xsite, namespace)
+	loggingCategories := copyLoggingCategories(m)
+	config := ispnutil.CreateInfinispanConfiguration(name, xsite, loggingCategories, namespace)
 	err := setupConfigForEncryption(m, &config, r.client)
 	if err != nil {
 		return nil, err
@@ -721,6 +722,19 @@ func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *i
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, configMap, r.scheme)
 	return configMap, nil
+}
+
+func copyLoggingCategories(infinispan *infinispanv1.Infinispan) map[string]string {
+	categories := infinispan.Spec.Logging.Categories
+	if categories != nil {
+		copied := make(map[string]string, len(categories))
+		for category, level := range categories {
+			copied[category] = level
+		}
+		return copied
+	}
+
+	return make(map[string]string)
 }
 
 func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) ([]byte, error) {
