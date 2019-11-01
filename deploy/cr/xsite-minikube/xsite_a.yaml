@@ -16,4 +16,4 @@ spec:
       backups:
       - name: SiteB
         url: minikube://192.168.99.148:8443
-        secret: site-b-secrets
+        secretName: site-b-secrets
