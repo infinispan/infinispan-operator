@@ -285,6 +285,7 @@ func (in *InfinispanSpec) DeepCopyInto(out *InfinispanSpec) {
 	out.Container = in.Container
 	in.Service.DeepCopyInto(&out.Service)
 	in.Logging.DeepCopyInto(&out.Logging)
+	in.Expose.DeepCopyInto(&out.Expose)
 	return
 }
 

@@ -70,6 +70,7 @@ type InfinispanSpec struct {
 	Container InfinispanContainerSpec `json:"container"`
 	Service   InfinispanServiceSpec   `json:"service"`
 	Logging   InfinispanLoggingSpec   `json:"logging"`
+	Expose    v1.ServiceSpec          `json:"expose"`
 }
 
 // InfinispanCondition define a condition of the cluster

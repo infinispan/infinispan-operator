@@ -195,11 +195,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		externalService := r.serviceExternal(ser, infinispan)
-		err = r.client.Create(context.TODO(), externalService)
-		if err != nil && !errors.IsAlreadyExists(err) {
-			reqLogger.Error(err, "failed to create external Service", "Service", ser)
-			return reconcile.Result{}, err
+		if isExposed(infinispan) {
+			externalService := r.serviceExternal(infinispan)
+			err = r.client.Create(context.TODO(), externalService)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				reqLogger.Error(err, "failed to create external Service", "Service", ser)
+				return reconcile.Result{}, err
+			}
 		}
 
 		// Deployment created successfully - return and requeue
@@ -890,10 +892,13 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 }
 
 // ServiceExternal creates an external service that's linked to the internal service
-func (r *ReconcileInfinispan) serviceExternal(internalService *corev1.Service, m *infinispanv1.Infinispan) *corev1.Service {
+func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev1.Service {
+	ls := labelsForInfinispan(m.ObjectMeta.Name)
+	externalServiceType := m.Spec.Expose.Type
+
 	// An external service can be simply achieved with a LoadBalancer
 	// that has same selectors as original service.
-	externalServiceName := fmt.Sprintf("%s-external", internalService.Name)
+	externalServiceName := fmt.Sprintf("%s-external", m.ObjectMeta.Name)
 	externalService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -904,9 +909,8 @@ func (r *ReconcileInfinispan) serviceExternal(internalService *corev1.Service, m
 			Namespace: m.ObjectMeta.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			// TODO: temporarily set to NodePort to make kind work (soon it'll be configurable)
-			Type:     corev1.ServiceTypeNodePort,
-			Selector: internalService.Spec.Selector,
+			Type:     externalServiceType,
+			Selector: ls,
 			Ports: []corev1.ServicePort{
 				{
 					Port:       int32(11222),
@@ -929,6 +933,10 @@ func isDataGrid(infinispan *infinispanv1.Infinispan) bool {
 
 func hasSites(infinispan *infinispanv1.Infinispan) bool {
 	return isDataGrid(infinispan) && len(infinispan.Spec.Service.Sites.Backups) > 0
+}
+
+func isExposed(infinispan *infinispanv1.Infinispan) bool {
+	return infinispan.Spec.Expose.Type != ""
 }
 
 func getSiteServiceName(infinispan *infinispanv1.Infinispan) string {
