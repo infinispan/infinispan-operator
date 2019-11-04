@@ -284,6 +284,7 @@ func genericTestForPersistenceVolume(clusterName string, modifier func(*ispnv1.I
 	// Register it
 	spec := DefaultSpec.DeepCopy()
 	spec.ObjectMeta.Name = clusterName
+	spec.Spec.Expose = exposeServiceSpec()
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
 	waitForPodsOrFail(clusterName, "http", 1)
@@ -297,6 +298,7 @@ func genericTestForPersistenceVolume(clusterName string, modifier func(*ispnv1.I
 	// Restart cluster
 	spec = DefaultSpec.DeepCopy()
 	spec.ObjectMeta.Name = clusterName
+	spec.Spec.Expose = exposeServiceSpec()
 	kubernetes.CreateInfinispan(spec, Namespace)
 
 	waitForPodsOrFail(clusterName, "http", 1)
@@ -358,6 +360,7 @@ func TestExternalService(t *testing.T) {
 			},
 			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
 			Replicas: 1,
+			Expose:   exposeServiceSpec(),
 		},
 	}
 
@@ -386,6 +389,28 @@ func TestExternalService(t *testing.T) {
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
+	}
+}
+
+func exposeServiceSpec() corev1.ServiceSpec {
+	return corev1.ServiceSpec{
+		Type: exposeServiceType(),
+	}
+}
+
+func exposeServiceType() corev1.ServiceType {
+	exposeServiceType := getEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	switch exposeServiceType {
+	case "ClusterIP":
+		return corev1.ServiceTypeClusterIP
+	case "NodePort":
+		return corev1.ServiceTypeNodePort
+	case "LoadBalancer":
+		return corev1.ServiceTypeLoadBalancer
+	case "ExternalName":
+		return corev1.ServiceTypeExternalName
+	default:
+		panic(fmt.Errorf("unknown service type %s", exposeServiceType))
 	}
 }
 
@@ -431,6 +456,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			},
 			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
 			Replicas: 1,
+			Expose:   exposeServiceSpec(),
 		},
 	}
 	kubernetes.CreateInfinispan(&spec, Namespace)

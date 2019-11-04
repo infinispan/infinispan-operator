@@ -85,6 +85,18 @@ This document describes the types introduced by the Infinispan Operator to be co
 | false
 |
 
+| `expose`
+| Expose Infinispan for external access over port 11222.
+At the very least,
+the user must indicate via `type` attribute how the
+https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#service-v1-core[Service]
+is exposed.
+`NodePort` is often used while testing locally,
+while `LoadBalancer` is used in production-like environments where an external load-balancer is available.
+| https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#servicespec-v1-core[core/v1/ServiceSpec]
+| false
+| Infinispan not exposed externally.
+
 |=======================
 
 
@@ -604,6 +616,8 @@ spec:
     categories:
       org.infinispan: trace
       org.jgroups: trace
+  expose:
+    type: LoadBalancer
 ----
 
 .endpoint-identities.yaml
@@ -664,9 +678,6 @@ spec:
       - name: aws
         url: openshift://api.aws.host:6443
         secretName: aws-identities
-      - name: minikube
-        url: minikube://192.168.99.148:8443
-        secretName: minikube-identities
   container:
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "1000m"
@@ -675,6 +686,8 @@ spec:
     categories:
       org.infinispan: debug
       org.jgroups: debug
+  expose:
+    type: LoadBalancer
 ----
 
 .azure-identities.yaml
@@ -701,13 +714,44 @@ stringData:
   token: LdqA1uM0e3wxhwOf0WRaP7Je3RdOjtrpai1jONQg7z0
 ----
 
-.minikube-identities.yaml
+## Minikube Example
+
+Example highlighting settings that are commonly set in Minikube environments.
+
+.minikube-example.yaml
+[source,yaml]
+----
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: minikube-example-infinispan
+spec:
+  replicas: 2
+  profile: Development
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: SiteA
+        expose:
+          type: NodePort
+          externalIPs:
+            - 192.168.99.147
+      backups:
+      - name: SiteB
+        url: minikube://192.168.99.148:8443
+        secretName: site-b-secrets
+  expose:
+    type: NodePort
+----
+
+.site-b-secrets.yaml
 [source,yaml]
 ----
 apiVersion: v1
 kind: Secret
 metadata:
-  name: minikube-identities
+  name: site-b-secrets
 type: Opaque
 data:
   certificate-authority: <...>
