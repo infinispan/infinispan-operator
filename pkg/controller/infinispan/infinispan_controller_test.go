@@ -50,6 +50,10 @@ func (m mockCluster) GetClusterMembers(_, podName, _, _ string) ([]string, error
 	return nil, errors.New("error in getting view")
 }
 
+func (m mockCluster) GracefulShutdown(secretName, podName, namespace, protocol string) error {
+	return nil
+}
+
 // TestGetInfinispanConditions test for getInfinispanConditions func
 func TestGetInfinispanConditions(t *testing.T) {
 	var m mockCluster

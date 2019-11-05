@@ -147,6 +147,50 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 	ExpectNoError(err)
 }
 
+// GracefulShutdownInfinispan deletes the infinispan resource
+// and waits that all the pods are gone
+func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
+	ns := types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}
+	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
+	ExpectNoError(err)
+	infinispan.Spec.Replicas = 0
+	err = k.Kubernetes.Client.Update(context.TODO(), infinispan)
+	ExpectNoError(err)
+
+	err = wait.Poll(period, timeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
+		c := infinispan.GetCondition("gracefulShutdown")
+		if err != nil || c == nil || *c != "True" {
+			return false, nil
+		}
+		return true, nil
+	})
+
+	ExpectNoError(err)
+}
+
+// GracefulRestartInfinispan restarts the infinispan resource
+// and waits that cluster is wellformed
+func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan, replicas int32, timeout time.Duration) {
+	ns := types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}
+	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
+	ExpectNoError(err)
+	infinispan.Spec.Replicas = replicas
+	err = k.Kubernetes.Client.Update(context.TODO(), infinispan)
+	ExpectNoError(err)
+
+	err = wait.Poll(period, timeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
+		c := infinispan.GetCondition("wellFormed")
+		if err != nil || c == nil || *c != "True" {
+			return false, nil
+		}
+		return true, nil
+	})
+
+	ExpectNoError(err)
+}
+
 // CreateOrUpdateRole creates or updates a Role in the given namespace
 func (k TestKubernetes) CreateOrUpdateRole(role *rbacv1.Role, namespace string) {
 	ns := types.NamespacedName{Name: role.ObjectMeta.Name, Namespace: namespace}
