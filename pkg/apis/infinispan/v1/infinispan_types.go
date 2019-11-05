@@ -103,9 +103,10 @@ type InfinispanCondition struct {
 // InfinispanStatus defines the observed state of Infinispan
 type InfinispanStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	Conditions      []InfinispanCondition `json:"conditions"`
-	StatefulSetName string                `json:"statefulSetName"`
-	Security        InfinispanSecurity    `json:"security"`
+	Conditions              []InfinispanCondition `json:"conditions"`
+	StatefulSetName         string                `json:"statefulSetName"`
+	Security                InfinispanSecurity    `json:"security"`
+	ReplicasWantedAtRestart int32                 `json:"replicasWantedAtRestart,omitempty"`
 }
 
 // +genclient

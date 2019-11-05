@@ -78,3 +78,4 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 func GetSecretName(name string) string {
 	return fmt.Sprintf("%v-generated-secret", name)
 }
+

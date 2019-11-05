@@ -23,6 +23,7 @@ func NewCluster(kubernetes *Kubernetes) *Cluster {
 // ClusterInterface represents the interface of a Cluster instance
 type ClusterInterface interface {
 	GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error)
+	GracefulShutdown(secretName, podName, namespace, protocol string) error
 }
 
 // GetPassword returns password associated with a user in a given secret
@@ -49,6 +50,30 @@ func (c Cluster) GetClusterSize(secretName, podName, namespace, protocol string)
 	}
 
 	return len(members), nil
+}
+
+// GracefulShutdown performs clean cluster shutdown
+func (c Cluster) GracefulShutdown(secretName, podName, namespace, protocol string) error {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return err
+	}
+	pass, err := c.GetPassword("operator", secretName, namespace)
+	if err != nil {
+		return err
+	}
+	httpURL := fmt.Sprintf(protocol+"://%v:11222/rest/v2/cluster?action=stop", podIP)
+	commands := []string{"curl", "-X", "GET", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
+
+	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
+	logger.Info("get cluster members", "url", httpURL)
+
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	_, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
 }
 
 // ClusterHealth represents the health of the cluster

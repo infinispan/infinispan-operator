@@ -72,6 +72,7 @@ var DefaultSpec = ispnv1.Infinispan{
 		},
 		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
 		Replicas: 1,
+		Expose:   exposeServiceSpec(),
 	},
 }
 
@@ -293,7 +294,6 @@ func genericTestForPersistenceVolume(clusterName string, modifier func(*ispnv1.I
 	// Register it
 	spec := DefaultSpec.DeepCopy()
 	spec.ObjectMeta.Name = clusterName
-	spec.Spec.Expose = exposeServiceSpec()
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
 	waitForPodsOrFail(clusterName, "http", 1)
@@ -307,10 +307,67 @@ func genericTestForPersistenceVolume(clusterName string, modifier func(*ispnv1.I
 	// Restart cluster
 	spec = DefaultSpec.DeepCopy()
 	spec.ObjectMeta.Name = clusterName
-	spec.Spec.Expose = exposeServiceSpec()
 	kubernetes.CreateInfinispan(spec, Namespace)
 
 	waitForPodsOrFail(clusterName, "http", 1)
+
+	// Do something that checks that permanent changes are there again
+	verifier(spec)
+}
+
+func TestCheckDataSurviveToShutdown(t *testing.T) {
+	name := "test-data-shutdown-cache"
+	usr := "developer"
+	cacheName := "test"
+	template := `<infinispan><cache-container><distributed-cache name ="` + cacheName +
+		`"><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan>`
+	key := "test"
+	value := "test-operator"
+
+	// Define function for the generic stop/start test procedure
+	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
+		pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+		testutil.ExpectNoError(err)
+		routeName := fmt.Sprintf("%s-external", name)
+		client := &http.Client{}
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
+		createCacheWithXMLTemplate(cacheName, usr, pass, hostAddr, template, client)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		putViaRoute(keyURL, value, client, usr, pass)
+	}
+
+	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
+		pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+		testutil.ExpectNoError(err)
+		routeName := fmt.Sprintf("%s-external", name)
+		client := &http.Client{}
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		actual := getViaRoute(keyURL, client, usr, pass)
+		if actual != value {
+			panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
+		}
+		deleteCache(cacheName, usr, pass, hostAddr, client)
+	}
+
+	genericTestForGracefulShutdown(name, createPermanentCache, usePermanentCache)
+}
+
+func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan)) {
+	// Create a resource without passing any config
+	// Register it
+	spec := DefaultSpec.DeepCopy()
+	spec.ObjectMeta.Name = clusterName
+	kubernetes.CreateInfinispan(spec, Namespace)
+	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
+	waitForPodsOrFail(clusterName, "http", 1)
+
+	// Do something that needs to be permanent
+	modifier(spec)
+
+	// Delete the cluster
+	kubernetes.GracefulShutdownInfinispan(spec, SinglePodTimeout)
+	kubernetes.GracefulRestartInfinispan(spec, 1, SinglePodTimeout)
 
 	// Do something that checks that permanent changes are there again
 	verifier(spec)
@@ -557,6 +614,24 @@ func createCacheBadCreds(cacheName, usr, pass, hostAddr string, client *http.Cli
 		}
 	}()
 	createCache(cacheName, usr, pass, hostAddr, "", client)
+}
+
+func createCacheWithXMLTemplate(cacheName, user, pass, hostAddr, template string, client *http.Client) {
+	httpURL := cacheURL(cacheName, hostAddr)
+	fmt.Printf("Create cache: %v\n", httpURL)
+	body := bytes.NewBuffer([]byte(template))
+	req, err := http.NewRequest("POST", httpURL, body)
+	req.Header.Set("Content-Type", "application/xml;charset=UTF-8")
+	req.SetBasicAuth(user, pass)
+	fmt.Printf("Put request via route: %v\n", req)
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err.Error())
+	}
+	// Accept all the 2xx success codes
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		throwHttpError(resp)
+	}
 }
 
 func deleteCache(cacheName, usr, pass, hostAddr string, client *http.Client) {

@@ -22,7 +22,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -211,7 +210,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 		// Deployment created successfully - return and requeue
 
-		// Update Status.Security to match
+		// Update Status.Security to match Infinispan spec
 		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
 		err = r.client.Status().Update(context.TODO(), infinispan)
 
@@ -221,8 +220,97 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Here where to reconcile with spec updates that not reflect into
-	// changes to statefulset.spec.container
+	// List the pods for this infinispan's deployment
+	podList := &corev1.PodList{}
+	labelSelector := labels.SelectorFromSet(labelsForInfinispanSelector(infinispan.Name))
+	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
+	err = r.client.List(context.TODO(), listOps, podList)
+	if err != nil {
+		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
+		return reconcile.Result{}, err
+	}
+
+	protocol := infinispanProtocol(infinispan)
+	// If user set Spec.replicas=0 we need to perform a graceful shutdown
+	// to preserve the data
+	if infinispan.Spec.Replicas == 0 {
+		updateStatus := false
+		if *found.Spec.Replicas != 0 {
+			// If here some pods are still ready
+			// Disable restart policy if needed
+			for _, pod := range podList.Items {
+				if pod.Spec.RestartPolicy != corev1.RestartPolicyNever {
+					runtimePod := &corev1.Pod{}
+					r.client.Get(context.TODO(), types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, runtimePod)
+					runtimePod.Spec.RestartPolicy = corev1.RestartPolicyNever
+					r.client.Update(context.TODO(), runtimePod)
+				}
+			}
+			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
+			if cond := infinispan.GetCondition("stopping"); cond == nil || *cond != "True" {
+				// send a graceful shutdown to the first ready pod
+				// if there's no ready pod we're in trouble
+				for _, pod := range podList.Items {
+					if pod.Status.ContainerStatuses[0].Ready {
+						err = cluster.GracefulShutdown(ispnutil.GetSecretName(infinispan.Name), pod.GetName(), pod.GetNamespace(), protocol)
+						if err != nil {
+							reqLogger.Error(err, "failed to exec shutdown command on pod", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
+							return reconcile.Result{}, err
+						}
+						reqLogger.Info("Executed graceful shutdown on pod: ", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+						infinispan.SetCondition("stopping", "True", "")
+						r.client.Status().Update(context.TODO(), infinispan)
+						// Stop the work and requeue until cluster is down
+						return reconcile.Result{Requeue: true}, nil
+					}
+				}
+			} else {
+				// cluster has a `stopping` wait for all the pods becomes unready
+				reqLogger.Info("Waiting that all the pods become unready")
+				for _, pod := range podList.Items {
+					if pod.Status.ContainerStatuses[0].Ready {
+						reqLogger.Info("One or more pods still ready", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+						// Stop the work and requeue until cluster is down
+						return reconcile.Result{Requeue: true}, nil
+					}
+				}
+			}
+
+			// If here all the pods are unready, save somewhere the number of pods needed for a clean restart
+			// then set statefulset replicas and infinispan.replicas to 0
+			r.client.Get(context.TODO(), types.NamespacedName{Namespace: found.Namespace, Name: found.Name}, found)
+			r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
+			if *found.Spec.Replicas != 0 {
+				infinispan.Status.ReplicasWantedAtRestart = *found.Spec.Replicas
+				updateStatus = true
+				zeroReplicas := int32(0)
+				found.Spec.Replicas = &zeroReplicas
+				r.client.Update(context.TODO(), found)
+			}
+		}
+		if found.Status.CurrentReplicas == 0 {
+			updateStatus = updateStatus || infinispan.SetCondition("gracefulShutdown", "True", "")
+			updateStatus = updateStatus || infinispan.SetCondition("stopping", "False", "")
+		}
+		if updateStatus {
+			r.client.Status().Update(context.TODO(), infinispan)
+		}
+		return reconcile.Result{}, nil
+	}
+	isGracefulShutdown := infinispan.GetCondition("gracefulShutdown")
+	if infinispan.Spec.Replicas != 0 && isGracefulShutdown != nil && *isGracefulShutdown == "True" {
+		// If here we're resuming from graceful shutdown
+		r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
+		if infinispan.Spec.Replicas != infinispan.Status.ReplicasWantedAtRestart {
+			return reconcile.Result{Requeue: true}, fmt.Errorf("Spec.Replicas must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", infinispan.Status.ReplicasWantedAtRestart)
+		}
+		infinispan.Spec.Replicas = infinispan.Status.ReplicasWantedAtRestart
+		r.client.Update(context.TODO(), infinispan)
+		infinispan.Status.ReplicasWantedAtRestart = 0
+		infinispan.SetCondition("gracefulShutdown", "False", "")
+		r.client.Status().Update(context.TODO(), infinispan)
+		return reconcile.Result{Requeue: true}, nil
+	}
 
 	// If secretName for identities has changed reprocess all the
 	// identities secrets and then upgrade the cluster
@@ -291,11 +379,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 	if ispnContr.CPU != "" {
 		quantity := resource.MustParse(ispnContr.CPU)
-		previousCpu := res.Requests["cpu"]
-		if quantity.Cmp(previousCpu) != 0 {
+		previousCPU := res.Requests["cpu"]
+		if quantity.Cmp(previousCPU) != 0 {
 			res.Requests["cpu"] = quantity
 			res.Limits["cpu"] = quantity
-			reqLogger.Info("cpu changed, update infinispan", "cpu", quantity, "previous cpu", previousCpu)
+			reqLogger.Info("cpu changed, update infinispan", "cpu", quantity, "previous cpu", previousCPU)
 			updateNeeded = true
 		}
 	}
@@ -323,28 +411,26 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{Requeue: true}, nil
 	}
 	// Update the Infinispan status with the pod status
-	// List the pods for this infinispan's deployment
-	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(labelsForInfinispanSelector(infinispan.Name))
-	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
-	err = r.client.List(context.TODO(), listOps, podList)
-	if err != nil {
-		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
-		return reconcile.Result{}, err
-	}
-
 	// Wait until all pods have ips assigned
 	// Without those ips, it's not possible to execute next calls
 	if !arePodIPsReady(podList) {
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	protocol := infinispanProtocol(infinispan)
+	// Inspect the system and get the current Infinispan conditions
 	currConds := getInfinispanConditions(podList.Items, infinispan.Name, protocol, cluster)
+
+	// Before updating reload the resource to avoid problems with status update
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, infinispan)
+	if err != nil {
+		reqLogger.Error(err, "failed to reload Infinispan status")
+		return reconcile.Result{}, err
+	}
+
+	// Update the Infinispan status with the pod status
+	changed := infinispan.SetConditions(currConds)
 	infinispan.Status.StatefulSetName = found.ObjectMeta.Name
-	// Update status.Nodes if needed
-	if !reflect.DeepEqual(currConds, infinispan.Status.Conditions) {
-		infinispan.Status.Conditions = currConds
+	if changed {
 		err := r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan status")
@@ -355,13 +441,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// View didn't form, requeue until view has formed
 	if notClusterFormed(currConds, podList.Items, infinispan.Spec.Replicas) {
 		return reconcile.Result{Requeue: true}, nil
-	} else {
-		if isCache(infinispan) && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger) {
-			err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
-			if err != nil {
-				reqLogger.Error(err, "failed to create default cache for cache service")
-				return reconcile.Result{}, err
-			}
+	}
+	if isCache(infinispan) && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger) {
+		err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
+		if err != nil {
+			reqLogger.Error(err, "failed to create default cache for cache service")
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -453,7 +538,7 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
 		"max memory bound", maxUnboundedMemory,
 	)
 
-	defaultCacheXml := `<infinispan><cache-container>
+	defaultCacheXML := `<infinispan><cache-container>
         <distributed-cache name="default" mode="SYNC" owners="1">
             <memory>
                 <off-heap 
@@ -468,7 +553,7 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
 
 	secretName := ispnutil.GetSecretName(infinispan.Name)
 	protocol := infinispanProtocol(infinispan)
-	return cluster.CreateCache("default", defaultCacheXml, secretName, podName, namespace, protocol)
+	return cluster.CreateCache("default", defaultCacheXML, secretName, podName, namespace, protocol)
 }
 
 func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, logger logr.Logger) (*ispnutil.XSite, error) {
