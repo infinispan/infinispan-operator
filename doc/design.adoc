@@ -231,21 +231,23 @@ The format of the metadata in the secret can be found <<identities,here>>.
 | Field | Description | Scheme | Required | Default
 
 | `type`
-| Certificates provider type
+| Certificates provider type: `service` if the user wants to use a platform serving
+certificates service. `secret` if the user provides a secret with certs inside
 | `service`/`secret`
-| false
+| true
 |
 
 | `certServiceName`
-| Name of the certs service provider
+| Name of the serving certificates service. Only `service.beta.infinispan.io` is
+currently supported
 | string
 | false
 |
 
 | `certSecretName`
-| Name of the secret containing the certificates
+| Name of the secret containing the certificates (both for service and secret type)
 | string
-| false
+| true
 |
 
 |=======================
@@ -487,8 +489,7 @@ TODO: @Vittorio, update with your proposal
 |=======================
 
 
-[[
-ies]]
+[[identies]]
 #### `Identities`
 
 `Identities` defines the identities configuration that's stored within a Secret.
@@ -642,6 +643,9 @@ spec:
       permissions:
       - READ
     endpointSecretName: endpoint-identities
+    endpointEncryption:
+        type: secret
+        certSecretName: tls-secret
   container:
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "2000m"
@@ -681,6 +685,23 @@ stringData:
       introspectionUrl: "http://..."
 ----
 
+.tls-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+type: Opaque
+stringData:
+  #alias and password for the provided keystore
+    alias: server
+    password: password
+data:
+  #Infinispan will use keystore.p12 if provided, otherwise
+  #will use tls.key, tls.crt
+    keystore.p12:  "Add here a base64 encoded PKCS12"
+    tls.key:  "Add here a base64 TLS key"
+    tls.crt: "Add here a base64 TLS cert"
+----
 
 ## Full DataGrid Example
 
@@ -712,6 +733,12 @@ spec:
       - name: aws
         url: openshift://api.aws.host:6443
         secretName: aws-identities
+  security:
+    endpointSecretName: endpoint-identities
+    endpointEncryption:
+      type: service
+      certServiceName: service.beta.openshift.io
+      certSecretName: served-tls-secret
   container:
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "1000m"
