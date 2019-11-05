@@ -1,0 +1,46 @@
+[id='ref_xsite_crd-{context}']
+= Cross-Site Replication Resources
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/cr_backup_site.yaml[]
+----
+
+<1> specifies the DataGrid service. {brandname} supports cross-site replication with the DataGrid service only.
+<2> names the site where the {brandname} cluster runs, the local site.
+//Community
+ifndef::productized[]
+<3> defines the externally exposed service.
+* Use `NodePort` for local clusters on the same network. For example, if you use Minikube for testing purposes.
+* Use `LoadBalancer` for independent {openshiftshort} clusters.
+endif::productized[]
+//Product
+ifdef::productized[]
+<3> specifies `LoadBalancer` as the service that exposes the {openshiftshort} cluster to externally network traffic.
+endif::productized[]
+<4> names the site to which the {brandname} cluster replicates data, the backup site.
+//Community
+ifndef::productized[]
+<5> specifies the URL to access the backup site.
+//* Use `xsite://` if the backup site has a static hostname and port.
+* Use `minikube://` if the backup site is a Minikube instance.
+* Use `openshift://` if the backup site is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API for the backup site.
+endif::productized[]
+//Product
+ifdef::productized[]
+<5> specifies the URL of the Kubernetes API for the backup site.
+endif::productized[]
+//Community
+ifndef::productized[]
+<6> specifies the secret to access backup sites.
++
+[NOTE]
+====
+This secret contains different authentication objects, depending on your
+Kubernetes environment.
+====
+endif::productized[]
+//Product
+ifdef::productized[]
+<6> specifies the secret that contains the service account token for the backup site.
+endif::productized[]

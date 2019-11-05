@@ -26,3 +26,13 @@ The response indicates that {brandname} pods have received clustered views:
 ----
 include::yaml_examples/verify_cluster_view.yaml[]
 ----
+
+[TIP]
+====
+Use `{oc_wait}` with the `wellFormed` condition for automated scripts.
+
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_well_formed}
+----
+====

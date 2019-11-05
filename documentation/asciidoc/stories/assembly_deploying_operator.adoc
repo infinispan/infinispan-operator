@@ -3,7 +3,7 @@
 :context: deploying_manual
 
 You can manually deploy the {ispn_operator} as an alternative to installing it
-from link:https://www.operatorhub.io/[OperatorHub.io].
+from link:{link_operator_hub}.
 
 .Prerequisites
 include::{topics}/ref_cluster_admin.adoc[]

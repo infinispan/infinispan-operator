@@ -11,6 +11,5 @@ provide early access to upcoming product features, enabling customers to test
 functionality and provide feedback during the development process.
 
 For more information see
-link:https://access.redhat.com/support/offerings/techpreview/[Red Hat
-Technology Preview Features Support Scope].
+link:{link_tech_preview}.
 ====

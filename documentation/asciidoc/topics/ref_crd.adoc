@@ -16,9 +16,5 @@ include::yaml_annotated/cr_minimal.yaml[]
 <3> names the {brandname} cluster.
 <4> sets the number of pods in the {brandname} cluster.
 
-//Product
-ifdef::productized[]
 .Reference
-
-link:https://docs.openshift.com/container-platform/4.1/applications/operators/olm-managing-resources-from-crds.html[Managing resources from Custom Resource Definitions] in the {openshift} documentation.
-endif::productized[]
+link:{link_os_crds}.

@@ -6,7 +6,7 @@ Create a custom authentication secret and configure {brandname} pods to use it.
 
 . Create an authentication secret.
 +
-For example, to create `connect_secret.yaml` see link:#ref_auth_secret-cluster_auth[Credentials Secret].
+For example, to create `connect_secret.yaml` see link:#ref_auth_secret-auth[Credentials Secret].
 +
 . Add the authentication secret to your {openshiftshort} namespace.
 +

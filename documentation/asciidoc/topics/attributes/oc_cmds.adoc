@@ -7,3 +7,7 @@
 :oc_apply_cr_custom: oc apply -f my_crd.yaml
 
 :oc_logs: oc logs
+
+:oc_wait: oc wait
+
+:oc_well_formed: oc wait --for condition=wellFormed --timeout=240s infinispan/{example_crd_name}
