@@ -1,0 +1,13 @@
+spec:
+  ...
+  service:
+    type: DataGrid <1>
+    sites:
+      local:
+        name: SiteA <2>
+        expose:
+          type: LoadBalancer <3>
+      backups:
+      - name: SiteB <4>
+        url: openshift://api.site-b.devcluster.openshift.com:6443 <5>
+        secretName: site-b-token <6>

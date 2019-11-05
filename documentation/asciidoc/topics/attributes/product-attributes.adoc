@@ -12,6 +12,7 @@
 :example_crd_name: example-rhdatagrid
 
 include::oc_cmds.adoc[]
+include::links.adoc[]
 
 //
 // Conditional statements
