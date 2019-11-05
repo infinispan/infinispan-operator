@@ -32,6 +32,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -49,6 +50,12 @@ var kubernetes *ispnutil.Kubernetes
 
 // Cluster object
 var cluster *ispnutil.Cluster
+
+const CacheServiceFixedMemoryXmxMb = 200
+const CacheServiceJvmNativeMb = 220
+const CacheServiceMaxRamMb = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
+const CacheServiceAdditionalJavaOptions = "-Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10"
+const CacheServiceJvmNativePercentageOverhead = 1
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -124,14 +131,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	if infinispan.Status.Conditions == nil {
-		infinispan.Status.Conditions = []infinispanv1.InfinispanCondition{}
-	}
+	// Apply defaults if not already set
+	applyDefaults(infinispan)
 
 	// Check x-site configuration first.
 	// Must be done before creating any Infinispan resources,
 	// because remote site host:port combinations need to be injected into Infinispan.
-	reqLogger.Info("check if cross-site is configured")
 	xsite, err := r.computeXSite(infinispan, reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -263,8 +268,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	updateNeeded := false
 	// Ensure the deployment size is the same as the spec
 	replicas := infinispan.Spec.Replicas
-	if *found.Spec.Replicas != replicas {
+	previousReplicas := *found.Spec.Replicas
+	if previousReplicas != replicas {
 		found.Spec.Replicas = &replicas
+		reqLogger.Info("replicas changed, update infinispan", "replicas", replicas, "previous replicas", previousReplicas)
 		updateNeeded = true
 	}
 
@@ -274,29 +281,36 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	ispnContr := &infinispan.Spec.Container
 	if ispnContr.Memory != "" {
 		quantity := resource.MustParse(ispnContr.Memory)
-		if quantity.Cmp(res.Requests["memory"]) != 0 {
+		previousMemory := res.Requests["memory"]
+		if quantity.Cmp(previousMemory) != 0 {
 			res.Requests["memory"] = quantity
 			res.Limits["memory"] = quantity
+			reqLogger.Info("memory changed, update infinispan", "memory", quantity, "previous memory", previousMemory)
 			updateNeeded = true
 		}
 	}
 	if ispnContr.CPU != "" {
 		quantity := resource.MustParse(ispnContr.CPU)
-		if quantity.Cmp(res.Requests["cpu"]) != 0 {
+		previousCpu := res.Requests["cpu"]
+		if quantity.Cmp(previousCpu) != 0 {
 			res.Requests["cpu"] = quantity
 			res.Limits["cpu"] = quantity
+			reqLogger.Info("cpu changed, update infinispan", "cpu", quantity, "previous cpu", previousCpu)
 			updateNeeded = true
 		}
 	}
 
 	index := 0
 	for i, value := range *env {
-		if value.Name == "JAVA_OPTIONS" {
+		if value.Name == "EXTRA_JAVA_OPTIONS" {
 			index = i
 		}
 	}
-	if (*env)[index].Value != ispnContr.ExtraJvmOpts {
+	extraJavaOptions := (*env)[index].Value
+	previousExtraJavaOptions := ispnContr.ExtraJvmOpts
+	if extraJavaOptions != previousExtraJavaOptions {
 		(*env)[index].Value = ispnContr.ExtraJvmOpts
+		reqLogger.Info("extra jvm options changed, update infinispan", "java options", extraJavaOptions, "previous extra", previousExtraJavaOptions)
 		updateNeeded = true
 	}
 	if updateNeeded {
@@ -318,12 +332,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
 		return reconcile.Result{}, err
 	}
-	var protocol string
-	if infinispan.Spec.Security.EndpointEncryption.Type != "" {
-		protocol = "https"
-	} else {
-		protocol = "http"
+
+	// Wait until all pods have ips assigned
+	// Without those ips, it's not possible to execute next calls
+	if !arePodIPsReady(podList) {
+		return reconcile.Result{Requeue: true}, nil
 	}
+
+	protocol := infinispanProtocol(infinispan)
 	currConds := getInfinispanConditions(podList.Items, infinispan.Name, protocol, cluster)
 	infinispan.Status.StatefulSetName = found.ObjectMeta.Name
 	// Update status.Nodes if needed
@@ -337,8 +353,16 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// View didn't form, requeue until view has formed
-	if currConds[0].Status == "False" {
+	if notClusterFormed(currConds, podList.Items, infinispan.Spec.Replicas) {
 		return reconcile.Result{Requeue: true}, nil
+	} else {
+		if isCache(infinispan) && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger) {
+			err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
+			if err != nil {
+				reqLogger.Error(err, "failed to create default cache for cache service")
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	// Check if pods container runs the right image
@@ -353,6 +377,98 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster, logger logr.Logger) bool {
+	namespace := infinispan.ObjectMeta.Namespace
+	secretName := ispnutil.GetSecretName(infinispan.Name)
+	protocol := infinispanProtocol(infinispan)
+	return cluster.ExistsCache("default", secretName, podName, namespace, protocol)
+}
+
+func notClusterFormed(currConds []infinispanv1.InfinispanCondition, pods []corev1.Pod, replicas int32) bool {
+	notFormed := currConds[0].Status != "True"
+	notEnoughMembers := len(pods) < int(replicas)
+	return notFormed || notEnoughMembers
+}
+
+func arePodIPsReady(pods *corev1.PodList) bool {
+	for _, pod := range pods.Items {
+		if pod.Status.PodIP == "" {
+			return false
+		}
+	}
+
+	return true
+}
+
+func applyDefaults(infinispan *infinispanv1.Infinispan) {
+	if infinispan.Status.Conditions == nil {
+		infinispan.Status.Conditions = []infinispanv1.InfinispanCondition{}
+	}
+
+	if infinispan.Spec.Service.Type == "" {
+		infinispan.Spec.Service.Type = infinispanv1.ServiceTypeCache
+	}
+}
+
+func infinispanProtocol(infinispan *infinispanv1.Infinispan) string {
+	if infinispan.Spec.Security.EndpointEncryption.Type != "" {
+		return "https"
+	}
+	return "http"
+}
+
+func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster, logger logr.Logger) error {
+	namespace := infinispan.ObjectMeta.Namespace
+
+	memoryLimitBytes, err := kubernetes.GetMemoryLimitBytes(podName, namespace)
+	if err != nil {
+		logger.Error(err, "unable to extract memory limit (bytes) from pod")
+		return err
+	}
+
+	maxUnboundedMemory, err := kubernetes.GetMaxMemoryUnboundedBytes(podName, namespace)
+	if err != nil {
+		logger.Error(err, "unable to extract max memory unbounded from pod")
+		return err
+	}
+
+	containerMaxMemory := maxUnboundedMemory
+	if memoryLimitBytes < maxUnboundedMemory {
+		containerMaxMemory = memoryLimitBytes
+	}
+
+	nativeMemoryOverhead := containerMaxMemory * (CacheServiceJvmNativePercentageOverhead / 100)
+	evictTotalMemoryBytes :=
+		containerMaxMemory -
+			(CacheServiceJvmNativeMb * 1024 * 1024) -
+			(CacheServiceFixedMemoryXmxMb * 1024 * 1024) -
+			nativeMemoryOverhead
+
+	logger.Info("calculated maximum off-heap size",
+		"size", evictTotalMemoryBytes,
+		"container max memory", containerMaxMemory,
+		"memory limit (bytes)", memoryLimitBytes,
+		"max memory bound", maxUnboundedMemory,
+	)
+
+	defaultCacheXml := `<infinispan><cache-container>
+        <distributed-cache name="default" mode="SYNC" owners="1">
+            <memory>
+                <off-heap 
+                    size="` + strconv.FormatUint(evictTotalMemoryBytes, 10) + `"
+                    eviction="MEMORY"
+                    strategy="REMOVE"
+                />
+            </memory>
+            <partition-handling when-split="DENY_READ_WRITES" merge-policy="REMOVE_ALL" />
+        </distributed-cache>
+    </cache-container></infinispan>`
+
+	secretName := ispnutil.GetSecretName(infinispan.Name)
+	protocol := infinispanProtocol(infinispan)
+	return cluster.CreateCache("default", defaultCacheXml, secretName, podName, namespace, protocol)
 }
 
 func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, logger logr.Logger) (*ispnutil.XSite, error) {
@@ -400,7 +516,6 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 		return xsite, nil
 	}
 
-	logger.Info("no sites configured")
 	return nil, nil
 }
 
@@ -473,10 +588,16 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		cpu = m.Spec.Container.CPU
 	}
 
+	javaOptions, err := r.javaOptions(m)
+	if err != nil {
+		return nil, err
+	}
+
 	envVars := []corev1.EnvVar{
 		{Name: "CONFIG_PATH", Value: "/etc/config/infinispan.yaml"},
 		{Name: "IDENTITIES_PATH", Value: "/etc/security/identities.yaml"},
-		{Name: "JAVA_OPTIONS", Value: m.Spec.Container.ExtraJvmOpts},
+		{Name: "JAVA_OPTIONS", Value: javaOptions},
+		{Name: "EXTRA_JAVA_OPTIONS", Value: m.Spec.Container.ExtraJvmOpts},
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var
@@ -582,7 +703,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		},
 	}
 	pvSize := DefaultPVSize
-	if m.Spec.Service.Type == "Data Grid" && m.Spec.Service.Container.Storage != "" {
+	if isDataGrid(m) && m.Spec.Service.Container.Storage != "" {
 		var pvErr error
 		pvSize, pvErr = resource.ParseQuantity(m.Spec.Service.Container.Storage)
 		if pvErr != nil {
@@ -629,6 +750,25 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep, nil
+}
+
+func (r *ReconcileInfinispan) javaOptions(m *infinispanv1.Infinispan) (string, error) {
+	switch m.Spec.Service.Type {
+	case infinispanv1.ServiceTypeDataGrid:
+		return m.Spec.Container.ExtraJvmOpts, nil
+	case infinispanv1.ServiceTypeCache:
+		javaOptions := fmt.Sprintf(
+			"-Xmx%dM -Xms%dM -XX:MaxRAM=%dM %s %s",
+			CacheServiceFixedMemoryXmxMb,
+			CacheServiceFixedMemoryXmxMb,
+			CacheServiceMaxRamMb,
+			CacheServiceAdditionalJavaOptions,
+			m.Spec.Container.ExtraJvmOpts,
+		)
+		return javaOptions, nil
+	default:
+		return "", fmt.Errorf("unknown service type '%s'", m.Spec.Service.Type)
+	}
 }
 
 func getEncryptionSecretName(m *infinispanv1.Infinispan) string {
@@ -938,7 +1078,11 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 }
 
 func isDataGrid(infinispan *infinispanv1.Infinispan) bool {
-	return strings.EqualFold("DataGrid", infinispan.Spec.Service.Type)
+	return infinispanv1.ServiceTypeDataGrid == infinispan.Spec.Service.Type
+}
+
+func isCache(infinispan *infinispanv1.Infinispan) bool {
+	return infinispanv1.ServiceTypeCache == infinispan.Spec.Service.Type
 }
 
 func hasSites(infinispan *infinispanv1.Infinispan) bool {

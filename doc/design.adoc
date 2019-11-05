@@ -111,7 +111,7 @@ while `LoadBalancer` is used in production-like environments where an external l
 
 | `type`
 | Type of service
-| `Cache` / `Data Grid`
+| `Cache` / `DataGrid`
 | true
 | `Cache`
 
@@ -717,7 +717,7 @@ spec:
   replicas: 6
   profile: Performance
   service:
-    type: Data Grid
+    type: DataGrid
     container:
       storage: 2Gi
     sites:

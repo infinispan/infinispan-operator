@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	"strconv"
+	"strings"
 )
 
 var log = logf.Log.WithName("cluster_util")
@@ -90,5 +92,88 @@ func (c Cluster) GetClusterMembers(secretName, podName, namespace, protocol stri
 
 		return health.ClusterHealth.Nodes, nil
 	}
+
 	return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
+}
+
+func (c Cluster) ExistsCache(cacheName, secretName, podName, namespace, protocol string) bool {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return false
+	}
+
+	pass, err := c.GetPassword("operator", secretName, namespace)
+	if err != nil {
+		return false
+	}
+
+	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s?action=config", protocol, podIP, cacheName)
+	commands := []string{"curl",
+		"-o", "/dev/null", "-w", "%{http_code}", // ignore output and get http status code
+		"-u", fmt.Sprintf("operator:%v", pass),
+		"--head",
+		httpURL,
+	}
+
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOut, _, err := c.Kubernetes.ExecWithOptions(execOptions)
+	if err != nil {
+		return false
+	}
+
+	httpCode, err := strconv.ParseUint(execOut.String(), 10, 64)
+	if err != nil {
+		return false
+	}
+
+	switch httpCode {
+	case 200:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return err
+	}
+
+	pass, err := c.GetPassword("operator", secretName, namespace)
+	if err != nil {
+		return err
+	}
+
+	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s", protocol, podIP, cacheName)
+	commands := []string{"curl",
+		"-w", "\n%{http_code}", // add http status at the end
+		"-d", fmt.Sprintf("%s", cacheXml),
+		"-H", "Content-Type: application/xml",
+		"-u", fmt.Sprintf("operator:%v", pass),
+		"-X", "POST",
+		httpURL,
+	}
+
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+	if err != nil {
+		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", execErr, err)
+	}
+
+	// Split lines in standard output, HTTP status code will be last
+	execOutLines := strings.Split(execOut.String(), "\n")
+
+	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines) - 1], 10, 64)
+	if err != nil {
+		return err
+	}
+
+	if httpCode > 299 || httpCode < 200 {
+		return fmt.Errorf("server side error creating cache: %s", execOut.String())
+	}
+
+	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
+	logger.Info("create cache completed successfully", "http code", httpCode)
+	return nil
 }
