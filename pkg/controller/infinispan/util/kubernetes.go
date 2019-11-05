@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"context"
+	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,6 +17,8 @@ import (
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"strconv"
+	"strings"
 )
 
 // Kubernetes abstracts interaction with a Kubernetes cluster
@@ -146,6 +149,10 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 		Stderr: &execErr,
 		Tty:    false,
 	})
+	if err != nil {
+		return execOut, execErr.String(), err
+	}
+
 	return execOut, "", err
 }
 
@@ -199,4 +206,47 @@ func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Option
 		Scheme: scheme,
 		Mapper: mapper,
 	}
+}
+
+func (k Kubernetes) GetMemoryLimitBytes(podName, namespace string) (uint64, error) {
+	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
+	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := k.ExecWithOptions(execOptions)
+
+	if err != nil {
+		return 0, fmt.Errorf("unexpected error getting memory limit bytes, stderr: %v, err: %v", execErr, err)
+	}
+
+	result := strings.TrimSuffix(execOut.String(), "\n")
+	limitBytes, err := strconv.ParseUint(result, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return limitBytes, nil
+}
+
+func (k Kubernetes) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
+	command := []string{"cat", "/proc/meminfo"}
+	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := k.ExecWithOptions(execOptions)
+
+	if err != nil {
+		return 0, fmt.Errorf("unexpected error getting max unbounded memory, stderr: %v, err: %v", execErr, err)
+	}
+
+	result := execOut.String()
+	lines := strings.Split(result, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "MemTotal:") {
+			tokens := strings.Fields(line)
+			maxUnboundKb, err := strconv.ParseUint(tokens[1], 10, 64)
+			if err != nil {
+				return 0, err
+			}
+			return maxUnboundKb * 1024, nil
+		}
+	}
+
+	return 0, fmt.Errorf("meminfo lacking MemTotal information")
 }

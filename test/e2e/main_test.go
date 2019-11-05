@@ -63,6 +63,9 @@ var DefaultSpec = ispnv1.Infinispan{
 		Name: DefaultClusterName,
 	},
 	Spec: ispnv1.InfinispanSpec{
+		Service: ispnv1.InfinispanServiceSpec{
+			Type: ispnv1.ServiceTypeDataGrid,
+		},
 		Container: ispnv1.InfinispanContainerSpec{
 			CPU:    CPU,
 			Memory: Memory,
@@ -75,10 +78,10 @@ var DefaultSpec = ispnv1.Infinispan{
 // Test if single node working correctly
 func TestNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
-	// Register it
 	spec := DefaultSpec.DeepCopy()
 	name := "test-node-startup"
 	spec.ObjectMeta.Name = name
+	// Register it
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
 	waitForPodsOrFail(name, "http", 1)
@@ -87,62 +90,35 @@ func TestNodeStartup(t *testing.T) {
 // Test if the cluster is working correctly
 func TestClusterFormation(t *testing.T) {
 	// Create a resource without passing any config
+	spec := DefaultSpec.DeepCopy()
 	name := "test-cluster-formation"
-	spec := ispnv1.Infinispan{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v1",
-			Kind:       "Infinispan",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: ispnv1.InfinispanSpec{
-			Container: ispnv1.InfinispanContainerSpec{
-				CPU:    CPU,
-				Memory: Memory,
-			},
-			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
-			Replicas: 2,
-		},
-	}
+	spec.ObjectMeta.Name = name
+	spec.Spec.Replicas = 2
 	// Register it
-	kubernetes.CreateInfinispan(&spec, Namespace)
-	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
+	kubernetes.CreateInfinispan(spec, Namespace)
+	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
 	waitForPodsOrFail(name, "http", 2)
 }
 
 // Test if the cluster is working correctly
 func TestClusterFormationWithTLS(t *testing.T) {
 	// Create a resource without passing any config
+	spec := DefaultSpec.DeepCopy()
 	name := "test-cluster-formation"
-	kubernetes.CreateSecret(&encryptionSecret, Namespace)
-	defer kubernetes.DeleteSecret(&encryptionSecret)
-	spec := ispnv1.Infinispan{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v1",
-			Kind:       "Infinispan",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: ispnv1.InfinispanSpec{
-			Container: ispnv1.InfinispanContainerSpec{
-				CPU:    CPU,
-				Memory: Memory,
-			},
-			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
-			Replicas: 2,
-			Security: ispnv1.InfinispanSecurity{
-				EndpointEncryption: ispnv1.EndpointEncryption{
-					Type:           "secret",
-					CertSecretName: "secret-certs",
-				},
-			},
+	spec.ObjectMeta.Name = name
+	spec.Spec.Replicas = 2
+	spec.Spec.Security = ispnv1.InfinispanSecurity{
+		EndpointEncryption: ispnv1.EndpointEncryption{
+			Type:           "secret",
+			CertSecretName: "secret-certs",
 		},
 	}
+	// Create secret
+	kubernetes.CreateSecret(&encryptionSecret, Namespace)
+	defer kubernetes.DeleteSecret(&encryptionSecret)
 	// Register it
-	kubernetes.CreateInfinispan(&spec, Namespace)
-	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
+	kubernetes.CreateInfinispan(spec, Namespace)
+	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
 	waitForPodsOrFail(name, "https", 2)
 }
 
@@ -179,15 +155,15 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 	var verifier = func(ss *appsv1beta1.StatefulSet) {
 		env := ss.Spec.Template.Spec.Containers[0].Env
 		for _, value := range env {
-			if value.Name == "JAVA_OPTIONS" {
+			if value.Name == "EXTRA_JAVA_OPTIONS" {
 				if value.Value != "-XX:NativeMemoryTracking=summary" {
-					panic("JAVA_OPTIONS not updated")
+					panic("EXTRA_JAVA_OPTIONS not updated")
 				} else {
 					return
 				}
 			}
 		}
-		panic("JAVA_OPTIONS not updated")
+		panic("EXTRA_JAVA_OPTIONS not updated")
 	}
 	genericTestForContainerUpdated(modifier, verifier)
 }
@@ -240,6 +216,39 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 
 	// Check that the update has been propagated
 	verifier(&ss)
+}
+
+func TestCacheService(t *testing.T) {
+	spec := DefaultSpec.DeepCopy()
+	name := "test-cache-service"
+
+	spec.ObjectMeta.Name = name
+	spec.Spec.Service.Type = ispnv1.ServiceTypeCache
+	spec.Spec.Expose = exposeServiceSpec()
+
+	kubernetes.CreateInfinispan(spec, Namespace)
+	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
+	waitForPodsOrFail(name, "http", 1)
+
+	user := "developer"
+	password, err := cluster.GetPassword(user, util.GetSecretName(name), Namespace)
+	testutil.ExpectNoError(err)
+
+	routeName := fmt.Sprintf("%s-external", name)
+	client := &http.Client{}
+	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, user, password, Namespace)
+
+	cacheName := "default"
+
+	key := "test"
+	value := "test-operator"
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	putViaRoute(keyURL, value, client, user, password)
+	actual := getViaRoute(keyURL, client, user, password)
+
+	if actual != value {
+		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
+	}
 }
 
 // TestPermanentCache creates a permanent caches the stop/start
@@ -317,17 +326,23 @@ func waitForPodsOrFail(name, protocol string, num int) {
 	secretName := util.GetSecretName(name)
 	expectedClusterSize := num
 	// Check that the cluster size is num querying the first pod
+	var lastErr error
 	err := wait.Poll(time.Second, TestTimeout, func() (done bool, err error) {
 		value, err := cluster.GetClusterSize(secretName, podName, Namespace, protocol)
 		if err != nil {
-			return false, err
+			lastErr = err
+			return false, nil
 		}
 		if value > expectedClusterSize {
 			return true, fmt.Errorf("more than expected nodes in cluster (expected=%v, actual=%v)", expectedClusterSize, value)
 		}
 
-		return (value == num), nil
+		return value == num, nil
 	})
+
+	if err == wait.ErrWaitTimeout && lastErr != nil {
+		err = fmt.Errorf("timed out waiting for the condition, last error: %v", lastErr)
+	}
 
 	testutil.ExpectNoError(err)
 }

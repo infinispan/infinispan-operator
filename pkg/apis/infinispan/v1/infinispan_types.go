@@ -28,9 +28,26 @@ type InfinispanServiceContainerSpec struct {
 	Storage string `json:"storage"`
 }
 
+type ServiceType string
+
+const (
+	// Deploys Infinispan to act like a cache. This means:
+	// Caches are only used for volatile data.
+	// No support for data persistence.
+	// Cache definitions can still be permanent, but PV size is not configurable.
+	// A default cache is created by default,
+	// Additional caches can be created, but only as copies of default cache.
+	ServiceTypeCache ServiceType = "Cache"
+
+	// Deploys Infinispan to act like a data grid.
+	// More flexibility and more configuration options are available:
+	// Cross-site replication, store cached data in persistence store...etc.
+	ServiceTypeDataGrid ServiceType = "DataGrid"
+)
+
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
-	Type      string                         `json:"type"`
+	Type      ServiceType                    `json:"type"`
 	Container InfinispanServiceContainerSpec `json:"container"`
 	Sites     InfinispanSitesSpec            `json:"sites"`
 }
