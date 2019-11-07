@@ -8,6 +8,7 @@ custom resources.
 
 The minimum resources to define a {brandname} cluster are as follows:
 
+[source,options="nowrap",subs=attributes+]
 ----
 include::yaml_annotated/cr_minimal.yaml[]
 ----

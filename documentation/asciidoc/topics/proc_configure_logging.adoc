@@ -1,0 +1,22 @@
+[id='configure_logging-{context}']
+= Configuring {brandname} Logging
+
+.Procedure
+
+. Create custom resources to configure {brandname} logging.
++
+See link:#cr_logging-monitor[Logging Resources].
++
+. Apply the custom resources.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} my_logging.yaml
+----
++
+. Retrieve logs from {brandname} pods as required.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_logs} -f ${POD_NAME}
+----
