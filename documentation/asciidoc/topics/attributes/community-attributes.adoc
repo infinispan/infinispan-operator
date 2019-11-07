@@ -11,6 +11,7 @@
 :github_tag: master
 
 :example_crd_name: example-infinispan
+:example_namespace: ispn-namespace
 
 include::oc_cmds.adoc[]
 include::links.adoc[]

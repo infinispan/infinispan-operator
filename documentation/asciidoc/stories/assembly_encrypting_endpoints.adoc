@@ -1,6 +1,6 @@
-[id='security_endpoints']
+[id='securing_endpoints']
 = Securing {brandname} Endpoints
-:context: security_endpoints
+:context: security
 Configure {brandname} pods to encrypt network traffic between clients and
 endpoints with TLS certificates.
 

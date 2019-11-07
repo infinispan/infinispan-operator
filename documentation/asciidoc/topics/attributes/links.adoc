@@ -4,6 +4,12 @@
 
 :link_os_load_balancer: https://docs.openshift.com/container-platform/4.2/networking/configuring-ingress-cluster-traffic/configuring-ingress-cluster-traffic-load-balancer.html[Configuring ingress cluster traffic using a load balancer]
 
+:link_k8s_load_balancer: https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer[Type LoadBalancer]
+
+:link_os_node_port: https://docs.openshift.com/container-platform/4.2/networking/configuring-ingress-cluster-traffic/configuring-ingress-cluster-traffic-nodeport.html[Configuring ingress cluster traffic using a NodePort]
+
+:link_k8s_node_port: https://kubernetes.io/docs/concepts/services-networking/service/#nodeport[Type NodePort]
+
 :link_os_sa_tokens: https://docs.openshift.com/container-platform/4.2/authentication/using-service-accounts-in-applications.html[Using service accounts in applications]
 
 :link_os_crds: https://docs.openshift.com/container-platform/4.2/operators/crds/crd-managing-resources-from-crds.html[Managing resources from Custom Resource Definitions]

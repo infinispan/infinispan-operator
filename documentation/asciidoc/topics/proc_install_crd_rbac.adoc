@@ -3,6 +3,7 @@
 Add the custom resource definition and role-based access control (RBAC) resources for the {ispn_operator}.
 
 .Procedure
+
 . Apply the custom resource definition.
 +
 [source,options="nowrap",subs=attributes+]

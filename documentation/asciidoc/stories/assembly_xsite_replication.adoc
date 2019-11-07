@@ -12,14 +12,10 @@ back up data to the {brandname} cluster at SiteB.
 .Prerequisites
 //Community
 ifndef::productized[]
-* Either install the {ispn_operator} from link:{link_operator_hub} or link:#deploying_operator_manually[deploy it manually].
-* Have a `kubectl` client in your `$PATH`.
 * If you are running on {openshiftshort}, ensure that a load balancer service is available. This service allows external access to {ocp} clusters. See link:{link_os_load_balancer}.
 endif::productized[]
 //Product
 ifdef::productized[]
-* Install the {ispn_operator} from the OperatorHub.
-* Have an `oc` client in your `$PATH`.
 * Ensure that a load balancer service is available for {openshiftshort}. This service allows external access to {ocp} clusters. See link:{link_os_load_balancer}.
 endif::productized[]
 

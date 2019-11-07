@@ -8,13 +8,16 @@ custom resources.
 
 The minimum resources to define a {brandname} cluster are as follows:
 
+[source,options="nowrap",subs=attributes+]
 ----
 include::yaml_annotated/cr_minimal.yaml[]
 ----
+
 <1> declares the version.
 <2> sets the resource type that the {ispn_operator} uses to handle the lifecycle of {brandname} clusters.
 <3> names the {brandname} cluster.
 <4> sets the number of pods in the {brandname} cluster.
 
 .Reference
-link:{link_os_crds}.
+
+link:{link_os_crds}

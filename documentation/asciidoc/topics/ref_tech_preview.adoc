@@ -9,7 +9,8 @@ production service-level agreements (SLAs) and might not be functionally
 complete. Red Hat does not recommend using them for production. These features
 provide early access to upcoming product features, enabling customers to test
 functionality and provide feedback during the development process.
-
-For more information see
-link:{link_tech_preview}.
 ====
+
+.Reference
+
+link:{link_tech_preview}
