@@ -276,6 +276,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		quantity := resource.MustParse(ispnContr.Memory)
 		if quantity.Cmp(res.Requests["memory"]) != 0 {
 			res.Requests["memory"] = quantity
+			res.Limits["memory"] = quantity
 			updateNeeded = true
 		}
 	}
@@ -283,6 +284,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		quantity := resource.MustParse(ispnContr.CPU)
 		if quantity.Cmp(res.Requests["cpu"]) != 0 {
 			res.Requests["cpu"] = quantity
+			res.Limits["cpu"] = quantity
 			updateNeeded = true
 		}
 	}
@@ -542,8 +544,16 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							PeriodSeconds:       10,
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
-						Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{"cpu": resource.MustParse(cpu),
-							"memory": resource.MustParse(memory)}},
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								"cpu":    resource.MustParse(cpu),
+								"memory": resource.MustParse(memory),
+							},
+							Limits: corev1.ResourceList{
+								"cpu":    resource.MustParse(cpu),
+								"memory": resource.MustParse(memory),
+							},
+						},
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      "config-volume",
 							MountPath: "/etc/config",
