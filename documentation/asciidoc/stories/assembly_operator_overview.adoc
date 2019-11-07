@@ -1,5 +1,5 @@
 [id='operator_overview']
-:context: operator_overview
+:context: overview
 
 include::{topics}/con_infinispan_operator.adoc[]
 

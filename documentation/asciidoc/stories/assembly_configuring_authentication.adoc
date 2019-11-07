@@ -6,14 +6,6 @@ Application users must authenticate with {brandname} pods to access data.
 The {ispn_operator} generates default credentials and stores them in secrets.
 You can use the default credentials or add custom authentication secrets.
 
-.Prerequisites
-ifndef::productized[]
-* A `kubectl` client in your `$PATH`.
-endif::productized[]
-ifdef::productized[]
-* An `oc` client in your `$PATH`.
-endif::productized[]
-
 include::{topics}/proc_get_cluster_credentials.adoc[leveloffset=+1]
 include::{topics}/proc_create_cluster_auth.adoc[leveloffset=+1]
 include::{topics}/ref_secret_auth.adoc[leveloffset=+2]

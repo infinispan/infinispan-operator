@@ -28,7 +28,13 @@ Internal services::
 |===
 
 External services::
-Provide access to {brandname} endpoints from clients outside the {k8s} namespace.
+Provide access to {brandname} endpoints from clients outside {k8s} or in different namespaces.
++
+[NOTE]
+====
+You must expose external services with the {ispn_operator}. External services
+are not available by default.
+====
 +
 [%header,cols=4*]
 |===
@@ -43,3 +49,8 @@ Provide access to {brandname} endpoints from clients outside the {k8s} namespace
 | {brandname} endpoints
 
 |===
+
+.Reference
+
+link:#external_services[Making {brandname}
+Available to External Traffic]

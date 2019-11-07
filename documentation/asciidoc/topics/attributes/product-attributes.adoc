@@ -10,6 +10,7 @@
 :github_tag: master
 
 :example_crd_name: example-rhdatagrid
+:example_namespace: rhdg-namespace
 
 include::oc_cmds.adoc[]
 include::links.adoc[]

@@ -8,9 +8,11 @@ The {ispn_operator} lets you allocate resources and specify JVM options for
 Currently, you cannot modify resources for existing pods. To change container resources you must delete {brandname} pods and create new ones.
 ====
 
+[source,options="nowrap",subs=attributes+]
 ----
 include::yaml_annotated/cr_container_resources.yaml[]
 ----
+
 <1> specifies JVM options.
 <2> allocates CPU resources.
 <3> allocates memory resources.

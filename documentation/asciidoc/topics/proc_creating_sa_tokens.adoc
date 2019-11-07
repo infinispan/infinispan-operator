@@ -72,4 +72,5 @@ After you add service account tokens to each backup site, the
 clusters can form cross-site views.
 
 .Reference
-link:{link_os_sa_tokens}.
+
+link:{link_os_sa_tokens}

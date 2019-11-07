@@ -1,5 +1,5 @@
 [id='operator_tech_preview']
-:context: operator_tech_preview
+:context: tech_preview
 
 include::{topics}/ref_tech_preview.adoc[]
 
