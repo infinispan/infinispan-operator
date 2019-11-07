@@ -147,16 +147,16 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
+		configMap, err := r.configMapForInfinispan(xsite, infinispan)
+		if err != nil {
+			reqLogger.Error(err, "could not create Infinispan configuration")
+			return reconcile.Result{}, err
+		}
+
 		secret := r.secretForInfinispan(identities, infinispan)
 		err = r.client.Create(context.TODO(), secret)
 		if err != nil {
 			reqLogger.Error(err, "could not find or create identities Secret")
-			return reconcile.Result{}, err
-		}
-
-		configMap, err := r.configMapForInfinispan(xsite, infinispan)
-		if err != nil {
-			reqLogger.Error(err, "could not create Infinispan configuration")
 			return reconcile.Result{}, err
 		}
 
