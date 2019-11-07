@@ -1,0 +1,6 @@
+spec:
+  ...
+  logging: <1>
+    categories: <2>
+      org.infinispan: debug <3>
+      org.jgroups: debug

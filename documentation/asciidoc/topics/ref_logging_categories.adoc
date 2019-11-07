@@ -1,0 +1,18 @@
+[id='cr_logging-{context}']
+= Logging Resources
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/cr_logging.yaml[]
+----
+
+<1> configures {brandname} logging.
+<2> adds logging categories.
+<3> names logging categories and levels.
+
+[NOTE]
+====
+The root logging category is `org.infinispan` and is `INFO` by default.
+
+{ispn_operator} supports {brandname} logging categories. Refer to the link:{doc_home}[{brandname} documentation] for more information.
+====
