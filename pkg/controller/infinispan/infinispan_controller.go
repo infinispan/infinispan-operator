@@ -8,7 +8,7 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"gopkg.in/yaml.v2"
-	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -86,7 +86,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Infinispan
-	err = c.Watch(&source.Kind{Type: &appsv1beta1.StatefulSet{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &appsv1.StatefulSet{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &infinispanv1.Infinispan{},
 	})
@@ -143,7 +143,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Check if the deployment already exists, if not create a new one
-	found := &appsv1beta1.StatefulSet{}
+	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		identities, err := r.findCredentials(infinispan)
@@ -564,7 +564,7 @@ func lookupHost(host string, logger logr.Logger) (string, error) {
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
-func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1beta1.StatefulSet, error) {
+func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	// This field specifies the flavor of the
 	// Infinispan cluster. "" is plain community edition (vanilla)
 	ls := labelsForInfinispan(m.ObjectMeta.Name)
@@ -615,7 +615,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		}
 	}
 	replicas := m.Spec.Replicas
-	dep := &appsv1beta1.StatefulSet{
+	dep := &appsv1.StatefulSet{
 
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1beta1",
@@ -631,8 +631,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			},
 			Labels: map[string]string{"template": "infinispan-ephemeral"},
 		},
-		Spec: appsv1beta1.StatefulSetSpec{
-			UpdateStrategy: appsv1beta1.StatefulSetUpdateStrategy{Type: appsv1beta1.RollingUpdateStatefulSetStrategyType},
+		Spec: appsv1.StatefulSetSpec{
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
@@ -789,7 +789,7 @@ func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) 
 	}
 }
 
-func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1beta1.StatefulSet) {
+func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulSet) {
 	secretName := getEncryptionSecretName(m)
 	if secretName != "" {
 		v := &dep.Spec.Template.Spec.Volumes

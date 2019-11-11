@@ -15,7 +15,7 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -127,7 +127,7 @@ func TestContainerCPUUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.CPU = "250m"
 	}
-	var verifier = func(ss *appsv1beta1.StatefulSet) {
+	var verifier = func(ss *appsv1.StatefulSet) {
 		if resource.MustParse("250m") != ss.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"] {
 			panic("CPU field not updated")
 		}
@@ -140,7 +140,7 @@ func TestContainerMemoryUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.Memory = "256Mi"
 	}
-	var verifier = func(ss *appsv1beta1.StatefulSet) {
+	var verifier = func(ss *appsv1.StatefulSet) {
 		if resource.MustParse("256Mi") != ss.Spec.Template.Spec.Containers[0].Resources.Requests["memory"] {
 			panic("Memory field not updated")
 		}
@@ -152,7 +152,7 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.ExtraJvmOpts = "-XX:NativeMemoryTracking=summary"
 	}
-	var verifier = func(ss *appsv1beta1.StatefulSet) {
+	var verifier = func(ss *appsv1.StatefulSet) {
 		env := ss.Spec.Template.Spec.Containers[0].Env
 		for _, value := range env {
 			if value.Name == "EXTRA_JAVA_OPTIONS" {
@@ -169,7 +169,7 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 }
 
 // Test if single node working correctly
-func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier func(*appsv1beta1.StatefulSet)) {
+func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier func(*appsv1.StatefulSet)) {
 	// Create a resource without passing any config
 	// Register it
 	spec := DefaultSpec.DeepCopy()
@@ -182,14 +182,14 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
 
 	// Get the associate statefulset
-	ss := appsv1beta1.StatefulSet{}
+	ss := appsv1.StatefulSet{}
 
 	// Get the current generation
 	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
 	if err != nil {
 		panic(err.Error())
 	}
-	generation := *ss.Status.ObservedGeneration
+	generation := ss.Status.ObservedGeneration
 
 	// Change the Infinispan spec
 	modifier(spec)
@@ -198,7 +198,7 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 	// Wait for a new generation to appear
 	err = wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
 		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
-		return *ss.Status.ObservedGeneration == generation+1, nil
+		return ss.Status.ObservedGeneration == generation+1, nil
 	})
 	if err != nil {
 		panic(err.Error())

@@ -7,7 +7,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
-	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -57,7 +57,7 @@ func init() {
 	addToScheme(&rbacv1.SchemeBuilder, scheme)
 	addToScheme(&apiextv1beta1.SchemeBuilder, scheme)
 	addToScheme(&ispnv1.SchemeBuilder.SchemeBuilder, scheme)
-	addToScheme(&appsv1beta1.SchemeBuilder, scheme)
+	addToScheme(&appsv1.SchemeBuilder, scheme)
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
