@@ -3,6 +3,8 @@
 * Access to two independent OpenShift clusters.
 * Create a `.openshift` file with the credentials to access OpenShift clusters.
 See [OpenShift Credentials](#openshift-credentials) section for details.
+* Adjust yaml examples in `deploy/cr/xsite-openshift` folder,
+with the corresponding backup site URLs.
 
 # Testing
 
