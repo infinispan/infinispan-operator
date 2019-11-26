@@ -50,17 +50,11 @@ This document describes the types introduced by the Infinispan Operator to be co
 | `infinispan/server:latest`
 
 | `replicas`
-| Number of instances for a Infinispan resource.
+| Number of instances for a Infinispan resource. If this value is set to 0 the cluster
+is gracefully shutted down.
 | int32
 | true
 |
-
-| `clusterStatus`
-| Desired cluster status. Can be `STARTED`(default) for a running cluster or
-`STOPPED` for graceful shutdown process.
-| `STARTED`/`STOPPED`
-| false
-| `STARTED`
 
 | `profile`
 | Profile in use. See <<infinispanprofiles,profiles>> for details.
