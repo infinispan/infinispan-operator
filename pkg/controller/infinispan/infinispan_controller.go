@@ -700,6 +700,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		}
 	}
 	replicas := m.Spec.Replicas
+	protocolScheme := corev1.URISchemeHTTP
+	if infinispanProtocol(m) != "http" {
+		protocolScheme = corev1.URISchemeHTTPS
+	}
 	dep := &appsv1.StatefulSet{
 
 		TypeMeta: metav1.TypeMeta{
@@ -733,7 +737,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Name:  "infinispan",
 						Env:   envVars,
 						LivenessProbe: &corev1.Probe{
-							Handler:             corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/opt/infinispan/bin/livenessProbe.sh"}}},
+							Handler:             corev1.Handler{HTTPGet: &corev1.HTTPGetAction{Scheme: protocolScheme, Path: "/rest/v2/cache-managers/DefaultCacheManager/health/status", Port: intstr.FromInt(11222)}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       60,
@@ -744,7 +748,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
 						},
 						ReadinessProbe: &corev1.Probe{
-							Handler:             corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"/opt/infinispan/bin/readinessProbe.sh"}}},
+							Handler:             corev1.Handler{HTTPGet: &corev1.HTTPGetAction{Scheme: protocolScheme, Path: "/rest/v2/cache-managers/DefaultCacheManager/health/status", Port: intstr.FromInt(11222)}},
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       10,
