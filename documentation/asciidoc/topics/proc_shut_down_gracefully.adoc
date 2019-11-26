@@ -1,0 +1,29 @@
+[id='shutting_down-{context}']
+= Shutting Down {brandname} Clusters
+Gracefully stop all {brandname} pods in the cluster. The {ispn_operator}
+ensures that all permanent cache configurations are stored in the persistent
+volume.
+
+Data Distribution::
+{brandname} saves the distribution of data across the cluster when you stop
+pods. For this reason, when you restore {brandname} clusters, `replicas` must
+match the number of pods that were in the cluster before you shut it down.
++
+For example, you shut down a cluster of 6 pods. When you restart the cluster,
+you must set the value of `replicas` to `6`.
+
+Data Passivation::
+The {ispn_operator} also writes all data to persistent volumes before shutting down {datagridservice} pods.
++
+You must ensure that the persistent volume has enough available space for your
+data. If the size of the persistent volume is not large enough to store all 
+data in memory, {brandname} writes an exception to logs and you lose data.
+
+.Procedure
+
+* Set the value of `replicas` to `0` and apply your custom resources.
++
+----
+spec:
+  replicas: 0
+----
