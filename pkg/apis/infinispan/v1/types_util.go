@@ -1,6 +1,7 @@
 package v1
 
-// GetCondition return true if condition == status
+// GetCondition return the Status of the given condition or nil
+// if condition is not present
 func (ispn *Infinispan) GetCondition(condition string) *string {
 	for _, c := range ispn.Status.Conditions {
 		if c.Type == condition {
