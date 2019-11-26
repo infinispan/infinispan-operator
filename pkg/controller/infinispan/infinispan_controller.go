@@ -41,6 +41,12 @@ var log = logf.Log.WithName("controller_infinispan")
 // DefaultImageName is used if a specific image name is not provided
 var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
 
+// DefaultMemorySize string with default size for memory
+var DefaultMemorySize = resource.MustParse("512Mi")
+
+// DefaultCPUSize string with default size for CPU
+var DefaultCPUSize = resource.MustParse("0.5")
+
 // DefaultPVSize default size for persistent volume
 var DefaultPVSize = resource.MustParse("1Gi")
 
@@ -650,6 +656,7 @@ func lookupHost(host string, logger logr.Logger) (string, error) {
 
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
+	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	// This field specifies the flavor of the
 	// Infinispan cluster. "" is plain community edition (vanilla)
 	ls := labelsForInfinispan(m.ObjectMeta.Name)
@@ -661,16 +668,15 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		imageName = DefaultImageName
 	}
 
-	memory := "512Mi"
-
+	memory := DefaultMemorySize
 	if m.Spec.Container.Memory != "" {
-		memory = m.Spec.Container.Memory
+		memory = resource.MustParse(m.Spec.Container.Memory)
 	}
 
-	cpu := "0.5"
+	cpu := DefaultCPUSize
 
 	if m.Spec.Container.CPU != "" {
-		cpu = m.Spec.Container.CPU
+		cpu = resource.MustParse(m.Spec.Container.CPU)
 	}
 
 	javaOptions, err := r.javaOptions(m)
@@ -756,12 +762,12 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							TimeoutSeconds:      80},
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
-								"cpu":    resource.MustParse(cpu),
-								"memory": resource.MustParse(memory),
+								"cpu":    cpu,
+								"memory": memory,
 							},
 							Limits: corev1.ResourceList{
-								"cpu":    resource.MustParse(cpu),
-								"memory": resource.MustParse(memory),
+								"cpu":    cpu,
+								"memory": memory,
 							},
 						},
 						VolumeMounts: []corev1.VolumeMount{{
@@ -791,14 +797,25 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			},
 		},
 	}
+
+	// Persistent vol size must exceed memory size
+	// so that it can contain all the in memory data
 	pvSize := DefaultPVSize
+	if pvSize.Cmp(memory) < 0 {
+		pvSize = memory
+	}
+
 	if isDataGrid(m) && m.Spec.Service.Container.Storage != "" {
 		var pvErr error
 		pvSize, pvErr = resource.ParseQuantity(m.Spec.Service.Container.Storage)
 		if pvErr != nil {
 			return nil, pvErr
 		}
+		if pvSize.Cmp(memory) < 0 {
+			reqLogger.Info("WARNING: persistent volume size is less than memory size. Graceful shutdown may not work.", "Volume Size", pvSize, "Memory", memory)
+		}
 	}
+
 	dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      m.ObjectMeta.Name,
