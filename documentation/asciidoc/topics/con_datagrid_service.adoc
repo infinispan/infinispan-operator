@@ -1,0 +1,15 @@
+[id='datagrid_services-{context}']
+= Data Grid Service
+{datagridservice} provides a configurable {brandname} server distribution for
+{k8s}.
+
+* Use with advanced capabilities like cross-site replication as well as indexing and querying.
+* Remotely access {datagridservice} clusters from Hot Rod or
+REST clients and dynamically create caches using any {brandname} cache mode and
+configuration.
++
+[NOTE]
+====
+{brandname} does not provide default caches for {datagridservice} pods.
+However, you can use cache configuration templates to get started.
+====

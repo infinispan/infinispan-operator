@@ -1,6 +1,6 @@
 [id='external_services']
-= Making {brandname} Available to External Traffic
 :context: access
+= Making {brandname} Available to External Traffic
 To access {brandname} from outside {k8s}, you must configure an external service.
 
 include::{topics}/proc_exposing_external_service.adoc[leveloffset=+1]

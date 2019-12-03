@@ -1,12 +1,5 @@
-[id='container_resources-{context}']
-= Pod Resources
-The {ispn_operator} lets you allocate resources and specify JVM options for
-{brandname} pods.
-
-[NOTE]
-====
-Currently, you cannot modify resources for existing pods. To change container resources you must delete {brandname} pods and create new ones.
-====
+[id='memory_resources-{context}']
+= JVM, CPU, and Memory Resources
 
 [source,options="nowrap",subs=attributes+]
 ----
@@ -16,3 +9,10 @@ include::yaml_annotated/cr_container_resources.yaml[]
 <1> specifies JVM options.
 <2> allocates CPU resources.
 <3> allocates memory resources.
+
+[NOTE]
+====
+You cannot pass JVM options or allocate CPU and memory after you create
+{brandname} pods. In this case you must delete the existing {brandname} pods
+and create new ones.
+====

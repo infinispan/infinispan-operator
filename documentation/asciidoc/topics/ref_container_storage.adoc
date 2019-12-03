@@ -1,0 +1,18 @@
+[id='storage_resources-{context}']
+= Storage Resources
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/cr_container_storage.yaml[]
+----
+
+<1> configures the storage size for {datagridservice} pods.
+
+By default, the {ispn_operator} allocates `1Gi` for storage for both
+{cacheservice} and {datagridservice} pods. You can configure storage size only
+for {datagridservice} pods.
+
+.Reference
+
+* link:#shutting_down-start[Shutting Down {brandname} Clusters]
+* link:#ref_pv-pods[Persistent Volume Claims]

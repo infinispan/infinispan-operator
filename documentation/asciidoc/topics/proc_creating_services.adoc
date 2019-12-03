@@ -1,0 +1,43 @@
+[id='creating_services-{context}']
+= Creating {brandname} Services
+Define the `.spec.service.type` resource to create {cacheservice} and
+{datagridservice} pods with the {ispn_operator}.
+
+[NOTE]
+====
+By default, the {ispn_operator} creates {brandname} clusters with
+{cacheservice} pods.
+====
+
+.Procedure
+
+. Create a custom resource that sets the service type for {brandname} pods.
++
+For example, create {datagridservice} clusters as follows:
++
+[source,options="nowrap",subs=attributes+]
+----
+spec:
+  ...
+  service:
+    type: DataGrid
+----
++
+. Specify additional resources for your pods as required.
+. Apply the custom resources with `{oc_apply_cr}`.
+. Use `{oc_get_pods_w}` to watch the {ispn_operator} apply the custom resources.
+
+[IMPORTANT]
+====
+You cannot change the `.spec.service.type` resource after you create
+{brandname} clusters.
+
+For example, if you create a cluster of {cacheservice} pods, you cannot change
+the service type to {datagridservice}. In this case you must create a new
+cluster with {datagridservice} pods in a different {k8s} namespace.
+====
+
+.Reference
+
+* link:#ref_cache_service_crd-services[Cache Service Resources]
+* link:#ref_datagrid_service_crd-services[Data Grid Service Resources]

@@ -1,6 +1,6 @@
 [id='deploying_operator_manually']
+:context: manual
 = Manually Deploying the {ispn_operator}
-:context: deploying_manual
 
 You can manually deploy the {ispn_operator} as an alternative to installing it
 from link:{link_operator_hub}.

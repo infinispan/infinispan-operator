@@ -1,0 +1,24 @@
+[id='cache_services-{context}']
+= Cache Service
+{cacheservice} provides a volatile, low-latency data store that dramatically
+increases application response rates.
+
+{cacheservice} pods:
+
+* Synchronously distribute data across the cluster to ensure consistency.
+* Maintain single copies of cache entries to reduce size. You can replicate
+data for more resiliency.
+* Store cache entries off-heap and use eviction for JVM efficiency.
+
+[NOTE]
+====
+You can create multiple cache definitions with {cacheservice} but only as
+copies of the default configuration.
+====
+
+Default cache configuration for {cacheservice} pods is as follows:
+
+[source,xml,options="nowrap",subs=attributes+]
+----
+include::config_examples/cache_service_default_cache.xml[]
+----

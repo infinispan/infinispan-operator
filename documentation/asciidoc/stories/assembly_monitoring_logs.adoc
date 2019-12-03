@@ -1,6 +1,6 @@
 [id='logging']
-= Monitoring {brandname} Logs
 :context: monitor
+= Monitoring {brandname} Logs
 Set logging categories to different message levels to monitor, debug, and troubleshoot {brandname} pods.
 
 include::{topics}/proc_configure_logging.adoc[leveloffset=+1]

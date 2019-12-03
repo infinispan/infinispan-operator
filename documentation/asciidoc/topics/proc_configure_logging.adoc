@@ -4,9 +4,6 @@
 .Procedure
 
 . Create custom resources to configure {brandname} logging.
-+
-See link:#cr_logging-monitor[Logging Resources].
-+
 . Apply the custom resources.
 +
 [source,options="nowrap",subs=attributes+]
@@ -20,3 +17,7 @@ $ {oc_apply_cr} my_logging.yaml
 ----
 $ {oc_logs} -f ${POD_NAME}
 ----
+
+.Reference
+
+link:#cr_logging-monitor[Logging Resources]
