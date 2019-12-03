@@ -51,7 +51,7 @@ This document describes the types introduced by the Infinispan Operator to be co
 
 | `replicas`
 | Number of instances for a Infinispan resource. If this value is set to 0 the cluster
-is gracefully shutted down.
+is gracefully shut down.
 | int32
 | true
 |
