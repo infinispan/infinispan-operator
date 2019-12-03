@@ -12,6 +12,8 @@
 :example_crd_name: example-rhdatagrid
 :example_namespace: rhdg-namespace
 
+:image_resource: infinispan/server:latest
+
 include::oc_cmds.adoc[]
 include::links.adoc[]
 
@@ -103,6 +105,12 @@ include::links.adoc[]
 :openshiftplatform: Red Hat OpenShift Container Platform
 :ocp: OpenShift Container Platform
 :osweb: OpenShift Web Console
+:datagridservice: Data Grid service
+:cacheservice: Cache service
+
+//
+// Cloud services
+//
 :datagridservice: Data Grid service
 :cacheservice: Cache service
 

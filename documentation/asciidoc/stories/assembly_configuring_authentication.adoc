@@ -1,6 +1,6 @@
 [id='managing_cluster_credentials']
-= Configuring Authentication
 :context: auth
+= Configuring Authentication
 Application users must authenticate with {brandname} pods to access data.
 
 The {ispn_operator} generates default credentials and stores them in secrets.

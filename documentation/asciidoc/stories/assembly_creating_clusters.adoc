@@ -1,5 +1,5 @@
 [id='spinning_up_clusters']
-:context: create
+:context: start
 = Creating {brandname} Clusters
 You create, configure, and manage {brandname} clusters with the {ispn_operator}
 by defining custom resource objects in `yaml` format and applying them to
@@ -22,8 +22,8 @@ endif::productized[]
 ifndef::productized[]
 include::{topics}/proc_using_default_crs.adoc[leveloffset=+1]
 endif::productized[]
+
 include::{topics}/ref_crd.adoc[leveloffset=+1]
-include::{topics}/ref_container_resources.adoc[leveloffset=+2]
 include::{topics}/proc_create_cluster_minimal.adoc[leveloffset=+1]
 include::{topics}/proc_verify_cluster.adoc[leveloffset=+1]
 include::{topics}/proc_shut_down_gracefully.adoc[leveloffset=+1]

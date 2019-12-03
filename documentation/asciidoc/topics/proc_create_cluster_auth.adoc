@@ -5,9 +5,6 @@ Create a custom authentication secret and configure {brandname} pods to use it.
 .Procedure
 
 . Create an authentication secret.
-+
-For example, to create `connect_secret.yaml` see link:#ref_auth_secret-auth[Credentials Secret].
-+
 . Add the authentication secret to your {openshiftshort} namespace.
 +
 [source,options="nowrap",subs=attributes+]
@@ -26,3 +23,7 @@ include::yaml_annotated/cr_auth.yaml[]
 +
 . Apply the custom resource with `{oc_apply_cr}`.
 . Use `{oc_get_pods_w}` to watch the {ispn_operator} apply the custom resources.
+
+.Reference
+
+link:#ref_auth_secret-auth[Credentials Secrets]

@@ -1,0 +1,24 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  image: {image_resource}
+  replicas: 4
+  service:
+    type: Cache <1>
+  security: <2>
+    endpointSecretName: endpoint-identities
+    endpointEncryption:
+        type: secret
+        certSecretName: tls-secret
+  container: <3>
+    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
+    cpu: "2000m"
+    memory: 1Gi
+  logging: <4>
+    categories:
+      org.infinispan: trace
+      org.jgroups: trace
+  expose: <5>
+    type: LoadBalancer

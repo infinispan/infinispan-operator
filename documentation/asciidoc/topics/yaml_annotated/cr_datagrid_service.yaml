@@ -1,0 +1,40 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  image: {image_resource}
+  replicas: 6
+  service:
+    type: DataGrid <1>
+    container:
+      storage: 2Gi <2>
+    sites: <3>
+      local:
+        expose:
+          type: LoadBalancer
+      backups:
+      - name: google
+        url: xsite://google.host:23456
+      - name: azure
+        url: openshift://api.azure.host:6443
+        secretName: azure-identities
+      - name: aws
+        url: openshift://api.aws.host:6443
+        secretName: aws-identities
+  security: <4>
+    endpointSecretName: endpoint-identities
+    endpointEncryption:
+      type: service
+      certServiceName: service.beta.openshift.io
+      certSecretName: served-tls-secret
+  container: <5>
+    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
+    cpu: "1000m"
+    memory: 1Gi
+  logging: <6>
+    categories:
+      org.infinispan: debug
+      org.jgroups: debug
+  expose: <7>
+    type: LoadBalancer

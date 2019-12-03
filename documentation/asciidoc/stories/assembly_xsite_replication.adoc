@@ -1,6 +1,6 @@
 [id='configuring_backup_sites']
-= Configuring Cross-Site Replication
 :context: xsite
+= Configuring Cross-Site Replication
 {brandname} allows you to back up data across geographic locations. For
 example, you have a {brandname} cluster running on {openshift} in a data
 center in New York (SiteA). You have another {brandname} cluster running on
