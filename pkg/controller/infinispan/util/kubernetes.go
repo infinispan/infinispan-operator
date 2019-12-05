@@ -67,6 +67,7 @@ func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 		restClient: restClient,
 		RestConfig: config,
 	}
+
 }
 
 // NewKubernetesFromMasterURL creates a new Kubernetes from the Kubernetes master URL to connect to
@@ -96,7 +97,6 @@ func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) 
 	if err != nil {
 		return nil, err
 	}
-
 	return secret, err
 }
 
@@ -249,4 +249,16 @@ func (k Kubernetes) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint6
 	}
 
 	return 0, fmt.Errorf("meminfo lacking MemTotal information")
+}
+
+// ServiceCAsCRDResourceExists returns true if the platform
+// has the servicecas.operator.openshift.io custom resource deployed
+// Used to check if serviceca operator is serving TLS certificates
+func (k Kubernetes) HasServiceCAsCRDResource() bool {
+	// Using an ad-hoc path
+	req := k.restClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
+	result := req.Do()
+	var status int
+	result.StatusCode(&status)
+	return status >= 200 && status < 299
 }

@@ -151,6 +151,26 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
+
+		// Populate EndpointEncryption if serving cert service is available
+		if getServingCertsMode(kubernetes) == "openshift.io" {
+			requeue := false
+			ee := &infinispan.Spec.Security.EndpointEncryption
+			if ee.Type == "" {
+				ee.Type = "service"
+				ee.CertServiceName = "service.beta.openshift.io"
+				requeue = true
+			}
+			if ee.CertSecretName == "" {
+				ee.CertSecretName = infinispan.Name + "-cert-secret"
+				requeue = true
+			}
+			if requeue {
+				err = r.client.Update(context.TODO(), infinispan)
+				return reconcile.Result{Requeue: true}, nil
+			}
+		}
+
 		identities, err := r.findCredentials(infinispan)
 		if err != nil {
 			reqLogger.Error(err, "could not find or create identities")
@@ -180,7 +200,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		// Define a new deployment
 		dep, err := r.deploymentForInfinispan(infinispan, secret, configMap)
 		if err != nil {
-			reqLogger.Error(err, "failed to configure new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+			reqLogger.Error(err, "failed to configure new Deployment", "Deployment.Namespace", infinispan.Namespace, "Deployment.Name", infinispan.Name)
 			return reconcile.Result{}, err
 		}
 		reqLogger.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
@@ -191,6 +211,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		ser := r.serviceForInfinispan(infinispan)
+
+		if err != nil {
+			reqLogger.Error(err, "failed to update Infinispan", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
+			return reconcile.Result{}, err
+		}
+
 		setupServiceForEncryption(infinispan, ser)
 		err = r.client.Create(context.TODO(), ser)
 		if err != nil && !errors.IsAlreadyExists(err) {
@@ -1415,4 +1441,16 @@ func getEnvWithDefault(name, defVal string) string {
 		return str
 	}
 	return defVal
+}
+
+// getServingCertsMode returns a label that identify the kind of serving
+// certs service is available. Returns 'openshift.io' for service-ca on openshift
+func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
+	if remoteKubernetes.HasServiceCAsCRDResource() {
+		return "openshift.io"
+
+		// Code to check if other modes of serving TLS cert service is available
+		// can be added here
+	}
+	return ""
 }
