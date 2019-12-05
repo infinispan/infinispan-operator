@@ -9,7 +9,8 @@ PROG  := infinispan-operator
 
 ## dep         Ensure deps is locally available.
 dep:
-	go mod vendor tidy
+	go mod vendor
+	go mod tidy
 
 ## codegen     Run the k8s code generator for custom resources.
 ##             See https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/
