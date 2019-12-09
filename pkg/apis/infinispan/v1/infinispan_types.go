@@ -64,7 +64,7 @@ type InfinispanSitesLocalSpec struct {
 	Expose v1.ServiceSpec `json:"expose"`
 }
 
-type InfinispanSitesBackupSpec struct {
+type InfinispanSiteLocationSpec struct {
 	Name       string `json:"name"`
 	URL        string `json:"url"`
 	SecretName string `json:"secretName"`
@@ -72,7 +72,7 @@ type InfinispanSitesBackupSpec struct {
 
 type InfinispanSitesSpec struct {
 	Local   InfinispanSitesLocalSpec    `json:"local"`
-	Backups []InfinispanSitesBackupSpec `json:"backups"`
+	Locations []InfinispanSiteLocationSpec `json:"locations"`
 }
 
 type InfinispanLoggingSpec struct {

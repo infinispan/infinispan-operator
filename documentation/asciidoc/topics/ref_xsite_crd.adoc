@@ -7,7 +7,7 @@ include::yaml_annotated/cr_backup_site.yaml[]
 ----
 
 <1> specifies the DataGrid service. {brandname} supports cross-site replication with the DataGrid service only.
-<2> names the site where the {brandname} cluster runs, the local site.
+<2> names the local site for a {brandname} cluster.
 //Community
 ifndef::productized[]
 <3> defines the externally exposed service.
@@ -18,21 +18,22 @@ endif::productized[]
 ifdef::productized[]
 <3> specifies `LoadBalancer` as the service that exposes the {openshiftshort} cluster to externally network traffic.
 endif::productized[]
-<4> names the site to which the {brandname} cluster replicates data, the backup site.
+<4> provides connection information for all site masters.
+<5> site name that matches a corresponding `.spec.service.sites.local.name` resource.
 //Community
 ifndef::productized[]
-<5> specifies the URL to access the backup site.
-//* Use `xsite://` if the backup site has a static hostname and port.
-* Use `minikube://` if the backup site is a Minikube instance.
-* Use `openshift://` if the backup site is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API for the backup site.
+<6> specifies a site master location.
+//* Use `xsite://` if the site master has a static hostname and port.
+* Use `minikube://` if the site master is a Minikube instance.
+* Use `openshift://` if the site master is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API for the site.
 endif::productized[]
 //Product
 ifdef::productized[]
-<5> specifies the URL of the Kubernetes API for the backup site.
+<6> specifies the URL of the Kubernetes API for the site.
 endif::productized[]
 //Community
 ifndef::productized[]
-<6> specifies the secret to access backup sites.
+<7> specifies the access secret for a site.
 +
 [NOTE]
 ====

@@ -1,5 +1,6 @@
-NAMESPACE ?= local-operators
+.PHONY: delete-namespace image push deploy-operator undeploy-operator deploy undeploy create-cache put get
 
+NAMESPACE ?= local-operators
 IMAGE ?= jboss/infinispan-operator
 TAG ?= latest
 
@@ -25,6 +26,7 @@ define login-server
 oc login --insecure-skip-tls-verify=true \
     --server=${SERVER_${1}} \
     --token=${TOKEN_${1}}
+oc project ${NAMESPACE}
 endef
 
 define deploy-operator
@@ -46,6 +48,10 @@ undeploy-operator:
 
 define undeploy-operator
 oc delete deployment infinispan-operator || true
+oc delete role infinispan-operator || true
+oc delete rolebinding infinispan-operator || true
+oc delete serviceaccount infinispan-operator || true
+oc delete crd infinispans.infinispan.org || true
 endef
 
 ## deploy                Deploy Infinispan cross-site
@@ -80,46 +86,57 @@ oc delete secret site-${1}-secrets || true
 oc delete infinispan example-infinispan || true
 endef
 
-#### create-cache          Create x-site cache
-#create-cache:
-#	$(call login-server,A)
-#	$(call create-cache,B)
-#	$(call login-server,B)
-#	$(call create-cache,A)
-#
-#developer-password = $$(oc get secret \
-#    example-infinispan-generated-secret \
-#    -o jsonpath="{.data.identities\.yaml}" \
-#    | base64 -D \
-#    | yq -r .credentials[0].password)
-#
-#url = $$(minikube service \
-#    example-infinispan-external \
-#    --url --namespace ${NAMESPACE})
-#
-#define create-cache
-#curl --fail -v \
-#    -d '<infinispan><cache-container><distributed-cache name="example" mode="SYNC"><backups><backup site="Site${1}" strategy="ASYNC" timeout="30000"/></backups></distributed-cache></cache-container></infinispan>' \
-#    -H "Content-Type: application/xml" \
-#    -u developer:${call developer-password} \
-#    -X POST \
-#    ${call url}/rest/v2/caches/example
-#endef
+### create-cache          Create x-site cache
+create-cache:
+	$(call login-server,A)
+	$(call create-cache,B)
+	$(call login-server,B)
+	$(call create-cache,A)
 
-### put                   Put key/value pair into SiteA example cache
-#put:
-#	minikube profile ${SITE_1}
-#	curl --fail -v \
-#        -d 'test-value' \
-#        -H "Content-Type: text/plain" \
-#        -u developer:${call developer-password} \
-#        -X POST \
-#        ${call url}/rest/v2/caches/example/test-key
-#
+developer-password = $$(oc get secret \
+   example-infinispan-generated-secret \
+   -o jsonpath="{.data.identities\.yaml}" \
+   | base64 -D \
+   | yq -r .credentials[0].password)
+
+url = $$(oc get service \
+   example-infinispan-external \
+   -o jsonpath={.status.loadBalancer.ingress\[0\].hostname})
+
+define create-cache
+curl --fail -v \
+   -d '<infinispan><cache-container><distributed-cache name="example" mode="SYNC"><backups><backup site="Site${1}" strategy="ASYNC" timeout="30000"/></backups></distributed-cache></cache-container></infinispan>' \
+   -H "Content-Type: application/xml" \
+   -u developer:${call developer-password} \
+   -X POST \
+   ${call url}:11222/rest/v2/caches/example
+endef
+
+## put                   Put key/value pair into SiteA example cache
+put:
+	$(call login-server,A)
+	curl --fail -v \
+		-d 'test-value' \
+		-H "Content-Type: text/plain" \
+		-u developer:${call developer-password} \
+		-X POST \
+		${call url}:11222/rest/v2/caches/example/test-key
+
 ### get                   Get value from SiteB example cache
-#get:
-#	minikube profile ${SITE_2}
-#	curl --fail -v \
-#        -H "Content-Type: text/plain" \
-#        -u developer:${call developer-password} \
-#        ${call url}/rest/v2/caches/example/test-key
+get:
+	$(call login-server,B)
+	curl --fail -v \
+		-H "Content-Type: text/plain" \
+		-u developer:${call developer-password} \
+		${call url}:11222/rest/v2/caches/example/test-key
+
+## delete-namespace      Delete namespace from both sites
+delete-namespace:
+	$(call login-server,A)
+	$(call delete-namespace)
+	$(call login-server,B)
+	$(call delete-namespace)
+
+define delete-namespace
+oc delete namespace ${NAMESPACE}
+endef

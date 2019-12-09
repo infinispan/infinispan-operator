@@ -1,4 +1,4 @@
-[id='configuring_backup_sites-{context}']
+[id='configuring_sites-{context}']
 = Adding Site Definitions to {brandname}
 Configure {brandname} clusters as sites so that they can communicate over a
 dedicated JGroups transport channel for replicating data.
@@ -7,10 +7,14 @@ dedicated JGroups transport channel for replicating data.
 
 . Create custom resources for {brandname} at each site.
 +
-You must configure each site as a backup for the other. For example, you create
-`site_a.yaml` to configure SiteA as the local site and SiteB as the backup
-site. You must also then create `site_b.yaml` to configure SiteB as the local
-site and SiteA as the backup site. See link:#ref_xsite_crd-xsite[Cross-Site Replication Resources].
+For example, create `site_a.yaml` to configure `SiteA` and `site_b.yaml` to
+configure `SiteB`. Both configurations must include the following resource
+definitions:
++
+* `.spec.service.sites.local` names the local site for a {brandname} cluster.
+* `.spec.service.sites.masters` provides the location of all site masters.
+{brandname} pods use this information to connect with each other and form
+cross-site views.
 +
 . Configure {brandname} clusters at each site, for example:
 .. Log in to {ocp} at SiteA.
@@ -40,3 +44,7 @@ $ oc logs {example_crd_name}-0 | grep x-site
 INFO  [org.infinispan.XSITE] (jgroups-5,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [SiteB]
 INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [SiteB, SiteA]
 ----
+
+.Reference
+
+link:#ref_xsite_crd-xsite[Cross-Site Replication Resources]

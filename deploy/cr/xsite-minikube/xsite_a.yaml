@@ -4,6 +4,8 @@ metadata:
   name: example-infinispan
 spec:
   replicas: 2
+  expose:
+    type: NodePort
   service:
     type: DataGrid
     sites:
@@ -11,9 +13,10 @@ spec:
         name: SiteA
         expose:
           type: NodePort
-          externalIPs:
-            - 192.168.99.147
-      backups:
+      locations:
+      - name: SiteA
+        url: minikube://192.168.99.101:8443
+        secretName: site-secrets
       - name: SiteB
-        url: minikube://192.168.99.148:8443
-        secretName: site-b-secrets
+        url: minikube://192.168.99.102:8443
+        secretName: site-secrets
