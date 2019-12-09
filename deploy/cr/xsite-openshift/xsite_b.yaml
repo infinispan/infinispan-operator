@@ -4,6 +4,8 @@ metadata:
   name: example-infinispan
 spec:
   replicas: 1
+  expose:
+    type: LoadBalancer
   service:
     type: DataGrid
     sites:
@@ -11,7 +13,10 @@ spec:
         name: SiteB
         expose:
           type: LoadBalancer
-      backups:
+      locations:
       - name: SiteA
-        url: openshift://api.datagrid1031-site-a.devcluster.openshift.com:6443
+        url: openshift://api.infinispan-1209a.devcluster.openshift.com:6443
         secretName: site-a-secrets
+      - name: SiteB
+        url: openshift://api.infinispan-1209b.devcluster.openshift.com:6443
+        secretName: site-b-secrets

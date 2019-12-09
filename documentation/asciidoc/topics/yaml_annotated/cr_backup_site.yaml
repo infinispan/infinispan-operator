@@ -7,7 +7,10 @@ spec:
         name: SiteA <2>
         expose:
           type: LoadBalancer <3>
-      backups:
-      - name: SiteB <4>
-        url: openshift://api.site-b.devcluster.openshift.com:6443 <5>
-        secretName: site-b-token <6>
+      locations: <4>
+      - name: SiteA <5>
+        url: openshift://api.site-a.devcluster.openshift.com:6443 <6>
+        secretName: site-a-token <7>
+      - name: SiteB
+        url: openshift://api.site-b.devcluster.openshift.com:6443
+        secretName: site-b-token

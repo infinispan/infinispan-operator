@@ -378,9 +378,9 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 | true
 |
 
-| `backups`
-| Site information for backups.
-| []<<infinispanbackupsitespec>>
+| `locations`
+| Site information for all local and remote locations.
+| []<<infinispanlocationssitespec>>
 | true
 |
 
@@ -396,6 +396,12 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 |=======================
 | Field | Description | Scheme | Required | Default
 
+| `name`
+| Name of site.
+| string
+| true
+|
+
 | `expose`
 | For sites to communicate with each other,
 a dedicated externally exposed service needs to be configured.
@@ -410,26 +416,26 @@ it binds to port `7900` by default and uses port `32660` as `nodePort`.
 |=======================
 
 
-[[infinispanbackupsitespec]]
-#### `InfinispanBackupSiteSpec`
+[[infinispanlocationssitespec]]
+#### `InfinispanLocationsSiteSpec`
 
-`InfinispanBackupSiteSpec`.
+`InfinispanLocationsSiteSpec`.
 
 [options="header,footer"]
 |=======================
 | Field | Description | Scheme | Required | Default
 
 | `name`
-| Name of remote site.
+| Name of remote location.
 | string
 | true
 |
 
 | `url`
-| URL for remote site.
-`xsite://` scheme denotes that the remote site is configured with static host:port combination.
-`minikube://` scheme denotes that external site is a minikube instance and the setting are extracted from the remote Kubernetes host:port.
-`openshift://` scheme denotes that site external setting are extracted from the remote OpenShift host:port.
+| URL for remote location.
+`xsite://` scheme denotes that the remote locatio is configured with static host:port combination.
+`minikube://` scheme denotes that external location is a minikube instance and the setting are extracted from the remote Kubernetes host:port.
+`openshift://` scheme denotes that site location settings are extracted from the remote OpenShift host:port.
 | string
 | true
 |
@@ -723,9 +729,10 @@ spec:
       storage: 2Gi
     sites:
       local:
+        name: google
         expose:
           type: LoadBalancer
-      backups:
+      locations:
       - name: google
         url: xsite://google.host:23456
       - name: azure
@@ -797,12 +804,13 @@ spec:
         name: SiteA
         expose:
           type: NodePort
-          externalIPs:
-            - 192.168.99.147
-      backups:
+      locations:
+      - name: SiteA
+        url: minikube://192.168.99.147:8443
+        secretName: site-secrets
       - name: SiteB
         url: minikube://192.168.99.148:8443
-        secretName: site-b-secrets
+        secretName: site-secrets
   expose:
     type: NodePort
 ----

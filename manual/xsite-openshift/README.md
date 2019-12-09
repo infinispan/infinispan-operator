@@ -34,6 +34,39 @@ $ oc logs example-infinispan-0 | grep x-site
 17:28:22,235 INFO  [org.infinispan.XSITE] (jgroups-7,example-infinispan-0-7160) ISPN000439: Received new x-site view: [SiteB, SiteA]
 ```
 
+Next, create a cache in each site that backs up the data to the other site:
+
+```bash
+$ make create-cache
+curl ... /rest/v2/caches/example
+...
+HTTP/1.1 200 OK
+...
+curl ... /rest/v2/caches/example
+...
+HTTP/1.1 200 OK
+```
+
+Store a key/value pair in the created cache in one of the sites:
+
+```bash
+$ make put
+curl -d 'test-value' .../rest/v2/caches/example/test-key
+...
+< HTTP/1.1 204 No Content
+```
+
+Finally, verify that the stored value is present in the other site:
+
+```bash
+$ make get
+curl .../rest/v2/caches/example/test-key
+...
+< HTTP/1.1 200 OK
+...
+test-value
+```
+
 # Testing Local Operator Changes
 
 If testing local operator code changes,

@@ -1,4 +1,4 @@
-.PHONY: config start stop delete image deploy-operator undeploy-operator deploy undeploy create-cache put get
+.PHONY: config start stop delete delete-namespace image deploy-operator undeploy-operator deploy undeploy create-cache put get
 
 NAMESPACE ?= local-operators
 SITE_1 ?= SiteA
@@ -77,18 +77,22 @@ undeploy-operator:
 define undeploy-operator
 minikube profile ${1}
 kubectl delete deployment infinispan-operator || true
+kubectl delete role infinispan-operator || true
+kubectl delete rolebinding infinispan-operator || true
+kubectl delete serviceaccount infinispan-operator || true
+kubectl delete crd infinispans.infinispan.org || true
 endef
 
 ## deploy                Deploy Infinispan cross-site
 deploy:
-	$(call deploy,${SITE_1},a,b)
-	$(call deploy,${SITE_2},b,a)
+	$(call deploy,${SITE_1},a)
+	$(call deploy,${SITE_2},b)
 	$(call waitWellFormed,${SITE_1})
 	$(call waitWellFormed,${SITE_2})
 
 define deploy
 minikube profile ${1}
-kubectl create secret generic site-${3}-secrets \
+kubectl create secret generic site-secrets \
     --from-file=certificate-authority=/opt/minikube/.minikube/ca.crt \
     --from-file=client-certificate=/opt/minikube/.minikube/client.crt \
     --from-file=client-key=/opt/minikube/.minikube/client.key
@@ -102,12 +106,12 @@ endef
 
 ## undeploy              Undeploy Infinispan cross-site
 undeploy:
-	$(call undeploy,${SITE_1},b)
-	$(call undeploy,${SITE_2},a)
+	$(call undeploy,${SITE_1})
+	$(call undeploy,${SITE_2})
 
 define undeploy
 minikube profile ${1}
-kubectl delete secret site-${2}-secrets || true
+kubectl delete secret site-secrets || true
 kubectl delete infinispan example-infinispan || true
 endef
 
@@ -129,7 +133,7 @@ url = $$(minikube service \
 define create-cache
 minikube profile ${1}
 
-curl --fail -v \
+curl -v \
     -d '<infinispan><cache-container><distributed-cache name="example" mode="SYNC"><backups><backup site="Site${2}" strategy="ASYNC" timeout="30000"/></backups></distributed-cache></cache-container></infinispan>' \
     -H "Content-Type: application/xml" \
     -u developer:${call developer-password} \
@@ -154,3 +158,13 @@ get:
         -H "Content-Type: text/plain" \
         -u developer:${call developer-password} \
         ${call url}/rest/v2/caches/example/test-key
+
+## delete-namespace      Delete namespace from both sites
+delete-namespace:
+	$(call delete-namespace,${SITE_1})
+	$(call delete-namespace,${SITE_2})
+
+define delete-namespace
+minikube profile "$1"
+kubectl delete namespace ${NAMESPACE}
+endef

@@ -93,7 +93,7 @@ make put
 ✅  minikube profile was successfully set to SiteA
 curl -d 'test-value' .../rest/v2/caches/example/test-key
 ...
-< HTTP/1.1 200 OK
+< HTTP/1.1 204 No Content
 ```
 
 Finally, verify that the stored value is present in the other site:

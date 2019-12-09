@@ -597,7 +597,7 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 			return nil, err
 		}
 
-		localSiteHost, localSitePort, err := getLocalSiteServiceHostPort(siteService, logger)
+		localSiteHost, localSitePort, err := getLocalSiteServiceHostPort(siteService, infinispan, logger)
 		if err != nil {
 			logger.Error(err, "error retrieving local x-site service information")
 			return nil, err
@@ -621,9 +621,9 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 			Port:    localSitePort,
 		}
 
-		backupSites := infinispan.Spec.Service.Sites.Backups
-		for _, backupSite := range backupSites {
-			err := appendBackupSite(xsite, infinispan, &backupSite, logger)
+		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
+		for _, remoteLocation := range remoteLocations {
+			err := appendRemoteLocation(xsite, infinispan, &remoteLocation, logger)
 			if err != nil {
 				return nil, err
 			}
@@ -636,16 +636,51 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 	return nil, nil
 }
 
-func getLocalSiteServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
+func findRemoteLocations(localSiteName string, infinispan *infinispanv1.Infinispan) (remoteLocations []infinispanv1.InfinispanSiteLocationSpec) {
+	locations := infinispan.Spec.Service.Sites.Locations
+	for _, location := range locations {
+		if localSiteName != location.Name {
+			remoteLocations = append(remoteLocations, location)
+		}
+	}
+
+	return
+}
+
+func getLocalSiteServiceHostPort(service *corev1.Service, infinispan *infinispanv1.Infinispan, logger logr.Logger) (string, int32, error) {
 	switch serviceType := service.Spec.Type; serviceType {
 	case corev1.ServiceTypeNodePort:
+		externalIP, err := findNodePortExternalIP(infinispan)
+		if err != nil {
+			return "", 0, err
+		}
+
 		// If configuring NodePort, expect external IPs to be configured
-		return service.Spec.ExternalIPs[0], kubernetes.GetNodePort(service), nil
+		return externalIP, kubernetes.GetNodePort(service), nil
 	case corev1.ServiceTypeLoadBalancer:
 		return getLoadBalancerServiceHostPort(service, logger)
 	default:
 		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
 	}
+}
+
+func findNodePortExternalIP(infinispan *infinispanv1.Infinispan) (string, error) {
+	localSiteName := infinispan.Spec.Service.Sites.Local.Name
+	locations := infinispan.Spec.Service.Sites.Locations
+	for _, location := range locations {
+		if location.Name == localSiteName {
+			masterURL, err := url.Parse(location.URL)
+			if err != nil {
+				return "", nil
+			}
+			host, _, err := net.SplitHostPort(masterURL.Host)
+			if err != nil {
+				return "", nil
+			}
+			return host, nil
+		}
+	}
+	return "", fmt.Errorf("could not find node port external IP, check local site name matches one of the members")
 }
 
 func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
@@ -1218,7 +1253,7 @@ func isCache(infinispan *infinispanv1.Infinispan) bool {
 }
 
 func hasSites(infinispan *infinispanv1.Infinispan) bool {
-	return isDataGrid(infinispan) && len(infinispan.Spec.Service.Sites.Backups) > 0
+	return isDataGrid(infinispan) && len(infinispan.Spec.Service.Sites.Locations) > 0
 }
 
 func isExposed(infinispan *infinispanv1.Infinispan) bool {
@@ -1293,27 +1328,27 @@ func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinisp
 	return &siteService, nil
 }
 
-func appendBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, backup *infinispanv1.InfinispanSitesBackupSpec, logger logr.Logger) error {
-	restConfig, err := GetRemoteSiteRESTConfig(infinispan, backup, logger)
+func appendRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) error {
+	restConfig, err := GetRemoteSiteRESTConfig(infinispan, remoteLocation, logger)
 	if err != nil {
 		return err
 	}
 
 	remoteKubernetes, err := ispnutil.NewKubernetesFromConfig(restConfig)
 	if err != nil {
-		logger.Error(err, "could not connect to master URL", "URL", backup.URL)
+		logger.Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
 		return err
 	}
 
-	err = appendKubernetesBackupSite(xsite, infinispan, backup, remoteKubernetes, logger)
+	err = appendKubernetesRemoteLocation(xsite, infinispan, remoteLocation, remoteKubernetes, logger)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func GetRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, backup *infinispanv1.InfinispanSitesBackupSpec, logger logr.Logger) (*restclient.Config, error) {
-	backupSiteURL, err := url.Parse(backup.URL)
+func GetRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, location *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) (*restclient.Config, error) {
+	backupSiteURL, err := url.Parse(location.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -1324,14 +1359,14 @@ func GetRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, backup *infini
 		return nil, err
 	}
 
-	// All remote sites masters are accessed via encrypted http
+	// All remote sites locations are accessed via encrypted http
 	copyURL.Scheme = "https"
 
 	switch scheme := backupSiteURL.Scheme; scheme {
 	case "minikube":
-		return getMinikubeRESTConfig(copyURL.String(), backup.SecretName, infinispan, logger)
+		return getMinikubeRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
 	case "openshift":
-		return getOpenShiftRESTConfig(copyURL.String(), backup.SecretName, infinispan, logger)
+		return getOpenShiftRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
 	default:
 		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
 	}
@@ -1383,7 +1418,7 @@ func getOpenShiftRESTConfig(masterURL string, secretName string, infinispan *inf
 	return nil, fmt.Errorf("token required connect to OpenShift cluster")
 }
 
-func appendKubernetesBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, backup *infinispanv1.InfinispanSitesBackupSpec, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) error {
+func appendKubernetesRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) error {
 	siteServiceName := getSiteServiceName(infinispan)
 	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
 	siteService := &corev1.Service{}
@@ -1413,7 +1448,7 @@ func appendKubernetesBackupSite(xsite *ispnutil.XSite, infinispan *infinispanv1.
 
 	backupSite := ispnutil.BackupSite{
 		Address: host,
-		Name:    backup.Name,
+		Name:    remoteLocation.Name,
 		Port:    port,
 	}
 

@@ -24,7 +24,7 @@ ifndef::productized[]
 include::{topics}/proc_creating_minikube_site_secrets.adoc[leveloffset=+1]
 endif::productized[]
 include::{topics}/proc_creating_sa_tokens.adoc[leveloffset=+1]
-include::{topics}/proc_configuring_backup_sites.adoc[leveloffset=+1]
+include::{topics}/proc_configuring_sites.adoc[leveloffset=+1]
 include::{topics}/ref_xsite_crd.adoc[leveloffset=+2]
 
 
