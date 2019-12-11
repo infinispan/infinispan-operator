@@ -743,7 +743,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Name:  "infinispan",
 						Env:   envVars,
 						LivenessProbe: &corev1.Probe{
-							Handler:             corev1.Handler{HTTPGet: &corev1.HTTPGetAction{Scheme: protocolScheme, Path: "/rest/v2/cache-managers/DefaultCacheManager/health/status", Port: intstr.FromInt(11222)}},
+							Handler:             ispnutil.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       60,
@@ -754,7 +754,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
 						},
 						ReadinessProbe: &corev1.Probe{
-							Handler:             corev1.Handler{HTTPGet: &corev1.HTTPGetAction{Scheme: protocolScheme, Path: "/rest/v2/cache-managers/DefaultCacheManager/health/status", Port: intstr.FromInt(11222)}},
+							Handler:             ispnutil.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       10,

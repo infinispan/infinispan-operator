@@ -325,7 +325,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 }
 
 func checkExternalAddress(client *http.Client, user, password, hostAndPort string) bool {
-	httpURL := fmt.Sprintf("http://%s/rest/v2/cache-managers/DefaultCacheManager/health", hostAndPort)
+	httpURL := fmt.Sprintf("http://%s/%s", hostAndPort, util.ServerHTTPHealthPath)
 	req, err := http.NewRequest("GET", httpURL, nil)
 	ExpectNoError(err)
 	req.SetBasicAuth(user, password)
