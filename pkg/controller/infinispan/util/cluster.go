@@ -3,12 +3,19 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"strconv"
 	"strings"
 )
 
 var log = logf.Log.WithName("cluster_util")
+
+const ServerHTTPBasePath = "/rest/v2"
+const ServerHTTPClusterStop = ServerHTTPBasePath + "/cluster?action=stop"
+const ServerHTTPHealthPath = ServerHTTPBasePath + "/cache-managers/default/health"
+const ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
 
 // Cluster abstracts interaction with an Infinispan cluster
 type Cluster struct {
@@ -62,7 +69,7 @@ func (c Cluster) GracefulShutdown(secretName, podName, namespace, protocol strin
 	if err != nil {
 		return err
 	}
-	httpURL := fmt.Sprintf(protocol+"://%v:11222/rest/v2/cluster?action=stop", podIP)
+	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, ServerHTTPClusterStop)
 	commands := []string{"curl", "-X", "GET", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
@@ -98,7 +105,7 @@ func (c Cluster) GetClusterMembers(secretName, podName, namespace, protocol stri
 		return nil, err
 	}
 
-	httpURL := fmt.Sprintf(protocol+"://%v:11222/rest/v2/cache-managers/DefaultCacheManager/health", podIP)
+	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, ServerHTTPHealthPath)
 	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
@@ -201,4 +208,14 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
 	logger.Info("create cache completed successfully", "http code", httpCode)
 	return nil
+}
+
+// Return handler for querying cluster status
+func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
+	return corev1.Handler{
+		HTTPGet: &corev1.HTTPGetAction{
+			Scheme: scheme,
+			Path: ServerHTTPHealthStatusPath,
+			Port: intstr.FromInt(11222)},
+	}
 }
