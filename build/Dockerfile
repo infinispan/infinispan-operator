@@ -1,10 +1,10 @@
-FROM golang:1.11.5 AS build
-RUN go get -u github.com/golang/dep/cmd/dep
-COPY Gopkg.lock Gopkg.toml /go/src/github.com/infinispan/infinispan-operator/
-WORKDIR /go/src/github.com/infinispan/infinispan-operator/
-RUN dep ensure -vendor-only
-COPY . /go/src/github.com/infinispan/infinispan-operator/
-RUN rm -rf build/_output
+FROM golang:1.12 AS build
+ENV GO111MODULE=on
+WORKDIR /infinispan-operator
+COPY go.mod go.sum ./
+RUN go mod tidy
+COPY . .
+RUN rm -rf ./build/_output
 RUN ./build/build.sh linux /bin
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal
