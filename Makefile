@@ -9,7 +9,7 @@ PROG  := infinispan-operator
 
 ## dep         Ensure deps is locally available.
 dep:
-	dep ensure
+	go mod tidy
 
 ## codegen     Run the k8s code generator for custom resources.
 ##             See https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/
@@ -21,14 +21,14 @@ vet:
 	go vet ./...
 
 ## build       Compile and build the Infinispan operator.
-build: dep vet
+build:
 	./build/build.sh ${GOOS}
 
 ## image       Build a Docker image for the Infinispan operator.
 image: build
 ifeq ($(MULTISTAGE),NO)
 ## This branch builds the image in a docker container which provides multistage build
-## for distro that doesn't provide multistage build directly (i.e. Fedora 29)
+## for distro that doesn't provide multistage build directly (i.e. Fedora 30 or early)
 	-docker run -d --rm --privileged -p 23751:2375 --name dind docker:18-dind --storage-driver overlay2
 	-sleep 5
 	-docker --host=:23751 build -t "$(IMAGE):$(TAG)" . -f build/Dockerfile

@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - '1.11.x'
+  - '1.12.x'
 
 sudo: required
 
@@ -10,7 +10,7 @@ services:
 
 cache:
   directories:
-  - $GOPATH/pkg/dep
+  - $GOPATH/pkg/mod
 
 env:
   - KIND_VERSION=v0.5.1
@@ -20,7 +20,7 @@ jobs:
     - stage: "Unit Test"
       name: "Unit Test"
       script:
-        - go get -u github.com/golang/dep/cmd/dep
+        - go mod tidy
         - make unit-test
 
 #    - stage: "Test"
@@ -62,7 +62,7 @@ jobs:
         - export KUBECONFIG="$(kind get kubeconfig-path)"
         - export MAKE_DATADIR_WRITABLE=true
       script:
-        - go get -u github.com/golang/dep/cmd/dep
+        - go mod tidy
         - make test
       after_failure:
         - kubectl get events --all-namespaces
