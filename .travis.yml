@@ -19,6 +19,8 @@ jobs:
   include:
     - stage: "Unit Test"
       name: "Unit Test"
+      before_script:
+        - export GO111MODULE=on
       script:
         - go mod tidy
         - make unit-test
@@ -52,7 +54,7 @@ jobs:
 #        - KUBECONFIG=/tmp/openshift-dind-cluster/openshift/openshift.local.config/master/admin.kubeconfig ./oc get events --all-namespaces
 #        - docker ps -a
 #        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
-
+#
     - stage: "Test"
       name: "Kubernetes"
       before_script:
@@ -61,6 +63,7 @@ jobs:
         - kind create cluster --config kind-config.yaml
         - export KUBECONFIG="$(kind get kubeconfig-path)"
         - export MAKE_DATADIR_WRITABLE=true
+        - export GO111MODULE=on
       script:
         - go mod tidy
         - make test
