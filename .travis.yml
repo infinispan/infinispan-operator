@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - '1.12.x'
+  - '1.13.x'
 
 sudo: required
 
@@ -22,7 +22,7 @@ jobs:
       before_script:
         - export GO111MODULE=on
       script:
-        - go mod tidy
+        - go mod vendor
         - make unit-test
 
 #    - stage: "Test"
@@ -65,7 +65,7 @@ jobs:
         - export MAKE_DATADIR_WRITABLE=true
         - export GO111MODULE=on
       script:
-        - go mod tidy
+        - go mod vendor
         - make test
       after_failure:
         - kubectl get events --all-namespaces
