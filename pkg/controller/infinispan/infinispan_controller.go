@@ -433,9 +433,15 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	replicas := infinispan.Spec.Replicas
 	previousReplicas := *found.Spec.Replicas
 	if previousReplicas != replicas {
-		found.Spec.Replicas = &replicas
-		reqLogger.Info("replicas changed, update infinispan", "replicas", replicas, "previous replicas", previousReplicas)
-		updateNeeded = true
+		minReplicas := getInfinispanMinNumberOfNodes(podList.Items, infinispan.Namespace, infinispan.Name, protocol, cluster)
+		if replicas >= int32(minReplicas) {
+			found.Spec.Replicas = &replicas
+			reqLogger.Info("replicas changed, update infinispan", "replicas", replicas, "previous replicas", previousReplicas)
+			updateNeeded = true
+		} else {
+			err1 := fmt.Errorf("Cluster minimum size is " + fmt.Sprint(minReplicas) + ". Cluster can't be downscaled to spec.replicas=" + fmt.Sprint(replicas) + " nodes.")
+			reqLogger.Error(err1, "failed to reconcile", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+		}
 	}
 
 	// Changes to statefulset.spec.template.spec.containers[].resources
@@ -1727,4 +1733,21 @@ func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
 		// can be added here
 	}
 	return ""
+}
+
+func getInfinispanMinNumberOfNodes(pods []corev1.Pod, namespace, name, protocol string, cluster ispnutil.ClusterInterface) int {
+	reqLogger := log.WithValues("Request.Namespace", namespace, "Request.Name", name)
+	secretName := ispnutil.GetSecretName(name)
+	minNum := 0
+	for _, pod := range pods {
+		num, minNumNodesErr := cluster.GetMinNumberOfNodes(secretName, pod.Name, pod.Namespace, protocol)
+		if minNumNodesErr == nil {
+			if num > minNum {
+				minNum = num
+			} else {
+				reqLogger.Error(minNumNodesErr, "Error getting requiredMinimumNumberOfNodes metric from pod "+pod.Name)
+			}
+		}
+	}
+	return minNum
 }

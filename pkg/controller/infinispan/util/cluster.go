@@ -31,6 +31,7 @@ func NewCluster(kubernetes *Kubernetes) *Cluster {
 type ClusterInterface interface {
 	GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error)
 	GracefulShutdown(secretName, podName, namespace, protocol string) error
+	GetMinNumberOfNodes(secretName, podName, namespace, protocol string) (int, error)
 }
 
 // GetPassword returns password associated with a user in a given secret
@@ -196,7 +197,7 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 	// Split lines in standard output, HTTP status code will be last
 	execOutLines := strings.Split(execOut.String(), "\n")
 
-	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines) - 1], 10, 64)
+	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines)-1], 10, 64)
 	if err != nil {
 		return err
 	}
@@ -215,7 +216,16 @@ func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 	return corev1.Handler{
 		HTTPGet: &corev1.HTTPGetAction{
 			Scheme: scheme,
-			Path: ServerHTTPHealthStatusPath,
-			Port: intstr.FromInt(11222)},
+			Path:   ServerHTTPHealthStatusPath,
+			Port:   intstr.FromInt(11222)},
 	}
+}
+
+// GetMinNumberOfNodes get the minimum number of nodes valued from a pod
+func (c Cluster) GetMinNumberOfNodes(secretName, podName, namespace, protocol string) (int, error) {
+	result := c.Kubernetes.ProxyGet(namespace, podName, "metrics")
+	var status int
+	result.StatusCode(&status)
+	fmt.Printf("%d", status)
+	return 0, nil
 }

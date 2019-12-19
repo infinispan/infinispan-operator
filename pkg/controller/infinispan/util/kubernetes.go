@@ -262,3 +262,17 @@ func (k Kubernetes) HasServiceCAsCRDResource() bool {
 	result.StatusCode(&status)
 	return status >= 200 && status < 299
 }
+
+// ProxyGet executes command on pod
+// command example { "/usr/bin/ls", "folderName" }
+func (k Kubernetes) ProxyGet(podNamespace, podName, suffix string) rest.Result {
+	result := k.restClient.Get().
+		Resource("pods").
+		Name(podName).
+		Namespace(podNamespace).
+		SubResource("proxy").
+		// The server URL path, without leading "/" goes here...
+		Suffix(suffix).
+		Do()
+	return result
+}

@@ -3,4 +3,5 @@ kind: Infinispan
 metadata:
   name: example-infinispan
 spec:
+  image: infinispan/server:latest
   replicas: 2
