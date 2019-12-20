@@ -3,6 +3,7 @@ package util
 import (
 	"errors"
 	"fmt"
+	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"gopkg.in/yaml.v2"
 	"math/rand"
 	"time"
@@ -52,8 +53,10 @@ func getRandomStringForAuth(size int) string {
 
 // CreateIdentitiesFor creates identities for a given username/password combination
 func CreateIdentitiesFor(usr string, pass string) Identities {
+	// Adding required "operator" user
+	operator := Credentials{Username: "operator", Password: getRandomStringForAuth(16)}
 	credentials := Credentials{Username: usr, Password: pass}
-	identities := Identities{Credentials: []Credentials{credentials}}
+	identities := Identities{Credentials: []Credentials{credentials, operator}}
 	return identities
 }
 
@@ -75,7 +78,11 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 }
 
 // GetSecretName returns the secret name associated with a server
-func GetSecretName(name string) string {
-	return fmt.Sprintf("%v-generated-secret", name)
+func GetSecretName(m *infinispanv1.Infinispan) string {
+	if m.Spec.Security.EndpointSecretName == "" {
+		return fmt.Sprintf("%v-generated-secret", m.GetName())
+	} else {
+		return m.Spec.Security.EndpointSecretName
+	}
 }
 

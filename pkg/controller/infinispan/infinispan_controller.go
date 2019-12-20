@@ -184,10 +184,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		secret := r.secretForInfinispan(identities, infinispan)
-		err = r.client.Create(context.TODO(), secret)
-		if err != nil {
-			reqLogger.Error(err, "could not find or create identities Secret")
-			return reconcile.Result{}, err
+		if infinispan.Spec.Security.EndpointSecretName == "" {
+			reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
+			err = r.client.Create(context.TODO(), secret)
+			if err != nil {
+				reqLogger.Error(err, "could not find or create identities Secret")
+				return reconcile.Result{}, err
+			}
 		}
 
 		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "ConfigMap.Name", configMap.Name)
@@ -284,7 +287,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				// if there's no ready pod we're in trouble
 				for _, pod := range podList.Items {
 					if pod.Status.ContainerStatuses[0].Ready {
-						err = cluster.GracefulShutdown(ispnutil.GetSecretName(infinispan.Name), pod.GetName(), pod.GetNamespace(), protocol)
+						err = cluster.GracefulShutdown(ispnutil.GetSecretName(infinispan), pod.GetName(), pod.GetNamespace(), protocol)
 						if err != nil {
 							reqLogger.Error(err, "failed to exec shutdown command on pod", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
 							return reconcile.Result{}, err
@@ -370,6 +373,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		found.Spec.Template.ObjectMeta.Annotations["updateDate"] = time.Now().String()
+		// Find and update secret in StatefulSet volume
+		for i, secrets := range found.Spec.Template.Spec.Volumes {
+			if secrets.Secret != nil && secrets.Secret.SecretName == infinispan.Status.Security.EndpointSecretName {
+				found.Spec.Template.Spec.Volumes[i].Secret.SecretName = secret.GetName()
+			}
+		}
+		found.Spec.Template.Spec.Volumes[1].Secret.SecretName = infinispan.Spec.Security.EndpointSecretName
 		err = r.client.Update(context.TODO(), found)
 
 		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
@@ -450,7 +460,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Inspect the system and get the current Infinispan conditions
-	currConds := getInfinispanConditions(podList.Items, infinispan.Name, protocol, cluster)
+	currConds := getInfinispanConditions(podList.Items, infinispan, protocol, cluster)
 
 	// Before updating reload the resource to avoid problems with status update
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, infinispan)
@@ -498,7 +508,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster, logger logr.Logger) bool {
 	namespace := infinispan.ObjectMeta.Namespace
-	secretName := ispnutil.GetSecretName(infinispan.Name)
+	secretName := ispnutil.GetSecretName(infinispan)
 	protocol := infinispanProtocol(infinispan)
 	return cluster.ExistsCache("default", secretName, podName, namespace, protocol)
 }
@@ -583,7 +593,7 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
         </distributed-cache>
     </cache-container></infinispan>`
 
-	secretName := ispnutil.GetSecretName(infinispan.Name)
+	secretName := ispnutil.GetSecretName(infinispan)
 	protocol := infinispanProtocol(infinispan)
 	return cluster.CreateCache("default", defaultCacheXML, secretName, podName, namespace, protocol)
 }
@@ -1076,8 +1086,9 @@ func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) ([]byt
 	return data, nil
 }
 
+
 func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinispanv1.Infinispan) *corev1.Secret {
-	secretName := ispnutil.GetSecretName(m.ObjectMeta.Name)
+	secretName := ispnutil.GetSecretName(m)
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1108,12 +1119,12 @@ func labelsForInfinispanSelector(name string) map[string]string {
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(pods []corev1.Pod, name, protocol string, cluster ispnutil.ClusterInterface) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, protocol string, cluster ispnutil.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	var wellFormedErr error
 	clusterViews := make(map[string]bool)
 	var errors []string
-	secretName := ispnutil.GetSecretName(name)
+	secretName := ispnutil.GetSecretName(m)
 	for _, pod := range pods {
 		var clusterView string
 		var members []string
