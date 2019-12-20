@@ -85,7 +85,7 @@ func TestNodeStartup(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(name, "http", 1)
+	waitForPodsOrFail(spec, "http", 1)
 }
 
 // Test if the cluster is working correctly
@@ -98,7 +98,7 @@ func TestClusterFormation(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(name, "http", 2)
+	waitForPodsOrFail(spec, "http", 2)
 }
 
 // Test if the cluster is working correctly
@@ -120,7 +120,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(name, "https", 2)
+	waitForPodsOrFail(spec, "https", 2)
 }
 
 // Test if spec.container.cpu update is handled
@@ -178,7 +178,7 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 	spec.ObjectMeta.Name = name
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(name, "http", 1)
+	waitForPodsOrFail(spec, "http", 1)
 	// Get the latest version of the Infinispan resource
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
 
@@ -229,10 +229,10 @@ func TestCacheService(t *testing.T) {
 
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(name, "http", 1)
+	waitForPodsOrFail(spec, "http", 1)
 
 	user := "developer"
-	password, err := cluster.GetPassword(user, util.GetSecretName(name), Namespace)
+	password, err := cluster.GetPassword(user, util.GetSecretName(spec), Namespace)
 	testutil.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
@@ -260,7 +260,7 @@ func TestPermanentCache(t *testing.T) {
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
@@ -269,7 +269,7 @@ func TestPermanentCache(t *testing.T) {
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
@@ -296,7 +296,7 @@ func genericTestForPersistenceVolume(clusterName string, modifier func(*ispnv1.I
 	spec.ObjectMeta.Name = clusterName
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(clusterName, "http", 1)
+	waitForPodsOrFail(spec, "http", 1)
 
 	// Do something that needs to be permanent
 	modifier(spec)
@@ -309,7 +309,7 @@ func genericTestForPersistenceVolume(clusterName string, modifier func(*ispnv1.I
 	spec.ObjectMeta.Name = clusterName
 	kubernetes.CreateInfinispan(spec, Namespace)
 
-	waitForPodsOrFail(clusterName, "http", 1)
+	waitForPodsOrFail(spec, "http", 1)
 
 	// Do something that checks that permanent changes are there again
 	verifier(spec)
@@ -326,7 +326,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
@@ -337,7 +337,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
@@ -360,7 +360,7 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	spec.ObjectMeta.Name = clusterName
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(clusterName, "http", 1)
+	waitForPodsOrFail(spec, "http", 1)
 
 	// Do something that needs to be permanent
 	modifier(spec)
@@ -373,14 +373,14 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	verifier(spec)
 }
 
-func waitForPodsOrFail(name, protocol string, num int) {
+func waitForPodsOrFail(spec *ispnv1.Infinispan, protocol string, num int) {
 	// Wait that "num" pods are up
 	kubernetes.WaitForPods("app=infinispan-pod", num, SinglePodTimeout, Namespace)
 
 	pods := kubernetes.GetPods("app=infinispan-pod", Namespace)
 	podName := pods[0].Name
 
-	secretName := util.GetSecretName(name)
+	secretName := util.GetSecretName(spec)
 	expectedClusterSize := num
 	// Check that the cluster size is num querying the first pod
 	var lastErr error
@@ -442,7 +442,7 @@ func TestExternalService(t *testing.T) {
 
 	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
 
-	pass, err := cluster.GetPassword(usr, util.GetSecretName(name), Namespace)
+	pass, err := cluster.GetPassword(usr, util.GetSecretName(&spec), Namespace)
 	testutil.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)

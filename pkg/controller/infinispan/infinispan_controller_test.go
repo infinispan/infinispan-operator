@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -15,22 +15,22 @@ var podsSameView = []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "pod1-View1
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod2-View1"}},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod3-View1"}},
 }
-var resPodsSameView = infinispanv1.InfinispanCondition{Type: "wellFormed", Status: "True", Message: "View: View1"}
+var resPodsSameView = ispnv1.InfinispanCondition{Type: "wellFormed", Status: "True", Message: "View: View1"}
 var podsDifferentView = []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "pod1-View1"}},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod2-View2"}},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod3-View2"}},
 }
-var resPodsDifferentView = infinispanv1.InfinispanCondition{Type: "wellFormed", Status: "False", Message: "Views: View1,View2"}
+var resPodsDifferentView = ispnv1.InfinispanCondition{Type: "wellFormed", Status: "False", Message: "Views: View1,View2"}
 
 var podsErroredView = []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Namespace: "unitTest", Name: "pod1-View1"}},
 	{ObjectMeta: metav1.ObjectMeta{Namespace: "unitTest", Name: "pod2-ErrorView1"}},
 	{ObjectMeta: metav1.ObjectMeta{Namespace: "unitTest", Name: "pod3-View1"}},
 }
-var resPodsErroredView = infinispanv1.InfinispanCondition{Type: "wellFormed", Status: "Unknown", Message: "Errors: pod2-ErrorView1: error in getting view Views: View1"}
+var resPodsErroredView = ispnv1.InfinispanCondition{Type: "wellFormed", Status: "Unknown", Message: "Errors: pod2-ErrorView1: error in getting view Views: View1"}
 
 var testTable = []struct {
 	pods      []corev1.Pod
-	condition infinispanv1.InfinispanCondition
+	condition ispnv1.InfinispanCondition
 }{
 	{podsSameView, resPodsSameView},
 	{podsDifferentView, resPodsDifferentView},
@@ -58,8 +58,22 @@ func (m mockCluster) GracefulShutdown(secretName, podName, namespace, protocol s
 func TestGetInfinispanConditions(t *testing.T) {
 	var m mockCluster
 
+	// Create an Infinispan mock definition
+	var spec = ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "infinispan-example",
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Security: ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"},
+		},
+	}
+
 	for _, tup := range testTable {
-		conditions := getInfinispanConditions(tup.pods, "", "http", m)
+		conditions := getInfinispanConditions(tup.pods, &spec, "http", m)
 		if len(conditions) != 1 {
 			t.Errorf("Expected exaclty 1 condition got %d", len(conditions))
 		}

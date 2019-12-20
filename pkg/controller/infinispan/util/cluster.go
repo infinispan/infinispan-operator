@@ -12,7 +12,7 @@ import (
 
 var log = logf.Log.WithName("cluster_util")
 
-const ServerHTTPBasePath = "/rest/v2"
+const ServerHTTPBasePath = "rest/v2"
 const ServerHTTPClusterStop = ServerHTTPBasePath + "/cluster?action=stop"
 const ServerHTTPHealthPath = ServerHTTPBasePath + "/cache-managers/default/health"
 const ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
