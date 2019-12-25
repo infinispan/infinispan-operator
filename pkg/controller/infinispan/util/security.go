@@ -25,7 +25,7 @@ type Credentials struct {
 }
 
 // CreateIdentities generates default identities
-func CreateIdentities() Identities {
+func createIdentities() Identities {
 	developer := Credentials{Username: "developer", Password: getRandomStringForAuth(16)}
 	operator := Credentials{Username: "operator", Password: getRandomStringForAuth(16)}
 	identities := Identities{Credentials: []Credentials{developer, operator}}
@@ -60,6 +60,17 @@ func CreateIdentitiesFor(usr string, pass string) Identities {
 	return identities
 }
 
+// GetCredentials get identities credentials in yaml format
+func GetCredentials() ([]byte, error) {
+	identities := createIdentities()
+	data, err := yaml.Marshal(identities)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 // FindPassword finds a user's password
 func FindPassword(usr string, descriptor []byte) (string, error) {
 	var identities Identities
@@ -81,8 +92,7 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 func GetSecretName(m *infinispanv1.Infinispan) string {
 	if m.Spec.Security.EndpointSecretName == "" {
 		return fmt.Sprintf("%v-generated-secret", m.GetName())
-	} else {
-		return m.Spec.Security.EndpointSecretName
 	}
+	return m.Spec.Security.EndpointSecretName
 }
 
