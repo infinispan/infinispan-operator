@@ -171,9 +171,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 		}
 
-		identities, err := r.findCredentials(infinispan)
-		if err != nil {
-			reqLogger.Error(err, "could not find or create identities")
+		secret, err := r.findSecret(infinispan)
+		if err != nil && infinispan.Spec.Security.EndpointSecretName != "" {
+			reqLogger.Error(err, "could not find secret", "Secret.Namespace", infinispan.Namespace, "Secret.Name", infinispan.Spec.Security.EndpointSecretName)
 			return reconcile.Result{}, err
 		}
 
@@ -183,14 +183,21 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		secret := r.secretForInfinispan(identities, infinispan)
-		if infinispan.Spec.Security.EndpointSecretName == "" {
+		if secret == nil {
+			identities, err := ispnutil.GetCredentials()
+			if err != nil {
+				reqLogger.Error(err, "could not get identities for Secret")
+				return reconcile.Result{}, err
+			}
+
+			secret = r.secretForInfinispan(identities, infinispan)
 			reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
 			err = r.client.Create(context.TODO(), secret)
 			if err != nil {
-				reqLogger.Error(err, "could not find or create identities Secret")
+				reqLogger.Error(err, "could not create a new Secret")
 				return reconcile.Result{}, err
 			}
+			infinispan.Spec.Security.EndpointSecretName = secret.GetName()
 		}
 
 		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "ConfigMap.Name", configMap.Name)
@@ -350,36 +357,35 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// If secretName for identities has changed reprocess all the
 	// identities secrets and then upgrade the cluster
 	if infinispan.Spec.Security.EndpointSecretName != infinispan.Status.Security.EndpointSecretName {
-		identities, err := r.findCredentials(infinispan)
+		secret, err := r.findSecret(infinispan)
 		if err != nil {
-			reqLogger.Error(err, "could not find create identities")
+			reqLogger.Error(err, "could not find secret", "Secret.Namespace", infinispan.Namespace, "Secret.Name", infinispan.Spec.Security.EndpointSecretName)
 			return reconcile.Result{}, err
 		}
 
-		secret := r.secretForInfinispan(identities, infinispan)
-		currSecret := &corev1.Secret{}
-		r.client.Get(context.TODO(), types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}, currSecret)
-		if currSecret == nil {
+		if secret == nil {
+			identities, err := ispnutil.GetCredentials()
+			if err != nil {
+				reqLogger.Error(err, "could not get identities for Secret")
+				return reconcile.Result{}, err
+			}
+
+			secret = r.secretForInfinispan(identities, infinispan)
 			reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
 			err = r.client.Create(context.TODO(), secret)
-		} else {
-			reqLogger.Info("Updating Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
-			currSecret.StringData = secret.StringData
-			r.client.Update(context.TODO(), secret)
-		}
-		if err != nil {
-			reqLogger.Error(err, "could not find or create identities Secret")
-			return reconcile.Result{}, err
+			if err != nil {
+				reqLogger.Error(err, "could not create a new Secret")
+				return reconcile.Result{}, err
+			}
 		}
 
 		found.Spec.Template.ObjectMeta.Annotations["updateDate"] = time.Now().String()
 		// Find and update secret in StatefulSet volume
-		for i, secrets := range found.Spec.Template.Spec.Volumes {
-			if secrets.Secret != nil && secrets.Secret.SecretName == infinispan.Status.Security.EndpointSecretName {
+		for i, volumes := range found.Spec.Template.Spec.Volumes {
+			if volumes.Secret != nil && volumes.Name == "identities-volume" {
 				found.Spec.Template.Spec.Volumes[i].Secret.SecretName = secret.GetName()
 			}
 		}
-		found.Spec.Template.Spec.Volumes[1].Secret.SecretName = infinispan.Spec.Security.EndpointSecretName
 		err = r.client.Update(context.TODO(), found)
 
 		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
@@ -1066,26 +1072,10 @@ func copyLoggingCategories(infinispan *infinispanv1.Infinispan) map[string]strin
 	return make(map[string]string)
 }
 
-func (r *ReconcileInfinispan) findCredentials(m *infinispanv1.Infinispan) ([]byte, error) {
-	secretName := m.Spec.Security.EndpointSecretName
-	if secretName != "" {
-		secret, err := kubernetes.GetSecret(secretName, m.ObjectMeta.Namespace)
-		if err != nil {
-			return nil, err
-		}
-
-		return secret.Data["identities.yaml"], nil
-	}
-
-	identities := ispnutil.CreateIdentities()
-	data, err := yaml.Marshal(identities)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
+func (r *ReconcileInfinispan) findSecret(m *infinispanv1.Infinispan) (*corev1.Secret, error) {
+	secretName := ispnutil.GetSecretName(m)
+	return kubernetes.GetSecret(secretName, m.Namespace)
 }
-
 
 func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinispanv1.Infinispan) *corev1.Secret {
 	secretName := ispnutil.GetSecretName(m)
