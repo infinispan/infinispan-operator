@@ -40,7 +40,7 @@ class DefaultAuthTest extends AuthTest {
       pass = developer.getPassword();
 
       Https.doesUrlReturnOK("http://" + testServerHost + "/ping").waitFor();
-      Https.doesUrlReturnCode("http://" + hostName, 401).waitFor();
+      Https.doesUrlReturnCode("http://" + hostName, 200).waitFor();
 
       Http.post("http://" + hostName + "/rest/v2/caches/testcache").basicAuth(user, pass).data(Caches.testCache(), ContentType.APPLICATION_XML).execute().code();
    }
