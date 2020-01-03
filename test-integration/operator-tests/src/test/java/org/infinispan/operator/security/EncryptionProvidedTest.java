@@ -65,7 +65,7 @@ class EncryptionProvidedTest {
       pass = developer.getPassword();
 
       Https.doesUrlReturnOK("http://" + testServer.host() + "/ping").waitFor();
-      Https.doesUrlReturnCode("https://" + passthroughHostName, 401).waitFor();
+      Https.doesUrlReturnCode("https://" + passthroughHostName, 200).waitFor();
 
       Http.post("https://" + passthroughHostName + "/rest/v2/caches/testcache").basicAuth(user, pass).data(Caches.testCache(), ContentType.APPLICATION_XML).trustAll().execute();
    }

@@ -60,7 +60,7 @@ class EncryptionExternalTest {
       user = developer.getUsername();
       pass = developer.getPassword();
 
-      Https.doesUrlReturnCode("https://" + hostName, 401).waitFor();
+      Https.doesUrlReturnCode("https://" + hostName, 200).waitFor();
    }
 
    @Test
