@@ -262,6 +262,22 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	} else if err != nil {
 		reqLogger.Error(err, "failed to get Deployment")
 		return reconcile.Result{}, err
+	} else if upgradeNeeded(infinispan, reqLogger) {
+		err = r.destroyResources(infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to delete resources before upgrade")
+			return reconcile.Result{}, err
+		}
+
+		infinispan.SetCondition("upgrade", "False", "")
+		r.client.Status().Update(context.TODO(), infinispan)
+
+		reqLogger.Info("removed Infinispan resources, force an upgrade now", "replicasWantedAtRestart", infinispan.Status.ReplicasWantedAtRestart)
+
+		infinispan.Spec.Replicas = infinispan.Status.ReplicasWantedAtRestart
+		r.client.Update(context.TODO(), infinispan)
+
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// List the pods for this infinispan's deployment
@@ -274,12 +290,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
+
 	protocol := infinispanProtocol(infinispan)
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
 	if infinispan.Spec.Replicas == 0 {
 		updateStatus := false
 		if *found.Spec.Replicas != 0 {
+			infinispan.Status.ReplicasWantedAtRestart = *found.Spec.Replicas
+			r.client.Status().Update(context.TODO(), infinispan)
+
 			// If here some pods are still ready
 			// Disable restart policy if needed
 			for _, pod := range podList.Items {
@@ -295,7 +316,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				// send a graceful shutdown to the first ready pod
 				// if there's no ready pod we're in trouble
 				for _, pod := range podList.Items {
-					if pod.Status.ContainerStatuses[0].Ready {
+					if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].Ready {
 						err = cluster.GracefulShutdown(ispnutil.GetSecretName(infinispan), pod.GetName(), pod.GetNamespace(), protocol)
 						if err != nil {
 							reqLogger.Error(err, "failed to exec shutdown command on pod", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
@@ -325,7 +346,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			r.client.Get(context.TODO(), types.NamespacedName{Namespace: found.Namespace, Name: found.Name}, found)
 			r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
 			if *found.Spec.Replicas != 0 {
-				infinispan.Status.ReplicasWantedAtRestart = *found.Spec.Replicas
 				updateStatus = true
 				zeroReplicas := int32(0)
 				found.Spec.Replicas = &zeroReplicas
@@ -353,6 +373,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		infinispan.Status.ReplicasWantedAtRestart = 0
 		infinispan.SetCondition("gracefulShutdown", "False", "")
 		r.client.Status().Update(context.TODO(), infinispan)
+		return reconcile.Result{Requeue: true}, nil
+	}
+
+	// If upgrade required, do not process any further and handle upgrades
+	if isUpgradeCondition(infinispan) {
 		return reconcile.Result{Requeue: true}, nil
 	}
 
@@ -494,7 +519,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	if notClusterFormed(currConds, podList.Items, infinispan.Spec.Replicas) {
 		return reconcile.Result{Requeue: true}, nil
 	}
-	if isCache(infinispan) && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger) {
+	if isCache(infinispan) && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster) {
 		err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
 		if err != nil {
 			reqLogger.Error(err, "failed to create default cache for cache service")
@@ -525,7 +550,186 @@ func getEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
 	return 0
 }
 
-func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster, logger logr.Logger) bool {
+func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinispan) error {
+	// TODO destroying all upgradable resources for recreation is too manual
+	// Labels cannot easily be used to remove all resources with a given label.
+	// Resource controller could be used to make this easier.
+	// If all upgradable resources are controlled by the Stateful Set,
+	// removing the Stateful Set should remove the rest.
+	// Then, stateful set could be controlled by Infinispan to keep current logic.
+	err := r.client.Delete(context.TODO(),
+		&appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.ObjectMeta.Name,
+				Namespace: infinispan.ObjectMeta.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.ObjectMeta.Name + "-configuration",
+				Namespace: infinispan.ObjectMeta.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ispnutil.GetSecretName(infinispan),
+				Namespace: infinispan.ObjectMeta.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.ObjectMeta.Name,
+				Namespace: infinispan.ObjectMeta.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.ObjectMeta.Name + "-ping",
+				Namespace: infinispan.ObjectMeta.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getServiceExternalName(infinispan),
+				Namespace: infinispan.ObjectMeta.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getSiteServiceName(infinispan),
+				Namespace: infinispan.ObjectMeta.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	return nil
+}
+
+func upgradeNeeded(infinispan *infinispanv1.Infinispan, logger logr.Logger) bool {
+	if isUpgradeCondition(infinispan) {
+		stoppingCondition := infinispan.GetCondition("stopping")
+		if stoppingCondition != nil {
+			stoppingCompleted := *stoppingCondition == "False"
+			if stoppingCompleted {
+				if infinispan.Status.ReplicasWantedAtRestart > 0 {
+					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
+					return true
+				} else {
+					logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
+					return false
+				}
+			} else {
+				logger.Info("wait for graceful shutdown before update to complete")
+				return false
+			}
+		}
+	}
+
+	return false
+}
+
+func isUpgradeCondition(infinispan *infinispanv1.Infinispan) bool {
+	return isConditionTrue("upgrade", infinispan)
+}
+
+func isConditionTrue(name string, infinispan *infinispanv1.Infinispan) bool {
+	upgradeCondition := infinispan.GetCondition(name)
+	return upgradeCondition != nil && *upgradeCondition == "True"
+}
+
+func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) {
+	if len(podList.Items) == 0 {
+		return
+	}
+
+	if isUpgradeCondition(infinispan) {
+		return
+	}
+
+	// All pods need to be ready for the upgrade to be scheduled
+	// Handles brief window during which resources have been removed,
+	//and old ones terminating while new ones are being created.
+	// We don't want yet another upgrade to be scheduled then.
+	if !areAllPodsReady(podList) {
+		return
+	}
+
+	// Get default Infinispan image for a running Infinispan pod
+	podDefaultImage := getPodDefaultImage(podList.Items[0].Spec.Containers[0])
+
+	// Get Infinispan image that the operator creates
+	desiredImage := DefaultImageName
+
+	// If the operator's default image differs from the pod's default image,
+	// schedule an upgrade by gracefully shutting down the current cluster.
+	if podDefaultImage != desiredImage {
+		logger.Info("schedule an Infinispan cluster upgrade",
+			"pod default image", podDefaultImage,
+			"desired image", desiredImage)
+		infinispan.Spec.Replicas = 0
+		r.client.Update(context.TODO(), infinispan)
+		infinispan.SetCondition("upgrade", "True", "")
+		r.client.Status().Update(context.TODO(), infinispan)
+	}
+}
+
+// getPodDefaultImage returns an Infinispan pod's default image.
+// If the default image cannot be found, it returns the running image.
+func getPodDefaultImage(container corev1.Container) string {
+	envs := container.Env
+	for _, env := range envs {
+		if env.Name == "DEFAULT_IMAGE" {
+			return env.Value
+		}
+	}
+
+	return container.Image
+}
+
+func areAllPodsReady(podList *corev1.PodList) bool {
+	for _, pod := range podList.Items {
+		containerStatuses := pod.Status.ContainerStatuses
+		if len(containerStatuses) == 0 || !containerStatuses[0].Ready {
+			return false
+		}
+	}
+
+	return true
+}
+
+func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster) bool {
 	namespace := infinispan.ObjectMeta.Namespace
 	secretName := ispnutil.GetSecretName(infinispan)
 	protocol := infinispanProtocol(infinispan)
@@ -779,6 +983,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		{Name: "IDENTITIES_PATH", Value: "/etc/security/identities.yaml"},
 		{Name: "JAVA_OPTIONS", Value: javaOptions},
 		{Name: "EXTRA_JAVA_OPTIONS", Value: m.Spec.Container.ExtraJvmOpts},
+		{Name: "DEFAULT_IMAGE", Value: DefaultImageName},
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var
@@ -1229,7 +1434,7 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 
 	// An external service can be simply achieved with a LoadBalancer
 	// that has same selectors as original service.
-	externalServiceName := fmt.Sprintf("%s-external", m.ObjectMeta.Name)
+	externalServiceName := getServiceExternalName(m)
 	externalService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1256,6 +1461,10 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, externalService, r.scheme)
 	return externalService
+}
+
+func getServiceExternalName(m *infinispanv1.Infinispan) string {
+	return fmt.Sprintf("%s-external", m.ObjectMeta.Name)
 }
 
 func isDataGrid(infinispan *infinispanv1.Infinispan) bool {
