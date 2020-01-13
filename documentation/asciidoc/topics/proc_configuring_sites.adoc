@@ -1,48 +1,48 @@
 [id='configuring_sites-{context}']
-= Adding Site Definitions to {brandname}
-Configure {brandname} clusters as sites so that they can communicate over a
-dedicated JGroups transport channel for replicating data.
+= Adding Backup Locations to {brandname} Clusters
+Configure {brandname} clusters as backup locations so that they can communicate
+over a dedicated JGroups transport channel for replicating data.
 
 .Procedure
 
 . Create custom resources for {brandname} at each site.
 +
-For example, create `site_a.yaml` to configure `SiteA` and `site_b.yaml` to
-configure `SiteB`. Both configurations must include the following resource
+For example, create `lon.yaml` to configure **LON** and `nyc.yaml` to
+configure **NYC**. Both configurations must include the following resource
 definitions:
 +
-* `.spec.service.sites.local` names the local site for a {brandname} cluster.
-* `.spec.service.sites.masters` provides the location of all site masters.
+* `.spec.service.sites.local` names the local site for {brandname} clusters.
+* `.spec.service.sites.locations` provides the location of all site masters.
 {brandname} pods use this information to connect with each other and form
 cross-site views.
 +
 . Configure {brandname} clusters at each site, for example:
-.. Log in to {ocp} at SiteA.
-.. Apply the custom resources for SiteA.
+.. Log in to {ocp} at **LON**.
+.. Apply the custom resources for **LON**.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} site_a.yaml
+$ {oc_apply_cr} lon.yaml
 ----
 +
-.. Log in to {ocp} at SiteB.
-.. Apply the custom resources for SiteB.
+.. Log in to {ocp} at **NYC**.
+.. Apply the custom resources for **NYC**.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} site_b.yaml
+$ {oc_apply_cr} nyc.yaml
 ----
 +
 . Verify that {brandname} clusters form a cross-site view.
 +
-For example, do the following on SiteA:
+For example, do the following on **LON**:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ oc logs {example_crd_name}-0 | grep x-site
 
-INFO  [org.infinispan.XSITE] (jgroups-5,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [SiteB]
-INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [SiteB, SiteA]
+INFO  [org.infinispan.XSITE] (jgroups-5,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC]
+INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC, LON]
 ----
 
 .Reference

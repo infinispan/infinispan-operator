@@ -1,13 +1,21 @@
 [id='configuring_backup_sites']
 :context: xsite
 = Configuring Cross-Site Replication
-{brandname} allows you to back up data across geographic locations. For
-example, you have a {brandname} cluster running on {openshift} in a data
-center in New York (SiteA). You have another {brandname} cluster running on
-{openshift} in a data center in San Francisco (SiteB).
+Set up cross-site replication to back up data between {brandname} clusters
+running in different locations.
 
-Configuring cross-site replication enables the {brandname} cluster at SiteA to
-back up data to the {brandname} cluster at SiteB.
+For example, you use the {ispn_operator} to manage a {brandname} cluster at a
+data center in London, **LON**. At another data center in New York City,
+**NYC**, you also use the {ispn_operator} to manage a {brandname} cluster. In
+this case, you can add **LON** and **NYC** as backup locations for each other.
+
+//Product Only
+ifdef::productized[]
+[IMPORTANT]
+====
+Cross-site replication functionality is currently link:#tech_preview[Technology Preview]. Contact Red Hat support for more information.
+====
+endif::productized[]
 
 .Prerequisites
 //Community

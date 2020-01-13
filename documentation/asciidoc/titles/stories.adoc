@@ -6,11 +6,6 @@ ifndef::productized[]
 include::{stories}/assembly_deploying_operator.adoc[leveloffset=+1]
 endif::productized[]
 
-//Product only
-ifdef::productized[]
-include::{stories}/assembly_tech_preview.adoc[leveloffset=+1]
-endif::productized[]
-
 include::{stories}/assembly_creating_clusters.adoc[leveloffset=+1]
 include::{stories}/assembly_creating_services.adoc[leveloffset=+1]
 include::{stories}/assembly_adjusting_pod_resources.adoc[leveloffset=+1]
