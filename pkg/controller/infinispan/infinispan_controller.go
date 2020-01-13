@@ -420,17 +420,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
-	index := 0
-	for i, value := range *env {
-		if value.Name == "EXTRA_JAVA_OPTIONS" {
-			index = i
-		}
-	}
-	extraJavaOptions := (*env)[index].Value
+	extraJavaOptionsEnv := getContainerEnvValue("EXTRA_JAVA_OPTIONS", env)
 	previousExtraJavaOptions := ispnContr.ExtraJvmOpts
-	if extraJavaOptions != previousExtraJavaOptions {
-		(*env)[index].Value = ispnContr.ExtraJvmOpts
-		reqLogger.Info("extra jvm options changed, update infinispan", "java options", extraJavaOptions, "previous extra", previousExtraJavaOptions)
+
+	if extraJavaOptionsEnv.Value != previousExtraJavaOptions {
+		extraJavaOptionsEnv.Value = ispnContr.ExtraJvmOpts
+		javaOptionsEnv := getContainerEnvValue("JAVA_OPTIONS", env)
+		javaOptionsEnv.Value, _ = r.javaOptions(infinispan)
+		reqLogger.Info("extra jvm options changed, update infinispan",
+			"extra java options", extraJavaOptionsEnv.Value,
+			"previous extra java options", previousExtraJavaOptions,
+			"full java options", javaOptionsEnv.Value)
 		updateNeeded = true
 	}
 	if updateNeeded {
@@ -494,6 +494,15 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func getContainerEnvValue(name string, env *[]corev1.EnvVar) *corev1.EnvVar {
+	for _, value := range *env {
+		if value.Name == name {
+			return &value
+		}
+	}
+	return nil
 }
 
 func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster, logger logr.Logger) bool {
