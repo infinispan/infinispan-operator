@@ -6,6 +6,10 @@ Find useful information for {brandname} clusters that you create with the {ispn_
 
 include::{topics}/ref_services.adoc[leveloffset=+1]
 include::{topics}/ref_upgrades.adoc[leveloffset=+1]
+//Product Only
+ifdef::productized[]
+include::{topics}/ref_tech_preview.adoc[leveloffset=+1]
+endif::productized[]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

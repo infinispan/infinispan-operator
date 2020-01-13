@@ -4,13 +4,13 @@ spec:
     type: DataGrid <1>
     sites:
       local:
-        name: SiteA <2>
+        name: LON <2>
         expose:
           type: LoadBalancer <3>
       locations: <4>
-      - name: SiteA <5>
+      - name: LON <5>
         url: openshift://api.site-a.devcluster.openshift.com:6443 <6>
-        secretName: site-a-token <7>
-      - name: SiteB
+        secretName: lon-token <7>
+      - name: NYC
         url: openshift://api.site-b.devcluster.openshift.com:6443
-        secretName: site-b-token
+        secretName: nyc-token
