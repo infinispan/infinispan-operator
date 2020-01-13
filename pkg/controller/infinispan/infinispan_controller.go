@@ -252,9 +252,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 		// Deployment created successfully - return and requeue
 
-		// Update Status.Security to match Infinispan spec
+		// Copy Spec.Security into Status.Security to match Infinispan spec
 		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
+		// Update Status and Spec
 		err = r.client.Status().Update(context.TODO(), infinispan)
+		err = r.client.Update(context.TODO(), infinispan)
 
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
