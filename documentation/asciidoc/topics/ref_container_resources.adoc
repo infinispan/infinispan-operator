@@ -16,3 +16,13 @@ You cannot pass JVM options or allocate CPU and memory after you create
 {brandname} pods. In this case you must delete the existing {brandname} pods
 and create new ones.
 ====
+
+.Garbage collection logging
+By default, the {ispn_operator} does not log garbage collection (GC) messages.
+You can optionally add the following JVM options to direct GC messages to
+stdout:
+
+[source,options="nowrap",subs=attributes+]
+----
+extraJvmOpts: "-Xlog:gc*:stdout:time,level,tags"
+----
