@@ -5,6 +5,7 @@
 Find useful information for {brandname} clusters that you create with the {ispn_operator}.
 
 include::{topics}/ref_services.adoc[leveloffset=+1]
+include::{topics}/ref_upgrades.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

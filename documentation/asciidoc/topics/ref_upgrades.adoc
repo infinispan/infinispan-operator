@@ -1,0 +1,31 @@
+[id='ref_upgrades-{context}']
+= {ispn_operator} Upgrades
+The {ispn_operator} upgrades {brandname} when new versions become available.
+
+To upgrade {brandname} clusters, the {ispn_operator} checks the version of the
+image for {brandname} pods. If the {ispn_operator} determines that a new
+version of the image is available, it gracefully shuts down all pods, applies
+the new image, and then restarts the pods.
+
+//Community only
+ifndef::productized[]
+The {ispn_operator} requires the Operator Lifecycle Manager to perform cluster upgrades.
+endif::productized[]
+
+//Product only
+ifdef::productized[]
+On {openshift}, the Operator Lifecycle Manager (OLM) enables upgrades for the {ispn_operator}. When you install the {ispn_operator}, you select either **Automatic** or **Manual** updates with the **Approval Strategy**. This determines how the {ispn_operator} upgrades clusters. See the {openshiftshort} documentation for more information.
+endif::productized[]
+
+.Reference
+
+//Community only
+ifndef::productized[]
+* link:{link_olm}
+* link:{link_olm_arch}
+endif::productized[]
+//Product only
+ifdef::productized[]
+* link:{link_os_olm}
+* link:{link_os_olm_adding}
+endif::productized[]
