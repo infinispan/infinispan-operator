@@ -156,15 +156,15 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 	var verifier = func(ss *appsv1.StatefulSet) {
 		env := ss.Spec.Template.Spec.Containers[0].Env
 		for _, value := range env {
-			if value.Name == "EXTRA_JAVA_OPTIONS" {
+			if value.Name == "JAVA_OPTIONS" {
 				if value.Value != "-XX:NativeMemoryTracking=summary" {
-					panic("EXTRA_JAVA_OPTIONS not updated")
+					panic("JAVA_OPTIONS not updated")
 				} else {
 					return
 				}
 			}
 		}
-		panic("EXTRA_JAVA_OPTIONS not updated")
+		panic("JAVA_OPTIONS not updated")
 	}
 	genericTestForContainerUpdated(modifier, verifier)
 }

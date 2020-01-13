@@ -420,17 +420,19 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
-	index := 0
-	for i, value := range *env {
-		if value.Name == "EXTRA_JAVA_OPTIONS" {
-			index = i
-		}
-	}
-	extraJavaOptions := (*env)[index].Value
-	previousExtraJavaOptions := ispnContr.ExtraJvmOpts
+	extraJavaOptionsIndex := getEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
+	extraJavaOptions := ispnContr.ExtraJvmOpts
+	previousExtraJavaOptions := (*env)[extraJavaOptionsIndex].Value
 	if extraJavaOptions != previousExtraJavaOptions {
-		(*env)[index].Value = ispnContr.ExtraJvmOpts
-		reqLogger.Info("extra jvm options changed, update infinispan", "java options", extraJavaOptions, "previous extra", previousExtraJavaOptions)
+		(*env)[extraJavaOptionsIndex].Value = ispnContr.ExtraJvmOpts
+		javaOptionsIndex := getEnvVarIndex("JAVA_OPTIONS", env)
+		newJavaOptions, _ := r.javaOptions(infinispan)
+		(*env)[javaOptionsIndex].Value = newJavaOptions
+		reqLogger.Info("extra jvm options changed, update infinispan",
+			"extra java options", extraJavaOptions,
+			"previous extra java options", previousExtraJavaOptions,
+			"full java options", newJavaOptions,
+		)
 		updateNeeded = true
 	}
 	if updateNeeded {
@@ -494,6 +496,15 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func getEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
+	for i, value := range *env {
+		if value.Name == envVarName {
+			return i
+		}
+	}
+	return 0
 }
 
 func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster, logger logr.Logger) bool {
