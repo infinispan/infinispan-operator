@@ -75,6 +75,13 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileInfinispan{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}
 }
 
+// NewFakeReconciler creates a new fake Reconciler for unit testing
+func NewFakeReconciler(client client.Client, scheme *runtime.Scheme) ReconcileInfinispan {
+	kubernetes = &ispnutil.Kubernetes{Client: client}
+	cluster = ispnutil.NewCluster(kubernetes)
+	return ReconcileInfinispan{Client: client, Scheme: scheme}
+}
+
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
@@ -270,12 +277,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		infinispan.SetCondition("upgrade", "False", "")
-		r.client.Status().Update(context.TODO(), infinispan)
+		r.Client.Status().Update(context.TODO(), infinispan)
 
 		reqLogger.Info("removed Infinispan resources, force an upgrade now", "replicasWantedAtRestart", infinispan.Status.ReplicasWantedAtRestart)
 
 		infinispan.Spec.Replicas = infinispan.Status.ReplicasWantedAtRestart
-		r.client.Update(context.TODO(), infinispan)
+		r.Client.Update(context.TODO(), infinispan)
 
 		return reconcile.Result{Requeue: true}, nil
 	}
@@ -299,7 +306,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		updateStatus := false
 		if *found.Spec.Replicas != 0 {
 			infinispan.Status.ReplicasWantedAtRestart = *found.Spec.Replicas
-			r.client.Status().Update(context.TODO(), infinispan)
+			r.Client.Status().Update(context.TODO(), infinispan)
 
 			// If here some pods are still ready
 			// Disable restart policy if needed
@@ -557,7 +564,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	// If all upgradable resources are controlled by the Stateful Set,
 	// removing the Stateful Set should remove the rest.
 	// Then, stateful set could be controlled by Infinispan to keep current logic.
-	err := r.client.Delete(context.TODO(),
+	err := r.Client.Delete(context.TODO(),
 		&appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.ObjectMeta.Name,
@@ -568,7 +575,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		return err
 	}
 
-	err = r.client.Delete(context.TODO(),
+	err = r.Client.Delete(context.TODO(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.ObjectMeta.Name + "-configuration",
@@ -579,7 +586,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		return err
 	}
 
-	err = r.client.Delete(context.TODO(),
+	err = r.Client.Delete(context.TODO(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ispnutil.GetSecretName(infinispan),
@@ -590,7 +597,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		return err
 	}
 
-	err = r.client.Delete(context.TODO(),
+	err = r.Client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.ObjectMeta.Name,
@@ -601,7 +608,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		return err
 	}
 
-	err = r.client.Delete(context.TODO(),
+	err = r.Client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.ObjectMeta.Name + "-ping",
@@ -612,7 +619,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		return err
 	}
 
-	err = r.client.Delete(context.TODO(),
+	err = r.Client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      getServiceExternalName(infinispan),
@@ -623,7 +630,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		return err
 	}
 
-	err = r.client.Delete(context.TODO(),
+	err = r.Client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      getSiteServiceName(infinispan),
@@ -699,9 +706,9 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 			"pod default image", podDefaultImage,
 			"desired image", desiredImage)
 		infinispan.Spec.Replicas = 0
-		r.client.Update(context.TODO(), infinispan)
+		r.Client.Update(context.TODO(), infinispan)
 		infinispan.SetCondition("upgrade", "True", "")
-		r.client.Status().Update(context.TODO(), infinispan)
+		r.Client.Status().Update(context.TODO(), infinispan)
 	}
 }
 
@@ -1322,7 +1329,7 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 			Name:      secretName,
 			Namespace: m.ObjectMeta.Namespace,
 		},
-		Type:       corev1.SecretType(corev1.SecretTypeOpaque),
+		Type:       corev1.SecretTypeOpaque,
 		StringData: map[string]string{"identities.yaml": string(identities)},
 	}
 
@@ -1720,7 +1727,7 @@ func getEnvWithDefault(name, defVal string) string {
 // getServingCertsMode returns a label that identify the kind of serving
 // certs service is available. Returns 'openshift.io' for service-ca on openshift
 func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
-	if remoteKubernetes != nil && remoteKubernetes.HasServiceCAsCRDResource() {
+	if remoteKubernetes.HasServiceCAsCRDResource() {
 		return "openshift.io"
 
 		// Code to check if other modes of serving TLS cert service is available

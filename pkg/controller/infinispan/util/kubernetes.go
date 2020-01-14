@@ -255,10 +255,14 @@ func (k Kubernetes) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint6
 // has the servicecas.operator.openshift.io custom resource deployed
 // Used to check if serviceca operator is serving TLS certificates
 func (k Kubernetes) HasServiceCAsCRDResource() bool {
-	// Using an ad-hoc path
-	req := k.restClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
-	result := req.Do()
-	var status int
-	result.StatusCode(&status)
-	return status >= 200 && status < 299
+	// Check restClient which is nil in unit tests
+	if k.restClient != nil {
+		// Using an ad-hoc path
+		req := k.restClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
+		result := req.Do()
+		var status int
+		result.StatusCode(&status)
+		return status >= 200 && status < 299
+	}
+	return false
 }
