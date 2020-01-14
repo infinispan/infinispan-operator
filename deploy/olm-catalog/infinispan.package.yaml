@@ -3,5 +3,5 @@ channels:
   name: dev-preview
 - currentCSV: infinispan-operator.v1.0.0
   name: stable
-defaultChannel: stable
+defaultChannel: dev-preview
 packageName: infinispan
