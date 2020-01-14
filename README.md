@@ -272,5 +272,5 @@ Run the appropriate `make` target. For example, run the `make all` target as fol
 ### Releases
 To create releases, run:
 ```
-$ make DRY_RUN=false RELEASE_NAME=X.Y.Z SERVER_VERSION=a.b.c release
+$ make DRY_RUN=false GITHUB_USERNAME=<...> REPLACES_RELEASE_NAME=A.B.C RELEASE_NAME=X.Y.Z SERVER_VERSION=a.b.c release
 ```
