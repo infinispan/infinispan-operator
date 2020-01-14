@@ -72,6 +72,7 @@ push() {
 
 cleanup() {
   git branch -D Release_${RELEASE_NAME} || true
+  rm -f deploy/*.backup
   rm -f deploy/olm-catalog/*.backup
 }
 
@@ -134,8 +135,8 @@ prepareBranches() {
 
   cp deploy/olm-catalog/${CRD_FILE} ${repoDir}/${releaseDir}/${CRD_FILE}
 
-  rm -f ${releaseDir}/*.backup
-  rm -f ${dir}/*.backup
+  rm -f ${repoDir}/${releaseDir}/*.backup
+  rm -f ${repoDir}/${dir}/*.backup
 
   pushd ${repoDir}
   git commit -a -m "Update Infinispan manifests for ${RELEASE_NAME} release"
