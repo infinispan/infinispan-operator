@@ -6,7 +6,7 @@ DRY_RUN=${DRY_RUN:-true}
 CURRENT_BRANCH=$(git branch | grep \* | cut -d ' ' -f2)
 BUILD_MANIFESTS_DIR=build/_output/olm-catalog
 CSV_FILE="infinispan-operator.clusterserviceversion.yaml"
-
+CRD_FILE="infinispans.infinispan.org.crd.yaml"
 
 validate() {
   if [ -z "${RELEASE_NAME}" ]; then
@@ -72,7 +72,7 @@ push() {
 
 cleanup() {
   git branch -D Release_${RELEASE_NAME} || true
-  rm -f deploy/*.backup
+  rm -f deploy/olm-catalog/*.backup
 }
 
 
@@ -102,9 +102,11 @@ prepareBranches() {
   local branch=$2
   local dir=$3
 
-  local csvPath=${repoDir}/${dir}/${csvFile}
+  local releaseDir=${dir}/${RELEASE_NAME}
+  local csvPath=${repoDir}/${releaseDir}/${csvFile}
   local packageFile="infinispan.package.yaml"
   local packagePath=${repoDir}/${dir}/${packageFile}
+  local
 
   pushd ${repoDir}
   git branch -D ${branch} || echo "Operator Hub branch exists"
@@ -113,20 +115,28 @@ prepareBranches() {
 
   git checkout ${CURRENT_BRANCH}
 
+  mkdir -p ${repoDir}/${releaseDir}
+
   cp deploy/olm-catalog/${CSV_FILE} ${csvPath}
   cp deploy/olm-catalog/${packageFile} ${packagePath}
 
   pushd ${repoDir}
-  git add -f ${dir}/${csvFile}/${CSV_FILE}
+  git add -f ${releaseDir}/${csvFile}/${CSV_FILE}
   git add -f ${dir}/${packageFile}
   git commit -m "Copy Infinispan manifests for ${RELEASE_NAME} release"
   popd
 
   pushd ${repoDir}
-  updateCsvFile ${dir}
+  updateCsvFile ${releaseDir}
   popd
 
   updatePackageFile ${packagePath}
+
+  cp deploy/olm-catalog/${CRD_FILE} ${repoDir}/${releaseDir}/${CRD_FILE}
+
+  rm -f ${releaseDir}/*.backup
+  rm -f ${dir}/*.backup
+
   pushd ${repoDir}
   git commit -a -m "Update Infinispan manifests for ${RELEASE_NAME} release"
   popd
