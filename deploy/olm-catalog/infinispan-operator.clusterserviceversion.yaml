@@ -187,6 +187,10 @@ spec:
         displayName: Infinispan
         description: An Infinispan cluster instance.
         resources:
+          - kind: ConfigMap
+            version: v1
+          - kind: Secret
+            version: v1
           - kind: Service
             version: v1
           - kind: Pod
@@ -206,16 +210,54 @@ spec:
             path: container.memory
           - description: Appends JVM options to each Infinispan node.
             displayName: Extra JVM Options
-            path: container.jvmOptionsAppend
-          - description: Name of the secrect that contains auth info
+            path: container.extraJvmOpts
+          - description: Name of the secrect that contains auth info.
             displayName: Endpoint Secret Name
             path: security.endpointSecretName
-          - description: Select how encrption certificates are provided [Secret,Service]
+          - description: Select how encrption certificates are provided [Secret,Service].
             displayName: Endpoint Encryption Type
             path: security.endpointEncryption.type
-          - description: Platform service that serves certificates (openshift.io/service-cert is supported)
+          - description: Platform service that serves certificates (openshift.io/service-cert is supported).
             displayName: Serving Certs Service Name
             path: security.endpointEncryption.certServiceName
-          - description: Name of the secrect that contains certificates
+          - description: Name of the secrect that contains certificates.
             displayName: Certificates Secret Name
             path: security.endpointEncryption.certSecretName
+          - description: Select service type provided [Cache,DataGrid].
+            displayName: Service Type
+            path: service.type
+          - description: Local Infinispan node storage capacity (DataGrid service only).
+            displayName: Local Storage Capacity
+            path: service.container.storage
+          - description: Name of local site (DataGrid service only).
+            displayName: Name Of Local Site
+            path: service.sites.local.name
+          - description: Kubernetes service type for cross-site communications [LoadBalancer,NodePort] (DataGrid service only).
+            displayName: Kubernetes Service Type For Cross-Site Network
+            path: service.sites.local.expose.type
+          - description: Name of one of the sites (DataGrid service only)
+            displayName: Name Of Site
+            path: service.sites.locations[0].name
+          - description: Site URL for communicating with site (DataGrid service only).
+            Prefixed with minikube:// for Minikube sites, and openshift:// for OpenShift sites.
+            displayName: Site URL
+            path: service.sites.locations[0].url
+          - description: Secret name containing credentials to talk to site (DataGrid service only).
+            displayName: Secret For Site
+            path: service.sites.locations[0].secretName
+          - description: Defines logging categories and log levels.
+            displayName: Logging Categories
+            path: logging.categories
+          - description: Externally exposed Kubernetes service type.
+            displayName: Exposed Kubernetes Service Type
+            path: expose.type
+        statusDescriptos:
+        - description: Type of condition.
+          displayName: Condition Type
+          path: conditions[0].type
+        - description: Status of condition.
+          displayName: Condition Status
+          path: conditions[0].status
+        - description: Message of condition.
+          displayName: Condition Message
+          path: conditions[0].message
