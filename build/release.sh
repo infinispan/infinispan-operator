@@ -155,6 +155,7 @@ updateCsvFile() {
 updatePackageFile() {
   local path=$1
   sed -i'.backup' "s/9.9.9/${RELEASE_NAME}/g" ${path}
+  sed -i'.backup' "s/9.9.8/${REPLACES_RELEASE_NAME}/g" ${path}
 }
 
 
