@@ -45,7 +45,7 @@ var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:lat
 var DefaultMemorySize = resource.MustParse("512Mi")
 
 // DefaultCPUSize string with default size for CPU
-var DefaultCPUSize = resource.MustParse("0.5")
+var DefaultCPULimit int64 = 500
 
 // DefaultPVSize default size for persistent volume
 var DefaultPVSize = resource.MustParse("1Gi")
@@ -967,11 +967,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		memory = resource.MustParse(m.Spec.Container.Memory)
 	}
 
-	cpu := DefaultCPUSize
-
-	if m.Spec.Container.CPU != "" {
-		cpu = resource.MustParse(m.Spec.Container.CPU)
-	}
+	cpuRequests, cpuLimits := cpuResources(m)
 
 	javaOptions, err := r.javaOptions(m)
 	if err != nil {
@@ -1057,11 +1053,11 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							TimeoutSeconds:      80},
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
-								"cpu":    cpu,
+								"cpu":    cpuRequests,
 								"memory": memory,
 							},
 							Limits: corev1.ResourceList{
-								"cpu":    cpu,
+								"cpu":    cpuLimits,
 								"memory": memory,
 							},
 						},
@@ -1151,6 +1147,26 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
 	return dep, nil
+}
+
+func cpuResources(infinispan *infinispanv1.Infinispan) (resource.Quantity, resource.Quantity) {
+	if infinispan.Spec.Container.CPU != "" {
+		cpuLimits := resource.MustParse(infinispan.Spec.Container.CPU)
+		cpuRequests := toMilliDecimalQuantity(cpuRequests(cpuLimits.MilliValue()))
+		return cpuRequests, cpuLimits
+	}
+
+	cpuLimits := toMilliDecimalQuantity(DefaultCPULimit)
+	cpuRequests := toMilliDecimalQuantity(DefaultCPULimit / 2)
+	return cpuRequests, cpuLimits
+}
+
+func toMilliDecimalQuantity(value int64) resource.Quantity {
+	return *resource.NewMilliQuantity(value, resource.DecimalSI)
+}
+
+func cpuRequests(cpuLimit int64) int64 {
+	return cpuLimit / 2
 }
 
 func (r *ReconcileInfinispan) javaOptions(m *infinispanv1.Infinispan) (string, error) {
