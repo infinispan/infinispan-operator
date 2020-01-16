@@ -214,7 +214,7 @@ spec:
           - description: Name of the secrect that contains auth info.
             displayName: Endpoint Secret Name
             path: security.endpointSecretName
-          - description: Select how encrption certificates are provided [Secret,Service].
+          - description: Select how encryption certificates are provided [Secret,Service].
             displayName: Endpoint Encryption Type
             path: security.endpointEncryption.type
           - description: Platform service that serves certificates (openshift.io/service-cert is supported).
@@ -238,8 +238,7 @@ spec:
           - description: Name of one of the sites (DataGrid service only)
             displayName: Name Of Site
             path: service.sites.locations[0].name
-          - description: Site URL for communicating with site (DataGrid service only).
-            Prefixed with minikube:// for Minikube sites, and openshift:// for OpenShift sites.
+          - description: Site URL for communicating with site (DataGrid service only). Prefixed with minikube:// for Minikube sites, and openshift:// for OpenShift sites.
             displayName: Site URL
             path: service.sites.locations[0].url
           - description: Secret name containing credentials to talk to site (DataGrid service only).
@@ -251,7 +250,7 @@ spec:
           - description: Externally exposed Kubernetes service type.
             displayName: Exposed Kubernetes Service Type
             path: expose.type
-        statusDescriptos:
+        statusDescriptors:
         - description: Type of condition.
           displayName: Condition Type
           path: conditions[0].type
