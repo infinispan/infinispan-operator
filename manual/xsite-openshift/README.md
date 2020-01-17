@@ -20,7 +20,13 @@ Next, generate OpenShift session tokens to interact with OpenShift clusters:
 $ source export-tokens.sh
 ```
 
-Finally, deploy operator and instantiate the x-site Infinispan examples in each cluster:
+If running the test for the first time, create the projects in each site:
+
+```bash
+$ make create-project
+```
+
+Then, deploy operator and instantiate the x-site Infinispan examples in each cluster:
 
 ```bash
 $ make deploy-operator deploy

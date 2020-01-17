@@ -1,4 +1,4 @@
-.PHONY: delete-namespace image push deploy-operator undeploy-operator deploy undeploy create-cache put get
+.PHONY: delete-namespace image push create-project deploy-operator undeploy-operator deploy undeploy create-cache put get
 
 NAMESPACE ?= local-operators
 IMAGE ?= jboss/infinispan-operator
@@ -15,6 +15,18 @@ image:
 push:
 	docker push $(IMAGE):$(TAG)
 
+## create-project        Create project in each of the sites
+create-project:
+	$(call create-project,A)
+	$(call create-project,B)
+
+define create-project
+oc login --insecure-skip-tls-verify=true \
+    --server=${SERVER_${1}} \
+    --token=${TOKEN_${1}}
+oc new-project ${NAMESPACE} || true
+endef
+
 ### deploy-operator      Deploy operator to both sites
 deploy-operator:
 	$(call login-server,A)
@@ -30,7 +42,6 @@ oc project ${NAMESPACE}
 endef
 
 define deploy-operator
-oc new-project "${NAMESPACE}" || true
 oc apply -f ../../deploy/rbac.yaml
 oc apply -f ../../deploy/crd.yaml
 cp ../../deploy/operator.yaml .
