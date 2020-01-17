@@ -139,6 +139,7 @@ prepareBranches() {
   rm -f ${repoDir}/${dir}/*.backup
 
   pushd ${repoDir}
+  git add ${releaseDir}/${CRD_FILE}
   git commit -a -m "Update Infinispan manifests for ${RELEASE_NAME} release"
   popd
 }
