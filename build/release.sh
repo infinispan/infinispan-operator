@@ -124,7 +124,7 @@ prepareBranches() {
   pushd ${repoDir}
   git add -f ${releaseDir}/${csvFile}/${CSV_FILE}
   git add -f ${dir}/${packageFile}
-  git commit -m "Copy Infinispan manifests for ${RELEASE_NAME} release"
+  git commit -s -m "Copy Infinispan manifests for ${RELEASE_NAME} release"
   popd
 
   pushd ${repoDir}
@@ -140,7 +140,7 @@ prepareBranches() {
 
   pushd ${repoDir}
   git add ${releaseDir}/${CRD_FILE}
-  git commit -a -m "Update Infinispan manifests for ${RELEASE_NAME} release"
+  git commit -s -a -m "Update Infinispan manifests for ${RELEASE_NAME} release"
   popd
 }
 
