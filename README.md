@@ -277,3 +277,12 @@ To create releases, run:
 ```
 $ make DRY_RUN=false GITHUB_USERNAME=<...> REPLACES_RELEASE_NAME=N.M.O RELEASE_NAME=X.Y.Z SERVER_VERSION=a.b.c release
 ```
+
+As a final step,
+the release script creates two PRs in
+[operatorhub.io](https://github.com/operator-framework/community-operators)
+for the release to be included there.
+Once the PRs have been created,
+edit the description and add the PR form suggested
+[here](https://github.com/operator-framework/community-operators),
+marking those fields that apply.
