@@ -13,9 +13,7 @@ spec:
       local:
         expose:
           type: LoadBalancer
-      backups:
-      - name: google
-        url: xsite://google.host:23456
+      locations:
       - name: azure
         url: openshift://api.azure.host:6443
         secretName: azure-identities

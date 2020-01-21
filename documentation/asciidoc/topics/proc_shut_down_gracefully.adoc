@@ -2,15 +2,19 @@
 = Shutting Down and Restarting {brandname} Clusters
 Gracefully shut down your {brandname} clusters before restarting them.
 
-{cacheservice} pods store permanent cache definitions in persistent volumes so
-they survive between cluster restarts.
+.Cache configuration
+Both {cacheservice} and {datagridservice} pods store permanent cache
+definitions in persistent volumes so they are still available after cluster
+restarts.
 
-{datagridservice} pods store permanent cache definitions and also persist your
-data during cluster shutdown.
+.Data
+{datagridservice} pods write all cache entries to persistent storage during
+cluster shutdown. However, you must configure caches with persistence.
 
 [IMPORTANT]
 ====
-You should configure the storage size for {datagridservice} pods to ensure that the persistent volume can hold all your data.
+You should configure the storage size for {datagridservice} pods to ensure that
+the persistent volume can hold all your data.
 
 If the available container storage is less than the amount of memory available
 to {datagridservice} pods, {brandname} writes an exception to logs and data

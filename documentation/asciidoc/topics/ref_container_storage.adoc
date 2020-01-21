@@ -12,6 +12,15 @@ By default, the {ispn_operator} allocates `1Gi` for storage for both
 {cacheservice} and {datagridservice} pods. You can configure storage size only
 for {datagridservice} pods.
 
+.Persistence
+{datagridservice} pods let you configure caches with persistent storage, as in
+the following example:
+
+[source,xml,options="nowrap",subs=attributes+]
+----
+include::config_examples/file_cache_store.xml[]
+----
+
 .Reference
 
 * link:#shutting_down-start[Shutting Down {brandname} Clusters]
