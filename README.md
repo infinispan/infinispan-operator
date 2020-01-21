@@ -2,25 +2,24 @@
 
 [![Build Status](https://travis-ci.org/infinispan/infinispan-operator.svg?branch=master)](https://travis-ci.org/infinispan/infinispan-operator)
 
-This is an Openshift operator to run and rule Infinispan.
+This is an OpenShift operator to run and rule Infinispan.
 
 ### System Requirements
 
-* [go](https://github.com/golang/go) with `$GOPATH` set to `$HOME/go`
+* [go](https://github.com/golang/go)
 * Docker
-* [dep](https://github.com/golang/dep#installation)    
 * A running [OKD cluster](https://www.okd.io/download.html) with `system:admin` access,
 or a [Minikube cluster](https://kubernetes.io/docs/setup/minikube/).
 
 ### Building the Infinispan Operator
 
-1. Add the source under `$GOPATH`:
+1. Add the source under any folder:
 ```
-$ git clone https://github.com/infinispan/infinispan-operator.git $GOPATH/src/github.com/infinispan/infinispan-operator
+$ git clone https://github.com/infinispan/infinispan-operator.git
 ```
-2. Change to the source directory.
+2. Change to the operator source directory.
 ```
-$ cd $GOPATH/src/github.com/infinispan/infinispan-operator
+$ cd ./infinispan-operator
 ```
 3. Review the available build targets.
 ```
@@ -60,6 +59,10 @@ $ export KUBECONFIG=/path/to/admin.kubeconfig
   * Use the public  [jboss/infinispan-operator](https://hub.docker.com/r/jboss/infinispan-operator) image:
   ```
   $ make run
+  ```
+  * It's possible to change a 'default' project name to the custom defined:
+  ```
+  $ export PROJECT_NAME=myproject
   ```
   * Use a locally built image:
   ```
