@@ -7,12 +7,20 @@ include::yaml_annotated/cr_container_resources.yaml[]
 ----
 
 <1> specifies JVM options.
-<2> allocates CPU resources.
-<3> allocates memory resources.
+<2> allocates host CPU resources to pods, measured in CPU units.
+<3> allocates host memory resources to pods, measured in bytes.
+
+When {ispn_operator} creates {brandname} pods, it uses `spec.container.cpu` and `spec.container.memory` to:
+
+* Ensure that {k8s} nodes have sufficient capacity to run the pods. The
+{ispn_operator} uses `memory`, but only half the value of `cpu`, as resource
+requests to the {k8s} scheduler.
+* Constrain pod resource usage. The {ispn_operator} sets the values of `cpu`
+and `memory` as resource limits.
 
 [NOTE]
 ====
-You cannot pass JVM options or allocate CPU and memory after you create
+You cannot modify JVM options or CPU and memory resources after you create
 {brandname} pods. In this case you must delete the existing {brandname} pods
 and create new ones.
 ====

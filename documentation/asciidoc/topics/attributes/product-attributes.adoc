@@ -14,6 +14,8 @@
 
 :image_resource: infinispan/server:latest
 
+:pv_path: /opt/datagrid/server/data
+
 include::oc_cmds.adoc[]
 include::links.adoc[]
 
@@ -75,6 +77,8 @@ include::links.adoc[]
 :brandcli: cli
 :moduleprefix: jdg
 :infinispanslot: jdg-8.0
+
+:schemaversion: 11.0
 
 :download_url: https://access.redhat.com/downloads
 :javadocroot: https://access.redhat.com/webassets/avalon/d/red-hat-data-grid/7.3/api

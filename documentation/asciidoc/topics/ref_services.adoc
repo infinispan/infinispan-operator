@@ -3,11 +3,11 @@
 The {ispn_operator} automatically creates services to route network traffic.
 These services use the names that you give to your {brandname} clusters.
 
-Internal services::
-+
+.Internal service
+
 * Allow {brandname} nodes to discover each other and form clusters.
 * Provide access to {brandname} endpoints from clients in the same {k8s} namespace.
-+
+
 [%header,cols=4*]
 |===
 | Service
@@ -18,7 +18,7 @@ Internal services::
 | `${cluster_name}`
 | `11222`
 | TCP
-| {brandname} endpoints
+| Internal access to {brandname} endpoints
 
 | `${cluster_name}-ping`
 | `8888`
@@ -27,15 +27,16 @@ Internal services::
 
 |===
 
-External services::
-Provide access to {brandname} endpoints from clients outside {k8s} or in different namespaces.
-+
+.External service
+
+Provides access to {brandname} endpoints from clients outside {k8s} or in different namespaces.
+
 [NOTE]
 ====
-You must expose external services with the {ispn_operator}. External services
-are not available by default.
+You must expose the external service with the {ispn_operator}. It is not
+available by default.
 ====
-+
+
 [%header,cols=4*]
 |===
 | Service
@@ -46,7 +47,25 @@ are not available by default.
 | `${cluster_name}-external`
 | `11222`
 | TCP
-| {brandname} endpoints
+| External access to {brandname} endpoints.
+
+|===
+
+.Cross-site service
+
+Allows {brandname} to back up data between clusters in different locations.
+
+[%header,cols=4*]
+|===
+| Service
+| Port
+| Protocol
+| Description
+
+| `${name}-sites`
+| `7900`
+| TCP
+| JGroups RELAY2 channel for cross-site communication.
 
 |===
 

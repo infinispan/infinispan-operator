@@ -2,14 +2,7 @@
 = Persistent Volume Claims
 
 The {ispn_operator} creates persistent volume claims for pods at: +
-// Community
-ifndef::productized[]
-`/opt/infinispan/server/data`
-endif::productized[]
-// Product
-ifdef::productized[]
-`/opt/datagrid/server/data`
-endif::productized[]
+`{pv_path}`
 
 [NOTE]
 ====

@@ -1,0 +1,3 @@
+<persistence>
+    <soft-index-file-store xmlns="urn:infinispan:config:store:soft-index:{schemaversion}" />
+</persistence>
