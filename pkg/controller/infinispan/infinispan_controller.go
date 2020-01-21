@@ -1248,8 +1248,8 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.Infinispan
 		if _, ok := tlsSecret.Data["keystore.p12"]; ok {
 			// If user provide a keystore in secret then use it ...
 			c.Keystore.Path = "/etc/encrypt/keystore.p12"
-			c.Keystore.Password = string(tlsSecret.Data["password"])
-			c.Keystore.Alias = string(tlsSecret.Data["alias"])
+			c.Keystore.Password = string(tlsSecret.StringData["password"])
+			c.Keystore.Alias = string(tlsSecret.StringData["alias"])
 		} else {
 			// ... else suppose tls.key and tls.crt are provided
 			c.Keystore.CrtPath = "/etc/encrypt"
@@ -1322,7 +1322,7 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 			Name:      secretName,
 			Namespace: m.ObjectMeta.Namespace,
 		},
-		Type:       corev1.SecretType("Opaque"),
+		Type:       corev1.SecretType(corev1.SecretTypeOpaque),
 		StringData: map[string]string{"identities.yaml": string(identities)},
 	}
 
