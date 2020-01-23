@@ -54,6 +54,10 @@ func (m mockCluster) GracefulShutdown(secretName, podName, namespace, protocol s
 	return nil
 }
 
+func (m mockCluster) GetMinNumberOfNodes(_, _, _, _ string) (int, error) {
+	return 0, nil
+}
+
 // TestGetInfinispanConditions test for getInfinispanConditions func
 func TestGetInfinispanConditions(t *testing.T) {
 	var m mockCluster

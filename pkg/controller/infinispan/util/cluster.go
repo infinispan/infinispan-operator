@@ -74,14 +74,14 @@ func (c Cluster) GracefulShutdown(secretName, podName, namespace, protocol strin
 	commands := []string{"curl", "-X", "GET", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
-	logger.Info("get cluster members", "url", httpURL)
+	logger.Info("Calling cluster stop action", "url", httpURL)
 
 	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	_, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
+	return fmt.Errorf("unexpected error calling cluster stop action, stderr: %v, err: %v", execErr, err)
 }
 
 // ClusterHealth represents the health of the cluster
@@ -223,9 +223,40 @@ func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 
 // GetMinNumberOfNodes get the minimum number of nodes valued from a pod
 func (c Cluster) GetMinNumberOfNodes(secretName, podName, namespace, protocol string) (int, error) {
-	result := c.Kubernetes.ProxyGet(namespace, podName, "metrics")
-	var status int
-	result.StatusCode(&status)
-	fmt.Printf("%d", status)
-	return 0, nil
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return 0, err
+	}
+
+	pass, err := c.GetPassword("operator", secretName, namespace)
+	if err != nil {
+		return 0, err
+	}
+
+	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, "metrics/application/Cache_Statistics_requiredMinimumNumberOfNodes")
+	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), "-H", "Accept: application/json", httpURL}
+
+	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
+	logger.Info("get metrics", "url", httpURL)
+
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+	if err == nil {
+		result := execOut.Bytes()
+		var minNodesPerCaches map[string]int
+		maxMin := 0
+		err = json.Unmarshal(result, &minNodesPerCaches)
+		s := string(result)
+		fmt.Println(s)
+		if err == nil {
+			for _, value := range minNodesPerCaches {
+				if value > maxMin {
+					maxMin = value
+				}
+			}
+			return maxMin, nil
+		}
+		return 0, err
+	}
+	return 0, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
 }

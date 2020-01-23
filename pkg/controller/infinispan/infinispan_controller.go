@@ -4,6 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/url"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
@@ -19,9 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"net"
-	"net/url"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -30,10 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var log = logf.Log.WithName("controller_infinispan")
@@ -44,7 +45,7 @@ var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:lat
 // DefaultMemorySize string with default size for memory
 var DefaultMemorySize = resource.MustParse("512Mi")
 
-// DefaultCPUSize string with default size for CPU
+// DefaultCPULimit string with default size for CPU
 var DefaultCPULimit int64 = 500
 
 // DefaultPVSize default size for persistent volume
@@ -433,7 +434,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	replicas := infinispan.Spec.Replicas
 	previousReplicas := *found.Spec.Replicas
 	if previousReplicas != replicas {
-		minReplicas := getInfinispanMinNumberOfNodes(podList.Items, infinispan.Namespace, infinispan.Name, protocol, cluster)
+		minReplicas := getInfinispanMinNumberOfNodes(podList.Items, infinispan, protocol, cluster)
+		// Check that the new size is above the minimum size required
+		// otherwise raise a reconciliation error
 		if replicas >= int32(minReplicas) {
 			found.Spec.Replicas = &replicas
 			reqLogger.Info("replicas changed, update infinispan", "replicas", replicas, "previous replicas", previousReplicas)
@@ -441,6 +444,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		} else {
 			err1 := fmt.Errorf("Cluster minimum size is " + fmt.Sprint(minReplicas) + ". Cluster can't be downscaled to spec.replicas=" + fmt.Sprint(replicas) + " nodes.")
 			reqLogger.Error(err1, "failed to reconcile", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+			return reconcile.Result{}, err1
 		}
 	}
 
@@ -652,14 +656,12 @@ func upgradeNeeded(infinispan *infinispanv1.Infinispan, logger logr.Logger) bool
 				if infinispan.Status.ReplicasWantedAtRestart > 0 {
 					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
 					return true
-				} else {
-					logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
-					return false
 				}
-			} else {
-				logger.Info("wait for graceful shutdown before update to complete")
+				logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
 				return false
 			}
+			logger.Info("wait for graceful shutdown before update to complete")
+			return false
 		}
 	}
 
@@ -1735,9 +1737,9 @@ func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
 	return ""
 }
 
-func getInfinispanMinNumberOfNodes(pods []corev1.Pod, namespace, name, protocol string, cluster ispnutil.ClusterInterface) int {
-	reqLogger := log.WithValues("Request.Namespace", namespace, "Request.Name", name)
-	secretName := ispnutil.GetSecretName(name)
+func getInfinispanMinNumberOfNodes(pods []corev1.Pod, ispn *infinispanv1.Infinispan, protocol string, cluster ispnutil.ClusterInterface) int {
+	reqLogger := log.WithValues("Request.Namespace", ispn.Namespace, "Request.Name", ispn.Name)
+	secretName := ispnutil.GetSecretName(ispn)
 	minNum := 0
 	for _, pod := range pods {
 		num, minNumNodesErr := cluster.GetMinNumberOfNodes(secretName, pod.Name, pod.Namespace, protocol)

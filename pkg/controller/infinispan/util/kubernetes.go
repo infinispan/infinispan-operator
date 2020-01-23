@@ -251,7 +251,7 @@ func (k Kubernetes) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint6
 	return 0, fmt.Errorf("meminfo lacking MemTotal information")
 }
 
-// ServiceCAsCRDResourceExists returns true if the platform
+// HasServiceCAsCRDResource returns true if the platform
 // has the servicecas.operator.openshift.io custom resource deployed
 // Used to check if serviceca operator is serving TLS certificates
 func (k Kubernetes) HasServiceCAsCRDResource() bool {
@@ -261,18 +261,4 @@ func (k Kubernetes) HasServiceCAsCRDResource() bool {
 	var status int
 	result.StatusCode(&status)
 	return status >= 200 && status < 299
-}
-
-// ProxyGet executes command on pod
-// command example { "/usr/bin/ls", "folderName" }
-func (k Kubernetes) ProxyGet(podNamespace, podName, suffix string) rest.Result {
-	result := k.restClient.Get().
-		Resource("pods").
-		Name(podName).
-		Namespace(podNamespace).
-		SubResource("proxy").
-		// The server URL path, without leading "/" goes here...
-		Suffix(suffix).
-		Do()
-	return result
 }
