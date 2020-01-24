@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-const Namespace = "namespace-for-testing"
 const TestTimeout = 5 * time.Minute
 const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 240 * time.Second
@@ -31,6 +30,7 @@ const DefaultPollPeriod = 1 * time.Second
 
 var CPU = getEnvWithDefault("INFINISPAN_CPU", "0.5")
 var Memory = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
+var Namespace = getEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing")
 
 var kubernetes = testutil.NewTestKubernetes()
 var cluster = util.NewCluster(kubernetes.Kubernetes)
@@ -39,13 +39,18 @@ var DefaultClusterName = "test-node-startup"
 
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
-	kubernetes.DeleteNamespace(namespace)
-	kubernetes.DeleteCRD("infinispans.infinispan.org")
-	kubernetes.NewNamespace(namespace)
-	stopCh := kubernetes.RunOperator(Namespace)
-	code := m.Run()
-	close(stopCh)
-	os.Exit(code)
+	if "true" == getEnvWithDefault("RUN_LOCAL_OPERATOR", "true") {
+		kubernetes.DeleteNamespace(namespace)
+		kubernetes.DeleteCRD("infinispans.infinispan.org")
+		kubernetes.NewNamespace(namespace)
+		stopCh := kubernetes.RunOperator(Namespace)
+		code := m.Run()
+		close(stopCh)
+		os.Exit(code)
+	} else {
+		code := m.Run()
+		os.Exit(code)
+	}
 }
 
 // Simple smoke test to check if the Kubernetes/OpenShift is alive
