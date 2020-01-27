@@ -40,8 +40,8 @@ func (c Cluster) GetPassword(user, secretName, namespace string) (string, error)
 		return "", nil
 	}
 
-	descriptor := secret.Data["identities.yaml"]
-	pass, err := FindPassword(user, descriptor)
+	descriptor := secret.StringData["identities.yaml"]
+	pass, err := FindPassword(user, []byte(descriptor))
 	if err != nil {
 		return "", err
 	}
