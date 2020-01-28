@@ -1092,7 +1092,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	dep := &appsv1.StatefulSet{
 
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1beta1",
+			APIVersion: "apps/v1",
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
