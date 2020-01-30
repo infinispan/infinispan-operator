@@ -176,7 +176,17 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 	ExpectNoError(err)
 	infinispan.Spec.Replicas = replicas
-	err = k.Kubernetes.Client.Update(context.TODO(), infinispan)
+	err = wait.Poll(period, timeout, func() (done bool, err error) {
+		err1 := k.Kubernetes.Client.Update(context.TODO(), infinispan)
+		if err1 != nil {
+			fmt.Printf("Error updating infinispan %s\n", err1)
+			err1 = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
+			infinispan.Spec.Replicas = replicas
+			return false, nil
+		}
+		return true, nil
+	})
+
 	ExpectNoError(err)
 
 	err = wait.Poll(period, timeout, func() (done bool, err error) {
@@ -397,7 +407,6 @@ func debugPods(required int, pods []v1.Pod) {
 
 // DeleteCRD deletes a CustomResourceDefinition
 func (k TestKubernetes) DeleteCRD(name string) {
-	fmt.Printf("Delete CRD %s\n", name)
 	crd := &apiextv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
