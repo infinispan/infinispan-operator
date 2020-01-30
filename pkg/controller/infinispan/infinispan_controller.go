@@ -133,6 +133,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		reqLogger.Info("Error reading the object")
 		return reconcile.Result{}, err
 	}
 
@@ -144,16 +145,18 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// because remote site host:port combinations need to be injected into Infinispan.
 	xsite, err := r.computeXSite(infinispan, reqLogger)
 	if err != nil {
+		reqLogger.Error(err, "Error in computeXSite", "Infinispan.Namespace")
 		return reconcile.Result{}, err
 	}
 
-	// Check if the deployment already exists, if not create a new one
+	// Check if the StatefulSet already exists, if not create a new one
 	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-
+		reqLogger.Info("Configuring the StatefulSet")
 		// Populate EndpointEncryption if serving cert service is available
 		if getServingCertsMode(kubernetes) == "openshift.io" {
+			reqLogger.Info("Serving certificate service present. Configuring into CRD")
 			requeue := false
 			ee := &infinispan.Spec.Security.EndpointEncryption
 			if ee.Type == "" {
@@ -166,14 +169,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				requeue = true
 			}
 			if requeue {
-				err = r.client.Update(context.TODO(), infinispan)
+				reqLogger.Info("Updating Infinispan resource and requeing")
+				if err = updateSecurity(infinispan, r.client, reqLogger); err != nil {
+					return reconcile.Result{}, err
+				}
 				return reconcile.Result{Requeue: true}, nil
 			}
 		}
 
 		secret, err := r.findSecret(infinispan)
 		if err != nil && infinispan.Spec.Security.EndpointSecretName != "" {
-			reqLogger.Error(err, "could not find secret", "Secret.Namespace", infinispan.Namespace, "Secret.Name", infinispan.Spec.Security.EndpointSecretName)
+			reqLogger.Error(err, "could not find secret", "Secret.Name", infinispan.Spec.Security.EndpointSecretName)
 			return reconcile.Result{}, err
 		}
 
@@ -184,6 +190,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		if secret == nil {
+			reqLogger.Info("Creating identity secret")
+			// Generate the identities secret if not provided by the user
 			identities, err := ispnutil.GetCredentials()
 			if err != nil {
 				reqLogger.Error(err, "could not get identities for Secret")
@@ -191,39 +199,49 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 
 			secret = r.secretForInfinispan(identities, infinispan)
-			reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
+			reqLogger.Info("Creating a new Secret", "Secret.Name", secret.Name)
 			err = r.client.Create(context.TODO(), secret)
 			if err != nil {
 				reqLogger.Error(err, "could not create a new Secret")
 				return reconcile.Result{}, err
 			}
+			// Set the endpoint secret name and update .Spec.Security
 			infinispan.Spec.Security.EndpointSecretName = secret.GetName()
+			err = r.client.Update(context.TODO(), infinispan)
+			if err != nil {
+				reqLogger.Error(err, "failed to update Infinispan Spec")
+				return reconcile.Result{}, err
+			}
 		}
 
-		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "ConfigMap.Name", configMap.Name)
+		if err = updateSecurity(infinispan, r.client, reqLogger); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Name", configMap.Name)
 		err = r.client.Create(context.TODO(), configMap)
 		if err != nil {
-			reqLogger.Error(err, "failed to create new ConfigMap", "ConfigMap.Namespace", configMap.Namespace, "ConfigMap.Name", configMap.Name)
+			reqLogger.Error(err, "failed to create new ConfigMap")
 			return reconcile.Result{}, err
 		}
 
 		// Define a new deployment
 		dep, err := r.deploymentForInfinispan(infinispan, secret, configMap)
 		if err != nil {
-			reqLogger.Error(err, "failed to configure new Deployment", "Deployment.Namespace", infinispan.Namespace, "Deployment.Name", infinispan.Name)
+			reqLogger.Error(err, "failed to configure new StatefulSet")
 			return reconcile.Result{}, err
 		}
-		reqLogger.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+		reqLogger.Info("Creating a new StatefulSet", "StatefulSet.Name", dep.Name)
 		err = r.client.Create(context.TODO(), dep)
 		if err != nil {
-			reqLogger.Error(err, "failed to create new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+			reqLogger.Error(err, "failed to create new StatefulSet", "StatefulSet.Name", dep.Name)
 			return reconcile.Result{}, err
 		}
 
 		ser := r.serviceForInfinispan(infinispan)
 
 		if err != nil {
-			reqLogger.Error(err, "failed to update Infinispan", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
+			reqLogger.Error(err, "failed to update Infinispan")
 			return reconcile.Result{}, err
 		}
 
@@ -240,6 +258,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			reqLogger.Error(err, "failed to create Service", "Service", serDNS)
 			return reconcile.Result{}, err
 		}
+		reqLogger.Info("Created Service", "Service", serDNS)
 
 		if isExposed(infinispan) {
 			externalService := r.serviceExternal(infinispan)
@@ -248,21 +267,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				reqLogger.Error(err, "failed to create external Service", "Service", ser)
 				return reconcile.Result{}, err
 			}
+			reqLogger.Info("Created External Service", "Service", externalService)
 		}
 
-		// Deployment created successfully - return and requeue
-
-		// Copy Spec.Security into Status.Security to match Infinispan spec
-		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
-		// Update Status and Spec
-		err = r.client.Status().Update(context.TODO(), infinispan)
-		err = r.client.Update(context.TODO(), infinispan)
-
+		// StatefulSet created successfully - return and requeue
+		reqLogger.Info("End of the StetefulSet creation")
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
-		reqLogger.Error(err, "failed to get Deployment")
+		reqLogger.Error(err, "failed to get StatefulSet")
 		return reconcile.Result{}, err
 	} else if upgradeNeeded(infinispan, reqLogger) {
+		reqLogger.Info("Upgrade needed")
 		err = r.destroyResources(infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to delete resources before upgrade")
@@ -271,14 +286,24 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 		infinispan.SetCondition("upgrade", "False", "")
 		r.client.Status().Update(context.TODO(), infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to update Infinispan status")
+			return reconcile.Result{}, err
+		}
 
 		reqLogger.Info("removed Infinispan resources, force an upgrade now", "replicasWantedAtRestart", infinispan.Status.ReplicasWantedAtRestart)
 
 		infinispan.Spec.Replicas = infinispan.Status.ReplicasWantedAtRestart
 		r.client.Update(context.TODO(), infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to update Infinispan Spec")
+			return reconcile.Result{}, err
+		}
 
 		return reconcile.Result{Requeue: true}, nil
 	}
+
+	reqLogger.Info("Reconciling Infinispan: update case")
 
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
@@ -286,7 +311,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), listOps, podList)
 	if err != nil {
-		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
+		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace")
 		return reconcile.Result{}, err
 	}
 
@@ -296,10 +321,18 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
 	if infinispan.Spec.Replicas == 0 {
+		reqLogger.Info(".Spec.Replicas==0")
 		updateStatus := false
 		if *found.Spec.Replicas != 0 {
+			reqLogger.Info("StatefulSet.Spec.Replicas!=0")
+			r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
+			r.client.Get(context.TODO(), types.NamespacedName{Namespace: found.Namespace, Name: found.Name}, found)
 			infinispan.Status.ReplicasWantedAtRestart = *found.Spec.Replicas
-			r.client.Status().Update(context.TODO(), infinispan)
+			err = r.client.Status().Update(context.TODO(), infinispan)
+			if err != nil {
+				reqLogger.Error(err, "failed to update Infinispan status")
+				return reconcile.Result{}, err
+			}
 
 			// If here some pods are still ready
 			// Disable restart policy if needed
@@ -313,20 +346,26 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
 			if cond := infinispan.GetCondition("stopping"); cond == nil || *cond != "True" {
+				reqLogger.Info("Sending graceful shutdown request")
 				// send a graceful shutdown to the first ready pod
 				// if there's no ready pod we're in trouble
 				for _, pod := range podList.Items {
 					if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].Ready {
 						err = cluster.GracefulShutdown(ispnutil.GetSecretName(infinispan), pod.GetName(), pod.GetNamespace(), protocol)
 						if err != nil {
-							reqLogger.Error(err, "failed to exec shutdown command on pod", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
+							reqLogger.Error(err, "failed to exec shutdown command on pod")
+							continue
+						}
+						reqLogger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
+						infinispan.SetCondition("stopping", "True", "")
+						infinispan.SetCondition("wellFormed", "False", "")
+						r.client.Status().Update(context.TODO(), infinispan)
+						if err != nil {
+							reqLogger.Error(err, "This should not happens but failed to update Infinispan Status")
 							return reconcile.Result{}, err
 						}
-						reqLogger.Info("Executed graceful shutdown on pod: ", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-						infinispan.SetCondition("stopping", "True", "")
-						r.client.Status().Update(context.TODO(), infinispan)
 						// Stop the work and requeue until cluster is down
-						return reconcile.Result{Requeue: true}, nil
+						return reconcile.Result{Requeue: true, RequeueAfter: time.Second}, nil
 					}
 				}
 			} else {
@@ -334,17 +373,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				reqLogger.Info("Waiting that all the pods become unready")
 				for _, pod := range podList.Items {
 					if pod.Status.ContainerStatuses[0].Ready {
-						reqLogger.Info("One or more pods still ready", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+						reqLogger.Info("One or more pods still ready", "Pod.Name", pod.Name)
 						// Stop the work and requeue until cluster is down
-						return reconcile.Result{Requeue: true}, nil
+						return reconcile.Result{Requeue: true, RequeueAfter: time.Second}, nil
 					}
 				}
 			}
 
-			// If here all the pods are unready, save somewhere the number of pods needed for a clean restart
-			// then set statefulset replicas and infinispan.replicas to 0
-			r.client.Get(context.TODO(), types.NamespacedName{Namespace: found.Namespace, Name: found.Name}, found)
-			r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
+			// If here all the pods are unready, set statefulset replicas and infinispan.replicas to 0
 			if *found.Spec.Replicas != 0 {
 				updateStatus = true
 				zeroReplicas := int32(0)
@@ -358,39 +394,57 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 		if updateStatus {
 			r.client.Status().Update(context.TODO(), infinispan)
+			if err != nil {
+				reqLogger.Error(err, "failed to update Infinispan Status")
+				return reconcile.Result{}, err
+			}
 		}
 		return reconcile.Result{}, nil
 	}
 	isGracefulShutdown := infinispan.GetCondition("gracefulShutdown")
 	if infinispan.Spec.Replicas != 0 && isGracefulShutdown != nil && *isGracefulShutdown == "True" {
+		reqLogger.Info("Resuming from graceful shutdown")
 		// If here we're resuming from graceful shutdown
 		r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
 		if infinispan.Spec.Replicas != infinispan.Status.ReplicasWantedAtRestart {
-			return reconcile.Result{Requeue: true}, fmt.Errorf("Spec.Replicas must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", infinispan.Status.ReplicasWantedAtRestart)
+			return reconcile.Result{Requeue: true}, fmt.Errorf("Spec.Replicas(%d) must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", infinispan.Spec.Replicas, infinispan.Status.ReplicasWantedAtRestart)
 		}
 		infinispan.Spec.Replicas = infinispan.Status.ReplicasWantedAtRestart
-		r.client.Update(context.TODO(), infinispan)
+		err = r.client.Update(context.TODO(), infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to update Infinispan Spec")
+			return reconcile.Result{}, err
+		}
 		infinispan.Status.ReplicasWantedAtRestart = 0
 		infinispan.SetCondition("gracefulShutdown", "False", "")
-		r.client.Status().Update(context.TODO(), infinispan)
+		err = r.client.Status().Update(context.TODO(), infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to update Infinispan Status")
+			return reconcile.Result{}, err
+		}
 		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// If upgrade required, do not process any further and handle upgrades
 	if isUpgradeCondition(infinispan) {
+		reqLogger.Info("isUpgradeCondition")
 		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// If secretName for identities has changed reprocess all the
 	// identities secrets and then upgrade the cluster
 	if infinispan.Spec.Security.EndpointSecretName != infinispan.Status.Security.EndpointSecretName {
+		reqLogger.Info("Changed EndpointSecretName",
+			"PrevName", infinispan.Status.Security.EndpointSecretName,
+			"NewName", infinispan.Spec.Security.EndpointSecretName)
 		secret, err := r.findSecret(infinispan)
 		if err != nil {
-			reqLogger.Error(err, "could not find secret", "Secret.Namespace", infinispan.Namespace, "Secret.Name", infinispan.Spec.Security.EndpointSecretName)
+			reqLogger.Error(err, "could not find secret", "Secret.Name", infinispan.Spec.Security.EndpointSecretName)
 			return reconcile.Result{}, err
 		}
 
 		if secret == nil {
+			// Generate the identities secret if not provided by the user
 			identities, err := ispnutil.GetCredentials()
 			if err != nil {
 				reqLogger.Error(err, "could not get identities for Secret")
@@ -398,7 +452,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 
 			secret = r.secretForInfinispan(identities, infinispan)
-			reqLogger.Info("Creating a new Secret", "Secret.Namespace", secret.Namespace, "Secret.Name", secret.Name)
+			reqLogger.Info("Creating a new Secret", "Secret.Name", secret.Name)
 			err = r.client.Create(context.TODO(), secret)
 			if err != nil {
 				reqLogger.Error(err, "could not create a new Secret")
@@ -413,15 +467,25 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				found.Spec.Template.Spec.Volumes[i].Secret.SecretName = secret.GetName()
 			}
 		}
+
 		err = r.client.Update(context.TODO(), found)
-
-		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
-		err = r.client.Status().Update(context.TODO(), infinispan)
-
 		if err != nil {
-			reqLogger.Error(err, "failed to update Infinispan", "Infinispan.Namespace", infinispan.Namespace, "Infinispan.Name", infinispan.Name)
+			reqLogger.Error(err, "failed to update StatefulSet")
 			return reconcile.Result{}, err
 		}
+		// Get latest version of the infinispan crd
+		r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
+		// Copy and update .Status.Security to match .Spec.Security
+		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
+		err = r.client.Status().Update(context.TODO(), infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to update Infinispan Status")
+			return reconcile.Result{}, err
+		}
+		reqLogger.Info("Security set",
+			"Spec.EndpointSecretName", infinispan.Spec.Security.EndpointSecretName,
+			"Status.EndpointSecretName", infinispan.Status.Security.EndpointSecretName)
+
 		return reconcile.Result{}, nil
 	}
 
@@ -453,12 +517,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 	if ispnContr.CPU != "" {
-		quantity := resource.MustParse(ispnContr.CPU)
-		previousCPU := res.Requests["cpu"]
-		if quantity.Cmp(previousCPU) != 0 {
-			res.Requests["cpu"] = quantity
-			res.Limits["cpu"] = quantity
-			reqLogger.Info("cpu changed, update infinispan", "cpu", quantity, "previous cpu", previousCPU)
+		cpuReq, cpuLim := cpuResources(infinispan)
+		previousCPUReq := res.Requests["cpu"]
+		previousCPULim := res.Limits["cpu"]
+		if cpuReq.Cmp(previousCPUReq) != 0 || cpuLim.Cmp(previousCPULim) != 0 {
+			res.Requests["cpu"] = cpuReq
+			res.Limits["cpu"] = cpuLim
+			reqLogger.Info("cpu changed, update infinispan", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
 			updateNeeded = true
 		}
 	}
@@ -479,9 +544,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		updateNeeded = true
 	}
 	if updateNeeded {
+		reqLogger.Info("updateNeeded")
 		err = r.client.Update(context.TODO(), found)
 		if err != nil {
-			reqLogger.Error(err, "failed to update Deployment", "Deployment.Namespace", found.Namespace, "Deployment.Name", found.Name)
+			reqLogger.Error(err, "failed to update StatefulSet", "StatefulSet.Name", found.Name)
 			return reconcile.Result{}, err
 		}
 		// Spec updated - return and requeue
@@ -491,7 +557,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Wait until all pods have ips assigned
 	// Without those ips, it's not possible to execute next calls
 	if !arePodIPsReady(podList) {
-		return reconcile.Result{Requeue: true}, nil
+		reqLogger.Info("Pods IPs are not ready yet")
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Second}, nil
 	}
 
 	// Inspect the system and get the current Infinispan conditions
@@ -517,9 +584,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// View didn't form, requeue until view has formed
 	if notClusterFormed(currConds, podList.Items, infinispan.Spec.Replicas) {
-		return reconcile.Result{Requeue: true}, nil
+		reqLogger.Info("notClusterFormed")
+		return reconcile.Result{Requeue: true, RequeueAfter: time.Second}, nil
 	}
 	if isCache(infinispan) && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster) {
+		reqLogger.Info("createDefaultCache")
 		err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
 		if err != nil {
 			reqLogger.Error(err, "failed to create default cache for cache service")
@@ -548,6 +617,25 @@ func getEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
 		}
 	}
 	return 0
+}
+
+func updateSecurity(infinispan *infinispanv1.Infinispan, client client.Client, reqLogger logr.Logger) error {
+	err := client.Update(context.TODO(), infinispan)
+	if err != nil {
+		reqLogger.Error(err, "failed to update Infinispan Spec")
+		return err
+	}
+	// Copy and update .Status.Security to match .Spec.Security
+	infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
+	err = client.Status().Update(context.TODO(), infinispan)
+	if err != nil {
+		reqLogger.Error(err, "failed to update Infinispan Status", "Infinispan.Namespace")
+		return err
+	}
+	reqLogger.Info("Security set",
+		"Spec.EndpointSecretName", infinispan.Spec.Security.EndpointSecretName,
+		"Status.EndpointSecretName", infinispan.Status.Security.EndpointSecretName)
+	return nil
 }
 
 func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinispan) error {
@@ -951,10 +1039,10 @@ func lookupHost(host string, logger logr.Logger) (string, error) {
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
-	// This field specifies the flavor of the
-	// Infinispan cluster. "" is plain community edition (vanilla)
 	ls := labelsForInfinispan(m.ObjectMeta.Name)
 
+	// This field specifies the flavor of the
+	// Infinispan cluster. "" is plain community edition (vanilla)
 	var imageName string
 	if m.Spec.Image != "" {
 		imageName = m.Spec.Image
@@ -1129,7 +1217,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		Name:      m.ObjectMeta.Name,
 		MountPath: "/opt/infinispan/server/data",
 	})
-	// Adding chmod if needed
+	// Adding an init container that run chmod if needed
 	if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
 		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
 			Image:   "busybox",
@@ -1152,7 +1240,9 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 func cpuResources(infinispan *infinispanv1.Infinispan) (resource.Quantity, resource.Quantity) {
 	if infinispan.Spec.Container.CPU != "" {
 		cpuLimits := resource.MustParse(infinispan.Spec.Container.CPU)
-		cpuRequests := toMilliDecimalQuantity(cpuRequests(cpuLimits.MilliValue()))
+		var cpuRequests resource.Quantity
+		m := cpuLimits.MilliValue()
+		cpuRequests.SetMilli(m / 2)
 		return cpuRequests, cpuLimits
 	}
 
@@ -1163,10 +1253,6 @@ func cpuResources(infinispan *infinispanv1.Infinispan) (resource.Quantity, resou
 
 func toMilliDecimalQuantity(value int64) resource.Quantity {
 	return *resource.NewMilliQuantity(value, resource.DecimalSI)
-}
-
-func cpuRequests(cpuLimit int64) int64 {
-	return cpuLimit / 2
 }
 
 func (r *ReconcileInfinispan) javaOptions(m *infinispanv1.Infinispan) (string, error) {
@@ -1348,16 +1434,27 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 	var wellFormedErr error
 	clusterViews := make(map[string]bool)
 	var errors []string
-	secretName := ispnutil.GetSecretName(m)
-	for _, pod := range pods {
-		var clusterView string
-		var members []string
-		members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace, protocol)
-		clusterView = strings.Join(members, ",")
-		if wellFormedErr == nil {
-			clusterViews[clusterView] = true
-		} else {
-			errors = append(errors, pod.Name+": "+wellFormedErr.Error())
+	// Avoid to inspect the system if we're still waiting for the pods
+	if int32(len(pods)) < m.Spec.Replicas {
+		errors = append(errors, fmt.Sprintf("Running %d pods. Needed %d", len(pods), m.Spec.Replicas))
+	} else {
+		secretName := ispnutil.GetSecretName(m)
+		for _, pod := range pods {
+			var clusterView string
+			var members []string
+			if isPodReady(pod) {
+				// If pod is ready query it for the cluster members
+				members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace, protocol)
+				clusterView = strings.Join(members, ",")
+				if wellFormedErr == nil {
+					clusterViews[clusterView] = true
+				} else {
+					errors = append(errors, pod.Name+": "+wellFormedErr.Error())
+				}
+			} else {
+				// Pod not ready, no need to query
+				errors = append(errors, pod.Name+": pod not ready")
+			}
 		}
 	}
 	// Evaluating WellFormed condition
@@ -1383,6 +1480,15 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 	}
 	status = append(status, wellformed)
 	return status
+}
+
+func isPodReady(pod corev1.Pod) bool {
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.ContainersReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *corev1.Service {

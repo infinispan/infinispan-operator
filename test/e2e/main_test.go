@@ -28,7 +28,7 @@ const SinglePodTimeout = 5 * time.Minute
 const RouteTimeout = 240 * time.Second
 const DefaultPollPeriod = 1 * time.Second
 
-var CPU = getEnvWithDefault("INFINISPAN_CPU", "0.5")
+var CPU = getEnvWithDefault("INFINISPAN_CPU", "500m")
 var Memory = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 var Namespace = getEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing")
 
@@ -134,7 +134,10 @@ func TestContainerCPUUpdate(t *testing.T) {
 		ispn.Spec.Container.CPU = "250m"
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
-		if resource.MustParse("250m") != ss.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"] {
+		limit := resource.MustParse("250m")
+		request := resource.MustParse("125m")
+		if limit.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"]) != 0 ||
+			request.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"]) != 0 {
 			panic("CPU field not updated")
 		}
 	}
@@ -204,7 +207,7 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 	// Wait for a new generation to appear
 	err = wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
 		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
-		return ss.Status.ObservedGeneration == generation+1, nil
+		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
 	if err != nil {
 		panic(err.Error())
@@ -558,12 +561,37 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	}
 	kubernetes.CreateSecret(&secret1, Namespace)
 	defer kubernetes.DeleteSecret(&secret1)
+
+	// Get the associate statefulset
+	ss := appsv1.StatefulSet{}
+
+	// Get the current generation
+	err = kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+	if err != nil {
+		panic(err.Error())
+	}
+	generation := ss.Status.ObservedGeneration
+
+	// Update the resource
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &spec)
 	spec.Spec.Security.EndpointSecretName = "conn-secret-test-1"
-	er := kubernetes.Kubernetes.Client.Update(context.TODO(), &spec)
-	if er != nil {
+	err = kubernetes.Kubernetes.Client.Update(context.TODO(), &spec)
+	if err != nil {
 		panic(fmt.Errorf(err.Error()))
 	}
+
+	// Wait for a new generation to appear
+	err = wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
+		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+		return ss.Status.ObservedGeneration >= generation+1, nil
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+	// Sleep for a while to be sure that the old pods are gone
+	// The restart is ongoing and it would that more than 10 sec
+	// so we're not introducing any delay
+	time.Sleep(10 * time.Second)
 	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
 	testAuthentication(name, usr, newpass)
 }
