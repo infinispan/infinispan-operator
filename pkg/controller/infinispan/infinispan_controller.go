@@ -307,7 +307,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(labelsForInfinispanSelector(infinispan.Name))
+	labelSelector := labels.SelectorFromSet(labelsForInfinispan(infinispan.Name, ""))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), listOps, podList)
 	if err != nil {
@@ -1039,8 +1039,7 @@ func lookupHost(host string, logger logr.Logger) (string, error) {
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
-	ls := labelsForInfinispan(m.ObjectMeta.Name)
-
+	lsPod := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
 	// This field specifies the flavor of the
 	// Infinispan cluster. "" is plain community edition (vanilla)
 	var imageName string
@@ -1108,12 +1107,12 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		Spec: appsv1.StatefulSetSpec{
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
 			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
+				MatchLabels: lsPod,
 			},
 			Replicas: &replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      ls,
+					Labels:      lsPod,
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
@@ -1417,15 +1416,13 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 	return secret
 }
 
-// labelsForInfinispan returns the labels that must me applied to the pod
-func labelsForInfinispan(name string) map[string]string {
-	return map[string]string{"app": "infinispan-pod", "infinispan_cr": name, "clusterName": name}
-}
-
-// labelsForInfinispanSelector returns the labels for selecting the resources
-// belonging to the given infinispan CR name.
-func labelsForInfinispanSelector(name string) map[string]string {
-	return map[string]string{"app": "infinispan-pod", "infinispan_cr": name}
+// labelsForInfinispan returns the labels that must me applied to the resource
+func labelsForInfinispan(name, resourceType string) map[string]string {
+	m := map[string]string{"infinispan_cr": name, "clusterName": name}
+	if resourceType != "" {
+		m["app"] = resourceType
+	}
+	return m
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
@@ -1492,7 +1489,8 @@ func isPodReady(pod corev1.Pod) bool {
 }
 
 func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *corev1.Service {
-	ls := labelsForInfinispan(m.ObjectMeta.Name)
+	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
+	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service")
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1501,10 +1499,11 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      m.ObjectMeta.Name,
 			Namespace: m.ObjectMeta.Namespace,
+			Labels:    lsService,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: ls,
+			Selector: lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{
 					Port: 11222,
@@ -1520,7 +1519,8 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 }
 
 func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *corev1.Service {
-	ls := labelsForInfinispan(m.ObjectMeta.Name)
+	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
+	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service-ping")
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1529,11 +1529,12 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      m.ObjectMeta.Name + "-ping",
 			Namespace: m.ObjectMeta.Namespace,
+			Labels:    lsService,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: "None",
-			Selector:  ls,
+			Selector:  lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{
 					Name: "ping",
@@ -1551,7 +1552,8 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 
 // ServiceExternal creates an external service that's linked to the internal service
 func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev1.Service {
-	ls := labelsForInfinispan(m.ObjectMeta.Name)
+	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
+	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service-external")
 	externalServiceType := m.Spec.Expose.Type
 
 	// An external service can be simply achieved with a LoadBalancer
@@ -1565,10 +1567,11 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalServiceName,
 			Namespace: m.ObjectMeta.Namespace,
+			Labels:    lsService,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     externalServiceType,
-			Selector: ls,
+			Selector: lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{
 					Port:       int32(11222),
@@ -1629,9 +1632,10 @@ func (r *ReconcileInfinispan) getOrCreateSiteService(siteServiceName string, inf
 }
 
 func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
-	ls := labelsForInfinispan(infinispan.ObjectMeta.Name)
+	lsPodSelector := labelsForInfinispan(infinispan.ObjectMeta.Name, "infinispan-pod")
+	lsService := labelsForInfinispan(infinispan.ObjectMeta.Name, "infinispan-service-xsite")
 	exposeSpec := infinispan.Spec.Service.Sites.Local.Expose
-	exposeSpec.Selector = ls
+	exposeSpec.Selector = lsPodSelector
 
 	switch exposeSpec.Type {
 	case corev1.ServiceTypeNodePort:
@@ -1658,6 +1662,7 @@ func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinisp
 			Annotations: map[string]string{
 				"service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp",
 			},
+			Labels: lsService,
 		},
 		Spec: exposeSpec,
 	}
