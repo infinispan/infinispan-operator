@@ -1,0 +1,77 @@
+## Prometheus integration
+This chapter is about sending Infinispan statistics to Prometheus in an operator managed environment running on Openshift.
+
+#### Prerequisites
+1. Access to an Openshift console
+2. A running Prometheus server, installed via Operator (see )
+3. A running Infinispan cluster
+
+#### Deploy the service monitor
+A service monitor is a customer resource (ServiceMonitor) that represent the application to be monitored.
+The Prometheus Operator, when a ServiceMonitor cr is deployed to the system, genetares all the configuration needed to scrap the application.
+The information needed to define a ServiceMonitor are:
+
+1. how to select the workload to scrap. This will be represented by a selector item;
+2. how to connect to selected workload. This will be represented by an endpoint item.
+
+The ServiceMonitor template to populate is the following:
+....
+name: infinispan-monitor-docs
+ namespace: <Prometheus namespace>
+spec:
+ endpoints:
+   - basicAuth:
+       password:
+         key: password
+         name: <authentication secret>
+       username:
+         key: username
+         name: <authentication secret>
+     interval: 30s
+     port: ispn
+     scheme: https
+     tlsConfig:
+       insecureSkipVerify: true
+       serverName: <certificate CN>
+ namespaceSelector:
+   matchNames:
+     - <Infinispan namespace>
+ selector:
+   matchLabels:
+     app: infinispan-service
+....
+
+Let's see how to collect the missing information.
+
+##### Authentication secret
+This must be a secret of the form:
+....
+apiVersion: v1
+stringData:
+  password: <operator password>
+  username: <operator name>
+kind: Secret
+metadata:
+  name: basic-auth
+type: Opaque
+....
+where password and username must be a valid Infinispan credential.
+
+##### If not running TLS
+If the cluster endpoint is not encrypted the `schema` and `tlsConfig` items must be removed.
+
+##### Certificate CN (TLS)
+This is the CN name associated to the TLS certificate running in Infinispan.
+If the certificate has been served by the platform, CN should be equal to the name of the Infinispan resource.
+
+##### Infinispan namespace
+This is the namespace where Infinispan is running.
+Once the ServiceMonitor is completed with all the missing info, it can be deployed and Prometheus will start scraping Infinispan metrics.
+
+#### Accessing the metrics
+If all is good metrics are now exported to Prometheus.
+
+#### Prometheus References
+https://github.com/coreos/prometheus-operator
+https://prometheus.io/
+https://medium.com/faun/using-the-operator-lifecycle-manager-to-deploy-prometheus-on-openshift-cd2f3abb3511
