@@ -64,6 +64,27 @@ func (m mockCluster) GracefulShutdown(secretName, podName, namespace, protocol s
 	return nil
 }
 
+func (m mockCluster) GetClusterSize(secretName, podName, namespace, protocol string) (int, error) {
+	return 0, nil
+}
+
+func (m mockCluster) ExistsCache(cacheName, secretName, podName, namespace, protocol string) bool {
+	return false
+}
+
+func (m mockCluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error {
+	return nil
+}
+
+func (m mockCluster) GetMemoryLimitBytes(podName, namespace string) (uint64, error) {
+	return 0, nil
+}
+
+func (m mockCluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
+	return 0, nil
+}
+
+
 // TestGetInfinispanConditions test for getInfinispanConditions func
 func TestGetInfinispanConditions(t *testing.T) {
 	var m mockCluster

@@ -56,7 +56,7 @@ var DefaultPVSize = resource.MustParse("1Gi")
 var kubernetes *ispnutil.Kubernetes
 
 // Cluster object
-var cluster *ispnutil.Cluster
+var cluster ispnutil.ClusterInterface
 
 const CacheServiceFixedMemoryXmxMb = 200
 const CacheServiceJvmNativeMb = 220
@@ -808,7 +808,7 @@ func areAllPodsReady(podList *corev1.PodList) bool {
 	return true
 }
 
-func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster) bool {
+func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface) bool {
 	namespace := infinispan.ObjectMeta.Namespace
 	secretName := ispnutil.GetSecretName(infinispan)
 	protocol := infinispanProtocol(infinispan)
@@ -848,16 +848,16 @@ func infinispanProtocol(infinispan *infinispanv1.Infinispan) string {
 	return "http"
 }
 
-func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster *ispnutil.Cluster, logger logr.Logger) error {
+func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) error {
 	namespace := infinispan.ObjectMeta.Namespace
 
-	memoryLimitBytes, err := kubernetes.GetMemoryLimitBytes(podName, namespace)
+	memoryLimitBytes, err := cluster.GetMemoryLimitBytes(podName, namespace)
 	if err != nil {
 		logger.Error(err, "unable to extract memory limit (bytes) from pod")
 		return err
 	}
 
-	maxUnboundedMemory, err := kubernetes.GetMaxMemoryUnboundedBytes(podName, namespace)
+	maxUnboundedMemory, err := cluster.GetMaxMemoryUnboundedBytes(podName, namespace)
 	if err != nil {
 		logger.Error(err, "unable to extract max memory unbounded from pod")
 		return err
