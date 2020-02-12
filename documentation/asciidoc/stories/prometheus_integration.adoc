@@ -16,8 +16,13 @@ The information needed to define a ServiceMonitor are:
 
 The ServiceMonitor template to populate is the following:
 ....
-name: infinispan-monitor-docs
- namespace: <Prometheus namespace>
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: prometheus
+  name: infinispan-monitor-docs
+  namespace: <Prometheus namespace>
 spec:
  endpoints:
    - basicAuth:
@@ -39,6 +44,7 @@ spec:
  selector:
    matchLabels:
      app: infinispan-service
+     clusterName: <Infinispan cluster name>
 ....
 
 Let's see how to collect the missing information.
