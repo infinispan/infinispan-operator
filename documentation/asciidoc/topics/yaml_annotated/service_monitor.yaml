@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: prometheus
+  name: datagrid-monitoring <1>
+  namespace: infinispan-monitoring <2>
+spec:
+  endpoints:
+    - basicAuth:
+        username:
+          key: username
+          name: basic-auth <3>
+        password:
+          key: password
+          name: basic-auth <4>
+      interval: 30s
+      port: ispn <5>
+      scheme: https <6>
+      tlsConfig:
+        insecureSkipVerify: true
+        serverName: certificate-CN <7>
+  namespaceSelector:
+    matchNames:
+      - infinispan <8>
+  selector:
+    matchLabels:
+      app: infinispan-service
+      clusterName: cluster-name <9>
