@@ -3,11 +3,8 @@ package util
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net/url"
 	"os"
-	"strconv"
-	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -25,7 +22,7 @@ import (
 // Kubernetes abstracts interaction with a Kubernetes cluster
 type Kubernetes struct {
 	Client     client.Client
-	restClient *rest.RESTClient
+	RestClient rest.Interface
 	RestConfig *rest.Config
 }
 
@@ -49,7 +46,7 @@ func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperP
 
 	return &Kubernetes{
 		Client:     kubernetes,
-		restClient: restClient,
+		RestClient: restClient,
 		RestConfig: config,
 	}, err
 }
@@ -65,7 +62,7 @@ func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 
 	return &Kubernetes{
 		Client:     mgr.GetClient(),
-		restClient: restClient,
+		RestClient: restClient,
 		RestConfig: config,
 	}
 
@@ -84,7 +81,7 @@ func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
 	}
 	kubernetes := &Kubernetes{
 		Client:     kubeClient,
-		restClient: restClient,
+		RestClient: restClient,
 		RestConfig: config,
 	}
 	return kubernetes, nil
@@ -99,6 +96,22 @@ func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) 
 		return nil, err
 	}
 	return secret, err
+}
+
+// GetPassword returns password associated with a user in a given secret
+func (k Kubernetes) GetPassword(user, secretName, namespace string) (string, error) {
+	secret, err := k.GetSecret(secretName, namespace)
+	if err != nil {
+		return "", nil
+	}
+
+	descriptor := secret.Data["identities.yaml"]
+	pass, err := FindPassword(user, descriptor)
+	if err != nil {
+		return "", err
+	}
+
+	return pass, nil
 }
 
 // GetPodIP returns a pod's IP address
@@ -124,7 +137,7 @@ type ExecOptions struct {
 // command example { "/usr/bin/ls", "folderName" }
 func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, error) {
 	// Create a POST request
-	execRequest := k.restClient.Post().
+	execRequest := k.RestClient.Post().
 		Resource("pods").
 		Name(options.PodName).
 		Namespace(options.Namespace).
@@ -209,55 +222,12 @@ func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Option
 	}
 }
 
-func (k Kubernetes) GetMemoryLimitBytes(podName, namespace string) (uint64, error) {
-	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
-	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := k.ExecWithOptions(execOptions)
-
-	if err != nil {
-		return 0, fmt.Errorf("unexpected error getting memory limit bytes, stderr: %v, err: %v", execErr, err)
-	}
-
-	result := strings.TrimSuffix(execOut.String(), "\n")
-	limitBytes, err := strconv.ParseUint(result, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return limitBytes, nil
-}
-
-func (k Kubernetes) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
-	command := []string{"cat", "/proc/meminfo"}
-	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := k.ExecWithOptions(execOptions)
-
-	if err != nil {
-		return 0, fmt.Errorf("unexpected error getting max unbounded memory, stderr: %v, err: %v", execErr, err)
-	}
-
-	result := execOut.String()
-	lines := strings.Split(result, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "MemTotal:") {
-			tokens := strings.Fields(line)
-			maxUnboundKb, err := strconv.ParseUint(tokens[1], 10, 64)
-			if err != nil {
-				return 0, err
-			}
-			return maxUnboundKb * 1024, nil
-		}
-	}
-
-	return 0, fmt.Errorf("meminfo lacking MemTotal information")
-}
-
 // ServiceCAsCRDResourceExists returns true if the platform
 // has the servicecas.operator.openshift.io custom resource deployed
 // Used to check if serviceca operator is serving TLS certificates
 func (k Kubernetes) HasServiceCAsCRDResource() bool {
 	// Using an ad-hoc path
-	req := k.restClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
+	req := k.RestClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
 	result := req.Do()
 	var status int
 	result.StatusCode(&status)

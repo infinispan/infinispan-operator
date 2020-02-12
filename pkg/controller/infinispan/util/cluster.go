@@ -3,11 +3,12 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"strconv"
-	"strings"
 )
 
 var log = logf.Log.WithName("cluster_util")
@@ -29,24 +30,13 @@ func NewCluster(kubernetes *Kubernetes) *Cluster {
 
 // ClusterInterface represents the interface of a Cluster instance
 type ClusterInterface interface {
-	GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error)
+	GetClusterSize(secretName, podName, namespace, protocol string) (int, error)
 	GracefulShutdown(secretName, podName, namespace, protocol string) error
-}
-
-// GetPassword returns password associated with a user in a given secret
-func (c Cluster) GetPassword(user, secretName, namespace string) (string, error) {
-	secret, err := c.Kubernetes.GetSecret(secretName, namespace)
-	if err != nil {
-		return "", nil
-	}
-
-	descriptor := secret.Data["identities.yaml"]
-	pass, err := FindPassword(user, descriptor)
-	if err != nil {
-		return "", err
-	}
-
-	return pass, nil
+	GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error)
+	ExistsCache(cacheName, secretName, podName, namespace, protocol string) bool
+	CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error
+	GetMemoryLimitBytes(podName, namespace string) (uint64, error)
+	GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error)
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
@@ -65,7 +55,7 @@ func (c Cluster) GracefulShutdown(secretName, podName, namespace, protocol strin
 	if err != nil {
 		return err
 	}
-	pass, err := c.GetPassword("operator", secretName, namespace)
+	pass, err := c.Kubernetes.GetPassword("operator", secretName, namespace)
 	if err != nil {
 		return err
 	}
@@ -100,7 +90,7 @@ func (c Cluster) GetClusterMembers(secretName, podName, namespace, protocol stri
 		return nil, err
 	}
 
-	pass, err := c.GetPassword("operator", secretName, namespace)
+	pass, err := c.Kubernetes.GetPassword("operator", secretName, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +124,7 @@ func (c Cluster) ExistsCache(cacheName, secretName, podName, namespace, protocol
 		return false
 	}
 
-	pass, err := c.GetPassword("operator", secretName, namespace)
+	pass, err := c.Kubernetes.GetPassword("operator", secretName, namespace)
 	if err != nil {
 		return false
 	}
@@ -172,7 +162,7 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 		return err
 	}
 
-	pass, err := c.GetPassword("operator", secretName, namespace)
+	pass, err := c.Kubernetes.GetPassword("operator", secretName, namespace)
 	if err != nil {
 		return err
 	}
@@ -196,7 +186,7 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 	// Split lines in standard output, HTTP status code will be last
 	execOutLines := strings.Split(execOut.String(), "\n")
 
-	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines) - 1], 10, 64)
+	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines)-1], 10, 64)
 	if err != nil {
 		return err
 	}
@@ -210,12 +200,55 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 	return nil
 }
 
+func (c Cluster) GetMemoryLimitBytes(podName, namespace string) (uint64, error) {
+	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
+	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+
+	if err != nil {
+		return 0, fmt.Errorf("unexpected error getting memory limit bytes, stderr: %v, err: %v", execErr, err)
+	}
+
+	result := strings.TrimSuffix(execOut.String(), "\n")
+	limitBytes, err := strconv.ParseUint(result, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return limitBytes, nil
+}
+
+func (c Cluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
+	command := []string{"cat", "/proc/meminfo"}
+	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+
+	if err != nil {
+		return 0, fmt.Errorf("unexpected error getting max unbounded memory, stderr: %v, err: %v", execErr, err)
+	}
+
+	result := execOut.String()
+	lines := strings.Split(result, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "MemTotal:") {
+			tokens := strings.Fields(line)
+			maxUnboundKb, err := strconv.ParseUint(tokens[1], 10, 64)
+			if err != nil {
+				return 0, err
+			}
+			return maxUnboundKb * 1024, nil
+		}
+	}
+
+	return 0, fmt.Errorf("meminfo lacking MemTotal information")
+}
+
 // Return handler for querying cluster status
 func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 	return corev1.Handler{
 		HTTPGet: &corev1.HTTPGetAction{
 			Scheme: scheme,
-			Path: ServerHTTPHealthStatusPath,
-			Port: intstr.FromInt(11222)},
+			Path:   ServerHTTPHealthStatusPath,
+			Port:   intstr.FromInt(11222)},
 	}
 }

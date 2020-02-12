@@ -240,7 +240,7 @@ func TestCacheService(t *testing.T) {
 	waitForPodsOrFail(spec, "http", 1)
 
 	user := "developer"
-	password, err := cluster.GetPassword(user, util.GetSecretName(spec), Namespace)
+	password, err := cluster.Kubernetes.GetPassword(user, util.GetSecretName(spec), Namespace)
 	testutil.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
@@ -268,7 +268,7 @@ func TestPermanentCache(t *testing.T) {
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
+		pass, err := cluster.Kubernetes.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
@@ -277,7 +277,7 @@ func TestPermanentCache(t *testing.T) {
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
+		pass, err := cluster.Kubernetes.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
@@ -334,7 +334,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
+		pass, err := cluster.Kubernetes.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
@@ -345,7 +345,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
+		pass, err := cluster.Kubernetes.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
@@ -450,7 +450,7 @@ func TestExternalService(t *testing.T) {
 
 	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
 
-	pass, err := cluster.GetPassword(usr, util.GetSecretName(&spec), Namespace)
+	pass, err := cluster.Kubernetes.GetPassword(usr, util.GetSecretName(&spec), Namespace)
 	testutil.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
