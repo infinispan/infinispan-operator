@@ -1,6 +1,6 @@
 [id='verifying_clusters-{context}']
-= Verifying that {brandname} Pods Receive Clustered Views
-Review log messages to verify that {brandname} pods successfully form clusters.
+= Verifying {brandname} Clusters
+Review log messages to ensure that {brandname} pods receive clustered views.
 
 .Procedure
 
@@ -13,7 +13,7 @@ Review log messages to verify that {brandname} pods successfully form clusters.
 include::cmd_examples/oc_logs_clusterview.adoc[]
 ----
 
-** Retrieve the custom resource type for the {ispn_operator}.
+** Retrieve the custom resource type for {ispn_operator}.
 +
 [source,options="nowrap",subs=attributes+]
 ----

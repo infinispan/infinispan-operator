@@ -4,8 +4,7 @@
 Set logging categories to different message levels to monitor, debug, and troubleshoot {brandname} pods.
 
 include::{topics}/proc_configure_logging.adoc[leveloffset=+1]
-include::{topics}/ref_logging_categories.adoc[leveloffset=+2]
-include::{topics}/ref_logging_levels.adoc[leveloffset=+2]
+include::{topics}/ref_logging_levels.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

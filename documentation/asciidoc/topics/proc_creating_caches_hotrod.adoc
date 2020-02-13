@@ -1,0 +1,69 @@
+= Creating Caches with Hot Rod Clients
+Add cache definitions to {brandname} clusters through the Hot Rod endpoint.
+
+.Procedure
+
+. Instantiate a `RemoteCacheManager`.
+. Create caches with the `createCache()` method.
+. Use the `XMLStringConfiguration` class to provide `infinispan.xml`.
+
+[source,java,options="nowrap"]
+----
+private static void createCache(String appName) {
+      //Connect to the Hot Rod service.
+      final String host = appName;
+      //Use the configuration bean.
+      ConfigurationBuilder cfg = ...
+
+      System.out.printf("--- Connecting to %s ---%n", appName);
+
+      //Create a new RemoteCacheManager and start it.
+      final RemoteCacheManager remote = new RemoteCacheManager(cfg.build());
+
+      //Set a name for the cache.
+      final String cacheName = "custom";
+
+      System.out.printf("--- Creating cache in %s ---%n", appName);
+
+      XMLStringConfiguration xml = new XMLStringConfiguration(String.format(
+         "<infinispan>" +
+            "<cache-container>" +
+               "<distributed-cache name=\"mycache\">" +
+                  "<persistence passivation=\"false\">" +
+                     "<file-store " +
+                        "shared=\"false\" " +
+                        "fetch-state=\"true\" " +
+                        "path=\"{pv_path}\"" +
+                     "/>" +
+                  "</persistence>" +
+               "</distributed-cache>" +
+            "</cache-container>" +
+         "</infinispan>",
+         CACHE_NAME
+      ));
+
+      //Perform remote administration operations.
+      remote.administration()
+         //Include a flag to make the cache permanent.
+         .withFlags(CacheContainerAdmin.AdminFlag.PERMANENT)
+         //Create a cache on the remote server.
+         .createCache("mycache", new XMLStringConfiguration(xml));
+
+      System.out.printf("--- Cache '%s' created in '%s' ---%n", cacheName, appName);
+}
+----
+
+If the named cache already exists, an exception is thrown. You can either:
+
+* Use the `getOrCreateCache()` method to return the cache name instead of throwing an exception.
+* Use the `removeCache()` method to destroy the cache before creating it again.
+
+[NOTE]
+====
+You can use file-based cache stores with {datagridservice} to persist data to
+external storage.
+
+The location of your file store should be under the persistent volume mounted
+at {pv_path}. See link:#storage_resources-pods[Storage Resources] for more
+information.
+====

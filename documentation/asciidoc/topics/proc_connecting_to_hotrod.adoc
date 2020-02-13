@@ -1,0 +1,59 @@
+= Configuring Hot Rod Clients
+Configure Hot Rod Java clients to connect to {brandname} clusters.
+
+.Configuration objects
+
+[source,java,options="nowrap"]
+----
+ConfigurationBuilder builder = new ConfigurationBuilder();
+builder.addServer()
+  //Connection
+	.host("${SERVICE_HOSTNAME}").port(11222) <1>
+  //Client intelligence
+	.clientIntelligence(ClientIntelligence.BASIC) <2>
+	.security()
+        //Authentication
+        .authentication().enable()
+          .username("${USERNAME}") <3>
+          .password("${PASSWORD}") <4>
+          .serverName("${CLUSTER_NAME}") <5>
+          .saslQop(SaslQop.AUTH) <6>
+          .saslMechanism("DIGEST-MD5") <7>
+        //Encryption
+        .ssl()
+          .sniHostName("${SERVICE_HOSTNAME}") <8>
+          .trustStorePath​(tls.crt); <9>
+----
+
+.Hot Rod client properties
+
+[source,options="nowrap"]
+----
+# Connection
+infinispan.client.hotrod.server_list=${SERVICE_HOSTNAME}:11222 <1>
+
+# Client intelligence
+infinispan.client.hotrod.client_intelligence=BASIC <2>
+
+# Authentication
+infinispan.client.hotrod.use_auth=true
+infinispan.client.hotrod.auth_username=${USERNAME} <3>
+infinispan.client.hotrod.auth_password=${PASSWORD} <4>
+infinispan.client.hotrod.auth_server_name=${CLUSTER_NAME} <5>
+infinispan.client.hotrod.sasl_properties.javax.security.sasl.qop=auth <6>
+infinispan.client.hotrod.sasl_mechanism=DIGEST-MD5 <7>
+
+# Encryption
+infinispan.client.hotrod.sni_host_name=${SERVICE_HOSTNAME} <8>
+infinispan.client.hotrod.trust_store_path=tls.crt <9>
+----
+
+<1> adds the cluster IP of a service or the hostname of a route.
+<2> configures client intelligence. Hot Rod clients running outside {k8s} can use `BASIC` intelligence only.
+<3> sets the username of an application user.
+<4> sets the password for the application user.
+<5> matches the name you gave to your {brandname} cluster.
+<6> uses the authentication only SASL Quality of Protection (QoP) setting.
+<7> uses `DIGEST-MD5` as the authentication mechanism.
+<8> sets the Server Name Indication (SNI) for {brandname} clusters.
+<9> sets the path to the TLS certificate if using encryption with clients running outside {k8s}. Hot Rod clients automatically generate trust stores from the TLS certificates.

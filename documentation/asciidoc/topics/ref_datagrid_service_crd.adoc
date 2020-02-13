@@ -6,10 +6,13 @@
 include::yaml_annotated/cr_datagrid_service.yaml[]
 ----
 
-<1> creates {datagridservice} pods.
-<2> configures the size of the persistent volume. See link:#storage_resources-pods[Storage Resources].
-<3> provides connection information for all backup locations. See link:#configuring_backup_sites[Configuring Cross-Site Replication].
-<4> encrypts {brandname} endpoint traffic. See link:#securing_endpoints[Securing {brandname} Endpoints].
-<5> allocates resources to pods. See link:#memory_resources-pods[JVM, CPU, and Memory Resources].
-<6> configures logging. See link:#logging[Monitoring {brandname} Logs].
-<7> configures services for external traffic. See link:#external_services[Making {brandname} Available to External Traffic].
+<1> names the {brandname} cluster.
+<2> specifies the number of pods in the cluster.
+<3> creates {datagridservice} pods.
+<4> configures size of the persistent volume for pod storage.
+<5> provides connection information for backup locations.
+<6> adds an authentication secret with user credentials.
+<7> adds a custom encryption secret for secure connections.
+<8> allocates resources to pods.
+<9> configures logging.
+<10> configures services for external traffic.

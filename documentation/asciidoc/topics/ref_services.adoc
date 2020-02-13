@@ -1,7 +1,5 @@
 [id='ref_services-{context}']
-= Services
-The {ispn_operator} automatically creates services to route network traffic.
-These services use the names that you give to your {brandname} clusters.
+= Network Services
 
 .Internal service
 
@@ -33,8 +31,8 @@ Provides access to {brandname} endpoints from clients outside {k8s} or in differ
 
 [NOTE]
 ====
-You must expose the external service with the {ispn_operator}. It is not
-available by default.
+You must create the external service with {ispn_operator}. It is not available
+by default.
 ====
 
 [%header,cols=4*]
@@ -71,5 +69,4 @@ Allows {brandname} to back up data between clusters in different locations.
 
 .Reference
 
-link:#external_services[Making {brandname}
-Available to External Traffic]
+link:#network_services[Setting Up Network Services]

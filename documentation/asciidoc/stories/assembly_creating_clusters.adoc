@@ -1,20 +1,21 @@
 [id='spinning_up_clusters']
 :context: start
-= Creating {brandname} Clusters
-You create, configure, and manage {brandname} clusters with the {ispn_operator}
-by defining custom resource objects in `yaml` format and applying them to
-{brandname} pods. Get started here and learn the basics for using the
-{ispn_operator}.
+= Getting Started with {ispn_operator}
+You create, configure, and manage {brandname} clusters with {ispn_operator}
+by defining custom resource objects that specify {brandname} pod configuration.
 
 .Prerequisites
 //Community
 ifndef::productized[]
-* Either install the {ispn_operator} from link:{link_operator_hub} or link:#deploying_operator_manually[deploy it manually].
-* Have a `kubectl` client in your `$PATH`.
+* Either install {ispn_operator} from link:{link_operator_hub} or link:#deploying_operator_manually[install it manually].
+* Have an `oc` or a `kubectl` client in your `$PATH`.
++
+This documentation provides examples with the `oc` client. If you're using a
+`kubectl` client, adapt the command examples where necessary.
 endif::productized[]
 //Product
 ifdef::productized[]
-* Install the {ispn_operator} from the OperatorHub.
+* Install {ispn_operator} from the OperatorHub.
 * Have an `oc` client in your `$PATH`.
 endif::productized[]
 
@@ -26,7 +27,6 @@ endif::productized[]
 include::{topics}/ref_crd.adoc[leveloffset=+1]
 include::{topics}/proc_create_cluster_minimal.adoc[leveloffset=+1]
 include::{topics}/proc_verify_cluster.adoc[leveloffset=+1]
-include::{topics}/proc_shut_down_gracefully.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

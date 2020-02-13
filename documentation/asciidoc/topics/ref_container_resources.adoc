@@ -15,8 +15,8 @@ When {ispn_operator} creates {brandname} pods, it uses `spec.container.cpu` and 
 * Ensure that {k8s} nodes have sufficient capacity to run the pods. The
 {ispn_operator} uses `memory`, but only half the value of `cpu`, as resource
 requests to the {k8s} scheduler.
-* Constrain pod resource usage. The {ispn_operator} sets the values of `cpu`
-and `memory` as resource limits.
+* Constrain pod resource usage. {ispn_operator} sets the values of `cpu` and
+`memory` as resource limits.
 
 [NOTE]
 ====
@@ -26,7 +26,7 @@ and create new ones.
 ====
 
 .Garbage collection logging
-By default, the {ispn_operator} does not log garbage collection (GC) messages.
+By default, {ispn_operator} does not log garbage collection (GC) messages.
 You can optionally add the following JVM options to direct GC messages to
 stdout:
 

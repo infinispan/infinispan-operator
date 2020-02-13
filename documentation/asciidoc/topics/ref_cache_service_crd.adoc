@@ -6,10 +6,11 @@
 include::yaml_annotated/cr_cache_service.yaml[]
 ----
 
-<1> creates {cacheservice} pods.
-//<2> configures the eviction policy. See
-//<3> configures the number of copies for each entry. See
-<2> encrypts {brandname} endpoint traffic. See link:#securing_endpoints[Securing {brandname} Endpoints].
-<3> allocates resources to pods. See link:#memory_resources-pods[JVM, CPU, and Memory Resources].
-<4> configures logging. See link:#logging[Monitoring {brandname} Logs].
-<5> configures services for external traffic. See link:#external_services[Making {brandname} Available to External Traffic].
+<1> names the {brandname} cluster.
+<2> specifies the number of pods in the cluster.
+<3> creates {cacheservice} pods.
+<4> adds an authentication secret with user credentials.
+<5> adds a custom encryption secret for secure connections.
+<6> allocates resources to pods.
+<7> configures logging.
+<8> configures services for external traffic.
