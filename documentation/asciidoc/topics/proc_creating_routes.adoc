@@ -1,0 +1,29 @@
+[id='creating_routes-{context}']
+= Creating Routes to Services
+In some cases, such as running local {k8s} clusters, you need to create routes
+to access {brandname} clusters from clients running outside {k8s}.
+
+[NOTE]
+====
+You create routes to services. For convenience, you should create a route to
+the default service instead of creating an external service and then creating a
+route to that.
+====
+
+.Procedure
+
+* If you are not using TLS encryption, expose the default service as in the
+following example:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc expose svc/{example_crd_name}
+----
+
+* If you are using TLS encryption, create a route with `passthrough` encryption
+as in the following example:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc create route passthrough --service={example_crd_name}
+----

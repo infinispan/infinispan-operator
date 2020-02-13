@@ -8,7 +8,7 @@ include::yaml_annotated/cr_container_storage.yaml[]
 
 <1> configures the storage size for {datagridservice} pods.
 
-By default, the {ispn_operator} allocates `1Gi` for storage for both
+By default, {ispn_operator} allocates `1Gi` for storage for both
 {cacheservice} and {datagridservice} pods. You can configure storage size only
 for {datagridservice} pods.
 

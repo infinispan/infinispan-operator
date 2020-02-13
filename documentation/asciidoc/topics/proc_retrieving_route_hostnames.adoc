@@ -1,0 +1,8 @@
+[id='get_hostname-{context}']
+= Retrieving Hostnames for Routes
+Get the hostname for a route that exposes a service for accessing {brandname}.
+
+[source,options="nowrap",subs=attributes+]
+----
+$ oc get route {example_crd_name} -o jsonpath={.spec.host}
+----

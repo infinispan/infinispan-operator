@@ -1,15 +1,15 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: {example_crd_name}
+  name: {example_crd_name} <1>
 spec:
   image: {image_resource}
-  replicas: 6
+  replicas: 6 <2>
   service:
-    type: DataGrid <1>
+    type: DataGrid <3>
     container:
-      storage: 2Gi <2>
-    sites: <3>
+      storage: 2Gi <4>
+    sites: <5>
       local:
         expose:
           type: LoadBalancer
@@ -20,19 +20,18 @@ spec:
       - name: aws
         url: openshift://api.aws.host:6443
         secretName: aws-identities
-  security: <4>
-    endpointSecretName: endpoint-identities
-    endpointEncryption:
-      type: service
-      certServiceName: service.beta.openshift.io
-      certSecretName: served-tls-secret
-  container: <5>
+  security:
+    endpointSecretName: endpoint-identities <6>
+    endpointEncryption: <7>
+        type: secret
+        certSecretName: tls-secret
+  container: <8>
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "1000m"
     memory: 1Gi
-  logging: <6>
+  logging: <9>
     categories:
       org.infinispan: debug
       org.jgroups: debug
-  expose: <7>
+  expose: <10>
     type: LoadBalancer

@@ -1,13 +1,11 @@
 [id='securing_endpoints']
 :context: security
-= Securing {brandname} Endpoints
-Configure {brandname} pods to encrypt network traffic between clients and
-endpoints with TLS certificates.
+= Securing {brandname} Connections
+Encrypt connections between clients and {brandname} pods with {openshift}
+service certificates or custom TLS certificates.
 
-You can generate {openshift} service certificates or use custom TLS
-certificates.
-
-include::{topics}/proc_encrypting_endpoints_service.adoc[leveloffset=+1]
+include::{topics}/ref_openshift_service_certificates.adoc[leveloffset=+1]
+include::{topics}/proc_retrieving_tls_certificates.adoc[leveloffset=+1]
 include::{topics}/proc_encrypting_endpoints_tls_secret.adoc[leveloffset=+1]
 include::{topics}/ref_secret_tls_certificate.adoc[leveloffset=+2]
 include::{topics}/ref_secret_tls_keystore.adoc[leveloffset=+2]

@@ -1,0 +1,32 @@
+[id='internal_service-{context}']
+= Internal Service
+By default, {ispn_operator} creates a service that provides access to
+{brandname} clusters within {k8s}.
+
+The internal service has the same name that you give to your {brandname}
+cluster.
+
+For example:
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
+metadata:
+  name: {example_crd_name}
+----
+
+Results in an internal service named `{example_crd_name}`.
+
+You can verify the internal service is available as follows:
+
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_get_services}
+
+NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)
+{example_crd_name} ClusterIP   192.0.2.0        <none>        11222/TCP
+----
+
+[NOTE]
+====
+{ispn_operator} also creates an internal `-ping` service. See link:#ref_services-reference[Network Services].
+====

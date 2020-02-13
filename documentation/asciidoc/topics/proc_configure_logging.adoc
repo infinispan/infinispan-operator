@@ -3,13 +3,21 @@
 
 .Procedure
 
-. Create custom resources to configure {brandname} logging.
-. Apply the custom resources.
+. Modify your custom resource definition to include logging resources and then apply the changes.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} my_logging.yaml
+include::yaml_annotated/cr_logging.yaml[]
 ----
++
+<1> configures {brandname} logging.
+<2> adds logging categories.
+<3> names logging categories and levels.
++
+[NOTE]
+====
+The root logging category is `org.infinispan` and is `INFO` by default.
+====
 +
 . Retrieve logs from {brandname} pods as required.
 +
@@ -17,7 +25,3 @@ $ {oc_apply_cr} my_logging.yaml
 ----
 $ {oc_logs} -f ${POD_NAME}
 ----
-
-.Reference
-
-link:#cr_logging-monitor[Logging Resources]
