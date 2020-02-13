@@ -1,0 +1,30 @@
+[id='shutdown']
+:context: pods
+= Stopping and Starting {brandname} Services
+Gracefully shut down {brandname} clusters to avoid data loss.
+
+.Cache configuration
+Both {cacheservice} and {datagridservice} pods store permanent cache
+definitions in persistent volumes so they are still available after cluster
+restarts.
+
+.Data
+{datagridservice} pods write all cache entries to persistent storage during
+cluster shutdown. However, you must configure caches with persistence.
+
+[IMPORTANT]
+====
+You should configure the storage size for {datagridservice} pods to ensure that
+the persistent volume can hold all your data.
+
+If the available container storage is less than the amount of memory available
+to {datagridservice} pods, {brandname} writes an exception to logs and data
+loss occurs during shutdown.
+====
+
+include::{topics}/proc_shut_down_gracefully.adoc[leveloffset=+1]
+include::{topics}/proc_restart.adoc[leveloffset=+1]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

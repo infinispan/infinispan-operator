@@ -1,18 +1,22 @@
 [id='creating_auth_clusters-{context}']
 = Using Custom Authentication Secrets
-Create a custom authentication secret and configure {brandname} pods to use it.
+Add custom credentials to an authentication secret.
+
+.Prerequisites
+
+Create a custom resource definition for an authentication secret. See
+link:#ref_auth_secret-auth[Authentication Secrets].
 
 .Procedure
 
-. Create an authentication secret.
-. Add the authentication secret to your {openshiftshort} namespace.
+. Add the authentication secret to your {openshiftshort} namespace, for example:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_apply_cr} connect_secret.yaml
 ----
 +
-. Define a custom resource for the authentication secret.
+. Modify your custom resource definition to include the authentication secret and then apply the changes.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -20,10 +24,3 @@ include::yaml_annotated/cr_auth.yaml[]
 ----
 +
 <1> specifies the authentication secret.
-+
-. Apply the custom resource with `{oc_apply_cr}`.
-. Use `{oc_get_pods_w}` to watch the {ispn_operator} apply the custom resources.
-
-.Reference
-
-link:#ref_auth_secret-auth[Credentials Secrets]

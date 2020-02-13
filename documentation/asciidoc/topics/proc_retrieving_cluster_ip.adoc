@@ -1,0 +1,10 @@
+[id='get_clusterip-{context}']
+= Retrieving Cluster IP Addresses for Services
+Get the cluster IP address for a service that provides access to {brandname}.
+
+For example, get the cluster IP for the internal service as follows:
+
+[source,options="nowrap",subs=attributes+]
+----
+$ oc get service {example_crd_name} -o jsonpath={.spec.clusterIP}
+----

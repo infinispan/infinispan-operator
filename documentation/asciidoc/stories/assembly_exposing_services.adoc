@@ -1,10 +1,14 @@
-[id='external_services']
+[id='network_services']
 :context: access
-= Making {brandname} Available to External Traffic
-To access {brandname} from outside {k8s}, you must configure an external service.
+= Setting Up Network Services
+{ispn_operator} creates services that allow you to connect to {brandname}
+clusters.
 
-include::{topics}/proc_exposing_external_service.adoc[leveloffset=+1]
-include::{topics}/ref_external_service.adoc[leveloffset=+1]
+include::{topics}/ref_internal_service.adoc[leveloffset=+1]
+include::{topics}/proc_creating_external_services.adoc[leveloffset=+1]
+include::{topics}/proc_retrieving_cluster_ip.adoc[leveloffset=+1]
+include::{topics}/proc_creating_routes.adoc[leveloffset=+1]
+include::{topics}/proc_retrieving_route_hostnames.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

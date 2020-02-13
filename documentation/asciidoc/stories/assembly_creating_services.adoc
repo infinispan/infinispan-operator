@@ -1,6 +1,6 @@
 [id='creating_services']
 :context: services
-= Creating {brandname} Services with the {ispn_operator}
+= Creating {brandname} Services
 {brandname} services are stateful applications that provide flexible and robust
 in-memory data storage.
 

@@ -1,6 +1,6 @@
 [id='container_resources']
 :context: pods
-= Configuring {brandname} Pod Resources
+= Configuring Pod Resources
 You can allocate CPU and memory resources, specify JVM options, and configure
 storage for {brandname} pods.
 

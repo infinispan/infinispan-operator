@@ -4,9 +4,9 @@
 Set up cross-site replication to back up data between {brandname} clusters
 running in different locations.
 
-For example, you use the {ispn_operator} to manage a {brandname} cluster at a
+For example, you use {ispn_operator} to manage a {brandname} cluster at a
 data center in London, **LON**. At another data center in New York City,
-**NYC**, you also use the {ispn_operator} to manage a {brandname} cluster. In
+**NYC**, you also use {ispn_operator} to manage a {brandname} cluster. In
 this case, you can add **LON** and **NYC** as backup locations for each other.
 
 //Product Only
