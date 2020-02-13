@@ -1,0 +1,29 @@
+[id='remote_connections']
+:context: client
+= Connecting to {brandname} Clusters
+Connect to {brandname} via the REST or Hot Rod endpoints. You can then
+remotely create and modify cache definitions and store data across {brandname}
+clusters.
+
+The examples in this section use ${SERVICE_HOSTNAME} to denote the service or
+hostname that provides access to your {brandname} cluster.
+
+Clients running in {k8s} can specify the name of the internal service that
+{ispn_operator} creates.
+
+Clients running outside {k8s} should specify hostnames according to the type of
+external service and provider. For example, if using a load balancer service on
+AWS, the service hostname could be:
+
+`.status.loadBalancer.ingress[0].hostname`
+
+On GCP or Azure, hostnames might be as follows: 
+
+`.status.loadBalancer.ingress[0].ip`
+
+include::{topics}/proc_invoking_rest.adoc[leveloffset=+1]
+include::{topics}/proc_connecting_to_hotrod.adoc[leveloffset=+1]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

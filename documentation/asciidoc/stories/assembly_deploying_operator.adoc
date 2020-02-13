@@ -1,9 +1,9 @@
 [id='deploying_operator_manually']
 :context: manual
-= Manually Deploying the {ispn_operator}
+= Manually Installing {ispn_operator}
 
-You can manually deploy the {ispn_operator} as an alternative to installing it
-from link:{link_operator_hub}.
+You can manually install {ispn_operator} instead of using the
+link:{link_operator_hub}.
 
 .Prerequisites
 include::{topics}/ref_cluster_admin.adoc[]

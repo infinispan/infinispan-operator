@@ -1,48 +1,9 @@
 [id='shutting_down-{context}']
-= Shutting Down and Restarting {brandname} Clusters
-Gracefully shut down your {brandname} clusters before restarting them.
+= Gracefully Shutting Down {brandname} Clusters
 
-.Cache configuration
-Both {cacheservice} and {datagridservice} pods store permanent cache
-definitions in persistent volumes so they are still available after cluster
-restarts.
+* Set the value of `replicas` to `0` and apply the changes.
 
-.Data
-{datagridservice} pods write all cache entries to persistent storage during
-cluster shutdown. However, you must configure caches with persistence.
-
-[IMPORTANT]
-====
-You should configure the storage size for {datagridservice} pods to ensure that
-the persistent volume can hold all your data.
-
-If the available container storage is less than the amount of memory available
-to {datagridservice} pods, {brandname} writes an exception to logs and data
-loss occurs during shutdown.
-====
-
-.Procedure
-
-* Set the value of `replicas` to `0` and apply your custom resources.
-+
 ----
 spec:
   replicas: 0
 ----
-
-* To restart {brandname} clusters, set the value of `replicas` to the same
-number of pods that were in the cluster before you shut it down.
-+
-For example, you shut down a cluster of 6 pods. When you restart the cluster, you must set:
-+
-----
-spec:
-  replicas: 6
-----
-+
-This allows {brandname} to restore the distribution of data across the cluster. When all pods in the cluster are running, you can then scale it up or down.
-
-.Reference
-
-* link:#storage_resources-pods[Storage Resources]
-* link:#ref_pv-pods[Persistent Volume Claims]

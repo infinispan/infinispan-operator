@@ -1,20 +1,17 @@
 [id='creating_services-{context}']
 = Creating {brandname} Services
 Define the `.spec.service.type` resource to create {cacheservice} and
-{datagridservice} pods with the {ispn_operator}.
+{datagridservice} pods with {ispn_operator}.
 
-[NOTE]
-====
-By default, the {ispn_operator} creates {brandname} clusters with
-{cacheservice} pods.
-====
+By default, {ispn_operator} creates {brandname} clusters with {cacheservice}
+pods.
 
 .Procedure
 
-. Create a custom resource that sets the service type for {brandname} pods.
-+
+* Set the service type for {brandname} pods in your custom resource definition and then apply the changes.
+
 For example, create {datagridservice} clusters as follows:
-+
+
 [source,options="nowrap",subs=attributes+]
 ----
 spec:
@@ -22,10 +19,6 @@ spec:
   service:
     type: DataGrid
 ----
-+
-. Specify additional resources for your pods as required.
-. Apply the custom resources with `{oc_apply_cr}`.
-. Use `{oc_get_pods_w}` to watch the {ispn_operator} apply the custom resources.
 
 [IMPORTANT]
 ====

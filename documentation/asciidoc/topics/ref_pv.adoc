@@ -1,7 +1,7 @@
 [id='ref_pv-{context}']
 = Persistent Volume Claims
 
-The {ispn_operator} creates persistent volume claims for pods at: +
+{ispn_operator} creates persistent volume claims for pods at: +
 `{pv_path}`
 
 [NOTE]

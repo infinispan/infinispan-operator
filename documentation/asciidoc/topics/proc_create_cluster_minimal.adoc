@@ -1,6 +1,6 @@
 [id='creating_minimal_clusters-{context}']
-= Spinning Up {brandname} Clusters
-Use the {ispn_operator} to create clusters of two or more {brandname} pods.
+= Creating {brandname} Clusters
+Use {ispn_operator} to create clusters of two or more {brandname} pods.
 
 .Procedure
 
@@ -13,14 +13,14 @@ For example, create a `cr_minimal.yaml` file as follows:
 include::cmd_examples/cat_cr_minimal.adoc[]
 ----
 +
-. Apply your custom resources.
+. Apply your custom resource definition.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_apply_cr} cr_minimal.yaml
 ----
 +
-. Watch the {ispn_operator} create the {brandname} pods.
+. Watch {ispn_operator} create the {brandname} pods.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -29,5 +29,5 @@ include::cmd_examples/oc_get_pods_w.adoc[]
 
 .Next Steps
 
-Try changing the value of `replicas:` and watching the {ispn_operator}
-scale the cluster up or down.
+Try changing the value of `replicas:` and watching {ispn_operator} scale the
+cluster up or down.

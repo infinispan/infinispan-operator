@@ -1,12 +1,6 @@
 = Using Default {ispn_operator} Resources
-{brandname} provides default resource definitions that are available in GitHub.
+{brandname} provides default resource definitions.
 
-.Procedure
-
-* Run `{oc_apply_cr}` to apply default {ispn_operator} resource definitions.
-+
-For example, to use the default minimal {brandname} cluster:
-+
 [source,bash,options="nowrap",subs=attributes+]
 ----
 include::cmd_examples/oc_apply_cr_minimal.adoc[]
