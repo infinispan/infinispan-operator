@@ -5,4 +5,4 @@ KUBECONFIG=${1-openshift.local.clusterup/openshift-apiserver/admin.kubeconfig}
 echo "Using KUBECONFIG '$KUBECONFIG'"
 
 go clean -testcache ./test/e2e
-go test -v ./test/e2e -timeout 45m
+go test -v ./test/e2e -run TestExternalServiceWithAuth -timeout 45m

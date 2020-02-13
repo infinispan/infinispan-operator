@@ -3,6 +3,9 @@ module github.com/infinispan/infinispan-operator
 go 1.13
 
 require (
+	cloud.google.com/go v0.36.0 // indirect
+	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
+	github.com/elazarl/goproxy v0.0.0-20191011121108-aa519ddbe484 // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/operator-framework/operator-sdk v0.15.2
 	github.com/prometheus/client_golang v1.2.1

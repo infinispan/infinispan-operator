@@ -61,9 +61,10 @@ run:
 run-local: build
 	build/run-local.sh ${KUBECONFIG}
 
-## unit-test   Perform unit test
+## unit-test   Perform unit tests
 unit-test: build
 	go test ./pkg/controller/infinispan -v
+	go test ./test/unit -v
 
 ## test        Perform end to end (e2e) tests on running clusters.
 ##             - Specify the target cluster with KUBECONFIG.
