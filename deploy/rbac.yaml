@@ -9,6 +9,7 @@ rules:
     resources:
       - pods
       - services
+      - services/finalizers
       - endpoints
       - persistentvolumeclaims
       - events
@@ -35,6 +36,7 @@ rules:
       - daemonsets
       - replicasets
       - statefulsets
+      - statefulsets/finalizers
     verbs:
       - '*'
   - apiGroups:
