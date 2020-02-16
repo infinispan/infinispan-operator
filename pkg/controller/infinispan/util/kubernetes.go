@@ -4,21 +4,22 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
+	"os"
+	"strconv"
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
-	"net/url"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"strconv"
-	"strings"
 )
 
 // Kubernetes abstracts interaction with a Kubernetes cluster
@@ -29,7 +30,7 @@ type Kubernetes struct {
 }
 
 // MapperProvider is a function that provides RESTMapper instances
-type MapperProvider func(c *rest.Config) (meta.RESTMapper, error)
+type MapperProvider func(cfg *rest.Config, opts ...apiutil.DynamicRESTMapperOption) (meta.RESTMapper, error)
 
 // NewKubernetesFromConfig creates a new Kubernetes instance from configuration.
 // The configuration is resolved locally from known locations.
@@ -196,7 +197,7 @@ func setConfigDefaults(config *rest.Config) *rest.Config {
 	gv := v1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/api"
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 	return config
 }

@@ -311,7 +311,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	podList := &corev1.PodList{}
 	labelSelector := labels.SelectorFromSet(labelsForInfinispan(infinispan.Name, ""))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
-	err = r.client.List(context.TODO(), listOps, podList)
+	err = r.client.List(context.TODO(), podList, listOps)
 	if err != nil {
 		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace")
 		return reconcile.Result{}, err

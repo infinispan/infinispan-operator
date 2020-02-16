@@ -4,6 +4,12 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
@@ -18,13 +24,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"net/http"
-	"os"
-	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"strings"
-	"time"
 )
 
 // Default retry time when waiting for resources
@@ -37,7 +39,7 @@ var timeout = 120 * time.Second
 var deletePropagation = metav1.DeletePropagationBackground
 var gracePeriod = int64(0)
 
-var deleteOpts = []client.DeleteOptionFunc{
+var deleteOpts = []client.DeleteOption{
 	client.GracePeriodSeconds(gracePeriod),
 	client.PropagationPolicy(deletePropagation),
 }
@@ -67,7 +69,7 @@ func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 
 // NewTestKubernetes creates a new instance of TestKubernetes
 func NewTestKubernetes() *TestKubernetes {
-	mapperProvider := NewDynamicRESTMapper
+	mapperProvider := apiutil.NewDynamicRESTMapper
 	kubernetes, err := util.NewKubernetesFromLocalConfig(scheme, mapperProvider)
 	ExpectNoError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
@@ -136,7 +138,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 	labelSelector := labels.SelectorFromSet(infinispanLabels)
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = wait.Poll(period, timeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.List(context.TODO(), listOps, podList)
+		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
 		pods := podList.Items
 		if err != nil || len(pods) != 0 {
 			return false, nil
@@ -371,7 +373,7 @@ func (k TestKubernetes) WaitForPods(label string, required int, timeout time.Dur
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	podList := &v1.PodList{}
 	err = wait.Poll(period, timeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.List(context.TODO(), listOps, podList)
+		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
 		if err != nil {
 			return false, nil
 		}
@@ -420,7 +422,7 @@ func (k TestKubernetes) DeleteCRD(name string) {
 func (k TestKubernetes) Nodes() []string {
 	nodes := &v1.NodeList{}
 	listOps := &client.ListOptions{}
-	err := k.Kubernetes.Client.List(context.TODO(), listOps, nodes)
+	err := k.Kubernetes.Client.List(context.TODO(), nodes, listOps)
 	ExpectNoError(err)
 
 	var s []string
@@ -440,7 +442,7 @@ func (k TestKubernetes) GetPods(label, namespace string) []v1.Pod {
 
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	pods := &v1.PodList{}
-	err = k.Kubernetes.Client.List(context.TODO(), listOps, pods)
+	err = k.Kubernetes.Client.List(context.TODO(), pods, listOps)
 	ExpectNoError(err)
 
 	return pods.Items
