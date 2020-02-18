@@ -41,13 +41,7 @@ This document describes the types introduced by the Infinispan Operator to be co
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
-
-| `image`
-| Operator image
-| string
-| false
-| `infinispan/server:latest`
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `replicas`
 | Number of instances for a Infinispan resource. If this value is set to 0 the cluster
@@ -55,36 +49,49 @@ is gracefully shut down.
 | int32
 | true
 |
+| v1
+
+| `image`
+| Operator image
+| string
+| false
+| `infinispan/server:latest`
+| v1
 
 | `profile`
 | Profile in use. See <<infinispanprofiles,profiles>> for details.
 | `Default` / `Performance` / `Development`
 | false
 | `Default`
-
-| `service`
-| Service specific configuration.
-| <<infinispanservicespec>>
-| false
-|
+| v2alpha
 
 | `security`
 | Security configuration.
 | <<infinispansecurityspec>>
 | false
 |
+| v1
 
 | `container`
 | Per instance configuration.
 | <<infinispancontainerspec>>
 | false
 |
+| v1
+
+| `service`
+| Service specific configuration.
+| <<infinispanservicespec>>
+| false
+|
+| v1
 
 | `logging`
 | Logging categories
-| []<<infinispanloggingcategoryspec>>
+| <<infinispanloggingspec>>
 | false
 |
+| v1
 
 | `expose`
 | Expose Infinispan for external access over port 11222.
@@ -97,6 +104,7 @@ while `LoadBalancer` is used in production-like environments where an external l
 | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#servicespec-v1-core[core/v1/ServiceSpec]
 | false
 | Infinispan not exposed externally.
+| v1
 
 |=======================
 
@@ -108,37 +116,42 @@ while `LoadBalancer` is used in production-like environments where an external l
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `type`
 | Type of service
 | `Cache` / `DataGrid`
 | true
 | `Cache`
+| v1
 
 | `evictionPolicy`
 | Cache service eviction policy
 | `Reject` / `Evict`
 | false
 | `Evict`
+| v2alpha
 
 | `replicationFactor`
 | Cache service replication factor
 | int32
 | false
 | `1`
+| v2alpha
 
 | `container`
 | Service specific container configuration.
 | <<infinispanservicecontainerspec>>
 | false
 |
+| v1
 
 | `sites`
 | Cross-site configuration
 | <<infinispansitesspec>>
 | false
 |
+| v1
 
 |=======================
 
@@ -150,7 +163,7 @@ while `LoadBalancer` is used in production-like environments where an external l
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `storage`
 | Storage per Infinispan container in the data grid service.
@@ -159,6 +172,7 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 | string
 | false
 | `1Gi`
+| v1
 
 |=======================
 
@@ -199,13 +213,14 @@ https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-conta
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `roles`
 | Roles for interacting with Infinispan.
 | []<<infinispanrolespec>>
 | false
 |
+| v2alpha
 
 | `endpointSecretName`
 | Secret containing identities allowed to interact with Infinispan.
@@ -213,12 +228,14 @@ The format of the metadata in the secret can be found <<identities,here>>.
 | string
 | false
 |
+| v1
 
 | `endpointEncryption`
 | Encryption configuration for client.
-| EndpointEncryption
+| <<endpointencryption>>
 | false
 |
+| v1
 
 |=======================
 
@@ -229,14 +246,15 @@ The format of the metadata in the secret can be found <<identities,here>>.
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `type`
 | Certificates provider type: `service` if the user wants to use a platform serving
 certificates service. `secret` if the user provides a secret with certs inside
-| `service`/`secret`
+| string
 | true
-|
+| `service`
+| v1
 
 | `certServiceName`
 | Name of the serving certificates service. Only `service.beta.infinispan.io` is
@@ -244,12 +262,14 @@ currently supported
 | string
 | false
 |
+| v1
 
 | `certSecretName`
 | Name of the secret containing the certificates (both for service and secret type)
 | string
 | true
 |
+| v1
 
 |=======================
 
@@ -260,13 +280,14 @@ currently supported
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `name`
 | Name of role.
 | string
 | true
 |
+| v2alpha
 
 | `permissions`
 | List of permissions.
@@ -275,6 +296,7 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 | []string
 | true
 |
+| v2alpha
 
 |=======================
 
@@ -286,25 +308,28 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `extraJvmOpts`
 | Extra Java opts to pass to Infinispan JVM
 | string
 | false
 |
+| v1
 
 | `memory`
 | Amount of memory required by the container
 | string
 | false
 | 512Mi
+| v1
 
 | `cpu`
 | Cpu to be allocated to the Infinispan container
 | string
 | false
 | 0.5
+| v1
 
 |=======================
 
@@ -316,13 +341,14 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `categories`
 | Logging categories
 | <<infinispanloggingcategoriesspec>>
 | false
 |
+| v1
 
 |=======================
 
@@ -334,13 +360,14 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
-| `<category-name>`
+| `category`
 | Logging category name, e.g. `org.infinispan`
 | `error` / `warn` / `info` / `debug` / `trace`
 | true
 |
+| v1
 
 |=======================
 
@@ -352,13 +379,14 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `enabled`
 | Enable prometheus.
 | boolean
 | false
 | false
+| future
 
 |=======================
 
@@ -366,41 +394,44 @@ https://infinispan.org/docs/dev/titles/security/security.html#security_embedded_
 [[infinispansitesspec]]
 #### `InfinispanSitesSpec`
 
-`InfinispanSpitesSpec`.
+`InfinispanSitesSpec`.
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `local`
 | Local site information.
-| <<infinispanlocalsitespec>>
+| <<infinispansiteslocalpec>>
 | true
 |
+| v1
 
 | `locations`
 | Site information for all local and remote locations.
-| []<<infinispanlocationssitespec>>
+| []<<infinispansiteslocationspec>>
 | true
 |
+| v1
 
 |=======================
 
 
-[[infinispanlocalsitespec]]
-#### `InfinispanLocalSiteSpec`
+[[infinispansiteslocalpec]]
+#### `InfinispanSitesLocalSpec`
 
-`InfinispanLocalSiteSpec`.
+`InfinispanSitesLocalSpec`.
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `name`
 | Name of site.
 | string
 | true
 |
+| v1
 
 | `expose`
 | For sites to communicate with each other,
@@ -412,24 +443,26 @@ it binds to port `7900` by default and uses port `32660` as `nodePort`.
 | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#servicespec-v1-core[core/v1/ServiceSpec]
 | true
 |
+| v1
 
 |=======================
 
 
-[[infinispanlocationssitespec]]
-#### `InfinispanLocationsSiteSpec`
+[[infinispansiteslocationspec]]
+#### `InfinispanSiteLocationSpec`
 
-`InfinispanLocationsSiteSpec`.
+`InfinispanSiteLocationSpec`.
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required | Default
+| Field | Description | Scheme | Required | Default | Beginning API version
 
 | `name`
 | Name of remote location.
 | string
 | true
 |
+| v1
 
 | `url`
 | URL for remote location.
@@ -439,6 +472,7 @@ it binds to port `7900` by default and uses port `32660` as `nodePort`.
 | string
 | true
 |
+| v1
 
 | `secretName`
 | Contains the secret details for accessing remote Kubernetes or OpenShift instances.
@@ -451,6 +485,7 @@ the secret should contain a `token` entry for accessing that OpenShift cluster.
 | string
 | false
 |
+| v1
 
 |=======================
 
@@ -460,38 +495,63 @@ the secret should contain a `token` entry for accessing that OpenShift cluster.
 
 `InfinispanStatus` is the most recent observed status of the `InfinispanSpec`. Read-only.
 
-TODO: @Vittorio, update with your proposal
+[options="header,footer"]
+|=======================
+| Field | Description | Scheme | Required | Beginning API version
+
+| `conditions`
+| A condition list of the cluster.
+| []<<infinispanstatuscondition>>
+| true
+| v1
+
+| `statefulSetName`
+| Name of the created StatefullSet.
+| string
+| true
+| v1
+
+| `security`
+| Security configuration.
+| <<infinispansecurityspec>>
+| true
+| v1
+
+| `replicasWantedAtRestart`
+| Replicas number wanted at restart.
+| int32
+| true
+| v1
+
+|=======================
+
+
+[[infinispanstatuscondition]]
+#### `InfinispanCondition`
+
+`InfinispanCondition` is define a condition status and message of the cluster.
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required
+| Field | Description | Scheme | Required | Beginning API version
 
-| `pods`
-| Status of the pods.
-| []<<podstatus>>
-| true
-
-|=======================
-
-
-[[podstatus]]
-#### `PodStatus`
-
-`PodStatus` is the most recent observed status of a pod running `InfinispanSpec`.
-
-[options="header,footer"]
-|=======================
-| Field | Description | Scheme | Required
-
-| `name`
-| Name of the Pod.
+| `type`
+| The type of the condition.
 | string
 | true
+| v1
 
-| `podIP`
-| IP address allocated to the pod.
+| `status`
+| The status of the condition.
 | string
 | true
+| v1
+
+| `message`
+| Human-readable message indicating details about last transition.
+| string
+| true
+| v1
 
 |=======================
 
@@ -503,27 +563,31 @@ TODO: @Vittorio, update with your proposal
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required
+| Field | Description | Scheme | Required | Beginning API version
 
 | `credentials`
 | Credentials (username and password) based identities.
 | []<<credentials>>
 | true
+| v1
 
 | `certificates`
 | Certificate (p12 format) based identities.
 | []<<certificate>>
 | true
+| future
 
 | `oauth`
 | Identities provided by OAuth servers.
 | []<<oauth>>
 | true
+| future
 
 | `tokens`
 | Token-based identities.
 | []<<token>>
 | true
+| future
 
 |=======================
 
@@ -535,22 +599,25 @@ TODO: @Vittorio, update with your proposal
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required
+| Field | Description | Scheme | Required | Beginning API version
 
 | `username`
 | Username.
 | string
 | false
+| v1
 
 | `password`
 | Password.
 | string
 | true
+| v1
 
 | `roles`
 | Roles of credentials
 | []string
 | false
+| future
 
 |=======================
 
@@ -562,17 +629,19 @@ TODO: @Vittorio, update with your proposal
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required
+| Field | Description | Scheme | Required | Beginning API version
 
 | `p12`
 | Certificate encoded in base 64 format.
 | string
 | true
+| future
 
 | `roles`
 | Roles of credentials
 | []string
 | false
+| future
 
 |=======================
 
@@ -584,22 +653,25 @@ TODO: @Vittorio, update with your proposal
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required
+| Field | Description | Scheme | Required | Beginning API version
 
 | `clientId`
 | TODO
 | string
 | true
+| future
 
 | `clientSecret`
 | TODO
 | string
 | true
+| future
 
 | `introspectionUrl`
 | TODO
 | string
 | true
+| future
 
 |=======================
 
@@ -611,12 +683,13 @@ TODO: @Vittorio, update with your proposal
 
 [options="header,footer"]
 |=======================
-| Field | Description | Scheme | Required
+| Field | Description | Scheme | Required | Beginning API version
 
 | `token`
 | Authentication token for an identity.
 | string
 | true
+| future
 
 |=======================
 
