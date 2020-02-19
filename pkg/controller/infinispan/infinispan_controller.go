@@ -1360,7 +1360,7 @@ func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *i
 	if err != nil {
 		return nil, err
 	}
-
+	lsConfigMap := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-configmap-configuration")
 	configMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1369,6 +1369,7 @@ func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *i
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name + "-configuration",
 			Namespace: namespace,
+			Labels:    lsConfigMap,
 		},
 		Data: map[string]string{"infinispan.yaml": string(configYaml)},
 	}
@@ -1397,6 +1398,7 @@ func (r *ReconcileInfinispan) findSecret(m *infinispanv1.Infinispan) (*corev1.Se
 }
 
 func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinispanv1.Infinispan) *corev1.Secret {
+	lsSecret := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-secret-identities")
 	secretName := ispnutil.GetSecretName(m)
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -1406,6 +1408,7 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: m.ObjectMeta.Namespace,
+			Labels:    lsSecret,
 		},
 		Type:       corev1.SecretType("Opaque"),
 		StringData: map[string]string{"identities.yaml": string(identities)},
