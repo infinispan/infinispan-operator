@@ -27,7 +27,7 @@ metadata:
     support: Infinispan
     certified: "false"
 spec:
-  displayName: infinispan
+  displayName: Infinispan
   description: |
     Infinispan is a distributed, in-memory data store that increases application performance and delivers open-source capabilites to handle demanding use cases.
 
@@ -47,7 +47,7 @@ spec:
     The default user for accessing data is `developer`.
     The Infinispan Operator generates a password for the default user and stores it in a Secret on startup.
 
-    Each Infinispan pod requests `0.5` CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent volume.
+    Each Infinispan pod requests `0.25` (limit `0.50`) CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent volume.
     You can adjust resource allocation with the `.spec.container.cpu` and `.spec.container.memory` fields.
   keywords: ['infinispan', 'key value', 'database', 'datagrid', 'open source']
   version: 9.9.9
@@ -182,7 +182,7 @@ spec:
       - name: infinispans.infinispan.org
         version: v1
         kind: Infinispan
-        displayName: Infinispan
+        displayName: Infinispan Cluster
         description: An Infinispan cluster instance.
         resources:
           - kind: ConfigMap
