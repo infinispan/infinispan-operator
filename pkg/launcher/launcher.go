@@ -3,13 +3,16 @@ package launcher
 import (
 	"flag"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/pkg/apis"
-	"github.com/infinispan/infinispan-operator/pkg/controller"
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-	sdkVersion "github.com/operator-framework/operator-sdk/version"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // blank import (?)
+	"github.com/spf13/pflag"
 	"os"
 	"runtime"
+
+	"github.com/infinispan/infinispan-operator/pkg/apis"
+	"github.com/infinispan/infinispan-operator/pkg/controller"
+	"github.com/infinispan/infinispan-operator/version"
+	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+	sdkv "github.com/operator-framework/operator-sdk/version"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // blank import (?)
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -17,9 +20,10 @@ import (
 )
 
 func printVersion() {
+	logf.Log.Info(fmt.Sprintf("Operator Version: %s", version.Version))
 	logf.Log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
 	logf.Log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
-	logf.Log.Info(fmt.Sprintf("operator-sdk Version: %v", sdkVersion.Version))
+	logf.Log.Info(fmt.Sprintf("Operator SDK Version: %v", sdkv.Version))
 }
 
 // Parameters represent operator launcher parameters
@@ -29,15 +33,19 @@ type Parameters struct {
 
 // Launch launches operator
 func Launch(params Parameters) {
-	printVersion()
+	//TODO Uncomment after Operator SDK update
+	//pflag.CommandLine.AddFlagSet(zap.FlagSet())
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	flag.Parse()
 
 	// The logger instantiated here can be changed to any logger
 	// implementing the logr.Logger interface. This logger will
 	// be propagated through the whole operator, generating
 	// uniform and structured logs.
-	logf.SetLogger(logf.ZapLogger(false))
 	log := logf.Log.WithName("cmd")
+	logf.SetLogger(logf.ZapLogger(false))
+
+	printVersion()
 
 	namespace, err := k8sutil.GetWatchNamespace()
 	if err != nil {
