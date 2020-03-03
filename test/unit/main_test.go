@@ -20,9 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
+	kscheme "k8s.io/client-go/kubernetes/scheme"
 	fakerest "k8s.io/client-go/rest/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -533,7 +532,7 @@ func checkIdentitiesSecret(t *testing.T, client client.Client, sset appsv1.State
 func reconcileInfinispan(t *testing.T, ispnv *ispnv1.Infinispan, restMock func(*http.Request) (*http.Response, error), objs []runtime.Object) (reconcile.Result, infinispan.ReconcileInfinispan) {
 	objects := []runtime.Object{ispnv}
 
-	scheme := scheme.Scheme
+	scheme := kscheme.Scheme
 	restReq := &http.Request{}
 	restResp := &http.Response{}
 
@@ -542,7 +541,7 @@ func reconcileInfinispan(t *testing.T, ispnv *ispnv1.Infinispan, restMock func(*
 	httpClient := fakerest.CreateHTTPClient(restMock)
 
 	fakeRest := &fakerest.RESTClient{
-		NegotiatedSerializer: serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)},
+		NegotiatedSerializer: kscheme.Codecs.WithoutConversion(),
 		GroupVersion:         corev1.SchemeGroupVersion,
 		VersionedAPIPath:     "/api",
 		Req:                  restReq,

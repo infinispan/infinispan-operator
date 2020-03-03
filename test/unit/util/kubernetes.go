@@ -122,7 +122,7 @@ func GetInfinispanConfiguration(configMap corev1.ConfigMap) *ispnutil.Infinispan
 func ProcessSecretsData(cl client.Client, namespace string) {
 	secrets := &corev1.SecretList{}
 	listOps := &client.ListOptions{Namespace: namespace}
-	cl.List(context.TODO(), listOps, secrets)
+	cl.List(context.TODO(), secrets, listOps)
 	for _, secret := range secrets.Items {
 		currData := make(map[string][]byte)
 		for key, data := range secret.Data {
