@@ -9,7 +9,6 @@ require (
 	github.com/prometheus/client_golang v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/build v0.0.0-20190111050920-041ab4dc3f9d // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0
 	k8s.io/apiextensions-apiserver v0.0.0
