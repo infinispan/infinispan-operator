@@ -23,5 +23,5 @@ include::config_examples/file_cache_store.xml[]
 
 .Reference
 
-* link:#shutting_down-start[Shutting Down {brandname} Clusters]
+* link:#shutdown[Shutting Down {brandname} Clusters]
 * link:#ref_pv-pods[Persistent Volume Claims]
