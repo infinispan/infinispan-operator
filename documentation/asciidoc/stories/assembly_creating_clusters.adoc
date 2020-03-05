@@ -1,4 +1,4 @@
-[id='spinning_up_clusters']
+[id='start_operator']
 :context: start
 = Getting Started with {ispn_operator}
 You create, configure, and manage {brandname} clusters with {ispn_operator}
