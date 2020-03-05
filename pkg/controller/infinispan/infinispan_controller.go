@@ -1230,9 +1230,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 func cpuResources(infinispan *infinispanv1.Infinispan) (resource.Quantity, resource.Quantity) {
 	if infinispan.Spec.Container.CPU != "" {
 		cpuLimits := resource.MustParse(infinispan.Spec.Container.CPU)
-		var cpuRequests resource.Quantity
-		m := cpuLimits.MilliValue()
-		cpuRequests.SetMilli(m / 2)
+		cpuRequestsMillis := cpuLimits.MilliValue() / 2
+		cpuRequests := toMilliDecimalQuantity(int64(cpuRequestsMillis))
 		return cpuRequests, cpuLimits
 	}
 
