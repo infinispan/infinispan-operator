@@ -11,5 +11,5 @@ Persistent volume claims use the `ReadWriteOnce (RWO)` access mode.
 
 .Reference
 
-* link:#shutting_down-start[Shutting Down {brandname} Clusters]
+* link:#shutdown[Shutting Down {brandname} Clusters]
 * link:#storage_resources-pods[Storage Resources]
