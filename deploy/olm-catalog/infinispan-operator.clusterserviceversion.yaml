@@ -31,24 +31,20 @@ spec:
   description: |
     Infinispan is a distributed, in-memory data store that increases application performance and delivers open-source capabilites to handle demanding use cases.
 
-    The Infinispan Operator provides operational intelligence to simplify deploying Infinispan on Kubernetes clusters.
-
     ### Core Capabilities
     * **Schemaless data structure:** Store different objects as key-value pairs.
     * **Grid-based data storage:** Distribute and replicate data across clusters.
     * **Elastic scaling:** Dynamically adjust the number of nodes to meet demand without service disruption.
     * **Data interoperability:** Store, retrieve, and query data in the grid from different endpoints.
-    * **High availability:** Always have access to data.
+    * **High availability:** Always have access to your data.
 
     ### Infinispan Operator Features
-    * Single port HTTP/HotRod endpoint at `11222`.
-    * Supports custom configuration for different use cases.
-
-    The default user for accessing data is `developer`.
-    The Infinispan Operator generates a password for the default user and stores it in a Secret on startup.
-
-    Each Infinispan pod requests `0.25` (limit `0.50`) CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent volume.
-    You can adjust resource allocation with the `.spec.container.cpu` and `.spec.container.memory` fields.
+    * Operational intelligence that simplifies Infinispan cluster deployment.
+    * REST and Hot Rod endpoints available at port `11222`.
+    * Cache service for a high-performance, ephemeral data store.
+    * Data Grid service for a fully configurable Infinispan cluster.
+    * Default application user: `developer`. Infinispan Operator generates credentials in an authentication secret at startup.
+    * Infinispan pods request `0.25` (limit `0.50`) CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent storage. Infinispan Operator lets you adjust resource allocation to suit your requirements.
   keywords: ['infinispan', 'key value', 'database', 'datagrid', 'open source']
   version: 9.9.9
   minKubeVersion: 1.11.0
