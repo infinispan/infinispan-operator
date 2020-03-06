@@ -57,9 +57,23 @@ var DefaultSpec = ispnv1.Infinispan{
 	},
 }
 
+var MinimalSpec = ispnv1.Infinispan{
+	TypeMeta: metav1.TypeMeta{
+		APIVersion: "infinispan.org/v1",
+		Kind:       "Infinispan",
+	},
+	ObjectMeta: metav1.ObjectMeta{
+		Name: DefaultClusterName,
+	},
+	Spec: ispnv1.InfinispanSpec{
+		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+		Replicas: 2,
+	},
+}
+
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
-	if RunLocalOperator == "true"  {
+	if "true" == getEnvWithDefault("RUN_LOCAL_OPERATOR", "true") {
 		kubernetes.DeleteNamespace(namespace)
 		kubernetes.DeleteCRD("infinispans.infinispan.org")
 		kubernetes.NewNamespace(namespace)
@@ -127,7 +141,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 }
 
 // Test if spec.container.cpu update is handled
-func TestContainerCPUUpdate(t *testing.T) {
+func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.CPU = "250m"
 	}
@@ -139,7 +153,7 @@ func TestContainerCPUUpdate(t *testing.T) {
 			panic("CPU field not updated")
 		}
 	}
-	genericTestForContainerUpdated(modifier, verifier)
+	genericTestForContainerUpdated(MinimalSpec, modifier, verifier)
 }
 
 // Test if spec.container.memory update is handled
@@ -152,7 +166,7 @@ func TestContainerMemoryUpdate(t *testing.T) {
 			panic("Memory field not updated")
 		}
 	}
-	genericTestForContainerUpdated(modifier, verifier)
+	genericTestForContainerUpdated(DefaultSpec, modifier, verifier)
 }
 
 func TestContainerJavaOptsUpdate(t *testing.T) {
@@ -172,19 +186,17 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 		}
 		panic("JAVA_OPTIONS not updated")
 	}
-	genericTestForContainerUpdated(modifier, verifier)
+	genericTestForContainerUpdated(DefaultSpec, modifier, verifier)
 }
 
 // Test if single node working correctly
-func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier func(*appsv1.StatefulSet)) {
-	// Create a resource without passing any config
-	// Register it
-	spec := DefaultSpec.DeepCopy()
+func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*appsv1.StatefulSet)) {
+	spec := ispn.DeepCopy()
 	name := "test-node-startup"
 	spec.ObjectMeta.Name = name
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(spec, 1)
+	waitForPodsOrFail(spec, int(ispn.Spec.Replicas))
 	// Get the latest version of the Infinispan resource
 	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
 	if err != nil {
