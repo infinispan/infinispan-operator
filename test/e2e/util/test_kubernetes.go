@@ -44,6 +44,11 @@ var deleteOpts = []client.DeleteOption{
 	client.PropagationPolicy(deletePropagation),
 }
 
+var InfinispanTypeMeta = metav1.TypeMeta{
+	APIVersion: "infinispan.org/v1",
+	Kind:       "Infinispan",
+}
+
 // Runtime scheme
 var scheme = runtime.NewScheme()
 
@@ -166,6 +171,9 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 	ExpectNoError(err)
 	infinispan.Spec.Replicas = 0
+
+	// Workaround for OpenShift local test (clear GVK on decode in the client)
+	infinispan.TypeMeta = InfinispanTypeMeta
 	err = k.Kubernetes.Client.Update(context.TODO(), infinispan)
 	ExpectNoError(err)
 
@@ -189,6 +197,8 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 	ExpectNoError(err)
 	infinispan.Spec.Replicas = replicas
 	err = wait.Poll(period, timeout, func() (done bool, err error) {
+		// Workaround for OpenShift local test (clear GVK on decode in the client)
+		infinispan.TypeMeta = InfinispanTypeMeta
 		err1 := k.Kubernetes.Client.Update(context.TODO(), infinispan)
 		if err1 != nil {
 			fmt.Printf("Error updating infinispan %s\n", err1)
@@ -314,7 +324,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, route)
 		ExpectNoError(err)
 
-		// depending on the c8s cluster setting, service is sometime available
+		// depending on the k8s cluster setting, service is sometime available
 		// via Ingress address sometime via node port. So trying both the methods
 		// Try node port first
 		hostAndPort = fmt.Sprintf("%s:%d", k.Kubernetes.PublicIP(), k.Kubernetes.GetNodePort(route))
