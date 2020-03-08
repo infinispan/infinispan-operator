@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	routev1 "github.com/openshift/api/route/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -54,17 +55,27 @@ type TestKubernetes struct {
 	Kubernetes *util.Kubernetes
 }
 
+type registerFunction func(*runtime.Scheme) error
+
 func init() {
 	addToScheme(&v1.SchemeBuilder, scheme)
 	addToScheme(&rbacv1.SchemeBuilder, scheme)
 	addToScheme(&apiextv1beta1.SchemeBuilder, scheme)
 	addToScheme(&ispnv1.SchemeBuilder.SchemeBuilder, scheme)
 	addToScheme(&appsv1.SchemeBuilder, scheme)
+	doAdd(routev1.Install, scheme)
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 	err := schemeBuilder.AddToScheme(scheme)
 	ExpectNoError(err)
+}
+
+func doAdd(addToScheme registerFunction, scheme *runtime.Scheme) {
+	err := addToScheme(scheme)
+	if err != nil {
+		log.Info( "Error while registering OpenShift types: %s. Ignoring", err)
+	}
 }
 
 // NewTestKubernetes creates a new instance of TestKubernetes
@@ -525,4 +536,14 @@ func runOperatorLocally(stopCh chan struct{}, namespace string) {
 	_ = os.Setenv("WATCH_NAMESPACE", namespace)
 	_ = os.Setenv("KUBECONFIG", kubeConfig)
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
+}
+
+func (k TestKubernetes) IsOpenShift(namespace string) bool {
+	route := routev1.Route{}
+	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: namespace, Namespace: namespace}, &route)
+	if err == nil || errors.IsNotFound(err) {
+		return true
+	} else {
+		return false
+	}
 }

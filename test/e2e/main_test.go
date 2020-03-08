@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -15,6 +12,9 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -57,6 +57,12 @@ func TestMain(m *testing.M) {
 func TestSimple(t *testing.T) {
 	fmt.Printf("%v\n", kubernetes.Nodes())
 	fmt.Printf("%s\n", kubernetes.Kubernetes.PublicIP())
+	fmt.Printf("Running on: ")
+	if kubernetes.IsOpenShift(Namespace) {
+		fmt.Println("OpenShift")
+	} else {
+		fmt.Println("Kubernetes")
+	}
 }
 
 var DefaultSpec = ispnv1.Infinispan{
