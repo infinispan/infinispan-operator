@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -15,6 +12,9 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -31,15 +31,35 @@ const DefaultPollPeriod = 1 * time.Second
 var CPU = getEnvWithDefault("INFINISPAN_CPU", "500m")
 var Memory = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 var Namespace = getEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing")
+var RunLocalOperator = getEnvWithDefault("RUN_LOCAL_OPERATOR", "true")
 
 var kubernetes = testutil.NewTestKubernetes()
 var cluster = util.NewCluster(kubernetes.Kubernetes)
 
 var DefaultClusterName = "test-node-startup"
 
+var DefaultSpec = ispnv1.Infinispan{
+	TypeMeta: testutil.InfinispanTypeMeta,
+	ObjectMeta: metav1.ObjectMeta{
+		Name: DefaultClusterName,
+	},
+	Spec: ispnv1.InfinispanSpec{
+		Service: ispnv1.InfinispanServiceSpec{
+			Type: ispnv1.ServiceTypeDataGrid,
+		},
+		Container: ispnv1.InfinispanContainerSpec{
+			CPU:    CPU,
+			Memory: Memory,
+		},
+		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+		Replicas: 1,
+		Expose:   exposeServiceSpec(),
+	},
+}
+
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
-	if "true" == getEnvWithDefault("RUN_LOCAL_OPERATOR", "true") {
+	if RunLocalOperator == "true"  {
 		kubernetes.DeleteNamespace(namespace)
 		kubernetes.DeleteCRD("infinispans.infinispan.org")
 		kubernetes.NewNamespace(namespace)
@@ -57,28 +77,6 @@ func TestMain(m *testing.M) {
 func TestSimple(t *testing.T) {
 	fmt.Printf("%v\n", kubernetes.Nodes())
 	fmt.Printf("%s\n", kubernetes.Kubernetes.PublicIP())
-}
-
-var DefaultSpec = ispnv1.Infinispan{
-	TypeMeta: metav1.TypeMeta{
-		APIVersion: "infinispan.org/v1",
-		Kind:       "Infinispan",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: DefaultClusterName,
-	},
-	Spec: ispnv1.InfinispanSpec{
-		Service: ispnv1.InfinispanServiceSpec{
-			Type: ispnv1.ServiceTypeDataGrid,
-		},
-		Container: ispnv1.InfinispanContainerSpec{
-			CPU:    CPU,
-			Memory: Memory,
-		},
-		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
-		Replicas: 1,
-		Expose:   exposeServiceSpec(),
-	},
 }
 
 // Test if single node working correctly
@@ -188,13 +186,16 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
 	// Get the latest version of the Infinispan resource
-	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
+	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	// Get the associate statefulset
 	ss := appsv1.StatefulSet{}
 
 	// Get the current generation
-	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+	err = kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -202,7 +203,12 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 
 	// Change the Infinispan spec
 	modifier(spec)
-	kubernetes.Kubernetes.Client.Update(context.TODO(), spec)
+	// Workaround for OpenShift local test (clear GVK on decode in the client)
+	spec.TypeMeta = testutil.InfinispanTypeMeta
+	err = kubernetes.Kubernetes.Client.Update(context.TODO(), spec)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	// Wait for a new generation to appear
 	err = wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
@@ -553,8 +559,14 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	generation := ss.Status.ObservedGeneration
 
 	// Update the resource
-	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &spec)
+	err = kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &spec)
+	if err != nil {
+		panic(err.Error())
+	}
+
 	spec.Spec.Security.EndpointSecretName = "conn-secret-test-1"
+	// Workaround for OpenShift local test (clear GVK on decode in the client)
+	spec.TypeMeta = testutil.InfinispanTypeMeta
 	err = kubernetes.Kubernetes.Client.Update(context.TODO(), &spec)
 	if err != nil {
 		panic(fmt.Errorf(err.Error()))
