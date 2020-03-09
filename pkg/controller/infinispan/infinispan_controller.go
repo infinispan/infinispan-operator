@@ -61,6 +61,7 @@ const CacheServiceJvmNativeMb = 220
 const CacheServiceMaxRamMb = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
 const CacheServiceAdditionalJavaOptions = "-Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10"
 const CacheServiceJvmNativePercentageOverhead = 1
+const infinispanFinalizer = "finalizer.infinispan.org"
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -135,6 +136,23 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		// Error reading the object - requeue the request.
 		reqLogger.Info("Error reading the object")
 		return reconcile.Result{}, err
+	}
+
+	// Check if the cluster must be deleted
+	if infinispan.GetDeletionTimestamp() != nil {
+		// Infinispan resource is to be deleted
+		if contains(infinispan.GetFinalizers(), infinispanFinalizer) {
+			if err := r.finalizeInfinispan(reqLogger, infinispan); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			infinispan.SetFinalizers(remove(infinispan.GetFinalizers(), infinispanFinalizer))
+			err := r.client.Update(context.TODO(), infinispan)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		return reconcile.Result{}, nil
 	}
 
 	// Apply defaults if not already set
@@ -268,6 +286,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				return reconcile.Result{}, err
 			}
 			reqLogger.Info("Created External Service", "Service", externalService)
+		}
+
+		// Infinispan resource must have a finalizer
+		if !contains(dep.GetFinalizers(), infinispanFinalizer) {
+			r.addFinalizer(reqLogger, infinispan)
 		}
 
 		// StatefulSet created successfully - return and requeue
@@ -1829,4 +1852,45 @@ func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
 		// can be added here
 	}
 	return ""
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func remove(list []string, s string) []string {
+	for i, v := range list {
+		if v == s {
+			list = append(list[:i], list[i+1:]...)
+		}
+	}
+	return list
+}
+
+func (r *ReconcileInfinispan) finalizeInfinispan(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
+	las := labelsForInfinispan(ispn.Name, "infinispan-pod")
+	labelSelector := labels.SelectorFromSet(las)
+	lo := client.ListOptions{Namespace: ispn.Namespace, LabelSelector: labelSelector}
+	deleteOptions := &client.DeleteAllOfOptions{ListOptions: lo}
+	r.client.DeleteAllOf(context.TODO(), &corev1.PersistentVolumeClaim{}, deleteOptions)
+	reqLogger.Info("Successfully finalized Infinispan")
+	return nil
+}
+
+func (r *ReconcileInfinispan) addFinalizer(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
+	reqLogger.Info("Adding Finalizer for the Infinispan")
+	ispn.SetFinalizers(append(ispn.GetFinalizers(), infinispanFinalizer))
+
+	// Update CR
+	err := r.client.Update(context.TODO(), ispn)
+	if err != nil {
+		reqLogger.Error(err, "Failed to update Infinispan with finalizer")
+		return err
+	}
+	return nil
 }
