@@ -147,7 +147,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 	// Check that PersistentVolumeClaims have been cleanup
 	err = wait.Poll(period, timeout, func() (done bool, err error) {
 		pvc := &v1.PersistentVolumeClaimList{}
-		err = k.Kubernetes.Client.List(context.TODO(), pvc, listOps)
+		err = k.Kubernetes.Client.List(context.TODO(), listOps, pvc)
 		pvcs := pvc.Items
 		if err != nil || len(pvcs) != 0 {
 			return false, nil

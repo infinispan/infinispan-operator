@@ -1875,9 +1875,20 @@ func remove(list []string, s string) []string {
 func (r *ReconcileInfinispan) finalizeInfinispan(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
 	las := labelsForInfinispan(ispn.Name, "infinispan-pod")
 	labelSelector := labels.SelectorFromSet(las)
-	lo := client.ListOptions{Namespace: ispn.Namespace, LabelSelector: labelSelector}
-	deleteOptions := &client.DeleteAllOfOptions{ListOptions: lo}
-	r.client.DeleteAllOf(context.TODO(), &corev1.PersistentVolumeClaim{}, deleteOptions)
+	lo := &client.ListOptions{Namespace: ispn.Namespace, LabelSelector: labelSelector}
+	pvcList := &corev1.PersistentVolumeClaimList{}
+	r.client.List(context.TODO(), lo, pvcList)
+	for _, pvc := range pvcList.Items {
+		r.client.Delete(context.TODO(),
+			&corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      pvc.ObjectMeta.Name,
+					Namespace: pvc.ObjectMeta.Namespace,
+				},
+			})
+	}
+
+	// r.client.DeleteAllOf(context.TODO(), &corev1.PersistentVolumeClaim{}, deleteOptions)
 	reqLogger.Info("Successfully finalized Infinispan")
 	return nil
 }
