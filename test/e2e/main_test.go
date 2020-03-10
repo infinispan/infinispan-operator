@@ -260,7 +260,7 @@ func TestCacheService(t *testing.T) {
 	}
 }
 
-// TestPermanentCache creates a permanent caches the stop/start
+// TestPermanentCache creates a permanent cache the stop/start
 // the cluster and checks that the cache is still there
 func TestPermanentCache(t *testing.T) {
 	name := "test-permanent-cache"
@@ -293,36 +293,11 @@ func TestPermanentCache(t *testing.T) {
 		deleteCache(cacheName, usr, pass, hostAddr, client)
 	}
 
-	genericTestForPersistenceVolume(name, createPermanentCache, usePermanentCache)
+	genericTestForGracefulShutdown(name, createPermanentCache, usePermanentCache)
 }
 
-// Test if single node working correctly
-func genericTestForPersistenceVolume(clusterName string, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan)) {
-	// Create a resource without passing any config
-	// Register it
-	spec := DefaultSpec.DeepCopy()
-	spec.ObjectMeta.Name = clusterName
-	kubernetes.CreateInfinispan(spec, Namespace)
-	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(spec, "http", 1)
-
-	// Do something that needs to be permanent
-	modifier(spec)
-
-	// Delete the cluster
-	kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-
-	// Restart cluster
-	spec = DefaultSpec.DeepCopy()
-	spec.ObjectMeta.Name = clusterName
-	kubernetes.CreateInfinispan(spec, Namespace)
-
-	waitForPodsOrFail(spec, "http", 1)
-
-	// Do something that checks that permanent changes are there again
-	verifier(spec)
-}
-
+// TestPermanentCache creates a cache with file-store the stop/start
+// the cluster and checks that the cache and the data are still there
 func TestCheckDataSurviveToShutdown(t *testing.T) {
 	name := "test-data-shutdown-cache"
 	usr := "developer"
@@ -333,7 +308,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	value := "test-operator"
 
 	// Define function for the generic stop/start test procedure
-	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
+	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
@@ -344,7 +319,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		putViaRoute(keyURL, value, client, usr, pass)
 	}
 
-	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
+	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
@@ -358,7 +333,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		deleteCache(cacheName, usr, pass, hostAddr, client)
 	}
 
-	genericTestForGracefulShutdown(name, createPermanentCache, usePermanentCache)
+	genericTestForGracefulShutdown(name, createCacheWithFileStore, useCacheWithFileStore)
 }
 
 func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan)) {
