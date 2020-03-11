@@ -94,13 +94,16 @@ is gracefully shut down.
 | v1
 
 | `expose`
-| Expose Infinispan for external access over port 11222.
-At the very least,
-the user must indicate via `type` attribute how the
+| If not empty the operator will expose Infinispan port 11222 externally.
+The `spec.type` attribute must indicate how the
 https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#service-v1-core[Service]
-is exposed.
-`NodePort` is often used while testing locally,
-while `LoadBalancer` is used in production-like environments where an external load-balancer is available.
+is exposed. Two service types are supported: `LoadBalancer, NodePort`.
+
+For the `NodePort` service type the `Spec.Ports[0].nodePort` attribute can be specified, if not port will be selected by the platform.
+
+This is just an helper for a quick service exposition, user can setup it's own service exposition
+if more configurability is needed.
+
 | https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#servicespec-v1-core[core/v1/ServiceSpec]
 | false
 | Infinispan not exposed externally.

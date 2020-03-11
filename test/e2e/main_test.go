@@ -449,7 +449,8 @@ func TestExternalService(t *testing.T) {
 
 func exposeServiceSpec() corev1.ServiceSpec {
 	return corev1.ServiceSpec{
-		Type: exposeServiceType(),
+		Type:  exposeServiceType(),
+		Ports: []corev1.ServicePort{{NodePort: 30222}},
 	}
 }
 
