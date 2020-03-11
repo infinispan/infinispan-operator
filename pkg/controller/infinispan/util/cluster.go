@@ -141,6 +141,7 @@ func (c Cluster) ExistsCache(cacheName, secretName, podName, namespace, protocol
 
 	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s?action=config", protocol, podIP, cacheName)
 	commands := []string{"curl",
+		"--insecure",
 		"-o", "/dev/null", "-w", "%{http_code}", // ignore output and get http status code
 		"-u", fmt.Sprintf("operator:%v", pass),
 		"--head",
@@ -179,6 +180,7 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 
 	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s", protocol, podIP, cacheName)
 	commands := []string{"curl",
+		"--insecure",
 		"-w", "\n%{http_code}", // add http status at the end
 		"-d", fmt.Sprintf("%s", cacheXml),
 		"-H", "Content-Type: application/xml",
