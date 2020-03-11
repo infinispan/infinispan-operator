@@ -286,12 +286,23 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 		if isExposed(infinispan) {
 			externalService := r.serviceExternal(infinispan)
-			err = r.client.Create(context.TODO(), externalService)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				reqLogger.Error(err, "failed to create external Service", "Service", ser)
-				return reconcile.Result{}, err
+			if externalService != nil {
+				err = r.client.Create(context.TODO(), externalService)
+				if err != nil && !errors.IsAlreadyExists(err) {
+					reqLogger.Error(err, "failed to create external Service", "Service", ser)
+					return reconcile.Result{}, err
+				}
+				infinispan.Spec.Expose = externalService.Spec
+				err = r.client.Update(context.TODO(), infinispan)
+				if err != nil {
+					reqLogger.Error(err, "failed to Infinispan with Service spec", "Service", ser)
+					return reconcile.Result{}, err
+				}
+				reqLogger.Info("Created External Service", "Service", externalService)
+			} else {
+				reqLogger.Info("External Service NOT created. Unsupported type?", "Service", nil)
+
 			}
-			reqLogger.Info("Created External Service", "Service", externalService)
 		}
 
 		// StatefulSet created successfully - return and requeue
@@ -1570,7 +1581,6 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
 	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service-external")
 	externalServiceType := m.Spec.Expose.Type
-
 	// An external service can be simply achieved with a LoadBalancer
 	// that has same selectors as original service.
 	externalServiceName := getServiceExternalName(m)
@@ -1591,13 +1601,23 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 				{
 					Port:       int32(11222),
 					TargetPort: intstr.FromInt(11222),
-					// Fix NodePort to match exported port in kind configuration
-					NodePort: int32(30222),
 				},
 			},
 		},
 	}
 
+	if externalServiceType == corev1.ServiceTypeLoadBalancer {
+		// Nothing to do here, keeping the if else struct
+	} else if externalServiceType == corev1.ServiceTypeNodePort {
+		var portNum int32
+		if m.Spec.Expose.Ports != nil || len(m.Spec.Expose.Ports) > 0 {
+			portNum = m.Spec.Expose.Ports[0].NodePort
+			externalService.Spec.Ports[0].NodePort = portNum
+		}
+	} else {
+		// Service type currently unsupported
+		return nil
+	}
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, externalService, r.scheme)
 	return externalService
