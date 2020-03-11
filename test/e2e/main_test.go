@@ -83,6 +83,7 @@ var DefaultSpec = ispnv1.Infinispan{
 
 // Test if single node working correctly
 func TestNodeStartup(t *testing.T) {
+	t.Parallel()
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
 	name := "test-node-startup"
@@ -95,6 +96,7 @@ func TestNodeStartup(t *testing.T) {
 
 // Test if the cluster is working correctly
 func TestClusterFormation(t *testing.T) {
+	t.Parallel()
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
 	name := "test-cluster-formation"
@@ -108,9 +110,10 @@ func TestClusterFormation(t *testing.T) {
 
 // Test if the cluster is working correctly
 func TestClusterFormationWithTLS(t *testing.T) {
+	t.Parallel()
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
-	name := "test-cluster-formation"
+	name := "test-cluster-formation-tls"
 	spec.ObjectMeta.Name = name
 	spec.Spec.Replicas = 2
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
@@ -228,6 +231,7 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 }
 
 func TestCacheService(t *testing.T) {
+	t.Parallel()
 	spec := DefaultSpec.DeepCopy()
 	name := "test-cache-service"
 
@@ -263,6 +267,7 @@ func TestCacheService(t *testing.T) {
 // TestPermanentCache creates a permanent cache the stop/start
 // the cluster and checks that the cache is still there
 func TestPermanentCache(t *testing.T) {
+	t.Parallel()
 	name := "test-permanent-cache"
 	usr := "developer"
 	cacheName := "test"
