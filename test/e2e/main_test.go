@@ -90,7 +90,7 @@ func TestNodeStartup(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(spec, "http", 1)
+	waitForPodsOrFail(spec, 1)
 }
 
 // Test if the cluster is working correctly
@@ -103,7 +103,7 @@ func TestClusterFormation(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(spec, "http", 2)
+	waitForPodsOrFail(spec, 2)
 }
 
 // Test if the cluster is working correctly
@@ -125,7 +125,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(spec, "https", 2)
+	waitForPodsOrFail(spec, 2)
 }
 
 // Test if spec.container.cpu update is handled
@@ -186,7 +186,7 @@ func genericTestForContainerUpdated(modifier func(*ispnv1.Infinispan), verifier 
 	spec.ObjectMeta.Name = name
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(spec, "http", 1)
+	waitForPodsOrFail(spec, 1)
 	// Get the latest version of the Infinispan resource
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
 
@@ -237,7 +237,7 @@ func TestCacheService(t *testing.T) {
 
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(spec, "http", 1)
+	waitForPodsOrFail(spec, 1)
 
 	user := "developer"
 	password, err := cluster.Kubernetes.GetPassword(user, util.GetSecretName(spec), Namespace)
@@ -251,7 +251,7 @@ func TestCacheService(t *testing.T) {
 
 	key := "test"
 	value := "test-operator"
-	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(getSchemaForRest(spec), cacheName, hostAddr), key)
 	putViaRoute(keyURL, value, client, user, password)
 	actual := getViaRoute(keyURL, client, user, password)
 
@@ -273,7 +273,7 @@ func TestPermanentCache(t *testing.T) {
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
 		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
-		createCache(cacheName, usr, pass, hostAddr, "PERMANENT", client)
+		createCache(getSchemaForRest(ispn), cacheName, usr, pass, hostAddr, "PERMANENT", client)
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
@@ -284,13 +284,13 @@ func TestPermanentCache(t *testing.T) {
 		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 		key := "test"
 		value := "test-operator"
-		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(getSchemaForRest(ispn), cacheName, hostAddr), key)
 		putViaRoute(keyURL, value, client, usr, pass)
 		actual := getViaRoute(keyURL, client, usr, pass)
 		if actual != value {
 			panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 		}
-		deleteCache(cacheName, usr, pass, hostAddr, client)
+		deleteCache(getSchemaForRest(ispn), cacheName, usr, pass, hostAddr, client)
 	}
 
 	genericTestForGracefulShutdown(name, createPermanentCache, usePermanentCache)
@@ -314,8 +314,8 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
 		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
-		createCacheWithXMLTemplate(cacheName, usr, pass, hostAddr, template, client)
-		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		createCacheWithXMLTemplate(getSchemaForRest(ispn), cacheName, usr, pass, hostAddr, template, client)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(getSchemaForRest(ispn), cacheName, hostAddr), key)
 		putViaRoute(keyURL, value, client, usr, pass)
 	}
 
@@ -325,12 +325,13 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
 		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
-		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		schema := getSchemaForRest(ispn)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(schema, cacheName, hostAddr), key)
 		actual := getViaRoute(keyURL, client, usr, pass)
 		if actual != value {
 			panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 		}
-		deleteCache(cacheName, usr, pass, hostAddr, client)
+		deleteCache(schema, cacheName, usr, pass, hostAddr, client)
 	}
 
 	genericTestForGracefulShutdown(name, createCacheWithFileStore, useCacheWithFileStore)
@@ -343,7 +344,7 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	spec.ObjectMeta.Name = clusterName
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
-	waitForPodsOrFail(spec, "http", 1)
+	waitForPodsOrFail(spec, 1)
 
 	// Do something that needs to be permanent
 	modifier(spec)
@@ -356,7 +357,8 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	verifier(spec)
 }
 
-func waitForPodsOrFail(spec *ispnv1.Infinispan, protocol string, num int) {
+func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
+	protocol := getSchemaForRest(spec)
 	// Wait that "num" pods are up
 	kubernetes.WaitForPods("app=infinispan-pod", num, SinglePodTimeout, Namespace)
 
@@ -433,12 +435,13 @@ func TestExternalService(t *testing.T) {
 	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 
 	cacheName := "test"
-	createCache(cacheName, usr, pass, hostAddr, "", client)
-	defer deleteCache(cacheName, usr, pass, hostAddr, client)
+	schema := getSchemaForRest(&spec)
+	createCache(schema, cacheName, usr, pass, hostAddr, "", client)
+	defer deleteCache(schema, cacheName, usr, pass, hostAddr, client)
 
 	key := "test"
 	value := "test-operator"
-	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(schema, cacheName, hostAddr), key)
 	putViaRoute(keyURL, value, client, usr, pass)
 	actual := getViaRoute(keyURL, client, usr, pass)
 
@@ -518,7 +521,8 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
 
 	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
-	testAuthentication(name, usr, pass)
+	schema := getSchemaForRest(&spec)
+	testAuthentication(schema, name, usr, pass)
 	// Update the auth credentials.
 	identities = util.CreateIdentitiesFor(usr, newpass)
 	identitiesYaml, err = yaml.Marshal(identities)
@@ -568,22 +572,22 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	// so we're not introducing any delay
 	time.Sleep(10 * time.Second)
 	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
-	testAuthentication(name, usr, newpass)
+	testAuthentication(schema, name, usr, newpass)
 }
 
-func testAuthentication(name, usr, pass string) {
+func testAuthentication(schema, name, usr, pass string) {
 	routeName := fmt.Sprintf("%s-external", name)
 	client := &http.Client{}
 	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 
 	cacheName := "test"
-	createCacheBadCreds(cacheName, "badUser", "badPass", hostAddr, client)
-	createCache(cacheName, usr, pass, hostAddr, "", client)
-	defer deleteCache(cacheName, usr, pass, hostAddr, client)
+	createCacheBadCreds(schema, cacheName, "badUser", "badPass", hostAddr, client)
+	createCache(schema, cacheName, usr, pass, hostAddr, "", client)
+	defer deleteCache(schema, cacheName, usr, pass, hostAddr, client)
 
 	key := "test"
 	value := "test-operator"
-	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(schema, cacheName, hostAddr), key)
 	putViaRoute(keyURL, value, client, usr, pass)
 	actual := getViaRoute(keyURL, client, usr, pass)
 
@@ -592,8 +596,8 @@ func testAuthentication(name, usr, pass string) {
 	}
 }
 
-func cacheURL(cacheName, hostAddr string) string {
-	return fmt.Sprintf("http://%v/rest/v2/caches/%s", hostAddr, cacheName)
+func cacheURL(schema, cacheName, hostAddr string) string {
+	return fmt.Sprintf(schema+"://%v/rest/v2/caches/%s", hostAddr, cacheName)
 }
 
 type httpError struct {
@@ -604,13 +608,13 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected response %v", e.status)
 }
 
-func createCache(cacheName, usr, pass, hostAddr string, flags string, client *http.Client) {
-	httpURL := cacheURL(cacheName, hostAddr)
+func createCache(schema, cacheName, usr, pass, hostAddr string, flags string, client *http.Client) {
+	httpURL := cacheURL(schema, cacheName, hostAddr)
 	fmt.Printf("Create cache: %v\n", httpURL)
 	httpEmpty(httpURL, "POST", usr, pass, flags, client)
 }
 
-func createCacheBadCreds(cacheName, usr, pass, hostAddr string, client *http.Client) {
+func createCacheBadCreds(schema, cacheName, usr, pass, hostAddr string, client *http.Client) {
 	defer func() {
 		data := recover()
 		if data == nil {
@@ -621,11 +625,11 @@ func createCacheBadCreds(cacheName, usr, pass, hostAddr string, client *http.Cli
 			panic(err)
 		}
 	}()
-	createCache(cacheName, usr, pass, hostAddr, "", client)
+	createCache(schema, cacheName, usr, pass, hostAddr, "", client)
 }
 
-func createCacheWithXMLTemplate(cacheName, user, pass, hostAddr, template string, client *http.Client) {
-	httpURL := cacheURL(cacheName, hostAddr)
+func createCacheWithXMLTemplate(schema, cacheName, user, pass, hostAddr, template string, client *http.Client) {
+	httpURL := cacheURL(schema, cacheName, hostAddr)
 	fmt.Printf("Create cache: %v\n", httpURL)
 	body := bytes.NewBuffer([]byte(template))
 	req, err := http.NewRequest("POST", httpURL, body)
@@ -638,12 +642,12 @@ func createCacheWithXMLTemplate(cacheName, user, pass, hostAddr, template string
 	}
 	// Accept all the 2xx success codes
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		throwHttpError(resp)
+		throwHTTPError(resp)
 	}
 }
 
-func deleteCache(cacheName, usr, pass, hostAddr string, client *http.Client) {
-	httpURL := cacheURL(cacheName, hostAddr)
+func deleteCache(schema, cacheName, usr, pass, hostAddr string, client *http.Client) {
+	httpURL := cacheURL(schema, cacheName, hostAddr)
 	fmt.Printf("Delete cache: %v\n", httpURL)
 	httpEmpty(httpURL, "DELETE", usr, pass, "", client)
 }
@@ -673,7 +677,7 @@ func getViaRoute(url string, client *http.Client, user string, pass string) stri
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		throwHttpError(resp)
+		throwHTTPError(resp)
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -693,11 +697,18 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 		panic(err.Error())
 	}
 	if resp.StatusCode != http.StatusNoContent {
-		throwHttpError(resp)
+		throwHTTPError(resp)
 	}
 }
 
-func throwHttpError(resp *http.Response) {
+func throwHTTPError(resp *http.Response) {
 	errorBytes, _ := ioutil.ReadAll(resp.Body)
 	panic(fmt.Errorf("unexpected HTTP status code (%d): %s", resp.StatusCode, string(errorBytes)))
+}
+
+func getSchemaForRest(ispn *ispnv1.Infinispan) string {
+	if ispn.Spec.Security.EndpointEncryption.Type != "" {
+		return "https"
+	}
+	return "http"
 }
