@@ -707,7 +707,17 @@ func throwHTTPError(resp *http.Response) {
 }
 
 func getSchemaForRest(ispn *ispnv1.Infinispan) string {
-	if ispn.Spec.Security.EndpointEncryption.Type != "" {
+	curr := ispnv1.Infinispan{}
+	// Wait for the operator to populate Infinispan CR data
+	err := wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
+		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
+		return len(curr.Status.Conditions) > 0, nil
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
+	if curr.Spec.Security.EndpointEncryption.Type != "" {
 		return "https"
 	}
 	return "http"
