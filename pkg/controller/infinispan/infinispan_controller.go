@@ -257,6 +257,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			reqLogger.Error(err, "failed to create new StatefulSet", "StatefulSet.Name", dep.Name)
 			return reconcile.Result{}, err
 		}
+		// Infinispan resource must have a finalizer
+		if !contains(dep.GetFinalizers(), infinispanFinalizer) {
+			r.addFinalizer(reqLogger, infinispan)
+		}
 
 		ser := r.serviceForInfinispan(infinispan)
 
@@ -288,11 +292,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				return reconcile.Result{}, err
 			}
 			reqLogger.Info("Created External Service", "Service", externalService)
-		}
-
-		// Infinispan resource must have a finalizer
-		if !contains(dep.GetFinalizers(), infinispanFinalizer) {
-			r.addFinalizer(reqLogger, infinispan)
 		}
 
 		// StatefulSet created successfully - return and requeue
