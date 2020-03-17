@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
+OC_USER=${OC_USER:-kubeadmin}
 KUBECONFIG=${1-openshift.local.clusterup/openshift-apiserver/admin.kubeconfig}
 PROJECT_NAME=${PROJECT_NAME-default}
 
 echo "Using KUBECONFIG '$KUBECONFIG'"
 echo "Using PROJECT_NAME '$PROJECT_NAME'"
 
-oc login -u system:admin
+oc login -u ${OC_USER}
 oc project "$PROJECT_NAME"
 oc apply -f deploy/rbac.yaml
 oc apply -f deploy/crd.yaml
