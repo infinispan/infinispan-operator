@@ -1,0 +1,17 @@
+[id='default_config-{context}']
+= Cache Configuration
+
+{cacheservice} nodes use the following cache configuration:
+
+[source,xml,options="nowrap",subs=attributes+]
+----
+include::config_examples/cache_service_default_cache.xml[]
+----
+
+<1> Names the cache instance as "default".
+<2> Uses synchronous distribution for storing data across the cluster.
+<3> Configures one replica for each cache entry across the cluster.
+<4> Stores cache entries as bytes in native memory (off-heap).
+<5> Removes old entries to make space when adding new entries.
+<6> Specifies a conflict resolution strategy that allows read and write operations for cache entries even if segment owners are in different partitions.
+<7> Specifies a merge policy that removes entries from the cache when {brandname} detects conflicts.

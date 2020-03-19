@@ -1,22 +1,20 @@
 [id='minimal_crd-{context}']
-= {brandname} Custom Resources
-{ispn_operator} adds a resource type and custom resource definition (CRD)
-with recommended defaults for {brandname} pods.
+= Infinispan Custom Resource (CR)
+{ispn_operator} adds a new Custom Resource (CR) of type **Infinispan** that lets
+you handle {brandname} clusters as complex units on {k8s}.
 
-You configure {brandname} pods dynamically by changing defaults and adding
-custom resources.
+You configure {brandname} clusters running on {k8s} by modifying the
+**Infinispan** CR.
 
-The minimum resources to define a {brandname} cluster are as follows:
+The minimal **Infinispan** CR for {brandname} clusters is as follows:
 
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml_annotated/cr_minimal.yaml[]
 ----
 
-<1> declares the version.
-<2> sets the resource type that ispn_operator} uses to handle the lifecycle of {brandname} clusters.
-<3> names the {brandname} cluster.
-<4> sets the number of pods in the {brandname} cluster.
+<1> Names the {brandname} cluster.
+<2> Sets the number of nodes in the {brandname} cluster.
 
 .Reference
 

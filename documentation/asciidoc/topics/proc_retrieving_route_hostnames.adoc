@@ -1,6 +1,7 @@
 [id='get_hostname-{context}']
 = Retrieving Hostnames for Routes
-Get the hostname for a route that exposes a service for accessing {brandname}.
+Routes that expose services provide hostnames that you can use with client
+connections.
 
 [source,options="nowrap",subs=attributes+]
 ----

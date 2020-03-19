@@ -31,8 +31,7 @@ include::yaml_annotated/service_monitor.yaml[]
 <2> specifies your Prometheus namespace.
 <3> specifies the name of the authentication secret that has {brandname} credentials.
 <4> specifies the name of the authentication secret that has {brandname} credentials.
-<5> specifies the port name for {brandname} endpoints.
-<6> specifies that {brandname} endpoints use encryption. If you do not use TLS, remove `spec.endpoints.scheme`.
-<7> specifies the Common Name (CN) of the TLS certificate for {brandname} encryption. If you use an {openshiftshort} service certificate, the CN matches the `metadata.name` resource for your {brandname} cluster. If you do not use TLS, remove `spec.endpoints.tlsConfig`.
-<8> specifies the {ispn_operator} namespace.
-<9> specifies the name of the {brandname} cluster.
+<5> specifies that {brandname} endpoints use encryption. If you do not use TLS, remove `spec.endpoints.scheme`.
+<6> specifies the Common Name (CN) of the TLS certificate for {brandname} encryption. If you use an {openshiftshort} service certificate, the CN matches the `metadata.name` resource for your {brandname} cluster. If you do not use TLS, remove `spec.endpoints.tlsConfig`.
+<7> specifies the {ispn_operator} namespace.
+<8> specifies the name of the {brandname} cluster.

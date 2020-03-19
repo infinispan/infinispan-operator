@@ -1,4 +1,4 @@
-[id='configuring_backup_sites']
+[id='backup_sites']
 :context: xsite
 = Configuring Cross-Site Replication
 Set up cross-site replication to back up data between {brandname} clusters

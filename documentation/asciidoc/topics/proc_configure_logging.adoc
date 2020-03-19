@@ -3,7 +3,8 @@
 
 .Procedure
 
-. Modify your custom resource definition to include logging resources and then apply the changes.
+. Specify logging configuration with `spec.logging` in your **Infinispan** CR
+and then apply the changes.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -19,9 +20,9 @@ include::yaml_annotated/cr_logging.yaml[]
 The root logging category is `org.infinispan` and is `INFO` by default.
 ====
 +
-. Retrieve logs from {brandname} pods as required.
+. Retrieve logs from {brandname} nodes as required.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_logs} -f ${POD_NAME}
+$ {oc_logs} -f $POD_NAME
 ----

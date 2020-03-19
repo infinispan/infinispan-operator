@@ -4,5 +4,5 @@ kind: Infinispan
 metadata:
   name: {example_crd_name}
 spec:
-  replicas: 3
+  replicas: 2
 EOF
