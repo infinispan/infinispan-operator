@@ -1,10 +1,10 @@
 [id='restarting-{context}']
 = Restarting {brandname} Clusters
 
-* Set the value of `replicas` to the same number of pods that were in the
+* Set the value of `spec.replicas` to the same number of nodes that were in the
 cluster before you shut it down.
 
-For example, you shut down a cluster of 6 pods. When you restart the cluster,
+For example, you shut down a cluster of 6 nodes. When you restart the cluster,
 you must set:
 
 ----
@@ -13,4 +13,4 @@ spec:
 ----
 
 This allows {brandname} to restore the distribution of data across the cluster.
-When all pods in the cluster are running, you can then add or remove pods.
+When all nodes in the cluster are running, you can then add or remove nodes.

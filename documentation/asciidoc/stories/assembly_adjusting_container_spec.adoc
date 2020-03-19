@@ -1,8 +1,8 @@
-[id='container_resources']
-:context: pods
-= Configuring Pod Resources
+[id='resources']
+:context: nodes
+= Adjusting Container Specifications
 You can allocate CPU and memory resources, specify JVM options, and configure
-storage for {brandname} pods.
+storage for {brandname} nodes.
 
 include::{topics}/ref_container_resources.adoc[leveloffset=+1]
 include::{topics}/ref_container_storage.adoc[leveloffset=+1]

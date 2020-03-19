@@ -1,7 +1,6 @@
 [id='operator_reference']
 :context: reference
 = Reference
-
 Find useful information for {brandname} clusters that you create with
 {ispn_operator}.
 

@@ -16,44 +16,15 @@ $ oc create sa lon
 serviceaccount/lon created
 ----
 +
-. Find the token in the list of secrets in your {openshiftshort} namespace.
+. Retrieve each service account token.
 +
-The following example shows two `lon` tokens:
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ oc get secrets
-
-NAME                       TYPE
-...
-lon-token-8j6d8         kubernetes.io/service-account-token
-lon-token-g2brv         kubernetes.io/service-account-token
-----
-+
-. Retrieve a token to allow backup locations to authenticate with the local
-{openshiftshort} cluster.
-+
-The following example shows an encoded string in the `token` field:
+The following example shows the service account token for **LON**:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc describe secret lon-token-8j6d8
+$ oc sa get-token lon
 
-Name:         lon-token-8j6d8
-Namespace:    local-operators
-Labels:       <none>
-Annotations:  kubernetes.io/created-by: openshift.io/create-dockercfg-secrets
-              kubernetes.io/service-account.name: lon
-              kubernetes.io/service-account.uid: c22bc8d6-ffd8-11e9-adb6-0a8e23c49339
-
-Type:  kubernetes.io/service-account-token
-
-Data
-====
-ca.crt:          4634 bytes
-namespace:       15 bytes
-service-ca.crt:  5750 bytes
-token:           eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
+eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
 ----
 +
 . Create secrets that contain service account tokens for the backup locations.

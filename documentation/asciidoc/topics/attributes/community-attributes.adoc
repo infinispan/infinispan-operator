@@ -17,7 +17,7 @@
 
 :pv_path: /opt/infinispan/server/data
 
-include::oc_cmds.adoc[]
+include::kubectl_cmds.adoc[]
 include::links.adoc[]
 
 //

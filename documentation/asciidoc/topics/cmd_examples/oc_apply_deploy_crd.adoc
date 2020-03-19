@@ -1,2 +1,0 @@
-$ {oc_apply_cr} {github_raw}{github_tag}/deploy/crds/infinispan.org_infinispans_crd.yaml
-$ {oc_apply_cr} {github_raw}{github_tag}/deploy/crds/infinispan.org_caches_crd.yaml

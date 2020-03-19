@@ -1,18 +1,29 @@
 [id='ref_datagrid_service_crd-{context}']
 = Data Grid Service Resources
 
+//Community includes image
+ifndef::productized[]
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml_annotated/cr_datagrid_service.yaml[]
 ----
+endif::productized[]
 
-<1> names the {brandname} cluster.
-<2> specifies the number of pods in the cluster.
-<3> creates {datagridservice} pods.
-<4> configures size of the persistent volume for pod storage.
-<5> provides connection information for backup locations.
-<6> adds an authentication secret with user credentials.
-<7> adds a custom encryption secret for secure connections.
-<8> allocates resources to pods.
-<9> configures logging.
-<10> configures services for external traffic.
+//Product excludes image
+ifdef::productized[]
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/cr_datagrid_service_dg.yaml[]
+----
+endif::productized[]
+
+<1> Names the {brandname} cluster.
+<2> Specifies the number of nodes in the cluster.
+<3> Creates {datagridservice} clusters.
+<4> Configures size of the persistent volume.
+<5> Provides connection information for backup locations.
+<6> Adds an authentication secret with user credentials.
+<7> Adds a custom encryption secret for secure connections.
+<8> Allocates resources to nodes.
+<9> Configures logging.
+<10> Configures services for external traffic.

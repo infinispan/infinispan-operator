@@ -1,9 +1,0 @@
-
-ifndef::productized[]
-* {okd} 3.11 or later.
-* {k8s} 1.11 or later.
-endif::productized[]
-ifdef::productized[]
-* {okd} 3.11 or later.
-endif::productized[]
-* Administrator access to the {k8s} cluster.

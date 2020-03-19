@@ -6,24 +6,24 @@ For convenience, the following examples show how to invoke the REST API with
 `curl` using unencrypted connections. It is beyond the scope of this document
 to describe how to configure HTTP clients to use encryption.
 
-[TIP]
-====
-Use the `oc rsh` command to open a remote shell to a {brandname} pod where you
-can run `curl` commands, for example:
+.Procedure
 
+//Product only
+ifdef::productized[]
+. Open a remote shell to a {brandname} node, for example:
++
+[source,options="nowrap",subs=attributes+]
 ----
 $ oc rsh {example_crd_name}
 ----
-====
-
-.Procedure
-
++
+endif::productized[]
 . {cacheservice} provides a default cache instance, but {datagridservice} does not. Before you can store data with {datagridservice} clusters, you must create a cache as in the following example:
 +
 ----
 $ curl -X POST \
-  -u ${USERNAME}:${PASSWORD} \
-  ${SERVICE_HOSTNAME}:11222/rest/v2/caches/default
+  -u developer:$PASSWORD \
+  $SERVICE_HOSTNAME:11222/rest/v2/caches/default
   ...
   < HTTP/1.1 200 OK
   ...
@@ -33,9 +33,9 @@ $ curl -X POST \
 +
 ----
 $ curl -X POST \
-  -u ${USERNAME}:${PASSWORD} \
+  -u developer:$PASSWORD \
   -H 'Content-type: text/plain' -d 'world' \
-  ${SERVICE_HOSTNAME}:11222/rest/v2/caches/default/hello
+  $SERVICE_HOSTNAME:11222/rest/v2/caches/default/hello
   ...
   < HTTP/1.1 204 No Content
 ----
@@ -44,8 +44,8 @@ $ curl -X POST \
 +
 ----
 $ curl -X GET \
-  -u ${USERNAME}:${PASSWORD} \
-  ${SERVICE_HOSTNAME}:11222/rest/v2/caches/default/hello/
+  -u developer:$PASSWORD \
+  $SERVICE_HOSTNAME:11222/rest/v2/caches/default/hello/
   ...
   < HTTP/1.1 200 OK
   ...

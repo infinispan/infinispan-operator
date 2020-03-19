@@ -6,24 +6,18 @@
 include::yaml_annotated/cr_container_resources.yaml[]
 ----
 
-<1> specifies JVM options.
-<2> allocates host CPU resources to pods, measured in CPU units.
-<3> allocates host memory resources to pods, measured in bytes.
+<1> Specifies JVM options.
+<2> Allocates host CPU resources to node, measured in CPU units.
+<3> Allocates host memory resources to nodes, measured in bytes.
 
-When {ispn_operator} creates {brandname} pods, it uses `spec.container.cpu` and `spec.container.memory` to:
+When {ispn_operator} creates {brandname} clusters, it uses `spec.container.cpu`
+and `spec.container.memory` to:
 
-* Ensure that {k8s} nodes have sufficient capacity to run the pods. The
-{ispn_operator} uses `memory`, but only half the value of `cpu`, as resource
-requests to the {k8s} scheduler.
-* Constrain pod resource usage. {ispn_operator} sets the values of `cpu` and
+* Ensure that {k8s} has sufficient capacity to run the {brandname} node. By
+default {ispn_operator} requests **512Mi** of `memory` and **0.5** `cpu` from 
+the {k8s} scheduler.
+* Constrain node resource usage. {ispn_operator} sets the values of `cpu` and
 `memory` as resource limits.
-
-[NOTE]
-====
-You cannot modify JVM options or CPU and memory resources after you create
-{brandname} pods. In this case you must delete the existing {brandname} pods
-and create new ones.
-====
 
 .Garbage collection logging
 By default, {ispn_operator} does not log garbage collection (GC) messages.

@@ -1,27 +1,18 @@
 [id='start_operator']
 :context: start
 = Getting Started with {ispn_operator}
-You create, configure, and manage {brandname} clusters with {ispn_operator}
-by defining custom resource objects that specify {brandname} pod configuration.
+{ispn_operator} lets you create, configure, and manage {brandname} clusters.
 
 .Prerequisites
 //Community
 ifndef::productized[]
-* Either install {ispn_operator} from link:{link_operator_hub} or link:#deploying_operator_manually[install it manually].
-* Have an `oc` or a `kubectl` client in your `$PATH`.
-+
-This documentation provides examples with the `oc` client. If you're using a
-`kubectl` client, adapt the command examples where necessary.
+* Install {ispn_operator}.
+* Have an `oc` or a `kubectl` client.
 endif::productized[]
 //Product
 ifdef::productized[]
-* Install {ispn_operator} from the OperatorHub.
-* Have an `oc` client in your `$PATH`.
-endif::productized[]
-
-//Community
-ifndef::productized[]
-include::{topics}/proc_using_default_crs.adoc[leveloffset=+1]
+* Create a {ispn_operator} subscription.
+* Have an `oc` client.
 endif::productized[]
 
 include::{topics}/ref_crd.adoc[leveloffset=+1]

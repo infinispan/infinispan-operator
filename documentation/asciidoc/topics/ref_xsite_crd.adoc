@@ -8,18 +8,18 @@ include::yaml_annotated/cr_backup_site.yaml[]
 
 //Community
 ifndef::productized[]
-<1> specifies the DataGrid service. {brandname} supports cross-site replication with the DataGrid service only.
-<2> names the local site for a {brandname} cluster.
-<3> defines the externally exposed service.
-* Use `NodePort` for local clusters on the same network. For example, if you use Minikube for testing purposes.
+<1> Specifies {datagridservice}. {brandname} supports cross-site replication with {datagridservice} clusters only.
+<2> Names the local site for a {brandname} cluster.
+<3> Defines the externally exposed service.
+* Use `NodePort` for local clusters on the same network.
 * Use `LoadBalancer` for independent {openshiftshort} clusters.
-<4> provides connection information for all backup locations.
-<5> name of a backup location that matches the `.spec.service.sites.local.name` resource.
-<6> specifies a backup location.
+<4> Provides connection information for all backup locations.
+<5> Specifies a backup location that matches `.spec.service.sites.local.name`.
+<6> Specifies a backup location.
 //* Use `xsite://` if the backup location has a static hostname and port.
 * Use `minikube://` if the backup location is a Minikube instance.
 * Use `openshift://` if the backup location is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API.
-<7> specifies the access secret for a site.
+<7> Specifies the access secret for a site.
 +
 [NOTE]
 ====
@@ -30,11 +30,11 @@ endif::productized[]
 
 //Product
 ifdef::productized[]
-<1> specifies the DataGrid service. {brandname} supports cross-site replication with the DataGrid service only.
-<2> names the local site for a {brandname} cluster.
-<3> specifies `LoadBalancer` as the service that handles communication between backup locations.
-<4> provides connection information for all backup locations.
-<5> name of a backup location that matches the `.spec.service.sites.local.name` resource.
-<6> specifies the URL of the Kubernetes API for the backup location.
-<7> specifies the secret that contains the service account token for the backup site.
+<1> Specifies {datagridservice}. {brandname} supports cross-site replication with {datagridservice} clusters only.
+<2> Names the local site for a {brandname} cluster.
+<3> Specifies `LoadBalancer` as the service that handles communication between backup locations.
+<4> Provides connection information for all backup locations.
+<5> Specifies a backup location that matches `.spec.service.sites.local.name`.
+<6> Specifies the URL of the Kubernetes API for the backup location.
+<7> Specifies the secret that contains the service account token for the backup site.
 endif::productized[]

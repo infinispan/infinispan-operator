@@ -1,14 +1,15 @@
 [id='creating_services-{context}']
 = Creating {brandname} Services
 Define the `.spec.service.type` resource to create {cacheservice} and
-{datagridservice} pods with {ispn_operator}.
+{datagridservice} nodes with {ispn_operator}.
 
-By default, {ispn_operator} creates {brandname} clusters with {cacheservice}
-pods.
+By default, {ispn_operator} creates {brandname} clusters configured as a
+{cacheservice}.
 
 .Procedure
 
-* Set the service type for {brandname} pods in your custom resource definition and then apply the changes.
+* Specify the service type for {brandname} clusters with `spec.service.type` in
+your **Infinispan** CR and then apply the changes.
 
 For example, create {datagridservice} clusters as follows:
 
@@ -22,15 +23,14 @@ spec:
 
 [IMPORTANT]
 ====
-You cannot change the `.spec.service.type` resource after you create
-{brandname} clusters.
+You cannot change `.spec.service.type` after you create {brandname} clusters.
 
-For example, if you create a cluster of {cacheservice} pods, you cannot change
+For example, if you create a cluster of {cacheservice} nodes, you cannot change
 the service type to {datagridservice}. In this case you must create a new
-cluster with {datagridservice} pods in a different {k8s} namespace.
+cluster with {datagridservice} nodes in a different {k8s} namespace.
 ====
 
 .Reference
 
-* link:#ref_cache_service_crd-services[Cache Service Resources]
-* link:#ref_datagrid_service_crd-services[Data Grid Service Resources]
+* link:#ref_cache_service_crd-nodes[Cache Service Resources]
+* link:#ref_datagrid_service_crd-nodes[Data Grid Service Resources]
