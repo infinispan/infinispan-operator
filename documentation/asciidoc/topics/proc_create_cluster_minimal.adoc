@@ -1,10 +1,11 @@
 [id='creating_minimal_clusters-{context}']
 = Creating {brandname} Clusters
-Use {ispn_operator} to create clusters of two or more {brandname} pods.
+Use {ispn_operator} to create clusters of two or more {brandname} nodes.
 
 .Procedure
 
-. Create a custom resource that sets `replicas: 3`.
+. Specify the number of {brandname} nodes in the cluster with `spec.replicas`
+in your **Infinispan** CR.
 +
 For example, create a `cr_minimal.yaml` file as follows:
 +
@@ -13,14 +14,14 @@ For example, create a `cr_minimal.yaml` file as follows:
 include::cmd_examples/cat_cr_minimal.adoc[]
 ----
 +
-. Apply your custom resource definition.
+. Apply your **Infinispan** CR.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_apply_cr} cr_minimal.yaml
 ----
 +
-. Watch {ispn_operator} create the {brandname} pods.
+. Watch {ispn_operator} create the {brandname} nodes.
 +
 [source,options="nowrap",subs=attributes+]
 ----

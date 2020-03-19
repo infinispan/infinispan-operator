@@ -1,6 +1,10 @@
-<distributed-cache name="default" mode="SYNC" owners="1">
+<distributed-cache name="default" <1>
+                   mode="SYNC" <2>
+                   owners="1"> <3>
    <memory>
-    <off-heap eviction="MEMORY" strategy="REMOVE"/>
+    <off-heap eviction="MEMORY" <4>
+              strategy="REMOVE"/> <5>
    </memory>
-  <partition-handling when-split="DENY_READ_WRITES" merge-policy="REMOVE_ALL" />
+   <partition-handling when-split="ALLOW_READ_WRITES" <6>
+                       merge-policy="REMOVE_ALL"/> <7>
 </distributed-cache>

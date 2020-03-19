@@ -1,19 +1,19 @@
 [id='verifying_clusters-{context}']
 = Verifying {brandname} Clusters
-Review log messages to ensure that {brandname} pods receive clustered views.
+Review log messages to ensure that {brandname} nodes receive clustered views.
 
 .Procedure
 
 * Do either of the following:
 
-** Retrieve the cluster view from pod logs.
+** Retrieve the cluster view from logs.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::cmd_examples/oc_logs_clusterview.adoc[]
 ----
 
-** Retrieve the custom resource type for {ispn_operator}.
+** Retrieve the **Infinispan** CR for {ispn_operator}.
 +
 [source,options="nowrap",subs=attributes+]
 ----

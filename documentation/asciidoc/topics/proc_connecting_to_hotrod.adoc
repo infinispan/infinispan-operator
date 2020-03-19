@@ -1,28 +1,35 @@
 = Configuring Hot Rod Clients
 Configure Hot Rod Java clients to connect to {brandname} clusters.
 
-.Configuration objects
+.Hot Rod client `ConfigurationBuilder`
 
 [source,java,options="nowrap"]
 ----
+import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
+
 ConfigurationBuilder builder = new ConfigurationBuilder();
 builder.addServer()
-  //Connection
-	.host("${SERVICE_HOSTNAME}").port(11222) <1>
-  //Client intelligence
-	.clientIntelligence(ClientIntelligence.BASIC) <2>
-	.security()
-        //Authentication
-        .authentication().enable()
-          .username("${USERNAME}") <3>
-          .password("${PASSWORD}") <4>
-          .serverName("${CLUSTER_NAME}") <5>
-          .saslQop(SaslQop.AUTH) <6>
-          .saslMechanism("DIGEST-MD5") <7>
-        //Encryption
-        .ssl()
-          .sniHostName("${SERVICE_HOSTNAME}") <8>
-          .trustStorePath​(tls.crt); <9>
+       //Connection
+       .host("$SERVICE_HOSTNAME").port(11222)
+       //Client intelligence
+       //External clients can use `BASIC` intelligence only.
+       .clientIntelligence(ClientIntelligence.BASIC)
+       .security()
+          //Authentication
+          .authentication().enable()
+            //Application user credentials.
+            //The default username is developer.
+            .username("developer")
+            .password("$PASSWORD")
+            .serverName("$CLUSTER_NAME")
+            .saslQop(SaslQop.AUTH)
+            .saslMechanism("DIGEST-MD5")
+          //Encryption
+          .ssl()
+            .sniHostName("$SERVICE_HOSTNAME")
+            //Path to the TLS certificate.
+            //Clients automatically generate trust stores from certificates.
+            .trustStorePath​(tls.crt);
 ----
 
 .Hot Rod client properties
@@ -30,30 +37,25 @@ builder.addServer()
 [source,options="nowrap"]
 ----
 # Connection
-infinispan.client.hotrod.server_list=${SERVICE_HOSTNAME}:11222 <1>
+infinispan.client.hotrod.server_list=$SERVICE_HOSTNAME:11222
 
 # Client intelligence
-infinispan.client.hotrod.client_intelligence=BASIC <2>
+# External clients can use `BASIC` intelligence only.
+infinispan.client.hotrod.client_intelligence=BASIC
 
 # Authentication
 infinispan.client.hotrod.use_auth=true
-infinispan.client.hotrod.auth_username=${USERNAME} <3>
-infinispan.client.hotrod.auth_password=${PASSWORD} <4>
-infinispan.client.hotrod.auth_server_name=${CLUSTER_NAME} <5>
-infinispan.client.hotrod.sasl_properties.javax.security.sasl.qop=auth <6>
-infinispan.client.hotrod.sasl_mechanism=DIGEST-MD5 <7>
+# Application user credentials.
+# The default username is developer.
+infinispan.client.hotrod.auth_username=developer
+infinispan.client.hotrod.auth_password=$PASSWORD
+infinispan.client.hotrod.auth_server_name=$CLUSTER_NAME
+infinispan.client.hotrod.sasl_properties.javax.security.sasl.qop=auth
+infinispan.client.hotrod.sasl_mechanism=DIGEST-MD5
 
 # Encryption
-infinispan.client.hotrod.sni_host_name=${SERVICE_HOSTNAME} <8>
-infinispan.client.hotrod.trust_store_path=tls.crt <9>
+infinispan.client.hotrod.sni_host_name=$SERVICE_HOSTNAME
+# Path to the TLS certificate.
+# Clients automatically generate trust stores from certificates.
+infinispan.client.hotrod.trust_store_path=tls.crt
 ----
-
-<1> adds the cluster IP of a service or the hostname of a route.
-<2> configures client intelligence. Hot Rod clients running outside {k8s} can use `BASIC` intelligence only.
-<3> sets the username of an application user.
-<4> sets the password for the application user.
-<5> matches the name you gave to your {brandname} cluster.
-<6> uses the authentication only SASL Quality of Protection (QoP) setting.
-<7> uses `DIGEST-MD5` as the authentication mechanism.
-<8> sets the Server Name Indication (SNI) for {brandname} clusters.
-<9> sets the path to the TLS certificate if using encryption with clients running outside {k8s}. Hot Rod clients automatically generate trust stores from the TLS certificates.
