@@ -5,20 +5,19 @@ over a dedicated JGroups transport channel for replicating data.
 
 .Procedure
 
-. Create custom resources for {brandname} at each site.
+. Configure {brandname} clusters at each site with the **Infinispan** CR as
+necessary.
 +
 For example, create `lon.yaml` to configure **LON** and `nyc.yaml` to
-configure **NYC**. Both configurations must include the following resource
-definitions:
+configure **NYC**. Both configurations must include the following:
 +
 * `.spec.service.sites.local` names the local site for {brandname} clusters.
 * `.spec.service.sites.locations` provides the location of all site masters.
-{brandname} pods use this information to connect with each other and form
+{brandname} nodes use this information to connect with each other and form
 cross-site views.
 +
-. Configure {brandname} clusters at each site, for example:
-.. Log in to {ocp} at **LON**.
-.. Apply the custom resources for **LON**.
+. Instantiate {brandname} clusters at each site, for example:
+.. Apply the **Infinispan** CR for **LON**.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -26,7 +25,7 @@ $ {oc_apply_cr} lon.yaml
 ----
 +
 .. Log in to {ocp} at **NYC**.
-.. Apply the custom resources for **NYC**.
+.. Apply the **Infinispan** CR for **NYC**.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -39,7 +38,7 @@ For example, do the following on **LON**:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc logs {example_crd_name}-0 | grep x-site
+$ {oc_logs} {example_crd_name}-0 | grep x-site
 
 INFO  [org.infinispan.XSITE] (jgroups-5,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC]
 INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC, LON]

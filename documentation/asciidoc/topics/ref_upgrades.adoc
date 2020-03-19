@@ -3,9 +3,9 @@
 {ispn_operator} upgrades {brandname} when new versions become available.
 
 To upgrade {brandname} clusters, {ispn_operator} checks the version of the
-image for {brandname} pods. If {ispn_operator} determines that a new
-version of the image is available, it gracefully shuts down all pods, applies
-the new image, and then restarts the pods.
+image for {brandname} nodes. If {ispn_operator} determines that a new
+version of the image is available, it gracefully shuts down all nodes, applies
+the new image, and then restarts the nodes.
 
 //Community only
 ifndef::productized[]

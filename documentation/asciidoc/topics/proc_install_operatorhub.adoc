@@ -1,0 +1,5 @@
+[id='operatorhub']
+= Installing from OperatorHub
+
+Locate the https://operatorhub.io/operator/infinispan[{ispn_operator}] on
+OperatorHub.io and follow the instructions.

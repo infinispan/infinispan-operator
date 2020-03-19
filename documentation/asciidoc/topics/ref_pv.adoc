@@ -1,7 +1,7 @@
 [id='ref_pv-{context}']
 = Persistent Volume Claims
 
-{ispn_operator} creates persistent volume claims for pods at: +
+{ispn_operator} mounts persistent volumes at: +
 `{pv_path}`
 
 [NOTE]
@@ -12,4 +12,4 @@ Persistent volume claims use the `ReadWriteOnce (RWO)` access mode.
 .Reference
 
 * link:#shutdown[Shutting Down {brandname} Clusters]
-* link:#storage_resources-pods[Storage Resources]
+* link:#storage_resources-nodes[Storage Resources]

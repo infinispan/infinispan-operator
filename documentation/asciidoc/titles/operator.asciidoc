@@ -12,6 +12,6 @@
 include::{topics}/attributes/community-attributes.adoc[]
 
 [id='infinispan_operator']
-= Running the {ispn_operator}
+= Running {brandname} on {k8s} with {ispn_operator}
 
 include::stories.adoc[]

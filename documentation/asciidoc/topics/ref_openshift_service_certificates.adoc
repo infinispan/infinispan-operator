@@ -1,7 +1,7 @@
-[id='using_platform_certs-{context}']
-= Using {openshift} Service Certificates
-{ispn_operator} automatically generates TLS certificates signed by the
-{openshift} service CA.
+[id='platform_certs-{context}']
+= {openshift} Service Certificates
+If the {openshift} service CA is available, {ispn_operator} automatically
+generates a certificate, `tls.crt`, and key, `tls.key`, in PEM format.
 
 [NOTE]
 ====
@@ -14,21 +14,5 @@ For this reason, service certificates can be fully trusted only inside
 outside {openshiftshort}, you should use custom TLS certificates.
 ====
 
-If the {openshift} service CA is available, {ispn_operator} automatically
-generates a certificate, `tls.crt`, and key, `tls.key`, in PEM format.
-
 Certificates are valid for one year and are automatically replaced before they
 expire.
-
-{ispn_operator} stores service certificates and keys in a secret named
-`-cert-secret` that is prefixed with the {brandname} cluster name.
-
-For example:
-
-[source,yaml,options="nowrap",subs=attributes+]
-----
-metadata:
-  name: {example_crd_name}
-----
-
-Results in `{example_crd_name}-cert-secret`.

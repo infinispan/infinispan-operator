@@ -15,15 +15,14 @@ spec:
           key: password
           name: basic-auth <4>
       interval: 30s
-      port: ispn <5>
-      scheme: https <6>
+      scheme: https <5>
       tlsConfig:
         insecureSkipVerify: true
-        serverName: certificate-CN <7>
+        serverName: certificate-CN <6>
   namespaceSelector:
     matchNames:
-      - infinispan <8>
+      - infinispan <7>
   selector:
     matchLabels:
       app: infinispan-service
-      clusterName: cluster-name <9>
+      clusterName: cluster-name <8>

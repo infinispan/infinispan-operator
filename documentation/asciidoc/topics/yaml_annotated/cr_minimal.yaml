@@ -1,6 +1,6 @@
-apiVersion: infinispan.org/v1 <1>
-kind: Infinispan <2>
+apiVersion: infinispan.org/v1
+kind: Infinispan
 metadata:
-  name: <3>
+  name: <1>
 spec:
-  replicas: <4>
+  replicas: <2>
