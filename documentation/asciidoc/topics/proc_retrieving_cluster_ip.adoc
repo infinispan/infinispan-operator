@@ -6,5 +6,5 @@ For example, get the cluster IP for the internal service as follows:
 
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc get service {example_crd_name} -o jsonpath={.spec.clusterIP}
+$ {oc_get_service} {example_crd_name} -o jsonpath={.spec.clusterIP}
 ----

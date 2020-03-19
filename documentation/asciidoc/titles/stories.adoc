@@ -3,7 +3,7 @@ include::{stories}/assembly_operator_overview.adoc[leveloffset=+1]
 
 //Community only
 ifndef::productized[]
-include::{stories}/assembly_deploying_operator.adoc[leveloffset=+1]
+include::{stories}/assembly_installing_operator.adoc[leveloffset=+1]
 endif::productized[]
 
 include::{stories}/assembly_creating_clusters.adoc[leveloffset=+1]

@@ -1,7 +1,0 @@
-= Using Default {ispn_operator} Resources
-{brandname} provides default resource definitions.
-
-[source,bash,options="nowrap",subs=attributes+]
-----
-include::cmd_examples/oc_apply_cr_minimal.adoc[]
-----

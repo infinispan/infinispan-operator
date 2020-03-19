@@ -7,21 +7,13 @@ by defining custom resource objects that specify {brandname} pod configuration.
 .Prerequisites
 //Community
 ifndef::productized[]
-* Either install {ispn_operator} from link:{link_operator_hub} or link:#deploying_operator_manually[install it manually].
+* Install {ispn_operator}.
 * Have an `oc` or a `kubectl` client in your `$PATH`.
-+
-This documentation provides examples with the `oc` client. If you're using a
-`kubectl` client, adapt the command examples where necessary.
 endif::productized[]
 //Product
 ifdef::productized[]
-* Install {ispn_operator} from the OperatorHub.
+* Create a {ispn_operator} subscription.
 * Have an `oc` client in your `$PATH`.
-endif::productized[]
-
-//Community
-ifndef::productized[]
-include::{topics}/proc_using_default_crs.adoc[leveloffset=+1]
 endif::productized[]
 
 include::{topics}/ref_crd.adoc[leveloffset=+1]

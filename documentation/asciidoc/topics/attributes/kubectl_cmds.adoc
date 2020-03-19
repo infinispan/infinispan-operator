@@ -1,0 +1,15 @@
+:oc_get_pods: kubectl get pods
+:oc_get_pods_w: kubectl get pods -w
+:oc_get_secret: kubectl get secret
+:oc_get_infinispan: kubectl get infinispan -o yaml
+:oc_get_services: kubectl get services
+:oc_get_service: kubectl get services
+
+:oc_apply_cr: kubectl apply -f
+:oc_apply_cr_custom: kubectl apply -f my_crd.yaml
+
+:oc_logs: kubectl logs
+
+:oc_wait: kubectl wait
+
+:oc_well_formed: kubectl wait --for condition=wellFormed --timeout=240s infinispan/{example_crd_name}

@@ -1,1 +1,0 @@
-$ {oc_apply_cr} {github_raw}{github_tag}/deploy/rbac.yaml

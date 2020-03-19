@@ -4,7 +4,7 @@ Use {ispn_operator} to create clusters of two or more {brandname} pods.
 
 .Procedure
 
-. Create a custom resource that sets `replicas: 3`.
+. Create a custom resource that sets `replicas: 2`.
 +
 For example, create a `cr_minimal.yaml` file as follows:
 +
