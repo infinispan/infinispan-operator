@@ -6,7 +6,7 @@ DRY_RUN=${DRY_RUN:-true}
 CURRENT_BRANCH=$(git branch | grep \* | cut -d ' ' -f2)
 BUILD_MANIFESTS_DIR=build/_output/olm-catalog
 CSV_FILE="infinispan-operator.clusterserviceversion.yaml"
-CRD_FILE="infinispans.infinispan.org.crd.yaml"
+CRD_FILES="infinispan.org_infinispans_crd.yaml infinispan.org_caches_crd.yaml"
 
 validate() {
   if [ -z "${RELEASE_NAME}" ]; then
@@ -132,14 +132,20 @@ prepareBranches() {
   popd
 
   updatePackageFile ${packagePath}
-
-  cp deploy/olm-catalog/${CRD_FILE} ${repoDir}/${releaseDir}/${CRD_FILE}
+  
+  for CRD_FILE ${CRD_FILES}
+  do
+    cp deploy/olm-catalog/${CRD_FILE} ${repoDir}/${releaseDir}/${CRD_FILE}
+  done
 
   rm -f ${repoDir}/${releaseDir}/*.backup
   rm -f ${repoDir}/${dir}/*.backup
 
   pushd ${repoDir}
-  git add ${releaseDir}/${CRD_FILE}
+  for CRD_FILE ${CRD_FILES}
+  do
+    git add ${releaseDir}/${CRD_FILE}
+  done
   git commit -s -a -m "Update Infinispan manifests for ${RELEASE_NAME} release"
   popd
 }

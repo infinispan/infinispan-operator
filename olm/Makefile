@@ -68,7 +68,8 @@ build-upgrade:
 	mkdir ${UPGRADE_VERSION}; \
 	cp ../../../deploy/olm-catalog/infinispan-operator.clusterserviceversion.yaml \
 	${UPGRADE_VERSION}/${UPGRADE_CSV_YAML}; \
-	cp ../../../deploy/olm-catalog/infinispans.infinispan.org.crd.yaml ${UPGRADE_VERSION}; \
+	cp ../../../deploy/olm-catalog/infinispan.org_infinispans_crd.yaml ${UPGRADE_VERSION}; \
+	cp ../../../deploy/olm-catalog/infinispan.org_caches_crd.yaml ${UPGRADE_VERSION}; \
 	sed -i'.backup' "s/9.9.9/${UPGRADE_VERSION}/g" ${UPGRADE_VERSION}/${UPGRADE_CSV_YAML}; \
 	sed -i'.backup' "s/9.9.8/$${replaced}/g" ${UPGRADE_VERSION}/${UPGRADE_CSV_YAML}; \
 	sed -i'.backup' "s/infinispan\/server:latest/infinispan\/server:${call latest-server}/g" ${UPGRADE_VERSION}/${UPGRADE_CSV_YAML}; \

@@ -1,1 +1,3 @@
-$ {oc_apply_cr} {github_raw}{github_tag}/deploy/rbac.yaml
+$ {oc_apply_cr} {github_raw}{github_tag}/deploy/role.yaml
+$ {oc_apply_cr} {github_raw}{github_tag}/deploy/service_account.yaml
+$ {oc_apply_cr} {github_raw}{github_tag}/deploy/role_binding.yaml

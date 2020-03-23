@@ -482,28 +482,39 @@ func (k TestKubernetes) RunOperator(namespace string) chan struct{} {
 
 // Install resources from rbac.yaml required by the Infinispan operator
 func (k TestKubernetes) installRBAC(namespace string) {
-	filename := getAbsolutePath("../../deploy/rbac.yaml")
-	f, err := os.Open(filename)
-	ExpectNoError(err)
-	yamlReader := yaml.NewYAMLReader(bufio.NewReader(f))
 
+	yamlReader, err := getYamlReaderFromFile("../../deploy/role.yaml")
+	ExpectNoError(err)
 	read, _ := yamlReader.Read()
 	role := rbacv1.Role{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&role)
 	ExpectNoError(err)
 	k.CreateOrUpdateRole(&role, namespace)
 
+	yamlReader, err = getYamlReaderFromFile("../../deploy/service_account.yaml")
+	ExpectNoError(err)
 	read2, _ := yamlReader.Read()
 	sa := v1.ServiceAccount{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read2))).Decode(&sa)
 	ExpectNoError(err)
 	k.CreateOrUpdateSa(&sa, namespace)
 
+	yamlReader, err = getYamlReaderFromFile("../../deploy/role_binding.yaml")
+	ExpectNoError(err)
 	read3, _ := yamlReader.Read()
 	binding := rbacv1.RoleBinding{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read3))).Decode(&binding)
 	ExpectNoError(err)
 	k.CreateOrUpdateRoleBinding(&binding, namespace)
+}
+
+func getYamlReaderFromFile(filename string) (*yaml.YAMLReader, error) {
+	absFileName := getAbsolutePath(filename)
+	f, err := os.Open(absFileName)
+	if err != nil {
+		return nil, err
+	}
+	return yaml.NewYAMLReader(bufio.NewReader(f)), nil
 }
 
 // Obtain the file absolute path given a relative path
@@ -517,16 +528,19 @@ func getAbsolutePath(relativeFilePath string) string {
 }
 
 func (k TestKubernetes) installCRD(namespace string) {
-	filename := getAbsolutePath("../../deploy/crd.yaml")
-	f, err := os.Open(filename)
-	ExpectNoError(err)
-	yamlReader := yaml.NewYAMLReader(bufio.NewReader(f))
-
+	yamlReader, err := getYamlReaderFromFile("../../deploy/crds/infinispan.org_infinispans_crd.yaml")
 	read, _ := yamlReader.Read()
-	crd := apiextv1beta1.CustomResourceDefinition{}
-	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crd)
+	crdInfinispan := apiextv1beta1.CustomResourceDefinition{}
+	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crdInfinispan)
 	ExpectNoError(err)
-	k.CreateAndWaitForCRD(&crd, namespace)
+	k.CreateAndWaitForCRD(&crdInfinispan, namespace)
+
+	yamlReader, err = getYamlReaderFromFile("../../deploy/crds/infinispan.org_caches_crd.yaml")
+	read, _ = yamlReader.Read()
+	crdCache := apiextv1beta1.CustomResourceDefinition{}
+	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crdCache)
+	ExpectNoError(err)
+	k.CreateAndWaitForCRD(&crdCache, namespace)
 }
 
 // Run the operator locally
