@@ -1,0 +1,7 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Cache
+metadata:
+  name: example-cache
+spec:
+  # Add fields here
+  size: 3
