@@ -61,8 +61,11 @@ define deploy-operator
 minikube profile "$1"
 kubectl create ns "${NAMESPACE}" || true
 kubectl config set-context --current --namespace="${NAMESPACE}"
-kubectl apply -f ../../deploy/rbac.yaml
-kubectl apply -f ../../deploy/crd.yaml
+kubectl apply -f ../../deploy/role.yaml
+kubectl apply -f ../../deploy/service_account.yaml
+kubectl apply -f ../../deploy/role_binding.yaml
+kubectl apply -f ../../deploy/crds/infinispan.org_infinispans_crd.yaml
+kubectl apply -f ../../deploy/crds/infinispan.org_caches_crd.yaml
 cp ../../deploy/operator.yaml .
 awk '{sub(/Always/,"IfNotPresent")}1' operator.yaml > temp.txt && mv temp.txt operator.yaml
 kubectl apply -f operator.yaml

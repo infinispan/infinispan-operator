@@ -9,7 +9,10 @@ echo "Using PROJECT_NAME '$PROJECT_NAME'"
 
 oc login -u ${OC_USER}
 oc project "$PROJECT_NAME"
-oc apply -f deploy/rbac.yaml
-oc apply -f deploy/crd.yaml
+oc apply -f deploy/role.yaml
+oc apply -f deploy/service_account.yaml
+oc apply -f deploy/role_binding.yaml
+oc apply -f deploy/crds/infinispan.org_infinispans_crd.yaml
+oc apply -f deploy/crds/infinispan.org_caches_crd.yaml
 oc wait --for condition=established crd infinispans.infinispan.org --timeout=60s
 WATCH_NAMESPACE="$PROJECT_NAME" ./build/_output/bin/infinispan-operator -kubeconfig "$KUBECONFIG"
