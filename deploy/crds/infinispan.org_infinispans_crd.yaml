@@ -10,6 +10,8 @@ spec:
     plural: infinispans
     singular: infinispan
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: Infinispan is the Schema for the infinispans API
@@ -236,8 +238,6 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
-              required:
-              - categories
               type: object
             replicas:
               format: int32
@@ -511,23 +511,15 @@ spec:
                       type: array
                   required:
                   - local
-                  - locations
                   type: object
                 type:
                   type: string
               required:
               - container
-              - sites
               - type
               type: object
           required:
-          - container
-          - expose
-          - image
-          - logging
           - replicas
-          - security
-          - service
           type: object
         status:
           description: InfinispanStatus defines the observed state of Infinispan
@@ -583,7 +575,6 @@ spec:
             statefulSetName:
               type: string
           required:
-          - conditions
           - security
           - statefulSetName
           type: object

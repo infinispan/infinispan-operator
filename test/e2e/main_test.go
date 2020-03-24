@@ -76,6 +76,7 @@ func TestMain(m *testing.M) {
 	if "true" == getEnvWithDefault("RUN_LOCAL_OPERATOR", "true") {
 		kubernetes.DeleteNamespace(namespace)
 		kubernetes.DeleteCRD("infinispans.infinispan.org")
+		kubernetes.DeleteCRD("caches.infinispan.org")
 		kubernetes.NewNamespace(namespace)
 		stopCh := kubernetes.RunOperator(Namespace)
 		code := m.Run()

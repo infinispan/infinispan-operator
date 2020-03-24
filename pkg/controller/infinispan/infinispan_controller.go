@@ -664,7 +664,7 @@ func updateSecurity(infinispan *infinispanv1.Infinispan, client client.Client, r
 	infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
 	err = client.Status().Update(context.TODO(), infinispan)
 	if err != nil {
-		reqLogger.Error(err, "failed to update Infinispan Status", "Infinispan.Namespace")
+		reqLogger.Error(err, "failed to update Infinispan Status", "Infinispan.Namespace", infinispan.Namespace)
 		return err
 	}
 	reqLogger.Info("Security set",
