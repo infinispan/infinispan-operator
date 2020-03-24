@@ -49,7 +49,7 @@ const (
 type InfinispanServiceSpec struct {
 	Type      ServiceType                    `json:"type"`
 	Container InfinispanServiceContainerSpec `json:"container"`
-	Sites     InfinispanSitesSpec            `json:"sites"`
+	Sites     InfinispanSitesSpec            `json:"sites,optional,omitempty"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container
@@ -71,23 +71,23 @@ type InfinispanSiteLocationSpec struct {
 }
 
 type InfinispanSitesSpec struct {
-	Local   InfinispanSitesLocalSpec    `json:"local"`
-	Locations []InfinispanSiteLocationSpec `json:"locations"`
+	Local     InfinispanSitesLocalSpec     `json:"local"`
+	Locations []InfinispanSiteLocationSpec `json:"locations,omitempty"`
 }
 
 type InfinispanLoggingSpec struct {
-	Categories map[string]string `json:"categories"`
+	Categories map[string]string `json:"categories,omitempty"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	Replicas  int32                   `json:"replicas"`
-	Image     string                  `json:"image"`
-	Security  InfinispanSecurity      `json:"security"`
-	Container InfinispanContainerSpec `json:"container"`
-	Service   InfinispanServiceSpec   `json:"service"`
-	Logging   InfinispanLoggingSpec   `json:"logging"`
-	Expose    v1.ServiceSpec          `json:"expose"`
+	Image     string                  `json:"image,optional,omitempty"`
+	Security  InfinispanSecurity      `json:"security,optional,omitempty"`
+	Container InfinispanContainerSpec `json:"container,optional,omitempty"`
+	Service   InfinispanServiceSpec   `json:"service,optional,omitempty"`
+	Logging   InfinispanLoggingSpec   `json:"logging,optional,omitempty"`
+	Expose    v1.ServiceSpec          `json:"expose,optional,omitempty"`
 }
 
 // InfinispanCondition define a condition of the cluster
@@ -103,7 +103,8 @@ type InfinispanCondition struct {
 // InfinispanStatus defines the observed state of Infinispan
 type InfinispanStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	Conditions              []InfinispanCondition `json:"conditions"`
+	// +optional
+	Conditions              []InfinispanCondition `json:"conditions,omitempty"`
 	StatefulSetName         string                `json:"statefulSetName"`
 	Security                InfinispanSecurity    `json:"security"`
 	ReplicasWantedAtRestart int32                 `json:"replicasWantedAtRestart,omitempty"`
@@ -114,6 +115,7 @@ type InfinispanStatus struct {
 
 // Infinispan is the Schema for the infinispans API
 // +k8s:openapi-gen=true
+// +kubebuilder:subresource:status
 type Infinispan struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

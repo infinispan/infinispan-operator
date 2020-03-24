@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/go-logr/logr v0.1.0
+	github.com/go-openapi/spec v0.19.4
 	github.com/operator-framework/operator-sdk v0.15.2
 	github.com/prometheus/client_golang v1.2.1
 	github.com/spf13/pflag v1.0.5
@@ -12,6 +13,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.0.0
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d
 	sigs.k8s.io/controller-runtime v0.4.0
 )
 
