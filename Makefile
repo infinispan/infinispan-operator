@@ -43,6 +43,10 @@ endif
 push: image
 	docker push $(IMAGE):$(TAG)
 
+## push-okd4   Push docker image to the OCP|OKD4 and deploy operator
+push-okd4: build
+	build/push-okd4.sh
+
 ## clean       Remove all generated build files.
 clean:
 	rm -rf build/_output
