@@ -16,6 +16,7 @@ const ServerHTTPBasePath = "rest/v2"
 const ServerHTTPClusterStop = ServerHTTPBasePath + "/cluster?action=stop"
 const ServerHTTPHealthPath = ServerHTTPBasePath + "/cache-managers/default/health"
 const ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
+const ServerHTTPPreStopHandlerPath = ServerHTTPBasePath + "server?action=stop"
 
 // Cluster abstracts interaction with an Infinispan cluster
 type Cluster struct {
@@ -219,5 +220,15 @@ func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 			Scheme: scheme,
 			Path: ServerHTTPHealthStatusPath,
 			Port: intstr.FromInt(11222)},
+	}
+}
+
+// Return handler for PreStop hook setup
+func NodePreStopHandler(scheme corev1.URIScheme) *corev1.Handler {
+	return &corev1.Handler{
+		HTTPGet: &corev1.HTTPGetAction{
+			Scheme: scheme,
+			Path:   ServerHTTPPreStopHandlerPath,
+			Port:   intstr.FromInt(11222)},
 	}
 }

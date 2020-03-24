@@ -1162,6 +1162,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							PeriodSeconds:       10,
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
+						Lifecycle: &corev1.Lifecycle{PreStop: ispnutil.NodePreStopHandler(protocolScheme)},
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								"cpu":    cpuRequests,
