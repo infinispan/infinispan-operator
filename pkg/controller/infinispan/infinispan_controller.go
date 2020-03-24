@@ -1112,6 +1112,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	if infinispanProtocol(m) != "http" {
 		protocolScheme = corev1.URISchemeHTTPS
 	}
+	gracePeriod := int64(30)
 	dep := &appsv1.StatefulSet{
 
 		TypeMeta: metav1.TypeMeta{
@@ -1140,6 +1141,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &gracePeriod,
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
@@ -1162,7 +1164,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							PeriodSeconds:       10,
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
-						Lifecycle: &corev1.Lifecycle{PreStop: ispnutil.NodePreStopHandler(protocolScheme)},
+						Lifecycle: &corev1.Lifecycle{PreStop: &corev1.Handler{Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "AUTH=$(grep operator /opt/infinispan/server/conf/users.properties | sed 's/=/:/') ; curl -u $AUTH -k --http1.1 https://$HOSTNAME:11222/rest/v2/server?action=stop ; sleep 10"}}}},
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								"cpu":    cpuRequests,
