@@ -547,7 +547,7 @@ func reconcileInfinispan(t *testing.T, ispnv *ispnv1.Infinispan, restMock func(*
 	restResp := &http.Response{}
 
 	scheme.AddKnownTypes(ispnv1.SchemeGroupVersion, ispnv)
-	client := fake.NewFakeClient(objects...)
+	client := fake.NewFakeClientWithScheme(scheme, objects...)
 	httpClient := fakerest.CreateHTTPClient(restMock)
 
 	fakeRest := &fakerest.RESTClient{
