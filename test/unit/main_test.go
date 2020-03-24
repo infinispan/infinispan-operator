@@ -296,16 +296,26 @@ func TestExposeService(t *testing.T) {
 
 	for _, serviceType := range serviceTypes {
 		infinispan.Spec.Expose.Type = serviceType
+		infinispan.Spec.Expose.Ports = append(infinispan.Spec.Expose.Ports, corev1.ServicePort{NodePort: defaultNodePort})
 		r := testDefaultConfiguration(t, infinispan, basicRestMock)
 		checkIdentitiesSecret(t, r.GetClient(), *tstutil.GetStatefulSet(r.GetClient(), types.NamespacedName{operatorNamespace, operatorName}), operatorName+"-generated-secret")
 
 		externalService := tstutil.GetService(r.GetClient(), types.NamespacedName{operatorNamespace, operatorName + "-external"})
 
-		assert.NotNilf(t, externalService, "External service with type (%v) not found", serviceType)
-		assert.Equalf(t, serviceType, externalService.Spec.Type, "Service type: (%v)", serviceType)
-		assert.Equalf(t, defaultHotrodPort, externalService.Spec.Ports[0].Port, "Service type: (%v)", serviceType)
-		assert.Equalf(t, defaultHotrodPort, externalService.Spec.Ports[0].TargetPort.IntVal, "Service type: (%v)", serviceType)
-		assert.Equalf(t, defaultNodePort, externalService.Spec.Ports[0].NodePort, "Service type: (%v)", serviceType)
+		if serviceType == corev1.ServiceTypeLoadBalancer || serviceType == corev1.ServiceTypeNodePort {
+			// Only ServiceTypeLoadBalancer and ServiceTypeNodePort are supported
+			assert.NotNilf(t, externalService, "External service with type (%v) not found", serviceType)
+			assert.Equalf(t, serviceType, externalService.Spec.Type, "Service type: (%v)", serviceType)
+			assert.Equalf(t, defaultHotrodPort, externalService.Spec.Ports[0].Port, "Service type: (%v)", serviceType)
+			assert.Equalf(t, defaultHotrodPort, externalService.Spec.Ports[0].TargetPort.IntVal, "Service type: (%v)", serviceType)
+			if serviceType == corev1.ServiceTypeLoadBalancer {
+				assert.Equalf(t, int32(0), externalService.Spec.Ports[0].NodePort, "Service type: (%v)", serviceType)
+			} else {
+				assert.Equalf(t, defaultNodePort, externalService.Spec.Ports[0].NodePort, "Service type: (%v)", serviceType)
+			}
+		} else {
+			assert.Nil(t, externalService)
+		}
 	}
 }
 

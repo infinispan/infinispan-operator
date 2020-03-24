@@ -66,36 +66,36 @@ func FindEnv(envs []corev1.EnvVar, name string) *corev1.EnvVar {
 	return nil
 }
 
-func GetStatefulSet(client client.Client, ns types.NamespacedName) *appsv1.StatefulSet {
+func GetStatefulSet(cl client.Client, ns types.NamespacedName) *appsv1.StatefulSet {
 	sset := &appsv1.StatefulSet{}
-	err := client.Get(context.TODO(), ns, sset)
+	err := cl.Get(context.TODO(), ns, sset)
 	if err == nil {
 		return sset
 	}
 	return nil
 }
 
-func GetService(client client.Client, ns types.NamespacedName) *corev1.Service {
+func GetService(cl client.Client, ns types.NamespacedName) *corev1.Service {
 	service := &corev1.Service{}
-	err := client.Get(context.TODO(), ns, service)
+	err := cl.Get(context.TODO(), ns, service)
 	if err == nil {
 		return service
 	}
 	return nil
 }
 
-func GetConfigMap(client client.Client, ns types.NamespacedName) *corev1.ConfigMap {
+func GetConfigMap(cl client.Client, ns types.NamespacedName) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{}
-	err := client.Get(context.TODO(), ns, configMap)
+	err := cl.Get(context.TODO(), ns, configMap)
 	if err == nil {
 		return configMap
 	}
 	return nil
 }
 
-func GetSecret(client client.Client, ns types.NamespacedName) *corev1.Secret {
+func GetSecret(cl client.Client, ns types.NamespacedName) *corev1.Secret {
 	secret := &corev1.Secret{}
-	err := client.Get(context.TODO(), ns, secret)
+	err := cl.Get(context.TODO(), ns, secret)
 	if err == nil {
 		return secret
 	}
