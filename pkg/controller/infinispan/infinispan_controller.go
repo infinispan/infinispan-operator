@@ -924,7 +924,7 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
                     strategy="REMOVE"
                 />
             </memory>
-            <partition-handling when-split="DENY_READ_WRITES" merge-policy="REMOVE_ALL" />
+            <partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL" />
         </distributed-cache>
     </cache-container></infinispan>`
 
