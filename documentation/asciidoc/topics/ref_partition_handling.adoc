@@ -1,7 +1,7 @@
 By default, {cacheservice} deployments use partition handling to ensure data
 consistency.
 
-* `DENY_READ_WRITES` conflict resolution strategy that denies read and write operations for cache entries unless all the owners of a segment are in the same partition.
+* `ALLOW_READ_WRITES` conflict resolution strategy that allows read and write operations for cache entries even if the owners of a segment are in different partitions.
 * `REMOVE_ALL` merge policy that removes entries from the cache when conflicts are detected.
 
 [NOTE]
