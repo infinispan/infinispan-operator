@@ -593,7 +593,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Without those ips, it's not possible to execute next calls
 	if !arePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
-		return reconcile.Result{Requeue: true, RequeueAfter: time.Second}, nil
+		return reconcile.Result{}, nil
 	}
 
 	// Inspect the system and get the current Infinispan conditions
@@ -620,7 +620,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// View didn't form, requeue until view has formed
 	if notClusterFormed(currConds, podList.Items, infinispan.Spec.Replicas) {
 		reqLogger.Info("notClusterFormed")
-		return reconcile.Result{Requeue: true, RequeueAfter: time.Second}, nil
+		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, nil
 	}
 	if isCache(infinispan) && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster) {
 		reqLogger.Info("createDefaultCache")
