@@ -1,9 +1,7 @@
-package util
+package security
 
 import (
 	"errors"
-	"fmt"
-	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"gopkg.in/yaml.v2"
 	"math/rand"
 	"time"
@@ -86,13 +84,5 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 	}
 
 	return "", errors.New("no operator credentials found")
-}
-
-// GetSecretName returns the secret name associated with a server
-func GetSecretName(m *infinispanv1.Infinispan) string {
-	if m.Spec.Security.EndpointSecretName == "" {
-		return fmt.Sprintf("%v-generated-secret", m.GetName())
-	}
-	return m.Spec.Security.EndpointSecretName
 }
 

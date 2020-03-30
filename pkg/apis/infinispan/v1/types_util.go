@@ -1,5 +1,7 @@
 package v1
 
+import "fmt"
+
 // GetCondition return the Status of the given condition or nil
 // if condition is not present
 func (ispn *Infinispan) GetCondition(condition string) *string {
@@ -40,4 +42,12 @@ func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 		changed = changed || ispn.SetCondition(c.Type, c.Status, c.Message)
 	}
 	return changed
+}
+
+// GetSecretName returns the secret name associated with a server
+func (ispn *Infinispan) GetSecretName() string {
+	if ispn.Spec.Security.EndpointSecretName == "" {
+		return fmt.Sprintf("%v-generated-secret", ispn.GetName())
+	}
+	return ispn.Spec.Security.EndpointSecretName
 }

@@ -1,4 +1,4 @@
-package util
+package infinispan
 
 import (
 	"encoding/json"
@@ -6,38 +6,12 @@ import (
 	"strconv"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/k8s"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var log = logf.Log.WithName("cluster_util")
-
-const ServerHTTPBasePath = "rest/v2"
-const ServerHTTPClusterStop = ServerHTTPBasePath + "/cluster?action=stop"
-const ServerHTTPHealthPath = ServerHTTPBasePath + "/cache-managers/default/health"
-const ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
-
-// Cluster abstracts interaction with an Infinispan cluster
-type Cluster struct {
-	Kubernetes *Kubernetes
-}
-
-// NewCluster creates a new instance of Cluster
-func NewCluster(kubernetes *Kubernetes) *Cluster {
-	return &Cluster{Kubernetes: kubernetes}
-}
-
-// ClusterInterface represents the interface of a Cluster instance
-type ClusterInterface interface {
-	GetClusterSize(secretName, podName, namespace, protocol string) (int, error)
-	GracefulShutdown(secretName, podName, namespace, protocol string) error
-	GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error)
-	ExistsCache(cacheName, secretName, podName, namespace, protocol string) bool
-	CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error
-	GetMemoryLimitBytes(podName, namespace string) (uint64, error)
-	GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error)
-}
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
 func (c Cluster) GetClusterSize(secretName, podName, namespace, protocol string) (int, error) {
@@ -59,28 +33,18 @@ func (c Cluster) GracefulShutdown(secretName, podName, namespace, protocol strin
 	if err != nil {
 		return err
 	}
-	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, ServerHTTPClusterStop)
+	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, constants.ServerHTTPClusterStop)
 	commands := []string{"curl", "-X", "GET", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
 	logger.Info("get cluster members", "url", httpURL)
 
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOptions := k8s.ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	_, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err == nil {
 		return nil
 	}
 	return fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
-}
-
-// ClusterHealth represents the health of the cluster
-type ClusterHealth struct {
-	Nodes []string `json:"node_names"`
-}
-
-// Health represents the health of an Infinispan server
-type Health struct {
-	ClusterHealth ClusterHealth `json:"cluster_health"`
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
@@ -95,13 +59,13 @@ func (c Cluster) GetClusterMembers(secretName, podName, namespace, protocol stri
 		return nil, err
 	}
 
-	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, ServerHTTPHealthPath)
+	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, constants.ServerHTTPHealthPath)
 	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
 	logger.Info("get cluster members", "url", httpURL)
 
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOptions := k8s.ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err == nil {
 		result := execOut.Bytes()
@@ -138,7 +102,7 @@ func (c Cluster) ExistsCache(cacheName, secretName, podName, namespace, protocol
 		httpURL,
 	}
 
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOptions := k8s.ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	execOut, _, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err != nil {
 		return false
@@ -179,7 +143,7 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 		httpURL,
 	}
 
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOptions := k8s.ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err != nil {
 		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", execErr, err)
@@ -204,7 +168,7 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 
 func (c Cluster) GetMemoryLimitBytes(podName, namespace string) (uint64, error) {
 	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
-	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOptions := k8s.ExecOptions{Command: command, PodName: podName, Namespace: namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
@@ -222,7 +186,7 @@ func (c Cluster) GetMemoryLimitBytes(podName, namespace string) (uint64, error) 
 
 func (c Cluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
 	command := []string{"cat", "/proc/meminfo"}
-	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOptions := k8s.ExecOptions{Command: command, PodName: podName, Namespace: namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
@@ -243,14 +207,4 @@ func (c Cluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, 
 	}
 
 	return 0, fmt.Errorf("meminfo lacking MemTotal information")
-}
-
-// Return handler for querying cluster status
-func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
-	return corev1.Handler{
-		HTTPGet: &corev1.HTTPGetAction{
-			Scheme: scheme,
-			Path:   ServerHTTPHealthStatusPath,
-			Port:   intstr.FromInt(11222)},
-	}
 }
