@@ -1,24 +1,48 @@
 package v2alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+
+// AdminAuth description of the auth info
+type AdminAuth struct {
+	// Secret and key containing the admin username for authentication.
+	Username v1.SecretKeySelector `json:"username,omitempty"`
+	// Secret and key containing the admin password for authentication.
+	Password v1.SecretKeySelector `json:"password,omitempty"`
+}
 
 // CacheSpec defines the desired state of Cache
 type CacheSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+	// Authentication info
+	AdminAuth AdminAuth `json:"adminAuth,omitempty"`
+	// Name of the cluster where to create the cache
+	ClusterName string `json:"clusterName,omitempty"`
+	// Name of the cache to be created. If empty ObjectMeta.Name will be used
+	Name string `json:"name,optional,omitempty"`
+	// Cache template in XML format
+	Template string `json:"template,optional,omitempty"`
+}
+
+// CacheCondition define a condition of the cluster
+type CacheCondition struct {
+	// Type is the type of the condition.
+	Type string `json:"type"`
+	// Status is the status of the condition.
+	Status metav1.ConditionStatus `json:"status"`
+	// Human-readable message indicating details about last transition.
+	Message string `json:"message,optional,omitempty"`
 }
 
 // CacheStatus defines the observed state of Cache
 type CacheStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+	// Conditions list for this cache
+	Conditions []CacheCondition `json:"conditions,optional,omitempty"`
+	// Service name that exposes the cache inside the cluster
+	ServiceName string `json:"serviceName,optional,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
