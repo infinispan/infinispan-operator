@@ -183,3 +183,8 @@ func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
 
 	return make(map[string]string)
 }
+
+// IsWellFormed return true if cluster is well formed
+func (ispn *Infinispan) IsWellFormed() bool {
+	return ispn.IsConditionTrue("wellFormed")
+}

@@ -261,9 +261,6 @@ spec:
                   type: object
                 endpointSecretName:
                   type: string
-              required:
-              - endpointEncryption
-              - endpointSecretName
               type: object
             service:
               description: InfinispanServiceSpec specify configuration for specific
@@ -568,9 +565,6 @@ spec:
                   type: object
                 endpointSecretName:
                   type: string
-              required:
-              - endpointEncryption
-              - endpointSecretName
               type: object
             statefulSetName:
               type: string
