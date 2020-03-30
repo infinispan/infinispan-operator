@@ -12,8 +12,8 @@ type InfinispanAuthInfo struct {
 
 // InfinispanSecurity info for the user application connection
 type InfinispanSecurity struct {
-	EndpointSecretName string             `json:"endpointSecretName"`
-	EndpointEncryption EndpointEncryption `json:"endpointEncryption"`
+	EndpointSecretName string             `json:"endpointSecretName,optional,omitempty"`
+	EndpointEncryption EndpointEncryption `json:"endpointEncryption,optional,omitempty"`
 }
 
 // EndpointEncryption configuration

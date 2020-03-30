@@ -334,7 +334,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
 
-	protocol := infinispanProtocol(infinispan)
+	protocol := Protocol(infinispan)
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
 	if infinispan.Spec.Replicas == 0 {
@@ -758,7 +758,6 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	if len(podList.Items) == 0 {
 		return
 	}
-
 	if isUpgradeCondition(infinispan) {
 		return
 	}
@@ -810,19 +809,20 @@ func infinispanProtocol(infinispan *infinispanv1.Infinispan) string {
 	return "http"
 }
 
-func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) error {
+// GetDefaultCacheTemplateXML return default template for cache
+func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) (string, error) {
 	namespace := infinispan.ObjectMeta.Namespace
 
 	memoryLimitBytes, err := cluster.GetMemoryLimitBytes(podName, namespace)
 	if err != nil {
 		logger.Error(err, "unable to extract memory limit (bytes) from pod")
-		return err
+		return "", err
 	}
 
 	maxUnboundedMemory, err := cluster.GetMaxMemoryUnboundedBytes(podName, namespace)
 	if err != nil {
 		logger.Error(err, "unable to extract max memory unbounded from pod")
-		return err
+		return "", err
 	}
 
 	containerMaxMemory := maxUnboundedMemory
@@ -844,7 +844,7 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
 		"max memory bound", maxUnboundedMemory,
 	)
 
-	defaultCacheXML := `<infinispan><cache-container>
+	return `<infinispan><cache-container>
         <distributed-cache name="default" mode="SYNC" owners="1">
             <memory>
                 <off-heap 
@@ -855,11 +855,17 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
             </memory>
             <partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL" />
         </distributed-cache>
-    </cache-container></infinispan>`
+    </cache-container></infinispan>`, nil
+}
 
+func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) error {
+	defaultCacheXML, err := GetDefaultCacheTemplateXML(podName, infinispan, cluster, logger)
+	if err != nil {
+		return err
+	}
 	secretName := infinispan.GetSecretName()
 	protocol := infinispanProtocol(infinispan)
-	return cluster.CreateCache("default", defaultCacheXML, secretName, podName, namespace, protocol)
+	return cluster.CreateCache("default", defaultCacheXML, secretName, podName, infinispan.Namespace, protocol)
 }
 
 func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, logger logr.Logger) (*ispnutil.XSite, error) {
@@ -1009,7 +1015,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	}
 	replicas := m.Spec.Replicas
 	protocolScheme := corev1.URISchemeHTTP
-	if infinispanProtocol(m) != "http" {
+	if Protocol(m) != "http" {
 		protocolScheme = corev1.URISchemeHTTPS
 	}
 	dep := &appsv1.StatefulSet{

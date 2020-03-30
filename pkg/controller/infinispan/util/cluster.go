@@ -31,8 +31,10 @@ type ClusterInterface interface {
 	GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error)
 	ExistsCache(cacheName, secretName, podName, namespace, protocol string) bool
 	CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error
+	CreateCacheWithAuth(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error
 	GetMemoryLimitBytes(podName, namespace string) (uint64, error)
 	GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error)
+	CacheNames(user, pass, podName, namespace, protocol string) ([]string, error)
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
@@ -153,6 +155,27 @@ func (c Cluster) ExistsCache(cacheName, secretName, podName, namespace, protocol
 	}
 }
 
+// CacheNames return the names of the cluster caches available on the pod `podName`
+func (c Cluster) CacheNames(user, pass, podName, namespace, protocol string) ([]string, error) {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return nil, err
+	}
+	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches", protocol, podIP)
+	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
+	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
+	logger.Info("get caches list", "url", httpURL)
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+	var caches []string
+	if err == nil {
+		result := execOut.Bytes()
+		err = json.Unmarshal(result, &caches)
+		return caches, err
+	}
+	return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
+}
+
 func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error {
 	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
 	if err != nil {
@@ -194,6 +217,48 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 	}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
+	logger.Info("create cache completed successfully", "http code", httpCode)
+	return nil
+}
+
+// CreateCacheWithAuth create cluster cache on the pod `podName`
+func (c Cluster) CreateCacheWithAuth(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return err
+	}
+
+	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s", protocol, podIP, cacheName)
+	commands := []string{"curl",
+		"--insecure",
+		"--http1.1",
+		"-w", "\n%{http_code}", // add http status at the end
+		"-d", fmt.Sprintf("%s", cacheXML),
+		"-H", "Content-Type: application/xml",
+		"-u", fmt.Sprintf("operator:%v", pass),
+		"-X", "POST",
+		httpURL,
+	}
+
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+	if err != nil {
+		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", execErr, err)
+	}
+
+	// Split lines in standard output, HTTP status code will be last
+	execOutLines := strings.Split(execOut.String(), "\n")
+
+	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines)-1], 10, 64)
+	if err != nil {
+		return err
+	}
+
+	if httpCode > 299 || httpCode < 200 {
+		return fmt.Errorf("server side error creating cache: %s", execOut.String())
+	}
+
+	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
 	logger.Info("create cache completed successfully", "http code", httpCode)
 	return nil
 }
@@ -249,4 +314,13 @@ func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 			Path:   consts.ServerHTTPHealthStatusPath,
 			Port:   intstr.FromInt(11222)},
 	}
+}
+
+// GetLabelsForInfinispan returns the labels that must me applied to the resource
+func GetLabelsForInfinispan(name, resourceType string) map[string]string {
+	m := map[string]string{"infinispan_cr": name, "clusterName": name}
+	if resourceType != "" {
+		m["app"] = resourceType
+	}
+	return m
 }

@@ -72,7 +72,15 @@ func (m mockCluster) ExistsCache(cacheName, secretName, podName, namespace, prot
 	return false
 }
 
-func (m mockCluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error {
+// CacheNames return the names of the cluster caches available on the pod `podName`
+func (m mockCluster) CacheNames(user, pass, podName, namespace, protocol string) ([]string, error) {
+	return nil, nil
+}
+func (m mockCluster) CreateCache(cacheName, cacheXML, secretName, podName, namespace, protocol string) error {
+	return nil
+}
+
+func (m mockCluster) CreateCacheWithAuth(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error {
 	return nil
 }
 
@@ -83,7 +91,6 @@ func (m mockCluster) GetMemoryLimitBytes(podName, namespace string) (uint64, err
 func (m mockCluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
 	return 0, nil
 }
-
 
 // TestGetInfinispanConditions test for getInfinispanConditions func
 func TestGetInfinispanConditions(t *testing.T) {
