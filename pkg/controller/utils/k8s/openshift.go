@@ -3,7 +3,6 @@ package k8s
 import (
 	"fmt"
 	"github.com/go-logr/logr"
-	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -32,7 +31,7 @@ func (k Kubernetes) GetServingCertsMode() string {
 	return ""
 }
 
-func (k Kubernetes) GetOpenShiftRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+func (k Kubernetes) GetOpenShiftRESTConfig(masterURL string, secretName string, namespace string, logger logr.Logger) (*restclient.Config, error) {
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
 		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
@@ -42,7 +41,7 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL string, secretName string, 
 	// Skip-tls for accessing other OpenShift clusters
 	config.Insecure = true
 
-	secret, err := k.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
+	secret, err := k.GetSecret(secretName, namespace)
 	if err != nil {
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err

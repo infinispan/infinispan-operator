@@ -5,11 +5,14 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/security"
+	"github.com/go-logr/logr"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan/security"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -112,4 +115,26 @@ func (k Kubernetes) GetNodePort(service *v1.Service) int32 {
 func (k Kubernetes) PublicIP() string {
 	u, _ := url.Parse(k.RestConfig.Host)
 	return u.Hostname()
+}
+
+func (k Kubernetes) GetMinikubeRESTConfig(masterURL string, secretName string, namespace string, logger logr.Logger) (*restclient.Config, error) {
+	logger.Info("connect to backup minikube cluster", "url", masterURL)
+
+	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
+	if err != nil {
+		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
+		return nil, err
+	}
+
+	secret, err := k.GetSecret(secretName, namespace)
+	if err != nil {
+		logger.Error(err, "unable to find Secret", "secret name", secretName)
+		return nil, err
+	}
+
+	config.CAData = secret.Data["certificate-authority"]
+	config.CertData = secret.Data["client-certificate"]
+	config.KeyData = secret.Data["client-key"]
+
+	return config, nil
 }

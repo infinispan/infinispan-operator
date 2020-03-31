@@ -2,11 +2,7 @@ package infinispan
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net"
-	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,12 +12,11 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/configuration"
 	ispncluster "github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan"
+	ispnconfig "github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan/configuration"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan/security"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/k8s"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/security"
 	"github.com/infinispan/infinispan-operator/version"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,12 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -144,12 +135,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Apply defaults if not already set
-	applyDefaults(infinispan)
+	infinispan.ApplyDefaults()
 
 	// Check x-site configuration first.
 	// Must be done before creating any Infinispan resources,
 	// because remote site host:port combinations need to be injected into Infinispan.
-	xsite, err := r.computeXSite(infinispan, reqLogger)
+	xsite := &ispnconfig.XSite{}
+	err = xsite.ComputeXSite(infinispan, kubernetes, r.scheme, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "Error in computeXSite", "Infinispan.Namespace")
 		return reconcile.Result{}, err
@@ -183,13 +175,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 		}
 
-		secret, err := r.findSecret(infinispan)
+		secret, err := ispnconfig.FindSecret(infinispan, kubernetes)
 		if err != nil && infinispan.Spec.Security.EndpointSecretName != "" {
 			reqLogger.Error(err, "could not find secret", "Secret.Name", infinispan.Spec.Security.EndpointSecretName)
 			return reconcile.Result{}, err
 		}
 
-		configMap, err := r.configMapForInfinispan(xsite, infinispan)
+		configMap, err := ispnconfig.ConfigMapForInfinispan(xsite, infinispan, r.client, r.scheme, reqLogger)
 		if err != nil {
 			reqLogger.Error(err, "could not create Infinispan configuration")
 			return reconcile.Result{}, err
@@ -204,7 +196,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				return reconcile.Result{}, err
 			}
 
-			secret = r.secretForInfinispan(identities, infinispan)
+			secret = ispnconfig.SecretForInfinispan(identities, infinispan, r.scheme)
 			reqLogger.Info("Creating a new Secret", "Secret.Name", secret.Name)
 			err = r.client.Create(context.TODO(), secret)
 			if err != nil {
@@ -232,7 +224,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		// Define a new deployment
-		dep, err := r.deploymentForInfinispan(infinispan, secret, configMap)
+		dep, err := ispnconfig.DeploymentForInfinispan(infinispan, secret, configMap, r.scheme, reqLogger)
 		if err != nil {
 			reqLogger.Error(err, "failed to configure new StatefulSet")
 			return reconcile.Result{}, err
@@ -248,7 +240,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			r.addFinalizer(reqLogger, infinispan)
 		}
 
-		ser := r.serviceForInfinispan(infinispan)
+		ser := ispnconfig.ServiceForInfinispan(infinispan, r.scheme)
 
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan")
@@ -262,7 +254,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		serDNS := r.serviceForDNSPing(infinispan)
+		serDNS := ispnconfig.ServiceForDNSPing(infinispan, r.scheme)
 		err = r.client.Create(context.TODO(), serDNS)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			reqLogger.Error(err, "failed to create Service", "Service", serDNS)
@@ -270,8 +262,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 		reqLogger.Info("Created Service", "Service", serDNS)
 
-		if isExposed(infinispan) {
-			externalService := r.serviceExternal(infinispan)
+		if infinispan.IsExposed() {
+			externalService := ispnconfig.ServiceExternal(infinispan, r.scheme)
 			if externalService != nil {
 				err = r.client.Create(context.TODO(), externalService)
 				if err != nil && !errors.IsAlreadyExists(err) {
@@ -328,7 +320,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(labelsForInfinispan(infinispan.Name, ""))
+	labelSelector := labels.SelectorFromSet(comutil.LabelsResource(infinispan.Name, ""))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), podList, listOps)
 	if err != nil {
@@ -338,7 +330,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
 
-	protocol := infinispanProtocol(infinispan)
+	protocol := comutil.GetURISchemeProtocol(infinispan.GetEndpointScheme())
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
 	if infinispan.Spec.Replicas == 0 {
@@ -447,7 +439,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// If upgrade required, do not process any further and handle upgrades
-	if isUpgradeCondition(infinispan) {
+	if infinispan.IsUpgradeCondition() {
 		reqLogger.Info("isUpgradeCondition")
 		return reconcile.Result{Requeue: true}, nil
 	}
@@ -458,7 +450,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Info("Changed EndpointSecretName",
 			"PrevName", infinispan.Status.Security.EndpointSecretName,
 			"NewName", infinispan.Spec.Security.EndpointSecretName)
-		secret, err := r.findSecret(infinispan)
+		secret, err := ispnconfig.FindSecret(infinispan, kubernetes)
 		if err != nil {
 			reqLogger.Error(err, "could not find secret", "Secret.Name", infinispan.Spec.Security.EndpointSecretName)
 			return reconcile.Result{}, err
@@ -472,7 +464,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				return reconcile.Result{}, err
 			}
 
-			secret = r.secretForInfinispan(identities, infinispan)
+			secret = ispnconfig.SecretForInfinispan(identities, infinispan, r.scheme)
 			reqLogger.Info("Creating a new Secret", "Secret.Name", secret.Name)
 			err = r.client.Create(context.TODO(), secret)
 			if err != nil {
@@ -538,7 +530,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 	if ispnContr.CPU != "" {
-		cpuReq, cpuLim := cpuResources(infinispan)
+		cpuReq, cpuLim := infinispan.GetCpuResources()
 		previousCPUReq := res.Requests["cpu"]
 		previousCPULim := res.Limits["cpu"]
 		if cpuReq.Cmp(previousCPUReq) != 0 || cpuLim.Cmp(previousCPULim) != 0 {
@@ -549,13 +541,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
-	extraJavaOptionsIndex := getEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
+	extraJavaOptionsIndex := comutil.GetEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
 	extraJavaOptions := ispnContr.ExtraJvmOpts
 	previousExtraJavaOptions := (*env)[extraJavaOptionsIndex].Value
 	if extraJavaOptions != previousExtraJavaOptions {
 		(*env)[extraJavaOptionsIndex].Value = ispnContr.ExtraJvmOpts
-		javaOptionsIndex := getEnvVarIndex("JAVA_OPTIONS", env)
-		newJavaOptions, _ := r.javaOptions(infinispan)
+		javaOptionsIndex := comutil.GetEnvVarIndex("JAVA_OPTIONS", env)
+		newJavaOptions, _ := infinispan.GetJavaOptions()
 		(*env)[javaOptionsIndex].Value = newJavaOptions
 		reqLogger.Info("extra jvm options changed, update infinispan",
 			"extra java options", extraJavaOptions,
@@ -577,7 +569,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Update the Infinispan status with the pod status
 	// Wait until all pods have ips assigned
 	// Without those ips, it's not possible to execute next calls
-	if !arePodIPsReady(podList) {
+	if !comutil.ArePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
 		return reconcile.Result{}, nil
 	}
@@ -608,7 +600,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Info("notClusterFormed")
 		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, nil
 	}
-	if isCache(infinispan) && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster) {
+	if infinispan.IsCache() && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster) {
 		reqLogger.Info("createDefaultCache")
 		err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
 		if err != nil {
@@ -629,15 +621,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func getEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
-	for i, value := range *env {
-		if value.Name == envVarName {
-			return i
-		}
-	}
-	return 0
 }
 
 func updateSecurity(infinispan *infinispanv1.Infinispan, client client.Client, reqLogger logr.Logger) error {
@@ -669,8 +652,8 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err := r.client.Delete(context.TODO(),
 		&appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.ObjectMeta.Name,
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Name:      infinispan.Name,
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -680,7 +663,18 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.ObjectMeta.Name + "-configuration",
+				Name:      infinispan.Name + "-configuration",
+				Namespace: infinispan.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.Name,
 				Namespace: infinispan.ObjectMeta.Namespace,
 			},
 		})
@@ -691,8 +685,8 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.ObjectMeta.Name,
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Name:      infinispan.Name + "-ping",
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -702,8 +696,8 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.ObjectMeta.Name + "-ping",
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Name:      infinispan.GetServiceExternalName(),
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -713,19 +707,8 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      getServiceExternalName(infinispan),
-				Namespace: infinispan.ObjectMeta.Namespace,
-			},
-		})
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-
-	err = r.client.Delete(context.TODO(),
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      getSiteServiceName(infinispan),
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Name:      infinispan.GetSiteServiceName(),
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -736,7 +719,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 }
 
 func upgradeNeeded(infinispan *infinispanv1.Infinispan, logger logr.Logger) bool {
-	if isUpgradeCondition(infinispan) {
+	if infinispan.IsUpgradeCondition() {
 		stoppingCondition := infinispan.GetCondition("stopping")
 		if stoppingCondition != nil {
 			stoppingCompleted := *stoppingCondition == "False"
@@ -754,17 +737,7 @@ func upgradeNeeded(infinispan *infinispanv1.Infinispan, logger logr.Logger) bool
 			}
 		}
 	}
-
 	return false
-}
-
-func isUpgradeCondition(infinispan *infinispanv1.Infinispan) bool {
-	return isConditionTrue("upgrade", infinispan)
-}
-
-func isConditionTrue(name string, infinispan *infinispanv1.Infinispan) bool {
-	upgradeCondition := infinispan.GetCondition(name)
-	return upgradeCondition != nil && *upgradeCondition == "True"
 }
 
 func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) {
@@ -772,7 +745,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 		return
 	}
 
-	if isUpgradeCondition(infinispan) {
+	if infinispan.IsUpgradeCondition() {
 		return
 	}
 
@@ -780,12 +753,12 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	// Handles brief window during which resources have been removed,
 	//and old ones terminating while new ones are being created.
 	// We don't want yet another upgrade to be scheduled then.
-	if !areAllPodsReady(podList) {
+	if !comutil.AreAllPodsReady(podList) {
 		return
 	}
 
 	// Get default Infinispan image for a running Infinispan pod
-	podDefaultImage := getPodDefaultImage(podList.Items[0].Spec.Containers[0])
+	podDefaultImage := comutil.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
 
 	// Get Infinispan image that the operator creates
 	desiredImage := constants.DefaultImageName
@@ -803,34 +776,10 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	}
 }
 
-// getPodDefaultImage returns an Infinispan pod's default image.
-// If the default image cannot be found, it returns the running image.
-func getPodDefaultImage(container corev1.Container) string {
-	envs := container.Env
-	for _, env := range envs {
-		if env.Name == "DEFAULT_IMAGE" {
-			return env.Value
-		}
-	}
-
-	return container.Image
-}
-
-func areAllPodsReady(podList *corev1.PodList) bool {
-	for _, pod := range podList.Items {
-		containerStatuses := pod.Status.ContainerStatuses
-		if len(containerStatuses) == 0 || !containerStatuses[0].Ready {
-			return false
-		}
-	}
-
-	return true
-}
-
 func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispncluster.ClusterInterface) bool {
 	namespace := infinispan.ObjectMeta.Namespace
 	secretName := infinispan.GetSecretName()
-	protocol := infinispanProtocol(infinispan)
+	protocol := comutil.GetURISchemeProtocol(infinispan.GetEndpointScheme())
 	return cluster.ExistsCache("default", secretName, podName, namespace, protocol)
 }
 
@@ -838,33 +787,6 @@ func notClusterFormed(currConds []infinispanv1.InfinispanCondition, pods []corev
 	notFormed := currConds[0].Status != "True"
 	notEnoughMembers := len(pods) < int(replicas)
 	return notFormed || notEnoughMembers
-}
-
-func arePodIPsReady(pods *corev1.PodList) bool {
-	for _, pod := range pods.Items {
-		if pod.Status.PodIP == "" {
-			return false
-		}
-	}
-
-	return true
-}
-
-func applyDefaults(infinispan *infinispanv1.Infinispan) {
-	if infinispan.Status.Conditions == nil {
-		infinispan.Status.Conditions = []infinispanv1.InfinispanCondition{}
-	}
-
-	if infinispan.Spec.Service.Type == "" {
-		infinispan.Spec.Service.Type = infinispanv1.ServiceTypeCache
-	}
-}
-
-func infinispanProtocol(infinispan *infinispanv1.Infinispan) string {
-	if infinispan.Spec.Security.EndpointEncryption.Type != "" {
-		return "https"
-	}
-	return "http"
 }
 
 func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispncluster.ClusterInterface, logger logr.Logger) error {
@@ -915,375 +837,8 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
     </cache-container></infinispan>`
 
 	secretName := infinispan.GetSecretName()
-	protocol := infinispanProtocol(infinispan)
+	protocol := comutil.GetURISchemeProtocol(infinispan.GetEndpointScheme())
 	return cluster.CreateCache("default", defaultCacheXML, secretName, podName, namespace, protocol)
-}
-
-func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, logger logr.Logger) (*configuration.XSite, error) {
-	if hasSites(infinispan) {
-		siteServiceName := getSiteServiceName(infinispan)
-		siteService, err := r.getOrCreateSiteService(siteServiceName, infinispan, logger)
-		if err != nil {
-			logger.Error(err, "could not get or create site service")
-			return nil, err
-		}
-
-		localSiteHost, localSitePort, err := getLocalSiteServiceHostPort(siteService, infinispan, logger)
-		if err != nil {
-			logger.Error(err, "error retrieving local x-site service information")
-			return nil, err
-		}
-
-		if localSiteHost == "" {
-			msg := "local x-site service host not yet available"
-			logger.Info(msg)
-			return nil, fmt.Errorf(msg)
-		}
-
-		logger.Info("local site service",
-			"service name", siteServiceName,
-			"host", localSiteHost,
-			"port", localSitePort,
-		)
-
-		xsite := &configuration.XSite{
-			Address: localSiteHost,
-			Name:    infinispan.Spec.Service.Sites.Local.Name,
-			Port:    localSitePort,
-		}
-
-		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
-		for _, remoteLocation := range remoteLocations {
-			err := appendRemoteLocation(xsite, infinispan, &remoteLocation, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		logger.Info("x-site configured", "configuration", *xsite)
-		return xsite, nil
-	}
-
-	return nil, nil
-}
-
-func findRemoteLocations(localSiteName string, infinispan *infinispanv1.Infinispan) (remoteLocations []infinispanv1.InfinispanSiteLocationSpec) {
-	locations := infinispan.Spec.Service.Sites.Locations
-	for _, location := range locations {
-		if localSiteName != location.Name {
-			remoteLocations = append(remoteLocations, location)
-		}
-	}
-
-	return
-}
-
-func getLocalSiteServiceHostPort(service *corev1.Service, infinispan *infinispanv1.Infinispan, logger logr.Logger) (string, int32, error) {
-	switch serviceType := service.Spec.Type; serviceType {
-	case corev1.ServiceTypeNodePort:
-		externalIP, err := findNodePortExternalIP(infinispan)
-		if err != nil {
-			return "", 0, err
-		}
-
-		// If configuring NodePort, expect external IPs to be configured
-		return externalIP, kubernetes.GetNodePort(service), nil
-	case corev1.ServiceTypeLoadBalancer:
-		return getLoadBalancerServiceHostPort(service, logger)
-	default:
-		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
-	}
-}
-
-func findNodePortExternalIP(infinispan *infinispanv1.Infinispan) (string, error) {
-	localSiteName := infinispan.Spec.Service.Sites.Local.Name
-	locations := infinispan.Spec.Service.Sites.Locations
-	for _, location := range locations {
-		if location.Name == localSiteName {
-			masterURL, err := url.Parse(location.URL)
-			if err != nil {
-				return "", nil
-			}
-			host, _, err := net.SplitHostPort(masterURL.Host)
-			if err != nil {
-				return "", nil
-			}
-			return host, nil
-		}
-	}
-	return "", fmt.Errorf("could not find node port external IP, check local site name matches one of the members")
-}
-
-func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
-	port := service.Spec.Ports[0].Port
-
-	// If configuring load balancer, look for external ingress
-	if len(service.Status.LoadBalancer.Ingress) > 0 {
-		ingress := service.Status.LoadBalancer.Ingress[0]
-		if ingress.IP != "" {
-			return ingress.IP, port, nil
-		}
-		if ingress.Hostname != "" {
-			// Resolve load balancer host
-			ip, err := lookupHost(ingress.Hostname, logger)
-
-			// Load balancer gets created asynchronously,
-			// so it might take time for the status to be updated.
-			return ip, port, err
-		}
-	}
-
-	return "", port, nil
-}
-
-func lookupHost(host string, logger logr.Logger) (string, error) {
-	addresses, err := net.LookupHost(host)
-	if err != nil {
-		logger.Error(err, "host does not resolve")
-		return "", err
-	}
-	logger.Info("host resolved", "host", host, "addresses", addresses)
-	return host, nil
-}
-
-// deploymentForInfinispan returns an infinispan Deployment object
-func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
-	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
-	lsPod := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
-	// This field specifies the flavor of the
-	// Infinispan cluster. "" is plain community edition (vanilla)
-	var imageName string
-	if m.Spec.Image != "" {
-		imageName = m.Spec.Image
-	} else {
-		imageName = constants.DefaultImageName
-	}
-
-	memory := constants.DefaultMemorySize
-	if m.Spec.Container.Memory != "" {
-		memory = resource.MustParse(m.Spec.Container.Memory)
-	}
-
-	cpuRequests, cpuLimits := cpuResources(m)
-
-	javaOptions, err := r.javaOptions(m)
-	if err != nil {
-		return nil, err
-	}
-
-	envVars := []corev1.EnvVar{
-		{Name: "CONFIG_PATH", Value: "/etc/config/infinispan.yaml"},
-		{Name: "IDENTITIES_PATH", Value: "/etc/security/identities.yaml"},
-		{Name: "JAVA_OPTIONS", Value: javaOptions},
-		{Name: "EXTRA_JAVA_OPTIONS", Value: m.Spec.Container.ExtraJvmOpts},
-		{Name: "DEFAULT_IMAGE", Value: constants.DefaultImageName},
-	}
-
-	// Adding additional variables listed in ADDITIONAL_VARS env var
-	envVar, defined := os.LookupEnv("ADDITIONAL_VARS")
-	if defined {
-		var addVars []string
-		err := json.Unmarshal([]byte(envVar), &addVars)
-		if err == nil {
-			for _, name := range addVars {
-				value, defined := os.LookupEnv(name)
-				if defined {
-					envVars = append(envVars, corev1.EnvVar{Name: name, Value: value})
-				}
-			}
-		}
-	}
-	replicas := m.Spec.Replicas
-	protocolScheme := corev1.URISchemeHTTP
-	if infinispanProtocol(m) != "http" {
-		protocolScheme = corev1.URISchemeHTTPS
-	}
-	dep := &appsv1.StatefulSet{
-
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "StatefulSet",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name,
-			Namespace: m.ObjectMeta.Namespace,
-			Annotations: map[string]string{"description": "Infinispan 10 (Ephemeral)",
-				"iconClass":                      "icon-infinispan",
-				"openshift.io/display-name":      "Infinispan 10 (Ephemeral)",
-				"openshift.io/documentation-url": "http://infinispan.org/documentation/",
-			},
-			Labels: map[string]string{"template": "infinispan-ephemeral"},
-		},
-		Spec: appsv1.StatefulSetSpec{
-			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
-			Selector: &metav1.LabelSelector{
-				MatchLabels: lsPod,
-			},
-			Replicas: &replicas,
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels:      lsPod,
-					Annotations: map[string]string{"updateDate": time.Now().String()},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Image: imageName,
-						Name:  "infinispan",
-						Env:   envVars,
-						LivenessProbe: &corev1.Probe{
-							Handler:             ispncluster.ClusterStatusHandler(protocolScheme),
-							FailureThreshold:    5,
-							InitialDelaySeconds: 10,
-							PeriodSeconds:       60,
-							SuccessThreshold:    1,
-							TimeoutSeconds:      80},
-						Ports: []corev1.ContainerPort{
-							{ContainerPort: 8888, Name: "ping", Protocol: corev1.ProtocolTCP},
-							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
-						},
-						ReadinessProbe: &corev1.Probe{
-							Handler:             ispncluster.ClusterStatusHandler(protocolScheme),
-							FailureThreshold:    5,
-							InitialDelaySeconds: 10,
-							PeriodSeconds:       10,
-							SuccessThreshold:    1,
-							TimeoutSeconds:      80},
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								"cpu":    cpuRequests,
-								"memory": memory,
-							},
-							Limits: corev1.ResourceList{
-								"cpu":    cpuLimits,
-								"memory": memory,
-							},
-						},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "config-volume",
-							MountPath: "/etc/config",
-						}, {
-							Name:      "identities-volume",
-							MountPath: "/etc/security",
-						}},
-					}},
-					Volumes: []corev1.Volume{{
-						Name: "config-volume",
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
-							},
-						},
-					}, {
-						Name: "identities-volume",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: secret.Name,
-							},
-						},
-					}},
-				},
-			},
-		},
-	}
-
-	// Persistent vol size must exceed memory size
-	// so that it can contain all the in memory data
-	pvSize := constants.DefaultPVSize
-	if pvSize.Cmp(memory) < 0 {
-		pvSize = memory
-	}
-
-	if isDataGrid(m) && m.Spec.Service.Container.Storage != "" {
-		var pvErr error
-		pvSize, pvErr = resource.ParseQuantity(m.Spec.Service.Container.Storage)
-		if pvErr != nil {
-			return nil, pvErr
-		}
-		if pvSize.Cmp(memory) < 0 {
-			reqLogger.Info("WARNING: persistent volume size is less than memory size. Graceful shutdown may not work.", "Volume Size", pvSize, "Memory", memory)
-		}
-	}
-
-	dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name,
-			Namespace: m.ObjectMeta.Namespace,
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{
-				"ReadWriteOnce",
-			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: pvSize,
-				},
-			},
-		}}}
-
-	// Adding persistent volume mount
-	v := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
-	*v = append(*v, corev1.VolumeMount{
-		Name:      m.ObjectMeta.Name,
-		MountPath: "/opt/infinispan/server/data",
-	})
-	// Adding an init container that run chmod if needed
-	if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
-		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
-			Image:   "busybox",
-			Name:    "chmod-pv",
-			Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
-			VolumeMounts: []corev1.VolumeMount{{
-				Name:      m.ObjectMeta.Name,
-				MountPath: "/opt/infinispan/server/data",
-			}},
-		}}
-	}
-	setupVolumesForEncryption(m, dep)
-	//	appendVolumes(m, dep)
-
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(m, dep, r.scheme)
-	return dep, nil
-}
-
-func cpuResources(infinispan *infinispanv1.Infinispan) (resource.Quantity, resource.Quantity) {
-	if infinispan.Spec.Container.CPU != "" {
-		cpuLimits := resource.MustParse(infinispan.Spec.Container.CPU)
-		cpuRequestsMillis := cpuLimits.MilliValue() / 2
-		cpuRequests := toMilliDecimalQuantity(int64(cpuRequestsMillis))
-		return cpuRequests, cpuLimits
-	}
-
-	cpuLimits := toMilliDecimalQuantity(constants.DefaultCPULimit)
-	cpuRequests := toMilliDecimalQuantity(constants.DefaultCPULimit / 2)
-	return cpuRequests, cpuLimits
-}
-
-func toMilliDecimalQuantity(value int64) resource.Quantity {
-	return *resource.NewMilliQuantity(value, resource.DecimalSI)
-}
-
-func (r *ReconcileInfinispan) javaOptions(m *infinispanv1.Infinispan) (string, error) {
-	switch m.Spec.Service.Type {
-	case infinispanv1.ServiceTypeDataGrid:
-		return m.Spec.Container.ExtraJvmOpts, nil
-	case infinispanv1.ServiceTypeCache:
-		javaOptions := fmt.Sprintf(
-			"-Xmx%dM -Xms%dM -XX:MaxRAM=%dM %s %s",
-			constants.CacheServiceFixedMemoryXmxMb,
-			constants.CacheServiceFixedMemoryXmxMb,
-			constants.CacheServiceMaxRamMb,
-			constants.CacheServiceAdditionalJavaOptions,
-			m.Spec.Container.ExtraJvmOpts,
-		)
-		return javaOptions, nil
-	default:
-		return "", fmt.Errorf("unknown service type '%s'", m.Spec.Service.Type)
-	}
-}
-
-func getEncryptionSecretName(m *infinispanv1.Infinispan) string {
-	return m.Spec.Security.EndpointEncryption.CertSecretName
 }
 
 func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) {
@@ -1291,150 +846,13 @@ func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) 
 	if ee.Type == "service" {
 		if strings.Contains(ee.CertServiceName, "openshift.io") {
 			// Using platform service. Only OpenShift is integrated atm
-			secretName := getEncryptionSecretName(m)
+			secretName := m.GetEncryptionSecretName()
 			if ser.ObjectMeta.Annotations == nil {
 				ser.ObjectMeta.Annotations = map[string]string{}
 			}
 			ser.ObjectMeta.Annotations[ee.CertServiceName+"/serving-cert-secret-name"] = secretName
 		}
 	}
-}
-
-func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulSet) {
-	secretName := getEncryptionSecretName(m)
-	if secretName != "" {
-		v := &dep.Spec.Template.Spec.Volumes
-		vm := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
-		*vm = append(*vm, corev1.VolumeMount{Name: "encrypt-volume", MountPath: "/etc/encrypt"})
-		*v = append(*v, corev1.Volume{Name: "encrypt-volume",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
-				}}})
-	}
-}
-
-func setupConfigForEncryption(m *infinispanv1.Infinispan, c *configuration.InfinispanConfiguration, client client.Client) error {
-	ee := m.Spec.Security.EndpointEncryption
-	if ee.Type == "service" {
-		if strings.Contains(ee.CertServiceName, "openshift.io") {
-			c.Keystore.CrtPath = "/etc/encrypt"
-			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
-			c.Keystore.Password = "password"
-			c.Keystore.Alias = "server"
-			return nil
-		}
-	}
-	// Fetch the tls secret if name is provided
-	tlsSecretName := getEncryptionSecretName(m)
-	if tlsSecretName != "" {
-		tlsSecret := &corev1.Secret{}
-		err := client.Get(context.TODO(), types.NamespacedName{Name: tlsSecretName, Namespace: m.Namespace}, tlsSecret)
-		if err != nil {
-			reqLogger := log.WithValues("Infinispan.Namespace", m.Namespace, "Infinispan.Name", m.Name)
-			if errors.IsNotFound(err) {
-				reqLogger.Error(err, "Secret %s for endpoint encryption not found.", tlsSecretName)
-				return err
-			}
-			reqLogger.Error(err, "Error in getting secret %s for endpoint encryption.", tlsSecretName)
-			return err
-		}
-		if _, ok := tlsSecret.Data["keystore.p12"]; ok {
-			// If user provide a keystore in secret then use it ...
-			c.Keystore.Path = "/etc/encrypt/keystore.p12"
-			c.Keystore.Password = string(tlsSecret.Data["password"])
-			c.Keystore.Alias = string(tlsSecret.Data["alias"])
-		} else {
-			// ... else suppose tls.key and tls.crt are provided
-			c.Keystore.CrtPath = "/etc/encrypt"
-			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
-			c.Keystore.Password = "password"
-			c.Keystore.Alias = "server"
-		}
-	}
-	return nil
-}
-
-func (r *ReconcileInfinispan) configMapForInfinispan(xsite *configuration.XSite, m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
-	name := m.ObjectMeta.Name
-	namespace := m.ObjectMeta.Namespace
-
-	loggingCategories := copyLoggingCategories(m)
-	config := configuration.CreateInfinispanConfiguration(name, xsite, loggingCategories, namespace)
-	err := setupConfigForEncryption(m, &config, r.client)
-	if err != nil {
-		return nil, err
-	}
-	configYaml, err := yaml.Marshal(config)
-	if err != nil {
-		return nil, err
-	}
-	lsConfigMap := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-configmap-configuration")
-	configMap := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name + "-configuration",
-			Namespace: namespace,
-			Labels:    lsConfigMap,
-		},
-		Data: map[string]string{"infinispan.yaml": string(configYaml)},
-	}
-
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(m, configMap, r.scheme)
-	return configMap, nil
-}
-
-func copyLoggingCategories(infinispan *infinispanv1.Infinispan) map[string]string {
-	categories := infinispan.Spec.Logging.Categories
-	if categories != nil {
-		copied := make(map[string]string, len(categories))
-		for category, level := range categories {
-			copied[category] = level
-		}
-		return copied
-	}
-
-	return make(map[string]string)
-}
-
-func (r *ReconcileInfinispan) findSecret(m *infinispanv1.Infinispan) (*corev1.Secret, error) {
-	secretName := m.GetSecretName()
-	return kubernetes.GetSecret(secretName, m.Namespace)
-}
-
-func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinispanv1.Infinispan) *corev1.Secret {
-	lsSecret := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-secret-identities")
-	secretName := m.GetSecretName()
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: m.ObjectMeta.Namespace,
-			Labels:    lsSecret,
-		},
-		Type:       corev1.SecretType("Opaque"),
-		StringData: map[string]string{"identities.yaml": string(identities)},
-	}
-
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(m, secret, r.scheme)
-	return secret
-}
-
-// labelsForInfinispan returns the labels that must me applied to the resource
-func labelsForInfinispan(name, resourceType string) map[string]string {
-	m := map[string]string{"infinispan_cr": name, "clusterName": name}
-	if resourceType != "" {
-		m["app"] = resourceType
-	}
-	return m
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
@@ -1451,7 +869,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 		for _, pod := range pods {
 			var clusterView string
 			var members []string
-			if isPodReady(pod) {
+			if comutil.IsPodReady(pod) {
 				// If pod is ready query it for the cluster members
 				members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace, protocol)
 				clusterView = strings.Join(members, ",")
@@ -1491,332 +909,8 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 	return status
 }
 
-func isPodReady(pod corev1.Pod) bool {
-	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.ContainersReady && cond.Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service")
-	service := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name,
-			Namespace: m.ObjectMeta.Namespace,
-			Labels:    lsService,
-		},
-		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeClusterIP,
-			Selector: lsPodSelector,
-			Ports: []corev1.ServicePort{
-				{
-					Port: 11222,
-				},
-			},
-		},
-	}
-
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(m, service, r.scheme)
-
-	return service
-}
-
-func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service-ping")
-	service := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name + "-ping",
-			Namespace: m.ObjectMeta.Namespace,
-			Labels:    lsService,
-		},
-		Spec: corev1.ServiceSpec{
-			Type:      corev1.ServiceTypeClusterIP,
-			ClusterIP: "None",
-			Selector:  lsPodSelector,
-			Ports: []corev1.ServicePort{
-				{
-					Name: "ping",
-					Port: 8888,
-				},
-			},
-		},
-	}
-
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(m, service, r.scheme)
-
-	return service
-}
-
-// ServiceExternal creates an external service that's linked to the internal service
-func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service-external")
-	externalServiceType := m.Spec.Expose.Type
-	// An external service can be simply achieved with a LoadBalancer
-	// that has same selectors as original service.
-	externalServiceName := getServiceExternalName(m)
-	externalService := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      externalServiceName,
-			Namespace: m.ObjectMeta.Namespace,
-			Labels:    lsService,
-		},
-		Spec: corev1.ServiceSpec{
-			Type:     externalServiceType,
-			Selector: lsPodSelector,
-			Ports: []corev1.ServicePort{
-				{
-					Port:       int32(11222),
-					TargetPort: intstr.FromInt(11222),
-				},
-			},
-		},
-	}
-
-	if externalServiceType == corev1.ServiceTypeLoadBalancer {
-		// Nothing to do here, keeping the if else struct
-	} else if externalServiceType == corev1.ServiceTypeNodePort {
-		var portNum int32
-		if m.Spec.Expose.Ports != nil || len(m.Spec.Expose.Ports) > 0 {
-			portNum = m.Spec.Expose.Ports[0].NodePort
-			externalService.Spec.Ports[0].NodePort = portNum
-		}
-	} else {
-		// Service type currently unsupported
-		return nil
-	}
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(m, externalService, r.scheme)
-	return externalService
-}
-
-func getServiceExternalName(m *infinispanv1.Infinispan) string {
-	return fmt.Sprintf("%s-external", m.ObjectMeta.Name)
-}
-
-func isDataGrid(infinispan *infinispanv1.Infinispan) bool {
-	return infinispanv1.ServiceTypeDataGrid == infinispan.Spec.Service.Type
-}
-
-func isCache(infinispan *infinispanv1.Infinispan) bool {
-	return infinispanv1.ServiceTypeCache == infinispan.Spec.Service.Type
-}
-
-func hasSites(infinispan *infinispanv1.Infinispan) bool {
-	return isDataGrid(infinispan) && len(infinispan.Spec.Service.Sites.Locations) > 0
-}
-
-func isExposed(infinispan *infinispanv1.Infinispan) bool {
-	return infinispan.Spec.Expose.Type != ""
-}
-
-func getSiteServiceName(infinispan *infinispanv1.Infinispan) string {
-	return fmt.Sprintf("%v-site", infinispan.Name)
-}
-
-func (r *ReconcileInfinispan) getOrCreateSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
-	siteService := &corev1.Service{}
-	ns := types.NamespacedName{
-		Name:      siteServiceName,
-		Namespace: infinispan.ObjectMeta.Namespace,
-	}
-	err := r.client.Get(context.TODO(), ns, siteService)
-
-	if errors.IsNotFound(err) {
-		return r.createSiteService(siteServiceName, infinispan, logger)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return siteService, nil
-}
-
-func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
-	lsPodSelector := labelsForInfinispan(infinispan.ObjectMeta.Name, "infinispan-pod")
-	lsService := labelsForInfinispan(infinispan.ObjectMeta.Name, "infinispan-service-xsite")
-	exposeSpec := infinispan.Spec.Service.Sites.Local.Expose
-	exposeSpec.Selector = lsPodSelector
-
-	switch exposeSpec.Type {
-	case corev1.ServiceTypeNodePort:
-		exposeSpec.Ports = []corev1.ServicePort{
-			{
-				Port:     7900,
-				NodePort: 32660,
-			},
-		}
-	case corev1.ServiceTypeLoadBalancer:
-		exposeSpec.Ports = []corev1.ServicePort{
-			{
-				Port: 7900,
-			},
-		}
-	}
-
-	logger.Info("create exposed site service", "configuration", exposeSpec)
-
-	siteService := corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      siteServiceName,
-			Namespace: infinispan.ObjectMeta.Namespace,
-			Annotations: map[string]string{
-				"service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp",
-			},
-			Labels: lsService,
-		},
-		Spec: exposeSpec,
-	}
-
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(infinispan, &siteService, r.scheme)
-
-	err := r.client.Create(context.TODO(), &siteService)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return nil, err
-	}
-
-	return &siteService, nil
-}
-
-func appendRemoteLocation(xsite *configuration.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) error {
-	restConfig, err := GetRemoteSiteRESTConfig(infinispan, remoteLocation, logger)
-	if err != nil {
-		return err
-	}
-
-	remoteKubernetes, err := k8s.NewKubernetesFromConfig(restConfig)
-	if err != nil {
-		logger.Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
-		return err
-	}
-
-	err = appendKubernetesRemoteLocation(xsite, infinispan, remoteLocation, remoteKubernetes, logger)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func GetRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, location *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) (*restclient.Config, error) {
-	backupSiteURL, err := url.Parse(location.URL)
-	if err != nil {
-		return nil, err
-	}
-
-	// Copy URL to make modify it for backup access
-	copyURL, err := url.Parse(backupSiteURL.String())
-	if err != nil {
-		return nil, err
-	}
-
-	// All remote sites locations are accessed via encrypted http
-	copyURL.Scheme = "https"
-
-	switch scheme := backupSiteURL.Scheme; scheme {
-	case "minikube":
-		return getMinikubeRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
-	case "openshift":
-		return kubernetes.GetOpenShiftRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
-	default:
-		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
-	}
-}
-
-func getMinikubeRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
-	logger.Info("connect to backup minikube cluster", "url", masterURL)
-
-	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
-	if err != nil {
-		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
-		return nil, err
-	}
-
-	secret, err := kubernetes.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
-	if err != nil {
-		logger.Error(err, "unable to find Secret", "secret name", secretName)
-		return nil, err
-	}
-
-	config.CAData = secret.Data["certificate-authority"]
-	config.CertData = secret.Data["client-certificate"]
-	config.KeyData = secret.Data["client-key"]
-
-	return config, nil
-}
-
-func appendKubernetesRemoteLocation(xsite *configuration.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, remoteKubernetes *k8s.Kubernetes, logger logr.Logger) error {
-	siteServiceName := getSiteServiceName(infinispan)
-	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
-	siteService := &corev1.Service{}
-	err := remoteKubernetes.Client.Get(context.TODO(), namespacedName, siteService)
-	if err != nil {
-		logger.Error(err, "could not find x-site service in remote cluster", "site service name", siteServiceName)
-		return err
-	}
-
-	host, port, err := getRemoteSiteServiceHostPort(siteService, remoteKubernetes, logger)
-	if err != nil {
-		logger.Error(err, "error retrieving remote x-site service information")
-		return err
-	}
-
-	if host == "" {
-		msg := "remote x-site service host not yet available"
-		logger.Info(msg)
-		return fmt.Errorf(msg)
-	}
-
-	logger.Info("remote site service",
-		"service name", siteServiceName,
-		"host", host,
-		"port", port,
-	)
-
-	backupSite := configuration.BackupSite{
-		Address: host,
-		Name:    remoteLocation.Name,
-		Port:    port,
-	}
-
-	xsite.Backups = append(xsite.Backups, backupSite)
-	return nil
-}
-
-func getRemoteSiteServiceHostPort(service *corev1.Service, remoteKubernetes *k8s.Kubernetes, logger logr.Logger) (string, int32, error) {
-	switch serviceType := service.Spec.Type; serviceType {
-	case corev1.ServiceTypeNodePort:
-		// If configuring NodePort, expect external IPs to be configured
-		return remoteKubernetes.PublicIP(), remoteKubernetes.GetNodePort(service), nil
-	case corev1.ServiceTypeLoadBalancer:
-		return getLoadBalancerServiceHostPort(service, logger)
-	default:
-		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
-	}
-}
-
 func (r *ReconcileInfinispan) finalizeInfinispan(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
-	las := labelsForInfinispan(ispn.Name, "infinispan-pod")
+	las := comutil.LabelsResource(ispn.Name, "infinispan-pod")
 	labelSelector := labels.SelectorFromSet(las)
 	lo := client.ListOptions{Namespace: ispn.Namespace, LabelSelector: labelSelector}
 	deleteOptions := &client.DeleteAllOfOptions{ListOptions: lo}

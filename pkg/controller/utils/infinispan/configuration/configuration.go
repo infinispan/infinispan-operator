@@ -1,9 +1,5 @@
 package configuration
 
-import (
-	"fmt"
-)
-
 // InfinispanConfiguration is the top level configuration type
 type InfinispanConfiguration struct {
 	ClusterName string   `yaml:"clusterName"`
@@ -47,27 +43,4 @@ type BackupSite struct {
 
 type Logging struct {
 	Categories map[string]string `yaml:"categories"`
-}
-
-// CreateInfinispanConfiguration generates a server configuration
-func CreateInfinispanConfiguration(name string, xsite *XSite, loggingCategories map[string]string, namespace string) InfinispanConfiguration {
-	query := fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace)
-	jgroups := JGroups{Transport: "tcp", DNSPing: DNSPing{Query: query}}
-
-	config := InfinispanConfiguration{
-		ClusterName: name,
-		JGroups:     jgroups,
-	}
-
-	if len(loggingCategories) > 0 {
-		config.Logging = Logging{
-			Categories: loggingCategories,
-		}
-	}
-
-	if xsite != nil {
-		config.XSite = *xsite
-	}
-
-	return config
 }

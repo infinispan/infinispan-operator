@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/security"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -13,6 +13,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	ispncluster "github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan/security"
 	tconstants "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	"github.com/infinispan/infinispan-operator/test/e2e/k8s"
 	testutil "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -606,14 +607,6 @@ func cacheURL(schema, cacheName, hostAddr string) string {
 	return fmt.Sprintf(schema+"://%v/rest/v2/caches/%s", hostAddr, cacheName)
 }
 
-type httpError struct {
-	status int
-}
-
-func (e *httpError) Error() string {
-	return fmt.Sprintf("unexpected response %v", e.status)
-}
-
 func createCache(schema, cacheName, usr, pass, hostAddr string, flags string, client *http.Client) {
 	httpURL := cacheURL(schema, cacheName, hostAddr)
 	fmt.Printf("Create cache: %v\n", httpURL)
@@ -626,8 +619,8 @@ func createCacheBadCreds(schema, cacheName, usr, pass, hostAddr string, client *
 		if data == nil {
 			panic("createCacheBadCred should fail, but it doesn't")
 		}
-		err := data.(httpError)
-		if err.status != http.StatusUnauthorized {
+		err := data.(testutil.HttpError)
+		if err.Status != http.StatusUnauthorized {
 			panic(err)
 		}
 	}()
@@ -648,7 +641,7 @@ func createCacheWithXMLTemplate(schema, cacheName, user, pass, hostAddr, templat
 	}
 	// Accept all the 2xx success codes
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		throwHTTPError(resp)
+		testutil.ThrowHTTPError(resp)
 	}
 }
 
@@ -670,7 +663,7 @@ func httpEmpty(httpURL string, method string, usr string, pass string, flags str
 	testutil.ExpectNoError(err)
 
 	if resp.StatusCode != http.StatusOK {
-		panic(httpError{resp.StatusCode})
+		panic(testutil.HttpError{resp.StatusCode})
 	}
 }
 
@@ -683,7 +676,7 @@ func getViaRoute(url string, client *http.Client, user string, pass string) stri
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		throwHTTPError(resp)
+		testutil.ThrowHTTPError(resp)
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -703,13 +696,8 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 		panic(err.Error())
 	}
 	if resp.StatusCode != http.StatusNoContent {
-		throwHTTPError(resp)
+		testutil.ThrowHTTPError(resp)
 	}
-}
-
-func throwHTTPError(resp *http.Response) {
-	errorBytes, _ := ioutil.ReadAll(resp.Body)
-	panic(fmt.Errorf("unexpected HTTP status code (%d): %s", resp.StatusCode, string(errorBytes)))
 }
 
 func getSchemaForRest(ispn *ispnv1.Infinispan) string {
@@ -723,8 +711,6 @@ func getSchemaForRest(ispn *ispnv1.Infinispan) string {
 		panic(err.Error())
 	}
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
-	if curr.Spec.Security.EndpointEncryption.Type != "" {
-		return "https"
-	}
-	return "http"
+
+	return common.GetURISchemeProtocol(curr.GetEndpointScheme())
 }

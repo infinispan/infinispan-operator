@@ -2,10 +2,11 @@ package utils
 
 import (
 	"bufio"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 // Obtain the file absolute path given a relative path

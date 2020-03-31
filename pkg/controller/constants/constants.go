@@ -17,6 +17,13 @@ var (
 
 	// DefaultCPUSize string with default size for CPU
 	DefaultCPULimit int64 = 500
+
+	DeploymentAnnotations = map[string]string{
+		"description":                    "Infinispan 10 (Ephemeral)",
+		"iconClass":                      "icon-infinispan",
+		"openshift.io/display-name":      "Infinispan 10 (Ephemeral)",
+		"openshift.io/documentation-url": "http://infinispan.org/documentation/",
+	}
 )
 
 const (
@@ -31,6 +38,4 @@ const (
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
 	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/default/health"
 	ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
-
-
 )
