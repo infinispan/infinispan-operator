@@ -14,7 +14,9 @@ import (
 
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	ispncom "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"github.com/infinispan/infinispan-operator/version"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -40,30 +42,11 @@ import (
 
 var log = logf.Log.WithName("controller_infinispan")
 
-// DefaultImageName is used if a specific image name is not provided
-var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
-
-// DefaultMemorySize string with default size for memory
-var DefaultMemorySize = resource.MustParse("512Mi")
-
-// DefaultCPUSize string with default size for CPU
-var DefaultCPULimit int64 = 500
-
-// DefaultPVSize default size for persistent volume
-var DefaultPVSize = resource.MustParse("1Gi")
-
 // Kubernetes object
 var kubernetes *ispnutil.Kubernetes
 
 // Cluster object
 var cluster ispnutil.ClusterInterface
-
-const CacheServiceFixedMemoryXmxMb = 200
-const CacheServiceJvmNativeMb = 220
-const CacheServiceMaxRamMb = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
-const CacheServiceAdditionalJavaOptions = "-Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10"
-const CacheServiceJvmNativePercentageOverhead = 1
-const infinispanFinalizer = "finalizer.infinispan.org"
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -143,12 +126,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Check if the cluster must be deleted
 	if infinispan.GetDeletionTimestamp() != nil {
 		// Infinispan resource is to be deleted
-		if contains(infinispan.GetFinalizers(), infinispanFinalizer) {
+		if ispncom.Contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
 			if err := r.finalizeInfinispan(reqLogger, infinispan); err != nil {
 				return reconcile.Result{}, err
 			}
 
-			infinispan.SetFinalizers(remove(infinispan.GetFinalizers(), infinispanFinalizer))
+			infinispan.SetFinalizers(ispncom.Remove(infinispan.GetFinalizers(), consts.InfinispanFinalizer))
 			err := r.client.Update(context.TODO(), infinispan)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -258,7 +241,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 		// Infinispan resource must have a finalizer
-		if !contains(dep.GetFinalizers(), infinispanFinalizer) {
+		if !ispncom.Contains(dep.GetFinalizers(), consts.InfinispanFinalizer) {
 			r.addFinalizer(reqLogger, infinispan)
 		}
 
@@ -342,7 +325,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(labelsForInfinispan(infinispan.Name, ""))
+	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, ""))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), podList, listOps)
 	if err != nil {
@@ -563,12 +546,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
-	extraJavaOptionsIndex := getEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
+	extraJavaOptionsIndex := ispncom.GetEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
 	extraJavaOptions := ispnContr.ExtraJvmOpts
 	previousExtraJavaOptions := (*env)[extraJavaOptionsIndex].Value
 	if extraJavaOptions != previousExtraJavaOptions {
 		(*env)[extraJavaOptionsIndex].Value = ispnContr.ExtraJvmOpts
-		javaOptionsIndex := getEnvVarIndex("JAVA_OPTIONS", env)
+		javaOptionsIndex := ispncom.GetEnvVarIndex("JAVA_OPTIONS", env)
 		newJavaOptions, _ := r.javaOptions(infinispan)
 		(*env)[javaOptionsIndex].Value = newJavaOptions
 		reqLogger.Info("extra jvm options changed, update infinispan",
@@ -591,7 +574,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Update the Infinispan status with the pod status
 	// Wait until all pods have ips assigned
 	// Without those ips, it's not possible to execute next calls
-	if !arePodIPsReady(podList) {
+	if !ispncom.ArePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
 		return reconcile.Result{}, nil
 	}
@@ -643,15 +626,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func getEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
-	for i, value := range *env {
-		if value.Name == envVarName {
-			return i
-		}
-	}
-	return 0
 }
 
 func updateSecurity(infinispan *infinispanv1.Infinispan, client client.Client, reqLogger logr.Logger) error {
@@ -794,15 +768,15 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	// Handles brief window during which resources have been removed,
 	//and old ones terminating while new ones are being created.
 	// We don't want yet another upgrade to be scheduled then.
-	if !areAllPodsReady(podList) {
+	if !ispncom.AreAllPodsReady(podList) {
 		return
 	}
 
 	// Get default Infinispan image for a running Infinispan pod
-	podDefaultImage := getPodDefaultImage(podList.Items[0].Spec.Containers[0])
+	podDefaultImage := ispncom.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
 
 	// Get Infinispan image that the operator creates
-	desiredImage := DefaultImageName
+	desiredImage := consts.DefaultImageName
 
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
@@ -817,30 +791,6 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	}
 }
 
-// getPodDefaultImage returns an Infinispan pod's default image.
-// If the default image cannot be found, it returns the running image.
-func getPodDefaultImage(container corev1.Container) string {
-	envs := container.Env
-	for _, env := range envs {
-		if env.Name == "DEFAULT_IMAGE" {
-			return env.Value
-		}
-	}
-
-	return container.Image
-}
-
-func areAllPodsReady(podList *corev1.PodList) bool {
-	for _, pod := range podList.Items {
-		containerStatuses := pod.Status.ContainerStatuses
-		if len(containerStatuses) == 0 || !containerStatuses[0].Ready {
-			return false
-		}
-	}
-
-	return true
-}
-
 func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface) bool {
 	namespace := infinispan.ObjectMeta.Namespace
 	secretName := ispnutil.GetSecretName(infinispan)
@@ -852,16 +802,6 @@ func notClusterFormed(currConds []infinispanv1.InfinispanCondition, pods []corev
 	notFormed := currConds[0].Status != "True"
 	notEnoughMembers := len(pods) < int(replicas)
 	return notFormed || notEnoughMembers
-}
-
-func arePodIPsReady(pods *corev1.PodList) bool {
-	for _, pod := range pods.Items {
-		if pod.Status.PodIP == "" {
-			return false
-		}
-	}
-
-	return true
 }
 
 func applyDefaults(infinispan *infinispanv1.Infinispan) {
@@ -901,11 +841,11 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
 		containerMaxMemory = memoryLimitBytes
 	}
 
-	nativeMemoryOverhead := containerMaxMemory * (CacheServiceJvmNativePercentageOverhead / 100)
+	nativeMemoryOverhead := containerMaxMemory * (consts.CacheServiceJvmNativePercentageOverhead / 100)
 	evictTotalMemoryBytes :=
 		containerMaxMemory -
-			(CacheServiceJvmNativeMb * 1024 * 1024) -
-			(CacheServiceFixedMemoryXmxMb * 1024 * 1024) -
+			(consts.CacheServiceJvmNativeMb * 1024 * 1024) -
+			(consts.CacheServiceFixedMemoryXmxMb * 1024 * 1024) -
 			nativeMemoryOverhead
 
 	logger.Info("calculated maximum off-heap size",
@@ -1039,7 +979,7 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 		}
 		if ingress.Hostname != "" {
 			// Resolve load balancer host
-			ip, err := lookupHost(ingress.Hostname, logger)
+			ip, err := ispncom.LookupHost(ingress.Hostname, logger)
 
 			// Load balancer gets created asynchronously,
 			// so it might take time for the status to be updated.
@@ -1050,30 +990,20 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 	return "", port, nil
 }
 
-func lookupHost(host string, logger logr.Logger) (string, error) {
-	addresses, err := net.LookupHost(host)
-	if err != nil {
-		logger.Error(err, "host does not resolve")
-		return "", err
-	}
-	logger.Info("host resolved", "host", host, "addresses", addresses)
-	return host, nil
-}
-
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
-	lsPod := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
+	lsPod := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
 	// This field specifies the flavor of the
 	// Infinispan cluster. "" is plain community edition (vanilla)
 	var imageName string
 	if m.Spec.Image != "" {
 		imageName = m.Spec.Image
 	} else {
-		imageName = DefaultImageName
+		imageName = consts.DefaultImageName
 	}
 
-	memory := DefaultMemorySize
+	memory := consts.DefaultMemorySize
 	if m.Spec.Container.Memory != "" {
 		memory = resource.MustParse(m.Spec.Container.Memory)
 	}
@@ -1090,7 +1020,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		{Name: "IDENTITIES_PATH", Value: "/etc/security/identities.yaml"},
 		{Name: "JAVA_OPTIONS", Value: javaOptions},
 		{Name: "EXTRA_JAVA_OPTIONS", Value: m.Spec.Container.ExtraJvmOpts},
-		{Name: "DEFAULT_IMAGE", Value: DefaultImageName},
+		{Name: "DEFAULT_IMAGE", Value: consts.DefaultImageName},
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var
@@ -1119,14 +1049,10 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name,
-			Namespace: m.ObjectMeta.Namespace,
-			Annotations: map[string]string{"description": "Infinispan 10 (Ephemeral)",
-				"iconClass":                      "icon-infinispan",
-				"openshift.io/display-name":      "Infinispan 10 (Ephemeral)",
-				"openshift.io/documentation-url": "http://infinispan.org/documentation/",
-			},
-			Labels: map[string]string{"template": "infinispan-ephemeral"},
+			Name:        m.ObjectMeta.Name,
+			Namespace:   m.ObjectMeta.Namespace,
+			Annotations: consts.DeploymentAnnotations,
+			Labels:      map[string]string{"template": "infinispan-ephemeral"},
 		},
 		Spec: appsv1.StatefulSetSpec{
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
@@ -1202,7 +1128,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 
 	// Persistent vol size must exceed memory size
 	// so that it can contain all the in memory data
-	pvSize := DefaultPVSize
+	pvSize := consts.DefaultPVSize
 	if pvSize.Cmp(memory) < 0 {
 		pvSize = memory
 	}
@@ -1264,17 +1190,13 @@ func cpuResources(infinispan *infinispanv1.Infinispan) (resource.Quantity, resou
 	if infinispan.Spec.Container.CPU != "" {
 		cpuLimits := resource.MustParse(infinispan.Spec.Container.CPU)
 		cpuRequestsMillis := cpuLimits.MilliValue() / 2
-		cpuRequests := toMilliDecimalQuantity(int64(cpuRequestsMillis))
+		cpuRequests := ispncom.ToMilliDecimalQuantity(int64(cpuRequestsMillis))
 		return cpuRequests, cpuLimits
 	}
 
-	cpuLimits := toMilliDecimalQuantity(DefaultCPULimit)
-	cpuRequests := toMilliDecimalQuantity(DefaultCPULimit / 2)
+	cpuLimits := ispncom.ToMilliDecimalQuantity(consts.DefaultCPULimit)
+	cpuRequests := ispncom.ToMilliDecimalQuantity(consts.DefaultCPULimit / 2)
 	return cpuRequests, cpuLimits
-}
-
-func toMilliDecimalQuantity(value int64) resource.Quantity {
-	return *resource.NewMilliQuantity(value, resource.DecimalSI)
 }
 
 func (r *ReconcileInfinispan) javaOptions(m *infinispanv1.Infinispan) (string, error) {
@@ -1284,10 +1206,10 @@ func (r *ReconcileInfinispan) javaOptions(m *infinispanv1.Infinispan) (string, e
 	case infinispanv1.ServiceTypeCache:
 		javaOptions := fmt.Sprintf(
 			"-Xmx%dM -Xms%dM -XX:MaxRAM=%dM %s %s",
-			CacheServiceFixedMemoryXmxMb,
-			CacheServiceFixedMemoryXmxMb,
-			CacheServiceMaxRamMb,
-			CacheServiceAdditionalJavaOptions,
+			consts.CacheServiceFixedMemoryXmxMb,
+			consts.CacheServiceFixedMemoryXmxMb,
+			consts.CacheServiceMaxRamMb,
+			consts.CacheServiceAdditionalJavaOptions,
 			m.Spec.Container.ExtraJvmOpts,
 		)
 		return javaOptions, nil
@@ -1383,7 +1305,7 @@ func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *i
 	if err != nil {
 		return nil, err
 	}
-	lsConfigMap := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-configmap-configuration")
+	lsConfigMap := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-configmap-configuration")
 	configMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1421,7 +1343,7 @@ func (r *ReconcileInfinispan) findSecret(m *infinispanv1.Infinispan) (*corev1.Se
 }
 
 func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinispanv1.Infinispan) *corev1.Secret {
-	lsSecret := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-secret-identities")
+	lsSecret := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-secret-identities")
 	secretName := ispnutil.GetSecretName(m)
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -1442,15 +1364,6 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 	return secret
 }
 
-// labelsForInfinispan returns the labels that must me applied to the resource
-func labelsForInfinispan(name, resourceType string) map[string]string {
-	m := map[string]string{"infinispan_cr": name, "clusterName": name}
-	if resourceType != "" {
-		m["app"] = resourceType
-	}
-	return m
-}
-
 // getInfinispanConditions returns the pods status and a summary status for the cluster
 func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, protocol string, cluster ispnutil.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
@@ -1465,7 +1378,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 		for _, pod := range pods {
 			var clusterView string
 			var members []string
-			if isPodReady(pod) {
+			if ispncom.IsPodReady(pod) {
 				// If pod is ready query it for the cluster members
 				members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace, protocol)
 				clusterView = strings.Join(members, ",")
@@ -1505,18 +1418,9 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 	return status
 }
 
-func isPodReady(pod corev1.Pod) bool {
-	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.ContainersReady && cond.Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-	return false
-}
-
 func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service")
+	lsPodSelector := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
+	lsService := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-service")
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1545,8 +1449,8 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 }
 
 func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service-ping")
+	lsPodSelector := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
+	lsService := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-service-ping")
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1578,8 +1482,8 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 
 // ServiceExternal creates an external service that's linked to the internal service
 func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service-external")
+	lsPodSelector := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
+	lsService := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-service-external")
 	externalServiceType := m.Spec.Expose.Type
 	// An external service can be simply achieved with a LoadBalancer
 	// that has same selectors as original service.
@@ -1667,8 +1571,8 @@ func (r *ReconcileInfinispan) getOrCreateSiteService(siteServiceName string, inf
 }
 
 func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
-	lsPodSelector := labelsForInfinispan(infinispan.ObjectMeta.Name, "infinispan-pod")
-	lsService := labelsForInfinispan(infinispan.ObjectMeta.Name, "infinispan-service-xsite")
+	lsPodSelector := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-pod")
+	lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-xsite")
 	exposeSpec := infinispan.Spec.Service.Sites.Local.Expose
 	exposeSpec.Selector = lsPodSelector
 
@@ -1853,16 +1757,6 @@ func getRemoteSiteServiceHostPort(service *corev1.Service, remoteKubernetes *isp
 	}
 }
 
-// getEnvWithDefault return GetEnv(name) if exists else
-// return defVal
-func getEnvWithDefault(name, defVal string) string {
-	str := os.Getenv(name)
-	if str != "" {
-		return str
-	}
-	return defVal
-}
-
 // getServingCertsMode returns a label that identify the kind of serving
 // certs service is available. Returns 'openshift.io' for service-ca on openshift
 func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
@@ -1875,26 +1769,8 @@ func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
 	return ""
 }
 
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-func remove(list []string, s string) []string {
-	for i, v := range list {
-		if v == s {
-			list = append(list[:i], list[i+1:]...)
-		}
-	}
-	return list
-}
-
 func (r *ReconcileInfinispan) finalizeInfinispan(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
-	las := labelsForInfinispan(ispn.Name, "infinispan-pod")
+	las := ispncom.LabelsResource(ispn.Name, "infinispan-pod")
 	labelSelector := labels.SelectorFromSet(las)
 	lo := client.ListOptions{Namespace: ispn.Namespace, LabelSelector: labelSelector}
 	deleteOptions := &client.DeleteAllOfOptions{ListOptions: lo}
@@ -1905,7 +1781,7 @@ func (r *ReconcileInfinispan) finalizeInfinispan(reqLogger logr.Logger, ispn *in
 
 func (r *ReconcileInfinispan) addFinalizer(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
 	reqLogger.Info("Adding Finalizer for the Infinispan")
-	ispn.SetFinalizers(append(ispn.GetFinalizers(), infinispanFinalizer))
+	ispn.SetFinalizers(append(ispn.GetFinalizers(), consts.InfinispanFinalizer))
 
 	// Update CR
 	err := r.client.Update(context.TODO(), ispn)

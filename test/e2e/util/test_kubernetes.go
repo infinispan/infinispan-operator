@@ -11,6 +11,7 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	appsv1 "k8s.io/api/apps/v1"
@@ -357,7 +358,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 }
 
 func checkExternalAddress(client *http.Client, user, password, hostAndPort string) bool {
-	httpURL := fmt.Sprintf("http://%s/%s", hostAndPort, util.ServerHTTPHealthPath)
+	httpURL := fmt.Sprintf("http://%s/%s", hostAndPort, consts.ServerHTTPHealthPath)
 	req, err := http.NewRequest("GET", httpURL, nil)
 	ExpectNoError(err)
 	req.SetBasicAuth(user, password)
