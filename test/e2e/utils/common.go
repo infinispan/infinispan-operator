@@ -9,21 +9,21 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
+func GetYamlReaderFromFile(filename string) (*yaml.YAMLReader, error) {
+	absFileName := getAbsolutePath(filename)
+	f, err := os.Open(absFileName)
+	if err != nil {
+		return nil, err
+	}
+	return yaml.NewYAMLReader(bufio.NewReader(f)), nil
+}
+
 // Obtain the file absolute path given a relative path
-func GetAbsolutePath(relativeFilePath string) string {
+func getAbsolutePath(relativeFilePath string) string {
 	if !strings.HasPrefix(relativeFilePath, ".") {
 		return relativeFilePath
 	}
 	dir, _ := os.Getwd()
 	absPath, _ := filepath.Abs(dir + "/" + relativeFilePath)
 	return absPath
-}
-
-func GetYamlReaderFromFile(filename string) (*yaml.YAMLReader, error) {
-	absFileName := GetAbsolutePath(filename)
-	f, err := os.Open(absFileName)
-	if err != nil {
-		return nil, err
-	}
-	return yaml.NewYAMLReader(bufio.NewReader(f)), nil
 }

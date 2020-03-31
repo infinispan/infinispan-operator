@@ -1,11 +1,9 @@
 package k8s
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -451,13 +449,7 @@ func (k TestKubernetes) RunOperator(namespace string) chan struct{} {
 
 // Install resources from rbac.yaml required by the Infinispan operator
 func (k TestKubernetes) installRBAC(namespace string) {
-	filename := utils.GetAbsolutePath("../../deploy/rbac.yaml")
-	f, err := os.Open(filename)
-	utils.ExpectNoError(err)
-	yamlReader := yaml.NewYAMLReader(bufio.NewReader(f))
-
-
-	yamlReader, err = utils.GetYamlReaderFromFile("../../deploy/role.yaml")
+	yamlReader, err := utils.GetYamlReaderFromFile("../../deploy/role.yaml")
 	utils.ExpectNoError(err)
 	read, _ := yamlReader.Read()
 	role := rbacv1.Role{}
@@ -483,12 +475,7 @@ func (k TestKubernetes) installRBAC(namespace string) {
 }
 
 func (k TestKubernetes) installCRD(namespace string) {
-	filename := utils.GetAbsolutePath("../../deploy/crd.yaml")
-	f, err := os.Open(filename)
-	utils.ExpectNoError(err)
-	yamlReader := yaml.NewYAMLReader(bufio.NewReader(f))
-
-	yamlReader, err = utils.GetYamlReaderFromFile("../../deploy/crds/infinispan.org_infinispans_crd.yaml")
+	yamlReader, err := utils.GetYamlReaderFromFile("../../deploy/crds/infinispan.org_infinispans_crd.yaml")
 	read, _ := yamlReader.Read()
 	crd := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crd)

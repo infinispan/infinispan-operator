@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	ispncluster "github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan/security"
 	tconstants "github.com/infinispan/infinispan-operator/test/e2e/constants"
@@ -64,11 +64,9 @@ func TestMain(m *testing.M) {
 		namespace := tconstants.Namespace
 		kubernetes.DeleteNamespace(namespace)
 		kubernetes.DeleteCRD("infinispans.infinispan.org")
-		kubernetes.NewNamespace(namespace)
-		stopCh := kubernetes.RunOperator(namespace)
 		kubernetes.DeleteCRD("caches.infinispan.org")
 		kubernetes.NewNamespace(namespace)
-		stopCh = kubernetes.RunOperator(namespace)
+		stopCh := kubernetes.RunOperator(namespace)
 		code := m.Run()
 		close(stopCh)
 		os.Exit(code)
