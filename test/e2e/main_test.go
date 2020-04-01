@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -25,7 +26,7 @@ import (
 )
 
 var kubernetes = testutil.NewTestKubernetes()
-var cluster = util.NewCluster(kubernetes.Kubernetes)
+var cluster = infinispan.NewCluster(kubernetes.Kubernetes)
 
 var DefaultSpec = ispnv1.Infinispan{
 	TypeMeta: tconst.InfinispanTypeMeta,

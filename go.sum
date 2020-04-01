@@ -876,6 +876,7 @@ k8s.io/client-go v0.0.0-20191016111102-bec269661e48/go.mod h1:hrwktSwYGI4JK+TJA3
 k8s.io/cloud-provider v0.0.0-20191016115326-20453efc2458/go.mod h1:O5SO5xcgxrjJV9EC9R/47RuBpbk5YX9URDBlg++FA5o=
 k8s.io/cluster-bootstrap v0.0.0-20191016115129-c07a134afb42/go.mod h1:MzCL6kLExQuHruGaqibd8cugC8nw8QRxm3+lzR5l8SI=
 k8s.io/code-generator v0.0.0-20191004115455-8e001e5d1894/go.mod h1:mJUgkl06XV4kstAnLHAIzJPVCOzVR+ZcfPIv4fUsFCY=
+k8s.io/component-base v0.0.0-20191016111319-039242c015a9 h1:2D+G/CCNVdYc0h9D+tX+0SmtcyQmby6uzNityrps1s0=
 k8s.io/component-base v0.0.0-20191016111319-039242c015a9/go.mod h1:SuWowIgd/dtU/m/iv8OD9eOxp3QZBBhTIiWMsBQvKjI=
 k8s.io/cri-api v0.0.0-20190828162817-608eb1dad4ac/go.mod h1:BvtUaNBr0fEpzb11OfrQiJLsLPtqbmulpo1fPwcpP6Q=
 k8s.io/csi-translation-lib v0.0.0-20191016115521-756ffa5af0bd/go.mod h1:lf1VBseeLanBpSXD0N9tuPx1ylI8sA0j6f+rckCKiIk=
@@ -891,6 +892,7 @@ k8s.io/klog v0.4.0/go.mod h1:4Bi6QPql/J/LkTDqv7R/cd3hPo4k2DG6Ptcz060Ez5I=
 k8s.io/klog v1.0.0 h1:Pt+yjF5aB1xDSVbau4VsWe+dQNzA0qv1LlXdC2dF6Q8=
 k8s.io/klog v1.0.0/go.mod h1:4Bi6QPql/J/LkTDqv7R/cd3hPo4k2DG6Ptcz060Ez5I=
 k8s.io/kube-aggregator v0.0.0-20191016112429-9587704a8ad4/go.mod h1:+aW0UZgSXdTSHTIFnWnueEuXjOqerDUxGIw6Ygr+vYY=
+k8s.io/kube-controller-manager v0.0.0-20191016114939-2b2b218dc1df h1:7zqJKTBHA7+oFKu6FLB/di2/zrx+2Khx1hBKJ5oOBcc=
 k8s.io/kube-controller-manager v0.0.0-20191016114939-2b2b218dc1df/go.mod h1:WgrTcPKYAfNa9C0LV1UeK+XqfbSOUH1WGq/vX5UiW40=
 k8s.io/kube-openapi v0.0.0-20190320154901-5e45bb682580/go.mod h1:BXM9ceUBTj2QnfH2MK1odQs778ajze1RxcmP6S8RVVc=
 k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf/go.mod h1:1TqjTSzOxsLGIKfj0lK8EeCP7K1iUG65v09OM0/WG5E=
@@ -903,6 +905,7 @@ k8s.io/kube-state-metrics v1.7.2/go.mod h1:U2Y6DRi07sS85rmVPmBFlmv+2peBcL8IWGjM+
 k8s.io/kubectl v0.0.0-20191016120415-2ed914427d51/go.mod h1:gL826ZTIfD4vXTGlmzgTbliCAT9NGiqpCqK2aNYv5MQ=
 k8s.io/kubelet v0.0.0-20191016114556-7841ed97f1b2/go.mod h1:SBvrtLbuePbJygVXGGCMtWKH07+qrN2dE1iMnteSG8E=
 k8s.io/kubernetes v1.16.0/go.mod h1:nlP2zevWKRGKuaaVbKIwozU0Rjg9leVDXkL4YTtjmVs=
+k8s.io/kubernetes v1.16.2 h1:k0f/OVp6Yfv+UMTm6VYKhqjRgcvHh4QhN9coanjrito=
 k8s.io/kubernetes v1.16.2/go.mod h1:SmhGgKfQ30imqjFVj8AI+iW+zSyFsswNErKYeTfgoH0=
 k8s.io/legacy-cloud-providers v0.0.0-20191016115753-cf0698c3a16b/go.mod h1:tKW3pKqdRW8pMveUTpF5pJuCjQxg6a25iLo+Z9BXVH0=
 k8s.io/metrics v0.0.0-20191016113814-3b1a734dba6e/go.mod h1:ve7/vMWeY5lEBkZf6Bt5TTbGS3b8wAxwGbdXAsufjRs=

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/k8s"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	appsv1 "k8s.io/api/apps/v1"
@@ -38,7 +39,7 @@ var log = logf.Log.WithName("kubernetes_test")
 
 // TestKubernetes abstracts testing related interaction with a Kubernetes cluster
 type TestKubernetes struct {
-	Kubernetes *util.Kubernetes
+	Kubernetes *k8s.Kubernetes
 }
 
 func init() {
@@ -57,7 +58,7 @@ func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 // NewTestKubernetes creates a new instance of TestKubernetes
 func NewTestKubernetes() *TestKubernetes {
 	mapperProvider := apiutil.NewDynamicRESTMapper
-	kubernetes, err := util.NewKubernetesFromLocalConfig(scheme, mapperProvider)
+	kubernetes, err := k8s.NewKubernetesFromLocalConfig(scheme, mapperProvider)
 	ExpectNoError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
 }
@@ -535,9 +536,14 @@ func (k TestKubernetes) installCRD(namespace string) {
 	k.CreateAndWaitForCRD(&crdCache, namespace)
 }
 
+// findKubeConfig returns local Kubernetes configuration
+func findKubeConfig() string {
+	return common.GetEnvWithDefault("KUBECONFIG", tconst.ClusterUpKubeConfig)
+}
+
 // Run the operator locally
 func runOperatorLocally(stopCh chan struct{}, namespace string) {
-	kubeConfig := util.FindKubeConfig()
+	kubeConfig := findKubeConfig()
 	_ = os.Setenv("WATCH_NAMESPACE", namespace)
 	_ = os.Setenv("KUBECONFIG", kubeConfig)
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
