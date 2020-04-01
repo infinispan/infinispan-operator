@@ -502,11 +502,13 @@ github.com/openshift/origin v0.0.0-20160503220234-8f127d736703/go.mod h1:0Rox5r9
 github.com/openshift/prom-label-proxy v0.1.1-0.20191016113035-b8153a7f39f1/go.mod h1:p5MuxzsYP1JPsNGwtjtcgRHHlGziCJJfztff91nNixw=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/openzipkin/zipkin-go v0.1.6/go.mod h1:QgAqvLzwWbR/WpD4A3cGpPtJrZXNIiJc5AZX7/PBEpw=
+github.com/operator-framework/api v0.0.0-20191127212340-9066a6e95573/go.mod h1:S5IdlJvmKkF84K2tBvsrqJbI2FVy03P88R75snpRxJo=
 github.com/operator-framework/api v0.0.0-20200120235816-80fd2f1a09c9/go.mod h1:S5IdlJvmKkF84K2tBvsrqJbI2FVy03P88R75snpRxJo=
 github.com/operator-framework/operator-lifecycle-manager v0.0.0-20191115003340-16619cd27fa5/go.mod h1:zL34MNy92LPutBH5gQK+gGhtgTUlZZX03I2G12vWHF4=
 github.com/operator-framework/operator-registry v1.5.1/go.mod h1:agrQlkWOo1q8U1SAaLSS2WQ+Z9vswNT2M2HFib9iuLY=
 github.com/operator-framework/operator-registry v1.5.3/go.mod h1:agrQlkWOo1q8U1SAaLSS2WQ+Z9vswNT2M2HFib9iuLY=
 github.com/operator-framework/operator-registry v1.5.7-0.20200121213444-d8e2ec52c19a/go.mod h1:ekexcV4O8YMxdQuPb+Xco7MHfVmRIq7Jvj5e6NU7dHI=
+github.com/operator-framework/operator-sdk v0.14.0/go.mod h1:nfBicv6cTF107pobfsw6Ziol9jK+wIIOJovecux9/hw=
 github.com/operator-framework/operator-sdk v0.15.2 h1:VlxI0J+HLmMKs5k53drQ/B1AXhyNj0OaD2BbREt8Hnk=
 github.com/operator-framework/operator-sdk v0.15.2/go.mod h1:RkC5LpluVONa08ORFIIVCYrEr855xG1/NltRL2jQ8qo=
 github.com/otiai10/copy v1.0.1/go.mod h1:8bMCJrAqOtN/d9oyh5HR7HhLQMvcGMpGdwRDYsfOCHc=
@@ -563,6 +565,8 @@ github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40T
 github.com/prometheus/tsdb v0.8.0/go.mod h1:fSI0j+IUQrDd7+ZtR9WKIGtoYAYAJUKcKhYLG25tN4g=
 github.com/quobyte/api v0.1.2/go.mod h1:jL7lIHrmqQ7yh05OJ+eEEdHr0u/kmT1Ff9iHd+4H6VI=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
+github.com/redhat-cop/operator-utils v0.1.1 h1:0SsC4yWZ36GD3yA8ZmlWeFRMZyMCk2APF2CIn2mbBW0=
+github.com/redhat-cop/operator-utils v0.1.1/go.mod h1:OJuyKu5UICqZyy4igLBEp7JGLgDwjtAFWBQJ/HCIMsE=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
 github.com/robfig/cron v0.0.0-20170526150127-736158dc09e1/go.mod h1:JGuDeoQd7Z6yL4zQhZ3OPEVHB7fL6Ka6skscFHfmt2k=
 github.com/robfig/cron v1.1.0/go.mod h1:JGuDeoQd7Z6yL4zQhZ3OPEVHB7fL6Ka6skscFHfmt2k=
