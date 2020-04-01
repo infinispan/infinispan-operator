@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/k8s"
 	"net/url"
 	"os"
@@ -46,7 +45,7 @@ var log = logf.Log.WithName("controller_infinispan")
 var kubernetes *k8s.Kubernetes
 
 // Cluster object
-var cluster infinispan.ClusterInterface
+var cluster k8s.ClusterInterface
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -57,7 +56,7 @@ func Add(mgr manager.Manager) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	kubernetes = k8s.NewKubernetesFromController(mgr)
-	cluster = infinispan.NewCluster(kubernetes)
+	cluster = k8s.NewCluster(kubernetes)
 	return &ReconcileInfinispan{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
@@ -791,7 +790,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	}
 }
 
-func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster infinispan.ClusterInterface) bool {
+func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster k8s.ClusterInterface) bool {
 	namespace := infinispan.ObjectMeta.Namespace
 	secretName := infinispan.GetSecretName()
 	protocol := infinispanProtocol(infinispan)
@@ -811,7 +810,7 @@ func infinispanProtocol(infinispan *infinispanv1.Infinispan) string {
 	return "http"
 }
 
-func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster infinispan.ClusterInterface, logger logr.Logger) error {
+func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster k8s.ClusterInterface, logger logr.Logger) error {
 	namespace := infinispan.ObjectMeta.Namespace
 
 	memoryLimitBytes, err := cluster.GetMemoryLimitBytes(podName, namespace)
@@ -1042,7 +1041,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 						Name:  "infinispan",
 						Env:   envVars,
 						LivenessProbe: &corev1.Probe{
-							Handler:             infinispan.ClusterStatusHandler(protocolScheme),
+							Handler:             k8s.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       60,
@@ -1053,7 +1052,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
 						},
 						ReadinessProbe: &corev1.Probe{
-							Handler:             infinispan.ClusterStatusHandler(protocolScheme),
+							Handler:             k8s.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       10,
@@ -1287,7 +1286,7 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, protocol string, cluster infinispan.ClusterInterface) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, protocol string, cluster k8s.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	var wellFormedErr error
 	clusterViews := make(map[string]bool)

@@ -1,9 +1,8 @@
-package infinispan
+package k8s
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/k8s"
 	"strconv"
 	"strings"
 
@@ -17,11 +16,11 @@ var log = logf.Log.WithName("cluster_util")
 
 // Cluster abstracts interaction with an Infinispan cluster
 type Cluster struct {
-	Kubernetes *k8s.Kubernetes
+	Kubernetes *Kubernetes
 }
 
 // NewCluster creates a new instance of Cluster
-func NewCluster(kubernetes *k8s.Kubernetes) *Cluster {
+func NewCluster(kubernetes *Kubernetes) *Cluster {
 	return &Cluster{Kubernetes: kubernetes}
 }
 
@@ -62,7 +61,7 @@ func (c Cluster) GracefulShutdown(secretName, podName, namespace, protocol strin
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
 	logger.Info("get cluster members", "url", httpURL)
 
-	execOptions := k8s.ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	_, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err == nil {
 		return nil
@@ -98,7 +97,7 @@ func (c Cluster) GetClusterMembers(secretName, podName, namespace, protocol stri
 	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
 	logger.Info("get cluster members", "url", httpURL)
 
-	execOptions := k8s.ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err == nil {
 		result := execOut.Bytes()
@@ -135,7 +134,7 @@ func (c Cluster) ExistsCache(cacheName, secretName, podName, namespace, protocol
 		httpURL,
 	}
 
-	execOptions := k8s.ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	execOut, _, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err != nil {
 		return false
@@ -176,7 +175,7 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 		httpURL,
 	}
 
-	execOptions := k8s.ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 	if err != nil {
 		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", execErr, err)
@@ -201,7 +200,7 @@ func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace
 
 func (c Cluster) GetMemoryLimitBytes(podName, namespace string) (uint64, error) {
 	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
-	execOptions := k8s.ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
@@ -219,7 +218,7 @@ func (c Cluster) GetMemoryLimitBytes(podName, namespace string) (uint64, error) 
 
 func (c Cluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
 	command := []string{"cat", "/proc/meminfo"}
-	execOptions := k8s.ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {

@@ -1,14 +1,13 @@
 package infinispan
 
 import (
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/k8s"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NewFakeReconciler creates a new fake Reconciler for unit testing
-func NewFakeReconciler(client client.Client, scheme *runtime.Scheme, fakeKubernetes *k8s.Kubernetes, fakeCluster infinispan.ClusterInterface) ReconcileInfinispan {
+func NewFakeReconciler(client client.Client, scheme *runtime.Scheme, fakeKubernetes *k8s.Kubernetes, fakeCluster k8s.ClusterInterface) ReconcileInfinispan {
 	kubernetes = fakeKubernetes
 	cluster = fakeCluster
 	return ReconcileInfinispan{client, scheme}
