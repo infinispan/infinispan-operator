@@ -1,8 +1,0 @@
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: infinispan-minimal-auth
-spec:
-  replicas: 1
-  security:
-    endpointSecretName: connect-secret

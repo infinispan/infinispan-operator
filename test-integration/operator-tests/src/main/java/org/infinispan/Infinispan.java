@@ -1,9 +1,7 @@
 package org.infinispan;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -21,9 +19,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
 import cz.xtf.core.waiting.SimpleWaiter;
-import cz.xtf.core.waiting.Waiter;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
@@ -53,6 +49,10 @@ public class Infinispan {
       openShift.customResource(crdc).create(openShift.getNamespace(), infinispan);
    }
 
+   public void delete() throws IOException {
+      openShift.customResource(crdc).delete(openShift.getNamespace(), clusterName);
+   }
+
    public void sync() {
       infinispan = openShift.customResource(crdc).get(openShift.getNamespace(), clusterName);
       infinispanObject = new ObjectMapper().convertValue(infinispan, InfinispanObject.class);
@@ -72,14 +72,14 @@ public class Infinispan {
    }
 
    public Credentials getDefaultCredentials() throws IOException {
-      return getCrednetials(clusterName + "-generated-secret", "developer");
+      return getCredentials(clusterName + "-generated-secret", "developer");
    }
 
    public Credentials getCredentials(String username) throws IOException {
-      return getCrednetials(infinispanObject.getSpec().getSecurity().getEndpointSecretName() ,username);
+      return getCredentials(infinispanObject.getSpec().getSecurity().getEndpointSecretName() ,username);
    }
 
-   private Credentials getCrednetials(String secretName, String username) throws IOException {
+   private Credentials getCredentials(String secretName, String username) throws IOException {
       Map<String, String> creds = openShift.getSecret(secretName).getData();
       String identitiesYaml = new String(Base64.getDecoder().decode(creds.get("identities.yaml")));
       Identities identities = new ObjectMapper(new YAMLFactory()).readValue(identitiesYaml, Identities.class);
