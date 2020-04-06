@@ -1,0 +1,23 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: advanced-setup-a
+spec:
+  container:
+    cpu: 1500m
+    memory: 1Gi
+    extra-jvm-opts: "-XX:NativeMemoryTracking=summary"
+  logging:
+    categories:
+      org.infinispan: warn
+      org.jgroups: debug
+  security:
+    endpointEncryption:
+      type: secret
+      certSecretName: encryption-secret
+    endpointSecretName: connect-secret
+  service:
+    type: DataGrid
+    container:
+      storage: 2Gi
+  replicas: 2

@@ -29,14 +29,17 @@ public class HotRodServlet extends HttpServlet {
 
          ConfigurationBuilder builder = new ConfigurationBuilder();
          builder.addServer().host(serviceName).port(11222);
-         builder.security().authentication().realm("default").serverName("infinispan").username(username).password(password).enable();
+
+         if(username != null || password != null) {
+            builder.security().authentication().realm("default").serverName("infinispan").username(username).password(password).enable();
+         }
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());
-         RemoteCache<String, String> rc = rcm.getCache("testcache");
+         RemoteCache<String, String> rc = rcm.administration().getOrCreateCache("hotrod-auth-test", "org.infinispan.DIST_SYNC");
 
-         rc.put(username, password);
+         rc.put("authorized-hotrod-key", "secret-value");
 
-         if(!password.equals(rc.get(username))) {
+         if(!"secret-value".equals(rc.get("authorized-hotrod-key"))) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             pw.println("UNAUTHORIZED");
          }

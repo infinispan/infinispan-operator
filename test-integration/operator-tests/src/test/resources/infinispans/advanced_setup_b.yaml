@@ -1,11 +1,13 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: infinispan-encryption-provided
+  name: advanced-setup-b
 spec:
-  replicas: 1
+  expose:
+    type: LoadBalancer
   security:
     endpointEncryption:
       type: service
       certServiceName: service.beta.openshift.io
       certSecretName: tls-secret
+  replicas: 1

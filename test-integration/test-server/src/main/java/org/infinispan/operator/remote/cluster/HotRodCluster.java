@@ -1,4 +1,4 @@
-package org.infinispan.operator.remote.encryption;
+package org.infinispan.operator.remote.cluster;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -10,11 +10,13 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.infinispan.client.hotrod.RemoteCache;
 import org.infinispan.client.hotrod.RemoteCacheManager;
+import org.infinispan.client.hotrod.configuration.ClientIntelligence;
 import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
+import org.infinispan.client.hotrod.exceptions.HotRodClientException;
 
-@WebServlet("/hotrod/encryption-provided")
-public class EncryptionProvidedHotRod extends HttpServlet {
-   private static final long serialVersionUID = 3L;
+@WebServlet("/hotrod/cluster")
+public class HotRodCluster extends HttpServlet {
+   private static final long serialVersionUID = 1L;
 
    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
       PrintWriter pw = new PrintWriter(response.getOutputStream());
@@ -27,20 +29,18 @@ public class EncryptionProvidedHotRod extends HttpServlet {
          ConfigurationBuilder builder = new ConfigurationBuilder();
          builder.addServer().host(serviceName).port(11222);
          builder.security().authentication().realm("default").serverName("infinispan").username(username).password(password).enable();
-         builder.security().ssl().trustStorePath("/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt");
+         builder.clientIntelligence(ClientIntelligence.BASIC);
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());
-         RemoteCache<String, String> rc = rcm.administration().getOrCreateCache("hotrod-auth-test", "org.infinispan.DIST_SYNC");
+         RemoteCache<String, String> rc = rcm.getCache("cluster-test");
 
-         rc.put(username, password);
-
-         if(!password.equals(rc.get(username))) {
+         if(!rc.get("cluster-test-key").equals("cluster-test-value")) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            pw.println("NOT_FOUND");
+            pw.println("NOT FOUND");
          }
       } catch (Exception e) {
          response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-         pw.println("INTERNAL_SERVER_ERROR: " + e.getMessage() );
+         pw.println("INTERNAL SERVER ERROR: " + e.getMessage());
       } finally {
          pw.close();
       }
