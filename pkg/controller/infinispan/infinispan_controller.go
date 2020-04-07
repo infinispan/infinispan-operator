@@ -334,7 +334,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
 
-	protocol := Protocol(infinispan)
+	protocol := infinispanProtocol(infinispan)
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
 	if infinispan.Spec.Replicas == 0 {
@@ -1015,7 +1015,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	}
 	replicas := m.Spec.Replicas
 	protocolScheme := corev1.URISchemeHTTP
-	if Protocol(m) != "http" {
+	if infinispanProtocol(m) != "http" {
 		protocolScheme = corev1.URISchemeHTTPS
 	}
 	dep := &appsv1.StatefulSet{

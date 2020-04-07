@@ -154,7 +154,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	if instance.Spec.Name != "" {
 		cacheName = instance.Spec.Name
 	}
-	caches, err := cluster.CacheNames(user, pass, podList.Items[0].Name, instance.Namespace, ispnctrl.Protocol(ispnInstance))
+	caches, err := cluster.CacheNames(user, pass, podList.Items[0].Name, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
 	if err == nil {
 		for i, cn := range caches {
 			if cn == cacheName {
@@ -174,7 +174,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 					return reconcile.Result{}, err
 				}
 				reqLogger.Info(xmlTemplate)
-				err = cluster.CreateCacheWithAuth(user, pass, instance.Spec.Name, xmlTemplate, podName, instance.Namespace, ispnctrl.Protocol(ispnInstance))
+				err = cluster.CreateCacheWithAuth(user, pass, instance.Spec.Name, xmlTemplate, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
 				if err != nil {
 					reqLogger.Error(err, "Error in creating cache")
 					return reconcile.Result{}, err
