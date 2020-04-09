@@ -1885,12 +1885,13 @@ func contains(list []string, s string) bool {
 }
 
 func remove(list []string, s string) []string {
-	for i, v := range list {
-		if v == s {
-			list = append(list[:i], list[i+1:]...)
+	var slice []string
+	for _, v := range list {
+		if v != s {
+			slice = append(slice, v)
 		}
 	}
-	return list
+	return slice
 }
 
 func (r *ReconcileInfinispan) finalizeInfinispan(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
