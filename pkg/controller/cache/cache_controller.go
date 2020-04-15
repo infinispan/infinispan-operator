@@ -129,7 +129,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{RequeueAfter: time.Second * 10}, err
 	}
 	// Authentication is required to go on from here
-	user, pass, result, err := getCredentials(r, reqLogger, instance)
+	user, pass, result, err := getCredentials(r, reqLogger, instance.CopyWithDefaultsForEmptyVals())
 	if err != nil {
 		return result, err
 	}

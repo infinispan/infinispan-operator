@@ -51,6 +51,10 @@ spec:
                   required:
                   - key
                   type: object
+                secretName:
+                  description: name of the secret containing both admin username and
+                    password
+                  type: string
                 username:
                   description: Secret and key containing the admin username for authentication.
                   properties:
