@@ -26,7 +26,8 @@ type CacheSpec struct {
 	// Name of the cache to be created. If empty ObjectMeta.Name will be used
 	Name string `json:"name,optional,omitempty"`
 	// Cache template in XML format
-	Template string `json:"template,optional,omitempty"`
+	Template     string `json:"template,optional,omitempty"`
+	TemplateName string `json:"templateName,optional,omitempty"`
 }
 
 // CacheCondition define a condition of the cluster

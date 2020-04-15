@@ -76,6 +76,10 @@ func (m mockCluster) ExistsCacheWithAuth(user, pass, cacheName, podName, namespa
 	return false, nil
 }
 
+func (m mockCluster) CreateCacheWithTemplateName(user, pass, cacheName, templateName, podName, namespace, protocol string) error {
+	return nil
+}
+
 // CacheNames return the names of the cluster caches available on the pod `podName`
 func (m mockCluster) CacheNames(user, pass, podName, namespace, protocol string) ([]string, error) {
 	return nil, nil

@@ -83,6 +83,8 @@ spec:
             template:
               description: Cache template in XML format
               type: string
+            templateName:
+              type: string
           type: object
         status:
           description: CacheStatus defines the observed state of Cache
