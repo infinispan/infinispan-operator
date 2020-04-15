@@ -84,6 +84,7 @@ spec:
               description: Cache template in XML format
               type: string
             templateName:
+              description: Name of the template to be used to create this cache
               type: string
           type: object
         status:
