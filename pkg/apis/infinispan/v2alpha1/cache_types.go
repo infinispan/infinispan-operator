@@ -9,10 +9,12 @@ import (
 
 // AdminAuth description of the auth info
 type AdminAuth struct {
+	// name of the secret containing both admin username and password
+	SecretName string `json:"secretName,optional,omitempty"`
 	// Secret and key containing the admin username for authentication.
-	Username v1.SecretKeySelector `json:"username,omitempty"`
+	Username v1.SecretKeySelector `json:"username,optional,omitempty"`
 	// Secret and key containing the admin password for authentication.
-	Password v1.SecretKeySelector `json:"password,omitempty"`
+	Password v1.SecretKeySelector `json:"password,optional,omitempty"`
 }
 
 // CacheSpec defines the desired state of Cache
@@ -56,6 +58,24 @@ type Cache struct {
 
 	Spec   CacheSpec   `json:"spec,omitempty"`
 	Status CacheStatus `json:"status,omitempty"`
+}
+
+// CopyWithDefaultsForEmptyVals return a copy of with defaults in place of empty fields
+func (c *Cache) CopyWithDefaultsForEmptyVals() *Cache {
+	ret := c.DeepCopy()
+	if ret.Spec.AdminAuth.Password.Key == "" {
+		ret.Spec.AdminAuth.Password.Key = "password"
+	}
+	if ret.Spec.AdminAuth.Password.Key == "" {
+		ret.Spec.AdminAuth.Password.Key = "username"
+	}
+	if ret.Spec.AdminAuth.Password.Name == "" {
+		ret.Spec.AdminAuth.Password.Name = c.Spec.AdminAuth.SecretName
+	}
+	if ret.Spec.AdminAuth.Username.Name == "" {
+		ret.Spec.AdminAuth.Username.Name = c.Spec.AdminAuth.SecretName
+	}
+	return ret
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
