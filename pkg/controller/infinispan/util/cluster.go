@@ -33,6 +33,7 @@ type ClusterInterface interface {
 	ExistsCacheWithAuth(user, pass, cacheName, podName, namespace, protocol string) (bool, error)
 	CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error
 	CreateCacheWithAuth(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error
+	CreateCacheWithTemplateName(user, pass, cacheName, templateName, podName, namespace, protocol string) error
 	GetMemoryLimitBytes(podName, namespace string) (uint64, error)
 	GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error)
 	CacheNames(user, pass, podName, namespace, protocol string) ([]string, error)
@@ -271,6 +272,46 @@ func (c Cluster) CreateCacheWithAuth(user, pass, cacheName, cacheXML, podName, n
 		"-w", "\n%{http_code}", // add http status at the end
 		"-d", fmt.Sprintf("%s", cacheXML),
 		"-H", "Content-Type: application/xml",
+		"-u", fmt.Sprintf("operator:%v", pass),
+		"-X", "POST",
+		httpURL,
+	}
+
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+	if err != nil {
+		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", execErr, err)
+	}
+
+	// Split lines in standard output, HTTP status code will be last
+	execOutLines := strings.Split(execOut.String(), "\n")
+
+	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines)-1], 10, 64)
+	if err != nil {
+		return err
+	}
+
+	if httpCode > 299 || httpCode < 200 {
+		return fmt.Errorf("server side error creating cache: %s", execOut.String())
+	}
+
+	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
+	logger.Info("create cache completed successfully", "http code", httpCode)
+	return nil
+}
+
+// CreateCacheWithTemplateName create cluster cache on the pod `podName`
+func (c Cluster) CreateCacheWithTemplateName(user, pass, cacheName, templateName, podName, namespace, protocol string) error {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return err
+	}
+
+	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s?template=%s", protocol, podIP, cacheName, templateName)
+	commands := []string{"curl",
+		"--insecure",
+		"--http1.1",
+		"-w", "\n%{http_code}", // add http status at the end
 		"-u", fmt.Sprintf("operator:%v", pass),
 		"-X", "POST",
 		httpURL,

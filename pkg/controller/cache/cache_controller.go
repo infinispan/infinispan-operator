@@ -154,19 +154,28 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		} else {
 			reqLogger.Info("Cache doesn't exist, create it")
 			podName := podList.Items[0].Name
-			xmlTemplate := instance.Spec.Template
-			if xmlTemplate == "" {
-				xmlTemplate, err = ispnctrl.GetDefaultCacheTemplateXML(podName, ispnInstance, cluster, reqLogger)
-			}
-			if err != nil {
-				reqLogger.Error(err, "Error getting default XML")
-				return reconcile.Result{}, err
-			}
-			reqLogger.Info(xmlTemplate)
-			err = cluster.CreateCacheWithAuth(user, pass, instance.Spec.Name, xmlTemplate, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
-			if err != nil {
-				reqLogger.Error(err, "Error in creating cache")
-				return reconcile.Result{}, err
+			templateName := instance.Spec.TemplateName
+			if templateName != "" {
+				err = cluster.CreateCacheWithTemplateName(user, pass, instance.Spec.Name, templateName, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+				if err != nil {
+					reqLogger.Error(err, "Error in creating cache with template name")
+					return reconcile.Result{}, err
+				}
+			} else {
+				xmlTemplate := instance.Spec.Template
+				if xmlTemplate == "" {
+					xmlTemplate, err = ispnctrl.GetDefaultCacheTemplateXML(podName, ispnInstance, cluster, reqLogger)
+				}
+				if err != nil {
+					reqLogger.Error(err, "Error getting default XML")
+					return reconcile.Result{}, err
+				}
+				reqLogger.Info(xmlTemplate)
+				err = cluster.CreateCacheWithAuth(user, pass, instance.Spec.Name, xmlTemplate, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+				if err != nil {
+					reqLogger.Error(err, "Error in creating cache")
+					return reconcile.Result{}, err
+				}
 			}
 		}
 	} else {
