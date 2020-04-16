@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -155,10 +156,15 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 			reqLogger.Info("Cache doesn't exist, create it")
 			podName := podList.Items[0].Name
 			templateName := instance.Spec.TemplateName
+			if ispnInstance.Spec.Service.Type == infinispanv1.ServiceTypeCache && (templateName != "" || instance.Spec.Template != "") {
+				errTemplate := fmt.Errorf("Cannot create a cache with a template in a CacheService cluster")
+				reqLogger.Error(errTemplate, "Error creating cache")
+				return reconcile.Result{}, err
+			}
 			if templateName != "" {
 				err = cluster.CreateCacheWithTemplateName(user, pass, instance.Spec.Name, templateName, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
 				if err != nil {
-					reqLogger.Error(err, "Error in creating cache with template name")
+					reqLogger.Error(err, "Error creating cache with template name")
 					return reconcile.Result{}, err
 				}
 			} else {
