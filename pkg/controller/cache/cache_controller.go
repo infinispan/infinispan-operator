@@ -146,7 +146,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	if instance.Spec.Name != "" {
 		cacheName = instance.Spec.Name
 	}
-	existsCache, err := cluster.ExistsCacheWithAuth(cacheName, user, pass, podList.Items[0].Name, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+	existsCache, err := cluster.ExistsCacheWithAuth(user, pass, cacheName, podList.Items[0].Name, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
 	if err == nil {
 		if existsCache {
 			reqLogger.Info("Cache already exists")

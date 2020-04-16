@@ -68,8 +68,8 @@ func (c *Cache) CopyWithDefaultsForEmptyVals() *Cache {
 	if ret.Spec.AdminAuth.Password.Key == "" {
 		ret.Spec.AdminAuth.Password.Key = "password"
 	}
-	if ret.Spec.AdminAuth.Password.Key == "" {
-		ret.Spec.AdminAuth.Password.Key = "username"
+	if ret.Spec.AdminAuth.Username.Key == "" {
+		ret.Spec.AdminAuth.Username.Key = "username"
 	}
 	if ret.Spec.AdminAuth.Password.Name == "" {
 		ret.Spec.AdminAuth.Password.Name = c.Spec.AdminAuth.SecretName

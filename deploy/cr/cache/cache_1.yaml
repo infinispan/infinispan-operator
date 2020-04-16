@@ -4,11 +4,7 @@ metadata:
   name: example-cache
 spec:
   adminAuth:
-    username:
-      key: username
-      name: basic-auth
-    password:
-      key: password
-      name: basic-auth
+    secretName: basic-auth
   clusterName: example-infinispan
   name: mycache
+  templateName: org.infinispan.DIST_SYNC
