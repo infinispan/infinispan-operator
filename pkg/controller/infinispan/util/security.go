@@ -2,9 +2,11 @@ package util
 
 import (
 	"errors"
-	"gopkg.in/yaml.v2"
 	"math/rand"
 	"time"
+
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"gopkg.in/yaml.v2"
 )
 
 func init() {
@@ -24,8 +26,8 @@ type Credentials struct {
 
 // CreateIdentities generates default identities
 func createIdentities() Identities {
-	developer := Credentials{Username: "developer", Password: getRandomStringForAuth(16)}
-	operator := Credentials{Username: "operator", Password: getRandomStringForAuth(16)}
+	developer := Credentials{Username: consts.DefaultDeveloperUser, Password: getRandomStringForAuth(16)}
+	operator := Credentials{Username: consts.DefaultOperatorUser, Password: getRandomStringForAuth(16)}
 	identities := Identities{Credentials: []Credentials{developer, operator}}
 	return identities
 }
@@ -52,7 +54,7 @@ func getRandomStringForAuth(size int) string {
 // CreateIdentitiesFor creates identities for a given username/password combination
 func CreateIdentitiesFor(usr string, pass string) Identities {
 	// Adding required "operator" user
-	operator := Credentials{Username: "operator", Password: getRandomStringForAuth(16)}
+	operator := Credentials{Username: consts.DefaultOperatorUser, Password: getRandomStringForAuth(16)}
 	credentials := Credentials{Username: usr, Password: pass}
 	identities := Identities{Credentials: []Credentials{credentials, operator}}
 	return identities
@@ -85,4 +87,3 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 
 	return "", errors.New("no operator credentials found")
 }
-

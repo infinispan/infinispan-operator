@@ -147,7 +147,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	if instance.Spec.Name != "" {
 		cacheName = instance.Spec.Name
 	}
-	existsCache, err := cluster.ExistsCacheWithAuth(user, pass, cacheName, podList.Items[0].Name, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+	existsCache, err := cluster.ExistsCache(user, pass, cacheName, podList.Items[0].Name, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
 	if err == nil {
 		if existsCache {
 			reqLogger.Info("Cache already exists")
@@ -177,7 +177,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 					return reconcile.Result{}, err
 				}
 				reqLogger.Info(xmlTemplate)
-				err = cluster.CreateCacheWithAuth(user, pass, instance.Spec.Name, xmlTemplate, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+				err = cluster.CreateCacheWithTemplate(user, pass, instance.Spec.Name, xmlTemplate, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
 				if err != nil {
 					reqLogger.Error(err, "Error in creating cache")
 					return reconcile.Result{}, err

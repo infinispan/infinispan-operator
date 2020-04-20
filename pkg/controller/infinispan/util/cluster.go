@@ -26,22 +26,21 @@ func NewCluster(kubernetes *Kubernetes) *Cluster {
 
 // ClusterInterface represents the interface of a Cluster instance
 type ClusterInterface interface {
-	GetClusterSize(secretName, podName, namespace, protocol string) (int, error)
-	GracefulShutdown(secretName, podName, namespace, protocol string) error
-	GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error)
-	ExistsCache(cacheName, secretName, podName, namespace, protocol string) bool
-	ExistsCacheWithAuth(user, pass, cacheName, podName, namespace, protocol string) (bool, error)
-	CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error
-	CreateCacheWithAuth(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error
+	GetClusterSize(user, pass, podName, namespace, protocol string) (int, error)
+	GracefulShutdown(user, pass, podName, namespace, protocol string) error
+	GetClusterMembers(user, pass, podName, namespace, protocol string) ([]string, error)
+	ExistsCache(user, pass, cacheName, podName, namespace, protocol string) (bool, error)
+	CreateCacheWithTemplate(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error
 	CreateCacheWithTemplateName(user, pass, cacheName, templateName, podName, namespace, protocol string) error
 	GetMemoryLimitBytes(podName, namespace string) (uint64, error)
 	GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error)
 	CacheNames(user, pass, podName, namespace, protocol string) ([]string, error)
+	GetPassword(user, secretName, namespace string) (string, error)
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
-func (c Cluster) GetClusterSize(secretName, podName, namespace, protocol string) (int, error) {
-	members, err := c.GetClusterMembers(secretName, podName, namespace, protocol)
+func (c Cluster) GetClusterSize(user, pass, podName, namespace, protocol string) (int, error) {
+	members, err := c.GetClusterMembers(user, pass, podName, namespace, protocol)
 	if err != nil {
 		return -1, err
 	}
@@ -50,19 +49,15 @@ func (c Cluster) GetClusterSize(secretName, podName, namespace, protocol string)
 }
 
 // GracefulShutdown performs clean cluster shutdown
-func (c Cluster) GracefulShutdown(secretName, podName, namespace, protocol string) error {
+func (c Cluster) GracefulShutdown(user, pass, podName, namespace, protocol string) error {
 	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
 	if err != nil {
 		return err
 	}
-	pass, err := c.Kubernetes.GetPassword("operator", secretName, namespace)
-	if err != nil {
-		return err
-	}
 	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, consts.ServerHTTPClusterStop)
-	commands := []string{"curl", "-X", "GET", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
+	commands := []string{"curl", "-X", "GET", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
 
-	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
+	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
 	logger.Info("get cluster members", "url", httpURL)
 
 	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
@@ -84,21 +79,16 @@ type Health struct {
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
-func (c Cluster) GetClusterMembers(secretName, podName, namespace, protocol string) ([]string, error) {
+func (c Cluster) GetClusterMembers(user, pass, podName, namespace, protocol string) ([]string, error) {
 	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	pass, err := c.Kubernetes.GetPassword("operator", secretName, namespace)
-	if err != nil {
-		return nil, err
-	}
-
 	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, consts.ServerHTTPHealthPath)
-	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
+	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
 
-	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
+	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
 	logger.Info("get cluster members", "url", httpURL)
 
 	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
@@ -118,47 +108,8 @@ func (c Cluster) GetClusterMembers(secretName, podName, namespace, protocol stri
 	return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
 }
 
-func (c Cluster) ExistsCache(cacheName, secretName, podName, namespace, protocol string) bool {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
-	if err != nil {
-		return false
-	}
-
-	pass, err := c.Kubernetes.GetPassword("operator", secretName, namespace)
-	if err != nil {
-		return false
-	}
-
-	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s?action=config", protocol, podIP, cacheName)
-	commands := []string{"curl",
-		"--insecure",
-		"-o", "/dev/null", "-w", "%{http_code}", // ignore output and get http status code
-		"-u", fmt.Sprintf("operator:%v", pass),
-		"--head",
-		httpURL,
-	}
-
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, _, err := c.Kubernetes.ExecWithOptions(execOptions)
-	if err != nil {
-		return false
-	}
-
-	httpCode, err := strconv.ParseUint(execOut.String(), 10, 64)
-	if err != nil {
-		return false
-	}
-
-	switch httpCode {
-	case 200:
-		return true
-	default:
-		return false
-	}
-}
-
-// ExistsCacheWithAuth returns true if cacheName cache exists on the podName pod
-func (c Cluster) ExistsCacheWithAuth(user, pass, cacheName, podName, namespace, protocol string) (bool, error) {
+// ExistsCache returns true if cacheName cache exists on the podName pod
+func (c Cluster) ExistsCache(user, pass, cacheName, podName, namespace, protocol string) (bool, error) {
 	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
 	if err != nil {
 		return false, err
@@ -200,7 +151,7 @@ func (c Cluster) CacheNames(user, pass, podName, namespace, protocol string) ([]
 		return nil, err
 	}
 	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches", protocol, podIP)
-	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("operator:%v", pass), httpURL}
+	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
 	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
 	logger.Info("get caches list", "url", httpURL)
 	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
@@ -214,53 +165,8 @@ func (c Cluster) CacheNames(user, pass, podName, namespace, protocol string) ([]
 	return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
 }
 
-func (c Cluster) CreateCache(cacheName, cacheXml, secretName, podName, namespace, protocol string) error {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
-	if err != nil {
-		return err
-	}
-
-	pass, err := c.Kubernetes.GetPassword("operator", secretName, namespace)
-	if err != nil {
-		return err
-	}
-
-	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s", protocol, podIP, cacheName)
-	commands := []string{"curl",
-		"--insecure",
-		"-w", "\n%{http_code}", // add http status at the end
-		"-d", fmt.Sprintf("%s", cacheXml),
-		"-H", "Content-Type: application/xml",
-		"-u", fmt.Sprintf("operator:%v", pass),
-		"-X", "POST",
-		httpURL,
-	}
-
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
-	if err != nil {
-		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", execErr, err)
-	}
-
-	// Split lines in standard output, HTTP status code will be last
-	execOutLines := strings.Split(execOut.String(), "\n")
-
-	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines)-1], 10, 64)
-	if err != nil {
-		return err
-	}
-
-	if httpCode > 299 || httpCode < 200 {
-		return fmt.Errorf("server side error creating cache: %s", execOut.String())
-	}
-
-	logger := log.WithValues("Request.Namespace", namespace, "Secret.Name", secretName, "Pod.Name", podName)
-	logger.Info("create cache completed successfully", "http code", httpCode)
-	return nil
-}
-
-// CreateCacheWithAuth create cluster cache on the pod `podName`
-func (c Cluster) CreateCacheWithAuth(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error {
+// CreateCacheWithTemplate create cluster cache on the pod `podName`
+func (c Cluster) CreateCacheWithTemplate(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error {
 	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
 	if err != nil {
 		return err
@@ -382,6 +288,11 @@ func (c Cluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, 
 	}
 
 	return 0, fmt.Errorf("meminfo lacking MemTotal information")
+}
+
+// GetPassword returns the user's password
+func (c Cluster) GetPassword(user, secretName, namespace string) (string, error) {
+	return c.Kubernetes.GetPassword(user, secretName, namespace)
 }
 
 // Return handler for querying cluster status
