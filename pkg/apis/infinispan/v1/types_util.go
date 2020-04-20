@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/go-logr/logr"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	corev1 "k8s.io/api/core/v1"
@@ -60,11 +61,17 @@ func (ispn *Infinispan) ApplyDefaults() {
 	if ispn.Spec.Service.Type == "" {
 		ispn.Spec.Service.Type = ServiceTypeCache
 	}
+	// This field specifies the flavor of the
+	// Infinispan cluster. "" is plain community edition (vanilla)
 	if ispn.Spec.Image == "" {
 		ispn.Spec.Image = constants.DefaultImageName
 	}
 	if ispn.Spec.Container.Memory == "" {
 		ispn.Spec.Container.Memory = constants.DefaultMemorySize.String()
+	}
+	if ispn.Spec.Container.CPU == "" {
+		cpuLimitString := comutil.ToMilliDecimalQuantity(constants.DefaultCPULimit)
+		ispn.Spec.Container.CPU = cpuLimitString.String()
 	}
 }
 
@@ -121,15 +128,9 @@ func (ispn *Infinispan) GetEncryptionSecretName() string {
 }
 
 func (ispn *Infinispan) GetCpuResources() (resource.Quantity, resource.Quantity) {
-	if ispn.Spec.Container.CPU != "" {
-		cpuLimits := resource.MustParse(ispn.Spec.Container.CPU)
-		cpuRequestsMillis := cpuLimits.MilliValue() / 2
-		cpuRequests := comutil.ToMilliDecimalQuantity(int64(cpuRequestsMillis))
-		return cpuRequests, cpuLimits
-	}
-
-	cpuLimits := comutil.ToMilliDecimalQuantity(constants.DefaultCPULimit)
-	cpuRequests := comutil.ToMilliDecimalQuantity(constants.DefaultCPULimit / 2)
+	cpuLimits := resource.MustParse(ispn.Spec.Container.CPU)
+	cpuRequestsMillis := cpuLimits.MilliValue() / 2
+	cpuRequests := comutil.ToMilliDecimalQuantity(cpuRequestsMillis)
 	return cpuRequests, cpuLimits
 }
 
@@ -171,6 +172,17 @@ func (ispn *Infinispan) FindNodePortExternalIP() (string, error) {
 	return "", fmt.Errorf("could not find node port external IP, check local site name matches one of the members")
 }
 
+func (ispn *Infinispan) FindRemoteLocations(localSiteName string) (remoteLocations []InfinispanSiteLocationSpec) {
+	locations := ispn.Spec.Service.Sites.Locations
+	for _, location := range locations {
+		if localSiteName != location.Name {
+			remoteLocations = append(remoteLocations, location)
+		}
+	}
+
+	return
+}
+
 func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
 	categories := ispn.Spec.Logging.Categories
 	if categories != nil {
@@ -187,4 +199,27 @@ func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
 // IsWellFormed return true if cluster is well formed
 func (ispn *Infinispan) IsWellFormed() bool {
 	return ispn.IsConditionTrue("wellFormed")
+}
+
+func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
+	if ispn.IsUpgradeCondition() {
+		stoppingCondition := ispn.GetCondition("stopping")
+		if stoppingCondition != nil {
+			stoppingCompleted := *stoppingCondition == "False"
+			if stoppingCompleted {
+				if ispn.Status.ReplicasWantedAtRestart > 0 {
+					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
+					return true
+				} else {
+					logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
+					return false
+				}
+			} else {
+				logger.Info("wait for graceful shutdown before update to complete")
+				return false
+			}
+		}
+	}
+
+	return false
 }

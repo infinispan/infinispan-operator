@@ -15,7 +15,8 @@ import (
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
-	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
+	"github.com/infinispan/infinispan-operator/test/e2e/k8s"
+	testutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-var kubernetes = testutil.NewTestKubernetes()
+var kubernetes = k8s.NewTestKubernetes()
 var cluster = util.NewCluster(kubernetes.Kubernetes)
 
 var DefaultSpec = ispnv1.Infinispan{
@@ -250,7 +251,7 @@ func TestCacheService(t *testing.T) {
 
 	user := cconsts.DefaultDeveloperUser
 	password, err := cluster.Kubernetes.GetPassword(user, spec.GetSecretName(), tconst.Namespace)
-	testutil.ExpectNoError(err)
+	testutils.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
 	client := &http.Client{}
@@ -278,7 +279,7 @@ func TestPermanentCache(t *testing.T) {
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
-		testutil.ExpectNoError(err)
+		testutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
 		hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, tconst.Namespace)
@@ -287,7 +288,7 @@ func TestPermanentCache(t *testing.T) {
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
-		testutil.ExpectNoError(err)
+		testutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
 		hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, tconst.Namespace)
@@ -319,7 +320,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	// Define function for the generic stop/start test procedure
 	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
-		testutil.ExpectNoError(err)
+		testutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
 		hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, tconst.Namespace)
@@ -330,7 +331,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 
 	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
-		testutil.ExpectNoError(err)
+		testutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		client := &http.Client{}
 		hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, tconst.Namespace)
@@ -397,7 +398,7 @@ func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 		err = fmt.Errorf("timed out waiting for the condition, last error: %v", lastErr)
 	}
 
-	testutil.ExpectNoError(err)
+	testutils.ExpectNoError(err)
 }
 
 func TestExternalService(t *testing.T) {
@@ -431,7 +432,7 @@ func TestExternalService(t *testing.T) {
 	kubernetes.WaitForPods("app=infinispan-pod", 1, tconst.SinglePodTimeout, tconst.Namespace)
 
 	pass, err := cluster.Kubernetes.GetPassword(usr, spec.GetSecretName(), tconst.Namespace)
-	testutil.ExpectNoError(err)
+	testutils.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
 	client := &http.Client{}
@@ -484,7 +485,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	newpass := "connectornewpass"
 	identities := util.CreateIdentitiesFor(usr, pass)
 	identitiesYaml, err := yaml.Marshal(identities)
-	testutil.ExpectNoError(err)
+	testutils.ExpectNoError(err)
 
 	// Create secret with application credentials
 	secret := corev1.Secret{
@@ -530,7 +531,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	// Update the auth credentials.
 	identities = util.CreateIdentitiesFor(usr, newpass)
 	identitiesYaml, err = yaml.Marshal(identities)
-	testutil.ExpectNoError(err)
+	testutils.ExpectNoError(err)
 
 	// Create secret with application credentials
 	secret1 := corev1.Secret{
@@ -667,11 +668,11 @@ func httpEmpty(httpURL string, method string, usr string, pass string, flags str
 	if flags != "" {
 		req.Header.Set("flags", flags)
 	}
-	testutil.ExpectNoError(err)
+	testutils.ExpectNoError(err)
 
 	req.SetBasicAuth(usr, pass)
 	resp, err := client.Do(req)
-	testutil.ExpectNoError(err)
+	testutils.ExpectNoError(err)
 
 	if resp.StatusCode != http.StatusOK {
 		panic(httpError{resp.StatusCode})
