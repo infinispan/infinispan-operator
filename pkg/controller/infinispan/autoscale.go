@@ -99,7 +99,7 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 
 // getMetricMinPodNum get the minimum number of nodes required to avoid data lost
 func getMetricMinPodNum(user, pass, protocol string, pItem corev1.Pod) (int32, error) {
-	res, err := cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "/vendor/cache_manager_default_cache_default_cluster_cache_stats_required_minimum_number_of_nodes")
+	res, err := cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "vendor/cache_manager_default_cache_default_cluster_cache_stats_required_minimum_number_of_nodes")
 	if err != nil {
 		return 0, err
 	}
@@ -121,7 +121,7 @@ func getMetricMinPodNum(user, pass, protocol string, pItem corev1.Pod) (int32, e
 }
 
 func getMetricDataMemoryPercentUsage(m *map[string]int, user, pass, protocol string, pItem corev1.Pod) error {
-	res, err := cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "/vendor/cache_manager_default_cache_default_statistics_data_memory_used")
+	res, err := cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "vendor/cache_manager_default_cache_default_statistics_data_memory_used")
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, user, pass, protocol str
 		break
 	}
 
-	res, err = cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "/vendor/cache_manager_default_cache_default_configuration_eviction_size")
+	res, err = cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "vendor/cache_manager_default_cache_default_configuration_eviction_size")
 	if err != nil {
 		return err
 	}

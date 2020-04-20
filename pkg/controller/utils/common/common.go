@@ -3,7 +3,6 @@ package common
 import (
 	"net"
 	"os"
-	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -30,10 +29,6 @@ func GetEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
 
 func ToMilliDecimalQuantity(value int64) resource.Quantity {
 	return *resource.NewMilliQuantity(value, resource.DecimalSI)
-}
-
-func GetURISchemeProtocol(URIScheme corev1.URIScheme) string {
-	return strings.ToLower(string(URIScheme))
 }
 
 func LookupHost(host string, logger logr.Logger) (string, error) {

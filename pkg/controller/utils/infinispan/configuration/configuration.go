@@ -1,9 +1,9 @@
-package util
+package configuration
 
 import (
 	"fmt"
-	"os"
-	"strings"
+
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 )
 
 // InfinispanConfiguration is the top level configuration type
@@ -53,7 +53,7 @@ type Logging struct {
 }
 
 // CreateInfinispanConfiguration generates a server configuration
-func CreateInfinispanConfiguration(name string, xsite *XSite, loggingCategories map[string]string, namespace string) InfinispanConfiguration {
+func CreateInfinispanConfiguration(name string, loggingCategories map[string]string, namespace string, xsite *XSite) InfinispanConfiguration {
 	query := fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace)
 	jgroups := JGroups{Transport: "tcp", DNSPing: DNSPing{Query: query}}
 
@@ -61,7 +61,7 @@ func CreateInfinispanConfiguration(name string, xsite *XSite, loggingCategories 
 		ClusterName: name,
 		JGroups:     jgroups,
 	}
-	if strings.ToUpper(os.Getenv("JGROUPS_DIAGNOSTICS")) == "TRUE" {
+	if consts.JGroupsDiagnosticsFlag == "TRUE" {
 		config.JGroups.Diagnostics = true
 	}
 	if len(loggingCategories) > 0 {

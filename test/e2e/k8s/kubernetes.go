@@ -1,12 +1,10 @@
 package util
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,6 +13,8 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
+	"github.com/infinispan/infinispan-operator/test/e2e/utils"
+	testutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -51,14 +51,14 @@ func init() {
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 	err := schemeBuilder.AddToScheme(scheme)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // NewTestKubernetes creates a new instance of TestKubernetes
 func NewTestKubernetes() *TestKubernetes {
 	mapperProvider := apiutil.NewDynamicRESTMapper
 	kubernetes, err := util.NewKubernetesFromLocalConfig(scheme, mapperProvider)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
 }
 
@@ -75,11 +75,11 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, obj)
 	if err != nil && errors.IsNotFound(err) {
 		err = k.Kubernetes.Client.Create(context.TODO(), obj)
-		ExpectNoError(err)
+		utils.ExpectNoError(err)
 		return
 	}
 
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // DeleteNamespace deletes a namespace
@@ -92,7 +92,7 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 		},
 	}
 	err := k.Kubernetes.Client.Delete(context.TODO(), obj, tconst.DeleteOpts...)
-	ExpectMaybeNotFound(err)
+	utils.ExpectMaybeNotFound(err)
 
 	fmt.Println("Waiting for the namespace to be removed")
 	ns := types.NamespacedName{Name: namespace, Namespace: namespace}
@@ -103,21 +103,21 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 		}
 		return false, nil
 	})
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // CreateInfinispan creates an Infinispan resource in the given namespace
 func (k TestKubernetes) CreateInfinispan(infinispan *ispnv1.Infinispan, namespace string) {
 	infinispan.Namespace = namespace
 	err := k.Kubernetes.Client.Create(context.TODO(), infinispan)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // DeleteInfinispan deletes the infinispan resource
 // and waits that all the pods are gone
 func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), infinispan, tconst.DeleteOpts...)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 
 	// TODO getting list of infinispan pods is also done in controller (refactor)
 	podList := &v1.PodList{}
@@ -132,7 +132,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 		}
 		return true, nil
 	})
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 	// Check that PersistentVolumeClaims have been cleanup
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		pvc := &v1.PersistentVolumeClaimList{}
@@ -143,7 +143,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 		}
 		return true, nil
 	})
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // GracefulShutdownInfinispan deletes the infinispan resource
@@ -151,24 +151,24 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
 	ns := types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 	infinispan.Spec.Replicas = 0
 
 	// Workaround for OpenShift local test (clear GVK on decode in the client)
 	infinispan.TypeMeta = tconst.InfinispanTypeMeta
 	err = k.Kubernetes.Client.Update(context.TODO(), infinispan)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 		c := infinispan.GetCondition("gracefulShutdown")
-		if err != nil || c == nil || *c != "True" {
+		if err != nil || c == nil || *c != metav1.ConditionTrue {
 			return false, nil
 		}
 		return true, nil
 	})
 
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // GracefulRestartInfinispan restarts the infinispan resource
@@ -176,7 +176,7 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan, replicas int32, timeout time.Duration) {
 	ns := types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 	infinispan.Spec.Replicas = replicas
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		// Workaround for OpenShift local test (clear GVK on decode in the client)
@@ -191,18 +191,18 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 		return true, nil
 	})
 
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 		c := infinispan.GetCondition("wellFormed")
-		if err != nil || c == nil || *c != "True" {
+		if err != nil || c == nil || *c != metav1.ConditionTrue {
 			return false, nil
 		}
 		return true, nil
 	})
 
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // CreateAndWaitForCRD creates a Custom Resource Definition, waiting it to become ready.
@@ -213,7 +213,7 @@ func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDef
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, crd)
 	if err != nil && errors.IsNotFound(err) {
 		err = k.Kubernetes.Client.Create(context.TODO(), crd)
-		ExpectNoError(err)
+		utils.ExpectNoError(err)
 	}
 
 	fmt.Println("Wait for CRD to created")
@@ -240,7 +240,7 @@ func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDef
 		return false, nil
 	})
 
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
@@ -250,7 +250,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		route := &v1.Service{}
 		ns := types.NamespacedName{Name: routeName, Namespace: namespace}
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, route)
-		ExpectNoError(err)
+		utils.ExpectNoError(err)
 
 		// depending on the k8s cluster setting, service is sometime available
 		// via Ingress address sometime via node port. So trying both the methods
@@ -270,7 +270,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		// so try using cluster ip instead
 		if strings.Contains(hostAndPort, "127.0.0.1") {
 			log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
-			hostAndPort = fmt.Sprintf("127.0.0.1:%d", tconst.DefaultClusterPort)
+			hostAndPort = fmt.Sprintf("127.0.0.1:%d", tconst.InfinispanPort)
 			result := checkExternalAddress(client, user, password, protocol, hostAndPort)
 			if result {
 				return result, nil
@@ -284,14 +284,14 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		}
 		return checkExternalAddress(client, user, password, protocol, hostAndPort), nil
 	})
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 	return hostAndPort
 }
 
 func checkExternalAddress(client *http.Client, user, password, protocol, hostAndPort string) bool {
 	httpURL := fmt.Sprintf("%s://%s/%s", protocol, hostAndPort, consts.ServerHTTPHealthPath)
 	req, err := http.NewRequest("GET", httpURL, nil)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 	req.SetBasicAuth(user, password)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -306,10 +306,10 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
 	// If the cluster exposes external IP then return it
 	if len(route.Status.LoadBalancer.Ingress) == 1 {
 		if route.Status.LoadBalancer.Ingress[0].IP != "" {
-			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].IP+":%d", tconst.DefaultClusterPort), nil
+			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].IP+":%d", tconst.InfinispanPort), nil
 		}
 		if route.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].Hostname+":%d", tconst.DefaultClusterPort), nil
+			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].Hostname+":%d", tconst.InfinispanPort), nil
 		}
 	}
 
@@ -320,7 +320,7 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
 // WaitForPods waits for pods in the given namespace, having a certain label to reach the desired count in ContainersReady state
 func (k TestKubernetes) WaitForPods(label string, required int, timeout time.Duration, namespace string) {
 	labelSelector, err := labels.Parse(label)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	podList := &v1.PodList{}
@@ -340,7 +340,7 @@ func (k TestKubernetes) WaitForPods(label string, required int, timeout time.Dur
 			podReady := false
 			conditions := pod.Status.Conditions
 			for _, cond := range conditions {
-				if (cond.Type) == v1.ContainersReady && cond.Status == "True" {
+				if (cond.Type) == v1.ContainersReady && cond.Status == v1.ConditionTrue {
 					podReady = true
 				}
 			}
@@ -349,7 +349,7 @@ func (k TestKubernetes) WaitForPods(label string, required int, timeout time.Dur
 		return allReady, nil
 	})
 
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 func debugPods(required int, pods []v1.Pod) {
@@ -367,7 +367,7 @@ func (k TestKubernetes) DeleteCRD(name string) {
 		},
 	}
 	err := k.Kubernetes.Client.Delete(context.TODO(), crd, tconst.DeleteOpts...)
-	ExpectMaybeNotFound(err)
+	utils.ExpectMaybeNotFound(err)
 }
 
 // Nodes returns a list of running nodes in the cluster
@@ -375,7 +375,7 @@ func (k TestKubernetes) Nodes() []string {
 	nodes := &v1.NodeList{}
 	listOps := &client.ListOptions{}
 	err := k.Kubernetes.Client.List(context.TODO(), nodes, listOps)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 
 	var s []string
 	if nodes.Size() == 0 {
@@ -390,12 +390,12 @@ func (k TestKubernetes) Nodes() []string {
 // GetPods return an array of pods matching the selector label in the given namespace
 func (k TestKubernetes) GetPods(label, namespace string) []v1.Pod {
 	labelSelector, err := labels.Parse(label)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	pods := &v1.PodList{}
 	err = k.Kubernetes.Client.List(context.TODO(), pods, listOps)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 
 	return pods.Items
 }
@@ -404,13 +404,13 @@ func (k TestKubernetes) GetPods(label, namespace string) []v1.Pod {
 func (k TestKubernetes) CreateSecret(secret *v1.Secret, namespace string) {
 	secret.Namespace = namespace
 	err := k.Kubernetes.Client.Create(context.TODO(), secret)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // DeleteSecret deletes a secret
 func (k TestKubernetes) DeleteSecret(secret *v1.Secret) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), secret, tconst.DeleteOpts...)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 }
 
 // RunOperator runs an operator on a Kubernetes cluster
@@ -421,38 +421,19 @@ func (k TestKubernetes) RunOperator(namespace string) chan struct{} {
 	return stopCh
 }
 
-func getYamlReaderFromFile(filename string) (*yaml.YAMLReader, error) {
-	absFileName := getAbsolutePath(filename)
-	f, err := os.Open(absFileName)
-	if err != nil {
-		return nil, err
-	}
-	return yaml.NewYAMLReader(bufio.NewReader(f)), nil
-}
-
-// Obtain the file absolute path given a relative path
-func getAbsolutePath(relativeFilePath string) string {
-	if !strings.HasPrefix(relativeFilePath, ".") {
-		return relativeFilePath
-	}
-	dir, _ := os.Getwd()
-	absPath, _ := filepath.Abs(dir + "/" + relativeFilePath)
-	return absPath
-}
-
 func (k TestKubernetes) installCRD(namespace string) {
-	yamlReader, err := getYamlReaderFromFile("../../deploy/crds/infinispan.org_infinispans_crd.yaml")
+	yamlReader, err := testutils.GetYamlReaderFromFile("../../deploy/crds/infinispan.org_infinispans_crd.yaml")
 	read, _ := yamlReader.Read()
 	crdInfinispan := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crdInfinispan)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 	k.CreateAndWaitForCRD(&crdInfinispan, namespace)
 
-	yamlReader, err = getYamlReaderFromFile("../../deploy/crds/infinispan.org_caches_crd.yaml")
+	yamlReader, err = testutils.GetYamlReaderFromFile("../../deploy/crds/infinispan.org_caches_crd.yaml")
 	read, _ = yamlReader.Read()
 	crdCache := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crdCache)
-	ExpectNoError(err)
+	utils.ExpectNoError(err)
 	k.CreateAndWaitForCRD(&crdCache, namespace)
 }
 

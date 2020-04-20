@@ -7,7 +7,7 @@ require (
 	github.com/go-openapi/spec v0.19.4
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/operator-framework/operator-sdk v0.15.2
-	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/client_golang v1.2.1 // indirect
 	github.com/spf13/pflag v1.0.5
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0

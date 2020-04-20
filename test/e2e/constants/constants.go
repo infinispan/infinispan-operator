@@ -16,17 +16,16 @@ const (
 	// Default retry time when waiting for resources
 	DefaultPollPeriod = 1 * time.Second
 	// Maximum time to wait for resources
-	MaxWaitTimeout      = 120 * time.Second
-	DefaultClusterPort  = 11222
-	DefaultClusterName  = "test-node-startup"
-	ClusterUpKubeConfig = "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
+	MaxWaitTimeout     = 120 * time.Second
+	InfinispanPort     = 11222
+	DefaultClusterName = "test-node-startup"
 )
 
 var (
 	CPU               = comutil.GetEnvWithDefault("INFINISPAN_CPU", "500m")
 	Memory            = comutil.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 	Namespace         = strings.ToLower(comutil.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
-	RunLocalOperator  = comutil.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true")
+	RunLocalOperator  = strings.ToUpper(comutil.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
 	ImageName         = comutil.GetEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server")
 	ExposeServiceType = comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 )
