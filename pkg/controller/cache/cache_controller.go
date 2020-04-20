@@ -3,12 +3,13 @@ package cache
 import (
 	"context"
 	"fmt"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	infinispanv2alpha1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	corev1 "k8s.io/api/core/v1"
@@ -170,7 +171,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 			} else {
 				xmlTemplate := instance.Spec.Template
 				if xmlTemplate == "" {
-					xmlTemplate, err = ispnctrl.GetDefaultCacheTemplateXML(podName, ispnInstance, cluster, reqLogger)
+					xmlTemplate, err = cache.GetDefaultCacheTemplateXML(podName, ispnInstance, cluster, reqLogger)
 				}
 				if err != nil {
 					reqLogger.Error(err, "Error getting default XML")
@@ -206,7 +207,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		instance.Status.ServiceName = serviceList.Items[0].Name
 		statusUpdate = true
 	}
-	statusUpdate = statusUpdate || instance.SetCondition("Ready", "True", "")
+	statusUpdate = statusUpdate || instance.SetCondition("Ready", metav1.ConditionTrue, "")
 	if statusUpdate {
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {

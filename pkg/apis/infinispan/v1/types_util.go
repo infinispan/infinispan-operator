@@ -5,17 +5,19 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/go-logr/logr"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // GetCondition return the Status of the given condition or nil
 // if condition is not present
-func (ispn *Infinispan) GetCondition(condition string) *string {
+func (ispn *Infinispan) GetCondition(condition string) *metav1.ConditionStatus {
 	for _, c := range ispn.Status.Conditions {
 		if c.Type == condition {
 			return &c.Status
@@ -25,7 +27,7 @@ func (ispn *Infinispan) GetCondition(condition string) *string {
 }
 
 // SetCondition set condition to status
-func (ispn *Infinispan) SetCondition(condition, status, message string) bool {
+func (ispn *Infinispan) SetCondition(condition string, status metav1.ConditionStatus, message string) bool {
 	changed := false
 	for idx := range ispn.Status.Conditions {
 		c := &ispn.Status.Conditions[idx]
@@ -78,11 +80,17 @@ func (ispn *Infinispan) ApplyDefaults() {
 	if ispn.Spec.Service.Type == ServiceTypeCache && ispn.Spec.Service.ReplicationFactor == 0 {
 		ispn.Spec.Service.ReplicationFactor = 2
 	}
+	// This field specifies the flavor of the
+	// Infinispan cluster. "" is plain community edition (vanilla)
 	if ispn.Spec.Image == "" {
 		ispn.Spec.Image = constants.DefaultImageName
 	}
 	if ispn.Spec.Container.Memory == "" {
 		ispn.Spec.Container.Memory = constants.DefaultMemorySize.String()
+	}
+	if ispn.Spec.Container.CPU == "" {
+		cpuLimitString := comutil.ToMilliDecimalQuantity(constants.DefaultCPULimit)
+		ispn.Spec.Container.CPU = cpuLimitString.String()
 	}
 }
 
@@ -109,7 +117,7 @@ func (ispn *Infinispan) IsDataGrid() bool {
 
 func (ispn *Infinispan) IsConditionTrue(name string) bool {
 	upgradeCondition := ispn.GetCondition(name)
-	return upgradeCondition != nil && *upgradeCondition == "True"
+	return upgradeCondition != nil && *upgradeCondition == metav1.ConditionTrue
 }
 
 func (ispn *Infinispan) IsUpgradeCondition() bool {
@@ -157,15 +165,9 @@ func (ispn *Infinispan) GetEncryptionSecretName() string {
 }
 
 func (ispn *Infinispan) GetCpuResources() (resource.Quantity, resource.Quantity) {
-	if ispn.Spec.Container.CPU != "" {
-		cpuLimits := resource.MustParse(ispn.Spec.Container.CPU)
-		cpuRequestsMillis := cpuLimits.MilliValue() / 2
-		cpuRequests := comutil.ToMilliDecimalQuantity(int64(cpuRequestsMillis))
-		return cpuRequests, cpuLimits
-	}
-
-	cpuLimits := comutil.ToMilliDecimalQuantity(constants.DefaultCPULimit)
-	cpuRequests := comutil.ToMilliDecimalQuantity(constants.DefaultCPULimit / 2)
+	cpuLimits := resource.MustParse(ispn.Spec.Container.CPU)
+	cpuRequestsMillis := cpuLimits.MilliValue() / 2
+	cpuRequests := comutil.ToMilliDecimalQuantity(cpuRequestsMillis)
 	return cpuRequests, cpuLimits
 }
 
@@ -207,6 +209,17 @@ func (ispn *Infinispan) FindNodePortExternalIP() (string, error) {
 	return "", fmt.Errorf("could not find node port external IP, check local site name matches one of the members")
 }
 
+func (ispn *Infinispan) FindRemoteLocations(localSiteName string) (remoteLocations []InfinispanSiteLocationSpec) {
+	locations := ispn.Spec.Service.Sites.Locations
+	for _, location := range locations {
+		if localSiteName != location.Name {
+			remoteLocations = append(remoteLocations, location)
+		}
+	}
+
+	return
+}
+
 func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
 	categories := ispn.Spec.Logging.Categories
 	if categories != nil {
@@ -223,4 +236,32 @@ func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
 // IsWellFormed return true if cluster is well formed
 func (ispn *Infinispan) IsWellFormed() bool {
 	return ispn.IsConditionTrue("wellFormed")
+}
+
+// NotClusterFormed return true is cluster is not well formed
+func (ispn *Infinispan) NotClusterFormed(pods, replicas int) bool {
+	notFormed := ispn.Status.Conditions[0].Status != metav1.ConditionTrue
+	notEnoughMembers := pods < replicas
+	return notFormed || notEnoughMembers
+}
+
+func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
+	if ispn.IsUpgradeCondition() {
+		stoppingCondition := ispn.GetCondition("stopping")
+		if stoppingCondition != nil {
+			stoppingCompleted := *stoppingCondition == metav1.ConditionFalse
+			if stoppingCompleted {
+				if ispn.Status.ReplicasWantedAtRestart > 0 {
+					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
+					return true
+				}
+				logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
+				return false
+			}
+			logger.Info("wait for graceful shutdown before update to complete")
+			return false
+		}
+	}
+
+	return false
 }

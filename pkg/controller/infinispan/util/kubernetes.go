@@ -3,9 +3,13 @@ package util
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/url"
 	"os"
 
+	"github.com/go-logr/logr"
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -14,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -185,10 +190,6 @@ func resolveConfig() *rest.Config {
 	return internal
 }
 
-//func (k Kubernetes) GetPort(service *v1.Service) int32 {
-//	return service.Spec.Ports[0].Port
-//}
-
 func (k Kubernetes) GetNodePort(service *v1.Service) int32 {
 	return service.Spec.Ports[0].NodePort
 }
@@ -225,7 +226,7 @@ func FindKubeConfig() string {
 	if kubeConfig != "" {
 		return kubeConfig
 	}
-	return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
+	return consts.ClusterUpKubeConfig
 }
 
 func setConfigDefaults(config *rest.Config) *rest.Config {
@@ -247,13 +248,71 @@ func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Option
 // ServiceCAsCRDResourceExists returns true if the platform
 // has the servicecas.operator.openshift.io custom resource deployed
 // Used to check if serviceca operator is serving TLS certificates
-func (k Kubernetes) HasServiceCAsCRDResource() bool {
+func (k Kubernetes) hasServiceCAsCRDResource() bool {
 	// Using an ad-hoc path
 	req := k.RestClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
 	result := req.Do()
 	var status int
 	result.StatusCode(&status)
 	return status >= 200 && status < 299
+}
+
+// getServingCertsMode returns a label that identify the kind of serving
+// certs service is available. Returns 'openshift.io' for service-ca on openshift
+func (k Kubernetes) GetServingCertsMode() string {
+	if k.hasServiceCAsCRDResource() {
+		return "openshift.io"
+
+		// Code to check if other modes of serving TLS cert service is available
+		// can be added here
+	}
+	return ""
+}
+
+func (k Kubernetes) GetMinikubeRESTConfig(masterURL string, secretName string, infinispan *ispnv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+	logger.Info("connect to backup minikube cluster", "url", masterURL)
+
+	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
+	if err != nil {
+		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
+		return nil, err
+	}
+
+	secret, err := k.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
+	if err != nil {
+		logger.Error(err, "unable to find Secret", "secret name", secretName)
+		return nil, err
+	}
+
+	config.CAData = secret.Data["certificate-authority"]
+	config.CertData = secret.Data["client-certificate"]
+	config.KeyData = secret.Data["client-key"]
+
+	return config, nil
+}
+
+func (k Kubernetes) GetOpenShiftRESTConfig(masterURL string, secretName string, infinispan *ispnv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
+	if err != nil {
+		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
+		return nil, err
+	}
+
+	// Skip-tls for accessing other OpenShift clusters
+	config.Insecure = true
+
+	secret, err := k.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
+	if err != nil {
+		logger.Error(err, "unable to find Secret", "secret name", secretName)
+		return nil, err
+	}
+
+	if token, ok := secret.Data["token"]; ok {
+		config.BearerToken = string(token)
+		return config, nil
+	}
+
+	return nil, fmt.Errorf("token required connect to OpenShift cluster")
 }
 
 // GetK8sResources returns the list of the type list of resources associated to the cluster

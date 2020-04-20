@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,7 +13,9 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
 	ispncom "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan/configuration"
 	"github.com/infinispan/infinispan-operator/version"
 	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
@@ -29,9 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	discovery "k8s.io/client-go/discovery"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -89,7 +87,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// GetDiscoveryClient ...
+// TODO: If we will invoke getDiscoveryClient multiple times in one reconcile stage, it's necessary move 'discovery' to the ReconcileInfinispan struct due to performance reasons
 func (r *ReconcileInfinispan) getDiscoveryClient() (discovery.DiscoveryInterface, error) {
 	discovery, err := discovery.NewDiscoveryClientForConfig(kubernetes.RestConfig)
 	return discovery, err
@@ -175,7 +173,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Check x-site configuration first.
 	// Must be done before creating any Infinispan resources,
 	// because remote site host:port combinations need to be injected into Infinispan.
-	xsite, err := r.computeXSite(infinispan, reqLogger)
+	xsite := &configuration.XSite{}
+	err = xsite.ComputeXSite(infinispan, kubernetes, r.scheme, reqLogger)
 	if err != nil {
 		reqLogger.Error(err, "Error in computeXSite", "Infinispan.Namespace", infinispan.Namespace)
 		return reconcile.Result{}, err
@@ -188,7 +187,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Info("Configuring the StatefulSet")
 		// Populate EndpointEncryption if serving cert service is available
 		ee := &infinispan.Spec.Security.EndpointEncryption
-		if getServingCertsMode(kubernetes) == "openshift.io" && (ee.Type == "" || ee.CertSecretName == "") {
+		if kubernetes.GetServingCertsMode() == "openshift.io" && (ee.Type == "" || ee.CertSecretName == "") {
 			reqLogger.Info("Serving certificate service present. Configuring into CRD")
 			if ee.Type == "" {
 				ee.Type = "Service"
@@ -285,10 +284,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		// StatefulSet created successfully - return and requeue
 		reqLogger.Info("End of the StetefulSet creation")
 		return reconcile.Result{Requeue: true}, nil
+
 	} else if err != nil {
 		reqLogger.Error(err, "failed to get StatefulSet")
 		return reconcile.Result{}, err
-	} else if upgradeNeeded(infinispan, reqLogger) {
+	} else if infinispan.IsUpgradeNeeded(reqLogger) {
 		reqLogger.Info("Upgrade needed")
 		err = r.destroyResources(infinispan)
 		if err != nil {
@@ -296,7 +296,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		infinispan.SetCondition("upgrade", "False", "")
+		infinispan.SetCondition("upgrade", metav1.ConditionFalse, "")
 		r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan status")
@@ -404,7 +404,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 													Path: "/",
 													Backend: networkingv1beta1.IngressBackend{
 														ServiceName: infinispan.Name,
-														ServicePort: intstr.IntOrString{IntVal: 11222}}}}},
+														ServicePort: intstr.IntOrString{IntVal: consts.InfinispanPort}}}}},
 									}}},
 						}}
 					if infinispan.Spec.Security.EndpointEncryption.CertSecretName != "" {
@@ -488,9 +488,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 							continue
 						}
 						reqLogger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
-						infinispan.SetCondition("stopping", "True", "")
-						infinispan.SetCondition("wellFormed", "False", "")
-						r.client.Status().Update(context.TODO(), infinispan)
+						infinispan.SetCondition("stopping", metav1.ConditionTrue, "")
+						infinispan.SetCondition("wellFormed", metav1.ConditionFalse, "")
+						err = r.client.Status().Update(context.TODO(), infinispan)
 						if err != nil {
 							reqLogger.Error(err, "This should not happens but failed to update Infinispan Status")
 							return reconcile.Result{}, err
@@ -520,8 +520,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 		}
 		if found.Status.CurrentReplicas == 0 {
-			updateStatus = updateStatus || infinispan.SetCondition("gracefulShutdown", "True", "")
-			updateStatus = updateStatus || infinispan.SetCondition("stopping", "False", "")
+			updateStatus = updateStatus || infinispan.SetCondition("gracefulShutdown", metav1.ConditionTrue, "")
+			updateStatus = updateStatus || infinispan.SetCondition("stopping", metav1.ConditionFalse, "")
 		}
 		if updateStatus {
 			r.client.Status().Update(context.TODO(), infinispan)
@@ -547,7 +547,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 		infinispan.Status.ReplicasWantedAtRestart = 0
-		infinispan.SetCondition("gracefulShutdown", "False", "")
+		infinispan.SetCondition("gracefulShutdown", metav1.ConditionFalse, "")
 		err = r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan Status")
@@ -557,8 +557,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// If upgrade required, do not process any further and handle upgrades
-	if isUpgradeCondition(infinispan) {
-		reqLogger.Info("isUpgradeCondition")
+	if infinispan.IsUpgradeCondition() {
+		reqLogger.Info("IsUpgradeCondition")
 		return reconcile.Result{Requeue: true}, nil
 	}
 
@@ -687,7 +687,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// If x-site enable configure the coordinator pods to be selected by the x-site service
 	if infinispan.HasSites() {
-		found := r.applyLabelsToCoordinatorsPod(podList, infinispan, cluster, reqLogger)
+		found := configuration.ApplyLabelsToCoordinatorsPod(podList, infinispan, cluster, r.client, reqLogger)
 		if !found {
 			// If a coordinator is not found then requeue early
 			return reconcile.Result{Requeue: true}, nil
@@ -703,7 +703,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// All pods ready start autoscaler if needed
-
 	if infinispan.Spec.Autoscale != nil {
 		addAutoscalingEquipment(types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, r)
 	}
@@ -729,7 +728,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// View didn't form, requeue until view has formed
-	if notClusterFormed(currConds, podList.Items, infinispan.Spec.Replicas) {
+	if infinispan.NotClusterFormed(len(podList.Items), int(infinispan.Spec.Replicas)) {
 		reqLogger.Info("notClusterFormed")
 		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, nil
 	}
@@ -738,14 +737,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Create default cache if it doesn't exists.
 	if infinispan.IsCache() {
-		existsCache, err := existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster)
+		existsCache, err := cache.ExistsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, kubernetes, cluster)
 		if err != nil {
 			reqLogger.Error(err, "failed to validate default cache for cache service")
 			return reconcile.Result{}, err
 		}
 		if !existsCache {
 			reqLogger.Info("createDefaultCache")
-			err = createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
+			err = cache.CreateCacheServiceDefaultCache(podList.Items[0].Name, infinispan, kubernetes, cluster, reqLogger)
 			if err != nil {
 				reqLogger.Error(err, "failed to create default cache for cache service")
 				return reconcile.Result{}, err
@@ -851,41 +850,11 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	return nil
 }
 
-func upgradeNeeded(infinispan *infinispanv1.Infinispan, logger logr.Logger) bool {
-	if isUpgradeCondition(infinispan) {
-		stoppingCondition := infinispan.GetCondition("stopping")
-		if stoppingCondition != nil {
-			stoppingCompleted := *stoppingCondition == "False"
-			if stoppingCompleted {
-				if infinispan.Status.ReplicasWantedAtRestart > 0 {
-					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
-					return true
-				}
-				logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
-				return false
-			}
-			logger.Info("wait for graceful shutdown before update to complete")
-			return false
-		}
-	}
-
-	return false
-}
-
-func isUpgradeCondition(infinispan *infinispanv1.Infinispan) bool {
-	return isConditionTrue("upgrade", infinispan)
-}
-
-func isConditionTrue(name string, infinispan *infinispanv1.Infinispan) bool {
-	upgradeCondition := infinispan.GetCondition(name)
-	return upgradeCondition != nil && *upgradeCondition == "True"
-}
-
 func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) {
 	if len(podList.Items) == 0 {
 		return
 	}
-	if isUpgradeCondition(infinispan) {
+	if infinispan.IsUpgradeCondition() {
 		return
 	}
 
@@ -911,168 +880,17 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 			"desired image", desiredImage)
 		infinispan.Spec.Replicas = 0
 		r.client.Update(context.TODO(), infinispan)
-		infinispan.SetCondition("upgrade", "True", "")
+		infinispan.SetCondition("upgrade", metav1.ConditionTrue, "")
 		r.client.Status().Update(context.TODO(), infinispan)
 	}
-}
-
-func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface) (bool, error) {
-	namespace := infinispan.ObjectMeta.Namespace
-	secretName := infinispan.GetSecretName()
-	protocol := infinispan.GetEndpointScheme()
-	pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, secretName, namespace)
-	if err != nil {
-		return false, err
-	}
-	return cluster.ExistsCache(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, podName, namespace, string(protocol))
-}
-
-func notClusterFormed(currConds []infinispanv1.InfinispanCondition, pods []corev1.Pod, replicas int32) bool {
-	notFormed := currConds[0].Status != "True"
-	notEnoughMembers := len(pods) < int(replicas)
-	return notFormed || notEnoughMembers
-}
-
-// GetDefaultCacheTemplateXML return default template for cache
-func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) (string, error) {
-	namespace := infinispan.ObjectMeta.Namespace
-
-	memoryLimitBytes, err := cluster.GetMemoryLimitBytes(podName, namespace)
-	if err != nil {
-		logger.Error(err, "unable to extract memory limit (bytes) from pod")
-		return "", err
-	}
-
-	maxUnboundedMemory, err := cluster.GetMaxMemoryUnboundedBytes(podName, namespace)
-	if err != nil {
-		logger.Error(err, "unable to extract max memory unbounded from pod")
-		return "", err
-	}
-
-	containerMaxMemory := maxUnboundedMemory
-	if memoryLimitBytes < maxUnboundedMemory {
-		containerMaxMemory = memoryLimitBytes
-	}
-
-	nativeMemoryOverhead := containerMaxMemory * (consts.CacheServiceJvmNativePercentageOverhead / 100)
-	evictTotalMemoryBytes :=
-		containerMaxMemory -
-			(consts.CacheServiceJvmNativeMb * 1024 * 1024) -
-			(consts.CacheServiceFixedMemoryXmxMb * 1024 * 1024) -
-			nativeMemoryOverhead
-
-	logger.Info("calculated maximum off-heap size",
-		"size", evictTotalMemoryBytes,
-		"container max memory", containerMaxMemory,
-		"memory limit (bytes)", memoryLimitBytes,
-		"max memory bound", maxUnboundedMemory,
-	)
-	replicationFactor := infinispan.Spec.Service.ReplicationFactor
-	return `<infinispan><cache-container>
-        <distributed-cache name="` + consts.DefaultCacheName + `" mode="SYNC" owners="` + fmt.Sprint(replicationFactor) + `" statistics="true">
-            <memory>
-                <off-heap 
-                    size="` + strconv.FormatUint(evictTotalMemoryBytes, 10) + `"
-                    eviction="MEMORY"
-                    strategy="REMOVE"
-                />
-            </memory>
-            <partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL" />
-        </distributed-cache>
-	</cache-container></infinispan>`, nil
-}
-
-func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) error {
-	defaultCacheXML, err := GetDefaultCacheTemplateXML(podName, infinispan, cluster, logger)
-	if err != nil {
-		return err
-	}
-	secretName := infinispan.GetSecretName()
-	protocol := infinispan.GetEndpointScheme()
-	pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, secretName, infinispan.GetNamespace())
-	if err != nil {
-		return err
-	}
-	return cluster.CreateCacheWithTemplate(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, defaultCacheXML, podName, infinispan.Namespace, string(protocol))
-}
-
-func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, logger logr.Logger) (*ispnutil.XSite, error) {
-	if infinispan.HasSites() {
-		siteServiceName := infinispan.GetSiteServiceName()
-		siteService, err := r.getOrCreateSiteService(siteServiceName, infinispan, logger)
-		if err != nil {
-			logger.Error(err, "could not get or create site service")
-			return nil, err
-		}
-
-		localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(siteService, kubernetes, logger)
-		if err != nil {
-			logger.Error(err, "error retrieving local x-site service information")
-			return nil, err
-		}
-
-		if localSiteHost == "" {
-			msg := "local x-site service host not yet available"
-			logger.Info(msg)
-			return nil, fmt.Errorf(msg)
-		}
-
-		logger.Info("local site service",
-			"service name", siteServiceName,
-			"host", localSiteHost,
-			"port", localSitePort,
-		)
-
-		xsite := &ispnutil.XSite{
-			Address: localSiteHost,
-			Name:    infinispan.Spec.Service.Sites.Local.Name,
-			Port:    localSitePort,
-		}
-
-		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
-		for _, remoteLocation := range remoteLocations {
-			err := appendRemoteLocation(xsite, infinispan, &remoteLocation, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		logger.Info("x-site configured", "configuration", *xsite)
-		return xsite, nil
-	}
-
-	return nil, nil
-}
-
-func findRemoteLocations(localSiteName string, infinispan *infinispanv1.Infinispan) (remoteLocations []infinispanv1.InfinispanSiteLocationSpec) {
-	locations := infinispan.Spec.Service.Sites.Locations
-	for _, location := range locations {
-		if localSiteName != location.Name {
-			remoteLocations = append(remoteLocations, location)
-		}
-	}
-
-	return
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	lsPod := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
-	// This field specifies the flavor of the
-	// Infinispan cluster. "" is plain community edition (vanilla)
-	var imageName string
-	if m.Spec.Image != "" {
-		imageName = m.Spec.Image
-	} else {
-		imageName = consts.DefaultImageName
-	}
 
-	memory := consts.DefaultMemorySize
-	if m.Spec.Container.Memory != "" {
-		memory = resource.MustParse(m.Spec.Container.Memory)
-	}
-
+	memory := resource.MustParse(m.Spec.Container.Memory)
 	cpuRequests, cpuLimits := m.GetCpuResources()
 
 	javaOptions, err := m.GetJavaOptions()
@@ -1103,12 +921,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		}
 	}
 	replicas := m.Spec.Replicas
-	protocolScheme := corev1.URISchemeHTTP
-	if m.GetEndpointScheme() != corev1.URISchemeHTTP {
-		protocolScheme = corev1.URISchemeHTTPS
-	}
+	protocolScheme := m.GetEndpointScheme()
 	dep := &appsv1.StatefulSet{
-
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "StatefulSet",
@@ -1132,7 +946,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Image: imageName,
+						Image: m.Spec.Image,
 						Name:  "infinispan",
 						Env:   envVars,
 						LivenessProbe: &corev1.Probe{
@@ -1143,8 +957,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
 						Ports: []corev1.ContainerPort{
-							{ContainerPort: 8888, Name: "ping", Protocol: corev1.ProtocolTCP},
-							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
+							{ContainerPort: consts.InfinispanPingPort, Name: "ping", Protocol: corev1.ProtocolTCP},
+							{ContainerPort: consts.InfinispanPort, Name: "infinispan", Protocol: corev1.ProtocolTCP},
 						},
 						ReadinessProbe: &corev1.Probe{
 							Handler:             ispnutil.ClusterStatusHandler(protocolScheme),
@@ -1284,7 +1098,7 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulS
 	}
 }
 
-func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
+func setupConfigForEncryption(m *infinispanv1.Infinispan, c *configuration.InfinispanConfiguration, client client.Client) error {
 	ee := m.Spec.Security.EndpointEncryption
 	if strings.EqualFold(ee.Type, "Service") {
 		if strings.Contains(ee.CertServiceName, "openshift.io") {
@@ -1325,12 +1139,12 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.Infinispan
 	return nil
 }
 
-func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
+func (r *ReconcileInfinispan) configMapForInfinispan(xsite *configuration.XSite, m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
 	name := m.ObjectMeta.Name
 	namespace := m.ObjectMeta.Namespace
 
 	loggingCategories := m.CopyLoggingCategories()
-	config := ispnutil.CreateInfinispanConfiguration(name, xsite, loggingCategories, namespace)
+	config := configuration.CreateInfinispanConfiguration(name, loggingCategories, namespace, xsite)
 	err := setupConfigForEncryption(m, &config, r.client)
 	if err != nil {
 		return nil, err
@@ -1428,14 +1242,14 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 	sort.Strings(views)
 	if len(errors) == 0 {
 		if len(views) == 1 {
-			wellformed.Status = "True"
+			wellformed.Status = metav1.ConditionTrue
 			wellformed.Message = "View: " + views[0]
 		} else {
-			wellformed.Status = "False"
+			wellformed.Status = metav1.ConditionFalse
 			wellformed.Message = "Views: " + strings.Join(views, ",")
 		}
 	} else {
-		wellformed.Status = "Unknown"
+		wellformed.Status = metav1.ConditionUnknown
 		wellformed.Message = "Errors: " + strings.Join(errors, ",") + " Views: " + strings.Join(views, ",")
 	}
 	status = append(status, wellformed)
@@ -1460,7 +1274,7 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 			Selector: lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{
-					Port: 11222,
+					Port: consts.InfinispanPort,
 				},
 			},
 		},
@@ -1492,7 +1306,7 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 			Ports: []corev1.ServicePort{
 				{
 					Name: "ping",
-					Port: 8888,
+					Port: consts.InfinispanPingPort,
 				},
 			},
 		},
@@ -1522,8 +1336,8 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 			Selector: lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{
-					Port:       int32(11222),
-					TargetPort: intstr.FromInt(11222),
+					Port:       int32(consts.InfinispanPort),
+					TargetPort: intstr.FromInt(consts.InfinispanPort),
 				},
 			},
 		},
@@ -1535,324 +1349,4 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, externalService, r.scheme)
 	return externalService
-}
-
-func (r *ReconcileInfinispan) getOrCreateSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
-	siteService := &corev1.Service{}
-	ns := types.NamespacedName{
-		Name:      siteServiceName,
-		Namespace: infinispan.ObjectMeta.Namespace,
-	}
-	err := r.client.Get(context.TODO(), ns, siteService)
-
-	if errors.IsNotFound(err) {
-		return r.createSiteService(siteServiceName, infinispan, logger)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return siteService, nil
-}
-
-func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
-	lsPodSelector := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-pod")
-	lsPodSelector["coordinator"] = "true"
-	lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-xsite")
-
-	exposeSpec := corev1.ServiceSpec{}
-	exposeConf := infinispan.Spec.Service.Sites.Local.Expose
-	exposeSpec.Selector = lsPodSelector
-	nodePort := int32(0)
-	if exposeConf.NodePort != 0 {
-		nodePort = exposeConf.NodePort
-	}
-	switch exposeConf.Type {
-	case infinispanv1.ExposeTypeNodePort:
-		exposeSpec.Type = corev1.ServiceTypeNodePort
-		exposeSpec.Ports = []corev1.ServicePort{
-			{
-				Port:       7900,
-				NodePort:   nodePort,
-				TargetPort: intstr.IntOrString{IntVal: 7900},
-			},
-		}
-	case infinispanv1.ExposeTypeLoadBalancer:
-		exposeSpec.Type = corev1.ServiceTypeLoadBalancer
-		exposeSpec.Ports = []corev1.ServicePort{
-			{
-				Port:       7900,
-				TargetPort: intstr.IntOrString{IntVal: 7900},
-			},
-		}
-	}
-	logger.Info("create exposed site service", "configuration", exposeSpec)
-
-	siteService := corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      siteServiceName,
-			Namespace: infinispan.ObjectMeta.Namespace,
-			Annotations: map[string]string{
-				"service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp",
-			},
-			Labels: lsService,
-		},
-		Spec: exposeSpec,
-	}
-
-	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(infinispan, &siteService, r.scheme)
-
-	err := r.client.Create(context.TODO(), &siteService)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return nil, err
-	}
-
-	return &siteService, nil
-}
-
-func appendRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) error {
-	restConfig, err := getRemoteSiteRESTConfig(infinispan, remoteLocation, logger)
-	if err != nil {
-		return err
-	}
-
-	remoteKubernetes, err := ispnutil.NewKubernetesFromConfig(restConfig)
-	if err != nil {
-		logger.Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
-		return err
-	}
-
-	err = appendKubernetesRemoteLocation(xsite, infinispan, remoteLocation, remoteKubernetes, logger)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func getRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, location *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) (*restclient.Config, error) {
-	backupSiteURL, err := url.Parse(location.URL)
-	if err != nil {
-		return nil, err
-	}
-
-	// Copy URL to make modify it for backup access
-	copyURL, err := url.Parse(backupSiteURL.String())
-	if err != nil {
-		return nil, err
-	}
-
-	// All remote sites locations are accessed via encrypted http
-	copyURL.Scheme = "https"
-
-	switch scheme := backupSiteURL.Scheme; scheme {
-	case "minikube":
-		return getMinikubeRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
-	case "openshift":
-		return getOpenShiftRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
-	default:
-		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
-	}
-}
-
-func getMinikubeRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
-	logger.Info("connect to backup minikube cluster", "url", masterURL)
-
-	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
-	if err != nil {
-		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
-		return nil, err
-	}
-
-	secret, err := kubernetes.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
-	if err != nil {
-		logger.Error(err, "unable to find Secret", "secret name", secretName)
-		return nil, err
-	}
-
-	config.CAData = secret.Data["certificate-authority"]
-	config.CertData = secret.Data["client-certificate"]
-	config.KeyData = secret.Data["client-key"]
-
-	return config, nil
-}
-
-func getOpenShiftRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
-	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
-	if err != nil {
-		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
-		return nil, err
-	}
-
-	// Skip-tls for accessing other OpenShift clusters
-	config.Insecure = true
-
-	secret, err := kubernetes.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
-	if err != nil {
-		logger.Error(err, "unable to find Secret", "secret name", secretName)
-		return nil, err
-	}
-
-	if token, ok := secret.Data["token"]; ok {
-		config.BearerToken = string(token)
-		return config, nil
-	}
-
-	return nil, fmt.Errorf("token required connect to OpenShift cluster")
-}
-
-func appendKubernetesRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) error {
-	siteServiceName := infinispan.GetSiteServiceName()
-	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
-	siteService := &corev1.Service{}
-	err := remoteKubernetes.Client.Get(context.TODO(), namespacedName, siteService)
-	if err != nil {
-		logger.Error(err, "could not find x-site service in remote cluster", "site service name", siteServiceName)
-		return err
-	}
-
-	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger)
-	if err != nil {
-		logger.Error(err, "error retrieving remote x-site service information")
-		return err
-	}
-
-	if host == "" {
-		msg := "remote x-site service host not yet available"
-		logger.Info(msg)
-		return fmt.Errorf(msg)
-	}
-
-	logger.Info("remote site service",
-		"service name", siteServiceName,
-		"host", host,
-		"port", port,
-	)
-
-	backupSite := ispnutil.BackupSite{
-		Address: host,
-		Name:    remoteLocation.Name,
-		Port:    port,
-	}
-
-	xsite.Backups = append(xsite.Backups, backupSite)
-	return nil
-}
-
-func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
-	switch serviceType := service.Spec.Type; serviceType {
-	case corev1.ServiceTypeNodePort:
-		// If configuring NodePort, expect external IPs to be configured
-		return getNodePortServiceHostPort(service, kubernetes, logger)
-	case corev1.ServiceTypeLoadBalancer:
-		return getLoadBalancerServiceHostPort(service, logger)
-	default:
-		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
-	}
-}
-
-func getNodePortServiceHostPort(service *corev1.Service, k *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
-	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
-	//So, we get the workers list. It needs some permissions cluster-reader permission
-	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
-	workerList := &corev1.NodeList{}
-
-	//select workers only. AFAIK, only the workers have the proxy to the pods
-	labelSelector := labels.SelectorFromSet(map[string]string{"node-role.kubernetes.io/worker": ""})
-
-	listOps := &client.ListOptions{
-		LabelSelector: labelSelector,
-	}
-	err := k.Client.List(context.TODO(), workerList, listOps)
-	if err != nil {
-		return "", 0, err
-	}
-
-	for _, node := range workerList.Items {
-		//host := k.PublicIP() //returns REST API endpoint. not good.
-		//iterate over the all the nodes and return the first ready.
-		nodeStatus := node.Status
-		for _, nodeCondition := range nodeStatus.Conditions {
-			if nodeCondition.Type == corev1.NodeReady && nodeCondition.Status == corev1.ConditionTrue && len(nodeStatus.Addresses) > 0 {
-				//The port can be found in the service description
-				host := nodeStatus.Addresses[0].Address
-				port := service.Spec.Ports[0].NodePort
-				logger.Info("Found ready worker node.", "Host", host, "Port", port)
-				return host, port, nil
-			}
-		}
-	}
-
-	err = fmt.Errorf("no worker node found")
-	return "", 0, err
-}
-
-func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
-	port := service.Spec.Ports[0].Port
-
-	// If configuring load balancer, look for external ingress
-	if len(service.Status.LoadBalancer.Ingress) > 0 {
-		ingress := service.Status.LoadBalancer.Ingress[0]
-		if ingress.IP != "" {
-			return ingress.IP, port, nil
-		}
-		if ingress.Hostname != "" {
-			// Resolve load balancer host
-			ip, err := ispncom.LookupHost(ingress.Hostname, logger)
-
-			// Load balancer gets created asynchronously,
-			// so it might take time for the status to be updated.
-			return ip, port, err
-		}
-	}
-
-	return "", port, nil
-}
-
-// getServingCertsMode returns a label that identify the kind of serving
-// certs service is available. Returns 'openshift.io' for service-ca on openshift
-func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
-	if remoteKubernetes.HasServiceCAsCRDResource() {
-		return "openshift.io"
-
-		// Code to check if other modes of serving TLS cert service is available
-		// can be added here
-	}
-	return ""
-}
-
-func (r *ReconcileInfinispan) applyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) bool {
-	pass, err := cluster.GetPassword(consts.DefaultOperatorUser, infinispan.GetSecretName(), infinispan.GetNamespace())
-	coordinatorFound := false
-	if err != nil {
-		logger.Error(err, "Error in getting cluster password for x-site")
-		return coordinatorFound
-	}
-	protocol := string(infinispan.GetEndpointScheme())
-	for _, item := range podList.Items {
-		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultOperatorUser, pass, consts.DefaultCacheManagerName, item.Name, item.Namespace, protocol)
-		if err == nil {
-			lab, ok := item.Labels["coordinator"]
-			if cacheManagerInfo["coordinator"].(bool) {
-				if !ok || lab != "true" {
-					item.Labels["coordinator"] = "true"
-					err = r.client.Update(context.TODO(), &item)
-				}
-				coordinatorFound = (err == nil)
-			} else {
-				if ok && lab == "true" {
-					// If present leave the label but false the value
-					if ok {
-						item.Labels["coordinator"] = "false"
-						err = r.client.Update(context.TODO(), &item)
-					}
-				}
-			}
-		}
-		if err != nil {
-			logger.Error(err, "Generic error in managing x-site coordinators")
-		}
-	}
-	return coordinatorFound
 }

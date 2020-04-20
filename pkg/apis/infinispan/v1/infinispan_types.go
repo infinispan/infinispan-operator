@@ -131,7 +131,7 @@ type InfinispanCondition struct {
 	// Type is the type of the condition.
 	Type string `json:"type"`
 	// Status is the status of the condition.
-	Status string `json:"status"`
+	Status metav1.ConditionStatus `json:"status"`
 	// Human-readable message indicating details about last transition.
 	Message string `json:"message"`
 }
