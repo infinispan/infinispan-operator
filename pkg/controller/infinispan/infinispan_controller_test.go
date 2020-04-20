@@ -52,7 +52,7 @@ type mockCluster struct{}
 // GetClusterMembers returns a fake cluster view, produced returning the substring
 // after the - char of the `name` arg. If the substring doesn't start with View and error
 // will be also returned
-func (m mockCluster) GetClusterMembers(_, podName, _, _ string) ([]string, error) {
+func (m mockCluster) GetClusterMembers(_, _, podName, _, _ string) ([]string, error) {
 	arr := strings.Split(podName, "-")
 	if (len(arr) > 1) && strings.HasPrefix(arr[1], "View") {
 		return []string{arr[1]}, nil
@@ -60,19 +60,15 @@ func (m mockCluster) GetClusterMembers(_, podName, _, _ string) ([]string, error
 	return nil, errors.New("error in getting view")
 }
 
-func (m mockCluster) GracefulShutdown(secretName, podName, namespace, protocol string) error {
+func (m mockCluster) GracefulShutdown(user, pass, podName, namespace, protocol string) error {
 	return nil
 }
 
-func (m mockCluster) GetClusterSize(secretName, podName, namespace, protocol string) (int, error) {
+func (m mockCluster) GetClusterSize(user, pass, podName, namespace, protocol string) (int, error) {
 	return 0, nil
 }
 
-func (m mockCluster) ExistsCache(cacheName, secretName, podName, namespace, protocol string) bool {
-	return false
-}
-
-func (m mockCluster) ExistsCacheWithAuth(user, pass, cacheName, podName, namespace, protocol string) (bool, error) {
+func (m mockCluster) ExistsCache(user, pass, cacheName, podName, namespace, protocol string) (bool, error) {
 	return false, nil
 }
 
@@ -84,11 +80,8 @@ func (m mockCluster) CreateCacheWithTemplateName(user, pass, cacheName, template
 func (m mockCluster) CacheNames(user, pass, podName, namespace, protocol string) ([]string, error) {
 	return nil, nil
 }
-func (m mockCluster) CreateCache(cacheName, cacheXML, secretName, podName, namespace, protocol string) error {
-	return nil
-}
 
-func (m mockCluster) CreateCacheWithAuth(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error {
+func (m mockCluster) CreateCacheWithTemplate(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error {
 	return nil
 }
 
@@ -98,6 +91,10 @@ func (m mockCluster) GetMemoryLimitBytes(podName, namespace string) (uint64, err
 
 func (m mockCluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
 	return 0, nil
+}
+
+func (m mockCluster) GetPassword(user, secretName, namespace string) (string, error) {
+	return "fakePassword", nil
 }
 
 // TestGetInfinispanConditions test for getInfinispanConditions func

@@ -27,6 +27,12 @@ var (
 )
 
 const (
+	// DefaultOperatorUser users to access the cluster rest API
+	DefaultOperatorUser = "operator"
+	// DefaultDeveloperUser users to access the cluster rest API
+	DefaultDeveloperUser = "developer"
+	// DefaultCacheName default cache name for the CacheService
+	DefaultCacheName                        = "default"
 	CacheServiceFixedMemoryXmxMb            = 200
 	CacheServiceJvmNativeMb                 = 220
 	CacheServiceMaxRamMb                    = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
@@ -247,7 +248,7 @@ func TestCacheService(t *testing.T) {
 	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
 
-	user := "developer"
+	user := cconsts.DefaultDeveloperUser
 	password, err := cluster.Kubernetes.GetPassword(user, spec.GetSecretName(), tconst.Namespace)
 	testutil.ExpectNoError(err)
 
@@ -272,7 +273,7 @@ func TestCacheService(t *testing.T) {
 // the cluster and checks that the cache is still there
 func TestPermanentCache(t *testing.T) {
 	name := "test-permanent-cache"
-	usr := "developer"
+	usr := cconsts.DefaultDeveloperUser
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
@@ -308,7 +309,7 @@ func TestPermanentCache(t *testing.T) {
 // the cluster and checks that the cache and the data are still there
 func TestCheckDataSurviveToShutdown(t *testing.T) {
 	name := "test-data-shutdown-cache"
-	usr := "developer"
+	usr := cconsts.DefaultDeveloperUser
 	cacheName := "test"
 	template := `<infinispan><cache-container><distributed-cache name ="` + cacheName +
 		`"><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan>`
@@ -373,12 +374,14 @@ func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 	pods := kubernetes.GetPods("app=infinispan-pod", tconst.Namespace)
 	podName := pods[0].Name
 
-	secretName := spec.GetSecretName()
+	pass, err := cluster.Kubernetes.GetPassword(cconsts.DefaultOperatorUser, spec.GetSecretName(), tconst.Namespace)
+	testutil.ExpectNoError(err)
+
 	expectedClusterSize := num
 	// Check that the cluster size is num querying the first pod
 	var lastErr error
-	err := wait.Poll(time.Second, tconst.TestTimeout, func() (done bool, err error) {
-		value, err := cluster.GetClusterSize(secretName, podName, tconst.Namespace, protocol)
+	err = wait.Poll(time.Second, tconst.TestTimeout, func() (done bool, err error) {
+		value, err := cluster.GetClusterSize(cconsts.DefaultOperatorUser, pass, podName, tconst.Namespace, protocol)
 		if err != nil {
 			lastErr = err
 			return false, nil
@@ -399,7 +402,7 @@ func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 
 func TestExternalService(t *testing.T) {
 	name := "test-external-service"
-	usr := "developer"
+	usr := cconsts.DefaultDeveloperUser
 
 	// Create a resource without passing any config
 	spec := ispnv1.Infinispan{

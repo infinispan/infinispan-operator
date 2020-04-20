@@ -368,7 +368,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				// if there's no ready pod we're in trouble
 				for _, pod := range podList.Items {
 					if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].Ready {
-						err = cluster.GracefulShutdown(infinispan.GetSecretName(), pod.GetName(), pod.GetNamespace(), string(protocol))
+						pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, infinispan.GetSecretName(), infinispan.GetNamespace())
+						if err == nil {
+							err = cluster.GracefulShutdown(consts.DefaultOperatorUser, pass, pod.GetName(), pod.GetNamespace(), string(protocol))
+						}
 						if err != nil {
 							reqLogger.Error(err, "failed to exec shutdown command on pod")
 							continue
@@ -731,14 +734,12 @@ func upgradeNeeded(infinispan *infinispanv1.Infinispan, logger logr.Logger) bool
 				if infinispan.Status.ReplicasWantedAtRestart > 0 {
 					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
 					return true
-				} else {
-					logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
-					return false
 				}
-			} else {
-				logger.Info("wait for graceful shutdown before update to complete")
+				logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
 				return false
 			}
+			logger.Info("wait for graceful shutdown before update to complete")
+			return false
 		}
 	}
 
@@ -793,7 +794,15 @@ func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
 	namespace := infinispan.ObjectMeta.Namespace
 	secretName := infinispan.GetSecretName()
 	protocol := infinispan.GetEndpointScheme()
-	return cluster.ExistsCache("default", secretName, podName, namespace, string(protocol))
+	pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, secretName, namespace)
+	if err != nil {
+		return false
+	}
+	res, err := cluster.ExistsCache(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, podName, namespace, string(protocol))
+	if err == nil {
+		return res
+	}
+	return false
 }
 
 func notClusterFormed(currConds []infinispanv1.InfinispanCondition, pods []corev1.Pod, replicas int32) bool {
@@ -838,7 +847,7 @@ func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinis
 	)
 
 	return `<infinispan><cache-container>
-        <distributed-cache name="default" mode="SYNC" owners="1">
+        <distributed-cache name="` + consts.DefaultCacheName + `" mode="SYNC" owners="1">
             <memory>
                 <off-heap 
                     size="` + strconv.FormatUint(evictTotalMemoryBytes, 10) + `"
@@ -858,7 +867,11 @@ func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
 	}
 	secretName := infinispan.GetSecretName()
 	protocol := infinispan.GetEndpointScheme()
-	return cluster.CreateCache("default", defaultCacheXML, secretName, podName, infinispan.Namespace, string(protocol))
+	pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, secretName, infinispan.GetNamespace())
+	if err != nil {
+		return err
+	}
+	return cluster.CreateCacheWithTemplate(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, defaultCacheXML, podName, infinispan.Namespace, string(protocol))
 }
 
 func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, logger logr.Logger) (*ispnutil.XSite, error) {
@@ -1287,7 +1300,6 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 // getInfinispanConditions returns the pods status and a summary status for the cluster
 func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, protocol string, cluster ispnutil.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
-	var wellFormedErr error
 	clusterViews := make(map[string]bool)
 	var errors []string
 	// Avoid to inspect the system if we're still waiting for the pods
@@ -1300,12 +1312,16 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 			var members []string
 			if ispncom.IsPodReady(pod) {
 				// If pod is ready query it for the cluster members
-				members, wellFormedErr = cluster.GetClusterMembers(secretName, pod.Name, pod.Namespace, protocol)
-				clusterView = strings.Join(members, ",")
-				if wellFormedErr == nil {
-					clusterViews[clusterView] = true
-				} else {
-					errors = append(errors, pod.Name+": "+wellFormedErr.Error())
+				pass, err := cluster.GetPassword(consts.DefaultOperatorUser, secretName, m.GetNamespace())
+				if err == nil {
+					members, err = cluster.GetClusterMembers(consts.DefaultOperatorUser, pass, pod.Name, pod.Namespace, protocol)
+					clusterView = strings.Join(members, ",")
+					if err == nil {
+						clusterViews[clusterView] = true
+					}
+				}
+				if err != nil {
+					errors = append(errors, pod.Name+": "+err.Error())
 				}
 			} else {
 				// Pod not ready, no need to query
