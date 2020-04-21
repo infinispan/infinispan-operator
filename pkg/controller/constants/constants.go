@@ -33,6 +33,8 @@ const (
 	DefaultDeveloperUser = "developer"
 	// DefaultCacheName default cache name for the CacheService
 	DefaultCacheName                        = "default"
+	ClusterHotRodPort                       = 11222
+	ClusterPingPort                         = 8888
 	CacheServiceFixedMemoryXmxMb            = 200
 	CacheServiceJvmNativeMb                 = 220
 	CacheServiceMaxRamMb                    = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
@@ -44,4 +46,15 @@ const (
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
 	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/default/health"
 	ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
+
+	DefaultCacheTemplate = `<infinispan>
+		<cache-container>
+			<distributed-cache name="%v" mode="SYNC" owners="1">
+				<memory>
+					<off-heap size="%d" eviction="MEMORY" strategy="REMOVE"/>
+				</memory>
+				<partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL" />
+			</distributed-cache>
+		</cache-container>
+	</infinispan>`
 )

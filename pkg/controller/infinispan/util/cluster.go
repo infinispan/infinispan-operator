@@ -54,7 +54,7 @@ func (c Cluster) GracefulShutdown(user, pass, podName, namespace, protocol strin
 	if err != nil {
 		return err
 	}
-	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, consts.ServerHTTPClusterStop)
+	httpURL := fmt.Sprintf("%s://%v:%d/%s", protocol, podIP, consts.ClusterHotRodPort, consts.ServerHTTPClusterStop)
 	commands := []string{"curl", "-X", "GET", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
@@ -85,7 +85,7 @@ func (c Cluster) GetClusterMembers(user, pass, podName, namespace, protocol stri
 		return nil, err
 	}
 
-	httpURL := fmt.Sprintf("%s://%v:11222/%s", protocol, podIP, consts.ServerHTTPHealthPath)
+	httpURL := fmt.Sprintf("%s://%v:%d/%s", protocol, podIP, consts.ClusterHotRodPort, consts.ServerHTTPHealthPath)
 	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
 
 	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
@@ -115,7 +115,7 @@ func (c Cluster) ExistsCache(user, pass, cacheName, podName, namespace, protocol
 		return false, err
 	}
 
-	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s?action=config", protocol, podIP, cacheName)
+	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/caches/%s?action=config", protocol, podIP, consts.ClusterHotRodPort, cacheName)
 	commands := []string{"curl",
 		"--insecure",
 		"--http1.1",
@@ -150,7 +150,7 @@ func (c Cluster) CacheNames(user, pass, podName, namespace, protocol string) ([]
 	if err != nil {
 		return nil, err
 	}
-	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches", protocol, podIP)
+	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/caches", protocol, podIP, consts.ClusterHotRodPort)
 	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
 	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
 	logger.Info("get caches list", "url", httpURL)
@@ -172,7 +172,7 @@ func (c Cluster) CreateCacheWithTemplate(user, pass, cacheName, cacheXML, podNam
 		return err
 	}
 
-	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s", protocol, podIP, cacheName)
+	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/caches/%s", protocol, podIP, consts.ClusterHotRodPort, cacheName)
 	commands := []string{"curl",
 		"--insecure",
 		"--http1.1",
@@ -214,7 +214,7 @@ func (c Cluster) CreateCacheWithTemplateName(user, pass, cacheName, templateName
 		return err
 	}
 
-	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s?template=%s", protocol, podIP, cacheName, templateName)
+	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/caches/%s?template=%s", protocol, podIP, consts.ClusterHotRodPort, cacheName, templateName)
 	commands := []string{"curl",
 		"--insecure",
 		"--http1.1",
@@ -301,6 +301,6 @@ func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 		HTTPGet: &corev1.HTTPGetAction{
 			Scheme: scheme,
 			Path:   consts.ServerHTTPHealthStatusPath,
-			Port:   intstr.FromInt(11222)},
+			Port:   intstr.FromInt(consts.ClusterHotRodPort)},
 	}
 }

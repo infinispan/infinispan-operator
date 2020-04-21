@@ -17,7 +17,7 @@ const (
 	DefaultPollPeriod = 1 * time.Second
 	// Maximum time to wait for resources
 	MaxWaitTimeout      = 120 * time.Second
-	DefaultClusterPort  = 11222
+	DefaultHotRodPort   = 11222
 	DefaultClusterName  = "test-node-startup"
 	ClusterUpKubeConfig = "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 )

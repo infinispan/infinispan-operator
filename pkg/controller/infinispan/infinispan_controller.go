@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -808,25 +807,9 @@ func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinis
 			(consts.CacheServiceFixedMemoryXmxMb * 1024 * 1024) -
 			nativeMemoryOverhead
 
-	logger.Info("calculated maximum off-heap size",
-		"size", evictTotalMemoryBytes,
-		"container max memory", containerMaxMemory,
-		"memory limit (bytes)", memoryLimitBytes,
-		"max memory bound", maxUnboundedMemory,
-	)
+	logger.Info("calculated maximum off-heap size","size", evictTotalMemoryBytes, "container max memory", containerMaxMemory, "memory limit (bytes)", memoryLimitBytes, "max memory bound", maxUnboundedMemory)
 
-	return `<infinispan><cache-container>
-        <distributed-cache name="` + consts.DefaultCacheName + `" mode="SYNC" owners="1">
-            <memory>
-                <off-heap 
-                    size="` + strconv.FormatUint(evictTotalMemoryBytes, 10) + `"
-                    eviction="MEMORY"
-                    strategy="REMOVE"
-                />
-            </memory>
-            <partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL" />
-        </distributed-cache>
-    </cache-container></infinispan>`, nil
+	return fmt.Sprintf(consts.DefaultCacheTemplate, consts.DefaultCacheName, evictTotalMemoryBytes), nil
 }
 
 func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) error {
@@ -916,8 +899,8 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
 						Ports: []corev1.ContainerPort{
-							{ContainerPort: 8888, Name: "ping", Protocol: corev1.ProtocolTCP},
-							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
+							{ContainerPort: consts.ClusterPingPort, Name: "ping", Protocol: corev1.ProtocolTCP},
+							{ContainerPort: consts.ClusterHotRodPort, Name: "hotrod", Protocol: corev1.ProtocolTCP},
 						},
 						ReadinessProbe: &corev1.Probe{
 							Handler:             ispnutil.ClusterStatusHandler(protocolScheme),
@@ -1228,7 +1211,7 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 			Selector: lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{
-					Port: 11222,
+					Port: consts.ClusterHotRodPort,
 				},
 			},
 		},
@@ -1260,7 +1243,7 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 			Ports: []corev1.ServicePort{
 				{
 					Name: "ping",
-					Port: 8888,
+					Port: consts.ClusterPingPort,
 				},
 			},
 		},
@@ -1295,8 +1278,8 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 			Selector: lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{
-					Port:       int32(11222),
-					TargetPort: intstr.FromInt(11222),
+					Port:       int32(consts.ClusterHotRodPort),
+					TargetPort: intstr.FromInt(consts.ClusterHotRodPort),
 				},
 			},
 		},

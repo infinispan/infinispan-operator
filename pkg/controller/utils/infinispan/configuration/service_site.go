@@ -63,7 +63,6 @@ func GetOrCreateSiteService(siteServiceName string, infinispan *ispnv1.Infinispa
 	err := client.Get(context.TODO(), ns, siteService)
 
 	if errors.IsNotFound(err) {
-
 		siteService, err := SiteService(siteServiceName, infinispan, scheme)
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return nil, err

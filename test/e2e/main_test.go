@@ -376,7 +376,7 @@ func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 	podName := pods[0].Name
 
 	pass, err := cluster.Kubernetes.GetPassword(cconsts.DefaultOperatorUser, spec.GetSecretName(), tconst.Namespace)
-	testutil.ExpectNoError(err)
+	testutils.ExpectNoError(err)
 
 	expectedClusterSize := num
 	// Check that the cluster size is num querying the first pod

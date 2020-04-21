@@ -320,7 +320,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		// so try using cluster ip instead
 		if strings.Contains(hostAndPort, "127.0.0.1") {
 			log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
-			hostAndPort = fmt.Sprintf("127.0.0.1:%d", tconst.DefaultClusterPort)
+			hostAndPort = fmt.Sprintf("127.0.0.1:%d", tconst.DefaultHotRodPort)
 			result := checkExternalAddress(client, user, password, hostAndPort)
 			if result {
 				return result, nil
@@ -356,10 +356,10 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
 	// If the cluster exposes external IP then return it
 	if len(route.Status.LoadBalancer.Ingress) == 1 {
 		if route.Status.LoadBalancer.Ingress[0].IP != "" {
-			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].IP+":%d", tconst.DefaultClusterPort), nil
+			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].IP+":%d", tconst.DefaultHotRodPort), nil
 		}
 		if route.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].Hostname+":%d", tconst.DefaultClusterPort), nil
+			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].Hostname+":%d", tconst.DefaultHotRodPort), nil
 		}
 	}
 

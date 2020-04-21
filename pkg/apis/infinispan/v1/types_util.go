@@ -210,14 +210,12 @@ func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
 				if ispn.Status.ReplicasWantedAtRestart > 0 {
 					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
 					return true
-				} else {
-					logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
-					return false
 				}
-			} else {
-				logger.Info("wait for graceful shutdown before update to complete")
+				logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
 				return false
 			}
+			logger.Info("wait for graceful shutdown before update to complete")
+			return false
 		}
 	}
 
