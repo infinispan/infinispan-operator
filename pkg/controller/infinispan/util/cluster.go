@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -36,6 +37,7 @@ type ClusterInterface interface {
 	GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error)
 	CacheNames(user, pass, podName, namespace, protocol string) ([]string, error)
 	GetPassword(user, secretName, namespace string) (string, error)
+	GetMetrics(user, pass, podName, namespace, protocol, postfix string) (*bytes.Buffer, error)
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
@@ -293,6 +295,26 @@ func (c Cluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, 
 // GetPassword returns the user's password
 func (c Cluster) GetPassword(user, secretName, namespace string) (string, error) {
 	return c.Kubernetes.GetPassword(user, secretName, namespace)
+}
+
+// GetMetrics return pod metrics
+func (c Cluster) GetMetrics(user, pass, podName, namespace, protocol, postfix string) (*bytes.Buffer, error) {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return nil, err
+	}
+	httpURL := fmt.Sprintf("%s://%s:11222/metrics"+postfix, protocol, podIP)
+	commands := []string{"curl", "--insecure", "--http1.1",
+		"-u", fmt.Sprintf("%v:%v", user, pass),
+		"-H", "Accept: application/json", httpURL}
+	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
+	logger.Info("get metrics", "url", httpURL)
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+	if err == nil {
+		return &execOut, nil
+	}
+	return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
 }
 
 // Return handler for querying cluster status

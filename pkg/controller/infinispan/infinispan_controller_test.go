@@ -1,6 +1,7 @@
 package infinispan
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 	"testing"
@@ -95,6 +96,12 @@ func (m mockCluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint
 
 func (m mockCluster) GetPassword(user, secretName, namespace string) (string, error) {
 	return "fakePassword", nil
+}
+
+func (m mockCluster) GetMetrics(user, pass, podName, namespace, protocol, postfix string) (*bytes.Buffer, error) {
+	buf := []byte{}
+	s := bytes.NewBuffer(buf)
+	return s, nil
 }
 
 // TestGetInfinispanConditions test for getInfinispanConditions func

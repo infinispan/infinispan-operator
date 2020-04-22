@@ -53,12 +53,16 @@ func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 	return changed
 }
 
+// ApplyDefaults applies default values to the Infinispan instance
 func (ispn *Infinispan) ApplyDefaults() {
 	if ispn.Status.Conditions == nil {
 		ispn.Status.Conditions = []InfinispanCondition{}
 	}
 	if ispn.Spec.Service.Type == "" {
 		ispn.Spec.Service.Type = ServiceTypeCache
+	}
+	if ispn.Spec.Service.Type == ServiceTypeCache && ispn.Spec.Service.ReplicationFactor == 0 {
+		ispn.Spec.Service.ReplicationFactor = 2
 	}
 	if ispn.Spec.Image == "" {
 		ispn.Spec.Image = constants.DefaultImageName

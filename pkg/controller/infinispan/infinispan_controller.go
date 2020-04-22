@@ -86,7 +86,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
-
+	addAutoscalingEquipment(mgr, r)
 	return nil
 }
 
@@ -937,9 +937,9 @@ func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinis
 		"memory limit (bytes)", memoryLimitBytes,
 		"max memory bound", maxUnboundedMemory,
 	)
-
+	replicationFactor := infinispan.Spec.Service.ReplicationFactor
 	return `<infinispan><cache-container>
-        <distributed-cache name="` + consts.DefaultCacheName + `" mode="SYNC" owners="1">
+        <distributed-cache name="` + consts.DefaultCacheName + `" mode="SYNC" owners="` + fmt.Sprint(replicationFactor) + `" statistics="true">
             <memory>
                 <off-heap 
                     size="` + strconv.FormatUint(evictTotalMemoryBytes, 10) + `"
