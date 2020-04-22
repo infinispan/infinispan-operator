@@ -6,8 +6,10 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -232,4 +234,12 @@ func (k Kubernetes) HasServiceCAsCRDResource() bool {
 	var status int
 	result.StatusCode(&status)
 	return status >= 200 && status < 299
+}
+
+// GetK8sResources returns the list of the type list of resources associated to the cluster
+func (k Kubernetes) GetK8sResources(name, namespace string, list runtime.Object) error {
+	labelSelector := labels.SelectorFromSet(common.LabelsResource(name, ""))
+	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
+	err := k.Client.List(context.TODO(), list, listOps)
+	return err
 }

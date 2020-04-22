@@ -47,9 +47,10 @@ const (
 
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
-	Type      ServiceType                    `json:"type"`
-	Container InfinispanServiceContainerSpec `json:"container"`
-	Sites     InfinispanSitesSpec            `json:"sites,optional,omitempty"`
+	Type              ServiceType                    `json:"type"`
+	Container         InfinispanServiceContainerSpec `json:"container"`
+	Sites             InfinispanSitesSpec            `json:"sites,optional,omitempty"`
+	ReplicationFactor int32                          `json:"replicationFactor,optional,omitempty"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container
@@ -106,6 +107,14 @@ type ExposeSpec struct {
 	Host     string     `json:"host,optional,omitempty"`
 }
 
+// Autoscale describe autoscaling configuration for the cluster
+type Autoscale struct {
+	MaxReplicas        int32 `json:"maxReplicas"`
+	MinReplicas        int32 `json:"minReplicas"`
+	MaxMemUsagePercent int   `json:"maxMemUsagePercent"`
+	MinMemUsagePercent int   `json:"minMemUsagePercent"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	Replicas  int32                   `json:"replicas"`
@@ -115,6 +124,7 @@ type InfinispanSpec struct {
 	Service   InfinispanServiceSpec   `json:"service,optional,omitempty"`
 	Logging   InfinispanLoggingSpec   `json:"logging,optional,omitempty"`
 	Expose    *ExposeSpec             `json:"expose,optional,omitempty"`
+	Autoscale *Autoscale              `json:"autoscale,optional,omitempty"`
 }
 
 // InfinispanCondition define a condition of the cluster
