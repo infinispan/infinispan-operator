@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
 	"os"
 	"sort"
 	"strings"
@@ -607,7 +608,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 	if infinispan.IsCache() && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster) {
 		reqLogger.Info("createDefaultCache")
-		err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
+		err := cache.CreateCacheServiceDefaultCache(podList.Items[0].Name, infinispan, kubernetes, cluster, reqLogger)
 		if err != nil {
 			reqLogger.Error(err, "failed to create default cache for cache service")
 			return reconcile.Result{}, err
@@ -777,53 +778,6 @@ func notClusterFormed(currConds []infinispanv1.InfinispanCondition, pods []corev
 	notFormed := currConds[0].Status != "True"
 	notEnoughMembers := len(pods) < int(replicas)
 	return notFormed || notEnoughMembers
-}
-
-// GetDefaultCacheTemplateXML return default template for cache
-func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) (string, error) {
-	namespace := infinispan.ObjectMeta.Namespace
-
-	memoryLimitBytes, err := cluster.GetMemoryLimitBytes(podName, namespace)
-	if err != nil {
-		logger.Error(err, "unable to extract memory limit (bytes) from pod")
-		return "", err
-	}
-
-	maxUnboundedMemory, err := cluster.GetMaxMemoryUnboundedBytes(podName, namespace)
-	if err != nil {
-		logger.Error(err, "unable to extract max memory unbounded from pod")
-		return "", err
-	}
-
-	containerMaxMemory := maxUnboundedMemory
-	if memoryLimitBytes < maxUnboundedMemory {
-		containerMaxMemory = memoryLimitBytes
-	}
-
-	nativeMemoryOverhead := containerMaxMemory * (consts.CacheServiceJvmNativePercentageOverhead / 100)
-	evictTotalMemoryBytes :=
-		containerMaxMemory -
-			(consts.CacheServiceJvmNativeMb * 1024 * 1024) -
-			(consts.CacheServiceFixedMemoryXmxMb * 1024 * 1024) -
-			nativeMemoryOverhead
-
-	logger.Info("calculated maximum off-heap size","size", evictTotalMemoryBytes, "container max memory", containerMaxMemory, "memory limit (bytes)", memoryLimitBytes, "max memory bound", maxUnboundedMemory)
-
-	return fmt.Sprintf(consts.DefaultCacheTemplate, consts.DefaultCacheName, evictTotalMemoryBytes), nil
-}
-
-func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) error {
-	defaultCacheXML, err := GetDefaultCacheTemplateXML(podName, infinispan, cluster, logger)
-	if err != nil {
-		return err
-	}
-	secretName := infinispan.GetSecretName()
-	protocol := infinispan.GetEndpointScheme()
-	pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, secretName, infinispan.GetNamespace())
-	if err != nil {
-		return err
-	}
-	return cluster.CreateCacheWithTemplate(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, defaultCacheXML, podName, infinispan.Namespace, string(protocol))
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
