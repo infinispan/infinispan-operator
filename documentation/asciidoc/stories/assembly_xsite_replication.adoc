@@ -27,6 +27,7 @@ ifdef::productized[]
 * Ensure that a load balancer service is available for {openshiftshort}. This service allows external access to {ocp} clusters. See link:{link_os_load_balancer}.
 endif::productized[]
 
+include::{topics}/ref_xsite_mirror_names.adoc[leveloffset=+1]
 //Community
 ifndef::productized[]
 include::{topics}/proc_creating_minikube_site_secrets.adoc[leveloffset=+1]
