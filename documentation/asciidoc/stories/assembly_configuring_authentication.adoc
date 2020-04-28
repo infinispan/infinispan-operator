@@ -6,6 +6,7 @@ generates default credentials or you can add your own.
 
 include::{topics}/ref_default_credentials.adoc[leveloffset=+1]
 include::{topics}/proc_get_cluster_credentials.adoc[leveloffset=+1]
+include::{topics}/ref_identities.adoc[leveloffset=+1]
 include::{topics}/proc_adding_custom_credentials.adoc[leveloffset=+1]
 
 // Restore the parent context.
