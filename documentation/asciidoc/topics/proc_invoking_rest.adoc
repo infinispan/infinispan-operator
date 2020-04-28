@@ -8,21 +8,20 @@ to describe how to configure HTTP clients to use encryption.
 
 .Procedure
 
-//Product only
-ifdef::productized[]
-. Open a remote shell to a {brandname} node, for example:
+. If necessary, open a remote shell to a {brandname} node, for example:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc rsh {example_crd_name}
+$ {kubectl_exec}
 ----
 +
-endif::productized[]
-. {cacheservice} provides a default cache instance, but {datagridservice} does not. Before you can store data with {datagridservice} clusters, you must create a cache as in the following example:
+. {cacheservice} provides a default cache instance, but {datagridservice} does
+not. Before you can store data with {datagridservice} clusters, you must create
+a cache as in the following example:
 +
 ----
 $ curl -X POST \
-  -u developer:$PASSWORD \
+  -u $USERNAME:$PASSWORD \
   $SERVICE_HOSTNAME:11222/rest/v2/caches/default
   ...
   < HTTP/1.1 200 OK
@@ -33,7 +32,7 @@ $ curl -X POST \
 +
 ----
 $ curl -X POST \
-  -u developer:$PASSWORD \
+  -u $USERNAME:$PASSWORD \
   -H 'Content-type: text/plain' -d 'world' \
   $SERVICE_HOSTNAME:11222/rest/v2/caches/default/hello
   ...
@@ -44,7 +43,7 @@ $ curl -X POST \
 +
 ----
 $ curl -X GET \
-  -u developer:$PASSWORD \
+  -u $USERNAME:$PASSWORD \
   $SERVICE_HOSTNAME:11222/rest/v2/caches/default/hello/
   ...
   < HTTP/1.1 200 OK

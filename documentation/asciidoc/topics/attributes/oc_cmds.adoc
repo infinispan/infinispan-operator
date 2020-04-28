@@ -15,3 +15,5 @@
 :oc_well_formed: oc wait --for condition=wellFormed --timeout=240s infinispan/{example_crd_name}
 
 :oc_create: oc create
+
+:kubectl_exec: oc rsh {example_crd_name}-0

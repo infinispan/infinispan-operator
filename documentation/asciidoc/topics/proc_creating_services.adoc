@@ -1,5 +1,5 @@
 [id='creating_services-{context}']
-= Creating {brandname} Services
+= Creating Services
 Define the `.spec.service.type` resource to create {cacheservice} and
 {datagridservice} nodes with {ispn_operator}.
 

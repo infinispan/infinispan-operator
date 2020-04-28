@@ -1,0 +1,50 @@
+[id='cache_templates-{context}']
+= Creating {brandname} Caches from Templates
+Complete the following steps to create caches on {datagridservice} clusters
+using `infinispan.org` cache configuration templates.
+
+.Prerequisites
+
+* Create a secret that contains valid user credentials for accessing
+{brandname} clusters.
+* Identify the cache configuration template you want to use for your cache. You
+can retrieve all available configuration templates with the following REST call:
++
+[source,options="nowrap",subs=attributes+]
+----
+GET /rest/v2/cache-managers/default/cache-configs/templates
+----
+
+.Procedure
+
+. Create a **Cache** CR that specifies the name of the template you want to use.
++
+For example, the following CR creates a cache named "mycache" that uses the `org.infinispan.DIST_SYNC` cache configuration template:
++
+[source,options="nowrap",subs=attributes+]
+----
+apiVersion: infinispan.org/v2alpha1
+kind: Cache
+metadata:
+  name: mycachedefinition <1>
+spec:
+  adminAuth: <2>
+    secretName: basic-auth
+  clusterName: {example_crd_name} <3>
+  name: mycache <4>
+  templateName: org.infinispan.DIST_SYNC <5>
+----
++
+<1> Names the **Cache** CR.
+<2> Specifies a secret that provides credentials with `username` and `password` keys or an override for custom credentials secrets.
+<3> Specifies the name of the target {brandname} cluster where you want {ispn_operator} to create the cache.
+<4> Names the {brandname} cache instance.
+<5> Specifies the `infinispan.org` cache configuration template to create the cache.
++
+. Apply the **Cache** CR, for example:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} mycache.yaml
+cache.infinispan.org/mycachedefinition created
+----
