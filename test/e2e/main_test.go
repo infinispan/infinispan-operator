@@ -468,24 +468,20 @@ func TestExternalService(t *testing.T) {
 	}
 }
 
-func exposeServiceSpec() corev1.ServiceSpec {
-	return corev1.ServiceSpec{
-		Type:  exposeServiceType(),
-		Ports: []corev1.ServicePort{{NodePort: 30222}},
+func exposeServiceSpec() ispnv1.ExposeSpec {
+	return ispnv1.ExposeSpec{
+		Type:     exposeServiceType(),
+		NodePort: 30222,
 	}
 }
 
-func exposeServiceType() corev1.ServiceType {
+func exposeServiceType() ispnv1.ExposeType {
 	exposeServiceType := getEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 	switch exposeServiceType {
-	case "ClusterIP":
-		return corev1.ServiceTypeClusterIP
 	case "NodePort":
-		return corev1.ServiceTypeNodePort
+		return ispnv1.ExposeTypeNodePort
 	case "LoadBalancer":
-		return corev1.ServiceTypeLoadBalancer
-	case "ExternalName":
-		return corev1.ServiceTypeExternalName
+		return ispnv1.ExposeTypeLoadBalancer
 	default:
 		panic(fmt.Errorf("unknown service type %s", exposeServiceType))
 	}
