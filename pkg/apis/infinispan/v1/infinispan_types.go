@@ -71,12 +71,32 @@ type InfinispanSiteLocationSpec struct {
 }
 
 type InfinispanSitesSpec struct {
-	Local   InfinispanSitesLocalSpec    `json:"local"`
+	Local     InfinispanSitesLocalSpec     `json:"local"`
 	Locations []InfinispanSiteLocationSpec `json:"locations"`
 }
 
 type InfinispanLoggingSpec struct {
 	Categories map[string]string `json:"categories"`
+}
+
+// ExposeType describe different exposition methods for Infinispan
+type ExposeType string
+
+const (
+	// ExposeTypeNodePort means a service will be exposed on one port of
+	// every node, in addition to 'ClusterIP' type.
+	ExposeTypeNodePort ExposeType = "NodePort"
+
+	// ExposeTypeLoadBalancer means a service will be exposed via an
+	// external load balancer (if the cloud provider supports it), in addition
+	// to 'NodePort' type.
+	ExposeTypeLoadBalancer ExposeType = "LoadBalancer"
+)
+
+// ExposeSpec describe how Infinispan will be exposed externally
+type ExposeSpec struct {
+	Type     ExposeType `json:"type"`
+	NodePort int32      `json:"nodePort,optional,omitempty"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan
@@ -87,7 +107,7 @@ type InfinispanSpec struct {
 	Container InfinispanContainerSpec `json:"container"`
 	Service   InfinispanServiceSpec   `json:"service"`
 	Logging   InfinispanLoggingSpec   `json:"logging"`
-	Expose    v1.ServiceSpec          `json:"expose"`
+	Expose    ExposeSpec              `json:"expose,optional,omitempty"`
 }
 
 // InfinispanCondition define a condition of the cluster
