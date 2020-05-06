@@ -47,16 +47,16 @@ const (
 
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
-	Type      ServiceType                    `json:"type"`
-	Container InfinispanServiceContainerSpec `json:"container"`
-	Sites     InfinispanSitesSpec            `json:"sites"`
+	Type      ServiceType                     `json:"type"`
+	Container *InfinispanServiceContainerSpec `json:"container,optional,omitempty"`
+	Sites     *InfinispanSitesSpec            `json:"sites,optional,omitempty"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container
 type InfinispanContainerSpec struct {
-	ExtraJvmOpts string `json:"extraJvmOpts"`
-	Memory       string `json:"memory"`
-	CPU          string `json:"cpu"`
+	ExtraJvmOpts string `json:"extraJvmOpts,optional,omitempty"`
+	Memory       string `json:"memory,optional"`
+	CPU          string `json:"cpu,optional"`
 }
 
 type InfinispanSitesLocalSpec struct {
@@ -101,13 +101,13 @@ type ExposeSpec struct {
 
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
-	Replicas  int32                   `json:"replicas"`
-	Image     string                  `json:"image"`
-	Security  InfinispanSecurity      `json:"security"`
-	Container InfinispanContainerSpec `json:"container"`
-	Service   InfinispanServiceSpec   `json:"service"`
-	Logging   InfinispanLoggingSpec   `json:"logging"`
-	Expose    ExposeSpec              `json:"expose,optional,omitempty"`
+	Replicas  int32                    `json:"replicas"`
+	Image     string                   `json:"image,optional,omitempty"`
+	Security  InfinispanSecurity       `json:"security,optional"`
+	Container *InfinispanContainerSpec `json:"container,optional"`
+	Service   InfinispanServiceSpec    `json:"service,optional"`
+	Logging   *InfinispanLoggingSpec   `json:"logging,optional,omitempty"`
+	Expose    *ExposeSpec              `json:"expose,optional,omitempty"`
 }
 
 // InfinispanCondition define a condition of the cluster

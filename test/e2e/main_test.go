@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -47,11 +48,11 @@ var DefaultSpec = ispnv1.Infinispan{
 		Service: ispnv1.InfinispanServiceSpec{
 			Type: ispnv1.ServiceTypeDataGrid,
 		},
-		Container: ispnv1.InfinispanContainerSpec{
+		Container: &ispnv1.InfinispanContainerSpec{
 			CPU:    CPU,
 			Memory: Memory,
 		},
-		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+		Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
 		Replicas: 1,
 		Expose:   exposeServiceSpec(),
 	},
@@ -66,7 +67,7 @@ var MinimalSpec = ispnv1.Infinispan{
 		Name: DefaultClusterName,
 	},
 	Spec: ispnv1.InfinispanSpec{
-		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+		Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
 		Replicas: 2,
 	},
 }
@@ -143,6 +144,9 @@ func TestClusterFormationWithTLS(t *testing.T) {
 // Test if spec.container.cpu update is handled
 func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
+		if ispn.Spec.Container == nil {
+			ispn.Spec.Container = &ispnv1.InfinispanContainerSpec{}
+		}
 		ispn.Spec.Container.CPU = "250m"
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
@@ -159,6 +163,9 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 // Test if spec.container.memory update is handled
 func TestContainerMemoryUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
+		if ispn.Spec.Container == nil {
+			ispn.Spec.Container = &ispnv1.InfinispanContainerSpec{}
+		}
 		ispn.Spec.Container.Memory = "256Mi"
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
@@ -171,6 +178,9 @@ func TestContainerMemoryUpdate(t *testing.T) {
 
 func TestContainerJavaOptsUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
+		if ispn.Spec.Container == nil {
+			ispn.Spec.Container = &ispnv1.InfinispanContainerSpec{}
+		}
 		ispn.Spec.Container.ExtraJvmOpts = "-XX:NativeMemoryTracking=summary"
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
@@ -261,15 +271,24 @@ func TestCacheService(t *testing.T) {
 	password, err := cluster.GetPassword(user, util.GetSecretName(spec), Namespace)
 	testutil.ExpectNoError(err)
 
+	ispn := ispnv1.Infinispan{}
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+
+	protocol := getSchemaForRest(&ispn)
+
 	routeName := fmt.Sprintf("%s-external", name)
-	client := &http.Client{}
-	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, user, password, Namespace)
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, user, password, protocol, Namespace)
 
 	cacheName := "default"
 
 	key := "test"
 	value := "test-operator"
-	keyURL := fmt.Sprintf("%v/%v", cacheURL(getSchemaForRest(spec), cacheName, hostAddr), key)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(protocol, cacheName, hostAddr), key)
 	putViaRoute(keyURL, value, client, user, password)
 	actual := getViaRoute(keyURL, client, user, password)
 
@@ -289,20 +308,30 @@ func TestPermanentCache(t *testing.T) {
 		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
-		client := &http.Client{}
-		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
-		createCache(getSchemaForRest(ispn), cacheName, usr, pass, hostAddr, "PERMANENT", client)
+		protocol := getSchemaForRest(ispn)
+
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, protocol, Namespace)
+		createCache(protocol, cacheName, usr, pass, hostAddr, "PERMANENT", client)
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
-		client := &http.Client{}
-		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
+		protocol := getSchemaForRest(ispn)
+
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, protocol, Namespace)
 		key := "test"
 		value := "test-operator"
-		keyURL := fmt.Sprintf("%v/%v", cacheURL(getSchemaForRest(ispn), cacheName, hostAddr), key)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(protocol, cacheName, hostAddr), key)
 		putViaRoute(keyURL, value, client, usr, pass)
 		actual := getViaRoute(keyURL, client, usr, pass)
 		if actual != value {
@@ -330,10 +359,15 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
-		client := &http.Client{}
-		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
+		protocol := getSchemaForRest(ispn)
+
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, protocol, Namespace)
 		createCacheWithXMLTemplate(getSchemaForRest(ispn), cacheName, usr, pass, hostAddr, template, client)
-		keyURL := fmt.Sprintf("%v/%v", cacheURL(getSchemaForRest(ispn), cacheName, hostAddr), key)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(protocol, cacheName, hostAddr), key)
 		putViaRoute(keyURL, value, client, usr, pass)
 	}
 
@@ -341,9 +375,13 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		pass, err := cluster.GetPassword(usr, util.GetSecretName(ispn), Namespace)
 		testutil.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
-		client := &http.Client{}
-		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
 		schema := getSchemaForRest(ispn)
+
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, schema, Namespace)
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(schema, cacheName, hostAddr), key)
 		actual := getViaRoute(keyURL, client, usr, pass)
 		if actual != value {
@@ -364,26 +402,30 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
 
+	ispn := ispnv1.Infinispan{}
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+
 	// Do something that needs to be permanent
-	modifier(spec)
+	modifier(&ispn)
 
 	// Delete the cluster
 	kubernetes.GracefulShutdownInfinispan(spec, SinglePodTimeout)
 	kubernetes.GracefulRestartInfinispan(spec, 1, SinglePodTimeout)
 
 	// Do something that checks that permanent changes are there again
-	verifier(spec)
+	verifier(&ispn)
 }
 
 func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
-	protocol := getSchemaForRest(spec)
 	// Wait that "num" pods are up
 	kubernetes.WaitForPods("app=infinispan-pod", num, SinglePodTimeout, Namespace)
-
+	ispn := ispnv1.Infinispan{}
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+	protocol := getSchemaForRest(&ispn)
 	pods := kubernetes.GetPods("app=infinispan-pod", Namespace)
 	podName := pods[0].Name
 
-	secretName := util.GetSecretName(spec)
+	secretName := util.GetSecretName(&ispn)
 	expectedClusterSize := num
 	// Check that the cluster size is num querying the first pod
 	var lastErr error
@@ -429,11 +471,11 @@ func TestExternalService(t *testing.T) {
 			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Container: ispnv1.InfinispanContainerSpec{
+			Container: &ispnv1.InfinispanContainerSpec{
 				CPU:    CPU,
 				Memory: Memory,
 			},
-			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+			Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
 			Replicas: 1,
 			Expose:   exposeServiceSpec(),
 		},
@@ -449,11 +491,17 @@ func TestExternalService(t *testing.T) {
 	testutil.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
-	client := &http.Client{}
-	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
+	ispn := ispnv1.Infinispan{}
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+	schema := getSchemaForRest(&ispn)
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, schema, Namespace)
 
 	cacheName := "test"
-	schema := getSchemaForRest(&spec)
 	createCache(schema, cacheName, usr, pass, hostAddr, "", client)
 	defer deleteCache(schema, cacheName, usr, pass, hostAddr, client)
 
@@ -468,8 +516,8 @@ func TestExternalService(t *testing.T) {
 	}
 }
 
-func exposeServiceSpec() ispnv1.ExposeSpec {
-	return ispnv1.ExposeSpec{
+func exposeServiceSpec() *ispnv1.ExposeSpec {
+	return &ispnv1.ExposeSpec{
 		Type:     exposeServiceType(),
 		NodePort: 30222,
 	}
@@ -523,11 +571,11 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Security: ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"},
-			Container: ispnv1.InfinispanContainerSpec{
+			Container: &ispnv1.InfinispanContainerSpec{
 				CPU:    CPU,
 				Memory: Memory,
 			},
-			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+			Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
 			Replicas: 1,
 			Expose:   exposeServiceSpec(),
 		},
@@ -536,7 +584,11 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	defer kubernetes.DeleteInfinispan(&spec, SinglePodTimeout)
 
 	kubernetes.WaitForPods("app=infinispan-pod", 1, SinglePodTimeout, Namespace)
-	schema := getSchemaForRest(&spec)
+
+	ispn := ispnv1.Infinispan{}
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+
+	schema := getSchemaForRest(&ispn)
 	testAuthentication(schema, name, usr, pass)
 	// Update the auth credentials.
 	identities = util.CreateIdentitiesFor(usr, newpass)
@@ -598,8 +650,12 @@ func TestExternalServiceWithAuth(t *testing.T) {
 
 func testAuthentication(schema, name, usr, pass string) {
 	routeName := fmt.Sprintf("%s-external", name)
-	client := &http.Client{}
-	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, Namespace)
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	hostAddr := kubernetes.WaitForExternalService(routeName, RouteTimeout, client, usr, pass, schema, Namespace)
 
 	cacheName := "test"
 	createCacheBadCreds(schema, cacheName, "badUser", "badPass", hostAddr, client)
