@@ -47,11 +47,11 @@ var DefaultSpec = ispnv1.Infinispan{
 		Service: ispnv1.InfinispanServiceSpec{
 			Type: ispnv1.ServiceTypeDataGrid,
 		},
-		Container: ispnv1.InfinispanContainerSpec{
+		Container: &ispnv1.InfinispanContainerSpec{
 			CPU:    CPU,
 			Memory: Memory,
 		},
-		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+		Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
 		Replicas: 1,
 		Expose:   exposeServiceSpec(),
 	},
@@ -66,7 +66,7 @@ var MinimalSpec = ispnv1.Infinispan{
 		Name: DefaultClusterName,
 	},
 	Spec: ispnv1.InfinispanSpec{
-		Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+		Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
 		Replicas: 2,
 	},
 }
@@ -143,6 +143,9 @@ func TestClusterFormationWithTLS(t *testing.T) {
 // Test if spec.container.cpu update is handled
 func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
+		if ispn.Spec.Container == nil {
+			ispn.Spec.Container = &ispnv1.InfinispanContainerSpec{}
+		}
 		ispn.Spec.Container.CPU = "250m"
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
@@ -159,6 +162,9 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 // Test if spec.container.memory update is handled
 func TestContainerMemoryUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
+		if ispn.Spec.Container == nil {
+			ispn.Spec.Container = &ispnv1.InfinispanContainerSpec{}
+		}
 		ispn.Spec.Container.Memory = "256Mi"
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
@@ -171,6 +177,9 @@ func TestContainerMemoryUpdate(t *testing.T) {
 
 func TestContainerJavaOptsUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
+		if ispn.Spec.Container == nil {
+			ispn.Spec.Container = &ispnv1.InfinispanContainerSpec{}
+		}
 		ispn.Spec.Container.ExtraJvmOpts = "-XX:NativeMemoryTracking=summary"
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
@@ -376,14 +385,15 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 }
 
 func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
-	protocol := getSchemaForRest(spec)
 	// Wait that "num" pods are up
 	kubernetes.WaitForPods("app=infinispan-pod", num, SinglePodTimeout, Namespace)
-
+	ispn := ispnv1.Infinispan{}
+	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+	protocol := getSchemaForRest(&ispn)
 	pods := kubernetes.GetPods("app=infinispan-pod", Namespace)
 	podName := pods[0].Name
 
-	secretName := util.GetSecretName(spec)
+	secretName := util.GetSecretName(&ispn)
 	expectedClusterSize := num
 	// Check that the cluster size is num querying the first pod
 	var lastErr error
@@ -429,11 +439,11 @@ func TestExternalService(t *testing.T) {
 			Name: name,
 		},
 		Spec: ispnv1.InfinispanSpec{
-			Container: ispnv1.InfinispanContainerSpec{
+			Container: &ispnv1.InfinispanContainerSpec{
 				CPU:    CPU,
 				Memory: Memory,
 			},
-			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+			Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
 			Replicas: 1,
 			Expose:   exposeServiceSpec(),
 		},
@@ -468,8 +478,8 @@ func TestExternalService(t *testing.T) {
 	}
 }
 
-func exposeServiceSpec() ispnv1.ExposeSpec {
-	return ispnv1.ExposeSpec{
+func exposeServiceSpec() *ispnv1.ExposeSpec {
+	return &ispnv1.ExposeSpec{
 		Type:     exposeServiceType(),
 		NodePort: 30222,
 	}
@@ -523,11 +533,11 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Security: ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"},
-			Container: ispnv1.InfinispanContainerSpec{
+			Container: &ispnv1.InfinispanContainerSpec{
 				CPU:    CPU,
 				Memory: Memory,
 			},
-			Image:    getEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server"),
+			Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
 			Replicas: 1,
 			Expose:   exposeServiceSpec(),
 		},

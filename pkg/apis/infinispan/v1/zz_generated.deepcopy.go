@@ -282,10 +282,22 @@ func (in *InfinispanSitesSpec) DeepCopy() *InfinispanSitesSpec {
 func (in *InfinispanSpec) DeepCopyInto(out *InfinispanSpec) {
 	*out = *in
 	out.Security = in.Security
-	out.Container = in.Container
+	if in.Container != nil {
+		in, out := &in.Container, &out.Container
+		*out = new(InfinispanContainerSpec)
+		**out = **in
+	}
 	in.Service.DeepCopyInto(&out.Service)
-	in.Logging.DeepCopyInto(&out.Logging)
-	out.Expose = in.Expose
+	if in.Logging != nil {
+		in, out := &in.Logging, &out.Logging
+		*out = new(InfinispanLoggingSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Expose != nil {
+		in, out := &in.Expose, &out.Expose
+		*out = new(ExposeSpec)
+		**out = **in
+	}
 	return
 }
 

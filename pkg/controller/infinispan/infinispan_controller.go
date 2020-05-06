@@ -546,8 +546,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Changes to statefulset.spec.template.spec.containers[].resources
 	res := &found.Spec.Template.Spec.Containers[0].Resources
 	env := &found.Spec.Template.Spec.Containers[0].Env
-	ispnContr := &infinispan.Spec.Container
-	if ispnContr.Memory != "" {
+	ispnContr := infinispan.Spec.Container
+	if ispnContr != nil && ispnContr.Memory != "" {
 		quantity := resource.MustParse(ispnContr.Memory)
 		previousMemory := res.Requests["memory"]
 		if quantity.Cmp(previousMemory) != 0 {
@@ -557,7 +557,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			updateNeeded = true
 		}
 	}
-	if ispnContr.CPU != "" {
+	if ispnContr != nil && ispnContr.CPU != "" {
 		cpuReq, cpuLim := cpuResources(infinispan)
 		previousCPUReq := res.Requests["cpu"]
 		previousCPULim := res.Limits["cpu"]
@@ -570,10 +570,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	extraJavaOptionsIndex := getEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
-	extraJavaOptions := ispnContr.ExtraJvmOpts
+	extraJavaOptions := ""
+	if ispnContr != nil {
+		extraJavaOptions = ispnContr.ExtraJvmOpts
+	}
 	previousExtraJavaOptions := (*env)[extraJavaOptionsIndex].Value
 	if extraJavaOptions != previousExtraJavaOptions {
-		(*env)[extraJavaOptionsIndex].Value = ispnContr.ExtraJvmOpts
+		(*env)[extraJavaOptionsIndex].Value = extraJavaOptions
 		javaOptionsIndex := getEnvVarIndex("JAVA_OPTIONS", env)
 		newJavaOptions, _ := r.javaOptions(infinispan)
 		(*env)[javaOptionsIndex].Value = newJavaOptions
@@ -1080,7 +1083,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	}
 
 	memory := DefaultMemorySize
-	if m.Spec.Container.Memory != "" {
+	if m.Spec.Container != nil && m.Spec.Container.Memory != "" {
 		memory = resource.MustParse(m.Spec.Container.Memory)
 	}
 
@@ -1091,11 +1094,15 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		return nil, err
 	}
 
+	extraJvmOpts := ""
+	if m.Spec.Container != nil {
+		extraJvmOpts = m.Spec.Container.ExtraJvmOpts
+	}
 	envVars := []corev1.EnvVar{
 		{Name: "CONFIG_PATH", Value: "/etc/config/infinispan.yaml"},
 		{Name: "IDENTITIES_PATH", Value: "/etc/security/identities.yaml"},
 		{Name: "JAVA_OPTIONS", Value: javaOptions},
-		{Name: "EXTRA_JAVA_OPTIONS", Value: m.Spec.Container.ExtraJvmOpts},
+		{Name: "EXTRA_JAVA_OPTIONS", Value: extraJvmOpts},
 		{Name: "DEFAULT_IMAGE", Value: DefaultImageName},
 	}
 
@@ -1267,7 +1274,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 }
 
 func cpuResources(infinispan *infinispanv1.Infinispan) (resource.Quantity, resource.Quantity) {
-	if infinispan.Spec.Container.CPU != "" {
+	if infinispan.Spec.Container != nil && infinispan.Spec.Container.CPU != "" {
 		cpuLimits := resource.MustParse(infinispan.Spec.Container.CPU)
 		cpuRequestsMillis := cpuLimits.MilliValue() / 2
 		cpuRequests := toMilliDecimalQuantity(int64(cpuRequestsMillis))
@@ -1286,15 +1293,23 @@ func toMilliDecimalQuantity(value int64) resource.Quantity {
 func (r *ReconcileInfinispan) javaOptions(m *infinispanv1.Infinispan) (string, error) {
 	switch m.Spec.Service.Type {
 	case infinispanv1.ServiceTypeDataGrid:
-		return m.Spec.Container.ExtraJvmOpts, nil
+		if m.Spec.Container != nil {
+			return m.Spec.Container.ExtraJvmOpts, nil
+		} else {
+			return "", nil
+		}
 	case infinispanv1.ServiceTypeCache:
+		extraJvmOpts := ""
+		if m.Spec.Container != nil {
+			extraJvmOpts = m.Spec.Container.ExtraJvmOpts
+		}
 		javaOptions := fmt.Sprintf(
 			"-Xmx%dM -Xms%dM -XX:MaxRAM=%dM %s %s",
 			CacheServiceFixedMemoryXmxMb,
 			CacheServiceFixedMemoryXmxMb,
 			CacheServiceMaxRamMb,
 			CacheServiceAdditionalJavaOptions,
-			m.Spec.Container.ExtraJvmOpts,
+			extraJvmOpts,
 		)
 		return javaOptions, nil
 	default:
@@ -1409,7 +1424,10 @@ func (r *ReconcileInfinispan) configMapForInfinispan(xsite *ispnutil.XSite, m *i
 }
 
 func copyLoggingCategories(infinispan *infinispanv1.Infinispan) map[string]string {
-	categories := infinispan.Spec.Logging.Categories
+	var categories map[string]string
+	if infinispan.Spec.Logging != nil {
+		categories = infinispan.Spec.Logging.Categories
+	}
 	if categories != nil {
 		copied := make(map[string]string, len(categories))
 		for category, level := range categories {
@@ -1586,6 +1604,9 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev1.Service {
 	lsPodSelector := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-pod")
 	lsService := labelsForInfinispan(m.ObjectMeta.Name, "infinispan-service-external")
+	if m.Spec.Expose == nil {
+		return nil
+	}
 	externalServiceType := corev1.ServiceType(m.Spec.Expose.Type)
 	// An external service can be simply achieved with a LoadBalancer
 	// that has same selectors as original service.
@@ -1637,7 +1658,7 @@ func hasSites(infinispan *infinispanv1.Infinispan) bool {
 }
 
 func isExposed(infinispan *infinispanv1.Infinispan) bool {
-	return infinispan.Spec.Expose.Type != ""
+	return infinispan.Spec.Expose != nil && infinispan.Spec.Expose.Type != ""
 }
 
 func getSiteServiceName(infinispan *infinispanv1.Infinispan) string {
