@@ -47,9 +47,9 @@ const (
 
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
-	Type      ServiceType                    `json:"type"`
-	Container InfinispanServiceContainerSpec `json:"container"`
-	Sites     InfinispanSitesSpec            `json:"sites"`
+	Type      ServiceType                     `json:"type"`
+	Container *InfinispanServiceContainerSpec `json:"container,optional,omitempty"`
+	Sites     *InfinispanSitesSpec            `json:"sites,optional,omitempty"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container

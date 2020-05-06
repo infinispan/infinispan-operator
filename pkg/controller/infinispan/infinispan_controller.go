@@ -1220,7 +1220,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		pvSize = memory
 	}
 
-	if isDataGrid(m) && m.Spec.Service.Container.Storage != "" {
+	if isDataGrid(m) && m.Spec.Service.Container != nil && m.Spec.Service.Container.Storage != "" {
 		var pvErr error
 		pvSize, pvErr = resource.ParseQuantity(m.Spec.Service.Container.Storage)
 		if pvErr != nil {
@@ -1654,7 +1654,7 @@ func isCache(infinispan *infinispanv1.Infinispan) bool {
 }
 
 func hasSites(infinispan *infinispanv1.Infinispan) bool {
-	return isDataGrid(infinispan) && len(infinispan.Spec.Service.Sites.Locations) > 0
+	return isDataGrid(infinispan) && infinispan.Spec.Service.Sites != nil && len(infinispan.Spec.Service.Sites.Locations) > 0
 }
 
 func isExposed(infinispan *infinispanv1.Infinispan) bool {
