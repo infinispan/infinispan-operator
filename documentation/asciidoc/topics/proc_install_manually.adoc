@@ -1,28 +1,7 @@
 [id='manual']
-= Installing {ispn_operator} Manually
-As an alternative to installing from
-https://operatorhub.io/operator/infinispan[OperatorHub.io], you can manually
-install {ispn_operator} from GitHub.
+= Building and Installing {ispn_operator} Manually
+Manually build and install {ispn_operator} from the GitHub repository.
 
 .Procedure
 
-. Install the RBAC resources for {ispn_operator}.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ kubectl -f {github_raw}{github_tag}/deploy/rbac.yaml
-----
-+
-. Add the **Infinispan** CRD to your {k8s} cluster.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ kubectl -f {github_raw}{github_tag}/deploy/crd.yaml
-----
-+
-. Apply the template for {ispn_operator}.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ kubectl -f {github_raw}{github_tag}/deploy/operator.yaml
-----
+* Follow the appropriate instructions in the link:https://github.com/infinispan/infinispan-operator/blob/master/README.md[{ispn_operator} README].

@@ -1,5 +1,8 @@
 [id='operatorhub']
-= Installing from OperatorHub
+= Installing from the OperatorHub
+Install {ispn_operator} from https://operatorhub.io/operator/infinispan[OperatorHub.io].
 
-Locate the https://operatorhub.io/operator/infinispan[{ispn_operator}] on
-OperatorHub.io and follow the instructions.
+.Procedure
+
+. Navigate to the {ispn_operator} entry on https://operatorhub.io/operator/infinispan[OperatorHub.io].
+. Follow the instructions to install {ispn_operator} into your {k8s} cluster.
