@@ -1,15 +1,12 @@
 [id='network_services']
 :context: access
-= Creating Network Services
-Network services provide access to {brandname} clusters for client connections.
+= Configuring Network Access to {brandname}
+Make {brandname} clusters available on your network for client connections.
 
 include::{topics}/proc_getting_internal_service.adoc[leveloffset=+1]
-include::{topics}/proc_exposing_external_service.adoc[leveloffset=+1]
-//Product only
-//ifdef::productized[]
-//include::{topics}/proc_creating_routes.adoc[leveloffset=+2]
-//include::{topics}/proc_retrieving_route_hostnames.adoc[leveloffset=+2]
-//endif::productized[]
+include::{topics}/proc_exposing_loadbalancer.adoc[leveloffset=+1]
+include::{topics}/proc_exposing_nodeport.adoc[leveloffset=+1]
+include::{topics}/proc_exposing_route.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

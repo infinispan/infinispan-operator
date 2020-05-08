@@ -1,0 +1,37 @@
+[id='exposing_loadbalancer-{context}']
+= Exposing {brandname} Through Load Balancers
+Use a load balancer service to make {brandname} clusters available to clients running outside {k8s}.
+
+[NOTE]
+====
+To access {brandname} with unencrypted Hot Rod client connections you must use
+a load balancer service.
+====
+
+.Procedure
+
+. Include `spec.expose` in your **Infinispan** CR.
+. Specify `LoadBalancer` as the service type with `spec.expose.type`.
++
+[source,options="nowrap",subs=attributes+]
+----
+spec:
+  ...
+  expose:
+    type: LoadBalancer <1>
+    nodePort: 30000 <2>
+----
++
+<1> Exposes {brandname} on the network through a load balancer service on port `11222`.
+<2> Optionally defines a node port to which the load balancer service forwards traffic.
++
+. Apply the changes.
+. Verify that the `-external` service is available.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_get_services} | grep external
+
+NAME                         TYPE            CLUSTER-IP       EXTERNAL-IP   PORT(S)
+{example_crd_name}-external  LoadBalancer    192.0.2.24       <none>        11222/TCP
+----

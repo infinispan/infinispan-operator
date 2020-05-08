@@ -1,9 +1,0 @@
-[id='get_hostname-{context}']
-= Retrieving Hostnames for Routes
-Routes that expose services provide hostnames that you can use with client
-connections.
-
-[source,options="nowrap",subs=attributes+]
-----
-$ oc get route {example_crd_name} -o jsonpath={.spec.host}
-----

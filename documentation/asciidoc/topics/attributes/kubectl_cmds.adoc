@@ -4,6 +4,7 @@
 :oc_get_infinispan: kubectl get infinispan -o yaml
 :oc_get_services: kubectl get services
 :oc_get_service: kubectl get services
+:oc_get_routes: kubectl get ingress
 
 :oc_apply_cr: kubectl apply -f
 :oc_apply_cr_custom: kubectl apply -f my_crd.yaml

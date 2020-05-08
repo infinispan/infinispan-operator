@@ -1,0 +1,32 @@
+[id='exposing_nodeport-{context}']
+= Exposing {brandname} Through Node Ports
+Use a node port service to expose {brandname} clusters on the network.
+
+.Procedure
+
+. Include `spec.expose` in your **Infinispan** CR.
+. Specify `NodePort` as the service type with `spec.expose.type`.
++
+[source,options="nowrap",subs=attributes+]
+----
+spec:
+  ...
+  expose:
+    type: NodePort <1>
+    nodePort: 30000 <2>
+----
++
+<1> Exposes {brandname} on the network through a node port service.
+<2> Defines the port where {brandname} is exposed. If you do not define a port,
+the platform selects one.
++
+. Apply the changes.
+. Verify that the `-external` service is available.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_get_services} | grep external
+
+NAME                         TYPE            CLUSTER-IP       EXTERNAL-IP   PORT(S)
+{example_crd_name}-external  NodePort        192.0.2.24       <none>        11222:30000/TCP
+----

@@ -6,3 +6,4 @@ spec:
   replicas: 2
   expose:
     type: Route
+    host: www.example.org
