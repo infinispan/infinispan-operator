@@ -13,8 +13,12 @@ services.
 include::yaml_annotated/cr_external_service.yaml[]
 ----
 +
-<1> exposes an external service at port `11222`.
-<2> specifies either a `LoadBalancer` or `NodePort` service resource type.
+<1> Exposes an external service.
+<2> Specifies either a `LoadBalancer` or `NodePort` service resource type.
+<3> Defines the port where the external service is exposed. If you do not 
+define a port, and the service type is `NodePort`, the platform selects a 
+port to use. If the service type is `LoadBalancer`, the exposed port is 
+`11222` by default.
 
 //-
 
