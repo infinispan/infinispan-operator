@@ -1,4 +1,0 @@
-spec:
-  ...
-  expose: <1>
-    type: LoadBalancer <2>

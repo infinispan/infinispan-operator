@@ -1,0 +1,48 @@
+[id='exposing_routes-{context}']
+= Exposing {brandname} Through Routes
+//Community
+ifndef::productized[]
+Use a {k8s} Ingress or an {openshiftshort} Route with passthrough encryption to
+make {brandname} clusters available on the network.
+endif::productized[]
+//Product
+ifdef::productized[]
+Use an {openshiftshort} Route with passthrough encryption to make {brandname}
+clusters available on the network.
+endif::productized[]
+
+.Procedure
+
+. Include `spec.expose` in your **Infinispan** CR.
+. Specify `Route` as the service type with `spec.expose.type`.
+. Specify a hostname with `spec.expose.host`.
++
+[source,options="nowrap",subs=attributes+]
+----
+spec:
+  ...
+  expose:
+    type: Route <1>
+    host: www.example.org <2>
+----
++
+//Community
+ifndef::productized[]
+<1> Exposes {brandname} on the network through a {k8s} Ingress or {openshiftshort} Route.
+endif::productized[]
+//Product
+ifdef::productized[]
+<1> Exposes {brandname} on the network through an {openshiftshort} Route.
+endif::productized[]
+<2> Specifies the hostname where {brandname} is exposed.
++
+. Apply the changes.
+. Verify that the  is available.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_get_routes}
+
+NAME                 CLASS    HOSTS   ADDRESS   PORTS   AGE
+{example_crd_name}   <none>   *                 80      73s
+----
