@@ -43,11 +43,17 @@ var log = logf.Log.WithName("controller_infinispan")
 // DefaultImageName is used if a specific image name is not provided
 var DefaultImageName = getEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
 
-// DefaultMemorySize string with default size for memory
-var DefaultMemorySize = resource.MustParse("512Mi")
+// DefaultMemorySizeAsString string with default size for memory
+var DefaultMemorySizeAsString = "512Mi"
 
-// DefaultCPUSize string with default size for CPU
-var DefaultCPULimit int64 = 500
+// DefaultMemorySize quantity with default size for memory
+var DefaultMemorySize = resource.MustParse(DefaultMemorySizeAsString)
+
+// DefaultCPULimitAsString string with default size for CPU
+var DefaultCPULimitAsString string = "500m"
+
+// DefaultCPULimit quantity with default size for CPU
+var DefaultCPULimit = resource.MustParse(DefaultCPULimitAsString)
 
 // DefaultPVSize default size for persistent volume
 var DefaultPVSize = resource.MustParse("1Gi")
@@ -881,6 +887,15 @@ func applyDefaults(infinispan *infinispanv1.Infinispan) {
 	if infinispan.Spec.Service.Type == "" {
 		infinispan.Spec.Service.Type = infinispanv1.ServiceTypeCache
 	}
+	if infinispan.Spec.Container == nil {
+		infinispan.Spec.Container = &infinispanv1.InfinispanContainerSpec{}
+	}
+	if infinispan.Spec.Container.Memory == "" {
+		infinispan.Spec.Container.Memory = DefaultMemorySizeAsString
+	}
+	if infinispan.Spec.Container.CPU == "" {
+		infinispan.Spec.Container.CPU = DefaultCPULimitAsString
+	}
 }
 
 func infinispanProtocol(infinispan *infinispanv1.Infinispan) string {
@@ -1281,8 +1296,8 @@ func cpuResources(infinispan *infinispanv1.Infinispan) (resource.Quantity, resou
 		return cpuRequests, cpuLimits
 	}
 
-	cpuLimits := toMilliDecimalQuantity(DefaultCPULimit)
-	cpuRequests := toMilliDecimalQuantity(DefaultCPULimit / 2)
+	cpuLimits := DefaultCPULimit
+	cpuRequests := *resource.NewMilliQuantity(cpuLimits.MilliValue()/2, resource.DecimalSI)
 	return cpuRequests, cpuLimits
 }
 
