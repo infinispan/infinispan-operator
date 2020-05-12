@@ -104,7 +104,7 @@ type InfinispanSpec struct {
 	Replicas  int32                    `json:"replicas"`
 	Image     string                   `json:"image,optional,omitempty"`
 	Security  InfinispanSecurity       `json:"security,optional"`
-	Container *InfinispanContainerSpec `json:"container,optional,omitempty"`
+	Container *InfinispanContainerSpec `json:"container,optional"`
 	Service   InfinispanServiceSpec    `json:"service,optional"`
 	Logging   *InfinispanLoggingSpec   `json:"logging,optional,omitempty"`
 	Expose    *ExposeSpec              `json:"expose,optional,omitempty"`
