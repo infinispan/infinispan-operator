@@ -291,19 +291,18 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				if externalService != nil {
 					err = r.client.Create(context.TODO(), externalService)
 					if err != nil && !errors.IsAlreadyExists(err) {
-						reqLogger.Error(err, "failed to create external Service", "Service", ser)
+						reqLogger.Error(err, "failed to create external Service", "Service", externalService)
 						return reconcile.Result{}, err
 					}
-					r.client.Get(context.TODO(), types.NamespacedName{Namespace: externalService.Namespace, Name: externalService.Name}, externalService)
+					err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: externalService.Namespace, Name: externalService.Name}, externalService)
 					if err == nil {
 						if len(externalService.Spec.Ports) > 0 {
 							infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
-							r.client.Update(context.TODO(), infinispan)
+							err = r.client.Update(context.TODO(), infinispan)
+							if err != nil {
+								reqLogger.Info("Failed to update Infinispan with service nodePort", "Service", externalService)
+							}
 						}
-					}
-					if err != nil {
-						reqLogger.Error(err, "failed to Infinispan with Service spec", "Service", ser)
-						return reconcile.Result{}, err
 					}
 					reqLogger.Info("Created External Service", "Service", externalService)
 				} else {
