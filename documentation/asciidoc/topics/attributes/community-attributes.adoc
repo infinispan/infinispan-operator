@@ -8,7 +8,7 @@
 //
 :github_root: https://github.com/infinispan/infinispan-operator/
 :github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
-:github_tag: master
+:github_tag: 1.1.x
 
 :example_crd_name: example-infinispan
 :example_namespace: ispn-namespace
