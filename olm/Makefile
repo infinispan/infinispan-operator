@@ -146,7 +146,7 @@ install-example:
 developer-password = $$(oc get secret \
    example-infinispan-generated-secret \
    -o jsonpath="{.data.identities\.yaml}" \
-   | base64 -d \
+   | base64 --decode \
    | yq -r .credentials[0].password)
 
 url = $$(oc get service example-infinispan -o jsonpath={.spec.clusterIP})
