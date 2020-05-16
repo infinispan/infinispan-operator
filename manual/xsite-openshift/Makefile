@@ -99,7 +99,7 @@ create-cache:
 developer-password = $$(oc get secret \
    example-infinispan-generated-secret \
    -o jsonpath="{.data.identities\.yaml}" \
-   | base64 -D \
+   | base64 --decode \
    | yq -r .credentials[0].password)
 
 url = $$(oc get service \
