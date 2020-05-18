@@ -1273,7 +1273,17 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
 			Image:   "busybox",
 			Name:    "chmod-pv",
-			Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
+			Command: []string{"sh", "-c", `chmod -R g+w /opt/infinispan/server/data;cd /opt/infinispan/server/data; sed -i '/distributed-cache owners="1"/,/distributed-cache/ s/DENY/ALLOW/' caches.xml || true`},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      m.ObjectMeta.Name,
+				MountPath: "/opt/infinispan/server/data",
+			}},
+		}}
+	} else {
+		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
+			Image:   "busybox",
+			Name:    "chmod-pv",
+			Command: []string{"sh", "-c", `cd /opt/infinispan/server/data; sed -i '/distributed-cache owners="1"/,/distributed-cache/ s/DENY/ALLOW/' caches.xml || true`},
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      m.ObjectMeta.Name,
 				MountPath: "/opt/infinispan/server/data",
