@@ -1271,9 +1271,43 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	// Adding an init container that run chmod if needed
 	if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
 		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
-			Image:   "busybox",
-			Name:    "chmod-pv",
-			Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
+			Image: "busybox",
+			Name:  "chmod-pv",
+			Command: []string{"sh", "-c", `chmod -R g+w /opt/infinispan/server/data; (xsltproc -o caches.xml - caches.xml || true) << EOF
+				<xsl:stylesheet version="1.0"
+				xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+				<xsl:template match="@* | node()">
+				<xsl:copy>
+					<xsl:apply-templates select="@* | node()"/>
+				</xsl:copy>
+				</xsl:template>
+				<xsl:template match="//distributed-cache[@owners=1]/partition-handling[@when-split='DENY_READ_WRITES']">
+					<partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL"/>
+				</xsl:template>
+				</xsl:stylesheet>
+				EOF`},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      m.ObjectMeta.Name,
+				MountPath: "/opt/infinispan/server/data",
+			}},
+		}}
+	} else {
+		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
+			Image: "busybox",
+			Name:  "chmod-pv",
+			Command: []string{"sh", "-c", `(xsltproc -o caches.xml - caches.xml || true) << EOF
+			<xsl:stylesheet version="1.0"
+			 xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+			<xsl:template match="@* | node()">
+			  <xsl:copy>
+				<xsl:apply-templates select="@* | node()"/>
+			  </xsl:copy>
+			</xsl:template>
+			<xsl:template match="//distributed-cache[@owners=1]/partition-handling[@when-split='DENY_READ_WRITES']">
+				<partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL"/>
+			</xsl:template>
+			</xsl:stylesheet>
+			EOF`},
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      m.ObjectMeta.Name,
 				MountPath: "/opt/infinispan/server/data",
