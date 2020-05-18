@@ -1273,7 +1273,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
 			Image: "busybox",
 			Name:  "chmod-pv",
-			Command: []string{"sh", "-c", `chmod -R g+w /opt/infinispan/server/data; cd /opt/infinispan/server/data; (xsltproc -o caches.xml - caches.xml || true) << EOF
+			Command: []string{"sh", "-c", `chmod -R g+w /opt/infinispan/server/data; cd /opt/infinispan/server/data; (xsltproc -o caches.tmp - caches.xml && mv caches.tmp caches.xml || true) << EOF
 				<xsl:stylesheet version="1.0"
 				xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 				<xsl:template match="@* | node()">
@@ -1295,7 +1295,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
 			Image: "busybox",
 			Name:  "chmod-pv",
-			Command: []string{"sh", "-c", `cd /opt/infinispan/server/data; (xsltproc -o caches.xml - caches.xml || true) << EOF
+			Command: []string{"sh", "-c", `cd /opt/infinispan/server/data; (xsltproc -o caches.tmp - caches.xml  && mv caches.tmp caches.xml || true) << EOF
 			<xsl:stylesheet version="1.0"
 			 xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 			<xsl:template match="@* | node()">
