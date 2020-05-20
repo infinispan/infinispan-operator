@@ -14,6 +14,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
 	"gopkg.in/yaml.v2"
@@ -453,24 +454,20 @@ func TestExternalService(t *testing.T) {
 	}
 }
 
-func exposeServiceSpec() corev1.ServiceSpec {
-	return corev1.ServiceSpec{
-		Type:  exposeServiceType(),
-		Ports: []corev1.ServicePort{{NodePort: 30222}},
+func exposeServiceSpec() *ispnv1.ExposeSpec {
+	return &ispnv1.ExposeSpec{
+		Type:     exposeServiceType(),
+		NodePort: 30222,
 	}
 }
 
-func exposeServiceType() corev1.ServiceType {
-	exposeServiceType := tconst.ExposeServiceType
+func exposeServiceType() ispnv1.ExposeType {
+	exposeServiceType := comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 	switch exposeServiceType {
-	case "ClusterIP":
-		return corev1.ServiceTypeClusterIP
 	case "NodePort":
-		return corev1.ServiceTypeNodePort
+		return ispnv1.ExposeTypeNodePort
 	case "LoadBalancer":
-		return corev1.ServiceTypeLoadBalancer
-	case "ExternalName":
-		return corev1.ServiceTypeExternalName
+		return ispnv1.ExposeTypeLoadBalancer
 	default:
 		panic(fmt.Errorf("unknown service type %s", exposeServiceType))
 	}

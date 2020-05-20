@@ -17,9 +17,11 @@ import (
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	ispncom "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"github.com/infinispan/infinispan-operator/version"
+	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	discovery "k8s.io/client-go/discovery"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -85,6 +88,36 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	return nil
+}
+
+// GetDiscoveryClient ...
+func (r *ReconcileInfinispan) getDiscoveryClient() (discovery.DiscoveryInterface, error) {
+	discovery, err := discovery.NewDiscoveryClientForConfig(kubernetes.RestConfig)
+	return discovery, err
+}
+
+func (r *ReconcileInfinispan) isGroupVersionSupported(groupVersion string, kind string) (bool, error) {
+	cli, err := r.getDiscoveryClient()
+	if err != nil {
+		log.Error(err, "Failed to return a discovery client for the current reconciler")
+		return false, err
+	}
+
+	res, err := cli.ServerResourcesForGroupVersion(groupVersion)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	for _, v := range res.APIResources {
+		if v.Kind == kind {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 var _ reconcile.Reconciler = &ReconcileInfinispan{}
@@ -267,23 +300,87 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Info("Created Service", "Service", serDNS)
 
 		if infinispan.IsExposed() {
-			externalService := r.serviceExternal(infinispan)
-			if externalService != nil {
+			switch infinispan.Spec.Expose.Type {
+			case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
+				externalService := r.serviceExternal(infinispan)
 				err = r.client.Create(context.TODO(), externalService)
 				if err != nil && !errors.IsAlreadyExists(err) {
 					reqLogger.Error(err, "failed to create external Service", "Service", ser)
 					return reconcile.Result{}, err
 				}
-				infinispan.Spec.Expose = externalService.Spec
 				err = r.client.Update(context.TODO(), infinispan)
 				if err != nil {
-					reqLogger.Error(err, "failed to Infinispan with Service spec", "Service", ser)
+					reqLogger.Error(err, "Failed to update Infinispan with Service", "Service", ser)
 					return reconcile.Result{}, err
 				}
 				reqLogger.Info("Created External Service", "Service", externalService)
-			} else {
-				reqLogger.Info("External Service NOT created. Unsupported type?", "Service", nil)
-
+			case infinispanv1.ExposeTypeRoute:
+				ok, err := r.isGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
+				if err != nil {
+					reqLogger.Error(err, fmt.Sprintf("Failed to check if %s is supported", routev1.SchemeGroupVersion.String()))
+					// Log an error and try to go on with Ingress
+					ok = false
+				}
+				if ok {
+					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
+					route := routev1.Route{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      infinispan.Name,
+							Namespace: infinispan.Namespace,
+							Labels:    lsService,
+						},
+						Spec: routev1.RouteSpec{
+							Host: infinispan.Spec.Expose.Host,
+							To: routev1.RouteTargetReference{
+								Kind: "Service",
+								Name: infinispan.Name},
+							TLS: &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough},
+						},
+					}
+					controllerutil.SetControllerReference(infinispan, &route, r.scheme)
+					err = r.client.Create(context.TODO(), &route)
+					if err != nil {
+						reqLogger.Error(err, "failed to create Route", "Route", route)
+						return reconcile.Result{}, err
+					}
+				} else {
+					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
+					ingress := extv1.Ingress{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      infinispan.Name,
+							Namespace: infinispan.Namespace,
+							Labels:    lsService,
+						},
+						Spec: extv1.IngressSpec{
+							TLS: []extv1.IngressTLS{},
+							Rules: []extv1.IngressRule{
+								{
+									Host: infinispan.Spec.Expose.Host,
+									IngressRuleValue: extv1.IngressRuleValue{
+										HTTP: &extv1.HTTPIngressRuleValue{
+											Paths: []extv1.HTTPIngressPath{
+												{
+													Path: "/",
+													Backend: extv1.IngressBackend{
+														ServiceName: infinispan.Name,
+														ServicePort: intstr.IntOrString{IntVal: 11222}}}}},
+									}}},
+						}}
+					if infinispan.Spec.Security.EndpointEncryption.CertSecretName != "" {
+						ingress.Spec.TLS = []extv1.IngressTLS{
+							{
+								Hosts: []string{infinispan.Spec.Expose.Host},
+							}}
+					}
+					controllerutil.SetControllerReference(infinispan, &ingress, r.scheme)
+					err = r.client.Create(context.TODO(), &ingress)
+					if err != nil {
+						reqLogger.Error(err, "failed to create Ingress", "Ingress", ingress)
+						return reconcile.Result{}, err
+					}
+				}
+			default:
+				reqLogger.Info("Cluster NOT exposed. Unsupported type?", "ExposeType", infinispan.Spec.Expose.Type)
 			}
 		}
 
@@ -1416,19 +1513,14 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 	return service
 }
 
-// ServiceExternal creates an external service that's linked to the internal service
+// serviceExternal creates an external service that's linked to the internal service
+// This suppose that m.Spec.Expose is not null
 func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev1.Service {
 	lsPodSelector := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
 	lsService := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-service-external")
-	externalServiceType := m.Spec.Expose.Type
-	// An external service can be simply achieved with a LoadBalancer
-	// that has same selectors as original service.
+	externalServiceType := corev1.ServiceType(m.Spec.Expose.Type)
 	externalServiceName := m.GetServiceExternalName()
 	externalService := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalServiceName,
 			Namespace: m.ObjectMeta.Namespace,
@@ -1446,17 +1538,8 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 		},
 	}
 
-	if externalServiceType == corev1.ServiceTypeLoadBalancer {
-		// Nothing to do here, keeping the if else struct
-	} else if externalServiceType == corev1.ServiceTypeNodePort {
-		var portNum int32
-		if m.Spec.Expose.Ports != nil || len(m.Spec.Expose.Ports) > 0 {
-			portNum = m.Spec.Expose.Ports[0].NodePort
-			externalService.Spec.Ports[0].NodePort = portNum
-		}
-	} else {
-		// Service type currently unsupported
-		return nil
+	if m.Spec.Expose.NodePort > 0 {
+		externalService.Spec.Ports[0].NodePort = m.Spec.Expose.NodePort
 	}
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, externalService, r.scheme)
@@ -1530,7 +1613,7 @@ func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinisp
 }
 
 func appendRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) error {
-	restConfig, err := GetRemoteSiteRESTConfig(infinispan, remoteLocation, logger)
+	restConfig, err := getRemoteSiteRESTConfig(infinispan, remoteLocation, logger)
 	if err != nil {
 		return err
 	}
@@ -1548,7 +1631,7 @@ func appendRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infini
 	return nil
 }
 
-func GetRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, location *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) (*restclient.Config, error) {
+func getRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, location *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) (*restclient.Config, error) {
 	backupSiteURL, err := url.Parse(location.URL)
 	if err != nil {
 		return nil, err
