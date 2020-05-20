@@ -14,4 +14,3 @@ packages:
     manager: yum
     install:
       - golang
-      - dep
