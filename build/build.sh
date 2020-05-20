@@ -11,4 +11,4 @@ BUILD_PATH="./cmd/manager"
 VERSION=${RELEASE_NAME:-$(git describe --tags --always --dirty)}
 GO_LDFLAGS="-X github.com/infinispan/infinispan-operator/version.Version=${VERSION}"
 echo "building ${PROJECT_NAME}... version ${VERSION}"
-GOOS=${GOOS} GOARCH=amd64 CGO_ENABLED=0 go build -o ${BIN_DIR}/${PROJECT_NAME} -ldflags "${GO_LDFLAGS}" $BUILD_PATH
+GOOS=${GOOS} GOARCH=amd64 CGO_ENABLED=0 go build -o ${BIN_DIR}/${PROJECT_NAME} -ldflags "${GO_LDFLAGS}" ${BUILD_PATH}

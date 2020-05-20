@@ -1,7 +1,7 @@
 - name: "builder-infinispan-operator"
   description: "Builder for Infinispan Operator"
   version: latest
-  from: "fedora:29"
+  from: "fedora:30"
   modules:
     repositories:
       - path: modules
