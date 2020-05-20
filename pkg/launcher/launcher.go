@@ -10,6 +10,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/apis"
 	"github.com/infinispan/infinispan-operator/pkg/controller"
 	"github.com/infinispan/infinispan-operator/version"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
@@ -18,6 +19,7 @@ import (
 	sdkv "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // blank import (?)
 	"k8s.io/client-go/rest"
@@ -97,6 +99,18 @@ func Launch(params Parameters) {
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Setup Scheme for Route
+	if err := routev1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Setup Scheme for Ingress
+	if err := extv1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

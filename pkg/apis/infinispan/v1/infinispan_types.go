@@ -79,6 +79,33 @@ type InfinispanLoggingSpec struct {
 	Categories map[string]string `json:"categories,omitempty"`
 }
 
+// ExposeType describe different exposition methods for Infinispan
+// +kubebuilder:validation:Enum=NodePort;LoadBalancer;Route
+type ExposeType string
+
+const (
+	// ExposeTypeNodePort means a service will be exposed on one port of
+	// every node, in addition to 'ClusterIP' type.
+	ExposeTypeNodePort ExposeType = "NodePort"
+
+	// ExposeTypeLoadBalancer means a service will be exposed via an
+	// external load balancer (if the cloud provider supports it), in addition
+	// to 'NodePort' type.
+	ExposeTypeLoadBalancer ExposeType = "LoadBalancer"
+
+	// ExposeTypeRoute means the service will be exposed via
+	// `Route` on Openshift or via `Ingress` on Kubernetes
+	ExposeTypeRoute ExposeType = "Route"
+)
+
+// ExposeSpec describe how Infinispan will be exposed externally
+type ExposeSpec struct {
+	// Type specifies different exposition methods for datagrid
+	Type     ExposeType `json:"type"`
+	NodePort int32      `json:"nodePort,optional,omitempty"`
+	Host     string     `json:"host,optional,omitempty"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	Replicas  int32                   `json:"replicas"`
@@ -87,7 +114,7 @@ type InfinispanSpec struct {
 	Container InfinispanContainerSpec `json:"container,optional,omitempty"`
 	Service   InfinispanServiceSpec   `json:"service,optional,omitempty"`
 	Logging   InfinispanLoggingSpec   `json:"logging,optional,omitempty"`
-	Expose    v1.ServiceSpec          `json:"expose,optional,omitempty"`
+	Expose    *ExposeSpec             `json:"expose,optional,omitempty"`
 }
 
 // InfinispanCondition define a condition of the cluster

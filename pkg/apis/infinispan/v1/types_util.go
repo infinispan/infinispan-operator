@@ -93,8 +93,9 @@ func (ispn *Infinispan) HasSites() bool {
 	return ispn.IsDataGrid() && len(ispn.Spec.Service.Sites.Locations) > 0
 }
 
+// IsExposed ...
 func (ispn *Infinispan) IsExposed() bool {
-	return ispn.Spec.Expose.Type != ""
+	return ispn.Spec.Expose != nil && ispn.Spec.Expose.Type != ""
 }
 
 func (ispn *Infinispan) GetSiteServiceName() string {
