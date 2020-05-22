@@ -10,19 +10,19 @@ install {ispn_operator} from GitHub.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ kubectl -f {github_raw}{github_tag}/deploy/rbac.yaml
+$ kubectl create -f {github_raw}{github_tag}/deploy/rbac.yaml
 ----
 +
 . Add the **Infinispan** CRD to your {k8s} cluster.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ kubectl -f {github_raw}{github_tag}/deploy/crd.yaml
+$ kubectl create -f {github_raw}{github_tag}/deploy/crd.yaml
 ----
 +
 . Apply the template for {ispn_operator}.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ kubectl -f {github_raw}{github_tag}/deploy/operator.yaml
+$ kubectl create -f {github_raw}{github_tag}/deploy/operator.yaml
 ----
