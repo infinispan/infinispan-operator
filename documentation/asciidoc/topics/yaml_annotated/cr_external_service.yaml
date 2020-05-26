@@ -2,4 +2,4 @@ spec:
   ...
   expose: <1>
     type: LoadBalancer <2>
-    nodePort: 22333 <3>
+    nodePort: 30000 <3>
