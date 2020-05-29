@@ -1,6 +1,12 @@
 [id='operatorhub']
-= Installing from the OperatorHub
-Install {ispn_operator} from https://operatorhub.io/operator/infinispan[OperatorHub.io].
+= Installing {ispn_operator} on {k8s}
+Install {ispn_operator} on {k8s} from https://operatorhub.io/operator/infinispan[OperatorHub.io].
+
+.Prerequisites
+
+* {okd} 3.11 or later.
+* {k8s} 1.11 or later.
+* Administrator access to the {k8s} cluster.
 
 .Procedure
 

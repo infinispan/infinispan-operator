@@ -4,12 +4,7 @@
 Install {ispn_operator} into a {k8s} namespace to create and manage {brandname}
 clusters.
 
-.Prerequisites
-
-* {okd} 3.11 or later.
-* {k8s} 1.11 or later.
-* Administrator access to the {k8s} cluster.
-
+include::{topics}/proc_install_olm.adoc[leveloffset=+1]
 include::{topics}/proc_install_operatorhub.adoc[leveloffset=+1]
 include::{topics}/proc_install_manually.adoc[leveloffset=+1]
 

@@ -7,11 +7,15 @@
 //Avoid symlinks in community docs
 :topics: ../topics
 :stories: ../stories
+:imagesdir: {topics}/images
 
 //Include community attributes
 include::{topics}/attributes/community-attributes.adoc[]
 
 [id='infinispan_operator']
-= Running {brandname} on {k8s} with {ispn_operator}
+= Creating and Managing {brandname} Clusters with {ispn_operator}
+
+The {ispn_operator} provides operational intelligence and reduces management
+complexity for deploying {brandname} on {k8s} and {openshift}.
 
 include::stories.adoc[]

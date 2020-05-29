@@ -4,14 +4,14 @@
 {ispn_operator} lets you create, configure, and manage {brandname} clusters.
 
 .Prerequisites
+
+* Install {ispn_operator}.
 //Community
 ifndef::productized[]
-* Install {ispn_operator}.
 * Have an `oc` or a `kubectl` client.
 endif::productized[]
 //Product
 ifdef::productized[]
-* Create a {ispn_operator} subscription.
 * Have an `oc` client.
 endif::productized[]
 
