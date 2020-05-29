@@ -1,0 +1,32 @@
+[id='create_olm_subscription']
+= Installing {ispn_operator} on {openshift}
+{ispn_operator} is packaged for the Operator Lifecycle Manager (OLM) on
+{openshiftshort} that lets you select {brandname} versions and receive
+automatic updates.
+
+.Prerequisites
+
+* Access to **OperatorHub** running on {openshiftshort}. Some {openshiftshort} environments, such as {ocp}, can require administrator credentials.
+* An {openshiftshort} project for {ispn_operator}.
+
+.Procedure
+
+. Log in to the {osweb}.
+. Navigate to **OperatorHub**.
+. Find and select {ispn_operator}.
+. Select **Install** and continue to **Create Operator Subscription**.
+. Specify options for your subscription.
++
+Installation Mode:: Install {ispn_operator} into a specific {openshiftshort} namespace. You cannot install {ispn_operator} into multiple namespaces.
+Update Channel:: Subscribe to updates for {ispn_operator} versions.
+Approval Strategies:: When new {brandname} versions become available, you can install updates manually or let {ispn_operator} install them automatically.
++
+[NOTE]
+====
+Automatic updates apply to {ispn_operator} first and then for each {brandname}
+node. {ispn_operator} updates clusters one node at a time, gracefully shutting
+down each node and then bringing it back online with the updated version before
+going on to the next node.
+====
++
+. Select **Subscribe** to install {ispn_operator}.
