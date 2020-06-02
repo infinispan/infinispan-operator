@@ -28,25 +28,6 @@ func GetEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
 	return 0
 }
 
-func Contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-func Remove(list []string, s string) []string {
-	var slice []string
-	for _, v := range list {
-		if v != s {
-			slice = append(slice, v)
-		}
-	}
-	return slice
-}
-
 func ToMilliDecimalQuantity(value int64) resource.Quantity {
 	return *resource.NewMilliQuantity(value, resource.DecimalSI)
 }

@@ -155,23 +155,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Check if the cluster must be deleted
-	if infinispan.GetDeletionTimestamp() != nil {
-		// Infinispan resource is to be deleted
-		if ispncom.Contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
-			if err := r.finalizeInfinispan(reqLogger, infinispan); err != nil {
-				return reconcile.Result{}, err
-			}
-
-			infinispan.SetFinalizers(ispncom.Remove(infinispan.GetFinalizers(), consts.InfinispanFinalizer))
-			err := r.client.Update(context.TODO(), infinispan)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-		return reconcile.Result{}, nil
-	}
-
 	// Apply defaults if not already set
 	infinispan.ApplyDefaults()
 
@@ -271,10 +254,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		if err != nil {
 			reqLogger.Error(err, "failed to create new StatefulSet", "StatefulSet.Name", dep.Name)
 			return reconcile.Result{}, err
-		}
-		// Infinispan resource must have a finalizer
-		if !ispncom.Contains(dep.GetFinalizers(), consts.InfinispanFinalizer) {
-			r.addFinalizer(reqLogger, infinispan)
 		}
 
 		ser := r.serviceForInfinispan(infinispan)
@@ -1223,10 +1202,9 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		}
 	}
 
-	dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name,
-			Namespace: m.ObjectMeta.Namespace,
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+		Name:      m.ObjectMeta.Name,
+		Namespace: m.ObjectMeta.Namespace,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{
@@ -1237,7 +1215,13 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					corev1.ResourceStorage: pvSize,
 				},
 			},
-		}}}
+		},
+	}
+
+	blockOwnerDeletion := false
+	controllerutil.SetControllerReference(m, pvc, r.scheme)
+	pvc.OwnerReferences[0].BlockOwnerDeletion = &blockOwnerDeletion
+	dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
 
 	// Adding persistent volume mount
 	v := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
@@ -1762,27 +1746,4 @@ func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
 		// can be added here
 	}
 	return ""
-}
-
-func (r *ReconcileInfinispan) finalizeInfinispan(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
-	las := ispncom.LabelsResource(ispn.Name, "infinispan-pod")
-	labelSelector := labels.SelectorFromSet(las)
-	lo := client.ListOptions{Namespace: ispn.Namespace, LabelSelector: labelSelector}
-	deleteOptions := &client.DeleteAllOfOptions{ListOptions: lo}
-	r.client.DeleteAllOf(context.TODO(), &corev1.PersistentVolumeClaim{}, deleteOptions)
-	reqLogger.Info("Successfully finalized Infinispan")
-	return nil
-}
-
-func (r *ReconcileInfinispan) addFinalizer(reqLogger logr.Logger, ispn *infinispanv1.Infinispan) error {
-	reqLogger.Info("Adding Finalizer for the Infinispan")
-	ispn.SetFinalizers(append(ispn.GetFinalizers(), consts.InfinispanFinalizer))
-
-	// Update CR
-	err := r.client.Update(context.TODO(), ispn)
-	if err != nil {
-		reqLogger.Error(err, "Failed to update Infinispan with finalizer")
-		return err
-	}
-	return nil
 }
