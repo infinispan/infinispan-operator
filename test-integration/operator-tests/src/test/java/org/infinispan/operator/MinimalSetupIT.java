@@ -111,8 +111,8 @@ class MinimalSetupIT {
       String cacheUrl = "http://" + hostName + "/rest/v2/caches/cluster-test/";
       String keyUrl = cacheUrl + "cluster-test-key";
 
-      Http.post(cacheUrl).basicAuth(user, pass).data(Caches.fragile("cluster-test"), ContentType.APPLICATION_XML).execute();
-      Http.put(keyUrl).basicAuth(user, pass).data("cluster-test-value", ContentType.TEXT_PLAIN);
+      Http.post(cacheUrl).basicAuth(user, pass).preemptiveAuth().data(Caches.fragile("cluster-test"), ContentType.APPLICATION_XML).execute();
+      Http.put(keyUrl).basicAuth(user, pass).preemptiveAuth().data("cluster-test-value", ContentType.TEXT_PLAIN);
 
       // Validate that entry is available through HotRod directly accessing each node
       String encodedPass = URLEncoder.encode(pass, StandardCharsets.UTF_8.toString());
@@ -135,9 +135,9 @@ class MinimalSetupIT {
       String cacheUrl = "http://" + hostName + "/rest/v2/caches/rest-auth-test/";
       String keyUrl = cacheUrl + "authorized-rest-key";
 
-      Http authorizedCachePut = Http.post(cacheUrl).basicAuth(user, pass).data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML);
-      Http authorizedKeyPut = Http.put(keyUrl).basicAuth(user, pass).data("credentials", ContentType.TEXT_PLAIN);
-      Http unauthorizedPut = Http.post(cacheUrl).basicAuth(user, "DenitelyNotAPass").data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML);
+      Http authorizedCachePut = Http.post(cacheUrl).basicAuth(user, pass).preemptiveAuth().data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML);
+      Http authorizedKeyPut = Http.put(keyUrl).basicAuth(user, pass).preemptiveAuth().data("credentials", ContentType.TEXT_PLAIN);
+      Http unauthorizedPut = Http.post(cacheUrl).basicAuth(user, "DenitelyNotAPass").preemptiveAuth().data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML);
       Http noAuthPut = Http.post(cacheUrl).data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML);
 
       Assertions.assertThat(authorizedCachePut.execute().code()).isEqualTo(200);
@@ -169,8 +169,8 @@ class MinimalSetupIT {
    void defaultCacheAvailabilityTest() throws Exception {
       String keyUrl = "http://" + hostName + "/rest/v2/caches/default/availability-test";
 
-      Http put = Http.put(keyUrl).basicAuth(user, pass).data("default-cache-value", ContentType.TEXT_PLAIN);
-      Http get = Http.get(keyUrl).basicAuth(user, pass);
+      Http put = Http.put(keyUrl).basicAuth(user, pass).preemptiveAuth().data("default-cache-value", ContentType.TEXT_PLAIN);
+      Http get = Http.get(keyUrl).basicAuth(user, pass).preemptiveAuth();
 
       Assertions.assertThat(put.execute().code()).isEqualTo(204);
       Assertions.assertThat(get.execute().response()).isEqualTo("default-cache-value");
