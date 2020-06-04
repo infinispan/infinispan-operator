@@ -323,24 +323,26 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, route)
 		ExpectNoError(err)
 
-		// depending on the k8s cluster setting, service is sometime available
-		// via Ingress address sometime via node port. So trying both the methods
-		// Try node port first
-		hostAndPort = fmt.Sprintf("%s:%d", k.Kubernetes.PublicIP(), k.Kubernetes.GetNodePort(route))
-		result := checkExternalAddress(client, user, password, protocol, hostAndPort)
-		if result {
-			return result, nil
-		}
-
-		// if node port fails and it points to 127.0.0.1,
-		// it could be running kubernetes-inside-docker,
-		// so try using cluster ip instead
-		if strings.Contains(hostAndPort, "127.0.0.1") {
-			log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
-			hostAndPort = "127.0.0.1:11222"
+		if route.Spec.Type == "NodePort" {
+			// depending on the k8s cluster setting, service is sometime available
+			// via Ingress address sometime via node port. So trying both the methods
+			// Try node port first
+			hostAndPort = fmt.Sprintf("%s:%d", k.Kubernetes.PublicIP(), k.Kubernetes.GetNodePort(route))
 			result := checkExternalAddress(client, user, password, protocol, hostAndPort)
 			if result {
 				return result, nil
+			}
+
+			// if node port fails and it points to 127.0.0.1,
+			// it could be running kubernetes-inside-docker,
+			// so try using cluster ip instead
+			if strings.Contains(hostAndPort, "127.0.0.1") {
+				log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
+				hostAndPort = "127.0.0.1:11222"
+				result := checkExternalAddress(client, user, password, protocol, hostAndPort)
+				if result {
+					return result, nil
+				}
 			}
 		}
 

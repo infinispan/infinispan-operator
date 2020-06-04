@@ -519,7 +519,6 @@ func TestExternalService(t *testing.T) {
 func exposeServiceSpec() *ispnv1.ExposeSpec {
 	return &ispnv1.ExposeSpec{
 		Type:     exposeServiceType(),
-		NodePort: 30222,
 	}
 }
 
