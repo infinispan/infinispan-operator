@@ -86,7 +86,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
-	addAutoscalingEquipment(mgr, r)
 	return nil
 }
 
@@ -378,7 +377,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				reqLogger.Info("Cluster NOT exposed. Unsupported type?", "ExposeType", infinispan.Spec.Expose.Type)
 			}
 		}
-
 		// StatefulSet created successfully - return and requeue
 		reqLogger.Info("End of the StetefulSet creation")
 		return reconcile.Result{Requeue: true}, nil
@@ -673,6 +671,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, nil
 	}
 
+	// All pods ready start autoscaler if needed
+
+	if infinispan.Spec.Autoscale != nil {
+		addAutoscalingEquipment(types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, r)
+	}
 	// Inspect the system and get the current Infinispan conditions
 	currConds := getInfinispanConditions(podList.Items, infinispan, string(protocol), cluster)
 
