@@ -33,12 +33,10 @@ func addAutoscalingEquipment(clusterNsn types.NamespacedName, r *ReconcileInfini
 	}
 }
 
-var defaultMinimumPollPeriod = time.Second
-
 func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 	log.Info(fmt.Sprintf("Starting loop for autoscaling on cluster %v", clusterNsn))
 	for true {
-		time.Sleep(defaultMinimumPollPeriod)
+		time.Sleep(constants.DefaultMinimumAutoscalePollPeriod)
 		ispn := infinispanv1.Infinispan{}
 		// Check all the cluster in the namespace for autoscaling
 		err := r.client.Get(context.TODO(), clusterNsn, &ispn)

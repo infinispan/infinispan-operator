@@ -1,6 +1,8 @@
 package constants
 
 import (
+	"time"
+
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -44,4 +46,9 @@ const (
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
 	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/default/health"
 	ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
+)
+
+const (
+	// DefaultMinimumAutoscalePollPeriod minimun period for autocaler polling loop
+	DefaultMinimumAutoscalePollPeriod = 5 * time.Second
 )
