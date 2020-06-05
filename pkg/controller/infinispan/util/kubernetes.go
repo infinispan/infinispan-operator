@@ -199,6 +199,26 @@ func (k Kubernetes) PublicIP() string {
 	return u.Hostname()
 }
 
+// GetNodesHost return the addresses of the k8s nodes
+func (k Kubernetes) GetNodesHost() []string {
+	nodes := &v1.NodeList{}
+	k.Client.List(context.TODO(), nodes)
+	nodeHosts := make([]string, 0, nodes.Size())
+	for _, n := range nodes.Items {
+		for _, v := range n.Status.Addresses {
+			if v.Type == v1.NodeHostName {
+				// Fallback using hostname if internal IP address is not available
+				nodeHosts = append(nodeHosts, v.Address)
+			}
+			if v.Type == v1.NodeInternalIP {
+				nodeHosts = append(nodeHosts, v.Address)
+				break
+			}
+		}
+	}
+	return nodeHosts
+}
+
 // FindKubeConfig returns local Kubernetes configuration
 func FindKubeConfig() string {
 	kubeConfig := os.Getenv("KUBECONFIG")
