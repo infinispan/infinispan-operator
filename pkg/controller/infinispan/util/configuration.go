@@ -2,6 +2,8 @@ package util
 
 import (
 	"fmt"
+	"os"
+	"strings"
 )
 
 // InfinispanConfiguration is the top level configuration type
@@ -23,8 +25,9 @@ type Keystore struct {
 
 // JGroups configures clustering layer
 type JGroups struct {
-	Transport string
-	DNSPing   DNSPing `yaml:"dnsPing"`
+	Transport   string
+	DNSPing     DNSPing `yaml:"dnsPing"`
+	Diagnostics bool    `yaml:"diagnostics"`
 }
 
 // DNSPing configures DNS cluster lookup settings
@@ -58,7 +61,9 @@ func CreateInfinispanConfiguration(name string, xsite *XSite, loggingCategories 
 		ClusterName: name,
 		JGroups:     jgroups,
 	}
-
+	if strings.ToUpper(os.Getenv("JGROUPS_DIAGNOSTICS")) == "TRUE" {
+		config.JGroups.Diagnostics = true
+	}
 	if len(loggingCategories) > 0 {
 		config.Logging = Logging{
 			Categories: loggingCategories,

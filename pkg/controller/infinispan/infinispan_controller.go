@@ -162,7 +162,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// because remote site host:port combinations need to be injected into Infinispan.
 	xsite, err := r.computeXSite(infinispan, reqLogger)
 	if err != nil {
-		reqLogger.Error(err, "Error in computeXSite", "Infinispan.Namespace")
+		reqLogger.Error(err, "Error in computeXSite", "Infinispan.Namespace", infinispan.Namespace)
 		return reconcile.Result{}, err
 	}
 
@@ -430,7 +430,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, ""))
+	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, "infinispan-pod"))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), podList, listOps)
 	if err != nil {
@@ -679,6 +679,16 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		// Spec updated - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	}
+
+	// If x-site enable configure the coordinator pods to be selected by the x-site service
+	if infinispan.HasSites() {
+		found := r.applyLabelsToCoordinatorsPod(podList, infinispan, cluster, reqLogger)
+		if !found {
+			// If a coordinator is not found then requeue early
+			return reconcile.Result{Requeue: true}, nil
+		}
+	}
+
 	// Update the Infinispan status with the pod status
 	// Wait until all pods have ips assigned
 	// Without those ips, it's not possible to execute next calls
@@ -718,6 +728,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Info("notClusterFormed")
 		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, nil
 	}
+
+	// Below the code for a wellFormed cluster
+
+	// Create default cache if it doesn't exists.
 	if infinispan.IsCache() && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster) {
 		reqLogger.Info("createDefaultCache")
 		err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
@@ -727,18 +741,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
-	// Check if pods container runs the right image
-	for _, item := range podList.Items {
-		if len(item.Spec.Containers) == 1 {
-			if !strings.HasSuffix(item.Spec.Containers[0].Image, infinispan.Spec.Image) {
-				// TODO: invent a reconciliation policy if images doesn't match
-				// Attention: this is something that can conflict with StatefulSet rolling upgrade
-				reqLogger.Info("Pod " + item.Name + " runs wrong image " + item.Spec.Containers[0].Image + " != " + infinispan.Spec.Image)
-			}
-		}
-	}
-
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, err
 }
 
 func updateSecurity(infinispan *infinispanv1.Infinispan, client client.Client, reqLogger logr.Logger) error {
@@ -994,7 +997,7 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 			return nil, err
 		}
 
-		localSiteHost, localSitePort, err := getLocalSiteServiceHostPort(siteService, infinispan, logger)
+		localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(siteService, kubernetes, logger)
 		if err != nil {
 			logger.Error(err, "error retrieving local x-site service information")
 			return nil, err
@@ -1042,45 +1045,6 @@ func findRemoteLocations(localSiteName string, infinispan *infinispanv1.Infinisp
 	}
 
 	return
-}
-
-func getLocalSiteServiceHostPort(service *corev1.Service, infinispan *infinispanv1.Infinispan, logger logr.Logger) (string, int32, error) {
-	switch serviceType := service.Spec.Type; serviceType {
-	case corev1.ServiceTypeNodePort:
-		externalIP, err := infinispan.FindNodePortExternalIP()
-		if err != nil {
-			return "", 0, err
-		}
-
-		// If configuring NodePort, expect external IPs to be configured
-		return externalIP, kubernetes.GetNodePort(service), nil
-	case corev1.ServiceTypeLoadBalancer:
-		return getLoadBalancerServiceHostPort(service, logger)
-	default:
-		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
-	}
-}
-
-func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
-	port := service.Spec.Ports[0].Port
-
-	// If configuring load balancer, look for external ingress
-	if len(service.Status.LoadBalancer.Ingress) > 0 {
-		ingress := service.Status.LoadBalancer.Ingress[0]
-		if ingress.IP != "" {
-			return ingress.IP, port, nil
-		}
-		if ingress.Hostname != "" {
-			// Resolve load balancer host
-			ip, err := ispncom.LookupHost(ingress.Hostname, logger)
-
-			// Load balancer gets created asynchronously,
-			// so it might take time for the status to be updated.
-			return ip, port, err
-		}
-	}
-
-	return "", port, nil
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
@@ -1586,26 +1550,35 @@ func (r *ReconcileInfinispan) getOrCreateSiteService(siteServiceName string, inf
 
 func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*corev1.Service, error) {
 	lsPodSelector := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-pod")
+	lsPodSelector["coordinator"] = "true"
 	lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-xsite")
-	exposeSpec := infinispan.Spec.Service.Sites.Local.Expose
-	exposeSpec.Selector = lsPodSelector
 
-	switch exposeSpec.Type {
-	case corev1.ServiceTypeNodePort:
+	exposeSpec := corev1.ServiceSpec{}
+	exposeConf := infinispan.Spec.Service.Sites.Local.Expose
+	exposeSpec.Selector = lsPodSelector
+	nodePort := int32(0)
+	if exposeConf.NodePort != 0 {
+		nodePort = exposeConf.NodePort
+	}
+	switch exposeConf.Type {
+	case infinispanv1.ExposeTypeNodePort:
+		exposeSpec.Type = corev1.ServiceTypeNodePort
 		exposeSpec.Ports = []corev1.ServicePort{
 			{
-				Port:     7900,
-				NodePort: 32660,
+				Port:       7900,
+				NodePort:   nodePort,
+				TargetPort: intstr.IntOrString{IntVal: 7900},
 			},
 		}
-	case corev1.ServiceTypeLoadBalancer:
+	case infinispanv1.ExposeTypeLoadBalancer:
+		exposeSpec.Type = corev1.ServiceTypeLoadBalancer
 		exposeSpec.Ports = []corev1.ServicePort{
 			{
-				Port: 7900,
+				Port:       7900,
+				TargetPort: intstr.IntOrString{IntVal: 7900},
 			},
 		}
 	}
-
 	logger.Info("create exposed site service", "configuration", exposeSpec)
 
 	siteService := corev1.Service{
@@ -1731,7 +1704,7 @@ func appendKubernetesRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispa
 		return err
 	}
 
-	host, port, err := getRemoteSiteServiceHostPort(siteService, remoteKubernetes, logger)
+	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger)
 	if err != nil {
 		logger.Error(err, "error retrieving remote x-site service information")
 		return err
@@ -1759,16 +1732,74 @@ func appendKubernetesRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispa
 	return nil
 }
 
-func getRemoteSiteServiceHostPort(service *corev1.Service, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
+func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
 	switch serviceType := service.Spec.Type; serviceType {
 	case corev1.ServiceTypeNodePort:
 		// If configuring NodePort, expect external IPs to be configured
-		return remoteKubernetes.PublicIP(), remoteKubernetes.GetNodePort(service), nil
+		return getNodePortServiceHostPort(service, kubernetes, logger)
 	case corev1.ServiceTypeLoadBalancer:
 		return getLoadBalancerServiceHostPort(service, logger)
 	default:
 		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
 	}
+}
+
+func getNodePortServiceHostPort(service *corev1.Service, k *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
+	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
+	//So, we get the workers list. It needs some permissions cluster-reader permission
+	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
+	workerList := &corev1.NodeList{}
+
+	//select workers only. AFAIK, only the workers have the proxy to the pods
+	labelSelector := labels.SelectorFromSet(map[string]string{"node-role.kubernetes.io/worker": ""})
+
+	listOps := &client.ListOptions{
+		LabelSelector: labelSelector,
+	}
+	err := k.Client.List(context.TODO(), workerList, listOps)
+	if err != nil {
+		return "", 0, err
+	}
+
+	for _, node := range workerList.Items {
+		//host := k.PublicIP() //returns REST API endpoint. not good.
+		//iterate over the all the nodes and return the first ready.
+		nodeStatus := node.Status
+		for _, nodeCondition := range nodeStatus.Conditions {
+			if nodeCondition.Type == corev1.NodeReady && nodeCondition.Status == corev1.ConditionTrue && len(nodeStatus.Addresses) > 0 {
+				//The port can be found in the service description
+				host := nodeStatus.Addresses[0].Address
+				port := service.Spec.Ports[0].NodePort
+				logger.Info("Found ready worker node.", "Host", host, "Port", port)
+				return host, port, nil
+			}
+		}
+	}
+
+	err = fmt.Errorf("no worker node found")
+	return "", 0, err
+}
+
+func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
+	port := service.Spec.Ports[0].Port
+
+	// If configuring load balancer, look for external ingress
+	if len(service.Status.LoadBalancer.Ingress) > 0 {
+		ingress := service.Status.LoadBalancer.Ingress[0]
+		if ingress.IP != "" {
+			return ingress.IP, port, nil
+		}
+		if ingress.Hostname != "" {
+			// Resolve load balancer host
+			ip, err := ispncom.LookupHost(ingress.Hostname, logger)
+
+			// Load balancer gets created asynchronously,
+			// so it might take time for the status to be updated.
+			return ip, port, err
+		}
+	}
+
+	return "", port, nil
 }
 
 // getServingCertsMode returns a label that identify the kind of serving
@@ -1781,4 +1812,39 @@ func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
 		// can be added here
 	}
 	return ""
+}
+
+func (r *ReconcileInfinispan) applyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) bool {
+	pass, err := cluster.GetPassword(consts.DefaultOperatorUser, infinispan.GetSecretName(), infinispan.GetNamespace())
+	coordinatorFound := false
+	if err != nil {
+		logger.Error(err, "Error in getting cluster password for x-site")
+		return coordinatorFound
+	}
+	protocol := string(infinispan.GetEndpointScheme())
+	for _, item := range podList.Items {
+		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultOperatorUser, pass, consts.DefaultCacheManagerName, item.Name, item.Namespace, protocol)
+		if err == nil {
+			lab, ok := item.Labels["coordinator"]
+			if cacheManagerInfo["coordinator"].(bool) {
+				if !ok || lab != "true" {
+					item.Labels["coordinator"] = "true"
+					err = r.client.Update(context.TODO(), &item)
+				}
+				coordinatorFound = (err == nil)
+			} else {
+				if ok && lab == "true" {
+					// If present leave the label but false the value
+					if ok {
+						item.Labels["coordinator"] = "false"
+						err = r.client.Update(context.TODO(), &item)
+					}
+				}
+			}
+		}
+		if err != nil {
+			logger.Error(err, "Generic error in managing x-site coordinators")
+		}
+	}
+	return coordinatorFound
 }

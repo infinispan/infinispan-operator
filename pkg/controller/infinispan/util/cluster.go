@@ -38,6 +38,7 @@ type ClusterInterface interface {
 	CacheNames(user, pass, podName, namespace, protocol string) ([]string, error)
 	GetPassword(user, secretName, namespace string) (string, error)
 	GetMetrics(user, pass, podName, namespace, protocol, postfix string) (*bytes.Buffer, error)
+	GetCacheManagerInfo(user, pass, cacheManagerName, podName, namespace, protocol string) (map[string]interface{}, error)
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
@@ -325,4 +326,25 @@ func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 			Path:   consts.ServerHTTPHealthStatusPath,
 			Port:   intstr.FromInt(11222)},
 	}
+}
+
+// GetCacheManagerInfo via REST v2 interface
+func (c Cluster) GetCacheManagerInfo(user, pass, cacheManagerName, podName, namespace, protocol string) (map[string]interface{}, error) {
+	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+	if err != nil {
+		return nil, err
+	}
+	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/cache-managers/%s", protocol, podIP, cacheManagerName)
+	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
+	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
+	logger.Info("get cache-manager info", "url", httpURL)
+	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
+	execOut, _, err := c.Kubernetes.ExecWithOptions(execOptions)
+	var info map[string]interface{}
+	if err == nil {
+		result := execOut.Bytes()
+		err = json.Unmarshal(result, &info)
+		return info, err
+	}
+	return nil, err
 }

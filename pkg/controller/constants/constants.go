@@ -34,7 +34,9 @@ const (
 	// DefaultDeveloperUser users to access the cluster rest API
 	DefaultDeveloperUser = "developer"
 	// DefaultCacheName default cache name for the CacheService
-	DefaultCacheName                        = "default"
+	DefaultCacheName = "default"
+	// DefaultCacheManagerName default cache manager name used for cross site
+	DefaultCacheManagerName                 = "default"
 	CacheServiceFixedMemoryXmxMb            = 200
 	CacheServiceJvmNativeMb                 = 220
 	CacheServiceMaxRamMb                    = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
