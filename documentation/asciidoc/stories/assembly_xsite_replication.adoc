@@ -9,27 +9,10 @@ data center in London, **LON**. At another data center in New York City,
 **NYC**, you also use {ispn_operator} to manage a {brandname} cluster. In
 this case, you can add **LON** and **NYC** as backup locations for each other.
 
-//Product Only
-ifdef::productized[]
-[IMPORTANT]
-====
-Cross-site replication functionality is currently link:#tech_preview[Technology Preview]. Contact Red Hat support for more information.
-====
-endif::productized[]
-
-.Prerequisites
-//Community
-ifndef::productized[]
-* If you are running on {openshiftshort}, ensure that a load balancer service is available. This service allows external access to {ocp} clusters. See link:{link_os_load_balancer}.
-endif::productized[]
-//Product
-ifdef::productized[]
-* Ensure that a load balancer service is available for {openshiftshort}. This service allows external access to {ocp} clusters. See link:{link_os_load_balancer}.
-endif::productized[]
-
 include::{topics}/ref_xsite_mirror_names.adoc[leveloffset=+1]
 //Community
 ifndef::productized[]
+include::{topics}/proc_xsite_manual_clusterrole.adoc[leveloffset=+1]
 include::{topics}/proc_creating_minikube_site_secrets.adoc[leveloffset=+1]
 endif::productized[]
 include::{topics}/proc_creating_sa_tokens.adoc[leveloffset=+1]

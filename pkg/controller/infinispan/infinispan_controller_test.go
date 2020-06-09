@@ -104,6 +104,10 @@ func (m mockCluster) GetMetrics(user, pass, podName, namespace, protocol, postfi
 	return s, nil
 }
 
+func (m mockCluster) GetCacheManagerInfo(user, pass, cacheManagerName, podName, namespace, protocol string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
 // TestGetInfinispanConditions test for getInfinispanConditions func
 func TestGetInfinispanConditions(t *testing.T) {
 	var m mockCluster

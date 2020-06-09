@@ -1,7 +1,6 @@
 package v1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -61,8 +60,8 @@ type InfinispanContainerSpec struct {
 }
 
 type InfinispanSitesLocalSpec struct {
-	Name   string         `json:"name"`
-	Expose v1.ServiceSpec `json:"expose"`
+	Name   string     `json:"name"`
+	Expose ExposeSpec `json:"expose"`
 }
 
 type InfinispanSiteLocationSpec struct {
