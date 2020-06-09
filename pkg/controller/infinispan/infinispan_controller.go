@@ -287,10 +287,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 					reqLogger.Error(err, "failed to create external Service", "Service", ser)
 					return reconcile.Result{}, err
 				}
-				err = r.client.Update(context.TODO(), infinispan)
-				if err != nil {
-					reqLogger.Error(err, "Failed to update Infinispan with Service", "Service", ser)
-					return reconcile.Result{}, err
+				if len(externalService.Spec.Ports) > 0 {
+					infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
+					err = r.client.Update(context.TODO(), infinispan)
+					if err != nil {
+						reqLogger.Info("Failed to update Infinispan with service nodePort", "Service", externalService)
+					}
 				}
 				reqLogger.Info("Created External Service", "Service", externalService)
 			case infinispanv1.ExposeTypeRoute:
@@ -321,6 +323,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 					if err != nil {
 						reqLogger.Error(err, "failed to create Route", "Route", route)
 						return reconcile.Result{}, err
+					}
+					if route.Spec.Host != "" {
+						infinispan.Spec.Expose.Host = route.Spec.Host
+						err = r.client.Update(context.TODO(), infinispan)
+						if err != nil {
+							reqLogger.Info("Failed to update Infinispan with route Host", "Route", route)
+						}
 					}
 				} else {
 					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
@@ -356,6 +365,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 					if err != nil {
 						reqLogger.Error(err, "failed to create Ingress", "Ingress", ingress)
 						return reconcile.Result{}, err
+					}
+					if len(ingress.Spec.Rules) > 0 && ingress.Spec.Rules[0].Host != "" {
+						infinispan.Spec.Expose.Host = ingress.Spec.Rules[0].Host
+						err = r.client.Update(context.TODO(), infinispan)
+						if err != nil {
+							reqLogger.Info("Failed to update Infinispan with ingress Host", "Route", ingress)
+						}
 					}
 				}
 			default:
@@ -1205,7 +1221,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
 		Name:      m.ObjectMeta.Name,
 		Namespace: m.ObjectMeta.Namespace,
-		},
+	},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{
 				"ReadWriteOnce",
