@@ -30,6 +30,13 @@ the view role to the service account on **LON** as follows:
 $ oc policy add-role-to-user view system:serviceaccount:my-xsite:lon
 ----
 +
+. Add cluster-reader role to the service accounts (if using NodePort to expose the service)
++
+[source,options="nowrap",subs=attributes+]
+----
+oc create clusterrolebinding lon-cluster-reader --clusterrole=cluster-reader --serviceaccount=my-xsite:lon
+----
++
 . Retrieve tokens from each service account.
 +
 The following example shows the service account token for **LON**:

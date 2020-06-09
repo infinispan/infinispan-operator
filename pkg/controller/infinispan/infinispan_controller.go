@@ -430,7 +430,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, ""))
+	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, "infinispan-pod"))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), podList, listOps)
 	if err != nil {
@@ -994,7 +994,7 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 			return nil, err
 		}
 
-		localSiteHost, localSitePort, err := getLocalSiteServiceHostPort(siteService, infinispan, logger)
+		localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(siteService, kubernetes, logger)
 		if err != nil {
 			logger.Error(err, "error retrieving local x-site service information")
 			return nil, err
@@ -1042,45 +1042,6 @@ func findRemoteLocations(localSiteName string, infinispan *infinispanv1.Infinisp
 	}
 
 	return
-}
-
-func getLocalSiteServiceHostPort(service *corev1.Service, infinispan *infinispanv1.Infinispan, logger logr.Logger) (string, int32, error) {
-	switch serviceType := service.Spec.Type; serviceType {
-	case corev1.ServiceTypeNodePort:
-		externalIP, err := infinispan.FindNodePortExternalIP()
-		if err != nil {
-			return "", 0, err
-		}
-
-		// If configuring NodePort, expect external IPs to be configured
-		return externalIP, kubernetes.GetNodePort(service), nil
-	case corev1.ServiceTypeLoadBalancer:
-		return getLoadBalancerServiceHostPort(service, logger)
-	default:
-		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
-	}
-}
-
-func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
-	port := service.Spec.Ports[0].Port
-
-	// If configuring load balancer, look for external ingress
-	if len(service.Status.LoadBalancer.Ingress) > 0 {
-		ingress := service.Status.LoadBalancer.Ingress[0]
-		if ingress.IP != "" {
-			return ingress.IP, port, nil
-		}
-		if ingress.Hostname != "" {
-			// Resolve load balancer host
-			ip, err := ispncom.LookupHost(ingress.Hostname, logger)
-
-			// Load balancer gets created asynchronously,
-			// so it might take time for the status to be updated.
-			return ip, port, err
-		}
-	}
-
-	return "", port, nil
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
@@ -1731,7 +1692,7 @@ func appendKubernetesRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispa
 		return err
 	}
 
-	host, port, err := getRemoteSiteServiceHostPort(siteService, remoteKubernetes, logger)
+	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger)
 	if err != nil {
 		logger.Error(err, "error retrieving remote x-site service information")
 		return err
@@ -1759,16 +1720,74 @@ func appendKubernetesRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispa
 	return nil
 }
 
-func getRemoteSiteServiceHostPort(service *corev1.Service, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
+func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
 	switch serviceType := service.Spec.Type; serviceType {
 	case corev1.ServiceTypeNodePort:
 		// If configuring NodePort, expect external IPs to be configured
-		return remoteKubernetes.PublicIP(), remoteKubernetes.GetNodePort(service), nil
+		return getNodePortServiceHostPort(service, kubernetes, logger)
 	case corev1.ServiceTypeLoadBalancer:
 		return getLoadBalancerServiceHostPort(service, logger)
 	default:
 		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
 	}
+}
+
+func getNodePortServiceHostPort(service *corev1.Service, k *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
+	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
+	//So, we get the workers list. It needs some permissions cluster-reader permission
+	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
+	workerList := &corev1.NodeList{}
+
+	//select workers only. AFAIK, only the workers have the proxy to the pods
+	labelSelector := labels.SelectorFromSet(map[string]string{"node-role.kubernetes.io/worker": ""})
+
+	listOps := &client.ListOptions{
+		LabelSelector: labelSelector,
+	}
+	err := k.Client.List(context.TODO(), workerList, listOps)
+	if err != nil {
+		return "", 0, err
+	}
+
+	for _, node := range workerList.Items {
+		//host := k.PublicIP() //returns REST API endpoint. not good.
+		//iterate over the all the nodes and return the first ready.
+		nodeStatus := node.Status
+		for _, nodeCondition := range nodeStatus.Conditions {
+			if nodeCondition.Type == corev1.NodeReady && nodeCondition.Status == corev1.ConditionTrue && len(nodeStatus.Addresses) > 0 {
+				//The port can be found in the service description
+				host := nodeStatus.Addresses[0].Address
+				port := service.Spec.Ports[0].NodePort
+				logger.Info("Found ready worker node.", "Host", host, "Port", port)
+				return host, port, nil
+			}
+		}
+	}
+
+	err = fmt.Errorf("no worker node found")
+	return "", 0, err
+}
+
+func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
+	port := service.Spec.Ports[0].Port
+
+	// If configuring load balancer, look for external ingress
+	if len(service.Status.LoadBalancer.Ingress) > 0 {
+		ingress := service.Status.LoadBalancer.Ingress[0]
+		if ingress.IP != "" {
+			return ingress.IP, port, nil
+		}
+		if ingress.Hostname != "" {
+			// Resolve load balancer host
+			ip, err := ispncom.LookupHost(ingress.Hostname, logger)
+
+			// Load balancer gets created asynchronously,
+			// so it might take time for the status to be updated.
+			return ip, port, err
+		}
+	}
+
+	return "", port, nil
 }
 
 // getServingCertsMode returns a label that identify the kind of serving
