@@ -4,6 +4,6 @@ INFO  [org.infinispan.CLUSTER] (MSC service thread 1-2) \
 ISPN000094: Received new cluster view for channel infinispan: \
 [{example_crd_name}-0|0] (1) [{example_crd_name}-0]
 
-INFO  [org.infinispan.CLUSTER] (jgroups-3,{example_crd_name-0) \
+INFO  [org.infinispan.CLUSTER] (jgroups-3,{example_crd_name}-0) \
 ISPN000094: Received new cluster view for channel infinispan: \
 [{example_crd_name}-0|1] (2) [{example_crd_name}-0, {example_crd_name}-1]

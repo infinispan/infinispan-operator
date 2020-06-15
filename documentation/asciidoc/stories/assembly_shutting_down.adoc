@@ -1,25 +1,15 @@
 [id='shutdown']
 :context: nodes
-= Stopping and Starting {brandname} Services
-Gracefully shut down {brandname} clusters to avoid data loss.
+= Stopping and Starting {brandname} Clusters
+Stop and start {brandname} clusters with {ispn_operator}.
 
-.Cache configuration
+.Cache definitions
 Both {cacheservice} and {datagridservice} store permanent cache definitions in
 persistent volumes so they are still available after cluster restarts.
 
 .Data
 {datagridservice} nodes can write all cache entries to persistent storage during
-cluster shutdown if you add cache stores.
-
-[IMPORTANT]
-====
-You should configure the storage size for {datagridservice} nodes to ensure that
-the persistent volume can hold all your data.
-
-If the available container storage is less than the amount of memory available
-to {datagridservice} nodes, {brandname} writes an exception to logs and data
-loss occurs during shutdown.
-====
+cluster shutdown if you add a file-based cache store.
 
 include::{topics}/proc_shut_down_gracefully.adoc[leveloffset=+1]
 include::{topics}/proc_restart.adoc[leveloffset=+1]

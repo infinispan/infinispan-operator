@@ -1,5 +1,5 @@
-[id='resources']
-:context: nodes
+[id='configuring_cache_service']
+:context: cache
 = Adjusting Container Specifications
 You can allocate CPU and memory resources, specify JVM options, and configure
 storage for {brandname} nodes.

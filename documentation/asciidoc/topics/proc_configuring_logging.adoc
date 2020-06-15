@@ -11,9 +11,9 @@ and then apply the changes.
 include::yaml_annotated/cr_logging.yaml[]
 ----
 +
-<1> configures {brandname} logging.
-<2> adds logging categories.
-<3> names logging categories and levels.
+<1> Configures {brandname} logging.
+<2> Adds logging categories.
+<3> Names logging categories and levels.
 +
 [NOTE]
 ====

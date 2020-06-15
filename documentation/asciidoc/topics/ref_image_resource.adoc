@@ -1,0 +1,10 @@
+[id='ref_image_crd-{context}']
+= Image Resource
+
+[source,options="nowrap",subs=attributes+]
+----
+spec:
+  image: {image_resource} <1>
+----
+
+<1> Lets you specify a {brandname} image to use.
