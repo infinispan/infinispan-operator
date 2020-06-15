@@ -277,106 +277,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 		reqLogger.Info("Created Service", "Service", serDNS)
 
-		if infinispan.IsExposed() {
-			switch infinispan.Spec.Expose.Type {
-			case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
-				externalService := r.serviceExternal(infinispan)
-				err = r.client.Create(context.TODO(), externalService)
-				if err != nil && !errors.IsAlreadyExists(err) {
-					reqLogger.Error(err, "failed to create external Service", "Service", ser)
-					return reconcile.Result{}, err
-				}
-				if len(externalService.Spec.Ports) > 0 {
-					infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
-					err = r.client.Update(context.TODO(), infinispan)
-					if err != nil {
-						reqLogger.Info("Failed to update Infinispan with service nodePort", "Service", externalService)
-					}
-				}
-				reqLogger.Info("Created External Service", "Service", externalService)
-			case infinispanv1.ExposeTypeRoute:
-				ok, err := r.isGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
-				if err != nil {
-					reqLogger.Error(err, fmt.Sprintf("Failed to check if %s is supported", routev1.SchemeGroupVersion.String()))
-					// Log an error and try to go on with Ingress
-					ok = false
-				}
-				if ok {
-					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
-					route := routev1.Route{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      infinispan.Name,
-							Namespace: infinispan.Namespace,
-							Labels:    lsService,
-						},
-						Spec: routev1.RouteSpec{
-							Host: infinispan.Spec.Expose.Host,
-							To: routev1.RouteTargetReference{
-								Kind: "Service",
-								Name: infinispan.Name},
-							TLS: &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough},
-						},
-					}
-					controllerutil.SetControllerReference(infinispan, &route, r.scheme)
-					err = r.client.Create(context.TODO(), &route)
-					if err != nil {
-						reqLogger.Error(err, "failed to create Route", "Route", route)
-						return reconcile.Result{}, err
-					}
-					if route.Spec.Host != "" {
-						infinispan.Spec.Expose.Host = route.Spec.Host
-						err = r.client.Update(context.TODO(), infinispan)
-						if err != nil {
-							reqLogger.Info("Failed to update Infinispan with route Host", "Route", route)
-						}
-					}
-				} else {
-					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
-					ingress := networkingv1beta1.Ingress{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      infinispan.Name,
-							Namespace: infinispan.Namespace,
-							Labels:    lsService,
-						},
-						Spec: networkingv1beta1.IngressSpec{
-							TLS: []networkingv1beta1.IngressTLS{},
-							Rules: []networkingv1beta1.IngressRule{
-								{
-									Host: infinispan.Spec.Expose.Host,
-									IngressRuleValue: networkingv1beta1.IngressRuleValue{
-										HTTP: &networkingv1beta1.HTTPIngressRuleValue{
-											Paths: []networkingv1beta1.HTTPIngressPath{
-												{
-													Path: "/",
-													Backend: networkingv1beta1.IngressBackend{
-														ServiceName: infinispan.Name,
-														ServicePort: intstr.IntOrString{IntVal: 11222}}}}},
-									}}},
-						}}
-					if infinispan.Spec.Security.EndpointEncryption.CertSecretName != "" {
-						ingress.Spec.TLS = []networkingv1beta1.IngressTLS{
-							{
-								Hosts: []string{infinispan.Spec.Expose.Host},
-							}}
-					}
-					controllerutil.SetControllerReference(infinispan, &ingress, r.scheme)
-					err = r.client.Create(context.TODO(), &ingress)
-					if err != nil {
-						reqLogger.Error(err, "failed to create Ingress", "Ingress", ingress)
-						return reconcile.Result{}, err
-					}
-					if len(ingress.Spec.Rules) > 0 && ingress.Spec.Rules[0].Host != "" {
-						infinispan.Spec.Expose.Host = ingress.Spec.Rules[0].Host
-						err = r.client.Update(context.TODO(), infinispan)
-						if err != nil {
-							reqLogger.Info("Failed to update Infinispan with ingress Host", "Route", ingress)
-						}
-					}
-				}
-			default:
-				reqLogger.Info("Cluster NOT exposed. Unsupported type?", "ExposeType", infinispan.Spec.Expose.Type)
-			}
-		}
 		// StatefulSet created successfully - return and requeue
 		reqLogger.Info("End of the StetefulSet creation")
 		return reconcile.Result{Requeue: true}, nil
@@ -411,6 +311,122 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	reqLogger.Info("Reconciling Infinispan: update case")
+
+	if infinispan.IsExposed() {
+		switch infinispan.Spec.Expose.Type {
+		case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
+			externalService := &corev1.Service{}
+			err := r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.GetServiceExternalName(), Namespace: infinispan.Namespace}, externalService)
+			if err != nil && errors.IsNotFound(err) {
+				externalService := r.serviceExternal(infinispan)
+				err = r.client.Create(context.TODO(), externalService)
+				if err != nil {
+					if !errors.IsAlreadyExists(err) {
+						reqLogger.Error(err, "failed to create external Service", "Service", externalService)
+						return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultRequeueOnCreateExposeServiceDelay}, nil
+					}
+				} else {
+					if len(externalService.Spec.Ports) > 0 {
+						infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
+						err = r.client.Update(context.TODO(), infinispan)
+						if err != nil {
+							reqLogger.Info("Failed to update Infinispan with service nodePort", "Service", externalService)
+						}
+					}
+					reqLogger.Info("Created External Service", "Service", externalService)
+				}
+			}
+		case infinispanv1.ExposeTypeRoute:
+			ok, err := r.isGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
+			if err != nil {
+				reqLogger.Error(err, fmt.Sprintf("Failed to check if %s is supported", routev1.SchemeGroupVersion.String()))
+				// Log an error and try to go on with Ingress
+				ok = false
+			}
+			if ok {
+				externalRoute := &routev1.Route{}
+				err := r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.GetServiceExternalName(), Namespace: infinispan.Name}, externalRoute)
+				if err != nil && errors.IsNotFound(err) {
+					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
+					route := routev1.Route{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      infinispan.Name,
+							Namespace: infinispan.Namespace,
+							Labels:    lsService,
+						},
+						Spec: routev1.RouteSpec{
+							Host: infinispan.Spec.Expose.Host,
+							To: routev1.RouteTargetReference{
+								Kind: "Service",
+								Name: infinispan.Name},
+							TLS: &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough},
+						},
+					}
+					controllerutil.SetControllerReference(infinispan, &route, r.scheme)
+					err = r.client.Create(context.TODO(), &route)
+					if err != nil {
+						reqLogger.Error(err, "failed to create Route", "Route", route)
+						return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultRequeueOnCreateExposeServiceDelay}, nil
+					}
+					if route.Spec.Host != "" {
+						infinispan.Spec.Expose.Host = route.Spec.Host
+						err = r.client.Update(context.TODO(), infinispan)
+						if err != nil {
+							reqLogger.Info("Failed to update Infinispan with route Host", "Route", route)
+						}
+					}
+				}
+			} else {
+				externalIngress := &networkingv1beta1.Ingress{}
+				err := r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.GetServiceExternalName(), Namespace: infinispan.Name}, externalIngress)
+				if err != nil && errors.IsNotFound(err) {
+					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
+					ingress := networkingv1beta1.Ingress{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      infinispan.Name,
+							Namespace: infinispan.Namespace,
+							Labels:    lsService,
+						},
+						Spec: networkingv1beta1.IngressSpec{
+							TLS: []networkingv1beta1.IngressTLS{},
+							Rules: []networkingv1beta1.IngressRule{
+								{
+									Host: infinispan.Spec.Expose.Host,
+									IngressRuleValue: networkingv1beta1.IngressRuleValue{
+										HTTP: &networkingv1beta1.HTTPIngressRuleValue{
+											Paths: []networkingv1beta1.HTTPIngressPath{
+												{
+													Path: "/",
+													Backend: networkingv1beta1.IngressBackend{
+														ServiceName: infinispan.Name,
+														ServicePort: intstr.IntOrString{IntVal: 11222}}}}},
+									}}},
+						}}
+					if infinispan.Spec.Security.EndpointEncryption.CertSecretName != "" {
+						ingress.Spec.TLS = []networkingv1beta1.IngressTLS{
+							{
+								Hosts: []string{infinispan.Spec.Expose.Host},
+							}}
+					}
+					controllerutil.SetControllerReference(infinispan, &ingress, r.scheme)
+					err = r.client.Create(context.TODO(), &ingress)
+					if err != nil {
+						reqLogger.Error(err, "failed to create Ingress", "Ingress", ingress)
+						return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultRequeueOnCreateExposeServiceDelay}, nil
+					}
+					if len(ingress.Spec.Rules) > 0 && ingress.Spec.Rules[0].Host != "" {
+						infinispan.Spec.Expose.Host = ingress.Spec.Rules[0].Host
+						err = r.client.Update(context.TODO(), infinispan)
+						if err != nil {
+							reqLogger.Info("Failed to update Infinispan with ingress Host", "Route", ingress)
+						}
+					}
+				}
+			}
+		default:
+			reqLogger.Info("Cluster NOT exposed. Unsupported type?", "ExposeType", infinispan.Spec.Expose.Type)
+		}
+	}
 
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
