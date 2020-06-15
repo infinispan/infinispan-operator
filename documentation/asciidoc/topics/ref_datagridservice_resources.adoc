@@ -1,9 +1,13 @@
+[id='ref_datagrid_service_crd-{context}']
+= Data Grid Service Resources
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
   name: {example_crd_name} <1>
 spec:
-  image: {image_resource}
   replicas: 6 <2>
   service:
     type: DataGrid <3>
@@ -35,3 +39,15 @@ spec:
       org.jgroups: debug
   expose: <10>
     type: LoadBalancer
+----
+
+<1> Names the {brandname} cluster.
+<2> Specifies the number of nodes in the cluster.
+<3> Creates {datagridservice} clusters.
+<4> Configures size of the persistent volume.
+<5> Provides connection information for backup locations.
+<6> Adds an authentication secret with user credentials.
+<7> Adds a custom encryption secret for secure connections.
+<8> Allocates resources to nodes.
+<9> Configures logging.
+<10> Configures services for external traffic.

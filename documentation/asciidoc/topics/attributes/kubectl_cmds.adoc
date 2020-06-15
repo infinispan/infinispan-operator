@@ -1,7 +1,7 @@
 :oc_get_pods: kubectl get pods
 :oc_get_pods_w: kubectl get pods -w
 :oc_get_secret: kubectl get secret
-:oc_get_infinispan: kubectl get infinispan -o yaml
+:oc_get_infinispan: kubectl get infinispan
 :oc_get_services: kubectl get services
 :oc_get_service: kubectl get services
 :oc_get_routes: kubectl get ingress

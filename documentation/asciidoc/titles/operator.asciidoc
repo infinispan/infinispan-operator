@@ -13,7 +13,7 @@
 include::{topics}/attributes/community-attributes.adoc[]
 
 [id='infinispan_operator']
-= Creating and Managing {brandname} Clusters with {ispn_operator}
+= {ispn_operator} Guide
 
 The {ispn_operator} provides operational intelligence and reduces management
 complexity for deploying {brandname} on {k8s} and {openshift}.

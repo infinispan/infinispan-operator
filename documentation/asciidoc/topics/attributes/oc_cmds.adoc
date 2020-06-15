@@ -1,7 +1,7 @@
 :oc_get_pods: oc get pods
 :oc_get_pods_w: oc get pods -w
 :oc_get_secret: oc get secret
-:oc_get_infinispan: oc get infinispan -o yaml
+:oc_get_infinispan: oc get infinispan
 :oc_get_services: oc get services
 :oc_get_service: oc get services
 :oc_get_routes: oc get routes
