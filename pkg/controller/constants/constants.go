@@ -51,4 +51,6 @@ const (
 const (
 	// DefaultMinimumAutoscalePollPeriod minimun period for autocaler polling loop
 	DefaultMinimumAutoscalePollPeriod = 5 * time.Second
+	//DefaultRequeueOnCreateExposeServiceDelay requeue delay before retry exposed service creation
+	DefaultRequeueOnCreateExposeServiceDelay = 5 * time.Second
 )
