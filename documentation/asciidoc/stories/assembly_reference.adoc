@@ -1,5 +1,5 @@
 [id='operator_reference']
-:context: reference
+:context: ref
 = Reference
 Find information about {brandname} services and clusters that you create with
 {ispn_operator}.
@@ -10,6 +10,7 @@ include::{topics}/ref_datagridservice_resources.adoc[leveloffset=+1]
 ifndef::productized[]
 include::{topics}/ref_image_resource.adoc[leveloffset=+1]
 endif::productized[]
+include::{topics}/ref_pv.adoc[leveloffset=+1]
 include::{topics}/ref_services.adoc[leveloffset=+1]
 include::{topics}/ref_upgrades.adoc[leveloffset=+1]
 //Product Only

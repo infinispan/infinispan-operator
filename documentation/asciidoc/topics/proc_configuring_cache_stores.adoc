@@ -1,0 +1,60 @@
+[id='cache_stores-{context}']
+= Configuring Persistent Cache Stores
+You can add Single File cache stores to {datagridservice} nodes to save data to
+the persistent volume.
+
+You configure cache stores as part of your {brandname} cache definition with
+the `persistence` element as follows:
+
+[source,options="nowrap",subs=attributes+]
+----
+<persistence>
+   <file-store/>
+</persistence>
+----
+
+{brandname} then creates a Single File cache store, `.dat` file, in the
+`{pv_path}` directory.
+
+.Procedure
+
+* Create a **Cache** CR that contains an XML cache definition with a cache store, as in the following example:
++
+[source,options="nowrap",subs=attributes+]
+----
+apiVersion: infinispan.org/v2alpha1
+kind: Cache
+metadata:
+  name: mycachestore
+spec:
+  adminAuth:
+    secretName: basic-auth
+  clusterName: {example_crd_name} <3>
+  name: mycache <4>
+  template: <infinispan><cache-container><distributed-cache><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan>
+----
+
+* Use the `XMLStringConfiguration` class to provide an XML cache definition with a cache store through the Hot Rod endpoint, as in the following example:
++
+[source,java,options="nowrap",subs=attributes+]
+----
+private void createCacheWithXMLConfiguration() {
+        String cacheName = "mycachestore";
+        String xml = String.format("<infinispan>" +
+                                      "<cache-container>" +
+                                      "<distributed-cache name=\"%s\" mode=\"SYNC\">" +
+                                        "<persistence>" +
+                                          "<file-store/>" +
+                                        "</persistence>" +
+                                      "</distributed-cache>" +
+                                      "</cache-container>" +
+                                    "</infinispan>"
+                                    , cacheName);
+        manager.administration().getOrCreateCache(cacheName, new XMLStringConfiguration(xml));
+        System.out.println("Cache created or already exists.");
+    }
+----
+
+.Reference
+
+* link:#ref_pv-ref[Persistent Volume Claims]

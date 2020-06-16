@@ -30,5 +30,5 @@ nodes.
 
 .Reference
 
-* link:#ref_cache_service_crd-reference[Cache Service Resources]
-* link:#ref_datagrid_service_crd-reference[Data Grid Service Resources]
+* link:#ref_cache_service_crd-ref[Cache Service Resources]
+* link:#ref_datagrid_service_crd-ref[Data Grid Service Resources]

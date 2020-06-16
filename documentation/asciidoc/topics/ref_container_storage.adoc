@@ -1,5 +1,7 @@
 [id='storage_resources-{context}']
 = Storage Resources
+By default, {ispn_operator} allocates `1Gi` for storage for both
+{cacheservice} and {datagridservice} nodes. However, you can configure storage size for {datagridservice} nodes.
 
 [source,options="nowrap",subs=attributes+]
 ----
@@ -8,20 +10,6 @@ include::yaml_annotated/cr_container_storage.yaml[]
 
 <1> Configures the storage size for {datagridservice} nodes.
 
-By default, {ispn_operator} allocates `1Gi` for storage for both
-{cacheservice} and {datagridservice} nodes. You can configure storage size only
-for {datagridservice} nodes.
-
-.Persistence
-{datagridservice} lets you configure Single File cache stores for data
-persistence:
-
-[source,xml,options="nowrap",subs=attributes+]
-----
-include::config_examples/file_cache_store.xml[]
-----
-
 .Reference
 
-* link:#shutdown[Shutting Down {brandname} Clusters]
-* link:#ref_pv-nodes[Persistent Volume Claims]
+* link:#ref_pv-ref[Persistent Volume Claims]
