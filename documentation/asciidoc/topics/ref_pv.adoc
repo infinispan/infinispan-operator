@@ -8,8 +8,3 @@
 ====
 Persistent volume claims use the `ReadWriteOnce (RWO)` access mode.
 ====
-
-.Reference
-
-* link:#shutdown[Shutting Down {brandname} Clusters]
-* link:#storage_resources-nodes[Storage Resources]

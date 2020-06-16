@@ -1,12 +1,11 @@
-[id='configuring_cache_service']
-:context: cache
+[id='container_spec']
+:context: resources
 = Adjusting Container Specifications
 You can allocate CPU and memory resources, specify JVM options, and configure
 storage for {brandname} nodes.
 
 include::{topics}/ref_container_resources.adoc[leveloffset=+1]
 include::{topics}/ref_container_storage.adoc[leveloffset=+1]
-include::{topics}/ref_pv.adoc[leveloffset=+2]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

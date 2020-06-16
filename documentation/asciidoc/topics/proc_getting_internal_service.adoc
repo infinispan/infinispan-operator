@@ -26,4 +26,4 @@ NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)
 
 .Reference
 
-* link:#ref_services-reference[Network Services]
+* link:#ref_services-ref[Network Services]
