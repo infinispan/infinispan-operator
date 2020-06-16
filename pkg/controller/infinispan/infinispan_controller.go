@@ -21,7 +21,7 @@ import (
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	extv1 "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -332,29 +332,29 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 					}
 				} else {
 					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
-					ingress := extv1.Ingress{
+					ingress := networkingv1beta1.Ingress{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      infinispan.Name,
 							Namespace: infinispan.Namespace,
 							Labels:    lsService,
 						},
-						Spec: extv1.IngressSpec{
-							TLS: []extv1.IngressTLS{},
-							Rules: []extv1.IngressRule{
+						Spec: networkingv1beta1.IngressSpec{
+							TLS: []networkingv1beta1.IngressTLS{},
+							Rules: []networkingv1beta1.IngressRule{
 								{
 									Host: infinispan.Spec.Expose.Host,
-									IngressRuleValue: extv1.IngressRuleValue{
-										HTTP: &extv1.HTTPIngressRuleValue{
-											Paths: []extv1.HTTPIngressPath{
+									IngressRuleValue: networkingv1beta1.IngressRuleValue{
+										HTTP: &networkingv1beta1.HTTPIngressRuleValue{
+											Paths: []networkingv1beta1.HTTPIngressPath{
 												{
 													Path: "/",
-													Backend: extv1.IngressBackend{
+													Backend: networkingv1beta1.IngressBackend{
 														ServiceName: infinispan.Name,
 														ServicePort: intstr.IntOrString{IntVal: 11222}}}}},
 									}}},
 						}}
 					if infinispan.Spec.Security.EndpointEncryption.CertSecretName != "" {
-						ingress.Spec.TLS = []extv1.IngressTLS{
+						ingress.Spec.TLS = []networkingv1beta1.IngressTLS{
 							{
 								Hosts: []string{infinispan.Spec.Expose.Host},
 							}}
