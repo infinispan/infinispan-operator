@@ -457,7 +457,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				// send a graceful shutdown to the first ready pod
 				// if there's no ready pod we're in trouble
 				for _, pod := range podList.Items {
-					if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].Ready {
+					if ispncom.IsPodReady(pod) {
 						pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, infinispan.GetSecretName(), infinispan.GetNamespace())
 						if err == nil {
 							err = cluster.GracefulShutdown(consts.DefaultOperatorUser, pass, pod.GetName(), pod.GetNamespace(), string(protocol))
@@ -482,7 +482,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				// cluster has a `stopping` wait for all the pods becomes unready
 				reqLogger.Info("Waiting that all the pods become unready")
 				for _, pod := range podList.Items {
-					if pod.Status.ContainerStatuses[0].Ready {
+					if ispncom.IsPodReady(pod) {
 						reqLogger.Info("One or more pods still ready", "Pod.Name", pod.Name)
 						// Stop the work and requeue until cluster is down
 						return reconcile.Result{Requeue: true, RequeueAfter: time.Second}, nil
