@@ -31,6 +31,25 @@ spec:
         spec:
           description: InfinispanSpec defines the desired state of Infinispan
           properties:
+            autoscale:
+              description: Autoscale describe autoscaling configuration for the cluster
+              properties:
+                maxMemUsagePercent:
+                  type: integer
+                maxReplicas:
+                  format: int32
+                  type: integer
+                minMemUsagePercent:
+                  type: integer
+                minReplicas:
+                  format: int32
+                  type: integer
+              required:
+              - maxMemUsagePercent
+              - maxReplicas
+              - minMemUsagePercent
+              - minReplicas
+              type: object
             container:
               description: InfinispanContainerSpec specify resource requirements per
                 container
@@ -109,6 +128,9 @@ spec:
                   required:
                   - storage
                   type: object
+                replicationFactor:
+                  format: int32
+                  type: integer
                 sites:
                   properties:
                     local:
