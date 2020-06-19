@@ -3,5 +3,7 @@ kind: Cache
 metadata:
   name: example-cache
 spec:
-  # Add fields here
-  size: 3
+  adminAuth:
+    secretName: basic-auth
+  clusterName: example-infinispan
+  name: mycache
