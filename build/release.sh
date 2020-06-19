@@ -133,7 +133,7 @@ prepareBranches() {
 
   updatePackageFile ${packagePath}
   
-  for CRD_FILE ${CRD_FILES}
+  for CRD_FILE in ${CRD_FILES}
   do
     cp deploy/olm-catalog/${CRD_FILE} ${repoDir}/${releaseDir}/${CRD_FILE}
   done
@@ -142,7 +142,7 @@ prepareBranches() {
   rm -f ${repoDir}/${dir}/*.backup
 
   pushd ${repoDir}
-  for CRD_FILE ${CRD_FILES}
+  for CRD_FILE in ${CRD_FILES}
   do
     git add ${releaseDir}/${CRD_FILE}
   done

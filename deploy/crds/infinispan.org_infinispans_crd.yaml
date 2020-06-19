@@ -31,6 +31,25 @@ spec:
         spec:
           description: InfinispanSpec defines the desired state of Infinispan
           properties:
+            autoscale:
+              description: Autoscale describe autoscaling configuration for the cluster
+              properties:
+                maxMemUsagePercent:
+                  type: integer
+                maxReplicas:
+                  format: int32
+                  type: integer
+                minMemUsagePercent:
+                  type: integer
+                minReplicas:
+                  format: int32
+                  type: integer
+              required:
+              - maxMemUsagePercent
+              - maxReplicas
+              - minMemUsagePercent
+              - minReplicas
+              type: object
             container:
               description: InfinispanContainerSpec specify resource requirements per
                 container
@@ -41,10 +60,6 @@ spec:
                   type: string
                 memory:
                   type: string
-              required:
-              - cpu
-              - extraJvmOpts
-              - memory
               type: object
             expose:
               description: ExposeSpec describe how Infinispan will be exposed externally
@@ -89,8 +104,6 @@ spec:
                     type:
                       type: string
                   required:
-                  - certSecretName
-                  - certServiceName
                   - type
                   type: object
                 endpointSecretName:
@@ -109,6 +122,9 @@ spec:
                   required:
                   - storage
                   type: object
+                replicationFactor:
+                  format: int32
+                  type: integer
                 sites:
                   properties:
                     local:
@@ -346,7 +362,6 @@ spec:
                 type:
                   type: string
               required:
-              - container
               - type
               type: object
           required:
@@ -393,8 +408,6 @@ spec:
                     type:
                       type: string
                   required:
-                  - certSecretName
-                  - certServiceName
                   - type
                   type: object
                 endpointSecretName:

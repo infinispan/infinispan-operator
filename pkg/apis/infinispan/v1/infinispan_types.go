@@ -19,8 +19,8 @@ type InfinispanSecurity struct {
 // EndpointEncryption configuration
 type EndpointEncryption struct {
 	Type            string `json:"type"`
-	CertServiceName string `json:"certServiceName"`
-	CertSecretName  string `json:"certSecretName"`
+	CertServiceName string `json:"certServiceName,optional,omitempty"`
+	CertSecretName  string `json:"certSecretName,optional,omitempty"`
 }
 
 // InfinispanServiceContainerSpec resource requirements specific for service
@@ -48,16 +48,16 @@ const (
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
 	Type              ServiceType                    `json:"type"`
-	Container         InfinispanServiceContainerSpec `json:"container"`
+	Container         InfinispanServiceContainerSpec `json:"container,optional,omitempty"`
 	Sites             InfinispanSitesSpec            `json:"sites,optional,omitempty"`
 	ReplicationFactor int32                          `json:"replicationFactor,optional,omitempty"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container
 type InfinispanContainerSpec struct {
-	ExtraJvmOpts string `json:"extraJvmOpts"`
-	Memory       string `json:"memory"`
-	CPU          string `json:"cpu"`
+	ExtraJvmOpts string `json:"extraJvmOpts,optional,omitempty"`
+	Memory       string `json:"memory,optional,omitempty"`
+	CPU          string `json:"cpu,optional,omitempty"`
 }
 
 type InfinispanSitesLocalSpec struct {
