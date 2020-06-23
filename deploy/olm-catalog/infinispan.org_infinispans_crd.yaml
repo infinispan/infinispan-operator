@@ -60,10 +60,6 @@ spec:
                   type: string
                 memory:
                   type: string
-              required:
-              - cpu
-              - extraJvmOpts
-              - memory
               type: object
             expose:
               description: ExposeSpec describe how Infinispan will be exposed externally
@@ -108,8 +104,6 @@ spec:
                     type:
                       type: string
                   required:
-                  - certSecretName
-                  - certServiceName
                   - type
                   type: object
                 endpointSecretName:
@@ -368,7 +362,6 @@ spec:
                 type:
                   type: string
               required:
-              - container
               - type
               type: object
           required:
@@ -415,8 +408,6 @@ spec:
                     type:
                       type: string
                   required:
-                  - certSecretName
-                  - certServiceName
                   - type
                   type: object
                 endpointSecretName:
