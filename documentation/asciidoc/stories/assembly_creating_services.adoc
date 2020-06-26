@@ -5,7 +5,7 @@ Use {ispn_operator} to create either {cacheservice} or {datagridservice} nodes.
 
 include::{topics}/con_services.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_service_type.adoc[leveloffset=+1]
-include::{stories}/assembly_configuring_cacheservice.adoc[leveloffset=+1]
+include::assembly_configuring_cacheservice.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

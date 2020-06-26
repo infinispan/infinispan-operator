@@ -1,4 +1,4 @@
-[id='cache_verification-{context}']
+[id='verifying_caches-{context}']
 = Verifying {brandname} Caches
 After you create {brandname} caches, complete the following procedure to verify
 they exist.
