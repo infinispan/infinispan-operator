@@ -1,3 +1,8 @@
+//Community only
+:github_root: https://github.com/infinispan/infinispan-operator/
+:github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
+:github_tag: master
+
 :link_operator_hub: https://www.operatorhub.io/[OperatorHub.io]
 
 :link_tech_preview: https://access.redhat.com/support/offerings/techpreview/[Red Hat Technology Preview Features Support Scope]

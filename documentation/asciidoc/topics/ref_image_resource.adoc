@@ -4,7 +4,7 @@
 [source,options="nowrap",subs=attributes+]
 ----
 spec:
-  image: {image_resource} <1>
+  image: infinispan/server:latest <1>
 ----
 
 <1> Lets you specify a {brandname} image to use.
