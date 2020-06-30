@@ -5,99 +5,16 @@
 //
 // Operator resources
 //
-:github_root: https://github.com/infinispan/infinispan-operator/
-:github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
-:github_tag: master
 
 :example_crd_name: example-infinispan
 :example_namespace: rhdg-namespace
-
-:image_resource: infinispan/server:latest
-
 :pv_path: /opt/datagrid/server/data
 :conf_path: /opt/datagrid/server/conf
-
-include::oc_cmds.adoc[]
-include::links.adoc[]
-
-//
-// Conditional statements
-//
-:productized:
-:server:
-:library:
-
-//
-// Directory attributes
-//
-:images_dir: images
-:stories: stories
-:topics: topics
-
-//
-// Product names and versions
-// These attributes should always be conditional for product only
-//
-:RedHat: Red Hat
-:portal: Red Hat customer portal
-
-:FullProductName: Red Hat Data Grid
-:ProductName: Data Grid
-:ProductShortName: RHDG
-:ProductVersion: 8.0
-
-:ProductRelease: 8.0
-:FullProductRelease: 8.0.0
-:FullProductVersion: 8.0.0
-:DocInfoProductNumber: 8.0
-:ProductPreviousVersion: 7.3
-:ProductNextVersion: 8.0
-:ProductPreviousRelease: 7
-:ProductPreviousPreviousRelease: 6
-
-//Doc Home
-:doc_home: https://access.redhat.com/documentation/en-us/red_hat_data_grid/
-
-//
-// Special characters
-//
-:plusplus: ++
-:underscores: ___
-
-//
-// Community attributes
-// In the main Infinispan repo, these attributes are defined in
-// documentation/pom.xml
-//
-:brandname: Data Grid
-:fullbrandname: Red Hat Data Grid
-
-:infinispanversion: 8.0
-:infinispancomponentversion: 10.0.0-SNAPSHOT
-
-:brandcli: cli
-:moduleprefix: jdg
-:infinispanslot: jdg-8.0
-
-:schemaversion: 11.0
-
-:download_url: https://access.redhat.com/downloads
-:javadocroot: https://access.redhat.com/webassets/avalon/d/red-hat-data-grid/7.3/api
-:configdocroot: https://access.redhat.com/webassets/avalon/d/red-hat-data-grid/7.3/Configuration/
-:jdkdocroot: https://docs.oracle.com/javase/8/docs/api
-:javaeedocroot: https://docs.oracle.com/javaee/7/api
-
-//
-// Server artifacts
-//
-:server_home: $RHDG_HOME
-:server_root: ${rhdg.server.root}
-:server_config: ${rhdg.server.configuration}
-:runtime_readme: https://github.com/infinispan/infinispan/blob/master/server/runtime/README.md
 
 //
 // Operator
 //
+
 :ispn_operator: Data Grid Operator
 :k8s: OpenShift
 :okd: OKD
@@ -105,6 +22,7 @@ include::links.adoc[]
 //
 // OpenShift
 //
+
 :openshift: Red Hat OpenShift
 :openshiftshort: OpenShift
 :openshiftplatform: Red Hat OpenShift Container Platform
@@ -112,13 +30,17 @@ include::links.adoc[]
 :osweb: OpenShift Web Console
 
 //
+// Community attributes
+//
+
+:brandname: Data Grid
+:fullbrandname: Red Hat Data Grid
+
+//
 // Cloud services
 //
 :datagridservice: Data Grid Service
 :cacheservice: Cache Service
 
-//
-// Product only OpenShift
-//
-:osproduct: Red Hat Data Grid for OpenShift
-:osproductshort: Data Grid for OpenShift
+include::oc_cmds.adoc[]
+include::links.adoc[]
