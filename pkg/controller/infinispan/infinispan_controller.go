@@ -345,12 +345,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 			if ok {
 				externalRoute := &routev1.Route{}
-				err := r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.GetServiceExternalName(), Namespace: infinispan.Name}, externalRoute)
+				err := r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.GetServiceExternalName(), Namespace: infinispan.Namespace}, externalRoute)
 				if err != nil && errors.IsNotFound(err) {
 					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
 					route := routev1.Route{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      infinispan.Name,
+							Name:      infinispan.GetServiceExternalName(),
 							Namespace: infinispan.Namespace,
 							Labels:    lsService,
 						},
@@ -378,12 +378,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				}
 			} else {
 				externalIngress := &networkingv1beta1.Ingress{}
-				err := r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.GetServiceExternalName(), Namespace: infinispan.Name}, externalIngress)
+				err := r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.GetServiceExternalName(), Namespace: infinispan.Namespace}, externalIngress)
 				if err != nil && errors.IsNotFound(err) {
 					lsService := ispncom.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-external")
 					ingress := networkingv1beta1.Ingress{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      infinispan.Name,
+							Name:      infinispan.GetServiceExternalName(),
 							Namespace: infinispan.Namespace,
 							Labels:    lsService,
 						},
