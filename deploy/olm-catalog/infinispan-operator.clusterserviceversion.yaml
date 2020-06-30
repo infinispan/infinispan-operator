@@ -152,7 +152,7 @@ spec:
               - '*'
             verbs:
               - '*'
-      clusterPermission:
+      clusterPermissions:
         - serviceAccountName: infinispan-operator
           rules:
           - apiGroups:
