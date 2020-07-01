@@ -172,25 +172,15 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Configuring the StatefulSet")
 		// Populate EndpointEncryption if serving cert service is available
-		if getServingCertsMode(kubernetes) == "openshift.io" {
+		ee := &infinispan.Spec.Security.EndpointEncryption
+		if getServingCertsMode(kubernetes) == "openshift.io" && (ee.Type == "" || ee.CertSecretName == "") {
 			reqLogger.Info("Serving certificate service present. Configuring into CRD")
-			requeue := false
-			ee := &infinispan.Spec.Security.EndpointEncryption
 			if ee.Type == "" {
 				ee.Type = "service"
 				ee.CertServiceName = "service.beta.openshift.io"
-				requeue = true
 			}
 			if ee.CertSecretName == "" {
 				ee.CertSecretName = infinispan.Name + "-cert-secret"
-				requeue = true
-			}
-			if requeue {
-				reqLogger.Info("Updating Infinispan resource and requeing")
-				if err = updateSecurity(infinispan, r.client, reqLogger); err != nil {
-					return reconcile.Result{}, err
-				}
-				return reconcile.Result{Requeue: true}, nil
 			}
 		}
 
