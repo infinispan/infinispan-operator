@@ -12,6 +12,13 @@ cache:
   directories:
   - $GOPATH/pkg/mod
 
+before_install:
+  - |
+    git diff --name-only $TRAVIS_BRANCH | grep -qvE '(\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/' || {
+      echo "Only docs, manual steps, test-integration,CI and OLM files were updated, stopping build process."
+      exit
+    }
+
 env:
   - KIND_VERSION=v0.5.1
 
