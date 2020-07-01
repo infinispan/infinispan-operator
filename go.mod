@@ -3,19 +3,72 @@ module github.com/infinispan/infinispan-operator
 go 1.13
 
 require (
+	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
+	github.com/apex/log v1.4.0 // indirect
+	github.com/beorn7/perks v1.0.1
+	github.com/cespare/xxhash/v2 v2.1.0
+	github.com/coreos/prometheus-operator v0.34.0
+	github.com/davecgh/go-spew v1.1.1
+	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c
+	github.com/emicklei/go-restful v2.11.1+incompatible
+	github.com/emicklei/go-restful-openapi v1.4.1 // indirect
+	github.com/emicklei/go-restful-swagger12 v0.0.0-20170926063155-7524189396c6 // indirect
+	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/go-logr/logr v0.1.0
+	github.com/go-logr/zapr v0.1.1
 	github.com/go-openapi/spec v0.19.4
+	github.com/gogo/protobuf v1.3.1
+	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9
+	github.com/golang/protobuf v1.3.2
+	github.com/google/go-cmp v0.3.1
+	github.com/google/gofuzz v1.0.0
+	github.com/google/uuid v1.1.1
+	github.com/googleapis/gnostic v0.3.1
+	github.com/gorilla/schema v1.1.0 // indirect
+	github.com/hashicorp/golang-lru v0.5.3
+	github.com/imdario/mergo v0.3.8
+	github.com/jessevdk/go-flags v1.4.0 // indirect
+	github.com/json-iterator/go v1.1.7
+	github.com/mailru/easyjson v0.7.0
+	github.com/matttproud/golang_protobuf_extensions v1.0.1
+	github.com/mjibson/appstats v0.0.0-20151004071057-0542d5f0e87e // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+	github.com/modern-go/reflect2 v1.0.1
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/operator-framework/operator-sdk v0.15.2
+	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
+	github.com/prometheus/common v0.7.0
+	github.com/prometheus/procfs v0.0.5
+	github.com/rs/zerolog v1.19.0 // indirect
 	github.com/spf13/pflag v1.0.5
+	go.uber.org/atomic v1.4.0
+	go.uber.org/multierr v1.1.0
+	go.uber.org/zap v1.10.0
+	golang.org/x/crypto v0.0.0-20191028145041-f83a4685e152
+	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
+	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934
+	golang.org/x/text v0.3.2
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
+	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
+	gomodules.xyz/jsonpatch/v2 v2.0.1
+	gopkg.in/fsnotify.v1 v1.4.7
+	gopkg.in/inconshreveable/log15.v2 v2.0.0-20200109203555-b30bc20e4fd1 // indirect
+	gopkg.in/inf.v0 v0.9.1
+	gopkg.in/vmihailenco/msgpack.v2 v2.9.1 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.0.0
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d
+	k8s.io/kube-state-metrics v1.7.2
+	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4
 	sigs.k8s.io/controller-runtime v0.4.0
+	sigs.k8s.io/yaml v1.1.0
 )
 
 // Pinned to kubernetes-1.16.2
