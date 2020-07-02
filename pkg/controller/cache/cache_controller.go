@@ -185,7 +185,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 			}
 		}
 	} else {
-		reqLogger.Error(err, "Error getting caches list")
+		reqLogger.Error(err, "Error validating cache exist")
 		return reconcile.Result{}, err
 	}
 
