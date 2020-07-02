@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -118,11 +119,11 @@ func (c Cluster) ExistsCache(user, pass, cacheName, podName, namespace, protocol
 		return false, err
 	}
 
-	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s?action=config", protocol, podIP, cacheName)
+	httpURL := fmt.Sprintf("%s://%s:11222/rest/v2/caches/%s", protocol, podIP, cacheName)
 	commands := []string{"curl",
 		"--insecure",
 		"--http1.1",
-		"-o", "/dev/null", "-w", "%{http_code}", // ignore output and get http status code
+		"-so", "/dev/null", "-w", "%{http_code}", // ignore output and get http status code
 		"-u", fmt.Sprintf("%v:%v", user, pass),
 		"--head",
 		httpURL,
@@ -140,10 +141,12 @@ func (c Cluster) ExistsCache(user, pass, cacheName, podName, namespace, protocol
 	}
 
 	switch httpCode {
-	case 200:
+	case http.StatusOK:
 		return true, nil
-	default:
+	case http.StatusNotFound:
 		return false, nil
+	default:
+		return false, fmt.Errorf("HTTP response code: %d", httpCode)
 	}
 }
 
@@ -201,7 +204,7 @@ func (c Cluster) CreateCacheWithTemplate(user, pass, cacheName, cacheXML, podNam
 		return err
 	}
 
-	if httpCode > 299 || httpCode < 200 {
+	if httpCode >= http.StatusMultipleChoices || httpCode < http.StatusOK {
 		return fmt.Errorf("server side error creating cache: %s", execOut.String())
 	}
 
@@ -241,7 +244,7 @@ func (c Cluster) CreateCacheWithTemplateName(user, pass, cacheName, templateName
 		return err
 	}
 
-	if httpCode > 299 || httpCode < 200 {
+	if httpCode >= http.StatusMultipleChoices || httpCode < http.StatusOK {
 		return fmt.Errorf("server side error creating cache: %s", execOut.String())
 	}
 

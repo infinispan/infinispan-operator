@@ -722,12 +722,19 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Below the code for a wellFormed cluster
 
 	// Create default cache if it doesn't exists.
-	if infinispan.IsCache() && !existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster) {
-		reqLogger.Info("createDefaultCache")
-		err := createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
+	if infinispan.IsCache() {
+		existsCache, err := existsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster)
 		if err != nil {
-			reqLogger.Error(err, "failed to create default cache for cache service")
+			reqLogger.Error(err, "failed to validate default cache for cache service")
 			return reconcile.Result{}, err
+		}
+		if !existsCache {
+			reqLogger.Info("createDefaultCache")
+			err = createCacheServiceDefaultCache(podList.Items[0].Name, infinispan, cluster, reqLogger)
+			if err != nil {
+				reqLogger.Error(err, "failed to create default cache for cache service")
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -894,19 +901,15 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	}
 }
 
-func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface) bool {
+func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface) (bool, error) {
 	namespace := infinispan.ObjectMeta.Namespace
 	secretName := infinispan.GetSecretName()
 	protocol := infinispan.GetEndpointScheme()
 	pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, secretName, namespace)
 	if err != nil {
-		return false
+		return false, err
 	}
-	res, err := cluster.ExistsCache(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, podName, namespace, string(protocol))
-	if err == nil {
-		return res
-	}
-	return false
+	return cluster.ExistsCache(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, podName, namespace, string(protocol))
 }
 
 func notClusterFormed(currConds []infinispanv1.InfinispanCondition, pods []corev1.Pod, replicas int32) bool {
