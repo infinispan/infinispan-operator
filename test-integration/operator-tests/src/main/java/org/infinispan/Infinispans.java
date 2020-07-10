@@ -10,11 +10,15 @@ public class Infinispans {
       return new Infinispan("src/test/resources/infinispans/cr_minimal_with_auth.yaml");
    }
 
-   public static Infinispan encryptionExternal() {
-      return new Infinispan("src/test/resources/infinispans/cr_encryption_external.yaml");
+   public static Infinispan advancedSetupA() {
+      return new Infinispan("src/test/resources/infinispans/advanced_setup_a.yaml");
    }
 
-   public static Infinispan encryptionProvided() {
-      return new Infinispan("src/test/resources/infinispans/cr_encryption_provided.yaml");
+   public static Infinispan advancedSetupB() {
+      return new Infinispan("src/test/resources/infinispans/advanced_setup_b.yaml");
+   }
+
+   public static Infinispan minimalSetup() {
+      return new Infinispan("src/test/resources/infinispans/minimal_setup.yaml");
    }
 }

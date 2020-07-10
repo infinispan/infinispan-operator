@@ -1,6 +1,8 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: infinispan-minimal
+  name: minimal-setup
 spec:
-  replicas: 1
+  expose:
+    type: Route
+  replicas: 2
