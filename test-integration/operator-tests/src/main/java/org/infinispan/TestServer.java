@@ -24,7 +24,6 @@ public class TestServer {
    private static final OpenShift openShift = OpenShifts.master();
    private static final BuildManager bm = BuildManagers.get();
    private static final Image builderImage = Image.get("testserver");
-   private static final TestServer singelton = new TestServer();
 
    @Getter
    private static final String name = "test-server";
@@ -32,7 +31,7 @@ public class TestServer {
    private static Path deploymentPath;
 
    public static TestServer get() {
-      return singelton;
+      return new TestServer();
    }
 
    private ManagedBuild build;
@@ -41,6 +40,12 @@ public class TestServer {
    private TestServer() {
       build = build();
       testApp = resources();
+   }
+
+   public TestServer withSecret(String secretName) {
+      testApp.deploymentConfig().podTemplate().addSecretVolume(secretName, secretName).container().addVolumeMount(secretName, "/etc/" + secretName, true);
+
+      return this;
    }
 
    public void deploy() {
