@@ -55,7 +55,7 @@ $ oc cluster up
 ```
 $ export KUBECONFIG=/path/to/admin.kubeconfig
 ```
-3. Create the Infinispan operator on OKD.
+3. Create the Infinispan operator on OKD from the source code.
   * Use the public  [jboss/infinispan-operator](https://hub.docker.com/r/jboss/infinispan-operator) image:
   ```
   $ make run
@@ -68,22 +68,36 @@ $ export KUBECONFIG=/path/to/admin.kubeconfig
   ```
   $ make run-local
   ```
-4. Open a new terminal window and create an Infinispan cluster with three nodes:
+4. Optionally install the Infinispan operator on OKD from the bundle file.
+  * Create a new project or use an existing one:
+  ```
+  $ oc new-project infinispan-operator
+  ```
+  * If your project name is not `infinispan-operator`, download the Operator install bundle file and replace the pre-defined namespace. For example, the following command changes the project name to `my-infinispan-operator`:
+  ```
+  $ sed -i '/# Replace/{n;s/.*/  namespace: my-infinispan-operator/}' operator-install.yaml
+  ```
+  ```
+  $ oc apply -f operator-install.yaml
+  ```
+  * If your project name is `infinispan-operator`, run this command to install the operator:
+  ```
+  $ oc apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/master/deploy/operator-install.yaml
+  ```
+5. Open a new terminal window and create an Infinispan cluster with two nodes:
 ```
-$ oc apply -f deploy/cr/minimal/cr_minimal.yaml
+$ oc apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/master/deploy/cr/minimal/cr_minimal.yaml
 infinispan.infinispan.org/example-infinispan configured
 ```
-5. Watch the pods start until they start running.
+6. Watch the pods until they are running.
 ```
 $ oc get pods -w
 NAME                                   READY     STATUS              RESTARTS   AGE
 example-infinispan-54c66fd755-28lvx    0/1       ContainerCreating   0          4s
 example-infinispan-54c66fd755-7c4zc    0/1       ContainerCreating   0          4s
-example-infinispan-54c66fd755-8gbxf    0/1       ContainerCreating   0          5s
 infinispan-operator-69d7d4469d-f62ws   1/1       Running             0          3m
 example-infinispan-54c66fd755-8gbxf    1/1       Running             0          8s
 example-infinispan-54c66fd755-7c4zc    1/1       Running             0          8s
-example-infinispan-54c66fd755-28lvx    1/1       Running             0          8s
 ```
 
 #### Minikube
@@ -96,21 +110,36 @@ $ make minikube-config
 ```bash
 $ make minikube-start
 ```
-3. Build the operator and run it locally:
+3. Build the operator from the source code and run it locally:
 ```bash
 $ make minikube-run-local
 ```
-4. Open a new terminal window and create an Infinispan cluster with three nodes:
+4. Optionally install the Infinispan operator on Kubernetes from the bundle file.
+  * Create a new namespace or use an existing one:
+  ```
+  $ kubectl create namespace infinispan-operator
+  ```
+  * If your namespace name is not `infinispan-operator`, download the Operator install bundle file and replace the pre-defined namespace. For example, the following command changes the project name to `my-infinispan-operator`:
+  ```
+  $ sed -i '/# Replace/{n;s/.*/  namespace: my-infinispan-operator/}' operator-install.yaml
+  ```
+  ```
+  $ kubectl apply -f operator-install.yaml
+  ```
+  * If your namespace name is `infinispan-operator`, run this command to install the operator:
+  ```
+  $ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/master/deploy/operator-install.yaml
+  ```
+5. Open a new terminal window and create an Infinispan cluster with two nodes:
 ```bash
-$ kubectl apply -f deploy/cr/minimal/cr_minimal.yaml -n local-operators
+$ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/master/deploy/cr/minimal/cr_minimal.yaml
 ```
-5. Watch the pods start until the start running
+6. Watch the pods until they are running
 ```bash
 $ kubectl get pods -w
 NAME                   READY   STATUS    RESTARTS   AGE
 example-infinispan-0   1/1     Running   0          8m29s
 example-infinispan-1   1/1     Running   0          5m53s
-example-infinispan-2   1/1     Running   0          5m36s
 ```
 
 #### Next Steps
@@ -171,9 +200,9 @@ Testing submissions is a two-step process:
   * Upstream submissions, see [Testing Upstream Submissions with Minikube](#test_upstream).
   * Community submissions, see [Testing Community Submissions with OpenShift](#test_community).
 
- **Modifying the Namespace:** The test procedures in this `README` assume that the operator is installed in the `local-operators` namespace.
+ **Modifying the Namespace:** The test procedures in this `README` assume that the operator is installed in the `infinispan-operator` namespace.
 
- To use a different namespace, you must modify the YAML descriptor files and `make` calls. For descriptors, replace `local-operators` with your desired namespace. For scripts, add your desired namespace as an environment variable; for example, `make NAMESPACE=my_namespace ${make_target}`.
+ To use a different namespace, you must modify the YAML descriptor files and `make` calls. For descriptors, replace `infinispan-operator` with your desired namespace. For scripts, add your desired namespace as an environment variable; for example, `make NAMESPACE=my_namespace ${make_target}`.
 
 <a name="test_upstream"></a>
 #### Testing Upstream Submissions with Minikube
@@ -213,7 +242,7 @@ See the [Minikube docs](https://github.com/kubernetes/minikube) for information 
   ```bash
   $ kubectl get pods --all-namespaces
   NAMESPACE         NAME                                   READY   STATUS    RESTARTS   AGE
-  local-operators   infinispan-operator-5549f446f-9mqkp    1/1     Running   0          44s
+  infinispan-operator   infinispan-operator-5549f446f-9mqkp    1/1     Running   0          44s
   ```
 * `make clean` removes the example Infinispan custom resource and Infinispan Operator from the Kubernetes cluster.
 * `make delete` destroys the Minikube virtual machine.
@@ -233,7 +262,7 @@ First, you need to identify the `make` target that failed.
 
 * Example where the `make install-operator` target did not complete:
   ```
-  + kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml -n local-operators \
+  + kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml  \
   error: unable to recognize "https://raw.githubusercontent.com/infinispan/infinispan-operator/0.2.1/deploy/cr/cr_minimal.yaml": \
   no matches for kind "Infinispan" in version "infinispan.org/v1"
   ```

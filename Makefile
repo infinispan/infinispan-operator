@@ -16,6 +16,10 @@ dep:
 codegen:
 	./build/codegen.sh
 
+## Combine single operator install bundle from the multiples files
+install-bundle:
+	./build/install-bundle.sh
+
 ## vet         Inspects the source code for suspicious constructs.
 vet:
 	go vet ./...
@@ -96,7 +100,7 @@ lint:
 # Minikube parameters
 PROFILE ?= operator-minikube
 VMDRIVER ?= virtualbox
-NAMESPACE ?= local-operators
+NAMESPACE ?= infinispan-operator
 
 ## minikube-config        Configure Minikube VM with adequate options.
 minikube-config:

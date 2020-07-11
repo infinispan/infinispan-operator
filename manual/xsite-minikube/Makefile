@@ -1,6 +1,6 @@
 .PHONY: config start stop delete delete-namespace image deploy-operator undeploy-operator deploy undeploy create-cache put get
 
-NAMESPACE ?= local-operators
+NAMESPACE ?= infinispan-operator
 SITE_1 ?= SiteA
 SITE_2 ?= SiteB
 

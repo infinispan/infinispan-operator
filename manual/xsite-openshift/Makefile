@@ -1,6 +1,6 @@
 .PHONY: delete-namespace image push deploy-operator undeploy-operator deploy undeploy create-cache put get
 
-NAMESPACE ?= local-operators
+NAMESPACE ?= infinispan-operator
 IMAGE ?= jboss/infinispan-operator
 TAG ?= latest
 
