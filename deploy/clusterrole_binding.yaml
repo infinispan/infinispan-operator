@@ -9,4 +9,5 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: infinispan-operator
-
+# Replace namespace name on the next line if you are deploying to the different project/namespace
+  namespace: infinispan-operator
