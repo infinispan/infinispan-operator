@@ -55,4 +55,6 @@ const (
 	DefaultMinimumAutoscalePollPeriod = 5 * time.Second
 	//DefaultRequeueOnCreateExposeServiceDelay requeue delay before retry exposed service creation
 	DefaultRequeueOnCreateExposeServiceDelay = 5 * time.Second
+	//DefaultRequeueOnWrongSpec requeue delay on wrong values in Spec
+	DefaultRequeueOnWrongSpec = 5 * time.Second
 )
