@@ -157,6 +157,21 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Apply defaults if not already set
 	infinispan.ApplyDefaults()
 
+	// Perform all the possible preliminary checks before go on
+	recResult, err := infinispan.PreliminaryChecks()
+	if err != nil {
+		if infinispan.SetCondition("preliminaryChecksFailed", "true", err.Error()) {
+			err1 := r.client.Status().Update(context.TODO(), infinispan)
+			reqLogger.Error(err1, "Could not update error conditions")
+		}
+		return *recResult, err
+	} else {
+		if infinispan.RemoveCondition("preliminaryChecksFailed") {
+			err1 := r.client.Status().Update(context.TODO(), infinispan)
+			reqLogger.Error(err1, "Could not update error conditions")
+		}
+	}
+
 	// Check x-site configuration first.
 	// Must be done before creating any Infinispan resources,
 	// because remote site host:port combinations need to be injected into Infinispan.
@@ -964,7 +979,7 @@ func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinis
             </memory>
             <partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL" />
         </distributed-cache>
-    </cache-container></infinispan>`, nil
+	</cache-container></infinispan>`, nil
 }
 
 func createCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) error {

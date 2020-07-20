@@ -6,9 +6,11 @@ import (
 	"net/url"
 
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // GetCondition return the Status of the given condition or nil
@@ -44,6 +46,18 @@ func (ispn *Infinispan) SetCondition(condition, status, message string) bool {
 	return true
 }
 
+// RemoveCondition remove condition from Status
+func (ispn *Infinispan) RemoveCondition(condition string) bool {
+	for idx := range ispn.Status.Conditions {
+		c := &ispn.Status.Conditions[idx]
+		if c.Type == condition {
+			ispn.Status.Conditions = append(ispn.Status.Conditions[:idx], ispn.Status.Conditions[idx+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 // SetConditions set provided conditions to status
 func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 	changed := false
@@ -70,6 +84,23 @@ func (ispn *Infinispan) ApplyDefaults() {
 	if ispn.Spec.Container.Memory == "" {
 		ispn.Spec.Container.Memory = constants.DefaultMemorySize.String()
 	}
+}
+
+// PreliminaryChecks performs all the possible initial checks
+func (ispn *Infinispan) PreliminaryChecks() (*reconcile.Result, error) {
+	// If a CacheService is requested, checks that the pods have enough memory
+	if ispn.Spec.Service.Type == ServiceTypeCache {
+		memoryQ := resource.MustParse(ispn.Spec.Container.Memory)
+		memory := memoryQ.Value()
+		nativeMemoryOverhead := (memory * consts.CacheServiceJvmNativePercentageOverhead) / 100
+		occupiedMemory := (consts.CacheServiceJvmNativeMb * 1024 * 1024) +
+			(consts.CacheServiceFixedMemoryXmxMb * 1024 * 1024) +
+			nativeMemoryOverhead
+		if memory < occupiedMemory {
+			return &reconcile.Result{RequeueAfter: consts.DefaultRequeueOnWrongSpec}, fmt.Errorf("Not enough memory. Increase infinispan.spec.container.memory. Now is %s, needed at least %d.", memoryQ.String(), occupiedMemory)
+		}
+	}
+	return nil, nil
 }
 
 func (ispn *Infinispan) IsDataGrid() bool {
