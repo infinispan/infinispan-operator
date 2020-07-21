@@ -13,12 +13,12 @@
 | Protocol
 | Description
 
-| `$ClusterName`
+| `<cluster_name>`
 | `11222`
 | TCP
 | Internal access to {brandname} endpoints
 
-| `$ClusterName-ping`
+| `<cluster_name>-ping`
 | `8888`
 | TCP
 | Cluster discovery
@@ -42,7 +42,7 @@ by default.
 | Protocol
 | Description
 
-| `$ClusterName-external`
+| `<cluster_name>-external`
 | `11222`
 | TCP
 | External access to {brandname} endpoints.
@@ -60,7 +60,7 @@ Allows {brandname} to back up data between clusters in different locations.
 | Protocol
 | Description
 
-| `$NAME-sites`
+| `<cluster_name>-site`
 | `7900`
 | TCP
 | JGroups RELAY2 channel for cross-site communication.

@@ -1,0 +1,36 @@
+[id='encryption_with_service_ca-{context}']
+= Encryption with {openshift} Service Certificates
+{ispn_operator} automatically generates TLS certificates that are signed by the
+{openshift} service CA. {ispn_operator} then stores the certificates and keys
+in a secret so you can retrieve them and use with remote clients.
+
+If the {openshift} service CA is available, {ispn_operator} adds the following
+`spec.security.endpointEncryption` configuration to the **Infinispan** CR:
+
+[source,options="nowrap",subs=attributes+]
+----
+spec:
+  ...
+  security:
+    endpointEncryption:
+      type: Service
+      certServiceName: service.beta.openshift.io <1>
+      certSecretName: {example_crd_name}-cert-secret <2>
+----
+
+<1> Specifies the {openshift} Service.
+<2> Names the secret that contains a service certificate, `tls.crt`, and key, `tls.key`, in PEM format. If you do not specify a name, {ispn_operator} uses `<cluster_name>-cert-secret`.
+
+[NOTE]
+====
+Service certificates use the internal DNS name of the {brandname} cluster as the common name (CN), for example:
+
+`Subject: CN = example-infinispan.mynamespace.svc`
+
+For this reason, service certificates can be fully trusted only inside
+{openshiftshort}. If you want to encrypt connections with clients running
+outside {openshiftshort}, you should use custom TLS certificates.
+
+Service certificates are valid for one year and are automatically replaced
+before they expire.
+====

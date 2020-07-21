@@ -6,6 +6,6 @@ spec:
   replicas: 2
   security:
     endpointEncryption:
-            type: service
+            type: Service
             certServiceName: service.beta.openshift.io
             certSecretName: tls-secret

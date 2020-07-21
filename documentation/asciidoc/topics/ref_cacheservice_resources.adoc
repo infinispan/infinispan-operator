@@ -20,7 +20,7 @@ spec:
   security:
     endpointSecretName: endpoint-identities <6>
     endpointEncryption: <7>
-        type: secret
+        type: Secret
         certSecretName: tls-secret
   container: <8>
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
