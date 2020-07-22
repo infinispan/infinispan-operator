@@ -469,39 +469,10 @@ func (k TestKubernetes) DeleteSecret(secret *v1.Secret) {
 
 // RunOperator runs an operator on a Kubernetes cluster
 func (k TestKubernetes) RunOperator(namespace string) chan struct{} {
-	k.installRBAC(namespace)
 	k.installCRD(namespace)
 	stopCh := make(chan struct{})
 	go runOperatorLocally(stopCh, namespace)
 	return stopCh
-}
-
-// Install resources from rbac.yaml required by the Infinispan operator
-func (k TestKubernetes) installRBAC(namespace string) {
-
-	yamlReader, err := getYamlReaderFromFile("../../deploy/role.yaml")
-	ExpectNoError(err)
-	read, _ := yamlReader.Read()
-	role := rbacv1.Role{}
-	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&role)
-	ExpectNoError(err)
-	k.CreateOrUpdateRole(&role, namespace)
-
-	yamlReader, err = getYamlReaderFromFile("../../deploy/service_account.yaml")
-	ExpectNoError(err)
-	read2, _ := yamlReader.Read()
-	sa := v1.ServiceAccount{}
-	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read2))).Decode(&sa)
-	ExpectNoError(err)
-	k.CreateOrUpdateSa(&sa, namespace)
-
-	yamlReader, err = getYamlReaderFromFile("../../deploy/role_binding.yaml")
-	ExpectNoError(err)
-	read3, _ := yamlReader.Read()
-	binding := rbacv1.RoleBinding{}
-	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read3))).Decode(&binding)
-	ExpectNoError(err)
-	k.CreateOrUpdateRoleBinding(&binding, namespace)
 }
 
 func getYamlReaderFromFile(filename string) (*yaml.YAMLReader, error) {
