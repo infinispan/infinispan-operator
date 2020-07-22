@@ -191,7 +191,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		if getServingCertsMode(kubernetes) == "openshift.io" && (ee.Type == "" || ee.CertSecretName == "") {
 			reqLogger.Info("Serving certificate service present. Configuring into CRD")
 			if ee.Type == "" {
-				ee.Type = "service"
+				ee.Type = "Service"
 				ee.CertServiceName = "service.beta.openshift.io"
 			}
 			if ee.CertSecretName == "" {
@@ -1258,7 +1258,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 
 func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) {
 	ee := m.Spec.Security.EndpointEncryption
-	if ee.Type == "service" {
+	if strings.EqualFold(ee.Type, "Service") {
 		if strings.Contains(ee.CertServiceName, "openshift.io") {
 			// Using platform service. Only OpenShift is integrated atm
 			secretName := m.GetEncryptionSecretName()
@@ -1286,7 +1286,7 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulS
 
 func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
 	ee := m.Spec.Security.EndpointEncryption
-	if ee.Type == "service" {
+	if strings.EqualFold(ee.Type, "Service") {
 		if strings.Contains(ee.CertServiceName, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"
 			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
