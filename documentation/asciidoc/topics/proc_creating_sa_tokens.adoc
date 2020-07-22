@@ -1,16 +1,12 @@
 [id='creating_sa_tokens-{context}']
 = Creating Service Account Tokens
-Traffic between independent {openshiftshort} installations occurs through a
-Kubernetes API. {ocp} clusters use tokens to authenticate with and access the
-API.
-
-To enable cross-site replication between {brandname} clusters you must add
-tokens to the namespace on each site. For example, **LON** needs a secret with
-the token for **NYC**. **NYC** also needs a secret with the token for **LON**.
+To establish secure connections between backup locations, you must generate and
+exchange service account tokens. These tokens allow {ocp} clusters to
+authenticate so {ispn_operator} can create a cross-site replication service.
 
 .Procedure
 
-. Create service accounts on each {openshiftshort} instance.
+. Create service accounts on each {openshiftshort} cluster.
 +
 For example, create a service account on **LON** as follows:
 +
@@ -52,8 +48,7 @@ oc create secret generic lon-token --from-literal=token=eyJhbGciOiJSUzI1NiIsImtp
 +
 .. Repeat the preceding steps to create a `nyc-token` secret on **LON**.
 
-After you add service account tokens to each backup location, the
-{openshiftshort} instances can authenticate with each other so that {brandname}
+After you add service account tokens to each backup location, {brandname}
 clusters can form cross-site views.
 
 .Reference
