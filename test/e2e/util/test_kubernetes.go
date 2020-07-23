@@ -205,60 +205,6 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 	ExpectNoError(err)
 }
 
-// CreateOrUpdateRole creates or updates a Role in the given namespace
-func (k TestKubernetes) CreateOrUpdateRole(role *rbacv1.Role, namespace string) {
-	ns := types.NamespacedName{Name: role.ObjectMeta.Name, Namespace: namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, role)
-	if err != nil && errors.IsNotFound(err) {
-		role.Namespace = namespace
-		err = k.Kubernetes.Client.Create(context.TODO(), role)
-		ExpectNoError(err)
-		return
-	} else if err == nil {
-		err = k.Kubernetes.Client.Update(context.TODO(), role)
-		ExpectNoError(err)
-		return
-	}
-
-	ExpectNoError(err)
-}
-
-// CreateOrUpdateSa creates or updates a ServiceAccount in the given namespace
-func (k TestKubernetes) CreateOrUpdateSa(sa *v1.ServiceAccount, namespace string) {
-	ns := types.NamespacedName{Name: sa.ObjectMeta.Name, Namespace: namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, sa)
-	if err != nil && errors.IsNotFound(err) {
-		sa.Namespace = namespace
-		err = k.Kubernetes.Client.Create(context.TODO(), sa)
-		ExpectNoError(err)
-		return
-	} else if err == nil {
-		err = k.Kubernetes.Client.Update(context.TODO(), sa)
-		ExpectNoError(err)
-		return
-	}
-
-	ExpectNoError(err)
-}
-
-// CreateOrUpdateRoleBinding creates or updates a RoleBinding in the given namespace
-func (k TestKubernetes) CreateOrUpdateRoleBinding(binding *rbacv1.RoleBinding, namespace string) {
-	ns := types.NamespacedName{Name: binding.ObjectMeta.Name, Namespace: namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, binding)
-	if err != nil && errors.IsNotFound(err) {
-		binding.Namespace = namespace
-		err = k.Kubernetes.Client.Create(context.TODO(), binding)
-		ExpectNoError(err)
-		return
-	} else if err == nil {
-		err = k.Kubernetes.Client.Update(context.TODO(), binding)
-		ExpectNoError(err)
-		return
-	}
-
-	ExpectNoError(err)
-}
-
 // CreateAndWaitForCRD creates a Custom Resource Definition, waiting it to become ready.
 func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition, namespace string) {
 	fmt.Printf("Create CRD %s\n", crd.ObjectMeta.Name)
