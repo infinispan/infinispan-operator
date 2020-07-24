@@ -1,6 +1,6 @@
 ## Infinispan Operator
 
-[![Build Status](https://travis-ci.org/infinispan/infinispan-operator.svg?branch=master)](https://travis-ci.org/infinispan/infinispan-operator)
+[![Build Status](https://travis-ci.org/infinispan/infinispan-operator.svg?branch=2.0.x)](https://travis-ci.org/infinispan/infinispan-operator)
 
 This is an OpenShift operator to run and rule Infinispan.
 
@@ -82,11 +82,11 @@ $ export KUBECONFIG=/path/to/admin.kubeconfig
   ```
   * If your project name is `infinispan-operator`, run this command to install the operator:
   ```
-  $ oc apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/master/deploy/operator-install.yaml
+  $ oc apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/2.0.x/deploy/operator-install.yaml
   ```
 5. Open a new terminal window and create an Infinispan cluster with two nodes:
 ```
-$ oc apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/master/deploy/cr/minimal/cr_minimal.yaml
+$ oc apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/2.0.x/deploy/cr/minimal/cr_minimal.yaml
 infinispan.infinispan.org/example-infinispan configured
 ```
 6. Watch the pods until they are running.
@@ -128,11 +128,11 @@ $ make minikube-run-local
   ```
   * If your namespace name is `infinispan-operator`, run this command to install the operator:
   ```
-  $ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/master/deploy/operator-install.yaml
+  $ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/2.0.x/deploy/operator-install.yaml
   ```
 5. Open a new terminal window and create an Infinispan cluster with two nodes:
 ```bash
-$ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/master/deploy/cr/minimal/cr_minimal.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/infinispan/infinispan-operator/2.0.x/deploy/cr/minimal/cr_minimal.yaml
 ```
 6. Watch the pods until they are running
 ```bash
@@ -151,7 +151,7 @@ Change the cluster size in `deploy/cr/minimal/cr_minimal.yaml` and then apply it
 ### Custom Resource Definitions
 The Infinispan Operator creates clusters based on custom resource definitions that specify the number of nodes and configuration to use.
 
-Infinispan resources are defined in [infinispan-types.go](https://github.com/infinispan/infinispan-operator/blob/master/pkg/apis/infinispan/v1/infinispan_types.go).
+Infinispan resources are defined in [infinispan-types.go](https://github.com/infinispan/infinispan-operator/blob/2.0.x/pkg/apis/infinispan/v1/infinispan_types.go).
 
 #### Minimal Configuration
 Creates Infinispan clusters:
@@ -171,7 +171,7 @@ spec:
 
 Infinispan operator has other capabilities.
 Check the
-[official operator documentation](https://infinispan.org/infinispan-operator/master/documentation/asciidoc/titles/operator.html)
+[official operator documentation](https://infinispan.org/infinispan-operator/2.0.x/documentation/asciidoc/titles/operator.html)
 for more details.
 
 ### Testing the Infinispan Operator
