@@ -71,8 +71,7 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 		},
 	}
 
-	ns := types.NamespacedName{Name: namespace, Namespace: namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, obj)
+	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: namespace}, obj)
 	if err != nil && errors.IsNotFound(err) {
 		err = k.Kubernetes.Client.Create(context.TODO(), obj)
 		utils.ExpectNoError(err)
@@ -95,9 +94,8 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 	utils.ExpectMaybeNotFound(err)
 
 	fmt.Println("Waiting for the namespace to be removed")
-	ns := types.NamespacedName{Name: namespace, Namespace: namespace}
 	err = wait.Poll(tconst.DefaultPollPeriod, tconst.MaxWaitTimeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.Get(context.TODO(), ns, obj)
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: namespace}, obj)
 		if err != nil && errors.IsNotFound(err) {
 			return true, nil
 		}
@@ -149,7 +147,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 // GracefulShutdownInfinispan deletes the infinispan resource
 // and waits that all the pods are gone
 func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
-	ns := types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}
+	ns := types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 	utils.ExpectNoError(err)
 	infinispan.Spec.Replicas = 0
@@ -174,7 +172,7 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 // GracefulRestartInfinispan restarts the infinispan resource
 // and waits that cluster is wellformed
 func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan, replicas int32, timeout time.Duration) {
-	ns := types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}
+	ns := types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 	utils.ExpectNoError(err)
 	infinispan.Spec.Replicas = replicas
@@ -248,8 +246,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 	var hostAndPort string
 	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		route := &v1.Service{}
-		ns := types.NamespacedName{Name: routeName, Namespace: namespace}
-		err = k.Kubernetes.Client.Get(context.TODO(), ns, route)
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: routeName}, route)
 		utils.ExpectNoError(err)
 
 		// depending on the k8s cluster setting, service is sometime available

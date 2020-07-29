@@ -233,3 +233,19 @@ func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
 
 	return false
 }
+
+// computeEndpointEncryption compute the ee object
+func (ispn *Infinispan) ApplyEndpointEncryptionSettings(servingCertsMode string, reqLogger logr.Logger) {
+	// Populate EndpointEncryption if serving cert service is available
+	ee := &ispn.Spec.Security.EndpointEncryption
+	if servingCertsMode == "openshift.io" && (ee.Type == "" || ee.CertSecretName == "") {
+		reqLogger.Info("Serving certificate service present. Configuring into CRD")
+		if ee.Type == "" {
+			ee.Type = "Service"
+			ee.CertServiceName = "service.beta.openshift.io"
+		}
+		if ee.CertSecretName == "" {
+			ee.CertSecretName = ispn.Name + "-cert-secret"
+		}
+	}
+}

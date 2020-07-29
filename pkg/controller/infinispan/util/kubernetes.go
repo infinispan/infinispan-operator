@@ -97,8 +97,7 @@ func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
 // GetSecret returns secret associated with given secret name
 func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) {
 	secret := &v1.Secret{}
-	ns := types.NamespacedName{Name: secretName, Namespace: namespace}
-	err := k.Client.Get(context.TODO(), ns, secret)
+	err := k.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +123,7 @@ func (k Kubernetes) GetPassword(user, secretName, namespace string) (string, err
 // GetPodIP returns a pod's IP address
 func (k Kubernetes) GetPodIP(podName, namespace string) (string, error) {
 	pod := &v1.Pod{}
-	ns := types.NamespacedName{Name: podName, Namespace: namespace}
-	err := k.Client.Get(context.TODO(), ns, pod)
+	err := k.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: podName}, pod)
 	if err != nil {
 		return "", err
 	}

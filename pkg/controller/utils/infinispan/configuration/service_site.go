@@ -68,11 +68,7 @@ func SiteService(siteServiceName string, infinispan *ispnv1.Infinispan, scheme *
 
 func GetOrCreateSiteService(siteServiceName string, infinispan *ispnv1.Infinispan, client client.Client, scheme *runtime.Scheme, logger logr.Logger) (*corev1.Service, error) {
 	siteService := &corev1.Service{}
-	ns := types.NamespacedName{
-		Name:      siteServiceName,
-		Namespace: infinispan.Namespace,
-	}
-	err := client.Get(context.TODO(), ns, siteService)
+	err := client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: siteServiceName}, siteService)
 
 	if errors.IsNotFound(err) {
 		siteService, err := SiteService(siteServiceName, infinispan, scheme)
