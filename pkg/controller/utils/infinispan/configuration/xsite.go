@@ -12,22 +12,16 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	restclient "k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (xsite XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util.Kubernetes, scheme *runtime.Scheme, logger logr.Logger) error {
+// ComputeXSite compute the xsite struct for cross site function
+func (xsite XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util.Kubernetes, service *corev1.Service, logger logr.Logger) error {
 	if infinispan.HasSites() {
 		siteServiceName := infinispan.GetSiteServiceName()
-		siteService, err := GetOrCreateSiteService(siteServiceName, infinispan, kubernetes.Client, scheme, logger)
-		if err != nil {
-			logger.Error(err, "could not get or create site service")
-			return err
-		}
-
-		localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(siteService, kubernetes, logger)
+		localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger)
 		if err != nil {
 			logger.Error(err, "error retrieving local x-site service information")
 			return err

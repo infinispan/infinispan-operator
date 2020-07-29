@@ -3,9 +3,10 @@ package cache
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
@@ -112,7 +113,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	reqLogger.Info("Identify the target cluster")
 	// Fetch the Infinispan cluster info
 	ispnInstance := &infinispanv1.Infinispan{}
-	nsName := types.NamespacedName{Name: instance.Spec.ClusterName, Namespace: instance.Namespace}
+	nsName := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}
 	err = r.client.Get(context.TODO(), nsName, ispnInstance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -235,8 +236,7 @@ func getCredentials(r *ReconcileCache, reqLogger logr.Logger, instance *infinisp
 
 func getSecret(r *ReconcileCache, reqLogger logr.Logger, name, ns string) (*corev1.Secret, reconcile.Result, error) {
 	userSecret := &corev1.Secret{}
-	userNsName := types.NamespacedName{Name: name, Namespace: ns}
-	err := r.client.Get(context.TODO(), userNsName, userSecret)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, userSecret)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Error(err, "Secret "+name+" not found")
