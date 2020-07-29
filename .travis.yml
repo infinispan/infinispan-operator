@@ -14,7 +14,8 @@ cache:
 
 before_install:
   - |
-    git diff --name-only $TRAVIS_BRANCH | grep -qvE '(\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/' || {
+    git fetch origin $TRAVIS_BRANCH
+    git diff --name-only FETCH_HEAD | grep -qvE '(\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr/|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/' || {
       echo "Only docs, manual steps, test-integration,CI and OLM files were updated, stopping build process."
       exit
     }
