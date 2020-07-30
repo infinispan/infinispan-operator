@@ -2,8 +2,6 @@ package v1
 
 import (
 	"fmt"
-	"net"
-	"net/url"
 
 	"github.com/go-logr/logr"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
@@ -133,7 +131,7 @@ func (ispn *Infinispan) IsCache() bool {
 }
 
 func (ispn *Infinispan) HasSites() bool {
-	return ispn.IsDataGrid() && len(ispn.Spec.Service.Sites.Locations) > 0
+	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil && len(ispn.Spec.Service.Sites.Locations) > 0
 }
 
 // IsExposed ...
@@ -188,36 +186,6 @@ func (ispn *Infinispan) GetJavaOptions() (string, error) {
 	default:
 		return "", fmt.Errorf("unknown service type '%s'", ispn.Spec.Service.Type)
 	}
-}
-
-func (ispn *Infinispan) FindNodePortExternalIP() (string, error) {
-	localSiteName := ispn.Spec.Service.Sites.Local.Name
-	locations := ispn.Spec.Service.Sites.Locations
-	for _, location := range locations {
-		if location.Name == localSiteName {
-			masterURL, err := url.Parse(location.URL)
-			if err != nil {
-				return "", nil
-			}
-			host, _, err := net.SplitHostPort(masterURL.Host)
-			if err != nil {
-				return "", nil
-			}
-			return host, nil
-		}
-	}
-	return "", fmt.Errorf("could not find node port external IP, check local site name matches one of the members")
-}
-
-func (ispn *Infinispan) FindRemoteLocations(localSiteName string) (remoteLocations []InfinispanSiteLocationSpec) {
-	locations := ispn.Spec.Service.Sites.Locations
-	for _, location := range locations {
-		if localSiteName != location.Name {
-			remoteLocations = append(remoteLocations, location)
-		}
-	}
-
-	return
 }
 
 func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
