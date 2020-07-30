@@ -48,7 +48,7 @@ const (
 type InfinispanServiceSpec struct {
 	Type              ServiceType                    `json:"type"`
 	Container         InfinispanServiceContainerSpec `json:"container,optional,omitempty"`
-	Sites             InfinispanSitesSpec            `json:"sites,optional,omitempty"`
+	Sites             *InfinispanSitesSpec           `json:"sites,optional,omitempty"`
 	ReplicationFactor int32                          `json:"replicationFactor,optional,omitempty"`
 }
 
