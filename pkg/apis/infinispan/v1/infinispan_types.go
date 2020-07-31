@@ -100,7 +100,7 @@ const (
 
 // ExposeSpec describe how Infinispan will be exposed externally
 type ExposeSpec struct {
-	// Type specifies different exposition methods for datagrid
+	// Type specifies different exposition methods for data grid
 	Type     ExposeType `json:"type"`
 	NodePort int32      `json:"nodePort,optional,omitempty"`
 	Host     string     `json:"host,optional,omitempty"`
