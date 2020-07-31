@@ -70,7 +70,8 @@ spec:
                   format: int32
                   type: integer
                 type:
-                  description: Type specifies different exposition methods for datagrid
+                  description: Type specifies different exposition methods for data
+                    grid
                   enum:
                   - NodePort
                   - LoadBalancer
@@ -140,7 +141,7 @@ spec:
                               type: integer
                             type:
                               description: Type specifies different exposition methods
-                                for datagrid
+                                for data grid
                               enum:
                               - NodePort
                               - LoadBalancer
