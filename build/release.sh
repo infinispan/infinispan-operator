@@ -65,8 +65,8 @@ commit() {
 
 
 tag() {
-  git tag -d "${RELEASE_NAME}" || echo "Tag does not exist"
-  git tag "${RELEASE_NAME}"
+  git tag -d "${IMAGE_TAG}" || echo "Tag does not exist"
+  git tag "${IMAGE_TAG}"
 }
 
 

@@ -34,7 +34,7 @@ pipeline {
         stage('Build') {
             steps {
                 withCredentials([string(credentialsId: '4ef0b67a-e2b8-43eb-a8a4-15ed7b14588b', variable: 'GITHUB_TOKEN'), sshUserPrivateKey(credentialsId: "8b2b2c8b-d04f-4df1-b0ec-d9b7e5d4e758", keyFileVariable: 'keyfile')]) {
-                    sh "DRY_RUN=${params.dryRun} NO_PR=${params.noPr} RELEASE_NAME=${params.releaseName} REPLACES_RELEASE_NAME=${params.replacesReleaseName}  SERVER_VERSION=${params.serverVersion} GITHUB_USERNAME=${params.githubUser} build/jenkins/release-from-docker.sh"
+                    sh "IMAGE_TAG=${params.imageTag} DRY_RUN=${params.dryRun} NO_PR=${params.noPr} RELEASE_NAME=${params.releaseName} REPLACES_RELEASE_NAME=${params.replacesReleaseName}  SERVER_VERSION=${params.serverVersion} GITHUB_USERNAME=${params.githubUser} build/jenkins/release-from-docker.sh"
                 }
             }
         }
