@@ -33,3 +33,5 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "infinispan-operator"
+            - name: DEFAULT_IMAGE
+              value: "infinispan/server:latest"

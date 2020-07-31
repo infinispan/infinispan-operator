@@ -3,7 +3,7 @@
 set -e -x
 
 DRY_RUN=${DRY_RUN:-true}
-CURRENT_BRANCH=$(git branch | grep \* | cut -d ' ' -f2)
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 BUILD_MANIFESTS_DIR=build/_output/olm-catalog
 CSV_FILE="infinispan-operator.clusterserviceversion.yaml"
 CRD_FILES="infinispan.org_infinispans_crd.yaml infinispan.org_caches_crd.yaml"
@@ -29,9 +29,11 @@ validate() {
      exit 1
   fi
 
-  if ! [ -x "$(command -v hub)" ]; then
-    echo 'Command line tool hub is not installed. Required to send PRs for OperatorHub manifest changes.'
-    exit 1
+  if [ "${DRY_RUN}" != true ] || [ "${NO_PR}" = true ]; then
+    if  ! [ -x "$(command -v hub)" ]; then
+      echo 'Command line tool hub is not installed. Required to send PRs for OperatorHub manifest changes.'
+      exit 1
+    fi
   fi
 }
 

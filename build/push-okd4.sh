@@ -19,8 +19,7 @@ VERSION=${RELEASE_NAME-$(git describe --tags --always --dirty)}
 validateROOT() {
   if ! [ $(id -u) = 0 ]; then
     echo "It's necessary to run next command with sudo!"
-    sudo ls >/dev/null
-    if [ ! $? -eq 0 ]; then
+    if ! sudo ls > /dev/null; then
       echo "Invalid sudo credentials"
       exit 1
     fi
@@ -54,4 +53,4 @@ oc apply -f deploy/service_account.yaml
 oc apply -f deploy/role_binding.yaml
 oc apply -f deploy/crds/infinispan.org_infinispans_crd.yaml
 oc apply -f deploy/crds/infinispan.org_caches_crd.yaml
-sed -e "s|jboss/infinispan-operator:latest|image-registry.openshift-image-registry.svc:5000/${PROJECT_NAME}/infinispan-operator:${VERSION}|" deploy/operator.yaml | oc apply -f -
+sed -e "s|image:.*|image: image-registry.openshift-image-registry.svc:5000/${PROJECT_NAME}/infinispan-operator:${VERSION}|" deploy/operator.yaml | oc apply -f -
