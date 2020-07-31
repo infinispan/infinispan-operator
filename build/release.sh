@@ -9,6 +9,11 @@ CSV_FILE="infinispan-operator.clusterserviceversion.yaml"
 CRD_FILES="infinispan.org_infinispans_crd.yaml infinispan.org_caches_crd.yaml"
 
 validate() {
+  if [ -z "${IMAGE_TAG}" ]; then
+     echo "Env variable IMAGE_TAG, which sets version of the image to be used is unset or set to the empty string"
+     exit 1
+  fi
+
   if [ -z "${RELEASE_NAME}" ]; then
      echo "Env variable RELEASE_NAME, which sets version to be released is unset or set to the empty string"
      exit 1
@@ -47,7 +52,7 @@ branch() {
 
 replace() {
   sed -i'.backup' "s/infinispan\/server:latest/infinispan\/server:${SERVER_VERSION}/g" deploy/operator.yaml
-  sed -i'.backup' "s/infinispan-operator:latest/infinispan-operator:${RELEASE_NAME}/g" deploy/operator.yaml
+  sed -i'.backup' "s/infinispan-operator:latest/infinispan-operator:${IMAGE_TAG}/g" deploy/operator.yaml
 
   updateCsvFile deploy/olm-catalog
   updatePackageFile deploy/olm-catalog/infinispan.package.yaml
@@ -161,7 +166,7 @@ updateCsvFile() {
   sed -i'.backup' "s/9.9.9/${RELEASE_NAME}/g" ${path}
   sed -i'.backup' "s/9.9.8/${REPLACES_RELEASE_NAME}/g" ${path}
   sed -i'.backup' "s/infinispan\/server:latest/infinispan\/server:${SERVER_VERSION}/g" ${path}
-  sed -i'.backup' "s/infinispan-operator:latest/infinispan-operator:${RELEASE_NAME}/g" ${path}
+  sed -i'.backup' "s/infinispan-operator:latest/infinispan-operator:${IMAGE_TAG}/g" ${path}
 
   local now="$(date +"%Y-%m-%dT%H:%M:%SZ")"
   sed -i'.backup' "s/2000-01-01T12:00:00Z/${now}/g" ${path}

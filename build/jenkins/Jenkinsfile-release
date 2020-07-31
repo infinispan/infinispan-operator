@@ -8,7 +8,8 @@ pipeline {
     parameters {
         string(name: 'releaseName', defaultValue: '', description: 'Image Artifacts Release version (blank to use existing release')
         string(name: 'replacesReleaseName', defaultValue: '', description: 'Release of the operator to be replaced')
-        string(name: 'serverVersion', description: 'Version of Infinispan artifact to be used')
+        string(name: 'imageTag', defaultValue: '', description: 'Default operator image for this release')
+        string(name: 'serverVersion', description: 'Default Infinispan image for this release')
         string(name: 'githubUser', description: 'Github username with the community-operators fork')
         booleanParam(name: 'dryRun', defaultValue: true, description: 'If true, we don\'t push things around')
         booleanParam(name: 'noPr', defaultValue: false, description: 'If true, we don\'t create PRs')
