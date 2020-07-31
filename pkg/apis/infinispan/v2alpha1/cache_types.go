@@ -1,11 +1,12 @@
 package v2alpha1
 
+// IMPORTANT: run "make codegen" or "operator-sdk generate k8s" to regenerate code after modifying this file
+// NOTE: json tags are required. Any new fields you add must have json tags for the fields to be serialized.
+
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // AdminAuth description of the auth info
 type AdminAuth struct {

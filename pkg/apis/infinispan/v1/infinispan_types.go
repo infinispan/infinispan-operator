@@ -1,5 +1,8 @@
 package v1
 
+// IMPORTANT: run "make codegen" or "operator-sdk generate k8s" to regenerate code after modifying this file
+// NOTE: json tags are required. Any new fields you add must have json tags for the fields to be serialized.
+
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -138,7 +141,6 @@ type InfinispanCondition struct {
 
 // InfinispanStatus defines the observed state of Infinispan
 type InfinispanStatus struct {
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// +optional
 	Conditions              []InfinispanCondition `json:"conditions,omitempty"`
 	StatefulSetName         string                `json:"statefulSetName"`

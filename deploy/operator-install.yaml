@@ -326,8 +326,6 @@ spec:
           description: InfinispanStatus defines the observed state of Infinispan
           properties:
             conditions:
-              description: 'Important: Run "operator-sdk generate k8s" to regenerate
-                code after modifying this file'
               items:
                 description: InfinispanCondition define a condition of the cluster
                 properties:
@@ -543,3 +541,5 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "infinispan-operator"
+            - name: DEFAULT_IMAGE
+              value: "infinispan/server:latest"
