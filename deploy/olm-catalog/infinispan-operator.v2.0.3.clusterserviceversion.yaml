@@ -1,7 +1,7 @@
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: infinispan-operator.v9.9.9
+  name: infinispan-operator.v2.0.3
   namespace: placeholder
   annotations:
     tectonic-visibility: ocs
@@ -36,8 +36,8 @@ metadata:
         }
       ]
     description: Create and manage Infinispan clusters.
-    containerImage: docker.io/jboss/infinispan-operator:latest
-    createdAt: 2000-01-01T12:00:00Z
+    containerImage: docker.io/jboss/infinispan-operator:2.0.1.Final
+    createdAt: 2020-08-03T09:29:41Z
     support: Infinispan
     certified: "false"
 spec:
@@ -60,7 +60,7 @@ spec:
     * Default application user: `developer`. Infinispan Operator generates credentials in an authentication secret at startup.
     * Infinispan pods request `0.25` (limit `0.50`) CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent storage. Infinispan Operator lets you adjust resource allocation to suit your requirements.
   keywords: ['infinispan', 'key value', 'database', 'datagrid', 'open source']
-  version: 9.9.9
+  version: 2.0.3
   minKubeVersion: 1.11.0
   maturity: alpha
   maintainers:
@@ -68,10 +68,10 @@ spec:
       email: infinispan-dev@lists.jboss.org
   provider:
     name: Infinispan
-  replaces: infinispan-operator.v9.9.8
+  replaces: infinispan-operator.v2.0.2
   relatedImages:
     - name: infinispan-server
-      image: infinispan/server:latest
+      image: infinispan/server:11.0.1.Final
   labels:
     operated-by: infinispan-operator
   selector:
@@ -207,7 +207,7 @@ spec:
                   - name: infinispan-operator
                     command:
                       - infinispan-operator
-                    image: jboss/infinispan-operator:latest
+                    image: jboss/infinispan-operator:2.0.1.Final
                     ports:
                       - containerPort: 60000
                         name: metrics
@@ -223,7 +223,7 @@ spec:
                       - name: OPERATOR_NAME
                         value: "infinispan-operator"
                       - name: DEFAULT_IMAGE
-                        value: "infinispan/server:latest"
+                        value: "infinispan/server:11.0.1.Final"
   customresourcedefinitions:
     owned:
       - description: Cache is the Schema for the caches API
