@@ -3,24 +3,24 @@ package cache
 import (
 	"context"
 	"fmt"
-	"time"
-
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
-	"github.com/infinispan/infinispan-operator/version"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	infinispanv2alpha1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+	"github.com/infinispan/infinispan-operator/version"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -95,6 +95,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
+			reqLogger.Info("Cache resource not found. Ignoring it since cache deletion is not supported")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -110,7 +111,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", ispnInstance.Name))
-			return reconcile.Result{RequeueAfter: time.Second * 10}, err
+			return reconcile.Result{RequeueAfter: constants.DefaultWaitOnClusterForCache}, err
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
@@ -118,8 +119,8 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Cluster must be well formed
 	if !ispnInstance.IsWellFormed() {
-		reqLogger.Info("Infinispan cluster %s not well formed", ispnInstance.Name)
-		return reconcile.Result{RequeueAfter: time.Second * 10}, err
+		reqLogger.Info(fmt.Sprintf("Infinispan cluster %s not well formed", ispnInstance.Name))
+		return reconcile.Result{RequeueAfter: constants.DefaultWaitOnClusterForCache}, err
 	}
 	// Authentication is required to go on from here
 	user, pass, result, err := getCredentials(r, reqLogger, instance.CopyWithDefaultsForEmptyVals())
@@ -134,18 +135,18 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err != nil || (len(podList.Items) == 0) {
 		reqLogger.Error(err, "failed to list pods")
 		return reconcile.Result{}, err
+	} else if len(podList.Items) == 0 {
+		reqLogger.Error(err, "No Infinispan pods found")
+		return reconcile.Result{}, nil
 	}
-	cacheName := instance.Name
-	if instance.Spec.Name != "" {
-		cacheName = instance.Spec.Name
-	}
-	existsCache, err := cluster.ExistsCache(user, pass, cacheName, podList.Items[0].Name, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+
+	existsCache, err := cluster.ExistsCache(user, pass, instance.GetCacheName(), podList.Items[0].Name, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
 	if err == nil {
 		if existsCache {
-			reqLogger.Info("Cache already exists")
+			reqLogger.Info(fmt.Sprintf("Cache %s already exists", instance.GetCacheName()))
 			// Check if template matches?
 		} else {
-			reqLogger.Info("Cache doesn't exist, create it")
+			reqLogger.Info(fmt.Sprintf("Cache %s doesn't exist, create it", instance.GetCacheName()))
 			podName := podList.Items[0].Name
 			templateName := instance.Spec.TemplateName
 			if ispnInstance.Spec.Service.Type == infinispanv1.ServiceTypeCache && (templateName != "" || instance.Spec.Template != "") {
@@ -176,12 +177,20 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 				}
 			}
 		}
+
+		if !metav1.IsControlledBy(instance, ispnInstance) {
+			reqLogger.Info("Update CR with owner reference info")
+			controllerutil.SetControllerReference(ispnInstance, instance, r.scheme)
+			err = r.client.Update(context.TODO(), instance)
+			if err != nil {
+				reqLogger.Error(err, fmt.Sprintf("Unable to update Cache: %s", instance.Name))
+				return reconcile.Result{}, err
+			}
+		}
 	} else {
 		reqLogger.Error(err, "Error validating cache exist")
 		return reconcile.Result{}, err
 	}
-
-	reqLogger.Info("Update CR status with connection info")
 
 	// Search the service associated to the cluster
 	serviceList := &corev1.ServiceList{}
@@ -200,6 +209,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 	statusUpdate = instance.SetCondition("Ready", metav1.ConditionTrue, "") || statusUpdate
 	if statusUpdate {
+		reqLogger.Info("Update CR status with connection info")
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			reqLogger.Error(err, fmt.Sprintf("Unable to update Cache %s status", instance.Name))
@@ -231,10 +241,10 @@ func getSecret(r *ReconcileCache, reqLogger logr.Logger, name, ns string) (*core
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, userSecret)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Error(err, "Secret %s not found", name)
-			return nil, reconcile.Result{RequeueAfter: time.Second * 2}, err
+			reqLogger.Error(err, fmt.Sprintf("Secret %s not found", name))
+			return nil, reconcile.Result{RequeueAfter: constants.DefaultWaitOnCreateSecret}, err
 		}
-		// Error reading the object - requeue the request.
 	}
+	// Error reading the object - requeue the request.
 	return userSecret, reconcile.Result{}, err
 }
