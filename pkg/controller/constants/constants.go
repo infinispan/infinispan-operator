@@ -71,10 +71,14 @@ const (
 )
 
 const (
-	// DefaultMinimumAutoscalePollPeriod minimun period for autocaler polling loop
+	// DefaultMinimumAutoscalePollPeriod minimum period for autocaler polling loop
 	DefaultMinimumAutoscalePollPeriod = 5 * time.Second
 	//DefaultRequeueOnCreateExposeServiceDelay requeue delay before retry exposed service creation
 	DefaultRequeueOnCreateExposeServiceDelay = 5 * time.Second
 	//DefaultRequeueOnWrongSpec requeue delay on wrong values in Spec
 	DefaultRequeueOnWrongSpec = 5 * time.Second
+	//DefaultWaitOnClusterForCache delay for the Infinispan cluster wait if it not created while Cache creation
+	DefaultWaitOnClusterForCache = 10 * time.Second
+	//DefaultWaitOnClusterForCache delay for wait until secret is created
+	DefaultWaitOnCreateSecret = 2 * time.Second
 )

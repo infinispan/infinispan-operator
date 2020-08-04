@@ -63,26 +63,7 @@ type Cache struct {
 	Status CacheStatus `json:"status,omitempty"`
 }
 
-// CopyWithDefaultsForEmptyVals return a copy of with defaults in place of empty fields
-func (c *Cache) CopyWithDefaultsForEmptyVals() *Cache {
-	ret := c.DeepCopy()
-	if ret.Spec.AdminAuth.Password.Key == "" {
-		ret.Spec.AdminAuth.Password.Key = "password"
-	}
-	if ret.Spec.AdminAuth.Username.Key == "" {
-		ret.Spec.AdminAuth.Username.Key = "username"
-	}
-	if ret.Spec.AdminAuth.Password.Name == "" {
-		ret.Spec.AdminAuth.Password.Name = c.Spec.AdminAuth.SecretName
-	}
-	if ret.Spec.AdminAuth.Username.Name == "" {
-		ret.Spec.AdminAuth.Username.Name = c.Spec.AdminAuth.SecretName
-	}
-	return ret
-}
-
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // CacheList contains a list of Cache
 type CacheList struct {
 	metav1.TypeMeta `json:",inline"`
