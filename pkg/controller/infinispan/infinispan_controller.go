@@ -1246,21 +1246,19 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			}
 
 			// If here all the pods are unready, set statefulset replicas and ispn.replicas to 0
-			if *statefulSet.Spec.Replicas != 0 {
-				ispn.Status.ReplicasWantedAtRestart = *statefulSet.Spec.Replicas
-				err := r.client.Status().Update(context.TODO(), ispn)
-				if err != nil {
-					logger.Error(err, "failed to update Infinispan status")
-					return &reconcile.Result{}, err
-				}
-				updateStatus = true
-				zeroReplicas := int32(0)
-				statefulSet.Spec.Replicas = &zeroReplicas
-				err = r.client.Update(context.TODO(), statefulSet)
-				if err != nil {
-					logger.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
-					return &reconcile.Result{}, err
-				}
+			ispn.Status.ReplicasWantedAtRestart = *statefulSet.Spec.Replicas
+			err := r.client.Status().Update(context.TODO(), ispn)
+			if err != nil {
+				logger.Error(err, "failed to update Infinispan status")
+				return &reconcile.Result{}, err
+			}
+			updateStatus = true
+			zeroReplicas := int32(0)
+			statefulSet.Spec.Replicas = &zeroReplicas
+			err = r.client.Update(context.TODO(), statefulSet)
+			if err != nil {
+				logger.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
+				return &reconcile.Result{}, err
 			}
 		}
 		if statefulSet.Status.CurrentReplicas == 0 {
