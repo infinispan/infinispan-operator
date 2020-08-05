@@ -157,17 +157,21 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	infinispan.ApplyDefaults()
 
 	// Perform all the possible preliminary checks before go on
-	recResult, err := infinispan.PreliminaryChecks()
+	result, err := infinispan.PreliminaryChecks()
 	if err != nil {
 		if infinispan.SetCondition("preliminaryChecksFailed", "true", err.Error()) {
 			err1 := r.client.Status().Update(context.TODO(), infinispan)
-			reqLogger.Error(err1, "Could not update error conditions")
+			if err1 != nil {
+				reqLogger.Error(err1, "Could not update error conditions")
+			}
 		}
-		return *recResult, err
+		return *result, err
 	}
 	if infinispan.RemoveCondition("preliminaryChecksFailed") {
-		err1 := r.client.Status().Update(context.TODO(), infinispan)
-		reqLogger.Error(err1, "Could not update error conditions")
+		err = r.client.Status().Update(context.TODO(), infinispan)
+		if err != nil {
+			reqLogger.Error(err, "Could not update error conditions")
+		}
 	}
 
 	infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
@@ -295,20 +299,20 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				return *result, err
 			}
 		case infinispanv1.ExposeTypeRoute:
-			ok, err := r.isGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
+			ok, err := r.isGroupVersionSupported(routev1.GroupVersion.String(), "Route")
 			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Failed to check if %s is supported", routev1.SchemeGroupVersion.String()))
+				reqLogger.Error(err, fmt.Sprintf("Failed to check if %s is supported", routev1.GroupVersion.String()))
 				// Log an error and try to go on with Ingress
 				ok = false
 			}
 			if ok {
-				route := r.computeRoute(infinispan, reqLogger)
+				route := r.computeRoute(infinispan)
 				result, err := r.reconcileRoute(infinispan, route, reqLogger)
 				if result != nil {
 					return *result, err
 				}
 			} else {
-				ingress := r.computeIngress(infinispan, reqLogger)
+				ingress := r.computeIngress(infinispan)
 				result, err := r.reconcileIngress(infinispan, ingress, reqLogger)
 				if result != nil {
 					return *result, err
@@ -354,7 +358,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
+	result, err = r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
+	if result != nil {
+		return *result, err
+	}
 
 	protocol := infinispan.GetEndpointScheme()
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
@@ -550,12 +557,12 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	return nil
 }
 
-func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) error {
+func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) (*reconcile.Result, error) {
 	if len(podList.Items) == 0 {
-		return nil
+		return nil, nil
 	}
 	if infinispan.IsUpgradeCondition() {
-		return nil
+		return nil, nil
 	}
 
 	// All pods need to be ready for the upgrade to be scheduled
@@ -563,7 +570,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	//and old ones terminating while new ones are being created.
 	// We don't want yet another upgrade to be scheduled then.
 	if !ispncom.AreAllPodsReady(podList) {
-		return nil
+		return nil, nil
 	}
 
 	// Get default Infinispan image for a running Infinispan pod
@@ -575,23 +582,21 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
 	if podDefaultImage != desiredImage {
-		logger.Info("schedule an Infinispan cluster upgrade",
-			"pod default image", podDefaultImage,
-			"desired image", desiredImage)
+		logger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", desiredImage)
 		infinispan.Spec.Replicas = 0
 		err := r.client.Update(context.TODO(), infinispan)
 		if err != nil {
 			logger.Error(err, "failed to update Infinispan Spec")
-			return err
+			return &reconcile.Result{}, err
 		}
 		infinispan.SetCondition("upgrade", metav1.ConditionTrue, "")
 		err = r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			logger.Error(err, "failed to update Infinispan Status")
-			return err
+			return &reconcile.Result{}, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // deploymentForInfinispan returns an infinispan Deployment object
@@ -1120,7 +1125,7 @@ func (r *ReconcileInfinispan) reconcileExternalService(ispn *infinispanv1.Infini
 }
 
 // computeRoute compute the Route object
-func (r *ReconcileInfinispan) computeRoute(ispn *infinispanv1.Infinispan, logger logr.Logger) *routev1.Route {
+func (r *ReconcileInfinispan) computeRoute(ispn *infinispanv1.Infinispan) *routev1.Route {
 	lsService := ispncom.LabelsResource(ispn.ObjectMeta.Name, "infinispan-service-external")
 	route := routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1162,7 +1167,7 @@ func (r *ReconcileInfinispan) reconcileRoute(ispn *infinispanv1.Infinispan, rout
 }
 
 // computeIngress compute the Ingress object
-func (r *ReconcileInfinispan) computeIngress(ispn *infinispanv1.Infinispan, logger logr.Logger) *networkingv1beta1.Ingress {
+func (r *ReconcileInfinispan) computeIngress(ispn *infinispanv1.Infinispan) *networkingv1beta1.Ingress {
 	lsService := ispncom.LabelsResource(ispn.ObjectMeta.Name, "infinispan-service-external")
 	ingress := networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1227,9 +1232,17 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			for _, pod := range podList.Items {
 				if pod.Spec.RestartPolicy != corev1.RestartPolicyNever {
 					runtimePod := &corev1.Pod{}
-					r.client.Get(context.TODO(), types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, runtimePod)
+					err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, runtimePod)
+					if err != nil {
+						logger.Error(err, "failed to get pod", "Pod.Name", pod.Name)
+						return &reconcile.Result{}, err
+					}
 					runtimePod.Spec.RestartPolicy = corev1.RestartPolicyNever
-					r.client.Update(context.TODO(), runtimePod)
+					err = r.client.Update(context.TODO(), runtimePod)
+					if err != nil {
+						logger.Error(err, "failed to update pod", "Pod.Name", pod.Name)
+						return &reconcile.Result{}, err
+					}
 				}
 			}
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
@@ -1261,7 +1274,11 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 				updateStatus = true
 				zeroReplicas := int32(0)
 				statefulSet.Spec.Replicas = &zeroReplicas
-				r.client.Update(context.TODO(), statefulSet)
+				err = r.client.Update(context.TODO(), statefulSet)
+				if err != nil {
+					logger.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
+					return &reconcile.Result{}, err
+				}
 			}
 		}
 		if statefulSet.Status.CurrentReplicas == 0 {
@@ -1281,13 +1298,17 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 	if ispn.Spec.Replicas != 0 && isGracefulShutdown != nil && *isGracefulShutdown == "True" {
 		logger.Info("Resuming from graceful shutdown")
 		// If here we're resuming from graceful shutdown
-		r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, ispn)
+		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, ispn)
+		if err != nil {
+			logger.Error(err, "failed to get Infinispan")
+			return &reconcile.Result{}, err
+		}
 		if ispn.Spec.Replicas != ispn.Status.ReplicasWantedAtRestart {
 			return &reconcile.Result{Requeue: true}, fmt.Errorf("Spec.Replicas(%d) must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", ispn.Spec.Replicas, ispn.Status.ReplicasWantedAtRestart)
 		}
 		ispn.Status.ReplicasWantedAtRestart = 0
 		ispn.SetCondition("gracefulShutdown", metav1.ConditionFalse, "")
-		err := r.client.Status().Update(context.TODO(), ispn)
+		err = r.client.Status().Update(context.TODO(), ispn)
 		if err != nil {
 			logger.Error(err, "failed to update Infinispan Status")
 			return &reconcile.Result{}, err
@@ -1370,7 +1391,11 @@ func (r *ReconcileInfinispan) reconcileEndpointSecret(ispn *infinispanv1.Infinis
 			return &reconcile.Result{}, err
 		}
 		// Get latest version of the infinispan crd
-		r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, ispn)
+		err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, ispn)
+		if err != nil {
+			logger.Error(err, "failed to get Infinispan")
+			return &reconcile.Result{}, err
+		}
 		// Copy and update .Status.Security to match .Spec.Security
 		ispn.Spec.Security.DeepCopyInto(&ispn.Status.Security)
 		err = r.client.Status().Update(context.TODO(), ispn)
