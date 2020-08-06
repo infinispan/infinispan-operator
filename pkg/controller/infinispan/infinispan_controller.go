@@ -1227,24 +1227,6 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 		updateStatus := false
 		if *statefulSet.Spec.Replicas != 0 {
 			logger.Info("StatefulSet.Spec.Replicas!=0")
-			// If here some pods are still ready
-			// Disable restart policy if needed
-			for _, pod := range podList.Items {
-				if pod.Spec.RestartPolicy != corev1.RestartPolicyNever {
-					runtimePod := &corev1.Pod{}
-					err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}, runtimePod)
-					if err != nil {
-						logger.Error(err, "failed to get pod", "Pod.Name", pod.Name)
-						return &reconcile.Result{}, err
-					}
-					runtimePod.Spec.RestartPolicy = corev1.RestartPolicyNever
-					err = r.client.Update(context.TODO(), runtimePod)
-					if err != nil {
-						logger.Error(err, "failed to update pod", "Pod.Name", pod.Name)
-						return &reconcile.Result{}, err
-					}
-				}
-			}
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
 			if cond := ispn.GetCondition("stopping"); cond == nil || *cond != "True" {
 				res, err := r.gracefulShutdownReq(ispn, podList, logger)
