@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
+	"github.com/infinispan/infinispan-operator/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/go-logr/logr"
@@ -62,16 +63,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner Cache
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &infinispanv2alpha1.Cache{},
-	})
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -93,7 +84,8 @@ type ReconcileCache struct {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Cache")
+	reqLogger.Info(fmt.Sprintf("+++++ Reconciling Cache. Operator Version: %s", version.Version))
+	defer reqLogger.Info("----- End Reconciling Cache.")
 
 	// Fetch the Cache instance
 	instance := &infinispanv2alpha1.Cache{}
@@ -117,7 +109,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	err = r.client.Get(context.TODO(), nsName, ispnInstance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Error(err, "Infinispan cluster "+ispnInstance.Name+" not found")
+			reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", ispnInstance.Name))
 			return reconcile.Result{RequeueAfter: time.Second * 10}, err
 		}
 		// Error reading the object - requeue the request.
@@ -126,7 +118,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Cluster must be well formed
 	if !ispnInstance.IsWellFormed() {
-		reqLogger.Info("Infinispan cluster " + ispnInstance.Name + " not well formed")
+		reqLogger.Info("Infinispan cluster %s not well formed", ispnInstance.Name)
 		return reconcile.Result{RequeueAfter: time.Second * 10}, err
 	}
 	// Authentication is required to go on from here
@@ -140,7 +132,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	listOps := &client.ListOptions{Namespace: ispnInstance.GetClusterName(), LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), podList, listOps)
 	if err != nil || (len(podList.Items) == 0) {
-		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace")
+		reqLogger.Error(err, "failed to list pods")
 		return reconcile.Result{}, err
 	}
 	cacheName := instance.Name
@@ -206,11 +198,11 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		instance.Status.ServiceName = serviceList.Items[0].Name
 		statusUpdate = true
 	}
-	statusUpdate = statusUpdate || instance.SetCondition("Ready", metav1.ConditionTrue, "")
+	statusUpdate = instance.SetCondition("Ready", metav1.ConditionTrue, "") || statusUpdate
 	if statusUpdate {
 		err = r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
-			reqLogger.Error(err, "Unable to update Cache "+instance.Name+" status")
+			reqLogger.Error(err, fmt.Sprintf("Unable to update Cache %s status", instance.Name))
 			return reconcile.Result{}, err
 		}
 	}
@@ -239,7 +231,7 @@ func getSecret(r *ReconcileCache, reqLogger logr.Logger, name, ns string) (*core
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, userSecret)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Error(err, "Secret "+name+" not found")
+			reqLogger.Error(err, "Secret %s not found", name)
 			return nil, reconcile.Result{RequeueAfter: time.Second * 2}, err
 		}
 		// Error reading the object - requeue the request.
