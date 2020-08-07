@@ -12,6 +12,9 @@ var (
 	// DefaultImageName is used if a specific image name is not provided
 	DefaultImageName = common.GetEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
 
+	// InitContainerImageName allows a custom initContainer image to be used
+	InitContainerImageName = common.GetEnvWithDefault("INITCONTAINER_IMAGE", "busybox")
+
 	// JGroupsDiagnosticsFlag is used to enable traces for JGroups
 	JGroupsDiagnosticsFlag = strings.ToUpper(common.GetEnvWithDefault("JGROUPS_DIAGNOSTICS", "FALSE"))
 

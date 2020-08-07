@@ -766,8 +766,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	})
 	// Adding an init container that run chmod if needed
 	if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
+		initContainerImage := consts.InitContainerImageName
 		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
-			Image:   "busybox",
+			Image:   initContainerImage,
 			Name:    "chmod-pv",
 			Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
 			VolumeMounts: []corev1.VolumeMount{{
