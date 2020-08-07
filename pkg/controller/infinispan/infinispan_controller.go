@@ -1263,8 +1263,8 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			}
 		}
 		if statefulSet.Status.CurrentReplicas == 0 {
-			updateStatus = updateStatus || ispn.SetCondition("gracefulShutdown", metav1.ConditionTrue, "")
-			updateStatus = updateStatus || ispn.SetCondition("stopping", metav1.ConditionFalse, "")
+			updateStatus = ispn.SetCondition("gracefulShutdown", metav1.ConditionTrue, "") || updateStatus
+			updateStatus = ispn.SetCondition("stopping", metav1.ConditionFalse, "") || updateStatus
 		}
 		if updateStatus {
 			err := r.client.Status().Update(context.TODO(), ispn)
