@@ -410,7 +410,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// All pods ready start autoscaler if needed
-	if infinispan.Spec.Autoscale != nil {
+	if infinispan.Spec.Autoscale != nil && infinispan.IsCache() {
 		addAutoscalingEquipment(types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, r)
 	}
 	// Inspect the system and get the current Infinispan conditions

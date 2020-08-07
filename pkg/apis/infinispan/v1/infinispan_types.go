@@ -115,6 +115,7 @@ type Autoscale struct {
 	MinReplicas        int32 `json:"minReplicas"`
 	MaxMemUsagePercent int   `json:"maxMemUsagePercent"`
 	MinMemUsagePercent int   `json:"minMemUsagePercent"`
+	Disabled           bool  `json:"disabled,optional,omitempty"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan

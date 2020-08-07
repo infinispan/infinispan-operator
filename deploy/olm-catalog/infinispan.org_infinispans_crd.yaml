@@ -34,6 +34,8 @@ spec:
             autoscale:
               description: Autoscale describe autoscaling configuration for the cluster
               properties:
+                disabled:
+                  type: boolean
                 maxMemUsagePercent:
                   type: integer
                 maxReplicas:
@@ -70,7 +72,8 @@ spec:
                   format: int32
                   type: integer
                 type:
-                  description: Type specifies different exposition methods for datagrid
+                  description: Type specifies different exposition methods for data
+                    grid
                   enum:
                   - NodePort
                   - LoadBalancer
@@ -140,7 +143,7 @@ spec:
                               type: integer
                             type:
                               description: Type specifies different exposition methods
-                                for datagrid
+                                for data grid
                               enum:
                               - NodePort
                               - LoadBalancer
@@ -185,8 +188,6 @@ spec:
           description: InfinispanStatus defines the observed state of Infinispan
           properties:
             conditions:
-              description: 'Important: Run "operator-sdk generate k8s" to regenerate
-                code after modifying this file'
               items:
                 description: InfinispanCondition define a condition of the cluster
                 properties:

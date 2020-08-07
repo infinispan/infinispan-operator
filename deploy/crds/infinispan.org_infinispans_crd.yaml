@@ -34,6 +34,8 @@ spec:
             autoscale:
               description: Autoscale describe autoscaling configuration for the cluster
               properties:
+                disabled:
+                  type: boolean
                 maxMemUsagePercent:
                   type: integer
                 maxReplicas:
