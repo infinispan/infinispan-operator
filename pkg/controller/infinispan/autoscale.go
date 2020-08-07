@@ -54,7 +54,7 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 			continue
 		}
 		// Skip this cluster if autoscale is not enabled or ServiceType is not CacheService
-		if ispn.Spec.Autoscale == nil || ispn.Spec.Service.Type != infinispanv1.ServiceTypeCache {
+		if ispn.Spec.Autoscale == nil || !ispn.IsCache() {
 			// Autoscale not needed, leaving the loop
 			autoscaleThreadPool.Lock()
 			delete(autoscaleThreadPool.m, clusterNsn)
@@ -62,8 +62,8 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 			log.Info(fmt.Sprintf("Stopping loop for autoscaling on cluster %v. Autoscaling disabled.", clusterNsn))
 			break
 		}
-		if !ispn.IsConditionTrue("wellFormed") {
-			// Skip not well formed clusters
+		if !ispn.IsConditionTrue("wellFormed") || ispn.Spec.Autoscale.Disabled {
+			// Skip autoscale disabled and not well formed clusters
 			continue
 		}
 		// We need the password and the scheme to get the metrics
