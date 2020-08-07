@@ -120,7 +120,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	spec.ObjectMeta.Name = name
 	spec.Spec.Replicas = 2
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
-		EndpointEncryption: ispnv1.EndpointEncryption{
+		EndpointEncryption: &ispnv1.EndpointEncryption{
 			Type:           "secret",
 			CertSecretName: "secret-certs",
 		},
@@ -766,7 +766,7 @@ func getSchemaForRest(ispn *ispnv1.Infinispan) string {
 		panic(err.Error())
 	}
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
-	if curr.Spec.Security.EndpointEncryption.Type != "" {
+	if curr.IsEncryptionCertSourceDefined() {
 		return "https"
 	}
 	return "http"
