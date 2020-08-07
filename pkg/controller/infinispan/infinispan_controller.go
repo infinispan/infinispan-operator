@@ -726,7 +726,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		pvSize = memory
 	}
 
-	if m.IsDataGrid() && m.Spec.Service.Container.Storage != "" {
+	if m.IsDataGrid() {
 		var pvErr error
 		pvSize, pvErr = resource.ParseQuantity(m.Spec.Service.Container.Storage)
 		if pvErr != nil {
@@ -786,15 +786,14 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 }
 
 func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) {
-	ee := m.Spec.Security.EndpointEncryption
-	if strings.EqualFold(ee.Type, "Service") {
-		if strings.Contains(ee.CertServiceName, "openshift.io") {
+	if m.IsEncryptionCertFromService() {
+		if strings.Contains(m.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
 			// Using platform service. Only OpenShift is integrated atm
 			secretName := m.GetEncryptionSecretName()
 			if ser.ObjectMeta.Annotations == nil {
 				ser.ObjectMeta.Annotations = map[string]string{}
 			}
-			ser.ObjectMeta.Annotations[ee.CertServiceName+"/serving-cert-secret-name"] = secretName
+			ser.ObjectMeta.Annotations[m.Spec.Security.EndpointEncryption.CertServiceName+"/serving-cert-secret-name"] = secretName
 		}
 	}
 }
@@ -814,9 +813,8 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulS
 }
 
 func setupConfigForEncryption(m *infinispanv1.Infinispan, c *configuration.InfinispanConfiguration, client client.Client) error {
-	ee := m.Spec.Security.EndpointEncryption
-	if strings.EqualFold(ee.Type, "Service") {
-		if strings.Contains(ee.CertServiceName, "openshift.io") {
+	if m.IsEncryptionCertFromService() {
+		if strings.Contains(m.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"
 			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
 			c.Keystore.Password = "password"
@@ -858,7 +856,7 @@ func (r *ReconcileInfinispan) computeConfigMap(xsite *configuration.XSite, m *in
 	name := m.ObjectMeta.Name
 	namespace := m.ObjectMeta.Namespace
 
-	loggingCategories := m.CopyLoggingCategories()
+	loggingCategories := m.GetLogCategoriesForConfigMap()
 	config := configuration.CreateInfinispanConfiguration(name, loggingCategories, namespace, xsite)
 	err := setupConfigForEncryption(m, &config, r.client)
 	if err != nil {
@@ -1253,7 +1251,6 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 				logger.Error(err, "failed to update Infinispan status")
 				return &reconcile.Result{}, err
 			}
-			updateStatus = true
 			zeroReplicas := int32(0)
 			statefulSet.Spec.Replicas = &zeroReplicas
 			err = r.client.Update(context.TODO(), statefulSet)

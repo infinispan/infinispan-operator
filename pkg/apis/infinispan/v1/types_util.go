@@ -90,6 +90,14 @@ func (ispn *Infinispan) ApplyDefaults() {
 		cpuLimitString := comutil.ToMilliDecimalQuantity(constants.DefaultCPULimit)
 		ispn.Spec.Container.CPU = cpuLimitString.String()
 	}
+	if ispn.IsDataGrid() {
+		if ispn.Spec.Service.Container == nil {
+			ispn.Spec.Service.Container = &InfinispanServiceContainerSpec{}
+		}
+		if ispn.Spec.Service.Container.Storage == "" {
+			ispn.Spec.Service.Container.Storage = consts.DefaultPVSize.String()
+		}
+	}
 }
 
 // PreliminaryChecks performs all the possible initial checks
@@ -143,8 +151,9 @@ func (ispn *Infinispan) GetSiteServiceName() string {
 	return fmt.Sprintf("%v-site", ispn.Name)
 }
 
+// GetEndpointScheme return the protocol scheme used by the Infinispan cluster
 func (ispn *Infinispan) GetEndpointScheme() corev1.URIScheme {
-	if ispn.Spec.Security.EndpointEncryption.Type != "" {
+	if ispn.IsEncryptionCertSourceDefined() {
 		return corev1.URISchemeHTTPS
 	}
 	return corev1.URISchemeHTTP
@@ -158,7 +167,11 @@ func (ispn *Infinispan) GetSecretName() string {
 	return ispn.Spec.Security.EndpointSecretName
 }
 
+// GetEncryptionSecretName ...
 func (ispn *Infinispan) GetEncryptionSecretName() string {
+	if ispn.Spec.Security.EndpointEncryption == nil {
+		return ""
+	}
 	return ispn.Spec.Security.EndpointEncryption.CertSecretName
 }
 
@@ -188,16 +201,18 @@ func (ispn *Infinispan) GetJavaOptions() (string, error) {
 	}
 }
 
-func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
-	categories := ispn.Spec.Logging.Categories
-	if categories != nil {
-		copied := make(map[string]string, len(categories))
-		for category, level := range categories {
-			copied[category] = level
+// GetLogCategoriesForConfigMap return a map of log category for the Infinispan configuration
+func (ispn *Infinispan) GetLogCategoriesForConfigMap() map[string]string {
+	if ispn.Spec.Logging != nil {
+		categories := ispn.Spec.Logging.Categories
+		if categories != nil {
+			copied := make(map[string]string, len(categories))
+			for category, level := range categories {
+				copied[category] = level
+			}
+			return copied
 		}
-		return copied
 	}
-
 	return make(map[string]string)
 }
 
@@ -234,18 +249,32 @@ func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
 	return false
 }
 
-// computeEndpointEncryption compute the ee object
+// ApplyEndpointEncryptionSettings compute the ee object
 func (ispn *Infinispan) ApplyEndpointEncryptionSettings(servingCertsMode string, reqLogger logr.Logger) {
 	// Populate EndpointEncryption if serving cert service is available
-	ee := &ispn.Spec.Security.EndpointEncryption
-	if servingCertsMode == "openshift.io" && (ee.Type == "" || ee.CertSecretName == "") {
-		reqLogger.Info("Serving certificate service present. Configuring into CRD")
-		if ee.Type == "" {
-			ee.Type = "Service"
-			ee.CertServiceName = "service.beta.openshift.io"
+	if servingCertsMode == "openshift.io" && !ispn.IsEncryptionCertSourceDefined() {
+		if ispn.Spec.Security.EndpointEncryption == nil {
+			ispn.Spec.Security.EndpointEncryption = &EndpointEncryption{}
 		}
-		if ee.CertSecretName == "" {
-			ee.CertSecretName = ispn.Name + "-cert-secret"
+		reqLogger.Info("Serving certificate service present. Configuring into CRD")
+		if ispn.Spec.Security.EndpointEncryption.Type == "" {
+			ispn.Spec.Security.EndpointEncryption.Type = CertificateSourceTypeService
+			ispn.Spec.Security.EndpointEncryption.CertServiceName = "service.beta.openshift.io"
+		}
+		if ispn.Spec.Security.EndpointEncryption.CertSecretName == "" {
+			ispn.Spec.Security.EndpointEncryption.CertSecretName = ispn.Name + "-cert-secret"
 		}
 	}
+}
+
+// IsEncryptionCertFromService returns true if encryption certificates comes from a cluster service
+func (ispn *Infinispan) IsEncryptionCertFromService() bool {
+	ee := ispn.Spec.Security.EndpointEncryption
+	return ee != nil && (ee.Type == CertificateSourceTypeService || ee.Type == CertificateSourceTypeSecretLowCase)
+}
+
+// IsEncryptionCertSourceDefined returns true if encryption certificates source is defined
+func (ispn *Infinispan) IsEncryptionCertSourceDefined() bool {
+	ee := ispn.Spec.Security.EndpointEncryption
+	return ee != nil && ee.Type != ""
 }

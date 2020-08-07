@@ -14,15 +14,31 @@ type InfinispanAuthInfo struct {
 
 // InfinispanSecurity info for the user application connection
 type InfinispanSecurity struct {
-	EndpointSecretName string             `json:"endpointSecretName,optional,omitempty"`
-	EndpointEncryption EndpointEncryption `json:"endpointEncryption,optional,omitempty"`
+	EndpointSecretName string              `json:"endpointSecretName,optional,omitempty"`
+	EndpointEncryption *EndpointEncryption `json:"endpointEncryption,optional,omitempty"`
 }
+
+// CertificateSourceType specifies all the possible sources for the encryption certificate
+// +kubebuilder:validation:Enum=Service;service;Secret;secret
+type CertificateSourceType string
+
+const (
+	// CertificateSourceTypeService certificate coming from a cluster service
+	CertificateSourceTypeService CertificateSourceType = "Service"
+	// CertificateSourceTypeServiceLowCase certificate coming from a cluster service
+	CertificateSourceTypeServiceLowCase CertificateSourceType = "service"
+
+	// CertificateSourceTypeSecret certificate coming from a user provided secret
+	CertificateSourceTypeSecret CertificateSourceType = "Secret"
+	// CertificateSourceTypeSecretLowCase certificate coming from a user provided secret
+	CertificateSourceTypeSecretLowCase CertificateSourceType = "secret"
+)
 
 // EndpointEncryption configuration
 type EndpointEncryption struct {
-	Type            string `json:"type"`
-	CertServiceName string `json:"certServiceName,optional,omitempty"`
-	CertSecretName  string `json:"certSecretName,optional,omitempty"`
+	Type            CertificateSourceType `json:"type,optional,omitempty"`
+	CertServiceName string                `json:"certServiceName,optional,omitempty"`
+	CertSecretName  string                `json:"certSecretName,optional,omitempty"`
 }
 
 // InfinispanServiceContainerSpec resource requirements specific for service
@@ -49,10 +65,10 @@ const (
 
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
-	Type              ServiceType                    `json:"type"`
-	Container         InfinispanServiceContainerSpec `json:"container,optional,omitempty"`
-	Sites             *InfinispanSitesSpec           `json:"sites,optional,omitempty"`
-	ReplicationFactor int32                          `json:"replicationFactor,optional,omitempty"`
+	Type              ServiceType                     `json:"type"`
+	Container         *InfinispanServiceContainerSpec `json:"container,optional,omitempty"`
+	Sites             *InfinispanSitesSpec            `json:"sites,optional,omitempty"`
+	ReplicationFactor int32                           `json:"replicationFactor,optional,omitempty"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container
@@ -125,7 +141,7 @@ type InfinispanSpec struct {
 	Security  InfinispanSecurity      `json:"security,optional,omitempty"`
 	Container InfinispanContainerSpec `json:"container,optional,omitempty"`
 	Service   InfinispanServiceSpec   `json:"service,optional,omitempty"`
-	Logging   InfinispanLoggingSpec   `json:"logging,optional,omitempty"`
+	Logging   *InfinispanLoggingSpec  `json:"logging,optional,omitempty"`
 	Expose    *ExposeSpec             `json:"expose,optional,omitempty"`
 	Autoscale *Autoscale              `json:"autoscale,optional,omitempty"`
 }
