@@ -18,7 +18,7 @@ import (
 )
 
 // ComputeXSite compute the xsite struct for cross site function
-func (xsite XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util.Kubernetes, service *corev1.Service, logger logr.Logger) error {
+func (xsite *XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util.Kubernetes, service *corev1.Service, logger logr.Logger) error {
 	if infinispan.HasSites() {
 		siteServiceName := infinispan.GetSiteServiceName()
 		localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger)
@@ -39,11 +39,9 @@ func (xsite XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util.
 			"port", localSitePort,
 		)
 
-		xsite := &XSite{
-			Address: localSiteHost,
-			Name:    infinispan.Spec.Service.Sites.Local.Name,
-			Port:    localSitePort,
-		}
+		xsite.Address = localSiteHost
+		xsite.Name = infinispan.Spec.Service.Sites.Local.Name
+		xsite.Port = localSitePort
 
 		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
 		for _, remoteLocation := range remoteLocations {
@@ -53,7 +51,7 @@ func (xsite XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util.
 			}
 		}
 
-		logger.Info("x-site configured", "configuration", *xsite)
+		logger.Info("x-site configured", "configuration", xsite)
 	}
 	return nil
 }
