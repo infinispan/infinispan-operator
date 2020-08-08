@@ -108,7 +108,7 @@ func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) 
 func (k Kubernetes) GetPassword(user, secretName, namespace string) (string, error) {
 	secret, err := k.GetSecret(secretName, namespace)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	descriptor := secret.Data["identities.yaml"]

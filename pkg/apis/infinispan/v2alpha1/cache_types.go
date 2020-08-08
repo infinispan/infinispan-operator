@@ -23,7 +23,7 @@ type CacheSpec struct {
 	// Authentication info
 	AdminAuth AdminAuth `json:"adminAuth,omitempty"`
 	// Name of the cluster where to create the cache
-	ClusterName string `json:"clusterName,omitempty"`
+	ClusterName string `json:"clusterName,optional,omitempty"`
 	// Name of the cache to be created. If empty ObjectMeta.Name will be used
 	Name string `json:"name,optional,omitempty"`
 	// Cache template in XML format
