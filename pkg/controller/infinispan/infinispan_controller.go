@@ -14,6 +14,7 @@ import (
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	ispncom "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan/configuration"
 	"github.com/infinispan/infinispan-operator/version"
@@ -29,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -88,34 +88,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 }
 
 // TODO: If we will invoke getDiscoveryClient multiple times in one reconcile stage, it's necessary move 'discovery' to the ReconcileInfinispan struct due to performance reasons
-func (r *ReconcileInfinispan) getDiscoveryClient() (discovery.DiscoveryInterface, error) {
-	discovery, err := discovery.NewDiscoveryClientForConfig(kubernetes.RestConfig)
-	return discovery, err
-}
-
-func (r *ReconcileInfinispan) isGroupVersionSupported(groupVersion string, kind string) (bool, error) {
-	cli, err := r.getDiscoveryClient()
-	if err != nil {
-		log.Error(err, "Failed to return a discovery client for the current reconciler")
-		return false, err
-	}
-
-	res, err := cli.ServerResourcesForGroupVersion(groupVersion)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	for _, v := range res.APIResources {
-		if v.Kind == kind {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
 
 var _ reconcile.Reconciler = &ReconcileInfinispan{}
 
@@ -299,7 +271,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				return *result, err
 			}
 		case infinispanv1.ExposeTypeRoute:
-			ok, err := r.isGroupVersionSupported(routev1.GroupVersion.String(), "Route")
+			ok, err := common.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route", kubernetes.RestConfig, reqLogger)
 			if err != nil {
 				reqLogger.Error(err, fmt.Sprintf("Failed to check if %s is supported", routev1.GroupVersion.String()))
 				// Log an error and try to go on with Ingress

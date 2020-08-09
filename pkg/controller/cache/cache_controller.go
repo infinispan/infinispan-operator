@@ -12,7 +12,9 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"github.com/infinispan/infinispan-operator/version"
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -112,7 +114,8 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 				Name:      instance.Name,
 				Namespace: instance.Namespace,
 			},
-			Spec: infinispanv1.InfinispanSpec{Replicas: 1},
+			Spec: infinispanv1.InfinispanSpec{Replicas: 1,
+				Expose: &infinispanv1.ExposeSpec{Type: infinispanv1.ExposeTypeRoute}},
 		}
 		err := r.client.Create(context.TODO(), ispnInstance)
 		if err != nil {
@@ -283,6 +286,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 			return reconcile.Result{}, err
 		}
 	}
+	r.reconcileQuickstart(instance, ispnInstance, reqLogger)
 	return reconcile.Result{}, nil
 }
 
@@ -314,4 +318,93 @@ func getSecret(r *ReconcileCache, reqLogger logr.Logger, name, ns string) (*core
 	}
 	// Error reading the object - requeue the request.
 	return userSecret, reconcile.Result{}, err
+}
+
+func (r *ReconcileCache) reconcileQuickstart(cache *infinispanv2alpha1.Cache, ispn *infinispanv1.Infinispan, logger logr.Logger) (reconcile.Request, error) {
+	confMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: cache.Namespace, Name: cache.Name}}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: confMap.Namespace, Name: confMap.Name}, confMap)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			restInfo, err := r.getRestInfo(cache, ispn, logger)
+			if err != nil {
+				return reconcile.Request{}, err
+			}
+			confMap.Data = map[string]string{"restInfo": restInfo}
+			fmt.Printf(restInfo)
+			err = r.client.Create(context.TODO(), confMap)
+			return reconcile.Request{}, err
+		}
+		logger.Error(err, fmt.Sprintf("Error in finding ConfigMap %s", cache.Name))
+		return reconcile.Request{}, err
+	}
+	return reconcile.Request{}, nil
+}
+
+// getRestInfo needs
+// 1. namespace
+// 2. secret name
+// 3. scheme
+// 4. url
+// 5. cachename
+func (r *ReconcileCache) getRestInfo(cache *infinispanv2alpha1.Cache, ispn *infinispanv1.Infinispan, logger logr.Logger) (string, error) {
+	infoTemplate := `
+You should know you username:password credential, if not you can list
+cluster credential running:
+kubectl -n %s  get secret %s -o jsonpath="{.data.identities\.yaml}" | base64 --decode | yq -r .credentials
+Now set:
+export USER="your user"
+export PASS="your password"
+Access your cache like this:
+1. Get cache info
+curl -v -u $USER:$PASS %s %s://%s/rest/v2/caches/%s
+2. Put entry
+curl -v -u $USER:$PASS %s -H 'Content-type: text/plain' -d 'test-value' %s://%s/rest/v2/caches/%s/test-key
+3. Get entry
+curl -v -u $USER:$PASS %s %s://%s/rest/v2/caches/%s/test-key
+`
+	ns := cache.Namespace
+	secretName := ispn.GetSecretName()
+	scheme := ispn.GetEndpointScheme()
+	unsafe := ""
+	if scheme == corev1.URISchemeHTTPS {
+		unsafe = "-k"
+	}
+	cacheName := cache.GetCacheName()
+	url := ""
+	ok, _ := common.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route", kubernetes.RestConfig, logger)
+	if ok {
+		// Route is supported
+		route := &routev1.Route{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetServiceExternalName()}, route)
+		if err != nil {
+			logger.Error(err, fmt.Sprintf("Cannot find Route %s", ispn.GetServiceExternalName()))
+			return "", err
+		}
+		if len(route.Status.Ingress) > 0 {
+			url = route.Status.Ingress[0].Host
+		} else {
+			logger.Error(err, fmt.Sprintf("Cannot find url for Ingress %s", ispn.GetServiceExternalName()))
+			return "", err
+		}
+	} else {
+		// Ingress is supported
+		ingress := &networkingv1beta1.Ingress{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetServiceExternalName()}, ingress)
+		if err != nil {
+			logger.Error(err, fmt.Sprintf("Cannot find Ingress %s", ispn.GetServiceExternalName()))
+			return "", err
+		}
+		if len(ingress.Status.LoadBalancer.Ingress) > 0 {
+			if ingress.Status.LoadBalancer.Ingress[0].Hostname != "" {
+				url = ingress.Status.LoadBalancer.Ingress[0].Hostname
+			} else {
+				url = ingress.Status.LoadBalancer.Ingress[0].IP
+			}
+		}
+		if url == "" {
+			logger.Error(err, fmt.Sprintf("Cannot find url for Ingress %s", ispn.GetServiceExternalName()))
+			return "", err
+		}
+	}
+	return fmt.Sprintf(infoTemplate, ns, secretName, unsafe, scheme, url, cacheName, unsafe, scheme, url, cacheName, unsafe, scheme, url, cacheName), nil
 }
