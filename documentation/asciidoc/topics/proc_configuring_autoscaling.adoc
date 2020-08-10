@@ -19,16 +19,18 @@ down nodes.
 spec:
   ...
   autoscale: <1>
-    maxMemUsagePercent: 70 <2>
-    maxReplicas: 5 <3>
-    minMemUsagePercent: 30 <4>
-    minReplicas: 2 <5>
+    disabled: true <2>
+    maxMemUsagePercent: 70 <3>
+    maxReplicas: 5 <4>
+    minMemUsagePercent: 30 <5>
+    minReplicas: 2 <6>
 ----
 +
 <1> Enables automatic scaling.
-<2> Configures the maximum threshold, as a percentage, for memory usage on each node. When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
-<3> Defines the maximum number of number of nodes for the cluster.
-<4> Configures the minimum threshold, as a percentage, for memory usage across the cluster. When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes.
-<5> Defines the minimum number of number of nodes for the cluster.
+<2> Turns automatic scaling on or off. Use this field to disable automatic scaling without losing your settings. The default value is `false`.
+<3> Configures the maximum threshold, as a percentage, for memory usage on each node. When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
+<4> Defines the maximum number of number of nodes for the cluster.
+<5> Configures the minimum threshold, as a percentage, for memory usage across the cluster. When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes.
+<6> Defines the minimum number of number of nodes for the cluster.
 +
 . Apply the changes.
