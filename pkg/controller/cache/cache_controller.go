@@ -131,48 +131,9 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, nil
 	}
 
-	if instance.Spec.AdminAuth.SecretName == "" {
-		// Create auth secret from Infinispan CR
-		ispnInstance := &infinispanv1.Infinispan{}
-		nsName := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}
-		err = r.client.Get(context.TODO(), nsName, ispnInstance)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", ispnInstance.Name))
-				return reconcile.Result{RequeueAfter: constants.DefaultWaitOnClusterForCache}, err
-			}
-			// Error reading the object - requeue the request.
-			return reconcile.Result{}, err
-		}
-
-		pass, err := cluster.GetPassword("operator", ispnInstance.GetSecretName(), ispnInstance.Namespace)
-		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Authentication secret %s not found", instance.Name))
-			return reconcile.Result{}, err
-		}
-		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      instance.Name + "-secret",
-				Namespace: instance.Namespace,
-			},
-			Type: corev1.SecretType("Opaque"),
-			StringData: map[string]string{"username": "operator",
-				"password": pass},
-		}
-		err = r.client.Create(context.TODO(), secret)
-		if err != nil && !errors.IsAlreadyExists(err) {
-			reqLogger.Error(err, fmt.Sprintf("Error on creating cache secret %s", instance.Name))
-			return reconcile.Result{}, err
-		}
-		instance.Spec.AdminAuth = infinispanv2alpha1.AdminAuth{SecretName: secret.Name,
-			Username: corev1.SecretKeySelector{Key: "username"},
-			Password: corev1.SecretKeySelector{Key: "password"}}
-		err = r.client.Update(context.TODO(), instance)
-		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Unable to update Cache: %s", instance.Name))
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{}, nil
+	ret, err := r.reconcileSecret(instance, reqLogger)
+	if ret != nil {
+		return *ret, err
 	}
 
 	ispnInstance := &infinispanv1.Infinispan{}
@@ -320,24 +281,24 @@ func getSecret(r *ReconcileCache, reqLogger logr.Logger, name, ns string) (*core
 	return userSecret, reconcile.Result{}, err
 }
 
-func (r *ReconcileCache) reconcileQuickstart(cache *infinispanv2alpha1.Cache, ispn *infinispanv1.Infinispan, logger logr.Logger) (reconcile.Request, error) {
+func (r *ReconcileCache) reconcileQuickstart(cache *infinispanv2alpha1.Cache, ispn *infinispanv1.Infinispan, logger logr.Logger) (*reconcile.Result, error) {
 	confMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: cache.Namespace, Name: cache.Name}}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: confMap.Namespace, Name: confMap.Name}, confMap)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			restInfo, err := r.getRestInfo(cache, ispn, logger)
 			if err != nil {
-				return reconcile.Request{}, err
+				return &reconcile.Result{}, err
 			}
 			confMap.Data = map[string]string{"restInfo": restInfo}
-			fmt.Printf(restInfo)
+			controllerutil.SetControllerReference(cache, confMap, r.scheme)
 			err = r.client.Create(context.TODO(), confMap)
-			return reconcile.Request{}, err
+			return &reconcile.Result{}, err
 		}
 		logger.Error(err, fmt.Sprintf("Error in finding ConfigMap %s", cache.Name))
-		return reconcile.Request{}, err
+		return &reconcile.Result{}, err
 	}
-	return reconcile.Request{}, nil
+	return &reconcile.Result{}, nil
 }
 
 // getRestInfo needs
@@ -407,4 +368,52 @@ curl -v -u $USER:$PASS %s %s://%s/rest/v2/caches/%s/test-key
 		}
 	}
 	return fmt.Sprintf(infoTemplate, ns, secretName, unsafe, scheme, url, cacheName, unsafe, scheme, url, cacheName, unsafe, scheme, url, cacheName), nil
+}
+
+func (r *ReconcileCache) reconcileSecret(cache *infinispanv2alpha1.Cache, logger logr.Logger) (*reconcile.Result, error) {
+	if cache.Spec.AdminAuth.SecretName == "" {
+		// Create auth secret from Infinispan CR
+		ispnInstance := &infinispanv1.Infinispan{}
+		nsName := types.NamespacedName{Namespace: cache.Namespace, Name: cache.Spec.ClusterName}
+		err := r.client.Get(context.TODO(), nsName, ispnInstance)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				logger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", ispnInstance.Name))
+				return &reconcile.Result{RequeueAfter: constants.DefaultWaitOnClusterForCache}, err
+			}
+			// Error reading the object - requeue the request.
+			return &reconcile.Result{}, err
+		}
+
+		pass, err := cluster.GetPassword("operator", ispnInstance.GetSecretName(), ispnInstance.Namespace)
+		if err != nil {
+			logger.Error(err, fmt.Sprintf("Authentication secret %s not found", cache.Name))
+			return &reconcile.Result{}, err
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cache.Name + "-secret",
+				Namespace: cache.Namespace,
+			},
+			Type: corev1.SecretType("Opaque"),
+			StringData: map[string]string{"username": "operator",
+				"password": pass},
+		}
+		controllerutil.SetControllerReference(cache, secret, r.scheme)
+		err = r.client.Create(context.TODO(), secret)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			logger.Error(err, fmt.Sprintf("Error on creating cache secret %s", cache.Name))
+			return &reconcile.Result{}, err
+		}
+		cache.Spec.AdminAuth = infinispanv2alpha1.AdminAuth{SecretName: secret.Name,
+			Username: corev1.SecretKeySelector{Key: "username"},
+			Password: corev1.SecretKeySelector{Key: "password"}}
+		err = r.client.Update(context.TODO(), cache)
+		if err != nil {
+			logger.Error(err, fmt.Sprintf("Unable to update Cache: %s", cache.Name))
+			return &reconcile.Result{}, err
+		}
+		return &reconcile.Result{}, nil
+	}
+	return nil, nil
 }
