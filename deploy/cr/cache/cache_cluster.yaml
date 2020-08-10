@@ -1,0 +1,4 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Cache
+metadata:
+  name: example-cache
