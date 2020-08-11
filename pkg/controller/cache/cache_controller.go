@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -116,6 +117,9 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 			},
 			Spec: infinispanv1.InfinispanSpec{Replicas: 1,
 				Expose: &infinispanv1.ExposeSpec{Type: infinispanv1.ExposeTypeRoute}},
+		}
+		if instance.Spec.Size != "" {
+			ispnInstance.Spec.Container.Memory = r.computeIspnMemory(instance.Spec.Size)
 		}
 		err := r.client.Create(context.TODO(), ispnInstance)
 		if err != nil {
@@ -416,4 +420,10 @@ func (r *ReconcileCache) reconcileSecret(cache *infinispanv2alpha1.Cache, logger
 		return &reconcile.Result{}, nil
 	}
 	return nil, nil
+}
+
+func (r *ReconcileCache) computeIspnMemory(size string) string {
+	res := resource.MustParse(size)
+	res.Add(resource.MustParse("420Mi"))
+	return res.String()
 }

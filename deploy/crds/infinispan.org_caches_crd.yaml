@@ -80,6 +80,8 @@ spec:
               description: Name of the cache to be created. If empty ObjectMeta.Name
                 will be used
               type: string
+            size:
+              type: string
             template:
               description: Cache template in XML format
               type: string
