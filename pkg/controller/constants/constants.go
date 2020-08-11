@@ -10,7 +10,7 @@ import (
 
 var (
 	// DefaultImageName is used if a specific image name is not provided
-	DefaultImageName = GetEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
+	DefaultImageName = GetDefaultInfinispanJavaImage()
 
 	// InitContainerImageName allows a custom initContainer image to be used
 	InitContainerImageName = GetEnvWithDefault("INITCONTAINER_IMAGE", "busybox")
@@ -24,7 +24,7 @@ var (
 	// DefaultPVSize default size for persistent volume
 	DefaultPVSize = resource.MustParse("1Gi")
 
-	// DefaultCPUSize string with default size for CPU
+	// DefaultCPULimit string with default size for CPU
 	DefaultCPULimit int64 = 500
 
 	DeploymentAnnotations = map[string]string{
