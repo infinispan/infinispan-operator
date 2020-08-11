@@ -9,7 +9,7 @@ import (
 
 var (
 	// DefaultImageName is used if a specific image name is not provided
-	DefaultImageName = common.GetEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
+	DefaultImageName = common.GetDefaultInfinispanJavaImage()
 
 	// DefaultMemorySize string with default size for memory
 	DefaultMemorySize = resource.MustParse("512Mi")
@@ -17,7 +17,7 @@ var (
 	// DefaultPVSize default size for persistent volume
 	DefaultPVSize = resource.MustParse("1Gi")
 
-	// DefaultCPUSize string with default size for CPU
+	// DefaultCPULimit string with default size for CPU
 	DefaultCPULimit int64 = 500
 
 	DeploymentAnnotations = map[string]string{
