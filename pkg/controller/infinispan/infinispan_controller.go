@@ -399,7 +399,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// If x-site enable configure the coordinator pods to be selected by the x-site service
 	if infinispan.HasSites() {
-		found := ApplyLabelsToCoordinatorsPod(podList, infinispan, cluster, r.client, reqLogger)
+		found := applyLabelsToCoordinatorsPod(podList, cluster, r.client, reqLogger)
 		if !found {
 			// If a coordinator is not found then requeue early
 			return reconcile.Result{Requeue: true}, nil

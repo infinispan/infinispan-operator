@@ -8,16 +8,27 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
   - services
   - services/finalizers
   - endpoints
-  - persistentvolumeclaims
-  - events
   - configmaps
   - secrets
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - update
 - apiGroups:
   - ""
   resources:
@@ -25,35 +36,43 @@ rules:
   verbs:
   - create
 - apiGroups:
-  - ""
+  - apps
   resources:
-  - namespaces
+  - replicasets
+  - deployments
   verbs:
   - get
 - apiGroups:
   - apps
   resources:
-  - deployments
-  - deployments/finalizers
-  - daemonsets
-  - replicasets
   - statefulsets
-  - statefulsets/finalizers
+  - deployments/finalizers
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - route.openshift.io
   resources:
   - routes
   - routes/custom-host
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+  - create
 - apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+  - create
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -64,7 +83,16 @@ rules:
 - apiGroups:
   - infinispan.org
   resources:
-  - '*'
+  - infinispans
+  - infinispans/status
+  - infinispans/finalizers
   - caches
+  - caches/status
+  - caches/finalizers
   verbs:
-  - '*'
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
