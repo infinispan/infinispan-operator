@@ -15,8 +15,8 @@ import (
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
-
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -30,9 +30,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var testKube = k8s.NewTestKubernetes()
+
+var log = logf.Log.WithName("main_test")
 
 var DefaultSpec = ispnv1.Infinispan{
 	TypeMeta: tconst.InfinispanTypeMeta,
@@ -110,6 +113,12 @@ func TestNodeStartup(t *testing.T) {
 	testKube.CreateInfinispan(spec, tconst.Namespace)
 	defer testKube.DeleteInfinispan(spec, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
+}
+
+// Run some functions for testing rights not covered by integration tests
+func TestSyntheticRoles(t *testing.T) {
+	_, _, err := infinispan.GetNodePortServiceHostPort(0, testKube.Kubernetes, log)
+	tutils.ExpectNoError(err)
 }
 
 // Test if single node with n ephemeral storage

@@ -48,7 +48,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 
 		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
 		for _, remoteLocation := range remoteLocations {
-			err := AppendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
+			err := appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
 			if err != nil {
 				return err
 			}
@@ -59,7 +59,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 	return nil
 }
 
-func ApplyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *ispnv1.Infinispan, cluster ispn.ClusterInterface, client client.Client, logger logr.Logger) bool {
+func applyLabelsToCoordinatorsPod(podList *corev1.PodList, cluster ispn.ClusterInterface, client client.Client, logger logr.Logger) bool {
 	coordinatorFound := false
 	for _, item := range podList.Items {
 		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultCacheManagerName, item.Name)
@@ -88,7 +88,7 @@ func ApplyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *ispnv1.In
 	return coordinatorFound
 }
 
-func AppendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes,
+func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes,
 	logger logr.Logger, xsite *config.XSite) error {
 	restConfig, err := getRemoteSiteRESTConfig(infinispan, remoteLocation, kubernetes, logger)
 	if err != nil {
@@ -101,14 +101,14 @@ func AppendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.
 		return err
 	}
 
-	err = AppendKubernetesRemoteLocation(infinispan, remoteLocation, remoteKubernetes, logger, xsite)
+	err = appendKubernetesRemoteLocation(infinispan, remoteLocation, remoteKubernetes, logger, xsite)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func AppendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec,
+func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec,
 	remoteKubernetes *kube.Kubernetes, logger logr.Logger, xsite *config.XSite) error {
 	siteServiceName := infinispan.GetSiteServiceName()
 	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
@@ -151,7 +151,7 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kuber
 	switch serviceType := service.Spec.Type; serviceType {
 	case corev1.ServiceTypeNodePort:
 		// If configuring NodePort, expect external IPs to be configured
-		return getNodePortServiceHostPort(service, kubernetes, logger)
+		return GetNodePortServiceHostPort(service.Spec.Ports[0].NodePort, kubernetes, logger)
 	case corev1.ServiceTypeLoadBalancer:
 		return getLoadBalancerServiceHostPort(service, logger)
 	default:
@@ -160,7 +160,7 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kuber
 
 }
 
-func getNodePortServiceHostPort(service *corev1.Service, k *kube.Kubernetes, logger logr.Logger) (string, int32, error) {
+func GetNodePortServiceHostPort(nodePort int32, k *kube.Kubernetes, logger logr.Logger) (string, int32, error) {
 	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
 	//So, we get the workers list. It needs some permissions cluster-reader permission
 	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
@@ -178,7 +178,7 @@ func getNodePortServiceHostPort(service *corev1.Service, k *kube.Kubernetes, log
 
 	if err != nil || len(workerList.Items) == 0 {
 		// Fallback selecting everything
-		err = k.Client.List(context.TODO(), workerList, nil)
+		err = k.Client.List(context.TODO(), workerList, &client.ListOptions{})
 		if err != nil {
 			return "", 0, err
 		}
@@ -192,7 +192,7 @@ func getNodePortServiceHostPort(service *corev1.Service, k *kube.Kubernetes, log
 			if nodeCondition.Type == corev1.NodeReady && nodeCondition.Status == corev1.ConditionTrue && len(nodeStatus.Addresses) > 0 {
 				//The port can be found in the service description
 				host := nodeStatus.Addresses[0].Address
-				port := service.Spec.Ports[0].NodePort
+				port := nodePort
 				logger.Info("Found ready worker node.", "Host", host, "Port", port)
 				return host, port, nil
 			}
