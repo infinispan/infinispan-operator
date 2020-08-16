@@ -46,7 +46,7 @@ jobs:
         - export GO111MODULE=on
       script:
         - go mod vendor
-        - make test
+        - make test PARALLEL_COUNT=2
       after_failure:
         - kubectl get events --all-namespaces
         - kubectl cluster-info

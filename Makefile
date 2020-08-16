@@ -108,6 +108,8 @@ unit-test: build
 ##                  Example: "make test RUN_LOCAL_OPERATOR=false"
 ##                  - Specify expose service type. NodePort or LoadBalancer are supported only.
 ##                  Example: "make test EXPOSE_SERVICE_TYPE=LoadBalancer"
+##                  - Specify parallel test running count. Default is one, i.e. no parallel tests enabled.
+##                  Example: "make test PARALLEL_COUNT=2"
 ##
 test: build
 	build/run-tests.sh ${KUBECONFIG}

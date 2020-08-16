@@ -11,6 +11,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	ispncom "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -119,8 +120,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 
 	// TODO getting list of infinispan pods is also done in controller (refactor)
 	podList := &v1.PodList{}
-	infinispanLabels := map[string]string{"app": "infinispan-pod"}
-	labelSelector := labels.SelectorFromSet(infinispanLabels)
+	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, "infinispan-pod"))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
@@ -315,13 +315,12 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
 }
 
 // WaitForPods waits for pods in the given namespace, having a certain label to reach the desired count in ContainersReady state
-func (k TestKubernetes) WaitForPods(label string, required int, timeout time.Duration, namespace string) {
-	labelSelector, err := labels.Parse(label)
-	utils.ExpectNoError(err)
+func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, clusterName, namespace string) {
+	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(clusterName, "infinispan-pod"))
 
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	podList := &v1.PodList{}
-	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
 		if err != nil {
 			return false, nil
@@ -385,13 +384,11 @@ func (k TestKubernetes) Nodes() []string {
 }
 
 // GetPods return an array of pods matching the selector label in the given namespace
-func (k TestKubernetes) GetPods(label, namespace string) []v1.Pod {
-	labelSelector, err := labels.Parse(label)
-	utils.ExpectNoError(err)
-
+func (k TestKubernetes) GetPods(clusterName, namespace string) []v1.Pod {
+	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(clusterName, "infinispan-pod"))
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	pods := &v1.PodList{}
-	err = k.Kubernetes.Client.List(context.TODO(), pods, listOps)
+	err := k.Kubernetes.Client.List(context.TODO(), pods, listOps)
 	utils.ExpectNoError(err)
 
 	return pods.Items
