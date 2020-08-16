@@ -12,13 +12,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	k8s "github.com/infinispan/infinispan-operator/test/e2e/k8s"
-	testutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -51,10 +52,7 @@ var DefaultSpec = ispnv1.Infinispan{
 }
 
 var MinimalSpec = ispnv1.Infinispan{
-	TypeMeta: metav1.TypeMeta{
-		APIVersion: "infinispan.org/v1",
-		Kind:       "Infinispan",
-	},
+	TypeMeta: tconst.InfinispanTypeMeta,
 	ObjectMeta: metav1.ObjectMeta{
 		Name: tconst.DefaultClusterName,
 	},
@@ -91,8 +89,6 @@ func TestSimple(t *testing.T) {
 func TestNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
-	name := "test-node-startup"
-	spec.ObjectMeta.Name = name
 	// Register it
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
@@ -101,9 +97,10 @@ func TestNodeStartup(t *testing.T) {
 
 // Test if the cluster is working correctly
 func TestClusterFormation(t *testing.T) {
+	t.Parallel()
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
-	name := "test-cluster-formation"
+	name := strcase.ToKebab(t.Name())
 	spec.ObjectMeta.Name = name
 	spec.Spec.Replicas = 2
 	// Register it
@@ -114,9 +111,10 @@ func TestClusterFormation(t *testing.T) {
 
 // Test if the cluster is working correctly
 func TestClusterFormationWithTLS(t *testing.T) {
+	t.Parallel()
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
-	name := "test-cluster-formation"
+	name := strcase.ToKebab(t.Name())
 	spec.ObjectMeta.Name = name
 	spec.Spec.Replicas = 2
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
@@ -136,6 +134,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 
 // Test if spec.container.cpu update is handled
 func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
+	t.Parallel()
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.CPU = "250m"
 	}
@@ -147,11 +146,15 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 			panic("CPU field not updated")
 		}
 	}
-	genericTestForContainerUpdated(MinimalSpec, modifier, verifier)
+	spec := MinimalSpec.DeepCopy()
+	name := strcase.ToKebab(t.Name())
+	spec.ObjectMeta.Name = name
+	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
 // Test if spec.container.memory update is handled
 func TestContainerMemoryUpdate(t *testing.T) {
+	t.Parallel()
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.Memory = "256Mi"
 	}
@@ -160,10 +163,14 @@ func TestContainerMemoryUpdate(t *testing.T) {
 			panic("Memory field not updated")
 		}
 	}
-	genericTestForContainerUpdated(DefaultSpec, modifier, verifier)
+	spec := DefaultSpec.DeepCopy()
+	name := strcase.ToKebab(t.Name())
+	spec.ObjectMeta.Name = name
+	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
 func TestContainerJavaOptsUpdate(t *testing.T) {
+	t.Parallel()
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.ExtraJvmOpts = "-XX:NativeMemoryTracking=summary"
 	}
@@ -180,19 +187,19 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 		}
 		panic("JAVA_OPTIONS not updated")
 	}
-	genericTestForContainerUpdated(DefaultSpec, modifier, verifier)
+	spec := DefaultSpec.DeepCopy()
+	name := strcase.ToKebab(t.Name())
+	spec.ObjectMeta.Name = name
+	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
 // Test if single node working correctly
 func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*appsv1.StatefulSet)) {
-	spec := ispn.DeepCopy()
-	name := "test-node-startup"
-	spec.ObjectMeta.Name = name
-	kubernetes.CreateInfinispan(spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
-	waitForPodsOrFail(spec, int(ispn.Spec.Replicas))
+	kubernetes.CreateInfinispan(&ispn, tconst.Namespace)
+	defer kubernetes.DeleteInfinispan(&ispn, tconst.SinglePodTimeout)
+	waitForPodsOrFail(&ispn, int(ispn.Spec.Replicas))
 	// Get the latest version of the Infinispan resource
-	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
+	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ispn)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -201,24 +208,24 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	ss := appsv1.StatefulSet{}
 
 	// Get the current generation
-	err = kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+	err = kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
 	if err != nil {
 		panic(err.Error())
 	}
 	generation := ss.Status.ObservedGeneration
 
 	// Change the Infinispan spec
-	modifier(spec)
+	modifier(&ispn)
 	// Workaround for OpenShift local test (clear GVK on decode in the client)
-	spec.TypeMeta = tconst.InfinispanTypeMeta
-	err = kubernetes.Kubernetes.Client.Update(context.TODO(), spec)
+	ispn.TypeMeta = tconst.InfinispanTypeMeta
+	err = kubernetes.Kubernetes.Client.Update(context.TODO(), &ispn)
 	if err != nil {
 		panic(err.Error())
 	}
 
 	// Wait for a new generation to appear
 	err = wait.Poll(tconst.DefaultPollPeriod, tconst.SinglePodTimeout, func() (done bool, err error) {
-		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
 	if err != nil {
@@ -228,7 +235,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	// Wait that current and update revisions match
 	// this ensure that the rolling upgrade completes
 	err = wait.Poll(tconst.DefaultPollPeriod, tconst.SinglePodTimeout, func() (done bool, err error) {
-		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
 		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
 	})
 	if err != nil {
@@ -240,8 +247,9 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 }
 
 func TestCacheService(t *testing.T) {
+	t.Parallel()
 	spec := DefaultSpec.DeepCopy()
-	name := "test-cache-service"
+	name := strcase.ToKebab(t.Name())
 
 	spec.ObjectMeta.Name = name
 	spec.Spec.Service.Type = ispnv1.ServiceTypeCache
@@ -253,7 +261,7 @@ func TestCacheService(t *testing.T) {
 
 	user := cconsts.DefaultDeveloperUser
 	password, err := cluster.Kubernetes.GetPassword(user, spec.GetSecretName(), tconst.Namespace)
-	testutils.ExpectNoError(err)
+	tutils.ExpectNoError(err)
 
 	ispn := ispnv1.Infinispan{}
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
@@ -282,13 +290,14 @@ func TestCacheService(t *testing.T) {
 // TestPermanentCache creates a permanent cache the stop/start
 // the cluster and checks that the cache is still there
 func TestPermanentCache(t *testing.T) {
-	name := "test-permanent-cache"
+	t.Parallel()
+	name := strcase.ToKebab(t.Name())
 	usr := cconsts.DefaultDeveloperUser
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
-		testutils.ExpectNoError(err)
+		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
@@ -302,7 +311,7 @@ func TestPermanentCache(t *testing.T) {
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
-		testutils.ExpectNoError(err)
+		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
@@ -328,7 +337,8 @@ func TestPermanentCache(t *testing.T) {
 // TestPermanentCache creates a cache with file-store the stop/start
 // the cluster and checks that the cache and the data are still there
 func TestCheckDataSurviveToShutdown(t *testing.T) {
-	name := "test-data-shutdown-cache"
+	t.Parallel()
+	name := strcase.ToKebab(t.Name())
 	usr := cconsts.DefaultDeveloperUser
 	cacheName := "test"
 	template := `<infinispan><cache-container><distributed-cache name ="` + cacheName +
@@ -339,7 +349,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	// Define function for the generic stop/start test procedure
 	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
-		testutils.ExpectNoError(err)
+		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
@@ -355,7 +365,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 
 	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
-		testutils.ExpectNoError(err)
+		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		schema := getSchemaForRest(ispn)
 		tr := &http.Transport{
@@ -398,15 +408,15 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 
 func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 	// Wait that "num" pods are up
-	kubernetes.WaitForPods("app=infinispan-pod", num, tconst.SinglePodTimeout, tconst.Namespace)
+	kubernetes.WaitForPods(num, tconst.SinglePodTimeout, spec.Name, tconst.Namespace)
 	ispn := ispnv1.Infinispan{}
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 	protocol := getSchemaForRest(&ispn)
-	pods := kubernetes.GetPods("app=infinispan-pod", tconst.Namespace)
+	pods := kubernetes.GetPods(spec.Name, tconst.Namespace)
 	podName := pods[0].Name
 
 	pass, err := cluster.Kubernetes.GetPassword(cconsts.DefaultOperatorUser, spec.GetSecretName(), tconst.Namespace)
-	testutils.ExpectNoError(err)
+	tutils.ExpectNoError(err)
 
 	expectedClusterSize := num
 	// Check that the cluster size is num querying the first pod
@@ -428,19 +438,17 @@ func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 		err = fmt.Errorf("timed out waiting for the condition, last error: %v", lastErr)
 	}
 
-	testutils.ExpectNoError(err)
+	tutils.ExpectNoError(err)
 }
 
 func TestExternalService(t *testing.T) {
-	name := "test-external-service"
+	t.Parallel()
+	name := strcase.ToKebab(t.Name())
 	usr := cconsts.DefaultDeveloperUser
 
 	// Create a resource without passing any config
 	spec := ispnv1.Infinispan{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v1",
-			Kind:       "Infinispan",
-		},
+		TypeMeta: tconst.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
@@ -459,10 +467,10 @@ func TestExternalService(t *testing.T) {
 	kubernetes.CreateInfinispan(&spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(&spec, tconst.SinglePodTimeout)
 
-	kubernetes.WaitForPods("app=infinispan-pod", 1, tconst.SinglePodTimeout, tconst.Namespace)
+	kubernetes.WaitForPods(1, tconst.SinglePodTimeout, spec.Name, tconst.Namespace)
 
 	pass, err := cluster.Kubernetes.GetPassword(usr, spec.GetSecretName(), tconst.Namespace)
-	testutils.ExpectNoError(err)
+	tutils.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
 	ispn := ispnv1.Infinispan{}
@@ -511,12 +519,13 @@ func exposeServiceType() ispnv1.ExposeType {
 // TestExternalServiceWithAuth starts a cluster and checks application
 // and management connection with authentication
 func TestExternalServiceWithAuth(t *testing.T) {
+	t.Parallel()
 	usr := "connectorusr"
 	pass := "connectorpass"
 	newpass := "connectornewpass"
 	identities := util.CreateIdentitiesFor(usr, pass)
 	identitiesYaml, err := yaml.Marshal(identities)
-	testutils.ExpectNoError(err)
+	tutils.ExpectNoError(err)
 
 	// Create secret with application credentials
 	secret := corev1.Secret{
@@ -531,14 +540,11 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	kubernetes.CreateSecret(&secret, tconst.Namespace)
 	defer kubernetes.DeleteSecret(&secret)
 
-	name := "text-external-service-with-auth"
+	name := strcase.ToKebab(t.Name())
 
 	// Create Infinispan
 	spec := ispnv1.Infinispan{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v1",
-			Kind:       "Infinispan",
-		},
+		TypeMeta: tconst.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
@@ -556,7 +562,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	kubernetes.CreateInfinispan(&spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(&spec, tconst.SinglePodTimeout)
 
-	kubernetes.WaitForPods("app=infinispan-pod", 1, tconst.SinglePodTimeout, tconst.Namespace)
+	kubernetes.WaitForPods(1, tconst.SinglePodTimeout, spec.Name, tconst.Namespace)
 
 	ispn := ispnv1.Infinispan{}
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
@@ -566,7 +572,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	// Update the auth credentials.
 	identities = util.CreateIdentitiesFor(usr, newpass)
 	identitiesYaml, err = yaml.Marshal(identities)
-	testutils.ExpectNoError(err)
+	tutils.ExpectNoError(err)
 
 	// Create secret with application credentials
 	secret1 := corev1.Secret{
@@ -617,7 +623,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	// The restart is ongoing and it would that more than 10 sec
 	// so we're not introducing any delay
 	time.Sleep(10 * time.Second)
-	kubernetes.WaitForPods("app=infinispan-pod", 1, tconst.SinglePodTimeout, tconst.Namespace)
+	kubernetes.WaitForPods(1, tconst.SinglePodTimeout, spec.Name, tconst.Namespace)
 	testAuthentication(schema, name, usr, newpass)
 }
 
@@ -706,11 +712,11 @@ func httpEmpty(httpURL string, method string, usr string, pass string, flags str
 	if flags != "" {
 		req.Header.Set("flags", flags)
 	}
-	testutils.ExpectNoError(err)
+	tutils.ExpectNoError(err)
 
 	req.SetBasicAuth(usr, pass)
 	resp, err := client.Do(req)
-	testutils.ExpectNoError(err)
+	tutils.ExpectNoError(err)
 
 	if resp.StatusCode != http.StatusOK {
 		panic(httpError{resp.StatusCode})
