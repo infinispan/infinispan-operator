@@ -131,6 +131,8 @@ spec:
                       type: boolean
                     storage:
                       type: string
+                    storageClassName:
+                      type: string
                   type: object
                 replicationFactor:
                   format: int32

@@ -19,6 +19,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +49,7 @@ func init() {
 	addToScheme(&apiextv1beta1.SchemeBuilder, scheme)
 	addToScheme(&ispnv1.SchemeBuilder.SchemeBuilder, scheme)
 	addToScheme(&appsv1.SchemeBuilder, scheme)
+	addToScheme(&storagev1.SchemeBuilder, scheme)
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {

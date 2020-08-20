@@ -45,6 +45,7 @@ type EndpointEncryption struct {
 type InfinispanServiceContainerSpec struct {
 	Storage          *string `json:"storage,optional,omitempty"`
 	EphemeralStorage *bool   `json:"ephemeralStorage,optional,omitempty"`
+	StorageClassName *string `json:"storageClassName,optional,omitempty"`
 }
 
 type ServiceType string
