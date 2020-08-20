@@ -291,3 +291,21 @@ func (ispn *Infinispan) IsEphemeralStorage() bool {
 	}
 	return false
 }
+
+// StorageClassName returns a storage class name if it defined
+func (ispn *Infinispan) StorageClassName() string {
+	sc := ispn.Spec.Service.Container
+	if sc != nil && sc.StorageClassName != nil {
+		return *sc.StorageClassName
+	}
+	return ""
+}
+
+// StorageSize returns persistence storage size if it defined
+func (ispn *Infinispan) StorageSize() string {
+	sc := ispn.Spec.Service.Container
+	if sc != nil && sc.Storage != nil {
+		return *sc.Storage
+	}
+	return ""
+}

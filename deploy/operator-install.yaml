@@ -136,6 +136,13 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+    - storage.k8s.io
+  resources:
+    - storageclasses
+  verbs:
+    - get
+    - watch
 
 ---
 
@@ -305,6 +312,8 @@ spec:
                     ephemeralStorage:
                       type: boolean
                     storage:
+                      type: string
+                    storageClassName:
                       type: string
                   type: object
                 replicationFactor:

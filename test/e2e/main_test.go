@@ -26,6 +26,7 @@ import (
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -120,6 +121,11 @@ func TestNodeStartup(t *testing.T) {
 func TestRolesSynthetic(t *testing.T) {
 	_, _, err := infinispan.GetNodePortServiceHostPort(0, serviceAccountKube.Kubernetes, log)
 	tutils.ExpectNoError(err)
+
+	_, err = kube.FindStorageClass("not-present-storage-class", serviceAccountKube.Kubernetes.Client)
+	if !errors.IsNotFound(err) {
+		tutils.ExpectNoError(err)
+	}
 }
 
 // Test if single node with n ephemeral storage
@@ -384,7 +390,7 @@ func TestPermanentCache(t *testing.T) {
 	genericTestForGracefulShutdown(name, createPermanentCache, usePermanentCache)
 }
 
-// TestPermanentCache creates a cache with file-store the stop/start
+// TestCheckDataSurviveToShutdown creates a cache with file-store the stop/start
 // the cluster and checks that the cache and the data are still there
 func TestCheckDataSurviveToShutdown(t *testing.T) {
 	t.Parallel()

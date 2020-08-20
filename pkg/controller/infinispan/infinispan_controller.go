@@ -774,7 +774,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 		if m.IsDataGrid() {
 			var pvErr error
-			pvSize, pvErr = resource.ParseQuantity(*m.Spec.Service.Container.Storage)
+			pvSize, pvErr = resource.ParseQuantity(m.StorageSize())
 			if pvErr != nil {
 				return nil, pvErr
 			}
@@ -802,6 +802,13 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		controllerutil.SetControllerReference(m, pvc, r.scheme)
 		pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
 		dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
+		// Set a storage class if it specified
+		if storageClassName := m.StorageClassName(); storageClassName != "" {
+			if _, err = kube.FindStorageClass(storageClassName, r.client); err != nil {
+				return nil, err
+			}
+			pvc.Spec.StorageClassName = &storageClassName
+		}
 
 		// Adding an init container that run chmod if needed
 		if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
@@ -1049,7 +1056,7 @@ func (r *ReconcileInfinispan) computePingService(m *infinispanv1.Infinispan) *co
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
-			ClusterIP: "None",
+			ClusterIP: corev1.ClusterIPNone,
 			Selector:  PodLabels(m.ObjectMeta.Name),
 			Ports: []corev1.ServicePort{
 				{
@@ -1063,8 +1070,7 @@ func (r *ReconcileInfinispan) computePingService(m *infinispanv1.Infinispan) *co
 	return service
 }
 
-// serviceExternal creates an external service that's linked to the internal service
-// This suppose that m.Spec.Expose is not null
+// computeServiceExternal compute the external service
 func (r *ReconcileInfinispan) computeServiceExternal(m *infinispanv1.Infinispan) *corev1.Service {
 	externalServiceType := corev1.ServiceType(m.Spec.Expose.Type)
 	externalServiceName := m.GetServiceExternalName()
