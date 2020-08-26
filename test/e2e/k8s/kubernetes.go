@@ -204,11 +204,10 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 }
 
 // CreateAndWaitForCRD creates a Custom Resource Definition, waiting it to become ready.
-func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition, namespace string) {
-	fmt.Printf("Create CRD %s\n", crd.ObjectMeta.Name)
+func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition) {
+	fmt.Printf("Create CRD %s\n", crd.Name)
 
-	ns := types.NamespacedName{Name: crd.ObjectMeta.Name, Namespace: namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, crd)
+	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 	if err != nil && errors.IsNotFound(err) {
 		err = k.Kubernetes.Client.Create(context.TODO(), crd)
 		utils.ExpectNoError(err)
@@ -216,7 +215,7 @@ func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDef
 
 	fmt.Println("Wait for CRD to created")
 	err = wait.Poll(tconst.DefaultPollPeriod, tconst.MaxWaitTimeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.Get(context.TODO(), ns, crd)
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 		if err != nil {
 			return false, fmt.Errorf("unable to get CRD: %v", err)
 		}
@@ -351,7 +350,7 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, cluster
 func debugPods(required int, pods []v1.Pod) {
 	log.Info("pod list incomplete", "required", required, "pod list size", len(pods))
 	for _, pod := range pods {
-		log.Info("pod info", "name", pod.ObjectMeta.Name, "statuses", pod.Status.ContainerStatuses)
+		log.Info("pod info", "name", pod.Name, "statuses", pod.Status.ContainerStatuses)
 	}
 }
 
@@ -409,26 +408,26 @@ func (k TestKubernetes) DeleteSecret(secret *v1.Secret) {
 
 // RunOperator runs an operator on a Kubernetes cluster
 func (k TestKubernetes) RunOperator(namespace string) chan struct{} {
-	k.installCRD(namespace)
+	k.installCRD()
 	stopCh := make(chan struct{})
 	go runOperatorLocally(stopCh, namespace)
 	return stopCh
 }
 
-func (k TestKubernetes) installCRD(namespace string) {
+func (k TestKubernetes) installCRD() {
 	yamlReader, err := testutils.GetYamlReaderFromFile("../../deploy/crds/infinispan.org_infinispans_crd.yaml")
 	read, _ := yamlReader.Read()
 	crdInfinispan := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crdInfinispan)
 	utils.ExpectNoError(err)
-	k.CreateAndWaitForCRD(&crdInfinispan, namespace)
+	k.CreateAndWaitForCRD(&crdInfinispan)
 
 	yamlReader, err = testutils.GetYamlReaderFromFile("../../deploy/crds/infinispan.org_caches_crd.yaml")
 	read, _ = yamlReader.Read()
 	crdCache := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crdCache)
 	utils.ExpectNoError(err)
-	k.CreateAndWaitForCRD(&crdCache, namespace)
+	k.CreateAndWaitForCRD(&crdCache)
 }
 
 // Run the operator locally
