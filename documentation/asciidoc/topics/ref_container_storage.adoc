@@ -1,7 +1,8 @@
 [id='storage_resources-{context}']
 = Storage Resources
 By default, {ispn_operator} allocates `1Gi` for storage for both
-{cacheservice} and {datagridservice} nodes. However, you can configure storage size for {datagridservice} nodes.
+{cacheservice} and {datagridservice} nodes. You can configure storage size for
+{datagridservice} nodes but not {cacheservice} nodes.
 
 [source,options="nowrap",subs=attributes+]
 ----
@@ -10,6 +11,12 @@ include::yaml_annotated/cr_container_storage.yaml[]
 
 <1> Configures the storage size for {datagridservice} nodes.
 
-.Reference
+.Persistent Volume Claims
 
-* link:#ref_pv-ref[Persistent Volume Claims]
+{ispn_operator} mounts persistent volumes at: +
+`{pv_path}`
+
+[NOTE]
+====
+Persistent volume claims use the `ReadWriteOnce (RWO)` access mode.
+====

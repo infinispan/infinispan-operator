@@ -1,0 +1,62 @@
+[id='adding_backup_locations-{context}']
+= Adding Backup Locations to Caches
+When you configure {brandname} clusters to perform cross-site replication, you
+can add backup locations to your cache configurations.
+
+.Procedure
+
+. Create cache configurations with identical names for each site.
++
+Cache configurations at each site can use different cache modes and backup
+strategies. {brandname} replicates data based on cache names.
++
+. Configure backup locations to go offline automatically with the `take-offline` element.
+.. Set the amount of time, in milliseconds, before backup locations go offline with the `min-wait` attribute.
+. Define any other valid cache configuration.
+. Add backup locations to the named cache on all sites in the global cluster.
++
+For example, if you add **LON** as a backup for **NYC** you should add **NYC**
+as a backup for **LON**.
+
+The following configuration examples show backup locations for caches:
+
+* **NYC**
++
+[source,xml,options="nowrap",subs=attributes+]
+----
+<infinispan>
+  <cache-container>
+    <distributed-cache name="customers">
+      <encoding media-type="application/x-protostream"/>
+      <backups>
+        <backup site="LON" strategy="SYNC">
+          <take-offline min-wait="120000"/>
+        </backup>
+      </backups>
+    </distributed-cache>
+  </cache-container>
+</infinispan>
+----
+
+* **LON**
++
+[source,xml,options="nowrap",subs=attributes+]
+----
+<infinispan>
+  <cache-container>
+    <replicated-cache name="customers">
+      <encoding media-type="application/x-protostream"/>
+      <backups>
+        <backup site="NYC" strategy="ASYNC" >
+            <take-offline min-wait="120000"/>
+          </backup>
+      </backups>
+    </replicated-cache>
+  </cache-container>
+</infinispan>
+----
+
+.Reference
+
+* link:#configuring_sites-xsite[Configuring Clusters for Cross-Site Replication]
+* link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]

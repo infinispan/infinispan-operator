@@ -16,12 +16,12 @@ image::xsite-rhdg.svg[]
 endif::productized[]
 
 {ispn_operator} uses a Kubernetes API to establish a secure connection between
-the {ocp} clusters in **NYC** and **LON**. {ispn_operator} then creates a cross-
-site replication service so {brandname} clusters can back up data across
+the {ocp} clusters in **NYC** and **LON**. {ispn_operator} then creates a
+cross-site replication service so {brandname} clusters can back up data across
 locations.
 
 Each {brandname} cluster has one site master node that coordinates all backup
-requests. {ispn_operator} identifies the site master node so that all traffic 
+requests. {ispn_operator} identifies the site master node so that all traffic
 through the cross-site replication service goes to the site master.
 
 If the current site master node goes offline then a new node becomes site

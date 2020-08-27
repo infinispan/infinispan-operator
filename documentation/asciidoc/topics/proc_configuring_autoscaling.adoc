@@ -1,34 +1,44 @@
 [id='configuring_autoscale-{context}']
 = Configuring Automatic Scaling
-When you create clusters with {cacheservice} nodes, {ispn_operator} can
-automatically scale up or down based on memory usage.
+If you create clusters with {cacheservice} nodes, {ispn_operator}
+can automatically scale nodes up or down based on memory usage for the default
+cache.
 
-{ispn_operator} monitors memory usage for each node in the {brandname} cluster.
-If it detects that the {cacheservice} cluster requires additional capacity,
-{ispn_operator} creates new nodes rather than evicting entries. Likewise, if it
-detects that memory usage is below a certain threshold, {ispn_operator} shuts
-down nodes.
+{ispn_operator} monitors default caches on {cacheservice} nodes. As you add
+data to the cache, memory usage increases. When it detects that the cluster
+needs additional capacity, {ispn_operator} creates new nodes rather than
+eviciting entries. Likewise, if it detects that memory usage is below a certain
+threshold, {ispn_operator} shuts down nodes.
+
+[IMPORTANT]
+====
+Automatic scaling works with the default cache only. If you plan to add other
+caches to your cluster, you should not include the `autoscale` field in your
+**Infinispan** CR. In this case you should use eviction to control the size of
+the data container on each node.
+====
 
 .Procedure
 
 . Add the `spec.autoscale` resource to your **Infinispan** CR to enable automatic scaling.
-. Configure memory usage thresholds and number of nodes for your cluster as in the following example:
+. Configure memory usage thresholds and number of nodes for your cluster with the `autoscale` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 spec:
   ...
-  autoscale: <1>
-    maxMemUsagePercent: 70 <2>
-    maxReplicas: 5 <3>
-    minMemUsagePercent: 30 <4>
-    minReplicas: 2 <5>
+  service:
+    type: Cache
+  autoscale:
+    maxMemUsagePercent: 70 <1>
+    maxReplicas: 5 <2>
+    minMemUsagePercent: 30 <3>
+    minReplicas: 2 <4>
 ----
 +
-<1> Enables automatic scaling.
-<2> Configures the maximum threshold, as a percentage, for memory usage on each node. When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
-<3> Defines the maximum number of number of nodes for the cluster.
-<4> Configures the minimum threshold, as a percentage, for memory usage across the cluster. When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes.
-<5> Defines the minimum number of number of nodes for the cluster.
+<1> Configures the maximum threshold, as a percentage, for memory usage on each node. When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
+<2> Defines the maximum number of number of nodes for the cluster.
+<3> Configures the minimum threshold, as a percentage, for memory usage across the cluster. When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes.
+<4> Defines the minimum number of number of nodes for the cluster.
 +
 . Apply the changes.

@@ -10,6 +10,7 @@ ifndef::productized[]
 include::{topics}/proc_install_operatorhub.adoc[leveloffset=+1]
 include::{topics}/proc_install_manually.adoc[leveloffset=+1]
 endif::productized[]
+include::{topics}/con_upgrades.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]
