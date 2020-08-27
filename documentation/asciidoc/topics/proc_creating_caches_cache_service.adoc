@@ -1,35 +1,22 @@
-[id='create_cs_caches-{context}']
-= Creating Caches for {cacheservice} Clusters
-{cacheservice} clusters provide a default cache configuration. You can create multiple caches but only as copies of the default configuration.
+[id='creating_caches_cacheservice-{context}']
+= Adding Caches to {cacheservice} Nodes
+{cacheservice} nodes include a default cache configuration with recommended
+settings. This default cache lets you start using {brandname} without the need
+to create caches.
+
+[NOTE]
+====
+Because the default cache provides recommended settings, you should create
+caches only as copies of the default. If you want multiple custom caches you
+should create {datagridservice} nodes instead of {cacheservice} nodes.
+====
 
 .Procedure
 
-* Invoke the following REST call:
+* Access the {brandname} Console and provide a copy of the default configuration in XML or JSON format.
+* Use the {brandname} CLI to create a copy from the default cache as follows:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-POST /rest/v2/caches/$CACHENAME?template=default
-----
-
-In test or development environments, you can do this as follows:
-
-. Open a remote shell to a {brandname} node, for example:
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ {kubectl_exec}
-----
-+
-. Create a cache named "mycache" as follows:
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ curl -X POST -u $USERNAME:$PASSWORD $ClusterIP:11222/rest/v2/caches/mycache?template=default
-----
-+
-. Exit the remote shell.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ exit
+[//containers/default]> create cache --template=default mycache
 ----

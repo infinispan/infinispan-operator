@@ -1,14 +1,15 @@
 [id='creating_sa_tokens-{context}']
 = Creating Service Account Tokens
-To establish secure connections between backup locations, you must generate and
-exchange service account tokens. These tokens allow {ocp} clusters to
-authenticate so {ispn_operator} can create a cross-site replication service.
+Generate service account tokens on each {openshiftshort} cluster that acts as a
+backup location. Clusters use these tokens to authenticate with each other so
+{ispn_operator} can create a cross-site replication service.
 
 .Procedure
 
-. Create service accounts on each {openshiftshort} cluster.
+. Log in to an {openshiftshort} cluster.
+. Create a service account.
 +
-For example, create a service account on **LON** as follows:
+For example, create a service account at **LON**:
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -16,40 +17,15 @@ $ oc create sa lon
 serviceaccount/lon created
 ----
 +
-. Add the view role to service accounts.
-+
-For example, if your {brandname} cluster runs in the "my-xsite" namespace, add
-the view role to the service account on **LON** as follows:
+. Add the view role to the service account with the following command:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc policy add-role-to-user view system:serviceaccount:my-xsite:lon
+$ oc policy add-role-to-user view system:serviceaccount:<namespace>:lon
 ----
 +
-. Retrieve tokens from each service account.
-+
-The following example shows the service account token for **LON**:
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ oc sa get-token lon
+. Repeat the preceding steps on your other {openshiftshort} clusters.
 
-eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
-----
-+
-. Create secrets that contain service account tokens for the backup locations.
-.. Log in to {ocp} at **NYC**.
-.. Add the service account token to a `lon-token` secret.
-+
-[source,options="nowrap",subs=attributes+]
-----
-oc create secret generic lon-token --from-literal=token=eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
-----
-+
-.. Repeat the preceding steps to create a `nyc-token` secret on **LON**.
-
-After you add service account tokens to each backup location, {brandname}
-clusters can form cross-site views.
 
 .Reference
 

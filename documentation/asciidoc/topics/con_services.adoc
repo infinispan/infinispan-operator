@@ -3,25 +3,28 @@
 Services are stateful applications, based on the {brandname} server image, that
 provide flexible and robust in-memory data storage.
 
-There are two service types {cacheservice} or {datagridservice}.
+.{cacheservice}
 
-== {cacheservice}
+Use {cacheservice} if you want a volatile, low-latency data store with minimal configuration. {cacheservice} nodes:
 
-Use {cacheservice} if you want {brandname} to provide a volatile, low-latency
-data store that requires minimal configuration.
-
-By default, {cacheservice} nodes:
-
-* Synchronously distribute data across the cluster to ensure consistency.
-* Maintain single copies of cache entries to reduce size.
+* Automatically scale to meet capacity when data storage demands go up or down.
+* Synchronously distribute data to ensure consistency.
+* Replicates each entry in the cache across the cluster.
 * Store cache entries off-heap and use eviction for JVM efficiency.
 * Ensure data consistency with a default partition handling configuration.
 
-== {datagridservice}
+[IMPORTANT]
+====
+Because {cacheservice} nodes are volatile you lose all data when you apply
+changes to the cluster with the **Infinispan** CR or update the {brandname}
+version.
+====
+
+.{datagridservice}
 
 Use {datagridservice} if you want to:
 
-* Create caches at runtime using distributed or replicated configurations.
+* Back up data across global clusters with cross-site replication.
+* Create caches with any valid configuration.
 * Add file-based cache stores to save data in the persistent volume.
-* Perform cross-site replication.
-* Take advantage of advanced {brandname} capabilities such as search.
+* Use {brandname} search and other advanced capabilities.

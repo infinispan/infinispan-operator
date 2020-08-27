@@ -1,5 +1,5 @@
 [id='ref_datagrid_service_crd-{context}']
-= Data Grid Service Resources
+= {datagridservice} Resources
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
@@ -15,15 +15,16 @@ spec:
       storage: 2Gi <4>
     sites: <5>
       local:
-        expose:
-          type: LoadBalancer
+      name: NYC
+      expose:
+        type: LoadBalancer
       locations:
       - name: azure
         url: openshift://api.azure.host:6443
-        secretName: azure-identities
+        secretName: azure-token
       - name: aws
         url: openshift://api.aws.host:6443
-        secretName: aws-identities
+        secretName: aws-token
   security:
     endpointSecretName: endpoint-identities <6>
     endpointEncryption: <7>
@@ -37,6 +38,8 @@ spec:
     categories:
       org.infinispan: debug
       org.jgroups: debug
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: fatal
   expose: <10>
     type: LoadBalancer
 ----

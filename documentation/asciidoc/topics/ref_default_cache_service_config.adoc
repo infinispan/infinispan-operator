@@ -1,27 +1,29 @@
 [id='default_config-{context}']
 = Default Cache Configuration
-
-{cacheservice} nodes use the following cache configuration:
+The default cache for {cacheservice} nodes is as follows:
 
 [source,xml,options="nowrap",subs=attributes+]
 ----
-<distributed-cache name="default" <1>
-                   mode="SYNC" <2>
-                   owners="2"> <3>
-   <memory storage="OFF_HEAP" <4>
-           max-size="<maximum_size_in_bytes>" <5>
-           when-full="REMOVE"> <6>
-   </memory>
-   <partition-handling when-split="ALLOW_READ_WRITES" <7>
-                       merge-policy="REMOVE_ALL"/> <8>
-</distributed-cache>
+<infinispan>
+  <cache-container>
+    <distributed-cache name="default" <1>
+                       mode="SYNC" <2>
+                       owners="2"> <3>
+      <memory storage="OFF_HEAP" <4>
+              max-size="<maximum_size_in_bytes>" <5>
+              when-full="REMOVE" /> <6>
+      <partition-handling when-split="ALLOW_READ_WRITES" <7>
+                          merge-policy="REMOVE_ALL"/> <8>
+    </distributed-cache>
+  </cache-container>
+</infinispan>
 ----
 
 <1> Names the cache instance as "default".
 <2> Uses synchronous distribution for storing data across the cluster.
-<3> Configures one replica for each cache entry across the cluster.
+<3> Configures two replicas of each cache entry on the cluster.
 <4> Stores cache entries as bytes in native memory (off-heap).
-<5> Specifies the maximum size for the data container in bytes. {ispn_operator} calculates the maximum size when it creates nodes.
-<6> Removes old entries to make space when adding new entries.
-<7> Specifies a conflict resolution strategy that allows read and write operations for cache entries even if segment owners are in different partitions.
+<5> Defines the maximum size for the data container in bytes. {ispn_operator} calculates the maximum size when it creates nodes.
+<6> Evicts cache entries to control the size of the data container. You can enable automatic scaling so that {ispn_operator} adds nodes when memory usage increases instead of removing entries.
+<7> Names a conflict resolution strategy that allows read and write operations for cache entries, even if segment owners are in different partitions.
 <8> Specifies a merge policy that removes entries from the cache when {brandname} detects conflicts.
