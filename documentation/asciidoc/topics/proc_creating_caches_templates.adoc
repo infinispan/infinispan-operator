@@ -1,19 +1,14 @@
 [id='cache_templates-{context}']
 = Creating {brandname} Caches from Templates
 Complete the following steps to create caches on {datagridservice} clusters
-using `infinispan.org` cache configuration templates.
+using cache configuration templates.
 
 .Prerequisites
 
 * Create a secret that contains valid user credentials for accessing
 {brandname} clusters.
 * Identify the cache configuration template you want to use for your cache. You
-can retrieve all available configuration templates with the following REST call:
-+
-[source,options="nowrap",subs=attributes+]
-----
-GET /rest/v2/cache-managers/default/cache-configs/templates
-----
+can find a list of available configuration templates in {brandname} Console.
 
 .Procedure
 

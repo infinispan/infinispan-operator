@@ -1,0 +1,38 @@
+[id='exchanging_sa_tokens-{context}']
+= Exchanging Service Account Tokens
+After you create service account tokens on your {openshiftshort} clusters, you
+add them to secrets on each backup location. For example, at **LON** you add
+the service account token for **NYC**. At **NYC** you add the service account
+token for **LON**.
+
+.Prerequisites
+
+* Get tokens from each service account.
++
+Use the following command or get the token from the {osweb}:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc sa get-token lon
+
+eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
+----
+
+.Procedure
+
+. Log in to an {openshiftshort} cluster.
+. Add the service account token for a backup location with the following command:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc create secret generic <token-name> --from-literal=token=<token>
+----
++
+For example, log in to the {openshiftshort} cluster at **NYC** and create a `lon-token` secret as follows:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc create secret generic lon-token --from-literal=token=eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
+----
++
+. Repeat the preceding steps on your other {openshiftshort} clusters.

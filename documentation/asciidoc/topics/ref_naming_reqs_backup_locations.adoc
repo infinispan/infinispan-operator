@@ -1,9 +1,0 @@
-[id='naming_requirements_backup_locations']
-= Naming Requirements for Backup Locations
-{ispn_operator} expects {brandname} cluster names and namespaces at each backup
-location to be identical.
-
-For example, at the **LON** site you create a {brandname} cluster with
-`metadata.name: mydatagrid` in a {k8s} project named "my-xsite". To use a
-{brandname} cluster at the **NYC** site as a backup for **LON**, you must
-create that cluster with an identical name in an identical namespace.

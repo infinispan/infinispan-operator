@@ -1,17 +1,42 @@
 [id='caches']
-:context: datastore
+:context: caches
 = Creating {brandname} Caches
 Add cache definitions that configure how {brandname} stores your data. You can
-create caches either through {ispn_operator} or from Hot Rod or REST clients.
+create caches from configuration templates and valid cache definitions in XML
+format through {brandname} Console, {brandname} CLI, Hot Rod clients, or
+{ispn_operator}.
 
-include::{topics}/ref_creating_caches_dg_service.adoc[leveloffset=+1]
+.Prerequisites
+
+Before you start creating {brandname} caches, ensure that you have:
+
+* {brandname} credentials. By default {brandname} requires authentication.
+* Network access to your {brandname} cluster.
++
+[NOTE]
+====
+Examples in this section use `$SERVICE_HOSTNAME` to denote the service or route
+that provides access to your {brandname} cluster.
+====
+
+//Creating Caches
+include::{topics}/proc_creating_caches_console.adoc[leveloffset=+1]
+include::{topics}/proc_creating_caches_cli.adoc[leveloffset=+1]
+include::{topics}/proc_creating_caches_hotrod.adoc[leveloffset=+1]
+//Cache Service
+include::{topics}/proc_creating_caches_cache_service.adoc[leveloffset=+1]
+include::{topics}/ref_default_cache_service_config.adoc[leveloffset=+2]
+//Creating Caches Operator
+include::{topics}/proc_creating_caches_operator.adoc[leveloffset=+1]
 include::{topics}/proc_adding_cache_auth_secrets.adoc[leveloffset=+2]
 include::{topics}/proc_using_custom_cache_auth.adoc[leveloffset=+3]
 include::{topics}/proc_creating_caches_templates.adoc[leveloffset=+2]
 include::{topics}/proc_creating_caches_xml.adoc[leveloffset=+2]
-include::{topics}/proc_configuring_cache_stores.adoc[leveloffset=+2]
-include::{topics}/proc_creating_caches_cache_service.adoc[leveloffset=+1]
-include::{topics}/proc_verifying_caches.adoc[leveloffset=+1]
+//Adding Cache Configuration
+include::{topics}/proc_adding_backup_locations.adoc[leveloffset=+1]
+include::{topics}/con_backups_automatic_offline.adoc[leveloffset=+2]
+include::{topics}/proc_adding_cache_stores.adoc[leveloffset=+1]
+
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

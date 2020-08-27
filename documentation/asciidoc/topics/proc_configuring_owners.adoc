@@ -1,17 +1,20 @@
 [id='configuring_owners-{context}']
 = Configuring the Number of Owners
-The number of owners controls how many copies of cache entries there are across
-your {brandname} cluster.
+The number of owners controls how many copies of each cache entry are
+replicated across your {brandname} cluster. The default for {cacheservice}
+nodes is two, which duplicates each entry to prevent data loss.
 
 .Procedure
 
-. Specify the number of owners with the `spec.replicationFactor` resource in your **Infinispan** CR as follows:
+. Specify the number of owners with the `spec.service.replicationFactor` resource in your **Infinispan** CR as follows:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 spec:
   ...
-  replicationFactor: 3 <1>
+  service:
+    type: Cache
+    replicationFactor: 3 <1>
 ----
 +
 <1> Configures three replicas for each cache entry.

@@ -1,0 +1,71 @@
+[id='creating_caches_cli-{context}']
+= Creating Caches with {brandname} CLI
+Use the command line interface (CLI) to create caches on your {brandname}
+cluster.
+
+.Prerequisites
+
+* Download {brandname} Server.
++
+The CLI is available as part of the server distribution, which you can run on your local host to establish remote connections to {brandname} clusters on {openshiftshort}.
++
+[NOTE]
+====
+You can also open a remote shell to a {brandname} node and access the CLI from there. However, doing this means you must create configuration files on each node when adding caches.
+
+[source,options="nowrap",subs=attributes+]
+----
+$ {kubectl_exec}
+----
+====
+
+.Procedure
+
+. Create a CLI connection to your {brandname} cluster.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ bin/cli.sh -c https://$SERVICE_HOSTNAME:11222/ --trustall
+----
++
+. Enter your {brandname} credentials when prompted.
+. Add cache definitions with the [command]`create cache` command.
++
+* Add a cache definition from an XML or JSON file with the [command]`--file` option.
++
+[source,options="nowrap",subs=attributes+]
+----
+[//containers/default]> create cache --file=configuration.xml mycache
+----
++
+* Add a cache definition from a template with the [command]`--template` option.
++
+[source,options="nowrap",subs=attributes+]
+----
+[//containers/default]> create cache --template=org.infinispan.DIST_SYNC mycache
+----
++
+[TIP]
+====
+Press the tab key after the `--template=` argument to list available cache templates.
+====
++
+. Verify the cache exists with the [command]`ls` command.
++
+[source,options="nowrap",subs=attributes+]
+----
+[//containers/default]> ls caches
+mycache
+----
++
+. Retrieve the cache configuration with the [command]`describe` command.
++
+[source,options="nowrap",subs=attributes+]
+----
+[//containers/default]> describe caches/mycache
+----
+
+.Reference
+
+* link:{server_docs}#downloading_server_distributions[Downloading Server Distributions]
+* link:{cli_docs}[Using the {brandname} Command Line Interface]

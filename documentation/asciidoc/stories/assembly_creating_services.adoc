@@ -1,11 +1,18 @@
 [id='creating_services']
 :context: nodes
 = Setting Up {brandname} Services
-Use {ispn_operator} to create either {cacheservice} or {datagridservice} nodes.
+Use {ispn_operator} to create clusters of either {cacheservice} or
+{datagridservice} nodes.
 
 include::{topics}/con_services.adoc[leveloffset=+1]
-include::{topics}/proc_configuring_service_type.adoc[leveloffset=+1]
-include::assembly_configuring_cacheservice.adoc[leveloffset=+1]
+//Cache Service
+include::{topics}/proc_creating_cache_service.adoc[leveloffset=+1]
+include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
+include::{topics}/proc_configuring_owners.adoc[leveloffset=+2]
+include::{topics}/ref_cacheservice_resources.adoc[leveloffset=+2]
+//Data Grid Service
+include::{topics}/proc_creating_dg_service.adoc[leveloffset=+1]
+include::{topics}/ref_datagridservice_resources.adoc[leveloffset=+2]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

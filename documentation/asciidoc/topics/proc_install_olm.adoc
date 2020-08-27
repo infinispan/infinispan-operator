@@ -1,8 +1,7 @@
 [id='create_olm_subscription']
 = Installing {ispn_operator} on {openshift}
-{ispn_operator} is packaged for the Operator Lifecycle Manager (OLM) on
-{openshiftshort} that lets you select {brandname} versions and receive
-automatic updates.
+Create subscriptions to {ispn_operator} on {openshiftshort} so you can install
+different {brandname} versions and receive automatic updates.
 
 .Prerequisites
 

@@ -17,8 +17,8 @@ This secret allows Prometheus to authenticate with your {brandname} cluster. You
 include::yaml_annotated/basic_auth.yaml[]
 ----
 +
-<1> specifies an application user. `developer` is the default application user.
-<2> specifies a corresponding password.
+<1> Specifies an application user. `developer` is the default application user.
+<2> Specifies a corresponding password.
 +
 . Create a service monitor instance that configures Prometheus to monitor your {brandname} cluster.
 +
@@ -27,11 +27,11 @@ include::yaml_annotated/basic_auth.yaml[]
 include::yaml_annotated/service_monitor.yaml[]
 ----
 +
-<1> names the service monitor.
-<2> specifies your Prometheus namespace.
-<3> specifies the name of the authentication secret that has {brandname} credentials.
-<4> specifies the name of the authentication secret that has {brandname} credentials.
-<5> specifies that {brandname} endpoints use encryption. If you do not use TLS, remove `spec.endpoints.scheme`.
-<6> specifies the Common Name (CN) of the TLS certificate for {brandname} encryption. If you use an {openshiftshort} service certificate, the CN matches the `metadata.name` resource for your {brandname} cluster. If you do not use TLS, remove `spec.endpoints.tlsConfig`.
+<1> Names the service monitor.
+<2> Specifies your Prometheus namespace.
+<3> Specifies the name of the authentication secret that has {brandname} credentials.
+<4> Specifies the name of the authentication secret that has {brandname} credentials.
+<5> Specifies that {brandname} endpoints use encryption. If you do not use TLS, remove `spec.endpoints.scheme`.
+<6> Specifies the Common Name (CN) of the TLS certificate for {brandname} encryption. If you use an {openshiftshort} service certificate, the CN matches the `metadata.name` resource for your {brandname} cluster. If you do not use TLS, remove `spec.endpoints.tlsConfig`.
 <7> specifies the {ispn_operator} namespace.
 <8> specifies the name of the {brandname} cluster.
