@@ -171,7 +171,7 @@ spec:
 
 Infinispan operator has other capabilities.
 Check the
-[official operator documentation](https://infinispan.org/infinispan-operator/master/documentation/asciidoc/titles/operator.html)
+[official operator documentation](https://infinispan.org/infinispan-operator/master/operator.html)
 for more details.
 
 ### Testing the Infinispan Operator

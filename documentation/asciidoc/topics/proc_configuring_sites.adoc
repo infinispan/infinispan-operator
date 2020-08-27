@@ -1,40 +1,102 @@
 [id='configuring_sites-{context}']
-= Adding Backup Locations to {brandname} Clusters
+= Configuring {brandname} Clusters for Cross-Site Replication
 Configure {brandname} clusters as backup locations so that they can communicate
 over a dedicated JGroups transport channel for replicating data.
 
+.Prerequisites
+
+* Create secrets that contain service account tokens for each backup location.
+* Ensure that {k8s} project names match.
++
+[IMPORTANT]
+====
+To perform cross-site replication, {ispn_operator} requires {brandname}
+clusters to have the same name and run in matching namespaces.
+
+For example, you create a cluster at **LON** in a project named
+`xsite-cluster`. The cluster at **NYC** must also run in a project
+named `xsite-cluster`.
+====
+
 .Procedure
 
-. Configure {brandname} clusters at each site with the **Infinispan** CR as
-necessary.
+. Create an **Infinispan** CR for each {brandname} cluster.
+. Specify a matching name for each {brandname} cluster with metadata.name`.
+. Specify the name of the local site with `spec.service.sites.local.name`.
+. Provide the name, URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 +
-For example, create `lon.yaml` to configure **LON** and `nyc.yaml` to
-configure **NYC**. Both configurations must include the following:
+The following are example **Infinispan** CR definitions for **LON** and **NYC**:
 +
-* `.spec.service.sites.local` names the local site for {brandname} clusters.
-* `.spec.service.sites.locations` provides the location of all site masters.
-{brandname} nodes use this information to connect with each other and form
-cross-site views.
+* **LON**
 +
-. Instantiate {brandname} clusters at each site, for example:
-.. Apply the **Infinispan** CR for **LON**.
-+
-[source,options="nowrap",subs=attributes+]
+[source,yaml,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} lon.yaml
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  replicas: 3
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: LON
+        expose:
+          type: LoadBalancer
+      locations:
+        - name: LON
+          url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
+          secretName: lon-token
+        - name: NYC
+          url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
+          secretName: nyc-token
 ----
 +
-.. Log in to {ocp} at **NYC**.
-.. Apply the **Infinispan** CR for **NYC**.
+* **NYC**
 +
-[source,options="nowrap",subs=attributes+]
+[source,yaml,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} nyc.yaml
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  replicas: 2
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: NYC
+        expose:
+          type: LoadBalancer
+      locations:
+        - name: NYC
+          url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
+          secretName: nyc-token
+        - name: LON
+          url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
+          secretName: lon-token
 ----
 +
-. Verify that {brandname} clusters form a cross-site view.
+. Adjust logging levels for cross-site replication as follows:
 +
-For example, do the following on **LON**:
+[source,yaml,options="nowrap",subs=attributes+]
+----
+...
+  logging:
+    categories:
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: fatal
+----
++
+The preceding configuration decreases logging for JGroups TCP and RELAY2
+protocols to reduce excessive messages about cluster backup operations, which
+can result in a large number of log files that use container storage.
++
+. Configure nodes with any other {datagridservice} resources.
+. Apply the **Infinispan** CRs.
+. Check node logs to verify that {brandname} clusters form a cross-site view, for example:
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -44,6 +106,13 @@ INFO  [org.infinispan.XSITE] (jgroups-5,{example_crd_name}-0-<id>) ISPN000439: R
 INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC, LON]
 ----
 
+.Next steps
+
+If your clusters have formed a cross-site view, you can start adding backup
+locations to caches.
+
 .Reference
 
-link:#ref_xsite_crd-xsite[Cross-Site Replication Resources]
+* link:#ref_xsite_crd-xsite[Cross-Site Replication Resources]
+* link:#adding_backup_locations-caches[Adding Backup Locations to Caches]
+* link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]

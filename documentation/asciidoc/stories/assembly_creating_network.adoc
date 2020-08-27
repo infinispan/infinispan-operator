@@ -1,7 +1,8 @@
 [id='network_services']
 :context: access
 = Configuring Network Access to {brandname}
-Make {brandname} clusters available on your network for client connections.
+Expose {brandname} clusters so you can access {brandname} Console, the
+{brandname} command line interface (CLI), REST API, and Hot Rod endpoint.
 
 include::{topics}/proc_getting_internal_service.adoc[leveloffset=+1]
 include::{topics}/proc_exposing_loadbalancer.adoc[leveloffset=+1]

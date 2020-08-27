@@ -1,0 +1,24 @@
+[id='creating_cache_service-{context}']
+= Creating {cacheservice} Nodes
+By default, {ispn_operator} creates {brandname} clusters with {cacheservice}
+nodes.
+
+.Procedure
+
+. Create an **Infinispan** CR.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  replicas: 2
+  service:
+    type: Cache <1>
+----
++
+<1> Creates nodes {cacheservice} nodes. This is the default for the **Infinispan** CR.
++
+. Apply your **Infinispan** CR to create the cluster.

@@ -1,6 +1,7 @@
 [id='ref_upgrades-{context}']
-= {ispn_operator} Upgrades
-{ispn_operator} upgrades {brandname} when new versions become available.
+= {brandname} Upgrades
+{ispn_operator} automatically upgrades {brandname} clusters when new versions
+become available.
 
 To upgrade {brandname} clusters, {ispn_operator} checks the version of the
 image for {brandname} nodes. If {ispn_operator} determines that a new

@@ -46,3 +46,14 @@
 
 include::kubectl_cmds.adoc[]
 include::links.adoc[]
+
+// Stable Links
+
+//HotRod Java client
+:hotrod_docs: https://infinispan.org/docs/stable/titles/hotrod_java/hotrod_java.html
+
+//Cross-Site REPL
+:xsite_docs: https://infinispan.org/docs/stable/titles/xsite/xsite.html
+
+//Server
+:server_docs:  https://infinispan.org/docs/stable/titles/server/server.html
