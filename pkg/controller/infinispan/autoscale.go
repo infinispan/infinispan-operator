@@ -78,7 +78,10 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 		// Data memory percent usage array, one value per pod
 		metricDataMemoryPercentUsed := map[string]int{}
 		podList := &corev1.PodList{}
-		kubernetes.GetK8sResources(ispn.ObjectMeta.Name, ispn.ObjectMeta.Namespace, podList)
+		err = kubernetes.ResourcesList(ispn.ObjectMeta.Name, ispn.ObjectMeta.Namespace, "infinispan-pod", podList)
+		if err != nil {
+			continue
+		}
 
 		for _, pItem := range podList.Items {
 			// time.Sleep(time.Duration(10000/len(podList.Items)) * time.Millisecond)
