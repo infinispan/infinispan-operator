@@ -256,9 +256,9 @@ func (k Kubernetes) HasServiceCAsCRDResource() bool {
 	return status >= 200 && status < 299
 }
 
-// GetK8sResources returns the list of the type list of resources associated to the cluster
-func (k Kubernetes) GetK8sResources(name, namespace string, list runtime.Object) error {
-	labelSelector := labels.SelectorFromSet(common.LabelsResource(name, ""))
+// ResourcesList returns a typed list of resource associated with the cluster
+func (k Kubernetes) ResourcesList(name, namespace, resourceType string, list runtime.Object) error {
+	labelSelector := labels.SelectorFromSet(common.LabelsResource(name, resourceType))
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	err := k.Client.List(context.TODO(), list, listOps)
 	return err

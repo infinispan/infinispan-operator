@@ -45,3 +45,22 @@ func LookupHost(host string, logger logr.Logger) (string, error) {
 	logger.Info("host resolved", "host", host, "addresses", addresses)
 	return host, nil
 }
+
+func Contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func Remove(list []string, s string) []string {
+	var slice []string
+	for _, v := range list {
+		if v != s {
+			slice = append(slice, v)
+		}
+	}
+	return slice
+}
