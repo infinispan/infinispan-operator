@@ -262,10 +262,10 @@ spec:
                   description: InfinispanServiceContainerSpec resource requirements
                     specific for service
                   properties:
+                    ephemeralStorage:
+                      type: boolean
                     storage:
                       type: string
-                  required:
-                  - storage
                   type: object
                 replicationFactor:
                   format: int32

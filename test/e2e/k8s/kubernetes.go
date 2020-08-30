@@ -118,7 +118,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 	err := k.Kubernetes.Client.Delete(context.TODO(), infinispan, tconst.DeleteOpts...)
 	utils.ExpectNoError(err)
 
-	// TODO getting list of infinispan pods is also done in controller (refactor)
+	// TODO getting list of infinispan resources is also done in controller (refactor)
 	podList := &v1.PodList{}
 	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, "infinispan-pod"))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
@@ -133,6 +133,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 	utils.ExpectNoError(err)
 	// Check that PersistentVolumeClaims have been cleanup
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+		// TODO getting list of infinispan resources is also done in controller (refactor)
 		pvc := &v1.PersistentVolumeClaimList{}
 		err = k.Kubernetes.Client.List(context.TODO(), pvc, listOps)
 		pvcs := pvc.Items
@@ -317,6 +318,7 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
 func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, clusterName, namespace string) {
 	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(clusterName, "infinispan-pod"))
 
+	// TODO getting list of infinispan resources is also done in controller (refactor)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	podList := &v1.PodList{}
 	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
@@ -350,7 +352,7 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, cluster
 func debugPods(required int, pods []v1.Pod) {
 	log.Info("pod list incomplete", "required", required, "pod list size", len(pods))
 	for _, pod := range pods {
-		log.Info("pod info", "name", pod.Name, "statuses", pod.Status.ContainerStatuses)
+		log.Info("pod info", "name", pod.ObjectMeta.Name, "statuses", pod.Status.ContainerStatuses)
 	}
 }
 
@@ -384,6 +386,7 @@ func (k TestKubernetes) Nodes() []string {
 
 // GetPods return an array of pods matching the selector label in the given namespace
 func (k TestKubernetes) GetPods(clusterName, namespace string) []v1.Pod {
+	// TODO getting list of infinispan resources is also done in controller (refactor)
 	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(clusterName, "infinispan-pod"))
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	pods := &v1.PodList{}

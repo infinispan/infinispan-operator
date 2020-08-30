@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -94,8 +95,8 @@ func (ispn *Infinispan) ApplyDefaults() {
 		if ispn.Spec.Service.Container == nil {
 			ispn.Spec.Service.Container = &InfinispanServiceContainerSpec{}
 		}
-		if ispn.Spec.Service.Container.Storage == "" {
-			ispn.Spec.Service.Container.Storage = consts.DefaultPVSize.String()
+		if ispn.Spec.Service.Container.Storage == nil {
+			ispn.Spec.Service.Container.Storage = pointer.StringPtr(consts.DefaultPVSize.String())
 		}
 	}
 }
@@ -277,4 +278,13 @@ func (ispn *Infinispan) IsEncryptionCertFromService() bool {
 func (ispn *Infinispan) IsEncryptionCertSourceDefined() bool {
 	ee := ispn.Spec.Security.EndpointEncryption
 	return ee != nil && ee.Type != ""
+}
+
+// IsEphemeralStorage
+func (ispn *Infinispan) IsEphemeralStorage() bool {
+	cont := ispn.Spec.Service.Container
+	if cont != nil && cont.EphemeralStorage != nil {
+		return *cont.EphemeralStorage
+	}
+	return false
 }

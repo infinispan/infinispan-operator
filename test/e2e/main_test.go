@@ -108,6 +108,29 @@ func TestNodeStartup(t *testing.T) {
 	waitForPodsOrFail(spec, 1)
 }
 
+// Test if single node with n ephemeral storage
+func TestNodeWithEphemeralStorage(t *testing.T) {
+	t.Parallel()
+	// Create a resource without passing any config
+	spec := DefaultSpec.DeepCopy()
+	name := strcase.ToKebab(t.Name())
+	ephemeralStorage := true
+	spec.ObjectMeta.Name = name
+	spec.Spec.Service.Container = &ispnv1.InfinispanServiceContainerSpec{EphemeralStorage: &ephemeralStorage}
+	// Register it
+	testKube.CreateInfinispan(spec, tconst.Namespace)
+	defer testKube.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+	waitForPodsOrFail(spec, 1)
+
+	// Making sure no PVCs were created
+	pvcs := &corev1.PersistentVolumeClaimList{}
+	err := testKube.Kubernetes.ResourcesList(spec.Name, spec.Namespace, "infinispan-pod", pvcs)
+	tutils.ExpectNoError(err)
+	if len(pvcs.Items) > 0 {
+		tutils.ExpectNoError(fmt.Errorf("persistent volume claims were found (count = %d) but not expected for ephemeral storage configuration", len(pvcs.Items)))
+	}
+}
+
 // Test if the cluster is working correctly
 func TestClusterFormation(t *testing.T) {
 	t.Parallel()
