@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/discovery"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -578,9 +579,8 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 
 		for _, pvc := range pvcs.Items {
 			if !metav1.IsControlledBy(&pvc, infinispan) {
-				blockOwnerDeletion := false
 				controllerutil.SetControllerReference(infinispan, &pvc, r.scheme)
-				pvc.OwnerReferences[0].BlockOwnerDeletion = &blockOwnerDeletion
+				pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
 				err := r.client.Update(context.TODO(), &pvc)
 				if err != nil {
 					return err
@@ -738,6 +738,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						}, {
 							Name:      "identities-volume",
 							MountPath: "/etc/security",
+						}, {
+							Name:      m.Name,
+							MountPath: "/opt/infinispan/server/data",
 						}},
 					}},
 					Volumes: []corev1.Volume{{
@@ -760,66 +763,71 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		},
 	}
 
-	// Persistent vol size must exceed memory size
-	// so that it can contain all the in memory data
-	pvSize := consts.DefaultPVSize
-	if pvSize.Cmp(memory) < 0 {
-		pvSize = memory
-	}
-
-	if m.IsDataGrid() {
-		var pvErr error
-		pvSize, pvErr = resource.ParseQuantity(m.Spec.Service.Container.Storage)
-		if pvErr != nil {
-			return nil, pvErr
-		}
+	if !m.IsEphemeralStorage() {
+		// Persistent vol size must exceed memory size
+		// so that it can contain all the in memory data
+		pvSize := consts.DefaultPVSize
 		if pvSize.Cmp(memory) < 0 {
-			reqLogger.Info("WARNING: persistent volume size is less than memory size. Graceful shutdown may not work.", "Volume Size", pvSize, "Memory", memory)
+			pvSize = memory
 		}
-	}
 
-	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
-		Name:      m.ObjectMeta.Name,
-		Namespace: m.ObjectMeta.Namespace,
-	},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{
-				"ReadWriteOnce",
-			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: pvSize,
+		if m.IsDataGrid() {
+			var pvErr error
+			pvSize, pvErr = resource.ParseQuantity(*m.Spec.Service.Container.Storage)
+			if pvErr != nil {
+				return nil, pvErr
+			}
+			if pvSize.Cmp(memory) < 0 {
+				reqLogger.Info("WARNING: persistent volume size is less than memory size. Graceful shutdown may not work.", "Volume Size", pvSize, "Memory", memory)
+			}
+		}
+
+		pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+			Name:      m.ObjectMeta.Name,
+			Namespace: m.ObjectMeta.Namespace,
+		},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{
+					"ReadWriteOnce",
+				},
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: pvSize,
+					},
 				},
 			},
-		},
+		}
+
+		controllerutil.SetControllerReference(m, pvc, r.scheme)
+		pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
+		dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
+
+		// Adding an init container that run chmod if needed
+		if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
+			initContainerImage := consts.InitContainerImageName
+			dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
+				Image:   initContainerImage,
+				Name:    "chmod-pv",
+				Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
+				VolumeMounts: []corev1.VolumeMount{{
+					Name:      m.ObjectMeta.Name,
+					MountPath: "/opt/infinispan/server/data",
+				}},
+			}}
+		}
+	} else {
+		volumes := &dep.Spec.Template.Spec.Volumes
+		ephemeralVolume := corev1.Volume{
+			Name: m.Name,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}
+		*volumes = append(*volumes, ephemeralVolume)
+		reqLogger.Info("WARNING: Ephemeral storage configured. All data will be lost on cluster shutdown and restart.")
 	}
 
-	blockOwnerDeletion := false
-	controllerutil.SetControllerReference(m, pvc, r.scheme)
-	pvc.OwnerReferences[0].BlockOwnerDeletion = &blockOwnerDeletion
-	dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
-
-	// Adding persistent volume mount
-	v := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
-	*v = append(*v, corev1.VolumeMount{
-		Name:      m.ObjectMeta.Name,
-		MountPath: "/opt/infinispan/server/data",
-	})
-	// Adding an init container that run chmod if needed
-	if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
-		initContainerImage := consts.InitContainerImageName
-		dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
-			Image:   initContainerImage,
-			Name:    "chmod-pv",
-			Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
-			VolumeMounts: []corev1.VolumeMount{{
-				Name:      m.ObjectMeta.Name,
-				MountPath: "/opt/infinispan/server/data",
-			}},
-		}}
-	}
 	setupVolumesForEncryption(m, dep)
-	//	appendVolumes(m, dep)
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)

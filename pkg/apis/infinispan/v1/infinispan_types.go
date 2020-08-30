@@ -43,7 +43,8 @@ type EndpointEncryption struct {
 
 // InfinispanServiceContainerSpec resource requirements specific for service
 type InfinispanServiceContainerSpec struct {
-	Storage string `json:"storage"`
+	Storage          *string `json:"storage,optional,omitempty"`
+	EphemeralStorage *bool   `json:"ephemeralStorage,optional,omitempty"`
 }
 
 type ServiceType string
