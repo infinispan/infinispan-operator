@@ -1,6 +1,8 @@
 package utils
 
-import "k8s.io/apimachinery/pkg/api/errors"
+import (
+	"k8s.io/apimachinery/pkg/api/errors"
+)
 
 // ExpectNoError checks if an error exists, and if so halts execution
 func ExpectNoError(err error) {

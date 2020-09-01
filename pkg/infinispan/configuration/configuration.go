@@ -4,15 +4,27 @@ import (
 	"fmt"
 
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"gopkg.in/yaml.v2"
 )
 
 // InfinispanConfiguration is the top level configuration type
 type InfinispanConfiguration struct {
-	ClusterName string   `yaml:"clusterName"`
-	JGroups     JGroups  `yaml:"jgroups"`
-	Keystore    Keystore `yaml:"keystore"`
-	XSite       XSite    `yaml:"xsite"`
-	Logging     Logging  `yaml:"logging"`
+	Infinispan Infinispan `yaml:"infinispan"`
+	JGroups    JGroups    `yaml:"jgroups"`
+	Keystore   Keystore   `yaml:"keystore"`
+	XSite      XSite      `yaml:"xsite"`
+	Logging    Logging    `yaml:"logging"`
+}
+
+type Infinispan struct {
+	ClusterName      string `yaml:"clusterName"`
+	ZeroCapacityNode bool   `yaml:"zeroCapacityNode"`
+	Locks            Locks  `yaml:"locks"`
+}
+
+type Locks struct {
+	Owners      int32  `yaml:"owners,omitempty"`
+	Reliability string `yaml:"reliability,omitempty"`
 }
 
 // Keystore configuration info for connector encryption
@@ -52,14 +64,32 @@ type Logging struct {
 	Categories map[string]string `yaml:"categories"`
 }
 
+func (c *InfinispanConfiguration) Yaml() (string, error) {
+	y, err := yaml.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	return string(y), nil
+}
+
+func FromYaml(src string) (*InfinispanConfiguration, error) {
+	config := &InfinispanConfiguration{}
+	if err := yaml.Unmarshal([]byte(src), config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
 // CreateInfinispanConfiguration generates a server configuration
 func CreateInfinispanConfiguration(name string, loggingCategories map[string]string, namespace string, xsite *XSite) InfinispanConfiguration {
 	query := fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace)
 	jgroups := JGroups{Transport: "tcp", DNSPing: DNSPing{Query: query}}
 
 	config := InfinispanConfiguration{
-		ClusterName: name,
-		JGroups:     jgroups,
+		Infinispan: Infinispan{
+			ClusterName: name,
+		},
+		JGroups: jgroups,
 	}
 	if consts.JGroupsDiagnosticsFlag == "TRUE" {
 		config.JGroups.Diagnostics = true

@@ -1,0 +1,11 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Backup
+metadata:
+  name: example-backup
+spec:
+  path: asdasd
+  cluster: example-infinispan
+  container:
+    extraJvmOpts: "-Djava.property=me"
+    memory: 1Gi
+    cpu: "1000m"

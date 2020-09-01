@@ -78,6 +78,20 @@ func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 	return changed
 }
 
+func (ispn *Infinispan) ExpectConditionStatus(expected map[string]metav1.ConditionStatus, ignoreMissing bool) error {
+	for key, value := range expected {
+		c := ispn.GetCondition(key)
+		if c == nil {
+			if !ignoreMissing {
+				return fmt.Errorf("Missing Condition '%s'", key)
+			}
+		} else if *c != value {
+			return fmt.Errorf("Infinispan '%s' %s has Status '%s', expected '%s'", ispn.Name, key, *c, value)
+		}
+	}
+	return nil
+}
+
 // ApplyDefaults applies default values to the Infinispan instance
 func (ispn *Infinispan) ApplyDefaults() {
 	if ispn.Status.Conditions == nil {
@@ -195,8 +209,8 @@ func (ispn *Infinispan) GetEncryptionSecretName() string {
 	return ispn.Spec.Security.EndpointEncryption.CertSecretName
 }
 
-func (ispn *Infinispan) GetCpuResources() (resource.Quantity, resource.Quantity) {
-	cpuLimits := resource.MustParse(ispn.Spec.Container.CPU)
+func (spec *InfinispanContainerSpec) GetCpuResources() (resource.Quantity, resource.Quantity) {
+	cpuLimits := resource.MustParse(spec.CPU)
 	cpuRequestsMillis := cpuLimits.MilliValue() / 2
 	cpuRequests := toMilliDecimalQuantity(cpuRequestsMillis)
 	return cpuRequests, cpuLimits
