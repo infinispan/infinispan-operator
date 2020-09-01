@@ -91,7 +91,7 @@ func PasswordFromSecret(user, secretName, namespace string, k *kube.Kubernetes) 
 		return "", nil
 	}
 
-	descriptor := secret.Data["identities.yaml"]
+	descriptor := secret.Data[consts.ServerIdentitiesFilename]
 	pass, err := FindPassword(user, descriptor)
 	if err != nil {
 		return "", err

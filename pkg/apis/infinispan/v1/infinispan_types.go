@@ -7,6 +7,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	ConditionPrelimChecksFailed = "preliminaryChecksFailed"
+	ConditionGracefulShutdown   = "gracefulShutdown"
+	ConditionStopping           = "stopping"
+	ConditionWellFormed         = "wellFormed"
+)
+
 // InfinispanAuthInfo authentication info
 type InfinispanAuthInfo struct {
 	Type string `json:"type"`
