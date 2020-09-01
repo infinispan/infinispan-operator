@@ -89,6 +89,8 @@ rules:
   - caches
   - caches/status
   - caches/finalizers
+  - backups
+  - restores
   verbs:
   - get
   - list

@@ -34,7 +34,7 @@ if ! [ -x "$(command -v operator-sdk)" ]; then
 else
   printf "OK\n"
   printf "Validating Operator SDK version..."
-  INSTALLED_OPERATOR_SDK_VERSION=$(operator-sdk version | grep -oE 'operator-sdk version: "[v0-9\.]+"' | grep -oE '[^"][0-9\.]+')
+  INSTALLED_OPERATOR_SDK_VERSION=$(operator-sdk version | grep -oP 'operator-sdk version: "\K[^"]+')
   if [ "${INSTALLED_OPERATOR_SDK_VERSION}" == "${OPERATOR_SDK_VERSION}" ]; then
     printf "%s\n" "${OPERATOR_SDK_VERSION}"
   else
@@ -65,9 +65,12 @@ allsed() {
 validsed
 
 echo "Generating CRDs for API's..."
+
 if operator-sdk generate crds; then
   allsed -i -e "/name: infinispans.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_infinispans_crd.yaml
   allsed -i -e "/name: caches.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_caches_crd.yaml
+  allsed -i -e "/name: backups.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_backups_crd.yaml
+  allsed -i -e "/name: restores.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_restores_crd.yaml
 
   echo "Generating Kubernetes code for custom resources..."
   operator-sdk generate k8s

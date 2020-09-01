@@ -61,6 +61,13 @@ const (
 
 	NativeImageMarker          = "native"
 	InfinispanFinalizer        = "finalizer.infinispan.org"
+	ServerConfigRoot         = "/etc/config"
+	ServerSecurityRoot       = "/etc/security"
+	ServerConfigFilename     = "infinispan.yaml"
+	ServerConfigPath         = ServerConfigRoot + "/" + ServerConfigFilename
+	ServerIdentitiesFilename = "identities.yaml"
+	ServerIdentitiesPath     = ServerSecurityRoot + "/" + ServerIdentitiesFilename
+
 	ServerHTTPBasePath         = "rest/v2"
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
 	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/default/health"
@@ -85,9 +92,9 @@ const (
 	DefaultRequeueOnCreateExposeServiceDelay = 5 * time.Second
 	//DefaultRequeueOnWrongSpec requeue delay on wrong values in Spec
 	DefaultRequeueOnWrongSpec = 5 * time.Second
-	//DefaultWaitOnClusterForCache delay for the Infinispan cluster wait if it not created while Cache creation
-	DefaultWaitOnClusterForCache = 10 * time.Second
-	//DefaultWaitOnClusterForCache delay for wait until secret is created
+	//DefaultWaitOnCluster delay for the Infinispan cluster wait if it not created while Cache creation
+	DefaultWaitOnCluster = 10 * time.Second
+	//DefaultWaitOnCreateSecret delay for wait until secret is created
 	DefaultWaitOnCreateSecret = 2 * time.Second
 	//DefaultWaitClusterNotWellFormed wait delay until cluster is not well formed
 	DefaultWaitClusterNotWellFormed = 15 * time.Second

@@ -135,12 +135,11 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 		Namespace(options.Namespace).
 		SubResource("exec").
 		VersionedParams(&v1.PodExecOptions{
-			Container: "infinispan",
-			Command:   options.Command,
-			Stdin:     false,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
+			Command: options.Command,
+			Stdin:   false,
+			Stdout:  true,
+			Stderr:  true,
+			TTY:     false,
 		}, scheme.ParameterCodec)
 	var execOut, execErr bytes.Buffer
 	// Create an executor

@@ -19,7 +19,6 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/version"
 	routev1 "github.com/openshift/api/route/v1"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
@@ -40,6 +39,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+)
+
+const (
+	DataMountPath        = "/opt/infinispan/server/data"
+	EncryptMountPath     = "/etc/encrypt"
+	ConfigVolumeName     = "config-volume"
+	EncryptVolumeName    = "encrypt-volume"
+	IdentitiesVolumeName = "identities-volume"
 )
 
 var log = logf.Log.WithName("controller_infinispan")
@@ -157,7 +164,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Perform all the possible preliminary checks before go on
 	result, err := infinispan.PreliminaryChecks()
 	if err != nil {
-		if infinispan.SetCondition("preliminaryChecksFailed", "true", err.Error()) {
+		if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksFailed, "true", err.Error()) {
 			err1 := r.client.Status().Update(context.TODO(), infinispan)
 			if err1 != nil {
 				reqLogger.Error(err1, "Could not update error conditions")
@@ -165,7 +172,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 		return *result, err
 	}
-	if infinispan.RemoveCondition("preliminaryChecksFailed") {
+	if infinispan.RemoveCondition(infinispanv1.ConditionPrelimChecksFailed) {
 		err = r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "Could not update error conditions")
@@ -514,7 +521,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.ObjectMeta.Name + "-configuration",
+				Name:      ServerConfigMapName(infinispan.ObjectMeta.Name),
 				Namespace: infinispan.ObjectMeta.Namespace,
 			},
 		})
@@ -663,13 +670,12 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	lsPod := PodLabels(m.ObjectMeta.Name)
 
 	memory := resource.MustParse(m.Spec.Container.Memory)
-	cpuRequests, cpuLimits := m.GetCpuResources()
 
 	javaOptions := m.GetJavaOptions()
 
 	envVars := []corev1.EnvVar{
-		{Name: "CONFIG_PATH", Value: "/etc/config/infinispan.yaml"},
-		{Name: "IDENTITIES_PATH", Value: "/etc/security/identities.yaml"},
+		{Name: "CONFIG_PATH", Value: consts.ServerConfigPath},
+		{Name: "IDENTITIES_PATH", Value: consts.ServerIdentitiesPath},
 		{Name: "JAVA_OPTIONS", Value: javaOptions},
 		{Name: "EXTRA_JAVA_OPTIONS", Value: m.Spec.Container.ExtraJvmOpts},
 		{Name: "DEFAULT_IMAGE", Value: consts.DefaultImageName},
@@ -742,36 +748,27 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							PeriodSeconds:       10,
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								"cpu":    cpuRequests,
-								"memory": memory,
-							},
-							Limits: corev1.ResourceList{
-								"cpu":    cpuLimits,
-								"memory": memory,
-							},
-						},
+						Resources: m.Spec.Container.AsResourceRequirements(),
 						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "config-volume",
-							MountPath: "/etc/config",
+							Name:      ConfigVolumeName,
+							MountPath: consts.ServerConfigRoot,
 						}, {
-							Name:      "identities-volume",
-							MountPath: "/etc/security",
+							Name:      IdentitiesVolumeName,
+							MountPath: consts.ServerSecurityRoot,
 						}, {
 							Name:      m.Name,
-							MountPath: "/opt/infinispan/server/data",
+							MountPath: DataMountPath,
 						}},
 					}},
 					Volumes: []corev1.Volume{{
-						Name: "config-volume",
+						Name: ConfigVolumeName,
 						VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{
 								LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
 							},
 						},
 					}, {
-						Name: "identities-volume",
+						Name: IdentitiesVolumeName,
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: secret.Name,
@@ -835,10 +832,10 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
 				Image:   initContainerImage,
 				Name:    "chmod-pv",
-				Command: []string{"sh", "-c", "chmod -R g+w /opt/infinispan/server/data"},
+				Command: []string{"sh", "-c", "chmod -R g+w" + DataMountPath},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      m.ObjectMeta.Name,
-					MountPath: "/opt/infinispan/server/data",
+					MountPath: DataMountPath,
 				}},
 			}}
 		}
@@ -854,7 +851,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		reqLogger.Info("WARNING: Ephemeral storage configured. All data will be lost on cluster shutdown and restart.")
 	}
 
-	setupVolumesForEncryption(m, dep)
+	AddVolumeForEncryption(m, &dep.Spec.Template.Spec)
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, dep, r.scheme)
@@ -874,21 +871,29 @@ func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) 
 	}
 }
 
-func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulSet) {
-	secretName := m.GetEncryptionSecretName()
-	if secretName != "" {
-		v := &dep.Spec.Template.Spec.Volumes
-		vm := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
-		*vm = append(*vm, corev1.VolumeMount{Name: "encrypt-volume", MountPath: "/etc/encrypt"})
-		*v = append(*v, corev1.Volume{Name: "encrypt-volume",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
-				}}})
+func AddVolumeForEncryption(i *infinispanv1.Infinispan, pod *corev1.PodSpec) {
+	secret := i.GetEncryptionSecretName()
+	if secret == "" {
+		return
 	}
+
+	v := &pod.Volumes
+	*v = append(*v, corev1.Volume{Name: EncryptVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: secret,
+			},
+		},
+	})
+
+	vm := &pod.Containers[0].VolumeMounts
+	*vm = append(*vm, corev1.VolumeMount{
+		Name:      EncryptVolumeName,
+		MountPath: EncryptMountPath,
+	})
 }
 
-func setupConfigForEncryption(m *infinispanv1.Infinispan, c *config.InfinispanConfiguration, client client.Client) error {
+func ConfigureServerEncryption(m *infinispanv1.Infinispan, c *config.InfinispanConfiguration, client client.Client) error {
 	if m.IsEncryptionCertFromService() {
 		if strings.Contains(m.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"
@@ -904,13 +909,10 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *config.InfinispanCo
 		tlsSecret := &corev1.Secret{}
 		err := client.Get(context.TODO(), types.NamespacedName{Namespace: m.Namespace, Name: tlsSecretName}, tlsSecret)
 		if err != nil {
-			reqLogger := log.WithValues("Infinispan.Namespace", m.Namespace, "Infinispan.Name", m.Name)
 			if errors.IsNotFound(err) {
-				reqLogger.Error(err, "Secret %s for endpoint encryption not found.", tlsSecretName)
-				return err
+				return fmt.Errorf("Secret %s for endpoint encryption not found.", tlsSecretName)
 			}
-			reqLogger.Error(err, "Error in getting secret %s for endpoint encryption.", tlsSecretName)
-			return err
+			return fmt.Errorf("Error in getting secret %s for endpoint encryption: %w", tlsSecretName, err)
 		}
 		if _, ok := tlsSecret.Data["keystore.p12"]; ok {
 			// If user provide a keystore in secret then use it ...
@@ -934,11 +936,14 @@ func (r *ReconcileInfinispan) computeConfigMap(xsite *config.XSite, m *infinispa
 
 	loggingCategories := m.GetLogCategoriesForConfigMap()
 	config := config.CreateInfinispanConfiguration(name, loggingCategories, namespace, xsite)
-	err := setupConfigForEncryption(m, &config, r.client)
+	// Explicitly set the number of lock owners in order for zero-capacity nodes to be able to utilise clustered locks
+	config.Infinispan.Locks.Owners = m.Spec.Replicas
+
+	err := ConfigureServerEncryption(m, &config, r.client)
 	if err != nil {
 		return nil, err
 	}
-	configYaml, err := yaml.Marshal(config)
+	configYaml, err := config.Yaml()
 	if err != nil {
 		return nil, err
 	}
@@ -949,14 +954,18 @@ func (r *ReconcileInfinispan) computeConfigMap(xsite *config.XSite, m *infinispa
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name + "-configuration",
+			Name:      ServerConfigMapName(name),
 			Namespace: namespace,
 			Labels:    lsConfigMap,
 		},
-		Data: map[string]string{"infinispan.yaml": string(configYaml)},
+		Data: map[string]string{consts.ServerConfigFilename: string(configYaml)},
 	}
 
 	return configMap, nil
+}
+
+func ServerConfigMapName(name string) string {
+	return name + "-configuration"
 }
 
 func (r *ReconcileInfinispan) findSecret(m *infinispanv1.Infinispan) (*corev1.Secret, error) {
@@ -978,7 +987,7 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 			Labels:    lsSecret,
 		},
 		Type:       corev1.SecretType("Opaque"),
-		StringData: map[string]string{"identities.yaml": string(identities)},
+		StringData: map[string]string{consts.ServerIdentitiesFilename: string(identities)},
 	}
 
 	// Set Infinispan instance as the owner and controller
@@ -1011,7 +1020,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 		}
 	}
 	// Evaluating WellFormed condition
-	wellformed := infinispanv1.InfinispanCondition{Type: "wellFormed"}
+	wellformed := infinispanv1.InfinispanCondition{Type: infinispanv1.ConditionWellFormed}
 	views := make([]string, len(clusterViews))
 	i := 0
 	for k := range clusterViews {
@@ -1049,7 +1058,7 @@ func (r *ReconcileInfinispan) computeService(m *infinispanv1.Infinispan) *corev1
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: PodLabels(m.ObjectMeta.Name),
+			Selector: ServiceLabels(m.ObjectMeta.Name),
 			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanPortName,
@@ -1077,7 +1086,7 @@ func (r *ReconcileInfinispan) computePingService(m *infinispanv1.Infinispan) *co
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,
-			Selector:  PodLabels(m.ObjectMeta.Name),
+			Selector:  ServiceLabels(m.ObjectMeta.Name),
 			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanPingPortName,
@@ -1107,7 +1116,7 @@ func (r *ReconcileInfinispan) computeServiceExternal(m *infinispanv1.Infinispan)
 
 	exposeSpec := corev1.ServiceSpec{
 		Type:     externalServiceType,
-		Selector: PodLabels(m.ObjectMeta.Name),
+		Selector: ServiceLabels(m.ObjectMeta.Name),
 		Ports: []corev1.ServicePort{
 			{
 				Port:       int32(consts.InfinispanPort),
@@ -1332,8 +1341,8 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			}
 		}
 		if statefulSet.Status.CurrentReplicas == 0 {
-			updateStatus = ispn.SetCondition("gracefulShutdown", metav1.ConditionTrue, "") || updateStatus
-			updateStatus = ispn.SetCondition("stopping", metav1.ConditionFalse, "") || updateStatus
+			updateStatus = ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "") || updateStatus
+			updateStatus = ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "") || updateStatus
 		}
 		if updateStatus {
 			err := r.client.Status().Update(context.TODO(), ispn)
@@ -1344,7 +1353,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 		}
 		return &reconcile.Result{}, nil
 	}
-	isGracefulShutdown := ispn.GetCondition("gracefulShutdown")
+	isGracefulShutdown := ispn.GetCondition(infinispanv1.ConditionGracefulShutdown)
 	if ispn.Spec.Replicas != 0 && isGracefulShutdown != nil && *isGracefulShutdown == "True" {
 		logger.Info("Resuming from graceful shutdown")
 		// If here we're resuming from graceful shutdown
@@ -1357,7 +1366,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			return &reconcile.Result{Requeue: true}, fmt.Errorf("Spec.Replicas(%d) must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", ispn.Spec.Replicas, ispn.Status.ReplicasWantedAtRestart)
 		}
 		ispn.Status.ReplicasWantedAtRestart = 0
-		ispn.SetCondition("gracefulShutdown", metav1.ConditionFalse, "")
+		ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionFalse, "")
 		err = r.client.Status().Update(context.TODO(), ispn)
 		if err != nil {
 			logger.Error(err, "failed to update Infinispan Status")
@@ -1382,8 +1391,8 @@ func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan,
 				continue
 			}
 			logger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
-			ispn.SetCondition("stopping", metav1.ConditionTrue, "")
-			ispn.SetCondition("wellFormed", metav1.ConditionFalse, "")
+			ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionTrue, "")
+			ispn.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionFalse, "")
 			err = r.client.Status().Update(context.TODO(), ispn)
 			if err != nil {
 				logger.Error(err, "This should not happens but failed to update Infinispan Status")
@@ -1428,7 +1437,7 @@ func (r *ReconcileInfinispan) reconcileEndpointSecret(ispn *infinispanv1.Infinis
 		statefulSet.Spec.Template.ObjectMeta.Annotations["updateDate"] = time.Now().String()
 		// Find and update secret in StatefulSet volume
 		for i, volumes := range statefulSet.Spec.Template.Spec.Volumes {
-			if volumes.Secret != nil && volumes.Name == "identities-volume" {
+			if volumes.Secret != nil && volumes.Name == IdentitiesVolumeName {
 				statefulSet.Spec.Template.Spec.Volumes[i].Secret.SecretName = secret.GetName()
 			}
 		}
@@ -1487,7 +1496,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 		}
 	}
 	if ispnContr.CPU != "" {
-		cpuReq, cpuLim := ispn.GetCpuResources()
+		cpuReq, cpuLim := ispn.Spec.Container.GetCpuResources()
 		previousCPUReq := res.Requests["cpu"]
 		previousCPULim := res.Limits["cpu"]
 		if cpuReq.Cmp(previousCPUReq) != 0 || cpuLim.Cmp(previousCPULim) != 0 {
@@ -1537,6 +1546,13 @@ func LabelsResource(name, resourceType string) map[string]string {
 
 func PodLabels(name string) map[string]string {
 	return LabelsResource(name, "infinispan-pod")
+}
+
+func ServiceLabels(name string) map[string]string {
+	return map[string]string{
+		"clusterName": name,
+		"app":         "infinispan-pod",
+	}
 }
 
 func ExternalServiceLabels(name string) map[string]string {

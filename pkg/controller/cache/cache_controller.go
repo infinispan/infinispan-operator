@@ -108,7 +108,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", ispnInstance.Name))
-			return reconcile.Result{RequeueAfter: constants.DefaultWaitOnClusterForCache}, err
+			return reconcile.Result{RequeueAfter: constants.DefaultWaitOnCluster}, err
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
@@ -117,7 +117,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	// Cluster must be well formed
 	if !ispnInstance.IsWellFormed() {
 		reqLogger.Info(fmt.Sprintf("Infinispan cluster %s not well formed", ispnInstance.Name))
-		return reconcile.Result{RequeueAfter: constants.DefaultWaitOnClusterForCache}, err
+		return reconcile.Result{RequeueAfter: constants.DefaultWaitOnCluster}, err
 	}
 	// Authentication is required to go on from here
 	user, pass, result, err := getCredentials(r, reqLogger, instance.CopyWithDefaultsForEmptyVals())
