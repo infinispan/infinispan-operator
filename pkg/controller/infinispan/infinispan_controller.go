@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	discovery "k8s.io/client-go/discovery"
@@ -1796,15 +1797,22 @@ func getNodePortServiceHostPort(service *corev1.Service, k *ispnutil.Kubernetes,
 	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
 	workerList := &corev1.NodeList{}
 
-	//select workers only. AFAIK, only the workers have the proxy to the pods
-	labelSelector := labels.SelectorFromSet(map[string]string{"node-role.kubernetes.io/worker": ""})
-
-	listOps := &client.ListOptions{
-		LabelSelector: labelSelector,
-	}
-	err := k.Client.List(context.TODO(), workerList, listOps)
+	//select workers first
+	req, err := labels.NewRequirement("node-role.kubernetes.io/worker", selection.Exists, nil)
 	if err != nil {
 		return "", 0, err
+	}
+	listOps := &client.ListOptions{
+		LabelSelector: labels.NewSelector().Add(*req),
+	}
+	err = k.Client.List(context.TODO(), workerList, listOps)
+
+	if err != nil || len(workerList.Items) == 0 {
+		// Fallback selecting everything
+		err = k.Client.List(context.TODO(), workerList, nil)
+		if err != nil {
+			return "", 0, err
+		}
 	}
 
 	for _, node := range workerList.Items {
