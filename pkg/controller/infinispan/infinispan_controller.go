@@ -45,9 +45,6 @@ var log = logf.Log.WithName("controller_infinispan")
 // Kubernetes object
 var kubernetes *ispnutil.Kubernetes
 
-// Cluster object
-var cluster ispnutil.ClusterInterface
-
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -57,7 +54,6 @@ func Add(mgr manager.Manager) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	kubernetes = ispnutil.NewKubernetesFromController(mgr)
-	cluster = ispnutil.NewCluster(kubernetes)
 	return &ReconcileInfinispan{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
@@ -363,11 +359,18 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *result, err
 	}
 
-	protocol := infinispan.GetEndpointScheme()
+	user := consts.DefaultOperatorUser
+	pass, err := kubernetes.GetPassword(user, infinispan.GetSecretName(), infinispan.GetNamespace())
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	cluster := ispnutil.NewCluster(user, pass, request.Namespace, infinispan.GetEndpointScheme(), kubernetes)
+
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
 	var res *reconcile.Result
-	res, err = r.reconcileGracefulShutdown(infinispan, statefulSet, podList, reqLogger)
+	res, err = r.reconcileGracefulShutdown(infinispan, statefulSet, podList, reqLogger, cluster)
 	if res != nil {
 		return *res, err
 	}
@@ -414,7 +417,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		addAutoscalingEquipment(types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, r)
 	}
 	// Inspect the system and get the current Infinispan conditions
-	currConds := getInfinispanConditions(podList.Items, infinispan, string(protocol), cluster)
+	currConds := getInfinispanConditions(podList.Items, infinispan, string(infinispan.GetEndpointScheme()), cluster)
 
 	// Before updating reload the resource to avoid problems with status update
 	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
@@ -919,21 +922,13 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 	if int32(len(pods)) < m.Spec.Replicas {
 		errors = append(errors, fmt.Sprintf("Running %d pods. Needed %d", len(pods), m.Spec.Replicas))
 	} else {
-		secretName := m.GetSecretName()
 		for _, pod := range pods {
-			var clusterView string
-			var members []string
 			if ispncom.IsPodReady(pod) {
-				// If pod is ready query it for the cluster members
-				pass, err := cluster.GetPassword(consts.DefaultOperatorUser, secretName, m.GetNamespace())
+				members, err := cluster.GetClusterMembers(pod.Name)
 				if err == nil {
-					members, err = cluster.GetClusterMembers(consts.DefaultOperatorUser, pass, pod.Name, pod.Namespace, protocol)
-					clusterView = strings.Join(members, ",")
-					if err == nil {
-						clusterViews[clusterView] = true
-					}
-				}
-				if err != nil {
+					clusterView := strings.Join(members, ",")
+					clusterViews[clusterView] = true
+				} else {
 					errors = append(errors, pod.Name+": "+err.Error())
 				}
 			} else {
@@ -1220,7 +1215,8 @@ func (r *ReconcileInfinispan) reconcileIngress(ispn *infinispanv1.Infinispan, in
 	return nil, err
 }
 
-func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet, podList *corev1.PodList, logger logr.Logger) (*reconcile.Result, error) {
+func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet,
+	podList *corev1.PodList, logger logr.Logger, cluster ispnutil.ClusterInterface) (*reconcile.Result, error) {
 	if ispn.Spec.Replicas == 0 {
 		logger.Info(".Spec.Replicas==0")
 		updateStatus := false
@@ -1228,7 +1224,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			logger.Info("StatefulSet.Spec.Replicas!=0")
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
 			if cond := ispn.GetCondition("stopping"); cond == nil || *cond != "True" {
-				res, err := r.gracefulShutdownReq(ispn, podList, logger)
+				res, err := r.gracefulShutdownReq(ispn, podList, logger, cluster)
 				if res != nil {
 					return res, err
 				}
@@ -1297,16 +1293,14 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 }
 
 // gracefulShutdownReq send a graceful shutdown request to the cluster
-func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) (*reconcile.Result, error) {
+func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan, podList *corev1.PodList,
+	logger logr.Logger, cluster ispnutil.ClusterInterface) (*reconcile.Result, error) {
 	logger.Info("Sending graceful shutdown request")
 	// send a graceful shutdown to the first ready pod
 	// if there's no ready pod we're in trouble
 	for _, pod := range podList.Items {
 		if ispncom.IsPodReady(pod) {
-			pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, ispn.GetSecretName(), ispn.GetNamespace())
-			if err == nil {
-				err = cluster.GracefulShutdown(consts.DefaultOperatorUser, pass, pod.GetName(), pod.GetNamespace(), string(ispn.GetEndpointScheme()))
-			}
+			err := cluster.GracefulShutdown(pod.GetName())
 			if err != nil {
 				logger.Error(err, "failed to exec shutdown command on pod")
 				continue

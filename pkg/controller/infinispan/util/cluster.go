@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,32 +20,44 @@ var log = logf.Log.WithName("cluster_util")
 // Cluster abstracts interaction with an Infinispan cluster
 type Cluster struct {
 	Kubernetes *Kubernetes
+	Client     HttpClient
+	Namespace  string
 }
 
 // NewCluster creates a new instance of Cluster
-func NewCluster(kubernetes *Kubernetes) *Cluster {
-	return &Cluster{Kubernetes: kubernetes}
+func NewCluster(username, password, namespace string, protocol corev1.URIScheme, kubernetes *Kubernetes) *Cluster {
+	client := NewCurlClient(HttpConfig{
+		Username:  username,
+		Password:  password,
+		Namespace: namespace,
+		Protocol:  strings.ToLower(string(protocol)),
+	}, kubernetes)
+
+	return &Cluster{
+		Kubernetes: kubernetes,
+		Client:     client,
+		Namespace:  namespace,
+	}
 }
 
 // ClusterInterface represents the interface of a Cluster instance
 type ClusterInterface interface {
-	GetClusterSize(user, pass, podName, namespace, protocol string) (int, error)
-	GracefulShutdown(user, pass, podName, namespace, protocol string) error
-	GetClusterMembers(user, pass, podName, namespace, protocol string) ([]string, error)
-	ExistsCache(user, pass, cacheName, podName, namespace, protocol string) (bool, error)
-	CreateCacheWithTemplate(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error
-	CreateCacheWithTemplateName(user, pass, cacheName, templateName, podName, namespace, protocol string) error
-	GetMemoryLimitBytes(podName, namespace string) (uint64, error)
-	GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error)
-	CacheNames(user, pass, podName, namespace, protocol string) ([]string, error)
-	GetPassword(user, secretName, namespace string) (string, error)
-	GetMetrics(user, pass, podName, namespace, protocol, postfix string) (*bytes.Buffer, error)
-	GetCacheManagerInfo(user, pass, cacheManagerName, podName, namespace, protocol string) (map[string]interface{}, error)
+	GetClusterSize(podName string) (int, error)
+	GracefulShutdown(podName string) error
+	GetClusterMembers(podName string) ([]string, error)
+	ExistsCache(cacheName, podName string) (bool, error)
+	CreateCacheWithTemplate(cacheName, cacheXML, podName string) error
+	CreateCacheWithTemplateName(cacheName, templateName, podName string) error
+	GetMemoryLimitBytes(podName string) (uint64, error)
+	GetMaxMemoryUnboundedBytes(podName string) (uint64, error)
+	CacheNames(podName string) ([]string, error)
+	GetMetrics(podName, postfix string) (*bytes.Buffer, error)
+	GetCacheManagerInfo(cacheManagerName, podName string) (map[string]interface{}, error)
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
-func (c Cluster) GetClusterSize(user, pass, podName, namespace, protocol string) (int, error) {
-	members, err := c.GetClusterMembers(user, pass, podName, namespace, protocol)
+func (c Cluster) GetClusterSize(podName string) (int, error) {
+	members, err := c.GetClusterMembers(podName)
 	if err != nil {
 		return -1, err
 	}
@@ -53,23 +66,13 @@ func (c Cluster) GetClusterSize(user, pass, podName, namespace, protocol string)
 }
 
 // GracefulShutdown performs clean cluster shutdown
-func (c Cluster) GracefulShutdown(user, pass, podName, namespace, protocol string) error {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+func (c Cluster) GracefulShutdown(podName string) error {
+	// TODO can this be HEAD?
+	_, err, reason := c.Client.Get(podName, consts.ServerHTTPClusterStop, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("unexpected error during graceful shutdown, stderr: %v, err: %v", reason, err)
 	}
-	httpURL := fmt.Sprintf("%s://%v:%d/%s", protocol, podIP, consts.InfinispanPort, consts.ServerHTTPClusterStop)
-	commands := []string{"curl", "-X", "GET", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
-
-	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
-	logger.Info("get cluster members", "url", httpURL)
-
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	_, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
-	if err == nil {
-		return nil
-	}
-	return fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
+	return nil
 }
 
 // ClusterHealth represents the health of the cluster
@@ -83,179 +86,100 @@ type Health struct {
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
-func (c Cluster) GetClusterMembers(user, pass, podName, namespace, protocol string) ([]string, error) {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+func (c Cluster) GetClusterMembers(podName string) ([]string, error) {
+	rsp, err, reason := c.Client.Get(podName, consts.ServerHTTPHealthPath, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", reason, err)
 	}
 
-	httpURL := fmt.Sprintf("%s://%v:%d/%s", protocol, podIP, consts.InfinispanPort, consts.ServerHTTPHealthPath)
-	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
-
-	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
-	logger.Info("get cluster members", "url", httpURL)
-
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
-	if err == nil {
-		result := execOut.Bytes()
-
-		var health Health
-		err = json.Unmarshal(result, &health)
-		if err != nil {
-			return nil, fmt.Errorf("unable to decode: %v", err)
-		}
-
-		return health.ClusterHealth.Nodes, nil
+	defer rsp.Body.Close()
+	var health Health
+	if err := json.NewDecoder(rsp.Body).Decode(&health); err != nil {
+		return nil, fmt.Errorf("unable to decode: %v", err)
 	}
-
-	return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
+	return health.ClusterHealth.Nodes, nil
 }
 
 // ExistsCache returns true if cacheName cache exists on the podName pod
-func (c Cluster) ExistsCache(user, pass, cacheName, podName, namespace, protocol string) (bool, error) {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+func (c Cluster) ExistsCache(cacheName, podName string) (bool, error) {
+	path := fmt.Sprintf("%s/caches/%s?action=config", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, _ := c.Client.Head(podName, path, nil)
 	if err != nil {
 		return false, err
 	}
 
-	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/caches/%s?action=config", protocol, podIP, consts.InfinispanPort, cacheName)
-	commands := []string{"curl",
-		"--insecure",
-		"--http1.1",
-		"-o", "/dev/null", "-w", "%{http_code}", // ignore output and get http status code
-		"-u", fmt.Sprintf("%v:%v", user, pass),
-		"--head",
-		httpURL,
-	}
-
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, _, err := c.Kubernetes.ExecWithOptions(execOptions)
-	if err != nil {
-		return false, err
-	}
-
-	httpCode, err := strconv.ParseUint(execOut.String(), 10, 64)
-	if err != nil {
-		return false, err
-	}
-
-	switch httpCode {
+	switch rsp.StatusCode {
 	case http.StatusOK:
 		return true, nil
 	case http.StatusNotFound:
 		return false, nil
 	default:
-		return false, fmt.Errorf("HTTP response code: %d", httpCode)
+		return false, fmt.Errorf("HTTP response code: %d", rsp.StatusCode)
 	}
 }
 
 // CacheNames return the names of the cluster caches available on the pod `podName`
-func (c Cluster) CacheNames(user, pass, podName, namespace, protocol string) ([]string, error) {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+func (c Cluster) CacheNames(podName string) ([]string, error) {
+	path := fmt.Sprintf("%s/caches", consts.ServerHTTPBasePath)
+	rsp, err, reason := c.Client.Get(podName, path, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", reason, err)
 	}
-	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/caches", protocol, podIP, consts.InfinispanPort)
-	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
-	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
-	logger.Info("get caches list", "url", httpURL)
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
+
+	defer rsp.Body.Close()
 	var caches []string
-	if err == nil {
-		result := execOut.Bytes()
-		err = json.Unmarshal(result, &caches)
-		return caches, err
+	if err := json.NewDecoder(rsp.Body).Decode(&caches); err != nil {
+		return nil, fmt.Errorf("unable to decode: %v", err)
 	}
-	return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
+	return caches, nil
 }
 
 // CreateCacheWithTemplate create cluster cache on the pod `podName`
-func (c Cluster) CreateCacheWithTemplate(user, pass, cacheName, cacheXML, podName, namespace, protocol string) error {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+func (c Cluster) CreateCacheWithTemplate(cacheName, cacheXML, podName string) error {
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/xml"
+
+	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Post(podName, path, cacheXML, headers)
 	if err != nil {
-		return err
+		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", reason, err)
 	}
 
-	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/caches/%s", protocol, podIP, consts.InfinispanPort, cacheName)
-	commands := []string{"curl",
-		"--insecure",
-		"--http1.1",
-		"-w", "\n%{http_code}", // add http status at the end
-		"-d", fmt.Sprintf("%s", cacheXML),
-		"-H", "Content-Type: application/xml",
-		"-u", fmt.Sprintf("%v:%v", user, pass),
-		"-X", "POST",
-		httpURL,
-	}
-
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
-	if err != nil {
-		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", execErr, err)
-	}
-
-	// Split lines in standard output, HTTP status code will be last
-	execOutLines := strings.Split(execOut.String(), "\n")
-
-	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines)-1], 10, 64)
-	if err != nil {
-		return err
-	}
-
+	defer rsp.Body.Close()
+	httpCode := rsp.StatusCode
 	if httpCode >= http.StatusMultipleChoices || httpCode < http.StatusOK {
-		return fmt.Errorf("server side error creating cache: %s", execOut.String())
+		bodyBytes, err := ioutil.ReadAll(rsp.Body)
+		if err != nil {
+			return fmt.Errorf("server side error creating cache. Unable to read response body")
+		}
+		return fmt.Errorf("server side error creating cache: %s", string(bodyBytes))
 	}
-
-	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
-	logger.Info("create cache completed successfully", "http code", httpCode)
 	return nil
 }
 
 // CreateCacheWithTemplateName create cluster cache on the pod `podName`
-func (c Cluster) CreateCacheWithTemplateName(user, pass, cacheName, templateName, podName, namespace, protocol string) error {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+func (c Cluster) CreateCacheWithTemplateName(cacheName, templateName, podName string) error {
+	path := fmt.Sprintf("%s/caches/%s?template=%s", consts.ServerHTTPBasePath, cacheName, templateName)
+	rsp, err, reason := c.Client.Post(podName, path, "", nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", reason, err)
 	}
 
-	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/caches/%s?template=%s", protocol, podIP, consts.InfinispanPort, cacheName, templateName)
-	commands := []string{"curl",
-		"--insecure",
-		"--http1.1",
-		"-w", "\n%{http_code}", // add http status at the end
-		"-u", fmt.Sprintf("%v:%v", user, pass),
-		"-X", "POST",
-		httpURL,
-	}
-
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
-	if err != nil {
-		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", execErr, err)
-	}
-
-	// Split lines in standard output, HTTP status code will be last
-	execOutLines := strings.Split(execOut.String(), "\n")
-
-	httpCode, err := strconv.ParseUint(execOutLines[len(execOutLines)-1], 10, 64)
-	if err != nil {
-		return err
-	}
-
+	defer rsp.Body.Close()
+	httpCode := rsp.StatusCode
 	if httpCode >= http.StatusMultipleChoices || httpCode < http.StatusOK {
-		return fmt.Errorf("server side error creating cache: %s", execOut.String())
+		bodyBytes, err := ioutil.ReadAll(rsp.Body)
+		if err != nil {
+			return fmt.Errorf("server side error creating cache. Unable to read response body")
+		}
+		return fmt.Errorf("server side error creating cache: %s", string(bodyBytes))
 	}
-
-	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
-	logger.Info("create cache completed successfully", "http code", httpCode)
 	return nil
 }
 
-func (c Cluster) GetMemoryLimitBytes(podName, namespace string) (uint64, error) {
+func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
 	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
-	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
@@ -271,9 +195,9 @@ func (c Cluster) GetMemoryLimitBytes(podName, namespace string) (uint64, error) 
 	return limitBytes, nil
 }
 
-func (c Cluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, error) {
+func (c Cluster) GetMaxMemoryUnboundedBytes(podName string) (uint64, error) {
 	command := []string{"cat", "/proc/meminfo"}
-	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: namespace}
+	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
@@ -296,29 +220,20 @@ func (c Cluster) GetMaxMemoryUnboundedBytes(podName, namespace string) (uint64, 
 	return 0, fmt.Errorf("meminfo lacking MemTotal information")
 }
 
-// GetPassword returns the user's password
-func (c Cluster) GetPassword(user, secretName, namespace string) (string, error) {
-	return c.Kubernetes.GetPassword(user, secretName, namespace)
-}
-
 // GetMetrics return pod metrics
-func (c Cluster) GetMetrics(user, pass, podName, namespace, protocol, postfix string) (*bytes.Buffer, error) {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+func (c Cluster) GetMetrics(podName, postfix string) (*bytes.Buffer, error) {
+	headers := make(map[string]string)
+	headers["Accept"] = "application/json"
+
+	path := fmt.Sprintf("%s/metrics/%s", consts.ServerHTTPBasePath, postfix)
+	rsp, err, reason := c.Client.Get(podName, path, headers)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unexpected error getting metrics, stderr: %v, err: %v", reason, err)
 	}
-	httpURL := fmt.Sprintf("%s://%s:%d/metrics/%s", protocol, podIP, consts.InfinispanPort, postfix)
-	commands := []string{"curl", "--insecure", "--http1.1",
-		"-u", fmt.Sprintf("%v:%v", user, pass),
-		"-H", "Accept: application/json", httpURL}
-	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
-	logger.Info("get metrics", "url", httpURL)
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
-	if err == nil {
-		return &execOut, nil
-	}
-	return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", execErr, err)
+	defer rsp.Body.Close()
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(rsp.Body)
+	return buf, nil
 }
 
 // Return handler for querying cluster status
@@ -332,22 +247,17 @@ func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 }
 
 // GetCacheManagerInfo via REST v2 interface
-func (c Cluster) GetCacheManagerInfo(user, pass, cacheManagerName, podName, namespace, protocol string) (map[string]interface{}, error) {
-	podIP, err := c.Kubernetes.GetPodIP(podName, namespace)
+func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("%s/cache-managers/%s", consts.ServerHTTPBasePath, cacheManagerName)
+	rsp, err, reason := c.Client.Get(podName, path, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unexpected error getting cache manager info, stderr: %v, err: %v", reason, err)
 	}
-	httpURL := fmt.Sprintf("%s://%s:%d/rest/v2/cache-managers/%s", protocol, podIP, consts.InfinispanPort, cacheManagerName)
-	commands := []string{"curl", "--insecure", "-u", fmt.Sprintf("%v:%v", user, pass), httpURL}
-	logger := log.WithValues("Request.Namespace", namespace, "Pod.Name", podName)
-	logger.Info("get cache-manager info", "url", httpURL)
-	execOptions := ExecOptions{Command: commands, PodName: podName, Namespace: namespace}
-	execOut, _, err := c.Kubernetes.ExecWithOptions(execOptions)
+
+	defer rsp.Body.Close()
 	var info map[string]interface{}
-	if err == nil {
-		result := execOut.Bytes()
-		err = json.Unmarshal(result, &info)
-		return info, err
+	if err := json.NewDecoder(rsp.Body).Decode(&info); err != nil {
+		return nil, fmt.Errorf("unable to decode: %v", err)
 	}
-	return nil, err
+	return info, nil
 }
