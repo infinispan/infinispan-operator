@@ -491,7 +491,14 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	// If all upgradable resources are controlled by the Stateful Set,
 	// removing the Stateful Set should remove the rest.
 	// Then, stateful set could be controlled by Infinispan to keep current logic.
-	err := r.client.Delete(context.TODO(),
+
+	// Remove finalizer (we don't use it anymore) if it present and set owner reference for old PVCs
+	err := r.upgradeInfinispan(infinispan)
+	if err != nil {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
 		&appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.ObjectMeta.Name,
@@ -557,6 +564,37 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		return err
 	}
 
+	return nil
+}
+
+func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinispan) error {
+	if ispncom.Contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
+		// Set Infinispan CR as owner reference for PVC if it not defined
+		pvcs := &corev1.PersistentVolumeClaimList{}
+		err := kubernetes.ResourcesList(infinispan.Name, infinispan.Namespace, "infinispan-pod", pvcs)
+		if err != nil {
+			return err
+		}
+
+		for _, pvc := range pvcs.Items {
+			if !metav1.IsControlledBy(&pvc, infinispan) {
+				blockOwnerDeletion := false
+				controllerutil.SetControllerReference(infinispan, &pvc, r.scheme)
+				pvc.OwnerReferences[0].BlockOwnerDeletion = &blockOwnerDeletion
+				err := r.client.Update(context.TODO(), &pvc)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// Remove finalizer if it defined in the Infinispan CR
+		infinispan.SetFinalizers(ispncom.Remove(infinispan.GetFinalizers(), consts.InfinispanFinalizer))
+		err = r.client.Update(context.TODO(), infinispan)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
