@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 
@@ -252,7 +253,7 @@ func (k Kubernetes) hasServiceCAsCRDResource() bool {
 	result := req.Do()
 	var status int
 	result.StatusCode(&status)
-	return status >= 200 && status < 299
+	return status >= http.StatusOK && status < http.StatusMultipleChoices
 }
 
 // getServingCertsMode returns a label that identify the kind of serving
@@ -313,9 +314,9 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL string, secretName string, 
 	return nil, fmt.Errorf("token required connect to OpenShift cluster")
 }
 
-// GetK8sResources returns the list of the type list of resources associated to the cluster
-func (k Kubernetes) GetK8sResources(name, namespace string, list runtime.Object) error {
-	labelSelector := labels.SelectorFromSet(common.LabelsResource(name, ""))
+// ResourcesList returns a typed list of resource associated with the cluster
+func (k Kubernetes) ResourcesList(name, namespace, resourceType string, list runtime.Object) error {
+	labelSelector := labels.SelectorFromSet(common.LabelsResource(name, resourceType))
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	err := k.Client.List(context.TODO(), list, listOps)
 	return err

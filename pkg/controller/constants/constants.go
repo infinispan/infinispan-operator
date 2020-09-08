@@ -52,6 +52,7 @@ const (
 	CacheServiceMaxRamMb                    = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
 	CacheServiceAdditionalJavaOptions       = "-Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10"
 	CacheServiceJvmNativePercentageOverhead = 1
+	InfinispanFinalizer                     = "finalizer.infinispan.org"
 
 	ServerHTTPBasePath         = "rest/v2"
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"

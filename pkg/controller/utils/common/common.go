@@ -40,3 +40,24 @@ func LookupHost(host string, logger logr.Logger) (string, error) {
 	logger.Info("host resolved", "host", host, "addresses", addresses)
 	return host, nil
 }
+
+// TODO Replace with controllerutil.ContainsFinalizer after operator-sdk update (controller-runtime v0.6.1+)
+func Contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// TODO Replace with controllerutil.RemoveFinalizer after operator-sdk update (controller-runtime v0.6.0+)
+func Remove(list []string, s string) []string {
+	var slice []string
+	for _, v := range list {
+		if v != s {
+			slice = append(slice, v)
+		}
+	}
+	return slice
+}
