@@ -58,15 +58,9 @@ func (xsite *XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util
 }
 
 func ApplyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *ispnv1.Infinispan, cluster util.ClusterInterface, client client.Client, logger logr.Logger) bool {
-	pass, err := cluster.GetPassword(consts.DefaultOperatorUser, infinispan.GetSecretName(), infinispan.GetNamespace())
 	coordinatorFound := false
-	if err != nil {
-		logger.Error(err, "Error in getting cluster password for x-site")
-		return coordinatorFound
-	}
-	protocol := string(infinispan.GetEndpointScheme())
 	for _, item := range podList.Items {
-		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultOperatorUser, pass, consts.DefaultCacheManagerName, item.Name, item.Namespace, protocol)
+		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultCacheManagerName, item.Name)
 		if err == nil {
 			lab, ok := item.Labels["coordinator"]
 			if cacheManagerInfo["coordinator"].(bool) {

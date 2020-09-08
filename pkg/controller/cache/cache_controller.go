@@ -33,9 +33,6 @@ var log = logf.Log.WithName("controller_cache")
 // Kubernetes object
 var kubernetes *ispnutil.Kubernetes
 
-// Cluster object
-var cluster ispnutil.ClusterInterface
-
 // Add creates a new Cache Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -45,7 +42,6 @@ func Add(mgr manager.Manager) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	kubernetes = ispnutil.NewKubernetesFromController(mgr)
-	cluster = ispnutil.NewCluster(kubernetes)
 	return &ReconcileCache{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
@@ -140,7 +136,8 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, nil
 	}
 
-	existsCache, err := cluster.ExistsCache(user, pass, instance.GetCacheName(), podList.Items[0].Name, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+	cluster := ispnutil.NewCluster(user, pass, instance.Namespace, ispnInstance.GetEndpointScheme(), kubernetes)
+	existsCache, err := cluster.ExistsCache(instance.GetCacheName(), podList.Items[0].Name)
 	if err == nil {
 		if existsCache {
 			reqLogger.Info(fmt.Sprintf("Cache %s already exists", instance.GetCacheName()))
@@ -155,7 +152,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 				return reconcile.Result{}, err
 			}
 			if templateName != "" {
-				err = cluster.CreateCacheWithTemplateName(user, pass, instance.Spec.Name, templateName, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+				err = cluster.CreateCacheWithTemplateName(instance.Spec.Name, templateName, podName)
 				if err != nil {
 					reqLogger.Error(err, "Error creating cache with template name")
 					return reconcile.Result{}, err
@@ -170,7 +167,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 					return reconcile.Result{}, err
 				}
 				reqLogger.Info(xmlTemplate)
-				err = cluster.CreateCacheWithTemplate(user, pass, instance.Spec.Name, xmlTemplate, podName, instance.Namespace, string(ispnInstance.GetEndpointScheme()))
+				err = cluster.CreateCacheWithTemplate(instance.Spec.Name, xmlTemplate, podName)
 				if err != nil {
 					reqLogger.Error(err, "Error in creating cache")
 					return reconcile.Result{}, err

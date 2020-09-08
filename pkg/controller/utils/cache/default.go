@@ -11,15 +11,13 @@ import (
 
 // GetDefaultCacheTemplateXML return default template for cache
 func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) (string, error) {
-	namespace := infinispan.ObjectMeta.Namespace
-
-	memoryLimitBytes, err := cluster.GetMemoryLimitBytes(podName, namespace)
+	memoryLimitBytes, err := cluster.GetMemoryLimitBytes(podName)
 	if err != nil {
 		logger.Error(err, "unable to extract memory limit (bytes) from pod")
 		return "", err
 	}
 
-	maxUnboundedMemory, err := cluster.GetMaxMemoryUnboundedBytes(podName, namespace)
+	maxUnboundedMemory, err := cluster.GetMaxMemoryUnboundedBytes(podName)
 	if err != nil {
 		logger.Error(err, "unable to extract max memory unbounded from pod")
 		return "", err
@@ -44,22 +42,9 @@ func CreateCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
 	if err != nil {
 		return err
 	}
-	secretName := infinispan.GetSecretName()
-	protocol := infinispan.GetEndpointScheme()
-	pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, secretName, infinispan.GetNamespace())
-	if err != nil {
-		return err
-	}
-	return cluster.CreateCacheWithTemplate(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, defaultCacheXML, podName, infinispan.Namespace, string(protocol))
+	return cluster.CreateCacheWithTemplate(consts.DefaultCacheName, defaultCacheXML, podName)
 }
 
 func ExistsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, kubernetes *ispnutil.Kubernetes, cluster ispnutil.ClusterInterface) (bool, error) {
-	namespace := infinispan.ObjectMeta.Namespace
-	secretName := infinispan.GetSecretName()
-	protocol := infinispan.GetEndpointScheme()
-	pass, err := kubernetes.GetPassword(consts.DefaultOperatorUser, secretName, namespace)
-	if err != nil {
-		return false, err
-	}
-	return cluster.ExistsCache(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, podName, namespace, string(protocol))
+	return cluster.ExistsCache(consts.DefaultCacheName, podName)
 }

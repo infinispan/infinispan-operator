@@ -9,7 +9,7 @@ import (
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -66,12 +66,6 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 			// Skip autoscale disabled and not well formed clusters
 			continue
 		}
-		// We need the password and the scheme to get the metrics
-		pass, err := cluster.GetPassword(constants.DefaultOperatorUser, ispn.Spec.Security.EndpointSecretName, ispn.Namespace)
-		protocol := ispn.GetEndpointScheme()
-		if err != nil {
-			continue
-		}
 
 		// Min # of required pods, same value for all the cluster pods
 		metricMinPodNum := int32(0)
@@ -80,17 +74,25 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 		podList := &corev1.PodList{}
 		kubernetes.GetK8sResources(ispn.ObjectMeta.Name, ispn.ObjectMeta.Namespace, podList)
 
+		user := constants.DefaultOperatorUser
+		pass, err := kubernetes.GetPassword(user, ispn.Spec.Security.EndpointSecretName, ispn.Namespace)
+		if err != nil {
+			continue
+		}
+
+		cluster := ispnutil.NewCluster(user, pass, ispn.Namespace, ispn.GetEndpointScheme(), kubernetes)
 		for _, pItem := range podList.Items {
+			podName := pItem.Name
 			// time.Sleep(time.Duration(10000/len(podList.Items)) * time.Millisecond)
 			if metricMinPodNum == 0 {
-				metricMinPodNum, err = getMetricMinPodNum(consts.DefaultOperatorUser, pass, string(protocol), pItem)
+				metricMinPodNum, err = getMetricMinPodNum(podName, cluster)
 				if err != nil {
-					log.Error(err, "Unable to get metricMinPodNum for pod", "podName", pItem.Name)
+					log.Error(err, "Unable to get metricMinPodNum for pod", "podName", podName)
 				}
 			}
-			err = getMetricDataMemoryPercentUsage(&metricDataMemoryPercentUsed, consts.DefaultOperatorUser, pass, string(protocol), pItem)
+			err = getMetricDataMemoryPercentUsage(&metricDataMemoryPercentUsed, podName, cluster)
 			if err != nil {
-				log.Error(err, "Unable to get DataMemoryUsed for pod", "podName", pItem.Name)
+				log.Error(err, "Unable to get DataMemoryUsed for pod", "podName", podName)
 			}
 		}
 		autoscaleOnPercentUsage(&metricDataMemoryPercentUsed, metricMinPodNum, &ispn)
@@ -98,8 +100,8 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 }
 
 // getMetricMinPodNum get the minimum number of nodes required to avoid data lost
-func getMetricMinPodNum(user, pass, protocol string, pItem corev1.Pod) (int32, error) {
-	res, err := cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "vendor/cache_manager_default_cache_default_cluster_cache_stats_required_minimum_number_of_nodes")
+func getMetricMinPodNum(podName string, cluster *ispnutil.Cluster) (int32, error) {
+	res, err := cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_default_cluster_cache_stats_required_minimum_number_of_nodes")
 	if err != nil {
 		return 0, err
 	}
@@ -120,8 +122,8 @@ func getMetricMinPodNum(user, pass, protocol string, pItem corev1.Pod) (int32, e
 	return ret, nil
 }
 
-func getMetricDataMemoryPercentUsage(m *map[string]int, user, pass, protocol string, pItem corev1.Pod) error {
-	res, err := cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "vendor/cache_manager_default_cache_default_statistics_data_memory_used")
+func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster *ispnutil.Cluster) error {
+	res, err := cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_default_statistics_data_memory_used")
 	if err != nil {
 		return err
 	}
@@ -137,7 +139,7 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, user, pass, protocol str
 		break
 	}
 
-	res, err = cluster.GetMetrics(user, pass, pItem.Name, pItem.Namespace, string(protocol), "vendor/cache_manager_default_cache_default_configuration_eviction_size")
+	res, err = cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_default_configuration_eviction_size")
 	if err != nil {
 		return err
 	}
@@ -153,8 +155,8 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, user, pass, protocol str
 		break
 	}
 
-	(*m)["dataMemPercentUsage;node="+pItem.Name] = int(used * 100 / total)
-	log.Info("Current memory usage percent", "value", (*m)["dataMemPercentUsage;node="+pItem.Name])
+	(*m)["dataMemPercentUsage;node="+podName] = int(used * 100 / total)
+	log.Info("Current memory usage percent", "value", (*m)["dataMemPercentUsage;node="+podName])
 	return nil
 }
 
