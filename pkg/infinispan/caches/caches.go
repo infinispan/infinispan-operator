@@ -1,4 +1,4 @@
-package cache
+package caches
 
 import (
 	"fmt"
@@ -6,11 +6,11 @@ import (
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 )
 
-// GetDefaultCacheTemplateXML return default template for cache
-func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) (string, error) {
+// DefaultCacheTemplateXML return default template for cache
+func DefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinispan, cluster ispn.ClusterInterface, logger logr.Logger) (string, error) {
 	memoryLimitBytes, err := cluster.GetMemoryLimitBytes(podName)
 	if err != nil {
 		logger.Error(err, "unable to extract memory limit (bytes) from pod")
@@ -37,14 +37,10 @@ func GetDefaultCacheTemplateXML(podName string, infinispan *infinispanv1.Infinis
 	return fmt.Sprintf(consts.DefaultCacheTemplate, consts.DefaultCacheName, replicationFactor, evictTotalMemoryBytes), nil
 }
 
-func CreateCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, kubernetes *ispnutil.Kubernetes, cluster ispnutil.ClusterInterface, logger logr.Logger) error {
-	defaultCacheXML, err := GetDefaultCacheTemplateXML(podName, infinispan, cluster, logger)
+func CreateCacheFromDefault(podName string, infinispan *infinispanv1.Infinispan, cluster ispn.ClusterInterface, logger logr.Logger) error {
+	defaultCacheXML, err := DefaultCacheTemplateXML(podName, infinispan, cluster, logger)
 	if err != nil {
 		return err
 	}
 	return cluster.CreateCacheWithTemplate(consts.DefaultCacheName, defaultCacheXML, podName)
-}
-
-func ExistsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Infinispan, kubernetes *ispnutil.Kubernetes, cluster ispnutil.ClusterInterface) (bool, error) {
-	return cluster.ExistsCache(consts.DefaultCacheName, podName)
 }

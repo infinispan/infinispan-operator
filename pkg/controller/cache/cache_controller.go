@@ -8,9 +8,10 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	infinispanv2alpha1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
+	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	caches "github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/version"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,7 +32,7 @@ import (
 var log = logf.Log.WithName("controller_cache")
 
 // Kubernetes object
-var kubernetes *ispnutil.Kubernetes
+var kubernetes *kube.Kubernetes
 
 // Add creates a new Cache Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -41,7 +42,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	kubernetes = ispnutil.NewKubernetesFromController(mgr)
+	kubernetes = kube.NewKubernetesFromController(mgr)
 	return &ReconcileCache{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
@@ -125,7 +126,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(common.LabelsResource(ispnInstance.Name, ""))
+	labelSelector := labels.SelectorFromSet(ispnctrl.LabelsResource(ispnInstance.Name, ""))
 	listOps := &client.ListOptions{Namespace: ispnInstance.GetClusterName(), LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), podList, listOps)
 	if err != nil || (len(podList.Items) == 0) {
@@ -136,7 +137,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, nil
 	}
 
-	cluster := ispnutil.NewCluster(user, pass, instance.Namespace, ispnInstance.GetEndpointScheme(), kubernetes)
+	cluster := ispn.NewCluster(user, pass, instance.Namespace, ispnInstance.GetEndpointScheme(), kubernetes)
 	existsCache, err := cluster.ExistsCache(instance.GetCacheName(), podList.Items[0].Name)
 	if err == nil {
 		if existsCache {
@@ -160,7 +161,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 			} else {
 				xmlTemplate := instance.Spec.Template
 				if xmlTemplate == "" {
-					xmlTemplate, err = cache.GetDefaultCacheTemplateXML(podName, ispnInstance, cluster, reqLogger)
+					xmlTemplate, err = caches.DefaultCacheTemplateXML(podName, ispnInstance, cluster, reqLogger)
 				}
 				if err != nil {
 					reqLogger.Error(err, "Error getting default XML")
@@ -191,7 +192,7 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 
 	// Search the service associated to the cluster
 	serviceList := &corev1.ServiceList{}
-	labelSelector = labels.SelectorFromSet(common.LabelsResource(ispnInstance.Name, "infinispan-service"))
+	labelSelector = labels.SelectorFromSet(ispnctrl.LabelsResource(ispnInstance.Name, "infinispan-service"))
 	listOps = &client.ListOptions{Namespace: ispnInstance.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), serviceList, listOps)
 	if err != nil {

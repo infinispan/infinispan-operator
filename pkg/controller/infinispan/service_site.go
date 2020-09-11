@@ -1,4 +1,4 @@
-package configuration
+package infinispan
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,9 +18,9 @@ import (
 )
 
 func SiteService(siteServiceName string, infinispan *ispnv1.Infinispan, scheme *runtime.Scheme) (*corev1.Service, error) {
-	lsPodSelector := comutil.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-pod")
+	lsPodSelector := PodLabels(infinispan.ObjectMeta.Name)
 	lsPodSelector["coordinator"] = "true"
-	lsService := comutil.LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-xsite")
+	lsService := LabelsResource(infinispan.ObjectMeta.Name, "infinispan-service-xsite")
 
 	exposeSpec := corev1.ServiceSpec{}
 	exposeConf := infinispan.Spec.Service.Sites.Local.Expose

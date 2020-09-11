@@ -1,15 +1,17 @@
-package configuration
+package infinispan
 
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -19,7 +21,7 @@ import (
 )
 
 // ComputeXSite compute the xsite struct for cross site function
-func (xsite *XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util.Kubernetes, service *corev1.Service, logger logr.Logger) error {
+func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger logr.Logger, xsite *config.XSite) error {
 	if infinispan.HasSites() {
 		siteServiceName := infinispan.GetSiteServiceName()
 		localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger)
@@ -46,7 +48,7 @@ func (xsite *XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util
 
 		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
 		for _, remoteLocation := range remoteLocations {
-			err := xsite.AppendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger)
+			err := AppendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
 			if err != nil {
 				return err
 			}
@@ -57,7 +59,7 @@ func (xsite *XSite) ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *util
 	return nil
 }
 
-func ApplyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *ispnv1.Infinispan, cluster util.ClusterInterface, client client.Client, logger logr.Logger) bool {
+func ApplyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *ispnv1.Infinispan, cluster ispn.ClusterInterface, client client.Client, logger logr.Logger) bool {
 	coordinatorFound := false
 	for _, item := range podList.Items {
 		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultCacheManagerName, item.Name)
@@ -86,26 +88,28 @@ func ApplyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *ispnv1.In
 	return coordinatorFound
 }
 
-func (xsite *XSite) AppendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *util.Kubernetes, logger logr.Logger) error {
+func AppendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes,
+	logger logr.Logger, xsite *config.XSite) error {
 	restConfig, err := getRemoteSiteRESTConfig(infinispan, remoteLocation, kubernetes, logger)
 	if err != nil {
 		return err
 	}
 
-	remoteKubernetes, err := util.NewKubernetesFromConfig(restConfig)
+	remoteKubernetes, err := kube.NewKubernetesFromConfig(restConfig)
 	if err != nil {
 		logger.Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
 		return err
 	}
 
-	err = xsite.AppendKubernetesRemoteLocation(infinispan, remoteLocation, remoteKubernetes, logger)
+	err = AppendKubernetesRemoteLocation(infinispan, remoteLocation, remoteKubernetes, logger, xsite)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (xsite *XSite) AppendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, remoteKubernetes *util.Kubernetes, logger logr.Logger) error {
+func AppendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec,
+	remoteKubernetes *kube.Kubernetes, logger logr.Logger, xsite *config.XSite) error {
 	siteServiceName := infinispan.GetSiteServiceName()
 	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
 	siteService := &corev1.Service{}
@@ -133,7 +137,7 @@ func (xsite *XSite) AppendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan
 		"port", port,
 	)
 
-	backupSite := BackupSite{
+	backupSite := config.BackupSite{
 		Address: host,
 		Name:    remoteLocation.Name,
 		Port:    port,
@@ -143,7 +147,7 @@ func (xsite *XSite) AppendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan
 	return nil
 }
 
-func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *util.Kubernetes, logger logr.Logger) (string, int32, error) {
+func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kubernetes, logger logr.Logger) (string, int32, error) {
 	switch serviceType := service.Spec.Type; serviceType {
 	case corev1.ServiceTypeNodePort:
 		// If configuring NodePort, expect external IPs to be configured
@@ -156,7 +160,7 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *util.Kuber
 
 }
 
-func getNodePortServiceHostPort(service *corev1.Service, k *util.Kubernetes, logger logr.Logger) (string, int32, error) {
+func getNodePortServiceHostPort(service *corev1.Service, k *kube.Kubernetes, logger logr.Logger) (string, int32, error) {
 	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
 	//So, we get the workers list. It needs some permissions cluster-reader permission
 	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
@@ -210,7 +214,7 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 		}
 		if ingress.Hostname != "" {
 			// Resolve load balancer host
-			ip, err := common.LookupHost(ingress.Hostname, logger)
+			ip, err := lookupHost(ingress.Hostname, logger)
 
 			// Load balancer gets created asynchronously,
 			// so it might take time for the status to be updated.
@@ -221,7 +225,7 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 	return "", port, nil
 }
 
-func getRemoteSiteRESTConfig(infinispan *ispnv1.Infinispan, location *ispnv1.InfinispanSiteLocationSpec, kubernetes *util.Kubernetes, logger logr.Logger) (*restclient.Config, error) {
+func getRemoteSiteRESTConfig(infinispan *ispnv1.Infinispan, location *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes, logger logr.Logger) (*restclient.Config, error) {
 	backupSiteURL, err := url.Parse(location.URL)
 	if err != nil {
 		return nil, err
@@ -235,12 +239,13 @@ func getRemoteSiteRESTConfig(infinispan *ispnv1.Infinispan, location *ispnv1.Inf
 
 	// All remote sites locations are accessed via encrypted http
 	copyURL.Scheme = "https"
+	namespace := infinispan.Namespace
 
 	switch scheme := backupSiteURL.Scheme; scheme {
 	case "minikube":
-		return kubernetes.GetMinikubeRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
+		return kubernetes.GetMinikubeRESTConfig(copyURL.String(), location.SecretName, namespace, logger)
 	case "openshift":
-		return kubernetes.GetOpenShiftRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
+		return kubernetes.GetOpenShiftRESTConfig(copyURL.String(), location.SecretName, namespace, logger)
 	default:
 		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
 	}
@@ -255,4 +260,14 @@ func findRemoteLocations(localSiteName string, infinispan *ispnv1.Infinispan) (r
 	}
 
 	return
+}
+
+func lookupHost(host string, logger logr.Logger) (string, error) {
+	addresses, err := net.LookupHost(host)
+	if err != nil {
+		logger.Error(err, "host does not resolve")
+		return "", err
+	}
+	logger.Info("host resolved", "host", host, "addresses", addresses)
+	return host, nil
 }

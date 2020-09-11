@@ -1,22 +1,22 @@
 package constants
 
 import (
+	"os"
 	"strings"
 	"time"
 
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var (
 	// DefaultImageName is used if a specific image name is not provided
-	DefaultImageName = common.GetEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
+	DefaultImageName = GetEnvWithDefault("DEFAULT_IMAGE", "infinispan/server:latest")
 
 	// InitContainerImageName allows a custom initContainer image to be used
-	InitContainerImageName = common.GetEnvWithDefault("INITCONTAINER_IMAGE", "busybox")
+	InitContainerImageName = GetEnvWithDefault("INITCONTAINER_IMAGE", "busybox")
 
 	// JGroupsDiagnosticsFlag is used to enable traces for JGroups
-	JGroupsDiagnosticsFlag = strings.ToUpper(common.GetEnvWithDefault("JGROUPS_DIAGNOSTICS", "FALSE"))
+	JGroupsDiagnosticsFlag = strings.ToUpper(GetEnvWithDefault("JGROUPS_DIAGNOSTICS", "FALSE"))
 
 	// DefaultMemorySize string with default size for memory
 	DefaultMemorySize = resource.MustParse("512Mi")
@@ -69,9 +69,6 @@ const (
 			</distributed-cache>
 		</cache-container>
 	</infinispan>`
-
-	// Using for local run and test only
-	ClusterUpKubeConfig = "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 )
 
 const (
@@ -86,3 +83,12 @@ const (
 	//DefaultWaitOnClusterForCache delay for wait until secret is created
 	DefaultWaitOnCreateSecret = 2 * time.Second
 )
+
+// GetEnvWithDefault return GetEnv(name) if exists else return defVal
+func GetEnvWithDefault(name, defVal string) string {
+	str := os.Getenv(name)
+	if str != "" {
+		return str
+	}
+	return defVal
+}

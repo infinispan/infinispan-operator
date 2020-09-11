@@ -1,17 +1,13 @@
-package util
+package security
 
 import (
 	"errors"
 	"math/rand"
-	"time"
 
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"gopkg.in/yaml.v2"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // Identities represent identities that can interact with server
 type Identities struct {
@@ -86,4 +82,20 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 	}
 
 	return "", errors.New("no operator credentials found")
+}
+
+// PasswordFromSecret returns password associated with a user in a given secret
+func PasswordFromSecret(user, secretName, namespace string, k *kube.Kubernetes) (string, error) {
+	secret, err := k.GetSecret(secretName, namespace)
+	if err != nil {
+		return "", nil
+	}
+
+	descriptor := secret.Data["identities.yaml"]
+	pass, err := FindPassword(user, descriptor)
+	if err != nil {
+		return "", err
+	}
+
+	return pass, nil
 }

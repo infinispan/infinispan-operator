@@ -1,4 +1,4 @@
-package common
+package kubernetes
 
 import corev1 "k8s.io/api/core/v1"
 
@@ -43,4 +43,13 @@ func IsPodReady(pod corev1.Pod) bool {
 		}
 	}
 	return false
+}
+
+func GetEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
+	for i, value := range *env {
+		if value.Name == envVarName {
+			return i
+		}
+	}
+	return 0
 }

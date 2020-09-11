@@ -9,7 +9,8 @@ import (
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
+	ispnutil "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -72,13 +73,14 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 		// Data memory percent usage array, one value per pod
 		metricDataMemoryPercentUsed := map[string]int{}
 		podList := &corev1.PodList{}
-		err = kubernetes.ResourcesList(ispn.ObjectMeta.Name, ispn.ObjectMeta.Namespace, "infinispan-pod", podList)
+		name := ispn.ObjectMeta.Name
+		err = kubernetes.ResourcesList(name, ispn.ObjectMeta.Namespace, LabelsResource(name, ""), podList)
 		if err != nil {
 			continue
 		}
 
 		user := constants.DefaultOperatorUser
-		pass, err := kubernetes.GetPassword(user, ispn.Spec.Security.EndpointSecretName, ispn.Namespace)
+		pass, err := users.PasswordFromSecret(user, ispn.Spec.Security.EndpointSecretName, ispn.Namespace, kubernetes)
 		if err != nil {
 			continue
 		}
