@@ -15,9 +15,11 @@ import (
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
+
+	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	k8s "github.com/infinispan/infinispan-operator/test/e2e/k8s"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -62,9 +64,9 @@ var MinimalSpec = ispnv1.Infinispan{
 	},
 }
 
-func newCluster(user, secret, protocol string, kubernetes *ispnutil.Kubernetes) *ispnutil.Cluster {
+func newCluster(user, secret, protocol string, kubernetes *kube.Kubernetes) *ispn.Cluster {
 	ns := tconst.Namespace
-	pass, _ := kubernetes.GetPassword(user, secret, ns)
+	pass, _ := users.PasswordFromSecret(user, secret, ns, kubernetes)
 	var scheme corev1.URIScheme
 	switch strings.ToUpper(protocol) {
 	case "HTTP":
@@ -72,7 +74,7 @@ func newCluster(user, secret, protocol string, kubernetes *ispnutil.Kubernetes) 
 	case "HTTPS":
 		scheme = corev1.URISchemeHTTPS
 	}
-	return ispnutil.NewCluster(user, pass, ns, scheme, kubernetes)
+	return ispn.NewCluster(user, pass, ns, scheme, kubernetes)
 }
 
 func TestMain(m *testing.M) {
@@ -124,7 +126,7 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 
 	// Making sure no PVCs were created
 	pvcs := &corev1.PersistentVolumeClaimList{}
-	err := testKube.Kubernetes.ResourcesList(spec.Name, spec.Namespace, "infinispan-pod", pvcs)
+	err := testKube.Kubernetes.ResourcesList(spec.Name, spec.Namespace, ispnctrl.PodLabels(spec.Name), pvcs)
 	tutils.ExpectNoError(err)
 	if len(pvcs.Items) > 0 {
 		tutils.ExpectNoError(fmt.Errorf("persistent volume claims were found (count = %d) but not expected for ephemeral storage configuration", len(pvcs.Items)))
@@ -296,7 +298,7 @@ func TestCacheService(t *testing.T) {
 	waitForPodsOrFail(spec, 1)
 
 	user := cconsts.DefaultDeveloperUser
-	password, err := testKube.Kubernetes.GetPassword(user, spec.GetSecretName(), tconst.Namespace)
+	password, err := users.PasswordFromSecret(user, spec.GetSecretName(), tconst.Namespace, testKube.Kubernetes)
 	tutils.ExpectNoError(err)
 
 	ispn := ispnv1.Infinispan{}
@@ -333,7 +335,7 @@ func TestPermanentCache(t *testing.T) {
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
 		protocol := getSchemaForRest(ispn)
-		pass, err := testKube.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
+		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tconst.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 
@@ -346,7 +348,7 @@ func TestPermanentCache(t *testing.T) {
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := testKube.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
+		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tconst.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
@@ -384,7 +386,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 
 	// Define function for the generic stop/start test procedure
 	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		pass, err := testKube.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
+		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tconst.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
@@ -400,7 +402,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	}
 
 	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		pass, err := testKube.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
+		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tconst.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		schema := getSchemaForRest(ispn)
@@ -502,7 +504,7 @@ func TestExternalService(t *testing.T) {
 
 	testKube.WaitForPods(1, tconst.SinglePodTimeout, spec.Name, tconst.Namespace)
 
-	pass, err := testKube.Kubernetes.GetPassword(usr, spec.GetSecretName(), tconst.Namespace)
+	pass, err := users.PasswordFromSecret(usr, spec.GetSecretName(), tconst.Namespace, testKube.Kubernetes)
 	tutils.ExpectNoError(err)
 
 	routeName := fmt.Sprintf("%s-external", name)
@@ -538,7 +540,7 @@ func exposeServiceSpec() *ispnv1.ExposeSpec {
 }
 
 func exposeServiceType() ispnv1.ExposeType {
-	exposeServiceType := comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	exposeServiceType := cconsts.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 	switch exposeServiceType {
 	case "NodePort":
 		return ispnv1.ExposeTypeNodePort
@@ -556,7 +558,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	usr := "connectorusr"
 	pass := "connectorpass"
 	newpass := "connectornewpass"
-	identities := util.CreateIdentitiesFor(usr, pass)
+	identities := users.CreateIdentitiesFor(usr, pass)
 	identitiesYaml, err := yaml.Marshal(identities)
 	tutils.ExpectNoError(err)
 
@@ -603,7 +605,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	schema := getSchemaForRest(&ispn)
 	testAuthentication(schema, name, usr, pass)
 	// Update the auth credentials.
-	identities = util.CreateIdentitiesFor(usr, newpass)
+	identities = users.CreateIdentitiesFor(usr, newpass)
 	identitiesYaml, err = yaml.Marshal(identities)
 	tutils.ExpectNoError(err)
 

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+	constants "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,12 +22,12 @@ const (
 )
 
 var (
-	CPU               = comutil.GetEnvWithDefault("INFINISPAN_CPU", "500m")
-	Memory            = comutil.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
-	Namespace         = strings.ToLower(comutil.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
-	RunLocalOperator  = strings.ToUpper(comutil.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
-	ImageName         = comutil.GetEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server")
-	ExposeServiceType = comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	CPU               = constants.GetEnvWithDefault("INFINISPAN_CPU", "500m")
+	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
+	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
+	RunLocalOperator  = strings.ToUpper(constants.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
+	ImageName         = constants.GetEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server")
+	ExposeServiceType = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 )
 
 // Options used when deleting resources

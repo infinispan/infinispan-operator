@@ -1,4 +1,4 @@
-package util
+package kubernetes
 
 import (
 	"bytes"
@@ -9,9 +9,6 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
@@ -25,6 +22,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+)
+
+const (
+	// Using for local run and test only
+	ClusterUpKubeConfig = "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 )
 
 // Kubernetes abstracts interaction with a Kubernetes cluster
@@ -103,22 +105,6 @@ func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) 
 		return nil, err
 	}
 	return secret, err
-}
-
-// GetPassword returns password associated with a user in a given secret
-func (k Kubernetes) GetPassword(user, secretName, namespace string) (string, error) {
-	secret, err := k.GetSecret(secretName, namespace)
-	if err != nil {
-		return "", nil
-	}
-
-	descriptor := secret.Data["identities.yaml"]
-	pass, err := FindPassword(user, descriptor)
-	if err != nil {
-		return "", err
-	}
-
-	return pass, nil
 }
 
 // GetPodIP returns a pod's IP address
@@ -225,7 +211,7 @@ func FindKubeConfig() string {
 	if kubeConfig != "" {
 		return kubeConfig
 	}
-	return consts.ClusterUpKubeConfig
+	return ClusterUpKubeConfig
 }
 
 func setConfigDefaults(config *rest.Config) *rest.Config {
@@ -268,7 +254,7 @@ func (k Kubernetes) GetServingCertsMode() string {
 	return ""
 }
 
-func (k Kubernetes) GetMinikubeRESTConfig(masterURL string, secretName string, infinispan *ispnv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+func (k Kubernetes) GetMinikubeRESTConfig(masterURL, secretName, namespace string, logger logr.Logger) (*restclient.Config, error) {
 	logger.Info("connect to backup minikube cluster", "url", masterURL)
 
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
@@ -277,7 +263,7 @@ func (k Kubernetes) GetMinikubeRESTConfig(masterURL string, secretName string, i
 		return nil, err
 	}
 
-	secret, err := k.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
+	secret, err := k.GetSecret(secretName, namespace)
 	if err != nil {
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
@@ -290,7 +276,7 @@ func (k Kubernetes) GetMinikubeRESTConfig(masterURL string, secretName string, i
 	return config, nil
 }
 
-func (k Kubernetes) GetOpenShiftRESTConfig(masterURL string, secretName string, infinispan *ispnv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr.Logger) (*restclient.Config, error) {
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
 		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
@@ -300,7 +286,7 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL string, secretName string, 
 	// Skip-tls for accessing other OpenShift clusters
 	config.Insecure = true
 
-	secret, err := k.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
+	secret, err := k.GetSecret(secretName, namespace)
 	if err != nil {
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
@@ -315,8 +301,8 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL string, secretName string, 
 }
 
 // ResourcesList returns a typed list of resource associated with the cluster
-func (k Kubernetes) ResourcesList(name, namespace, resourceType string, list runtime.Object) error {
-	labelSelector := labels.SelectorFromSet(common.LabelsResource(name, resourceType))
+func (k Kubernetes) ResourcesList(name, namespace string, set labels.Set, list runtime.Object) error {
+	labelSelector := labels.SelectorFromSet(set)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	err := k.Client.List(context.TODO(), list, listOps)
 	return err

@@ -6,7 +6,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,7 +87,7 @@ func (ispn *Infinispan) ApplyDefaults() {
 		ispn.Spec.Container.Memory = constants.DefaultMemorySize.String()
 	}
 	if ispn.Spec.Container.CPU == "" {
-		cpuLimitString := comutil.ToMilliDecimalQuantity(constants.DefaultCPULimit)
+		cpuLimitString := toMilliDecimalQuantity(constants.DefaultCPULimit)
 		ispn.Spec.Container.CPU = cpuLimitString.String()
 	}
 	if ispn.IsDataGrid() {
@@ -179,7 +178,7 @@ func (ispn *Infinispan) GetEncryptionSecretName() string {
 func (ispn *Infinispan) GetCpuResources() (resource.Quantity, resource.Quantity) {
 	cpuLimits := resource.MustParse(ispn.Spec.Container.CPU)
 	cpuRequestsMillis := cpuLimits.MilliValue() / 2
-	cpuRequests := comutil.ToMilliDecimalQuantity(cpuRequestsMillis)
+	cpuRequests := toMilliDecimalQuantity(cpuRequestsMillis)
 	return cpuRequests, cpuLimits
 }
 
@@ -278,6 +277,10 @@ func (ispn *Infinispan) IsEncryptionCertFromService() bool {
 func (ispn *Infinispan) IsEncryptionCertSourceDefined() bool {
 	ee := ispn.Spec.Security.EndpointEncryption
 	return ee != nil && ee.Type != ""
+}
+
+func toMilliDecimalQuantity(value int64) resource.Quantity {
+	return *resource.NewMilliQuantity(value, resource.DecimalSI)
 }
 
 // IsEphemeralStorage

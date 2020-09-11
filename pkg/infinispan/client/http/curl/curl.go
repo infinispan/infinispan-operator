@@ -1,4 +1,4 @@
-package util
+package curl
 
 import (
 	"bufio"
@@ -10,31 +10,21 @@ import (
 	"strings"
 
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	client "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/security"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 )
 
 type CurlClient struct {
-	credentials Credentials
-	config      HttpConfig
-	*Kubernetes
+	credentials security.Credentials
+	config      client.HttpConfig
+	*kube.Kubernetes
 }
 
-type HttpConfig struct {
-	Username  string
-	Password  string
-	Namespace string
-	Protocol  string
-}
-
-type HttpClient interface {
-	Head(podName, path string, headers map[string]string) (*http.Response, error, string)
-	Get(podName, path string, headers map[string]string) (*http.Response, error, string)
-	Post(podName, path, payload string, headers map[string]string) (*http.Response, error, string)
-}
-
-func NewCurlClient(c HttpConfig, kubernetes *Kubernetes) *CurlClient {
+func New(c client.HttpConfig, kubernetes *kube.Kubernetes) *CurlClient {
 	return &CurlClient{
 		config: c,
-		credentials: Credentials{
+		credentials: security.Credentials{
 			Username: c.Username,
 			Password: c.Password,
 		},
@@ -64,7 +54,7 @@ func (c *CurlClient) executeCurlCommand(podName string, path string, headers map
 	curl := fmt.Sprintf("curl -i --insecure --http1.1 %s %s %s %s", user, headerString(headers), strings.Join(args, " "), httpURL)
 
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(
-		ExecOptions{
+		kube.ExecOptions{
 			Command:   []string{"bash", "-c", curl},
 			PodName:   podName,
 			Namespace: c.config.Namespace,

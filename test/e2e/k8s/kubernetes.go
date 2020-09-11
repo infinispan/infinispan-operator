@@ -10,8 +10,8 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	ispncom "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -39,7 +39,7 @@ var log = logf.Log.WithName("kubernetes_test")
 
 // TestKubernetes abstracts testing related interaction with a Kubernetes cluster
 type TestKubernetes struct {
-	Kubernetes *util.Kubernetes
+	Kubernetes *kube.Kubernetes
 }
 
 func init() {
@@ -58,7 +58,7 @@ func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 // NewTestKubernetes creates a new instance of TestKubernetes
 func NewTestKubernetes() *TestKubernetes {
 	mapperProvider := apiutil.NewDynamicRESTMapper
-	kubernetes, err := util.NewKubernetesFromLocalConfig(scheme, mapperProvider)
+	kubernetes, err := kube.NewKubernetesFromLocalConfig(scheme, mapperProvider)
 	utils.ExpectNoError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
 }
@@ -120,7 +120,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 
 	// TODO getting list of infinispan resources is also done in controller (refactor)
 	podList := &v1.PodList{}
-	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, "infinispan-pod"))
+	labelSelector := labels.SelectorFromSet(ispnctrl.PodLabels(infinispan.Name))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
@@ -133,7 +133,6 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 	utils.ExpectNoError(err)
 	// Check that PersistentVolumeClaims have been cleanup
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
-		// TODO getting list of infinispan resources is also done in controller (refactor)
 		pvc := &v1.PersistentVolumeClaimList{}
 		err = k.Kubernetes.Client.List(context.TODO(), pvc, listOps)
 		pvcs := pvc.Items
@@ -316,9 +315,8 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
 
 // WaitForPods waits for pods in the given namespace, having a certain label to reach the desired count in ContainersReady state
 func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, clusterName, namespace string) {
-	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(clusterName, "infinispan-pod"))
+	labelSelector := labels.SelectorFromSet(ispnctrl.PodLabels(clusterName))
 
-	// TODO getting list of infinispan resources is also done in controller (refactor)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	podList := &v1.PodList{}
 	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
@@ -387,7 +385,7 @@ func (k TestKubernetes) Nodes() []string {
 // GetPods return an array of pods matching the selector label in the given namespace
 func (k TestKubernetes) GetPods(clusterName, namespace string) []v1.Pod {
 	// TODO getting list of infinispan resources is also done in controller (refactor)
-	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(clusterName, "infinispan-pod"))
+	labelSelector := labels.SelectorFromSet(ispnctrl.PodLabels(clusterName))
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	pods := &v1.PodList{}
 	err := k.Kubernetes.Client.List(context.TODO(), pods, listOps)
@@ -435,7 +433,7 @@ func (k TestKubernetes) installCRD() {
 
 // Run the operator locally
 func runOperatorLocally(stopCh chan struct{}, namespace string) {
-	kubeConfig := util.FindKubeConfig()
+	kubeConfig := kube.FindKubeConfig()
 	_ = os.Setenv("WATCH_NAMESPACE", namespace)
 	_ = os.Setenv("KUBECONFIG", kubeConfig)
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})

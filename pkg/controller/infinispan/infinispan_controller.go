@@ -12,10 +12,11 @@ import (
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	ispnutil "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/cache"
-	ispncom "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/infinispan/configuration"
+	caches "github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
+	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/version"
 	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
@@ -44,7 +45,7 @@ import (
 var log = logf.Log.WithName("controller_infinispan")
 
 // Kubernetes object
-var kubernetes *ispnutil.Kubernetes
+var kubernetes *kube.Kubernetes
 
 // Add creates a new Infinispan Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -54,7 +55,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	kubernetes = ispnutil.NewKubernetesFromController(mgr)
+	kubernetes = kube.NewKubernetesFromController(mgr)
 	return &ReconcileInfinispan{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
@@ -173,7 +174,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
 
-	xsite := &configuration.XSite{}
+	xsite := &config.XSite{}
 	if infinispan.HasSites() {
 
 		// Check x-site configuration first.
@@ -188,7 +189,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		err = xsite.ComputeXSite(infinispan, kubernetes, siteService, reqLogger)
+		err = ComputeXSite(infinispan, kubernetes, siteService, reqLogger, xsite)
 		if err != nil {
 			reqLogger.Error(err, "Error in computeXSite", "Infinispan.Namespace", infinispan.Namespace)
 			return reconcile.Result{}, err
@@ -223,7 +224,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		if secret == nil {
 			reqLogger.Info("Creating identity secret")
 			// Generate the identities secret if not provided by the user
-			identities, err := ispnutil.GetCredentials()
+			identities, err := users.GetCredentials()
 			if err != nil {
 				reqLogger.Error(err, "could not get identities for Secret")
 				return reconcile.Result{}, err
@@ -347,7 +348,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(ispncom.LabelsResource(infinispan.Name, "infinispan-pod"))
+	labelSelector := labels.SelectorFromSet(PodLabels(infinispan.Name))
 	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), podList, listOps)
 	if err != nil {
@@ -361,12 +362,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	user := consts.DefaultOperatorUser
-	pass, err := kubernetes.GetPassword(user, infinispan.GetSecretName(), infinispan.GetNamespace())
+	pass, err := users.PasswordFromSecret(user, infinispan.GetSecretName(), infinispan.GetNamespace(), kubernetes)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	cluster := ispnutil.NewCluster(user, pass, request.Namespace, infinispan.GetEndpointScheme(), kubernetes)
+	cluster := ispn.NewCluster(user, pass, request.Namespace, infinispan.GetEndpointScheme(), kubernetes)
 
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
@@ -398,7 +399,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// If x-site enable configure the coordinator pods to be selected by the x-site service
 	if infinispan.HasSites() {
-		found := configuration.ApplyLabelsToCoordinatorsPod(podList, infinispan, cluster, r.client, reqLogger)
+		found := ApplyLabelsToCoordinatorsPod(podList, infinispan, cluster, r.client, reqLogger)
 		if !found {
 			// If a coordinator is not found then requeue early
 			return reconcile.Result{Requeue: true}, nil
@@ -408,7 +409,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Update the Infinispan status with the pod status
 	// Wait until all pods have ips assigned
 	// Without those ips, it's not possible to execute next calls
-	if !ispncom.ArePodIPsReady(podList) {
+	if !kube.ArePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
 		return reconcile.Result{}, nil
 	}
@@ -448,14 +449,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Create default cache if it doesn't exists.
 	if infinispan.IsCache() {
-		existsCache, err := cache.ExistsCacheServiceDefaultCache(podList.Items[0].Name, infinispan, kubernetes, cluster)
+		existsCache, err := cluster.ExistsCache(consts.DefaultCacheName, podList.Items[0].Name)
 		if err != nil {
 			reqLogger.Error(err, "failed to validate default cache for cache service")
 			return reconcile.Result{}, err
 		}
 		if !existsCache {
 			reqLogger.Info("createDefaultCache")
-			err = cache.CreateCacheServiceDefaultCache(podList.Items[0].Name, infinispan, kubernetes, cluster, reqLogger)
+			err = caches.CreateCacheFromDefault(podList.Items[0].Name, infinispan, cluster, reqLogger)
 			if err != nil {
 				reqLogger.Error(err, "failed to create default cache for cache service")
 				return reconcile.Result{}, err
@@ -569,10 +570,10 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 }
 
 func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinispan) error {
-	if ispncom.Contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
+	if contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
 		// Set Infinispan CR as owner reference for PVC if it not defined
 		pvcs := &corev1.PersistentVolumeClaimList{}
-		err := kubernetes.ResourcesList(infinispan.Name, infinispan.Namespace, "infinispan-pod", pvcs)
+		err := kubernetes.ResourcesList(infinispan.Name, infinispan.Namespace, LabelsResource(infinispan.Name, ""), pvcs)
 		if err != nil {
 			return err
 		}
@@ -589,7 +590,7 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 		}
 
 		// Remove finalizer if it defined in the Infinispan CR
-		infinispan.SetFinalizers(ispncom.Remove(infinispan.GetFinalizers(), consts.InfinispanFinalizer))
+		infinispan.SetFinalizers(remove(infinispan.GetFinalizers(), consts.InfinispanFinalizer))
 		err = r.client.Update(context.TODO(), infinispan)
 		if err != nil {
 			return err
@@ -610,12 +611,12 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	// Handles brief window during which resources have been removed,
 	//and old ones terminating while new ones are being created.
 	// We don't want yet another upgrade to be scheduled then.
-	if !ispncom.AreAllPodsReady(podList) {
+	if !kube.AreAllPodsReady(podList) {
 		return nil, nil
 	}
 
 	// Get default Infinispan image for a running Infinispan pod
-	podDefaultImage := ispncom.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
+	podDefaultImage := kube.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
 
 	// Get Infinispan image that the operator creates
 	desiredImage := consts.DefaultImageName
@@ -643,7 +644,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
-	lsPod := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
+	lsPod := PodLabels(m.ObjectMeta.Name)
 
 	memory := resource.MustParse(m.Spec.Container.Memory)
 	cpuRequests, cpuLimits := m.GetCpuResources()
@@ -705,7 +706,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						Name:  "infinispan",
 						Env:   envVars,
 						LivenessProbe: &corev1.Probe{
-							Handler:             ispnutil.ClusterStatusHandler(protocolScheme),
+							Handler:             ispn.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       60,
@@ -716,7 +717,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							{ContainerPort: consts.InfinispanPort, Name: "infinispan", Protocol: corev1.ProtocolTCP},
 						},
 						ReadinessProbe: &corev1.Probe{
-							Handler:             ispnutil.ClusterStatusHandler(protocolScheme),
+							Handler:             ispn.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
 							InitialDelaySeconds: 10,
 							PeriodSeconds:       10,
@@ -861,7 +862,7 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulS
 	}
 }
 
-func setupConfigForEncryption(m *infinispanv1.Infinispan, c *configuration.InfinispanConfiguration, client client.Client) error {
+func setupConfigForEncryption(m *infinispanv1.Infinispan, c *config.InfinispanConfiguration, client client.Client) error {
 	if m.IsEncryptionCertFromService() {
 		if strings.Contains(m.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"
@@ -901,12 +902,12 @@ func setupConfigForEncryption(m *infinispanv1.Infinispan, c *configuration.Infin
 	return nil
 }
 
-func (r *ReconcileInfinispan) computeConfigMap(xsite *configuration.XSite, m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
+func (r *ReconcileInfinispan) computeConfigMap(xsite *config.XSite, m *infinispanv1.Infinispan) (*corev1.ConfigMap, error) {
 	name := m.ObjectMeta.Name
 	namespace := m.ObjectMeta.Namespace
 
 	loggingCategories := m.GetLogCategoriesForConfigMap()
-	config := configuration.CreateInfinispanConfiguration(name, loggingCategories, namespace, xsite)
+	config := config.CreateInfinispanConfiguration(name, loggingCategories, namespace, xsite)
 	err := setupConfigForEncryption(m, &config, r.client)
 	if err != nil {
 		return nil, err
@@ -915,7 +916,7 @@ func (r *ReconcileInfinispan) computeConfigMap(xsite *configuration.XSite, m *in
 	if err != nil {
 		return nil, err
 	}
-	lsConfigMap := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-configmap-configuration")
+	lsConfigMap := LabelsResource(m.ObjectMeta.Name, "infinispan-configmap-configuration")
 	configMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -938,7 +939,7 @@ func (r *ReconcileInfinispan) findSecret(m *infinispanv1.Infinispan) (*corev1.Se
 }
 
 func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinispanv1.Infinispan) *corev1.Secret {
-	lsSecret := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-secret-identities")
+	lsSecret := LabelsResource(m.ObjectMeta.Name, "infinispan-secret-identities")
 	secretName := m.GetSecretName()
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -960,7 +961,7 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, protocol string, cluster ispnutil.ClusterInterface) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, protocol string, cluster ispn.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	clusterViews := make(map[string]bool)
 	var errors []string
@@ -969,7 +970,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 		errors = append(errors, fmt.Sprintf("Running %d pods. Needed %d", len(pods), m.Spec.Replicas))
 	} else {
 		for _, pod := range pods {
-			if ispncom.IsPodReady(pod) {
+			if kube.IsPodReady(pod) {
 				members, err := cluster.GetClusterMembers(pod.Name)
 				if err == nil {
 					clusterView := strings.Join(members, ",")
@@ -1009,8 +1010,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 }
 
 func (r *ReconcileInfinispan) computeService(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-service")
+	lsService := LabelsResource(m.ObjectMeta.Name, "infinispan-service")
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1023,7 +1023,7 @@ func (r *ReconcileInfinispan) computeService(m *infinispanv1.Infinispan) *corev1
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: lsPodSelector,
+			Selector: PodLabels(m.ObjectMeta.Name),
 			Ports: []corev1.ServicePort{
 				{
 					Port: consts.InfinispanPort,
@@ -1036,8 +1036,7 @@ func (r *ReconcileInfinispan) computeService(m *infinispanv1.Infinispan) *corev1
 }
 
 func (r *ReconcileInfinispan) computePingService(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-service-ping")
+	lsService := LabelsResource(m.ObjectMeta.Name, "infinispan-service-ping")
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1051,7 +1050,7 @@ func (r *ReconcileInfinispan) computePingService(m *infinispanv1.Infinispan) *co
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: "None",
-			Selector:  lsPodSelector,
+			Selector:  PodLabels(m.ObjectMeta.Name),
 			Ports: []corev1.ServicePort{
 				{
 					Name: "ping",
@@ -1067,19 +1066,17 @@ func (r *ReconcileInfinispan) computePingService(m *infinispanv1.Infinispan) *co
 // serviceExternal creates an external service that's linked to the internal service
 // This suppose that m.Spec.Expose is not null
 func (r *ReconcileInfinispan) computeServiceExternal(m *infinispanv1.Infinispan) *corev1.Service {
-	lsPodSelector := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
-	lsService := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-service-external")
 	externalServiceType := corev1.ServiceType(m.Spec.Expose.Type)
 	externalServiceName := m.GetServiceExternalName()
 	externalService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalServiceName,
 			Namespace: m.ObjectMeta.Namespace,
-			Labels:    lsService,
+			Labels:    ExternalServiceLabels(m.ObjectMeta.Name),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     externalServiceType,
-			Selector: lsPodSelector,
+			Selector: PodLabels(m.ObjectMeta.Name),
 			Ports: []corev1.ServicePort{
 				{
 					Port:       int32(consts.InfinispanPort),
@@ -1098,7 +1095,7 @@ func (r *ReconcileInfinispan) computeServiceExternal(m *infinispanv1.Infinispan)
 // reconcileXSite creates the xsite service if needed
 func (r *ReconcileInfinispan) reconcileXSite(ispn *infinispanv1.Infinispan, scheme *runtime.Scheme, logger logr.Logger) (*corev1.Service, error) {
 	siteServiceName := ispn.GetSiteServiceName()
-	siteService, err := configuration.GetOrCreateSiteService(siteServiceName, ispn, kubernetes.Client, scheme, logger)
+	siteService, err := GetOrCreateSiteService(siteServiceName, ispn, kubernetes.Client, scheme, logger)
 	if err != nil {
 		logger.Error(err, "could not get or create site service")
 		return nil, err
@@ -1166,12 +1163,11 @@ func (r *ReconcileInfinispan) reconcileExternalService(ispn *infinispanv1.Infini
 
 // computeRoute compute the Route object
 func (r *ReconcileInfinispan) computeRoute(ispn *infinispanv1.Infinispan) *routev1.Route {
-	lsService := ispncom.LabelsResource(ispn.ObjectMeta.Name, "infinispan-service-external")
 	route := routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ispn.GetServiceExternalName(),
 			Namespace: ispn.Namespace,
-			Labels:    lsService,
+			Labels:    ExternalServiceLabels(ispn.ObjectMeta.Name),
 		},
 		Spec: routev1.RouteSpec{
 			Host: ispn.Spec.Expose.Host,
@@ -1208,12 +1204,11 @@ func (r *ReconcileInfinispan) reconcileRoute(ispn *infinispanv1.Infinispan, rout
 
 // computeIngress compute the Ingress object
 func (r *ReconcileInfinispan) computeIngress(ispn *infinispanv1.Infinispan) *networkingv1beta1.Ingress {
-	lsService := ispncom.LabelsResource(ispn.ObjectMeta.Name, "infinispan-service-external")
 	ingress := networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ispn.GetServiceExternalName(),
 			Namespace: ispn.Namespace,
-			Labels:    lsService,
+			Labels:    ExternalServiceLabels(ispn.ObjectMeta.Name),
 		},
 		Spec: networkingv1beta1.IngressSpec{
 			TLS: []networkingv1beta1.IngressTLS{},
@@ -1262,7 +1257,7 @@ func (r *ReconcileInfinispan) reconcileIngress(ispn *infinispanv1.Infinispan, in
 }
 
 func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet,
-	podList *corev1.PodList, logger logr.Logger, cluster ispnutil.ClusterInterface) (*reconcile.Result, error) {
+	podList *corev1.PodList, logger logr.Logger, cluster ispn.ClusterInterface) (*reconcile.Result, error) {
 	if ispn.Spec.Replicas == 0 {
 		logger.Info(".Spec.Replicas==0")
 		updateStatus := false
@@ -1278,7 +1273,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 				// cluster has a `stopping` wait for all the pods becomes unready
 				logger.Info("Waiting that all the pods become unready")
 				for _, pod := range podList.Items {
-					if ispncom.IsPodReady(pod) {
+					if kube.IsPodReady(pod) {
 						logger.Info("One or more pods still ready", "Pod.Name", pod.Name)
 						// Stop the work and requeue until cluster is down
 						return &reconcile.Result{Requeue: true, RequeueAfter: time.Second}, nil
@@ -1340,12 +1335,12 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 
 // gracefulShutdownReq send a graceful shutdown request to the cluster
 func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan, podList *corev1.PodList,
-	logger logr.Logger, cluster ispnutil.ClusterInterface) (*reconcile.Result, error) {
+	logger logr.Logger, cluster ispn.ClusterInterface) (*reconcile.Result, error) {
 	logger.Info("Sending graceful shutdown request")
 	// send a graceful shutdown to the first ready pod
 	// if there's no ready pod we're in trouble
 	for _, pod := range podList.Items {
-		if ispncom.IsPodReady(pod) {
+		if kube.IsPodReady(pod) {
 			err := cluster.GracefulShutdown(pod.GetName())
 			if err != nil {
 				logger.Error(err, "failed to exec shutdown command on pod")
@@ -1380,7 +1375,7 @@ func (r *ReconcileInfinispan) reconcileEndpointSecret(ispn *infinispanv1.Infinis
 
 		if secret == nil {
 			// Generate the identities secret if not provided by the user
-			identities, err := ispnutil.GetCredentials()
+			identities, err := users.GetCredentials()
 			if err != nil {
 				logger.Error(err, "could not get identities for Secret")
 				return &reconcile.Result{}, err
@@ -1468,12 +1463,12 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 		}
 	}
 
-	extraJavaOptionsIndex := ispncom.GetEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
+	extraJavaOptionsIndex := kube.GetEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
 	extraJavaOptions := ispnContr.ExtraJvmOpts
 	previousExtraJavaOptions := (*env)[extraJavaOptionsIndex].Value
 	if extraJavaOptions != previousExtraJavaOptions {
 		(*env)[extraJavaOptionsIndex].Value = ispnContr.ExtraJvmOpts
-		javaOptionsIndex := ispncom.GetEnvVarIndex("JAVA_OPTIONS", env)
+		javaOptionsIndex := kube.GetEnvVarIndex("JAVA_OPTIONS", env)
 		newJavaOptions, _ := ispn.GetJavaOptions()
 		(*env)[javaOptionsIndex].Value = newJavaOptions
 		logger.Info("extra jvm options changed, update infinispan",
@@ -1494,4 +1489,42 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 		return &reconcile.Result{Requeue: true}, nil
 	}
 	return nil, nil
+}
+
+// LabelsResource returns the labels that must me applied to the resource
+func LabelsResource(name, resourceType string) map[string]string {
+	m := map[string]string{"infinispan_cr": name, "clusterName": name}
+	if resourceType != "" {
+		m["app"] = resourceType
+	}
+	return m
+}
+
+func PodLabels(name string) map[string]string {
+	return LabelsResource(name, "infinispan-pod")
+}
+
+func ExternalServiceLabels(name string) map[string]string {
+	return LabelsResource(name, "infinispan-service-external")
+}
+
+// TODO Replace with controllerutil.ContainsFinalizer after operator-sdk update (controller-runtime v0.6.1+)
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// TODO Replace with controllerutil.RemoveFinalizer after operator-sdk update (controller-runtime v0.6.0+)
+func remove(list []string, s string) []string {
+	var slice []string
+	for _, v := range list {
+		if v != s {
+			slice = append(slice, v)
+		}
+	}
+	return slice
 }

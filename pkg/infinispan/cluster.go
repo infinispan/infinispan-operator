@@ -1,4 +1,4 @@
-package util
+package infinispan
 
 import (
 	"bytes"
@@ -10,6 +10,9 @@ import (
 	"strings"
 
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
+	curl "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -19,25 +22,19 @@ var log = logf.Log.WithName("cluster_util")
 
 // Cluster abstracts interaction with an Infinispan cluster
 type Cluster struct {
-	Kubernetes *Kubernetes
-	Client     HttpClient
+	Kubernetes *kube.Kubernetes
+	Client     ispnclient.HttpClient
 	Namespace  string
 }
 
-// NewCluster creates a new instance of Cluster
-func NewCluster(username, password, namespace string, protocol corev1.URIScheme, kubernetes *Kubernetes) *Cluster {
-	client := NewCurlClient(HttpConfig{
-		Username:  username,
-		Password:  password,
-		Namespace: namespace,
-		Protocol:  strings.ToLower(string(protocol)),
-	}, kubernetes)
+// ClusterHealth represents the health of the cluster
+type ClusterHealth struct {
+	Nodes []string `json:"node_names"`
+}
 
-	return &Cluster{
-		Kubernetes: kubernetes,
-		Client:     client,
-		Namespace:  namespace,
-	}
+// Health represents the health of an Infinispan server
+type Health struct {
+	ClusterHealth ClusterHealth `json:"cluster_health"`
 }
 
 // ClusterInterface represents the interface of a Cluster instance
@@ -53,6 +50,22 @@ type ClusterInterface interface {
 	CacheNames(podName string) ([]string, error)
 	GetMetrics(podName, postfix string) (*bytes.Buffer, error)
 	GetCacheManagerInfo(cacheManagerName, podName string) (map[string]interface{}, error)
+}
+
+// NewCluster creates a new instance of Cluster
+func NewCluster(username, password, namespace string, protocol corev1.URIScheme, kubernetes *kube.Kubernetes) *Cluster {
+	client := curl.New(ispnclient.HttpConfig{
+		Username:  username,
+		Password:  password,
+		Namespace: namespace,
+		Protocol:  strings.ToLower(string(protocol)),
+	}, kubernetes)
+
+	return &Cluster{
+		Kubernetes: kubernetes,
+		Client:     client,
+		Namespace:  namespace,
+	}
 }
 
 // GetClusterSize returns the size of the cluster as seen by a given pod
@@ -73,16 +86,6 @@ func (c Cluster) GracefulShutdown(podName string) error {
 		return fmt.Errorf("unexpected error during graceful shutdown, stderr: %v, err: %v", reason, err)
 	}
 	return nil
-}
-
-// ClusterHealth represents the health of the cluster
-type ClusterHealth struct {
-	Nodes []string `json:"node_names"`
-}
-
-// Health represents the health of an Infinispan server
-type Health struct {
-	ClusterHealth ClusterHealth `json:"cluster_health"`
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
@@ -179,7 +182,7 @@ func (c Cluster) CreateCacheWithTemplateName(cacheName, templateName, podName st
 
 func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
 	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
-	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
+	execOptions := kube.ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
@@ -197,7 +200,7 @@ func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
 
 func (c Cluster) GetMaxMemoryUnboundedBytes(podName string) (uint64, error) {
 	command := []string{"cat", "/proc/meminfo"}
-	execOptions := ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
+	execOptions := kube.ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
