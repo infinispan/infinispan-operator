@@ -14,21 +14,31 @@ const (
 	SinglePodTimeout = 5 * time.Minute
 	RouteTimeout     = 240 * time.Second
 	// Default retry time when waiting for resources
-	DefaultPollPeriod = 1 * time.Second
+	DefaultPollPeriod   = 1 * time.Second
+	ConditionPollPeriod = 1 * time.Second
 	// Maximum time to wait for resources
-	MaxWaitTimeout     = 120 * time.Second
-	InfinispanPort     = 11222
-	DefaultClusterName = "test-node-startup"
+	MaxWaitTimeout       = 120 * time.Second
+	ConditionWaitTimeout = 120 * time.Second
+	InfinispanPort       = 11222
+	DefaultClusterName   = "test-node-startup"
+
+	OperatorUpgradeStageNone = "NONE"
+	OperatorUpgradeStageFrom = "FROM"
+	OperatorUpgradeStageTo   = "TO"
 )
 
 var (
-	CPU               = constants.GetEnvWithDefault("INFINISPAN_CPU", "500m")
-	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
-	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
-	RunLocalOperator  = strings.ToUpper(constants.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
-	RunSaOperator     = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
-	ImageName         = constants.GetEnvWithDefault("IMAGE", "infinispan/server:12.0")
-	ExposeServiceType = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	CPU                  = constants.GetEnvWithDefault("INFINISPAN_CPU", "500m")
+	Memory               = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
+	Namespace            = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
+	RunLocalOperator     = strings.ToUpper(constants.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
+	RunSaOperator        = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
+	OperatorUpgradeStage = strings.ToUpper(constants.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
+	CleanupInfinispan    = strings.ToUpper(constants.GetEnvWithDefault("CLEANUP_INFINISPAN_ON_FINISH", "true"))
+	ImageName            = constants.GetEnvWithDefault("IMAGE", "infinispan/server:12.0")
+	ExposeServiceType    = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+
+	OperatorUpgradeStateFlow = []string{"upgrade", "stopping", "wellFormed"}
 )
 
 // Options used when deleting resources

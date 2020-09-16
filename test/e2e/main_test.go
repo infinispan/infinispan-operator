@@ -86,7 +86,7 @@ func newCluster(user, secret, protocol string, kubernetes *kube.Kubernetes) *isp
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(tconst.Namespace)
 	if "TRUE" == tconst.RunLocalOperator {
-		if "TRUE" != tconst.RunSaOperator {
+		if "TRUE" != tconst.RunSaOperator && tconst.OperatorUpgradeStage != tconst.OperatorUpgradeStageTo {
 			testKube.DeleteNamespace(namespace)
 			testKube.DeleteCRD("infinispans.infinispan.org")
 			testKube.DeleteCRD("caches.infinispan.org")
@@ -106,6 +106,38 @@ func TestMain(m *testing.M) {
 func TestSimple(t *testing.T) {
 	fmt.Printf("%v\n", testKube.Nodes())
 	fmt.Printf("%s\n", testKube.Kubernetes.PublicIP())
+}
+
+// Test operator and cluster version upgrade flow
+func TestOperatorUpgrade(t *testing.T) {
+	spec := DefaultSpec.DeepCopy()
+	name := strcase.ToKebab(t.Name())
+	spec.ObjectMeta.Name = name
+
+	switch tconst.OperatorUpgradeStage {
+	case tconst.OperatorUpgradeStageFrom:
+		testKube.CreateInfinispan(spec, tconst.Namespace)
+		waitForPodsOrFail(spec, 1)
+	case tconst.OperatorUpgradeStageTo:
+		if tconst.CleanupInfinispan == "TRUE" {
+			defer testKube.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+		}
+		for _, state := range tconst.OperatorUpgradeStateFlow {
+			testKube.WaitForInfinispanCondition(strcase.ToKebab(t.Name()), tconst.Namespace, state)
+		}
+
+		// Validates that all pods are running with desired image
+		pods := &corev1.PodList{}
+		err := testKube.Kubernetes.ResourcesList(tconst.Namespace, ispnctrl.PodLabels(spec.Name), pods)
+		tutils.ExpectNoError(err)
+		for _, pod := range pods.Items {
+			if pod.Spec.Containers[0].Image != tconst.ImageName {
+				tutils.ExpectNoError(fmt.Errorf("upgraded image [%v] in Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, tconst.ImageName))
+			}
+		}
+	default:
+		t.Skipf("Operator upgrade stage '%s' is unsupported or disabled", tconst.OperatorUpgradeStage)
+	}
 }
 
 // Test if single node working correctly
@@ -145,7 +177,7 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 
 	// Making sure no PVCs were created
 	pvcs := &corev1.PersistentVolumeClaimList{}
-	err := testKube.Kubernetes.ResourcesList(spec.Name, spec.Namespace, ispnctrl.PodLabels(spec.Name), pvcs)
+	err := testKube.Kubernetes.ResourcesList(spec.Namespace, ispnctrl.PodLabels(spec.Name), pvcs)
 	tutils.ExpectNoError(err)
 	if len(pvcs.Items) > 0 {
 		tutils.ExpectNoError(fmt.Errorf("persistent volume claims were found (count = %d) but not expected for ephemeral storage configuration", len(pvcs.Items)))
@@ -469,14 +501,17 @@ func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 	ispn := ispnv1.Infinispan{}
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 	protocol := getSchemaForRest(&ispn)
-	pods := testKube.GetPods(spec.Name, tconst.Namespace)
+
+	pods := &corev1.PodList{}
+	err := testKube.Kubernetes.ResourcesList(tconst.Namespace, ispnctrl.PodLabels(spec.Name), pods)
+	tutils.ExpectNoError(err)
 
 	expectedClusterSize := num
 	// Check that the cluster size is num querying the first pod
 	var lastErr error
 	cluster := newCluster(cconsts.DefaultOperatorUser, ispn.GetSecretName(), protocol, testKube.Kubernetes)
-	err := wait.Poll(time.Second, tconst.TestTimeout, func() (done bool, err error) {
-		value, err := cluster.GetClusterSize(pods[0].Name)
+	err = wait.Poll(time.Second, tconst.TestTimeout, func() (done bool, err error) {
+		value, err := cluster.GetClusterSize(pods.Items[0].Name)
 		if err != nil {
 			lastErr = err
 			return false, nil

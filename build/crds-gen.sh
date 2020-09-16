@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+. $(dirname "$0")/common.sh
+
 OPERATOR_SDK_VERSION=${1}
 OPERATOR_SDK_BUNDLE=operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-${OSTYPE}
 OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/${OPERATOR_SDK_BUNDLE}
@@ -8,16 +10,6 @@ unset GOPATH
 GO111MODULE=on
 # shellcheck disable=SC2155
 export GOROOT=$(go env GOROOT)
-
-validateROOT() {
-  if ! [ $(id -u) = 0 ]; then
-    echo "It's necessary to run next command with sudo!"
-    if ! sudo ls > /dev/null; then
-      echo "Invalid sudo credentials"
-      exit 1
-    fi
-  fi
-}
 
 installOperatorSDK() {
   validateROOT
