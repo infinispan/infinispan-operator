@@ -305,7 +305,7 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace stri
 }
 
 // ResourcesList returns a typed list of resource associated with the cluster
-func (k Kubernetes) ResourcesList(name, namespace string, set labels.Set, list runtime.Object) error {
+func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime.Object) error {
 	labelSelector := labels.SelectorFromSet(set)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	err := k.Client.List(context.TODO(), list, listOps)

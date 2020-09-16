@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -205,16 +206,21 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 }
 
 // CreateAndWaitForCRD creates a Custom Resource Definition, waiting it to become ready.
-func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition) {
-	fmt.Printf("Create CRD %s\n", crd.Name)
+func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition) {
+	fmt.Printf("Create or update CRD %s\n", crd.Name)
 
-	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
-	if err != nil && errors.IsNotFound(err) {
-		err = k.Kubernetes.Client.Create(context.TODO(), crd)
-		utils.ExpectNoError(err)
+	customResourceObject := &apiextv1beta1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: crd.Name,
+		},
 	}
+	result, err := controllerutil.CreateOrUpdate(context.TODO(), k.Kubernetes.Client, customResourceObject, func() error {
+		customResourceObject.Spec = crd.Spec
+		return nil
+	})
+	utils.ExpectNoError(err)
 
-	fmt.Println("Wait for CRD to created")
+	fmt.Println("Wait for CRD to be established")
 	err = wait.Poll(tconst.DefaultPollPeriod, tconst.MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 		if err != nil {
@@ -225,7 +231,7 @@ func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDef
 			switch cond.Type {
 			case apiextv1beta1.Established:
 				if cond.Status == apiextv1beta1.ConditionTrue {
-					fmt.Println("CRD established")
+					fmt.Printf("CRD %s\n", result)
 					return true, nil
 				}
 			case apiextv1beta1.NamesAccepted:
@@ -348,6 +354,25 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, cluster
 	utils.ExpectNoError(err)
 }
 
+func (k TestKubernetes) WaitForInfinispanCondition(name, namespace, condition string) {
+	ispn := &ispnv1.Infinispan{}
+	err := wait.Poll(tconst.ConditionPollPeriod, tconst.ConditionWaitTimeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
+		if err != nil && errors.IsNotFound(err) {
+			return false, err
+		}
+		if err != nil {
+			return false, nil
+		}
+		if cond := ispn.GetCondition(condition); cond != nil && *cond == metav1.ConditionTrue {
+			log.Info("infinispan condition met", "condition", condition)
+			return true, nil
+		}
+		return false, nil
+	})
+	utils.ExpectNoError(err)
+}
+
 func debugPods(required int, pods []v1.Pod) {
 	log.Info("pod list incomplete", "required", required, "pod list size", len(pods))
 	for _, pod := range pods {
@@ -383,18 +408,6 @@ func (k TestKubernetes) Nodes() []string {
 	return s
 }
 
-// GetPods return an array of pods matching the selector label in the given namespace
-func (k TestKubernetes) GetPods(clusterName, namespace string) []v1.Pod {
-	// TODO getting list of infinispan resources is also done in controller (refactor)
-	labelSelector := labels.SelectorFromSet(ispnctrl.PodLabels(clusterName))
-	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
-	pods := &v1.PodList{}
-	err := k.Kubernetes.Client.List(context.TODO(), pods, listOps)
-	utils.ExpectNoError(err)
-
-	return pods.Items
-}
-
 // CreateSecret creates a secret
 func (k TestKubernetes) CreateSecret(secret *v1.Secret, namespace string) {
 	secret.Namespace = namespace
@@ -422,14 +435,14 @@ func (k TestKubernetes) installCRD() {
 	crdInfinispan := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crdInfinispan)
 	utils.ExpectNoError(err)
-	k.CreateAndWaitForCRD(&crdInfinispan)
+	k.CreateOrUpdateAndWaitForCRD(&crdInfinispan)
 
 	yamlReader, err = testutils.GetYamlReaderFromFile("../../deploy/crds/infinispan.org_caches_crd.yaml")
 	read, _ = yamlReader.Read()
 	crdCache := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crdCache)
 	utils.ExpectNoError(err)
-	k.CreateAndWaitForCRD(&crdCache)
+	k.CreateOrUpdateAndWaitForCRD(&crdCache)
 }
 
 // Run the operator locally

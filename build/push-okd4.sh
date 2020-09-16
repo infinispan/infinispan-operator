@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
 
-validateOC() {
-  OC_USER_NAME=$(oc whoami 2>/dev/null)
-  if [ ! $? -eq 0 ]; then
-    echo "You must login with 'oc login' or set KUBECONFIG env variable"
-    exit 1
-  fi
-}
+. $(dirname "$0")/common.sh
 
 validateOC
 
@@ -15,16 +9,6 @@ REGISTRY_ROUTE=$(oc get route default-route -n openshift-image-registry -o json 
 OC_PROJECT_NAME=$(oc project -q)
 PROJECT_NAME=${PROJECT_NAME-$OC_PROJECT_NAME}
 VERSION=${RELEASE_NAME-$(git describe --tags --always --dirty)}
-
-validateROOT() {
-  if ! [ $(id -u) = 0 ]; then
-    echo "It's necessary to run next command with sudo!"
-    if ! sudo ls > /dev/null; then
-      echo "Invalid sudo credentials"
-      exit 1
-    fi
-  fi
-}
 
 if [ -d "${DOCKER_CERTS_FOLDER}${REGISTRY_ROUTE}" ]; then
   echo "Instance folder detected"

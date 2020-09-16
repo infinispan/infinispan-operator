@@ -10,8 +10,11 @@ echo "Using PROJECT_NAME '${PROJECT_NAME}'"
 oc login -u "${OC_USER}"
 oc project "${PROJECT_NAME}"
 oc apply -f deploy/role.yaml
+oc apply -f deploy/clusterrole.yaml
 oc apply -f deploy/service_account.yaml
 oc apply -f deploy/role_binding.yaml
-oc apply -f deploy/operator.yaml
+sed -e "s|namespace:.*|namespace: ${PROJECT_NAME}|" deploy/clusterrole_binding.yaml | oc apply -f -
 oc apply -f deploy/crds/infinispan.org_infinispans_crd.yaml
 oc apply -f deploy/crds/infinispan.org_caches_crd.yaml
+oc apply -f deploy/operator.yaml
+

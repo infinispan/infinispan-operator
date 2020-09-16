@@ -574,7 +574,7 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 	if contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
 		// Set Infinispan CR as owner reference for PVC if it not defined
 		pvcs := &corev1.PersistentVolumeClaimList{}
-		err := kubernetes.ResourcesList(infinispan.Name, infinispan.Namespace, LabelsResource(infinispan.Name, ""), pvcs)
+		err := kubernetes.ResourcesList(infinispan.Namespace, LabelsResource(infinispan.Name, ""), pvcs)
 		if err != nil {
 			return err
 		}

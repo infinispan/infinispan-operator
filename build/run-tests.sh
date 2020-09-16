@@ -2,7 +2,7 @@
 
 KUBECONFIG=${1-openshift.local.clusterup/openshift-apiserver/admin.kubeconfig}
 
-echo "Using KUBECONFIG '$KUBECONFIG'"
+echo "Using KUBECONFIG '${KUBECONFIG}'"
 
 PARALLEL_COUNT=${PARALLEL_COUNT:-1}
 VERSION=$(git describe --tags --always --dirty)
@@ -12,6 +12,6 @@ go clean -testcache ./test/e2e
 if [ -z "${TEST_NAME}" ]; then
   go test -v ./test/e2e -timeout 45m -ldflags "${GO_LDFLAGS}" -parallel "${PARALLEL_COUNT}"
 else
-  echo "Running test '$TEST_NAME'"
+  echo "Running test '${TEST_NAME}'"
   go test -v ./test/e2e -timeout 45m -ldflags "${GO_LDFLAGS}" -run "${TEST_NAME}"
 fi
