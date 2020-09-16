@@ -66,7 +66,7 @@ var MinimalSpec = ispnv1.Infinispan{
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(tconst.Namespace)
 	if "TRUE" == tconst.RunLocalOperator {
-		if "TRUE" != tconst.RunSaOperator {
+		if "TRUE" != tconst.RunSaOperator && tconst.OperatorUpgradeStage != tconst.OperatorUpgradeStageTo {
 			kubernetes.DeleteNamespace(namespace)
 			kubernetes.DeleteCRD("infinispans.infinispan.org")
 			kubernetes.DeleteCRD("caches.infinispan.org")
@@ -98,6 +98,24 @@ func TestNodeStartup(t *testing.T) {
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
+}
+
+// Test operator and cluster version upgrade flow
+func TestOperatorUpgrade(t *testing.T) {
+	name := "test-operator-upgrade"
+	switch tconst.OperatorUpgradeStage {
+	case tconst.OperatorUpgradeStageFrom:
+		spec := DefaultSpec.DeepCopy()
+		spec.ObjectMeta.Name = name
+		kubernetes.CreateInfinispan(spec, tconst.Namespace)
+		waitForPodsOrFail(spec, 1)
+	case tconst.OperatorUpgradeStageTo:
+		for _, state := range tconst.OperatorUpgradeStateFlow {
+			kubernetes.WaitForInfinispanCondition(name, tconst.Namespace, state)
+		}
+	default:
+		t.Skipf("Operator upgrade stage '%s' is unsupported or disabled", tconst.OperatorUpgradeStage)
+	}
 }
 
 // Test if the cluster is working correctly
