@@ -14,22 +14,32 @@ const (
 	SinglePodTimeout = 5 * time.Minute
 	RouteTimeout     = 240 * time.Second
 	// Default retry time when waiting for resources
-	DefaultPollPeriod = 1 * time.Second
+	DefaultPollPeriod   = 1 * time.Second
+	ConditionPollPeriod = 1 * time.Second
 	// Maximum time to wait for resources
-	MaxWaitTimeout      = 120 * time.Second
-	DefaultClusterPort  = 11222
-	DefaultClusterName  = "test-node-startup"
+	MaxWaitTimeout       = 120 * time.Second
+	ConditionWaitTimeout = 120 * time.Second
+	DefaultClusterPort   = 11222
+	DefaultClusterName   = "test-node-startup"
+
+	OperatorUpgradeStageNone = "NONE"
+	OperatorUpgradeStageFrom = "FROM"
+	OperatorUpgradeStageTo   = "TO"
+
 	ClusterUpKubeConfig = "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 )
 
 var (
-	CPU               = comutil.GetEnvWithDefault("INFINISPAN_CPU", "500m")
-	Memory            = comutil.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
-	Namespace         = strings.ToLower(comutil.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
-	RunLocalOperator  = strings.ToUpper(comutil.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
-	RunSaOperator     = strings.ToUpper(comutil.GetEnvWithDefault("RUN_SA_OPERATOR", "true"))
-	ImageName         = comutil.GetEnvWithDefault("IMAGE", "registry.hub.docker.com/infinispan/server")
-	ExposeServiceType = comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	CPU                  = comutil.GetEnvWithDefault("INFINISPAN_CPU", "500m")
+	Memory               = comutil.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
+	Namespace            = strings.ToLower(comutil.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
+	RunLocalOperator     = strings.ToUpper(comutil.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
+	RunSaOperator        = strings.ToUpper(comutil.GetEnvWithDefault("RUN_SA_OPERATOR", "true"))
+	OperatorUpgradeStage = strings.ToUpper(comutil.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
+	ImageName            = comutil.GetEnvWithDefault("IMAGE", "infinispan/server:11.0")
+	ExposeServiceType    = comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+
+	OperatorUpgradeStateFlow = []string{"upgrade", "stopping", "wellFormed"}
 )
 
 // Options used when deleting resources
