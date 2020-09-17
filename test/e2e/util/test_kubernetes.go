@@ -25,14 +25,17 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 // Default retry time when waiting for resources
-var period = 1 * time.Second
+const period = 1 * time.Second
+const ConditionWaitTimeout = 120 * time.Second
+const ConditionPollPeriod  = 1 * time.Second
 
 // Maximum time to wait for resources
-var timeout = 120 * time.Second
+const timeout = 120 * time.Second
 
 // Options used when deleting resources
 var deletePropagation = metav1.DeletePropagationBackground
@@ -276,20 +279,25 @@ func (k TestKubernetes) CreateOrUpdateRoleBinding(binding *rbacv1.RoleBinding, n
 	ExpectNoError(err)
 }
 
-// CreateAndWaitForCRD creates a Custom Resource Definition, waiting it to become ready.
-func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition, namespace string) {
-	fmt.Printf("Create CRD %s\n", crd.ObjectMeta.Name)
+// CreateOrUpdateAndWaitForCRD creates a Custom Resource Definition, waiting it to become ready.
+func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition) {
+	fmt.Printf("Create or update CRD %s\n", crd.Name)
 
-	ns := types.NamespacedName{Name: crd.ObjectMeta.Name, Namespace: namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, crd)
-	if err != nil && errors.IsNotFound(err) {
-		err = k.Kubernetes.Client.Create(context.TODO(), crd)
-		ExpectNoError(err)
+	customResourceObject := &apiextv1beta1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: crd.Name,
+		},
 	}
+	result, err := controllerutil.CreateOrUpdate(context.TODO(), k.Kubernetes.Client, customResourceObject, func(existing runtime.Object) error {
+		object := existing.(*apiextv1beta1.CustomResourceDefinition)
+		object.Spec = crd.Spec
+		return nil
+	})
+	ExpectNoError(err)
 
-	fmt.Println("Wait for CRD to created")
+	fmt.Println("Wait for CRD to be established")
 	err = wait.Poll(period, timeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.Get(context.TODO(), ns, crd)
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 		if err != nil {
 			return false, fmt.Errorf("unable to get CRD: %v", err)
 		}
@@ -298,7 +306,7 @@ func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDef
 			switch cond.Type {
 			case apiextv1beta1.Established:
 				if cond.Status == apiextv1beta1.ConditionTrue {
-					fmt.Println("CRD established")
+					fmt.Printf("CRD %s\n", result)
 					return true, nil
 				}
 			case apiextv1beta1.NamesAccepted:
@@ -310,7 +318,6 @@ func (k TestKubernetes) CreateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDef
 
 		return false, nil
 	})
-
 	ExpectNoError(err)
 }
 
@@ -416,6 +423,25 @@ func (k TestKubernetes) WaitForPods(label string, required int, timeout time.Dur
 		return allReady, nil
 	})
 
+	ExpectNoError(err)
+}
+
+func (k TestKubernetes) WaitForInfinispanCondition(name, namespace, condition string) {
+	ispn := &ispnv1.Infinispan{}
+	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
+		if err != nil && errors.IsNotFound(err) {
+			return false, err
+		}
+		if err != nil {
+			return false, nil
+		}
+		if cond := ispn.GetCondition(condition); cond != nil && *cond == "True" {
+			log.Info("infinispan condition met", "condition", condition)
+			return true, nil
+		}
+		return false, nil
+	})
 	ExpectNoError(err)
 }
 
@@ -535,7 +561,7 @@ func (k TestKubernetes) installCRD(namespace string) {
 	crd := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(read))).Decode(&crd)
 	ExpectNoError(err)
-	k.CreateAndWaitForCRD(&crd, namespace)
+	k.CreateOrUpdateAndWaitForCRD(&crd)
 }
 
 // Run the operator locally
