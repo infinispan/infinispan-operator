@@ -24,60 +24,74 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-const TestTimeout = 5 * time.Minute
-const SinglePodTimeout = 5 * time.Minute
-const RouteTimeout = 240 * time.Second
-const DefaultPollPeriod = 1 * time.Second
+const (
+	TestTimeout          = 5 * time.Minute
+	SinglePodTimeout     = 5 * time.Minute
+	RouteTimeout         = 240 * time.Second
+	DefaultPollPeriod    = 1 * time.Second
 
-var CPU = getEnvWithDefault("INFINISPAN_CPU", "500m")
-var Memory = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
-var Namespace = getEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing")
-var RunLocalOperator = getEnvWithDefault("RUN_LOCAL_OPERATOR", "true")
+	OperatorUpgradeStageNone = "NONE"
+	OperatorUpgradeStageFrom = "FROM"
+	OperatorUpgradeStageTo   = "TO"
+)
 
-var kubernetes = testutil.NewTestKubernetes()
-var cluster = util.NewCluster(kubernetes.Kubernetes)
+var (
+	CPU                  = getEnvWithDefault("INFINISPAN_CPU", "500m")
+	Memory               = getEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
+	Namespace            = strings.ToLower(getEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
+	RunLocalOperator     = strings.ToLower(getEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
+	OperatorUpgradeStage = strings.ToUpper(getEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
+	ImageName            = getEnvWithDefault("IMAGE", "quay.io/infinispan/server:10.1")
 
-var DefaultClusterName = "test-node-startup"
+	OperatorUpgradeStateFlow = []string{"upgrade", "stopping", "wellFormed"}
 
-var DefaultSpec = ispnv1.Infinispan{
-	TypeMeta: testutil.InfinispanTypeMeta,
-	ObjectMeta: metav1.ObjectMeta{
-		Name: DefaultClusterName,
-	},
-	Spec: ispnv1.InfinispanSpec{
-		Service: ispnv1.InfinispanServiceSpec{
-			Type: ispnv1.ServiceTypeDataGrid,
+	kubernetes = testutil.NewTestKubernetes()
+	cluster    = util.NewCluster(kubernetes.Kubernetes)
+
+	DefaultClusterName = "test-node-startup"
+
+	DefaultSpec = ispnv1.Infinispan{
+		TypeMeta: testutil.InfinispanTypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: DefaultClusterName,
 		},
-		Container: &ispnv1.InfinispanContainerSpec{
-			CPU:    CPU,
-			Memory: Memory,
+		Spec: ispnv1.InfinispanSpec{
+			Service: ispnv1.InfinispanServiceSpec{
+				Type: ispnv1.ServiceTypeDataGrid,
+			},
+			Container: &ispnv1.InfinispanContainerSpec{
+				CPU:    CPU,
+				Memory: Memory,
+			},
+			Image:    ImageName,
+			Replicas: 1,
+			Expose:   exposeServiceSpec(),
 		},
-		Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
-		Replicas: 1,
-		Expose:   exposeServiceSpec(),
-	},
-}
+	}
 
-var MinimalSpec = ispnv1.Infinispan{
-	TypeMeta: metav1.TypeMeta{
-		APIVersion: "infinispan.org/v1",
-		Kind:       "Infinispan",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: DefaultClusterName,
-	},
-	Spec: ispnv1.InfinispanSpec{
-		Image:    getEnvWithDefault("IMAGE", "quay.io/infinispan/server"),
-		Replicas: 2,
-	},
-}
+	MinimalSpec = ispnv1.Infinispan{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v1",
+			Kind:       "Infinispan",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: DefaultClusterName,
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Image:    ImageName,
+			Replicas: 2,
+		},
+	}
+)
 
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(Namespace)
-	if "true" == getEnvWithDefault("RUN_LOCAL_OPERATOR", "true") {
-		kubernetes.DeleteNamespace(namespace)
-		kubernetes.DeleteCRD("infinispans.infinispan.org")
-		kubernetes.NewNamespace(namespace)
+	if "true" == RunLocalOperator {
+		if OperatorUpgradeStage != OperatorUpgradeStageTo {
+			kubernetes.DeleteNamespace(namespace)
+			kubernetes.DeleteCRD("infinispans.infinispan.org")
+			kubernetes.NewNamespace(namespace)
+		}
 		stopCh := kubernetes.RunOperator(Namespace)
 		code := m.Run()
 		close(stopCh)
@@ -104,6 +118,24 @@ func TestNodeStartup(t *testing.T) {
 	kubernetes.CreateInfinispan(spec, Namespace)
 	defer kubernetes.DeleteInfinispan(spec, SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
+}
+
+// Test operator and cluster version upgrade flow
+func TestOperatorUpgrade(t *testing.T) {
+	name := "test-operator-upgrade"
+	switch OperatorUpgradeStage {
+	case OperatorUpgradeStageFrom:
+		spec := DefaultSpec.DeepCopy()
+		spec.ObjectMeta.Name = name
+		kubernetes.CreateInfinispan(spec, Namespace)
+		waitForPodsOrFail(spec, 1)
+	case OperatorUpgradeStageTo:
+		for _, state := range OperatorUpgradeStateFlow {
+			kubernetes.WaitForInfinispanCondition(name, Namespace, state)
+		}
+	default:
+		t.Skipf("Operator upgrade stage '%s' is unsupported or disabled", OperatorUpgradeStage)
+	}
 }
 
 // Test if the cluster is working correctly
