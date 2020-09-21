@@ -80,8 +80,7 @@ func (c Cluster) GetClusterSize(podName string) (int, error) {
 
 // GracefulShutdown performs clean cluster shutdown
 func (c Cluster) GracefulShutdown(podName string) error {
-	// TODO can this be HEAD?
-	_, err, reason := c.Client.Get(podName, consts.ServerHTTPClusterStop, nil)
+	_, err, reason := c.Client.Post(podName, consts.ServerHTTPClusterStop, "", nil)
 	if err != nil {
 		return fmt.Errorf("unexpected error during graceful shutdown, stderr: %v, err: %v", reason, err)
 	}

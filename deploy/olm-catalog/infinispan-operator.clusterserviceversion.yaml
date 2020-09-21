@@ -71,7 +71,7 @@ spec:
   replaces: infinispan-operator.v9.9.8
   relatedImages:
     - name: infinispan-server
-      image: infinispan/server:latest
+      image: infinispan/server:12.0
   labels:
     operated-by: infinispan-operator
   selector:
@@ -219,7 +219,7 @@ spec:
                       - name: OPERATOR_NAME
                         value: "infinispan-operator"
                       - name: DEFAULT_IMAGE
-                        value: "infinispan/server:latest"
+                        value: "infinispan/server:12.0"
   customresourcedefinitions:
     owned:
       - description: Cache is the Schema for the caches API

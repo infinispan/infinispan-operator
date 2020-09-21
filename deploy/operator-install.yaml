@@ -604,4 +604,4 @@ spec:
             - name: OPERATOR_NAME
               value: "infinispan-operator"
             - name: DEFAULT_IMAGE
-              value: "infinispan/server:latest"
+              value: "infinispan/server:12.0"
