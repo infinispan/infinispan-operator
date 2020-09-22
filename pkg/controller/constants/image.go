@@ -19,7 +19,7 @@ func GetDefaultInfinispanJavaImage() string {
 	// Full list of archs might be found here:
 	// https://github.com/golang/go/blob/release-branch.go1.10/src/go/build/syslist.go#L8
 	switch arch := runtime.GOARCH; arch {
-	case "ppc64", "ppc64le", "s390x", "s390":
+	case "ppc64le", "s390x":
 		return GetEnvWithDefault(OperandImageOpenJ9, DefaultOperandImageOpenJ9)
 	default:
 		// Try new name RELATED_IMAGE_OPENJDK first
