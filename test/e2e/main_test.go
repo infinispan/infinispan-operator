@@ -65,11 +65,13 @@ var MinimalSpec = ispnv1.Infinispan{
 
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(tconst.Namespace)
-	if "true" == tconst.RunLocalOperator {
-		kubernetes.DeleteNamespace(namespace)
-		kubernetes.DeleteCRD("infinispans.infinispan.org")
-		kubernetes.DeleteCRD("caches.infinispan.org")
-		kubernetes.NewNamespace(namespace)
+	if "TRUE" == tconst.RunLocalOperator {
+		if "TRUE" != tconst.RunSaOperator {
+			kubernetes.DeleteNamespace(namespace)
+			kubernetes.DeleteCRD("infinispans.infinispan.org")
+			kubernetes.DeleteCRD("caches.infinispan.org")
+			kubernetes.NewNamespace(namespace)
+		}
 		stopCh := kubernetes.RunOperator(namespace)
 		code := m.Run()
 		close(stopCh)

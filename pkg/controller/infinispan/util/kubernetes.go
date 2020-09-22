@@ -176,9 +176,14 @@ func resolveConfig() *rest.Config {
 	internal, _ := rest.InClusterConfig()
 	if internal == nil {
 		kubeConfig := FindKubeConfig()
+		configOvr := clientcmd.ConfigOverrides{}
+		testCtx := os.Getenv("TESTING_CONTEXT")
+		if testCtx != "" {
+			configOvr.CurrentContext = testCtx
+		}
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
-			&clientcmd.ConfigOverrides{})
+			&configOvr)
 		external, _ := clientConfig.ClientConfig()
 		return external
 	}
