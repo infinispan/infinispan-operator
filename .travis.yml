@@ -46,8 +46,12 @@ jobs:
         - export GO111MODULE=on
       script:
         - go mod vendor
-        - make test PARALLEL_COUNT=2
+        - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
+        - ./build/prepare-sa-test.sh
+        - RUN_SA_OPERATOR=TRUE make test PARALLEL_COUNT=2
+        - kubectl config use-context $TESTING_CONTEXT
       after_failure:
+        - kubectl config use-context $TESTING_CONTEXT
         - kubectl get events --all-namespaces
         - kubectl cluster-info
         - df -h
