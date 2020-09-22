@@ -80,10 +80,12 @@ func newCluster(user, secret, protocol string, kubernetes *kube.Kubernetes) *isp
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(tconst.Namespace)
 	if "TRUE" == tconst.RunLocalOperator {
-		testKube.DeleteNamespace(namespace)
-		testKube.DeleteCRD("infinispans.infinispan.org")
-		testKube.DeleteCRD("caches.infinispan.org")
-		testKube.NewNamespace(namespace)
+		if "TRUE" != tconst.RunSaOperator {
+			testKube.DeleteNamespace(namespace)
+			testKube.DeleteCRD("infinispans.infinispan.org")
+			testKube.DeleteCRD("caches.infinispan.org")
+			testKube.NewNamespace(namespace)
+		}
 		stopCh := testKube.RunOperator(namespace)
 		code := m.Run()
 		close(stopCh)
