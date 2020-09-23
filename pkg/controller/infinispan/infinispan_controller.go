@@ -12,8 +12,8 @@ import (
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	caches "github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -494,7 +494,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	// removing the Stateful Set should remove the rest.
 	// Then, stateful set could be controlled by Infinispan to keep current logic.
 
-	// Remove finalizer (we don't use it anymore) if it present and set owner reference for old PVCs
+	// Remove finalizer (we don't use it anymore) if it present, set owner reference for old PVCs, etc.
 	err := r.upgradeInfinispan(infinispan)
 	if err != nil {
 		return err
@@ -570,6 +570,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 }
 
 func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinispan) error {
+	updateNeeded := false
 	if contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
 		// Set Infinispan CR as owner reference for PVC if it not defined
 		pvcs := &corev1.PersistentVolumeClaimList{}
@@ -591,7 +592,16 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 
 		// Remove finalizer if it defined in the Infinispan CR
 		infinispan.SetFinalizers(remove(infinispan.GetFinalizers(), consts.InfinispanFinalizer))
-		err = r.client.Update(context.TODO(), infinispan)
+		updateNeeded = true
+	}
+
+	// Remove defined by default Spec.Image field for upgrade backward compatibility
+	if infinispan.Spec.Image != nil {
+		infinispan.Spec.Image = nil
+		updateNeeded = true
+	}
+	if updateNeeded {
+		err := r.client.Update(context.TODO(), infinispan)
 		if err != nil {
 			return err
 		}
@@ -702,7 +712,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Image: m.Spec.Image,
+						Image: m.ImageName(),
 						Name:  "infinispan",
 						Env:   envVars,
 						LivenessProbe: &corev1.Probe{

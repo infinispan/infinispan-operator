@@ -78,11 +78,6 @@ func (ispn *Infinispan) ApplyDefaults() {
 	if ispn.Spec.Service.Type == ServiceTypeCache && ispn.Spec.Service.ReplicationFactor == 0 {
 		ispn.Spec.Service.ReplicationFactor = 2
 	}
-	// This field specifies the flavor of the
-	// Infinispan cluster. "" is plain community edition (vanilla)
-	if ispn.Spec.Image == "" {
-		ispn.Spec.Image = constants.DefaultImageName
-	}
 	if ispn.Spec.Container.Memory == "" {
 		ispn.Spec.Container.Memory = constants.DefaultMemorySize.String()
 	}
@@ -115,6 +110,13 @@ func (ispn *Infinispan) PreliminaryChecks() (*reconcile.Result, error) {
 		}
 	}
 	return nil, nil
+}
+
+func (ispn *Infinispan) ImageName() string {
+	if ispn.Spec.Image != nil && *ispn.Spec.Image != "" {
+		return *ispn.Spec.Image
+	}
+	return constants.DefaultImageName
 }
 
 func (ispn *Infinispan) IsDataGrid() bool {

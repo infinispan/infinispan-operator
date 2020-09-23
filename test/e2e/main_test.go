@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/pointer"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -52,7 +53,7 @@ var DefaultSpec = ispnv1.Infinispan{
 			CPU:    tconst.CPU,
 			Memory: tconst.Memory,
 		},
-		Image:    tconst.ImageName,
+		Image:    pointer.StringPtr(tconst.ImageName),
 		Replicas: 1,
 		Expose:   exposeServiceSpec(),
 	},
@@ -64,7 +65,7 @@ var MinimalSpec = ispnv1.Infinispan{
 		Name: tconst.DefaultClusterName,
 	},
 	Spec: ispnv1.InfinispanSpec{
-		Image:    tconst.ImageName,
+		Image:    pointer.StringPtr(tconst.ImageName),
 		Replicas: 2,
 	},
 }
@@ -510,7 +511,7 @@ func TestExternalService(t *testing.T) {
 				CPU:    tconst.CPU,
 				Memory: tconst.Memory,
 			},
-			Image:    tconst.ImageName,
+			Image:    pointer.StringPtr(tconst.ImageName),
 			Replicas: 1,
 			Expose:   exposeServiceSpec(),
 		},
@@ -607,7 +608,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 				CPU:    tconst.CPU,
 				Memory: tconst.Memory,
 			},
-			Image:    tconst.ImageName,
+			Image:    pointer.StringPtr(tconst.ImageName),
 			Replicas: 1,
 			Expose:   exposeServiceSpec(),
 		},
