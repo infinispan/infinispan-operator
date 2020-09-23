@@ -138,7 +138,7 @@ type Autoscale struct {
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	Replicas  int32                   `json:"replicas"`
-	Image     string                  `json:"image,optional,omitempty"`
+	Image     *string                 `json:"image,optional,omitempty"`
 	Security  InfinispanSecurity      `json:"security,optional,omitempty"`
 	Container InfinispanContainerSpec `json:"container,optional,omitempty"`
 	Service   InfinispanServiceSpec   `json:"service,optional,omitempty"`
