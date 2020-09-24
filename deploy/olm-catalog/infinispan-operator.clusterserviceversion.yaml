@@ -172,10 +172,6 @@ spec:
               - ""
             resources:
               - nodes
-              - nodes/status
-              - nodes/metrics
-              - nodes/spec
-              - nodes/stats
             verbs:
               - get
               - list
