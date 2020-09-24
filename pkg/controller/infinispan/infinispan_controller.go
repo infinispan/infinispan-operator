@@ -1809,7 +1809,7 @@ func getNodePortServiceHostPort(service *corev1.Service, k *ispnutil.Kubernetes,
 
 	if err != nil || len(workerList.Items) == 0 {
 		// Fallback selecting everything
-		err = k.Client.List(context.TODO(), workerList, nil)
+		err = k.Client.List(context.TODO(), workerList, &client.ListOptions{})
 		if err != nil {
 			return "", 0, err
 		}
