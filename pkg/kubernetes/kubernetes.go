@@ -41,8 +41,8 @@ type MapperProvider func(cfg *rest.Config, opts ...apiutil.DynamicRESTMapperOpti
 
 // NewKubernetesFromConfig creates a new Kubernetes instance from configuration.
 // The configuration is resolved locally from known locations.
-func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperProvider) (*Kubernetes, error) {
-	config := resolveConfig()
+func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperProvider, ctx string) (*Kubernetes, error) {
+	config := resolveConfig(ctx)
 	config = setConfigDefaults(config)
 	mapper, err := mapperProvider(config)
 	if err != nil {
@@ -162,14 +162,13 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 	return execOut, "", err
 }
 
-func resolveConfig() *rest.Config {
+func resolveConfig(ctx string) *rest.Config {
 	internal, _ := rest.InClusterConfig()
 	if internal == nil {
 		kubeConfig := FindKubeConfig()
 		configOvr := clientcmd.ConfigOverrides{}
-		testCtx := os.Getenv("TESTING_CONTEXT")
-		if testCtx != "" {
-			configOvr.CurrentContext = testCtx
+		if ctx != "" {
+			configOvr.CurrentContext = ctx
 		}
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
