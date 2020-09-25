@@ -33,7 +33,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var testKube = k8s.NewTestKubernetes()
+var testKube = k8s.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
+var serviceAccountKube = k8s.NewTestKubernetes("")
 
 var log = logf.Log.WithName("main_test")
 
@@ -116,8 +117,8 @@ func TestNodeStartup(t *testing.T) {
 }
 
 // Run some functions for testing rights not covered by integration tests
-func TestSyntheticRoles(t *testing.T) {
-	_, _, err := infinispan.GetNodePortServiceHostPort(0, testKube.Kubernetes, log)
+func TestRolesSynthetic(t *testing.T) {
+	_, _, err := infinispan.GetNodePortServiceHostPort(0, serviceAccountKube.Kubernetes, log)
 	tutils.ExpectNoError(err)
 }
 

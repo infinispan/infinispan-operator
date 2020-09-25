@@ -56,9 +56,9 @@ func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 }
 
 // NewTestKubernetes creates a new instance of TestKubernetes
-func NewTestKubernetes() *TestKubernetes {
+func NewTestKubernetes(ctx string) *TestKubernetes {
 	mapperProvider := apiutil.NewDynamicRESTMapper
-	kubernetes, err := kube.NewKubernetesFromLocalConfig(scheme, mapperProvider)
+	kubernetes, err := kube.NewKubernetesFromLocalConfig(scheme, mapperProvider, ctx)
 	utils.ExpectNoError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
 }
