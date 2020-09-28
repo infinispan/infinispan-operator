@@ -13,7 +13,7 @@ threshold, {ispn_operator} shuts down nodes.
 [IMPORTANT]
 ====
 Automatic scaling works with the default cache only. If you plan to add other
-caches to your cluster, you should not include the `autoscale` field in your 
+caches to your cluster, you should not include the `autoscale` field in your
 **Infinispan** CR. In this case you should use eviction to control the size of
 the data container on each node.
 ====
@@ -30,15 +30,17 @@ spec:
   service:
     type: Cache
   autoscale:
-    maxMemUsagePercent: 70 <1>
-    maxReplicas: 5 <2>
-    minMemUsagePercent: 30 <3>
-    minReplicas: 2 <4>
+    disabled: true <1>
+    maxMemUsagePercent: 70 <2>
+    maxReplicas: 5 <3>
+    minMemUsagePercent: 30 <4>
+    minReplicas: 2 <5>
 ----
 +
-<1> Configures the maximum threshold, as a percentage, for memory usage on each node. When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
-<2> Defines the maximum number of number of nodes for the cluster.
-<3> Configures the minimum threshold, as a percentage, for memory usage across the cluster. When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes.
-<4> Defines the minimum number of number of nodes for the cluster.
+<1> Turns automatic scaling on or off. Set a value of `true` to disable automatic scaling. The default value is `false`.
+<2> Configures the maximum threshold, as a percentage, for memory usage on each node. When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
+<3> Defines the maximum number of number of nodes for the cluster.
+<4> Configures the minimum threshold, as a percentage, for memory usage across the cluster. When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes.
+<5> Defines the minimum number of number of nodes for the cluster.
 +
 . Apply the changes.
