@@ -801,7 +801,6 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 		controllerutil.SetControllerReference(m, pvc, r.scheme)
 		pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
-		dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
 		// Set a storage class if it specified
 		if storageClassName := m.StorageClassName(); storageClassName != "" {
 			if _, err = kube.FindStorageClass(storageClassName, r.client); err != nil {
@@ -809,6 +808,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			}
 			pvc.Spec.StorageClassName = &storageClassName
 		}
+		dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
 
 		// Adding an init container that run chmod if needed
 		if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
