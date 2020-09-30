@@ -4,3 +4,4 @@ spec:
     type: DataGrid
     container:
       storage: 2Gi <1>
+      storageClassName: my-storage-class <2>
