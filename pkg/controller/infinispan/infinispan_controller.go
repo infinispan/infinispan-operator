@@ -600,6 +600,12 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 		infinispan.Spec.Image = nil
 		updateNeeded = true
 	}
+	sc := infinispan.Spec.Service.Container
+	// Remove defined to "" Spec.Service.Container.Storage field for upgrade backward compatibility
+	if sc != nil && sc.Storage != nil && *infinispan.Spec.Service.Container.Storage == "" {
+		infinispan.Spec.Service.Container.Storage = nil
+		updateNeeded = true
+	}
 	if updateNeeded {
 		err := r.client.Update(context.TODO(), infinispan)
 		if err != nil {
@@ -782,7 +788,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			pvSize = memory
 		}
 
-		if m.IsDataGrid() {
+		if m.IsDataGrid() && m.StorageSize() != "" {
 			var pvErr error
 			pvSize, pvErr = resource.ParseQuantity(m.StorageSize())
 			if pvErr != nil {
