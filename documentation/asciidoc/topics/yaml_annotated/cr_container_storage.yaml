@@ -4,3 +4,5 @@ spec:
     type: DataGrid
     container:
       storage: 2Gi <1>
+      ephemeralStorage: false <2>
+      storageClassName: my-storage-class <2>
