@@ -11,8 +11,10 @@ spec:
   replicas: 6 <2>
   service:
     type: DataGrid <3>
-    container:
-      storage: 2Gi <4>
+    container: <4>
+      storage: 2Gi
+      ephemeralStorage: false
+      storageClassName: my-storage-class
     sites: <5>
       local:
       name: NYC
@@ -47,7 +49,7 @@ spec:
 <1> Names the {brandname} cluster.
 <2> Specifies the number of nodes in the cluster.
 <3> Creates {datagridservice} clusters.
-<4> Configures size of the persistent volume.
+<4> Configures node storage resources.
 <5> Provides connection information for backup locations.
 <6> Adds an authentication secret with user credentials.
 <7> Adds a custom encryption secret for secure connections.
