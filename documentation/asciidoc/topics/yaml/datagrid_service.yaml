@@ -12,6 +12,7 @@ spec:
     # Configures storage resources.
     container:
       storage: 2Gi
+      storageClassName: my-storage-class
     # Configures cross-site replication.
     sites:
       local:

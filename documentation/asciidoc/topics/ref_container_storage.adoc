@@ -1,8 +1,8 @@
 [id='storage_resources-{context}']
 = Storage Resources
 By default, {ispn_operator} allocates `1Gi` for storage for both
-{cacheservice} and {datagridservice} nodes. You can configure storage size for
-{datagridservice} nodes but not {cacheservice} nodes.
+{cacheservice} and {datagridservice} nodes. You can configure storage resources
+for {datagridservice} nodes but not {cacheservice} nodes.
 
 [source,options="nowrap",subs=attributes+]
 ----
@@ -10,6 +10,7 @@ include::yaml/cr_container_storage.yaml[]
 ----
 
 <1> Configures the storage size for {datagridservice} nodes.
+<2> Specifies the name of a StorageClass object to use for the persistent volume claim. If you include this field, you must specify an existing storage class as the value. If you do not include this field, the persistent volume claim uses the storage class that has the `storageclass.kubernetes.io/is-default-class` annotation set to `true`.
 
 .Persistent Volume Claims
 
