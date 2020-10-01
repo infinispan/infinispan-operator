@@ -72,14 +72,12 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 		},
 	}
 
-	ns := types.NamespacedName{Name: namespace, Namespace: namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, obj)
+	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: namespace}, obj)
 	if err != nil && errors.IsNotFound(err) {
 		err = k.Kubernetes.Client.Create(context.TODO(), obj)
 		ExpectNoError(err)
 		return
 	}
-
 	ExpectNoError(err)
 }
 
