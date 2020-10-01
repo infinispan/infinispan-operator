@@ -26,7 +26,7 @@ var (
 	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
 	RunLocalOperator  = strings.ToUpper(constants.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
-	RunSaOperator     = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "true"))
+	RunSaOperator     = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	ImageName         = constants.GetEnvWithDefault("IMAGE", "infinispan/server:12.0")
 	ExposeServiceType = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 )
