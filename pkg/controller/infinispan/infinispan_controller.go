@@ -949,6 +949,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 			"pod default image", podDefaultImage,
 			"desired image", desiredImage)
 		infinispan.Spec.Replicas = 0
+		infinispan.Spec.Image = desiredImage
 		r.client.Update(context.TODO(), infinispan)
 		infinispan.SetCondition("upgrade", "True", "")
 		r.client.Status().Update(context.TODO(), infinispan)
