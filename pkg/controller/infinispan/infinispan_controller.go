@@ -442,7 +442,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// View didn't form, requeue until view has formed
 	if infinispan.NotClusterFormed(len(podList.Items), int(infinispan.Spec.Replicas)) {
 		reqLogger.Info("notClusterFormed")
-		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, nil
+		return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultWaitClusterNotWellFormed}, nil
 	}
 
 	// Below the code for a wellFormed cluster
@@ -665,10 +665,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	memory := resource.MustParse(m.Spec.Container.Memory)
 	cpuRequests, cpuLimits := m.GetCpuResources()
 
-	javaOptions, err := m.GetJavaOptions()
-	if err != nil {
-		return nil, err
-	}
+	javaOptions := m.GetJavaOptions()
 
 	envVars := []corev1.EnvVar{
 		{Name: "CONFIG_PATH", Value: "/etc/config/infinispan.yaml"},
@@ -819,7 +816,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
 		// Set a storage class if it specified
 		if storageClassName := m.StorageClassName(); storageClassName != "" {
-			if _, err = kube.FindStorageClass(storageClassName, r.client); err != nil {
+			if _, err := kube.FindStorageClass(storageClassName, r.client); err != nil {
 				return nil, err
 			}
 			pvc.Spec.StorageClassName = &storageClassName
@@ -1491,7 +1488,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	if extraJavaOptions != previousExtraJavaOptions {
 		(*env)[extraJavaOptionsIndex].Value = ispnContr.ExtraJvmOpts
 		javaOptionsIndex := kube.GetEnvVarIndex("JAVA_OPTIONS", env)
-		newJavaOptions, _ := ispn.GetJavaOptions()
+		newJavaOptions := ispn.GetJavaOptions()
 		(*env)[javaOptionsIndex].Value = newJavaOptions
 		logger.Info("extra jvm options changed, update infinispan",
 			"extra java options", extraJavaOptions,

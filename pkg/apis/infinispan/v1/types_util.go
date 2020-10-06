@@ -2,6 +2,7 @@ package v1
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
@@ -11,6 +12,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+type ImageType string
+
+const (
+	// Container image based on JDK
+	ImageTypeJVM ImageType = "JVM"
+
+	// Container image based on Quarkus native runtime
+	ImageTypeNative ImageType = "Native"
 )
 
 // GetCondition return the Status of the given condition or nil
@@ -119,6 +130,13 @@ func (ispn *Infinispan) ImageName() string {
 	return constants.DefaultImageName
 }
 
+func (ispn *Infinispan) ImageType() ImageType {
+	if strings.Contains(ispn.ImageName(), consts.NativeImageMarker) {
+		return ImageTypeNative
+	}
+	return ImageTypeJVM
+}
+
 func (ispn *Infinispan) IsDataGrid() bool {
 	return ServiceTypeDataGrid == ispn.Spec.Service.Type
 }
@@ -184,23 +202,20 @@ func (ispn *Infinispan) GetCpuResources() (resource.Quantity, resource.Quantity)
 	return cpuRequests, cpuLimits
 }
 
-func (ispn *Infinispan) GetJavaOptions() (string, error) {
+func (ispn *Infinispan) GetJavaOptions() string {
 	switch ispn.Spec.Service.Type {
 	case ServiceTypeDataGrid:
-		return ispn.Spec.Container.ExtraJvmOpts, nil
+		return ispn.Spec.Container.ExtraJvmOpts
 	case ServiceTypeCache:
-		javaOptions := fmt.Sprintf(
-			"-Xmx%dM -Xms%dM -XX:MaxRAM=%dM %s %s",
-			constants.CacheServiceFixedMemoryXmxMb,
-			constants.CacheServiceFixedMemoryXmxMb,
-			constants.CacheServiceMaxRamMb,
-			constants.CacheServiceAdditionalJavaOptions,
-			ispn.Spec.Container.ExtraJvmOpts,
-		)
-		return javaOptions, nil
-	default:
-		return "", fmt.Errorf("unknown service type '%s'", ispn.Spec.Service.Type)
+		switch ispn.ImageType() {
+		case ImageTypeJVM:
+			return fmt.Sprintf(consts.CacheServiceJavaOptions, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceMaxRamMb,
+				consts.CacheServiceMinHeapFreeRatio, consts.CacheServiceMaxHeapFreeRatio, ispn.Spec.Container.ExtraJvmOpts)
+		case ImageTypeNative:
+			return fmt.Sprintf(consts.CacheServiceNativeJavaOptions, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceFixedMemoryXmxMb, ispn.Spec.Container.ExtraJvmOpts)
+		}
 	}
+	return ""
 }
 
 // GetLogCategoriesForConfigMap return a map of log category for the Infinispan configuration

@@ -49,11 +49,15 @@ const (
 	DefaultCacheManagerName                 = "default"
 	CacheServiceFixedMemoryXmxMb            = 200
 	CacheServiceJvmNativeMb                 = 220
-	CacheServiceMaxRamMb                    = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
-	CacheServiceAdditionalJavaOptions       = "-Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=5 -XX:MaxHeapFreeRatio=10"
+	CacheServiceMinHeapFreeRatio            = 5
+	CacheServiceMaxHeapFreeRatio            = 10
 	CacheServiceJvmNativePercentageOverhead = 1
-	InfinispanFinalizer                     = "finalizer.infinispan.org"
+	CacheServiceMaxRamMb                    = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
+	CacheServiceJavaOptions                 = "-Xmx%dM -Xms%dM -XX:MaxRAM=%dM -Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=%d -XX:MaxHeapFreeRatio=%d %s"
+	CacheServiceNativeJavaOptions           = "-Xmx%dM -Xms%dM -Dsun.zip.disableMemoryMapping=true %s"
 
+	NativeImageMarker          = "native"
+	InfinispanFinalizer        = "finalizer.infinispan.org"
 	ServerHTTPBasePath         = "rest/v2"
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
 	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/default/health"
@@ -72,7 +76,7 @@ const (
 )
 
 const (
-	// DefaultMinimumAutoscalePollPeriod minimum period for autocaler polling loop
+	// DefaultMinimumAutoscalePollPeriod minimum period for autoscaler polling loop
 	DefaultMinimumAutoscalePollPeriod = 5 * time.Second
 	//DefaultRequeueOnCreateExposeServiceDelay requeue delay before retry exposed service creation
 	DefaultRequeueOnCreateExposeServiceDelay = 5 * time.Second
@@ -82,6 +86,8 @@ const (
 	DefaultWaitOnClusterForCache = 10 * time.Second
 	//DefaultWaitOnClusterForCache delay for wait until secret is created
 	DefaultWaitOnCreateSecret = 2 * time.Second
+	//DefaultWaitClusterNotWellFormed wait delay until cluster is not well formed
+	DefaultWaitClusterNotWellFormed = 15 * time.Second
 )
 
 // GetEnvWithDefault return GetEnv(name) if exists else return defVal

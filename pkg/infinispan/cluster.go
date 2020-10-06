@@ -104,7 +104,7 @@ func (c Cluster) GetClusterMembers(podName string) ([]string, error) {
 
 // ExistsCache returns true if cacheName cache exists on the podName pod
 func (c Cluster) ExistsCache(cacheName, podName string) (bool, error) {
-	path := fmt.Sprintf("%s/caches/%s?action=config", consts.ServerHTTPBasePath, cacheName)
+	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
 	rsp, err, _ := c.Client.Head(podName, path, nil)
 	if err != nil {
 		return false, err

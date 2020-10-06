@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/pointer"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -328,10 +329,18 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 
 func TestCacheService(t *testing.T) {
 	t.Parallel()
-	spec := DefaultSpec.DeepCopy()
-	name := strcase.ToKebab(t.Name())
+	testCacheService(t.Name(), nil)
+}
 
-	spec.ObjectMeta.Name = name
+func TestCacheServiceNativeImage(t *testing.T) {
+	t.Parallel()
+	testCacheService(t.Name(), pointer.StringPtr(tconst.NativeImageName))
+}
+
+func testCacheService(testName string, imageName *string) {
+	spec := DefaultSpec.DeepCopy()
+	spec.Name = strcase.ToKebab(testName)
+	spec.Spec.Image = imageName
 	spec.Spec.Service.Type = ispnv1.ServiceTypeCache
 	spec.Spec.Expose = exposeServiceSpec()
 
@@ -347,7 +356,7 @@ func TestCacheService(t *testing.T) {
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 
 	protocol := getSchemaForRest(&ispn)
-	routeName := fmt.Sprintf("%s-external", name)
+	routeName := fmt.Sprintf("%s-external", spec.Name)
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
