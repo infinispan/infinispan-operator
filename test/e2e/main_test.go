@@ -113,7 +113,7 @@ func TestOperatorUpgrade(t *testing.T) {
 	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
 	spec.ObjectMeta.Name = name
-
+	spec.Namespace = tconst.Namespace
 	switch tconst.OperatorUpgradeStage {
 	case tconst.OperatorUpgradeStageFrom:
 		testKube.CreateInfinispan(spec, tconst.Namespace)
