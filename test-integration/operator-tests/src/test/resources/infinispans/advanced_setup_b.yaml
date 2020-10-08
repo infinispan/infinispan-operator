@@ -1,0 +1,16 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: advanced-setup-b
+spec:
+  autoscale:
+    maxMemUsagePercent: 70
+    maxReplicas: 5
+    minMemUsagePercent: 30
+    minReplicas: 3
+  expose:
+    type: LoadBalancer
+  service:
+    type: Cache
+    replicationFactor: 3
+  replicas: 3
