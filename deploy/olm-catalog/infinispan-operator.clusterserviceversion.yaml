@@ -111,6 +111,7 @@ spec:
             resources:
               - pods
               - services
+              - services/finalizers
               - endpoints
               - persistentvolumeclaims
               - events
@@ -134,9 +135,11 @@ spec:
               - apps
             resources:
               - deployments
+              - deployments/finalizers
               - daemonsets
               - replicasets
               - statefulsets
+              - statefulsets/finalizers
             verbs:
               - '*'
           - apiGroups:
@@ -184,7 +187,6 @@ spec:
             verbs:
               - get
               - list
-              - watch
       deployments:
         - name: infinispan-operator
           spec:
