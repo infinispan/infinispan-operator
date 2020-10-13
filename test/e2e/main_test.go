@@ -82,12 +82,6 @@ func TestMain(m *testing.M) {
 	}
 }
 
-// Simple smoke test to check if the Kubernetes/OpenShift is alive
-func TestSimple(t *testing.T) {
-	fmt.Printf("%v\n", kubernetes.Nodes())
-	fmt.Printf("%s\n", kubernetes.Kubernetes.PublicIP())
-}
-
 // Test if single node working correctly
 func TestNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
