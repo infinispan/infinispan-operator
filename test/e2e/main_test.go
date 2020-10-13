@@ -102,12 +102,6 @@ func TestMain(m *testing.M) {
 	}
 }
 
-// Simple smoke test to check if the Kubernetes/OpenShift is alive
-func TestSimple(t *testing.T) {
-	fmt.Printf("%v\n", testKube.Nodes())
-	fmt.Printf("%s\n", testKube.Kubernetes.PublicIP())
-}
-
 // Test operator and cluster version upgrade flow
 func TestOperatorUpgrade(t *testing.T) {
 	spec := DefaultSpec.DeepCopy()
