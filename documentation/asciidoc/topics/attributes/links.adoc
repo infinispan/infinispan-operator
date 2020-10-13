@@ -7,22 +7,26 @@
 
 :link_tech_preview: https://access.redhat.com/support/offerings/techpreview/[Red Hat Technology Preview Features Support Scope]
 
-:link_os_load_balancer: https://docs.openshift.com/container-platform/4.2/networking/configuring-ingress-cluster-traffic/configuring-ingress-cluster-traffic-load-balancer.html[Configuring ingress cluster traffic using a load balancer]
+:link_os_load_balancer: https://docs.openshift.com/container-platform/4.5/networking/configuring-ingress-cluster-traffic/configuring-ingress-cluster-traffic-load-balancer.html[Configuring ingress cluster traffic using a load balancer]
 
 :link_k8s_load_balancer: https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer[Type LoadBalancer]
 
-:link_os_node_port: https://docs.openshift.com/container-platform/4.2/networking/configuring-ingress-cluster-traffic/configuring-ingress-cluster-traffic-nodeport.html[Configuring ingress cluster traffic using a NodePort]
+:link_os_node_port: https://docs.openshift.com/container-platform/4.5/networking/configuring-ingress-cluster-traffic/configuring-ingress-cluster-traffic-nodeport.html[Configuring ingress cluster traffic using a NodePort]
 
 :link_k8s_node_port: https://kubernetes.io/docs/concepts/services-networking/service/#nodeport[Type NodePort]
 
-:link_os_sa_tokens: https://docs.openshift.com/container-platform/4.4/authentication/using-service-accounts-in-applications.html[Using service accounts in applications]
+:link_os_sa_tokens: https://docs.openshift.com/container-platform/4.5/authentication/using-service-accounts-in-applications.html[Using service accounts in applications]
 
-:link_os_crds: https://docs.openshift.com/container-platform/4.4/operators/crds/crd-managing-resources-from-crds.html[Managing resources from Custom Resource Definitions]
+:link_os_crds: https://docs.openshift.com/container-platform/4.5/operators/crds/crd-managing-resources-from-crds.html[Managing resources from Custom Resource Definitions]
 
-:link_os_olm: https://docs.openshift.com/container-platform/4.4/operators/understanding-olm/olm-understanding-olm.html[Understanding the Operator Lifecycle Manager]
+:link_os_olm: https://docs.openshift.com/container-platform/4.5/operators/understanding/olm-understanding-operatorhub.html[Understanding OperatorHub]
 
-:link_os_olm_adding: https://docs.openshift.com/container-platform/4.4/operators/olm-adding-operators-to-cluster.html#olm-installing-operators-from-operatorhub_olm-adding-operators-to-a-cluster[Approval Strategy]
+:link_os_olm_adding: https://docs.openshift.com/container-platform/4.5/operators/olm-adding-operators-to-cluster.html#olm-installing-operators-from-operatorhub_olm-adding-operators-to-a-cluster[Approval Strategy]
 
 :link_olm: https://github.com/operator-framework/operator-lifecycle-manager[Operator Lifecycle Manager]
 
 :link_olm_arch: https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/design/architecture.md[OLM Architecture]
+
+:link_os_monitoring: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.5/html/monitoring/monitoring-your-own-services[Monitoring Services with the OpenShift Cluster Monitoring Stack]
+
+:link_prometheus_operator: https://github.com/prometheus-operator/prometheus-operator[Prometheus Operator]
