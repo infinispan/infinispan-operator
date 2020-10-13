@@ -1,0 +1,64 @@
+[id='creating_service_monitor-{context}']
+= Creating a Prometheus Service Monitor
+Define a service monitor instances that configures Prometheus to monitor your
+{brandname} cluster.
+
+.Prerequisites
+
+* Set up a Prometheus stack on your {k8s} cluster.
+
+.Procedure
+
+. Create an authentication secret that contains {brandname} credentials so that Prometheus can authenticate with your {brandname} cluster.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/basic_auth.yaml[]
+----
++
+<1> Specifies an application user. `developer` is the default.
+<2> Specifies the corresponding password.
++
+. Add the authentication secret to your Prometheus namespace.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} basic-auth.yaml
+----
++
+. Create a service monitor that configures Prometheus to monitor your {brandname} cluster.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/service_monitor.yaml[]
+----
++
+<1> Names the service monitor instances.
+<2> Specifies the namespace of your Prometheus stack.
+<3> Sets the port of `11222` for the {brandname} metrics endpoint.
+<4> Sets the path where {brandname} exposes metrics.
+<5> Specifies the authentication secret with {brandname} credentials.
+<6> Specifies that {brandname} clusters use endpoint encryption.
+//Community
+ifndef::productized[]
+If you do not use endpoint encryption, remove `spec.endpoints.scheme`.
+endif::productized[]
+<7> Specifies the Common Name (CN) of the TLS certificate for {brandname} encryption. If you use an {openshiftshort} service certificate, the CN matches the `metadata.name` resource for your {brandname} cluster.
+//Community
+ifndef::productized[]
+If you do not use endpoint encryption, remove `spec.endpoints.tlsConfig`.
+endif::productized[]
+<8> Specifies the namespace of your {brandname} cluster.
+<9> Specifies the name of your {brandname} cluster.
++
+. Add the service monitor instance to your Prometheus namespace.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} service-monitor.yaml
+----
+
+.References
+
+* {link_prometheus_operator}
+* {link_os_monitoring}
