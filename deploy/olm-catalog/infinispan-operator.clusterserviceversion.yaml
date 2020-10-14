@@ -43,7 +43,7 @@ metadata:
 spec:
   displayName: Infinispan
   description: |
-    Infinispan is a distributed, in-memory data store that increases application performance and delivers open-source capabilites to handle demanding use cases.
+    Infinispan is a distributed, in-memory data store that increases application performance and delivers open-source capabilities to handle demanding use cases.
 
     ### Core Capabilities
     * **Schemaless data structure:** Store different objects as key-value pairs.
@@ -257,7 +257,7 @@ spec:
           - description: Appends JVM options to each Infinispan node.
             displayName: Extra JVM Options
             path: container.extraJvmOpts
-          - description: Name of the secrect that contains auth info.
+          - description: Name of the secret that contains auth info.
             displayName: Endpoint Secret Name
             path: security.endpointSecretName
           - description: Select how encryption certificates are provided [Secret,Service].
@@ -266,7 +266,7 @@ spec:
           - description: Platform service that serves certificates (openshift.io/service-cert is supported).
             displayName: Serving Certs Service Name
             path: security.endpointEncryption.certServiceName
-          - description: Name of the secrect that contains certificates.
+          - description: Name of the secret that contains certificates.
             displayName: Certificates Secret Name
             path: security.endpointEncryption.certSecretName
           - description: Select service type provided [Cache,DataGrid].
