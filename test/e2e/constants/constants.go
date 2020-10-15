@@ -35,7 +35,7 @@ var (
 	RunSaOperator        = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	OperatorUpgradeStage = strings.ToUpper(constants.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
 	CleanupInfinispan    = strings.ToUpper(constants.GetEnvWithDefault("CLEANUP_INFINISPAN_ON_FINISH", "true"))
-	ImageName            = constants.GetEnvWithDefault("IMAGE", "infinispan/server:12.0")
+	ExpectedImage	     = constants.GetEnvWithDefault("EXPECTED_IMAGE", "infinispan/server:12.0")
 	ExposeServiceType    = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 
 	OperatorUpgradeStateFlow = []string{"upgrade", "stopping", "wellFormed"}
