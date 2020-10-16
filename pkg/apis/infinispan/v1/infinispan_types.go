@@ -87,10 +87,10 @@ type InfinispanSitesLocalSpec struct {
 
 type InfinispanSiteLocationSpec struct {
 	Name       string `json:"name"`
-	Host       string `json:"host,optional"`
-	Port       int32  `json:"port,optional"`
-	URL        string `json:"url,optional"`
-	SecretName string `json:"secretName,optional"`
+	Host       string `json:"host,optional,omitempty"`
+	Port       int32  `json:"port,optional,omitempty"`
+	URL        string `json:"url,optional,omitempty"`
+	SecretName string `json:"secretName,optional,omitempty"`
 }
 
 type InfinispanSitesSpec struct {
