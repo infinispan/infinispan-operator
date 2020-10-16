@@ -20,7 +20,7 @@ installOperatorSDK() {
     rm -rf "${OPERATOR_SDK_BUNDLE}"
     exit 1
   fi
-  chmod +x operator-sdk-"${OPERATOR_SDK_VERSION}"-x86_64-linux-gnu && sudo mkdir -p /usr/local/bin/ && sudo cp "${OPERATOR_SDK_BUNDLE}" /usr/local/bin/operator-sdk && rm "${OPERATOR_SDK_BUNDLE}"
+  chmod +x "${OPERATOR_SDK_BUNDLE}" && sudo mkdir -p /usr/local/bin/ && sudo cp "${OPERATOR_SDK_BUNDLE}" /usr/local/bin/operator-sdk && rm "${OPERATOR_SDK_BUNDLE}"
   printf "Installed\n"
 }
 
