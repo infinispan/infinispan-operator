@@ -48,7 +48,12 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 
 		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
 		for _, remoteLocation := range remoteLocations {
-			err := appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
+			var err error
+			if remoteLocation.Host != "" {
+				err = appendBackupSite(logger, &remoteLocation, xsite)
+			} else { // lookup remote service via kubernetes api
+				err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
+			}
 			if err != nil {
 				return err
 			}
