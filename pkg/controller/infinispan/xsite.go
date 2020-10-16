@@ -136,6 +136,18 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 		"host", host,
 		"port", port,
 	)
+	remoteLocation.Host = host
+	remoteLocation.Port = port
+	return appendBackupSite(logger, remoteLocation, xsite)
+}
+
+func appendBackupSite(logger logr.Logger, remoteLocation *ispnv1.InfinispanSiteLocationSpec, xsite *config.XSite) error {
+
+	host := remoteLocation.Host
+	port := remoteLocation.Port
+	if port == 0 {
+		port = consts.CrossSitePort
+	}
 
 	backupSite := config.BackupSite{
 		Address: host,
