@@ -160,10 +160,28 @@ release:
 copy-kubeconfig:
 	build/copy-kubeconfig.sh ${KUBECONFIG}
 
-# Minikube parameters
+# Kubernetes/Minikube parameters
 PROFILE ?= operator-minikube
 VMDRIVER ?= virtualbox
 NAMESPACE ?= infinispan-operator
+
+## k8s-run          Create the Infinispan operator on kubernetes with the public image.
+##                  - Specify cluster access configuration with KUBECONFIG environment variable.
+##                  Example: "KUBECONFIG=/path/to/admin.kubeconfig make k8s-run"
+##                  - Override the namespace with NAMESPACE environment variable.
+##                  Example: "NAMESPACE=infinispan-operator make k8s-run"
+##
+k8s-run:
+	build/kubernetes/run.sh ${NAMESPACE}
+
+## k8s-run-local    Run Infinispan operator locally and deploy CRD definitions to kubernetes.
+##                  - Specify cluster access configuration with KUBECONFIG.
+##                  Example: "KUBECONFIG=/path/to/admin.kubeconfig make k8s-run-local"
+##                  - Override the namespace with NAMESPACE environment variable.
+##                  Example: "NAMESPACE=infinispan-operator make k8s-run-local"
+##
+k8s-run-local: build
+	build/kubernetes/run-local.sh ${NAMESPACE}
 
 ## minikube-config        Configure Minikube VM with adequate options.
 minikube-config:
