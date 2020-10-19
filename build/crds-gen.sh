@@ -3,7 +3,9 @@
 . $(dirname "$0")/common.sh
 
 OPERATOR_SDK_VERSION=${1}
-OPERATOR_SDK_BUNDLE=operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-${OSTYPE}
+ARC=$(echo $MACHTYPE | grep -oE '^[a-z0-9_]+')
+OS=$(echo $OSTYPE | sed 's/darwin/apple-darwin/g' | grep -oE '[a-z-]+')
+OPERATOR_SDK_BUNDLE=operator-sdk-${OPERATOR_SDK_VERSION}-${ARC}-${OS}
 OPERATOR_SDK_URL=https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/${OPERATOR_SDK_BUNDLE}
 
 unset GOPATH
@@ -32,7 +34,7 @@ if ! [ -x "$(command -v operator-sdk)" ]; then
 else
   printf "OK\n"
   printf "Validating Operator SDK version..."
-  INSTALLED_OPERATOR_SDK_VERSION=$(operator-sdk version | grep -oP 'operator-sdk version: "\K[^"]+')
+  INSTALLED_OPERATOR_SDK_VERSION=$(operator-sdk version | grep -oE 'operator-sdk version: "[v0-9\.]+"' | grep -oE '[^"][0-9\.]+')
   if [ "${INSTALLED_OPERATOR_SDK_VERSION}" == "${OPERATOR_SDK_VERSION}" ]; then
     printf "%s\n" "${OPERATOR_SDK_VERSION}"
   else
