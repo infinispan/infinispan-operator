@@ -124,9 +124,10 @@ const (
 // ExposeSpec describe how Infinispan will be exposed externally
 type ExposeSpec struct {
 	// Type specifies different exposition methods for data grid
-	Type     ExposeType `json:"type"`
-	NodePort int32      `json:"nodePort,optional,omitempty"`
-	Host     string     `json:"host,optional,omitempty"`
+	Type        ExposeType        `json:"type"`
+	NodePort    int32             `json:"nodePort,optional,omitempty"`
+	Host        string            `json:"host,optional,omitempty"`
+	Annotations map[string]string `json:"annotations,optional,omitempty"`
 }
 
 // Autoscale describe autoscaling configuration for the cluster
