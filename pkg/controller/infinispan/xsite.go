@@ -50,7 +50,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 		for _, remoteLocation := range remoteLocations {
 			var err error
 			if remoteLocation.Host != "" {
-				err = appendBackupSite(logger, &remoteLocation, xsite)
+				err = appendBackupSite(&remoteLocation, xsite)
 			} else if remoteLocation.URL != "" { // lookup remote service via kubernetes api
 				err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
 			} else {
@@ -147,10 +147,10 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 	)
 	remoteLocation.Host = host
 	remoteLocation.Port = port
-	return appendBackupSite(logger, remoteLocation, xsite)
+	return appendBackupSite(remoteLocation, xsite)
 }
 
-func appendBackupSite(logger logr.Logger, remoteLocation *ispnv1.InfinispanSiteLocationSpec, xsite *config.XSite) error {
+func appendBackupSite(remoteLocation *ispnv1.InfinispanSiteLocationSpec, xsite *config.XSite) error {
 
 	host := remoteLocation.Host
 	port := remoteLocation.Port
