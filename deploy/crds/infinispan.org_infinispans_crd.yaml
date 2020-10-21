@@ -104,8 +104,6 @@ spec:
                       type: string
                     type:
                       type: string
-                  required:
-                  - type
                   type: object
                 endpointSecretName:
                   type: string
@@ -120,8 +118,6 @@ spec:
                   properties:
                     storage:
                       type: string
-                  required:
-                  - storage
                   type: object
                 replicationFactor:
                   format: int32
@@ -222,8 +218,6 @@ spec:
                       type: string
                     type:
                       type: string
-                  required:
-                  - type
                   type: object
                 endpointSecretName:
                   type: string
@@ -232,7 +226,6 @@ spec:
               type: string
           required:
           - security
-          - statefulSetName
           type: object
       type: object
   version: v1

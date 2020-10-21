@@ -17,14 +17,14 @@ type InfinispanSecurity struct {
 
 // EndpointEncryption configuration
 type EndpointEncryption struct {
-	Type            string `json:"type"`
+	Type            string `json:"type,optional,omitempty"`
 	CertServiceName string `json:"certServiceName,optional,omitempty"`
 	CertSecretName  string `json:"certSecretName,optional,omitempty"`
 }
 
 // InfinispanServiceContainerSpec resource requirements specific for service
 type InfinispanServiceContainerSpec struct {
-	Storage string `json:"storage"`
+	Storage string `json:"storage,optional,omitempty"`
 }
 
 type ServiceType string
@@ -141,7 +141,7 @@ type InfinispanStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// +optional
 	Conditions              []InfinispanCondition `json:"conditions,omitempty"`
-	StatefulSetName         string                `json:"statefulSetName"`
+	StatefulSetName         string                `json:"statefulSetName,optional,omitempty"`
 	Security                InfinispanSecurity    `json:"security"`
 	ReplicasWantedAtRestart int32                 `json:"replicasWantedAtRestart,omitempty"`
 }
