@@ -100,27 +100,6 @@ example-infinispan-54c66fd755-8gbxf    1/1       Running             0          
 example-infinispan-54c66fd755-7c4zc    1/1       Running             0          8s
 ```
 
-#### Kubernetes
-
-1. Create the namespace if it doesn't already exist:
-   ```bash
-   $ export NAMESPACE=infinispan-operator
-   $ kubectl create namespace $NAMESPACE
-   ```
-2. Specify the Kube configuration for the kubernetes cluster.
-   ```bash
-   $ export KUBECONFIG=/path/to/admin.kubeconfig
-   ```
-3. Deploy the Infinispan operator to kubernetes from the source code.
-   * Run the operator in the cluster using the public  [jboss/infinispan-operator](https://hub.docker.com/r/jboss/infinispan-operator) image:
-      ```bash
-      $ make k8s-run
-      ```
-   * Run the operator locally using a locally built executable:
-      ```bash
-      $ make k8s-run-local
-      ```
-
 #### Minikube
 
 1. Configure Minikube virtual machine. You only need to do this once:
