@@ -246,7 +246,6 @@ spec:
               type: string
           required:
           - security
-          - statefulSetName
           type: object
       type: object
   version: v1

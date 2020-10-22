@@ -162,7 +162,7 @@ type InfinispanCondition struct {
 type InfinispanStatus struct {
 	// +optional
 	Conditions              []InfinispanCondition `json:"conditions,omitempty"`
-	StatefulSetName         string                `json:"statefulSetName"`
+	StatefulSetName         string                `json:"statefulSetName,optional,omitempty"`
 	Security                InfinispanSecurity    `json:"security"`
 	ReplicasWantedAtRestart int32                 `json:"replicasWantedAtRestart,omitempty"`
 }
