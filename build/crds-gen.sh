@@ -45,9 +45,17 @@ fi
 
 echo "Generating CRDs for API's..."
 
+allsed() {
+  if [[ -z $(which gsed) ]]; then
+    sed "$@"
+  else
+    gsed "$@" # for mac, install with brew install gnu-sed
+  fi
+}
+
 if operator-sdk generate crds; then
-  sed -i -e "/name: infinispans.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_infinispans_crd.yaml
-  sed -i -e "/name: caches.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_caches_crd.yaml
+  allsed -i -e "/name: infinispans.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_infinispans_crd.yaml
+  allsed -i -e "/name: caches.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_caches_crd.yaml
 
   echo "Generating Kubernetes code for custom resources..."
   operator-sdk generate k8s
