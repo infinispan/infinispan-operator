@@ -689,8 +689,17 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			}
 		}
 	}
+
 	replicas := m.Spec.Replicas
 	protocolScheme := m.GetEndpointScheme()
+	ports := []corev1.ContainerPort{
+		{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
+		{ContainerPort: consts.InfinispanPort, Name: consts.InfinispanPortName, Protocol: corev1.ProtocolTCP},
+	}
+	if m.HasSites() {
+		ports = append(ports, corev1.ContainerPort{ContainerPort: consts.CrossSitePort, Name: consts.CrossSitePortName, Protocol: corev1.ProtocolTCP})
+	}
+
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -725,10 +734,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							PeriodSeconds:       60,
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
-						Ports: []corev1.ContainerPort{
-							{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
-							{ContainerPort: consts.InfinispanPort, Name: consts.InfinispanPortName, Protocol: corev1.ProtocolTCP},
-						},
+						Ports: ports,
 						ReadinessProbe: &corev1.Probe{
 							Handler:             ispn.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
