@@ -36,7 +36,6 @@ var (
 	RunLocalOperator     = strings.ToUpper(comutil.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
 	RunSaOperator        = strings.ToUpper(comutil.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	OperatorUpgradeStage = strings.ToUpper(comutil.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
-	ImageName            = comutil.GetEnvWithDefault("IMAGE", "infinispan/server:11.0")
 	ExposeServiceType    = comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 
 	OperatorUpgradeStateFlow = []string{"upgrade", "stopping", "wellFormed"}
