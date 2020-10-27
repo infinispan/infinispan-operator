@@ -41,10 +41,12 @@ const (
 	// DefaultDeveloperUser users to access the cluster rest API
 	DefaultDeveloperUser = "developer"
 	// DefaultCacheName default cache name for the CacheService
-	DefaultCacheName   = "default"
-	InfinispanPort     = 11222
-	InfinispanPingPort = 8888
-	CrossSitePort      = 7900
+	DefaultCacheName       = "default"
+	InfinispanPort         = 11222
+	InfinispanPortName     = "infinispan"
+	InfinispanPingPort     = 8888
+	InfinispanPingPortName = "ping"
+	CrossSitePort          = 7900
 	// DefaultCacheManagerName default cache manager name used for cross site
 	DefaultCacheManagerName                 = "default"
 	CacheServiceFixedMemoryXmxMb            = 200
