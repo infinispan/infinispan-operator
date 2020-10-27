@@ -1500,6 +1500,7 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 			Selector: lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{
+					Name: "hotrod",
 					Port: 11222,
 				},
 			},
