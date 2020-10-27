@@ -726,8 +726,8 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
 						Ports: []corev1.ContainerPort{
-							{ContainerPort: consts.InfinispanPingPort, Name: "ping", Protocol: corev1.ProtocolTCP},
-							{ContainerPort: consts.InfinispanPort, Name: "infinispan", Protocol: corev1.ProtocolTCP},
+							{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
+							{ContainerPort: consts.InfinispanPort, Name: consts.InfinispanPortName, Protocol: corev1.ProtocolTCP},
 						},
 						ReadinessProbe: &corev1.Probe{
 							Handler:             ispn.ClusterStatusHandler(protocolScheme),
@@ -1046,6 +1046,7 @@ func (r *ReconcileInfinispan) computeService(m *infinispanv1.Infinispan) *corev1
 			Selector: PodLabels(m.ObjectMeta.Name),
 			Ports: []corev1.ServicePort{
 				{
+					Name: consts.InfinispanPortName,
 					Port: consts.InfinispanPort,
 				},
 			},
@@ -1073,7 +1074,7 @@ func (r *ReconcileInfinispan) computePingService(m *infinispanv1.Infinispan) *co
 			Selector:  PodLabels(m.ObjectMeta.Name),
 			Ports: []corev1.ServicePort{
 				{
-					Name: "ping",
+					Name: consts.InfinispanPingPortName,
 					Port: consts.InfinispanPingPort,
 				},
 			},
