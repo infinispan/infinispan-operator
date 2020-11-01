@@ -43,22 +43,28 @@ else
   fi
 fi
 
-echo "Generating CRDs for API's..."
-
-allsed() {
+validsed() {
   if [[ "$OS" == "apple-darwin" ]]; then
     if [[ -z $(which gsed) ]]; then
       echo "gnu-sed not found, please install with:"
       echo "$ brew install gnu-sed"
       exit 1
-    else
-      gsed "$@" # for mac, install with brew install gnu-sed
     fi
+  fi
+}
+
+allsed() {
+  validsed
+  if [[ "$OS" == "apple-darwin" ]]; then
+    gsed "$@" # for mac, install with brew install gnu-sed
   else
     sed "$@"
   fi
 }
 
+validsed
+
+echo "Generating CRDs for API's..."
 if operator-sdk generate crds; then
   allsed -i -e "/name: infinispans.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_infinispans_crd.yaml
   allsed -i -e "/name: caches.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_caches_crd.yaml
