@@ -40,8 +40,6 @@ ifdef::productized[]
 <5> Specifies a backup location that matches `.spec.service.sites.local.name`.
 <6> Specifies the URL of the {openshiftshort} API for the backup location.
 <7> Specifies the secret that contains the service account token for the backup site.
-<8> Directly specifies the `host` routing to another {brandname} backup instance.
-<9> Directly specifies the backup instance JGroups `port` the relay is listening on.
-<10> Logs error messages for the JGroups TCP protocol.
-<11> Logs fatal messages for the JGroups RELAY2 protocol.
+<8> Logs error messages for the JGroups TCP protocol.
+<9> Logs fatal messages for the JGroups RELAY2 protocol.
 endif::productized[]

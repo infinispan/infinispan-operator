@@ -10,7 +10,7 @@ over a dedicated JGroups transport channel for replicating data.
 +
 [IMPORTANT]
 ====
-To automatically manage and lookup cross-site replication connection details, {ispn_operator} requires {brandname}
+To perform cross-site replication, {ispn_operator} requires {brandname}
 clusters to have the same name and run in matching namespaces.
 
 For example, you create a cluster at **LON** in a project named
@@ -23,13 +23,11 @@ named `xsite-cluster`.
 . Create an **Infinispan** CR for each {brandname} cluster.
 . Specify a matching name for each {brandname} cluster with metadata.name`.
 . Specify the name of the local site with `spec.service.sites.local.name`.
-. Provide the name, and one of the following sets of connection details.
-+
-* Provide API URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
+. Provide the name, URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 +
 The following are example **Infinispan** CR definitions for **LON** and **NYC**:
 +
-- **LON**
+* **LON**
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
@@ -55,7 +53,7 @@ spec:
           secretName: nyc-token
 ----
 +
-- **NYC**
+* **NYC**
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
@@ -80,64 +78,6 @@ spec:
           url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
           secretName: lon-token
 ----
-+
-* Provide the `host` and `port` for each {brandname} instance that acts as a backup location with `spec.service.sites.locations`.
-+
-Example **Infinispan** CR definitions for **LON** and **NYC**:
-+
-- **LON**
-+
-[source,yaml,options="nowrap",subs=attributes+]
-----
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: {example_crd_name}
-spec:
-  replicas: 3
-  service:
-    type: DataGrid
-    sites:
-      local:
-        name: LON
-        expose:
-          type: LoadBalancer
-      locations:
-        - name: LON
-          host: infinispan-lon.myhost.com
-          port: 7900
-        - name: NYC
-          host: infinispan-nyc.myhost.com
-          port: 7900
-----
-+
-- **NYC**
-+
-[source,yaml,options="nowrap",subs=attributes+]
-----
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: {example_crd_name}
-spec:
-  replicas: 2
-  service:
-    type: DataGrid
-    sites:
-      local:
-        name: NYC
-        expose:
-          type: LoadBalancer
-      locations:
-        - name: LON
-          host: infinispan-lon.myhost.com
-          port: 7900
-        - name: NYC
-          host: infinispan-nyc.myhost.com
-          port: 7900
-----
-+
-The default for `port` is `7900` which can be omitted.
 +
 . Adjust logging levels for cross-site replication as follows:
 +

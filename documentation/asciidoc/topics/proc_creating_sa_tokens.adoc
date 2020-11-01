@@ -2,9 +2,7 @@
 = Creating Service Account Tokens
 Generate service account tokens on each {openshiftshort} cluster that acts as a
 backup location. Clusters use these tokens to authenticate with each other so
-{ispn_operator} in each cluster can lookup the connection details
-for the cross-site replication service in other backup clusters.
-This is not required when you're going to directly configure the backup location host/port details.
+{ispn_operator} can create a cross-site replication service.
 
 .Procedure
 

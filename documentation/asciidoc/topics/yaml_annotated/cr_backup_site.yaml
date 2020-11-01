@@ -12,9 +12,9 @@ spec:
         url: openshift://api.site-a.devcluster.openshift.com:6443 <6>
         secretName: lon-token <7>
       - name: NYC
-        host: infinispan-nyc.myhost.com <8>
-        port: 7900 <9>
+        url: openshift://api.site-b.devcluster.openshift.com:6443
+        secretName: nyc-token
   logging:
     categories:
-      org.jgroups.protocols.TCP: error <10>
-      org.jgroups.protocols.relay.RELAY2: fatal <11>
+      org.jgroups.protocols.TCP: error <8>
+      org.jgroups.protocols.relay.RELAY2: fatal <9>
