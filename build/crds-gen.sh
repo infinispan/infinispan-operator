@@ -46,10 +46,16 @@ fi
 echo "Generating CRDs for API's..."
 
 allsed() {
-  if [[ -z $(which gsed) ]]; then
-    sed "$@"
+  if [[ "$OS" == "apple-darwin" ]]; then
+    if [[ -z $(which gsed) ]]; then
+      echo "gnu-sed not found, please install with:"
+      echo "$ brew install gnu-sed"
+      exit 1
+    else
+      gsed "$@" # for mac, install with brew install gnu-sed
+    fi
   else
-    gsed "$@" # for mac, install with brew install gnu-sed
+    sed "$@"
   fi
 }
 
