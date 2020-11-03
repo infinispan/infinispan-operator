@@ -2,6 +2,8 @@ package infinispan
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -398,8 +400,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Here where to reconcile with spec updates that reflect into
 	// changes to statefulset.spec.container.
-
-	res, err = r.reconcileContainerConf(infinispan, statefulSet, reqLogger)
+	res, err = r.reconcileContainerConf(infinispan, statefulSet, configMap, reqLogger)
 	if res != nil {
 		return *res, err
 	}
@@ -698,7 +699,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 					Containers: []corev1.Container{{
 						Image:          m.ImageName(),
 						Name:           "infinispan",
-						Env:            PodEnv(m),
+						Env:            PodEnv(m, &[]corev1.EnvVar{{Name: "CONFIG_HASH", Value: sha256String(configMap.Data[consts.ServerConfigFilename])}}),
 						LivenessProbe:  PodLivenessProbe(m),
 						Ports:          PodPortsWithXsite(m),
 						ReadinessProbe: PodReadinessProbe(m),
@@ -853,7 +854,7 @@ func PodResources(spec infinispanv1.InfinispanContainerSpec) corev1.ResourceRequ
 	}
 }
 
-func PodEnv(i *infinispanv1.Infinispan) []corev1.EnvVar {
+func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "CONFIG_PATH", Value: consts.ServerConfigPath},
 		{Name: "IDENTITIES_PATH", Value: consts.ServerIdentitiesPath},
@@ -876,6 +877,11 @@ func PodEnv(i *infinispanv1.Infinispan) []corev1.EnvVar {
 			}
 		}
 	}
+
+	if systemEnv != nil {
+		envVars = append(envVars, *systemEnv...)
+	}
+
 	return envVars
 }
 
@@ -1190,17 +1196,27 @@ func (r *ReconcileInfinispan) reconcileXSite(ispn *infinispanv1.Infinispan, sche
 
 // reconcileConfigMap creates the configMap for Infinispan if needed
 func (r *ReconcileInfinispan) reconcileConfigMap(ispn *infinispanv1.Infinispan, configMap *corev1.ConfigMap, logger logr.Logger) error {
-	cm := &corev1.ConfigMap{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: configMap.Namespace, Name: configMap.Name}, cm)
-	if errors.IsNotFound(err) {
-		// Set Infinispan instance as the owner and controller
-		controllerutil.SetControllerReference(ispn, configMap, r.scheme)
-		err := r.client.Create(context.TODO(), configMap)
-		if err != nil {
-			logger.Error(err, "failed to create new ConfigMap")
-			return err
+	configMapObject := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMap.Name,
+			Namespace: configMap.Namespace,
+		},
+	}
+
+	result, err := controllerutil.CreateOrUpdate(context.TODO(), r.client, configMapObject, func() error {
+		if configMapObject.CreationTimestamp.IsZero() {
+			configMapObject.Data = configMap.Data
+			configMapObject.Annotations = configMap.Annotations
+			configMapObject.Labels = configMap.Labels
+			// Set Infinispan instance as the owner and controller
+			controllerutil.SetControllerReference(ispn, configMapObject, r.scheme)
+		} else {
+			configMapObject.Data[consts.ServerConfigFilename] = configMap.Data[consts.ServerConfigFilename]
 		}
 		return nil
+	})
+	if err == nil && (result == controllerutil.OperationResultCreated || result == controllerutil.OperationResultUpdated) {
+		logger.Info(fmt.Sprintf("ConfigMap %s %s", configMap.Name, result))
 	}
 	return err
 }
@@ -1511,7 +1527,7 @@ func (r *ReconcileInfinispan) reconcileEndpointSecret(ispn *infinispanv1.Infinis
 }
 
 // reconcileContainerConf reconcile the .Container struct is changed in .Spec. This needs a cluster restart
-func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet, logger logr.Logger) (*reconcile.Result, error) {
+func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet, configMap *corev1.ConfigMap, logger logr.Logger) (*reconcile.Result, error) {
 	updateNeeded := false
 	// Ensure the deployment size is the same as the spec
 	replicas := ispn.Spec.Replicas
@@ -1546,6 +1562,14 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 			logger.Info("cpu changed, update infinispan", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
 			updateNeeded = true
 		}
+	}
+	// Validate ConfigMap changes (by the hash of the infinispan.yaml key value)
+	configHashIndex := kube.GetEnvVarIndex("CONFIG_HASH", env)
+	previousConfigHash := (*env)[configHashIndex].Value
+	configHash := sha256String(configMap.Data[consts.ServerConfigFilename])
+	if previousConfigHash != configHash {
+		(*env)[configHashIndex].Value = configHash
+		updateNeeded = true
 	}
 
 	extraJavaOptionsIndex := kube.GetEnvVarIndex("EXTRA_JAVA_OPTIONS", env)
@@ -1598,6 +1622,10 @@ func ServiceLabels(name string) map[string]string {
 
 func ExternalServiceLabels(name string) map[string]string {
 	return LabelsResource(name, "infinispan-service-external")
+}
+
+func sha256String(data string) string {
+	return hex.EncodeToString(sha256.New().Sum([]byte(data)))
 }
 
 // TODO Replace with controllerutil.ContainsFinalizer after operator-sdk update (controller-runtime v0.6.1+)
