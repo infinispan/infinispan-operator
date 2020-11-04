@@ -3,7 +3,7 @@
 There are two configuration approaches available for setting up cross-site replication between multiple **Infinispan** clusters.
 
 1. Auto configuration managed by the **Infinispan Operator** via Kubernetes API communication between clusters.
-1. Manual connection configurations provided via the `Cluster` `CRD`.
+1. Manual connection configurations provided via the `Infinispan CR`.
 
 ## Auto
 
@@ -101,4 +101,3 @@ The `port` option is optional, and defaults to `7900` if left out.
 
 As with the auto option, the **Infinispan Operator** will use the `spec.service.local.expose.*` options to automatically create a site `Service` in the current cluster.
 But it will simply assume that the backup site `host`/`port` values provided are valid.
-
