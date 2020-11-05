@@ -832,7 +832,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			dep.Spec.Template.Spec.InitContainers = []corev1.Container{{
 				Image:   initContainerImage,
 				Name:    "chmod-pv",
-				Command: []string{"sh", "-c", "chmod -R g+w" + DataMountPath},
+				Command: []string{"sh", "-c", fmt.Sprintf("chmod -R g+w %s", DataMountPath)},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      m.ObjectMeta.Name,
 					MountPath: DataMountPath,

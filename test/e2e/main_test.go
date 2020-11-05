@@ -501,12 +501,11 @@ func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 	// Wait that "num" pods are up
 	testKube.WaitForInfinispanPods(num, tconst.SinglePodTimeout, spec.Name, tconst.Namespace)
 	ispn := ispnv1.Infinispan{}
-	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn))
 	protocol := getSchemaForRest(&ispn)
 
 	pods := &corev1.PodList{}
-	err := testKube.Kubernetes.ResourcesList(tconst.Namespace, ispnctrl.PodLabels(spec.Name), pods)
-	tutils.ExpectNoError(err)
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(tconst.Namespace, ispnctrl.PodLabels(spec.Name), pods))
 
 	// Check that the cluster size is num querying the first pod
 	cluster := newCluster(cconsts.DefaultOperatorUser, ispn.GetSecretName(), protocol, testKube.Kubernetes)

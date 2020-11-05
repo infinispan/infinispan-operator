@@ -117,7 +117,7 @@ func (k TestKubernetes) GetBackup(name, namespace string) *ispnv2.Backup {
 		Namespace: namespace,
 		Name:      name,
 	}
-	utils.ExpectNoError(k.Kubernetes.Client.Get(context.TODO(), key, backup))
+	utils.ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, backup))
 	return backup
 }
 
@@ -127,7 +127,7 @@ func (k TestKubernetes) GetRestore(name, namespace string) *ispnv2.Restore {
 		Namespace: namespace,
 		Name:      name,
 	}
-	utils.ExpectNoError(k.Kubernetes.Client.Get(context.TODO(), key, restore))
+	utils.ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, restore))
 	return restore
 }
 

@@ -8,10 +8,12 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - persistentvolumeclaims
   - services
   - services/finalizers
   - endpoints
   - configmaps
+  - pods
   - secrets
   verbs:
   - get
@@ -20,15 +22,6 @@ rules:
   - create
   - update
   - delete
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-  - update
 - apiGroups:
   - ""
   resources:
@@ -90,7 +83,11 @@ rules:
   - caches/status
   - caches/finalizers
   - backups
+  - backups/status
+  - backups/finalizers
   - restores
+  - restores/status
+  - restores/finalizers
   verbs:
   - get
   - list
