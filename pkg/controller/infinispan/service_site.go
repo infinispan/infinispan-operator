@@ -49,16 +49,21 @@ func SiteService(siteServiceName string, infinispan *ispnv1.Infinispan, scheme *
 		}
 	}
 
-	siteService := corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      siteServiceName,
-			Namespace: infinispan.ObjectMeta.Namespace,
-			Annotations: map[string]string{
-				"service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp",
-			},
-			Labels: lsService,
+	objectMeta := metav1.ObjectMeta{
+		Name:      siteServiceName,
+		Namespace: infinispan.ObjectMeta.Namespace,
+		Annotations: map[string]string{
+			"service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp",
 		},
-		Spec: exposeSpec,
+		Labels: lsService,
+	}
+	if exposeConf.Annotations != nil && len(exposeConf.Annotations) > 0 {
+		objectMeta.Annotations = exposeConf.Annotations
+	}
+
+	siteService := corev1.Service{
+		ObjectMeta: objectMeta,
+		Spec:       exposeSpec,
 	}
 
 	// Set Infinispan instance as the owner and controller

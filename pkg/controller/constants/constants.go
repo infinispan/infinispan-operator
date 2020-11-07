@@ -47,6 +47,7 @@ const (
 	InfinispanPingPort     = 8888
 	InfinispanPingPortName = "ping"
 	CrossSitePort          = 7900
+	CrossSitePortName      = "xsite"
 	// DefaultCacheManagerName default cache manager name used for cross site
 	DefaultCacheManagerName                 = "default"
 	CacheServiceFixedMemoryXmxMb            = 200

@@ -48,7 +48,16 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 
 		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
 		for _, remoteLocation := range remoteLocations {
-			err := appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
+			var err error
+			if remoteLocation.Host != "" {
+				err = appendBackupSite(&remoteLocation, xsite)
+			} else if remoteLocation.URL != "" { // lookup remote service via kubernetes api
+				err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
+			} else {
+				msg := fmt.Sprintf("invalid xsite location, remote name: %s does not define host or url", remoteLocation.Name)
+				logger.Info(msg)
+				err = fmt.Errorf(msg)
+			}
 			if err != nil {
 				return err
 			}
@@ -136,6 +145,18 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 		"host", host,
 		"port", port,
 	)
+	remoteLocation.Host = host
+	remoteLocation.Port = port
+	return appendBackupSite(remoteLocation, xsite)
+}
+
+func appendBackupSite(remoteLocation *ispnv1.InfinispanSiteLocationSpec, xsite *config.XSite) error {
+
+	host := remoteLocation.Host
+	port := remoteLocation.Port
+	if port == 0 {
+		port = consts.CrossSitePort
+	}
 
 	backupSite := config.BackupSite{
 		Address: host,

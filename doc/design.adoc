@@ -468,17 +468,17 @@ it binds to port `7900` by default and uses port `32660` as `nodePort`.
 | v1
 
 | `url`
-| URL for remote location.
-`xsite://` scheme denotes that the remote locatio is configured with static host:port combination.
+| URL for remote location Kubernetes API.
 `minikube://` scheme denotes that external location is a minikube instance and the setting are extracted from the remote Kubernetes host:port.
 `openshift://` scheme denotes that site location settings are extracted from the remote OpenShift host:port.
+This is required unless `host` is provided.
 | string
-| true
+| false
 |
 | v1
 
 | `secretName`
-| Contains the secret details for accessing remote Kubernetes or OpenShift instances.
+| Contains the secret details for accessing the API of remote Kubernetes or OpenShift instances.
 If the `url` starts with `minikube`,
 the secret should contain `certificate-authority`, `client-certificate` and `client-key` entries.
 A secret containing these certificates can be created using `kubectl create secret generic`,
@@ -489,6 +489,22 @@ the secret should contain a `token` entry for accessing that OpenShift cluster.
 | false
 |
 | v1
+
+| `host`
+| Direct host for remote location.
+When provided, this will be used instead of looking up connection details via `url`.
+| string
+| false
+|
+| v1beta1
+
+| `port`
+| Direct port for remote location JGroups relay.
+Ignored if `host` is not provided.
+| int32
+| false
+| `7900`
+| v1beta1
 
 |=======================
 

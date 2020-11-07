@@ -689,8 +689,17 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			}
 		}
 	}
+
 	replicas := m.Spec.Replicas
 	protocolScheme := m.GetEndpointScheme()
+	ports := []corev1.ContainerPort{
+		{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
+		{ContainerPort: consts.InfinispanPort, Name: consts.InfinispanPortName, Protocol: corev1.ProtocolTCP},
+	}
+	if m.HasSites() {
+		ports = append(ports, corev1.ContainerPort{ContainerPort: consts.CrossSitePort, Name: consts.CrossSitePortName, Protocol: corev1.ProtocolTCP})
+	}
+
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -725,10 +734,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							PeriodSeconds:       60,
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
-						Ports: []corev1.ContainerPort{
-							{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
-							{ContainerPort: consts.InfinispanPort, Name: consts.InfinispanPortName, Protocol: corev1.ProtocolTCP},
-						},
+						Ports: ports,
 						ReadinessProbe: &corev1.Probe{
 							Handler:             ispn.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
@@ -1088,27 +1094,36 @@ func (r *ReconcileInfinispan) computePingService(m *infinispanv1.Infinispan) *co
 func (r *ReconcileInfinispan) computeServiceExternal(m *infinispanv1.Infinispan) *corev1.Service {
 	externalServiceType := corev1.ServiceType(m.Spec.Expose.Type)
 	externalServiceName := m.GetServiceExternalName()
-	externalService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      externalServiceName,
-			Namespace: m.ObjectMeta.Namespace,
-			Labels:    ExternalServiceLabels(m.ObjectMeta.Name),
-		},
-		Spec: corev1.ServiceSpec{
-			Type:     externalServiceType,
-			Selector: PodLabels(m.ObjectMeta.Name),
-			Ports: []corev1.ServicePort{
-				{
-					Port:       int32(consts.InfinispanPort),
-					TargetPort: intstr.FromInt(consts.InfinispanPort),
-				},
+	exposeConf := m.Spec.Expose
+
+	metadata := metav1.ObjectMeta{
+		Name:      externalServiceName,
+		Namespace: m.ObjectMeta.Namespace,
+		Labels:    ExternalServiceLabels(m.ObjectMeta.Name),
+	}
+	if exposeConf.Annotations != nil && len(exposeConf.Annotations) > 0 {
+		metadata.Annotations = exposeConf.Annotations
+	}
+
+	exposeSpec := corev1.ServiceSpec{
+		Type:     externalServiceType,
+		Selector: PodLabels(m.ObjectMeta.Name),
+		Ports: []corev1.ServicePort{
+			{
+				Port:       int32(consts.InfinispanPort),
+				TargetPort: intstr.FromInt(consts.InfinispanPort),
 			},
 		},
 	}
-
-	if m.Spec.Expose.NodePort > 0 {
-		externalService.Spec.Ports[0].NodePort = m.Spec.Expose.NodePort
+	if exposeConf.NodePort > 0 {
+		exposeSpec.Ports[0].NodePort = exposeConf.NodePort
 	}
+
+	externalService := &corev1.Service{
+		ObjectMeta: metadata,
+		Spec:       exposeSpec,
+	}
+
 	return externalService
 }
 
