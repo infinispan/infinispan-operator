@@ -3,6 +3,12 @@
 Create subscriptions to {ispn_operator} on {openshiftshort} so you can install
 different {brandname} versions and receive automatic updates.
 
+Automatic updates apply to {ispn_operator} first and then for each {brandname}
+node.
+{ispn_operator} updates clusters one node at a time, gracefully shutting
+down each node and then bringing it back online with the updated version before
+going on to the next node.
+
 .Prerequisites
 
 * Access to **OperatorHub** running on {openshiftshort}. Some {openshiftshort} environments, such as {ocp}, can require administrator credentials.
@@ -16,16 +22,17 @@ different {brandname} versions and receive automatic updates.
 . Select **Install** and continue to **Create Operator Subscription**.
 . Specify options for your subscription.
 +
-Installation Mode:: Install {ispn_operator} into a specific {openshiftshort} namespace. You cannot install {ispn_operator} into multiple namespaces.
+Installation Mode:: You can install {ispn_operator} into specific namespaces only.
+//Community
+ifndef::productized[]
 Update Channel:: Subscribe to updates for {ispn_operator} versions.
 Approval Strategies:: When new {brandname} versions become available, you can install updates manually or let {ispn_operator} install them automatically.
-+
-[NOTE]
-====
-Automatic updates apply to {ispn_operator} first and then for each {brandname}
-node. {ispn_operator} updates clusters one node at a time, gracefully shutting
-down each node and then bringing it back online with the updated version before
-going on to the next node.
-====
+endif::productized[]
+//Product
+ifdef::productized[]
+Update Channel:: Get updates for {ispn_operator} {operator_channel}.
+Approval Strategies:: Automatically install updates from the {operator_channel} channel or require approval before installation.
+endif::productized[]
 +
 . Select **Subscribe** to install {ispn_operator}.
+. Navigate to **Installed Operators** to verify the {ispn_operator} installation.
