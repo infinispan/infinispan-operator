@@ -13,7 +13,7 @@ For example, create a service account at **LON**:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc create sa lon
+$ {oc_create} sa lon
 serviceaccount/lon created
 ----
 +
