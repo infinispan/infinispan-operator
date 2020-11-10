@@ -1,0 +1,76 @@
+[id='install_automated-{context}']
+= Installing {ispn_operator} from the Command Line
+As an alternative to installing {ispn_operator} through the **OperatorHub** on {openshiftshort}, use the `oc` client to create subscriptions.
+
+.Prerequisites
+
+* Have an `oc` client.
+
+.Procedure
+
+. Create projects for {ispn_operator} and {brandname} clusters.
++
+You can install {ispn_operator} in the same project as your {brandname} cluster or in separate projects.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_new_project} ${INSTALL_NAMESPACE} <1>
+$ {oc_new_project} ${WATCH_NAMESPACE} <2>
+----
++
+<1> Creates a project into which you install {ispn_operator}.
+<2> Creates a separate project for the {brandname} cluster that {ispn_operator} controls.
++
+. Create an `OperatorGroup` resource.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} - << EOF
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+ name: datagrid
+ namespace: ${INSTALL_NAMESPACE}
+spec:
+ targetNamespaces:
+ - ${WATCH_NAMESPACE}
+EOF
+----
++
+. Create a subscription for {ispn_operator}.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} - << EOF
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+ name: datagrid-operator
+ namespace: ${INSTALL_NAMESPACE}
+spec:
+ channel: {operator_channel}
+ installPlanApproval: Automatic <1>
+ name: datagrid
+ source: redhat-operators
+ sourceNamespace: openshift-marketplace
+EOF
+----
++
+<1> Specify `Manual` if you want to manually approve updates from the {operator_channel} channel.
++
+. Verify the installation.
+.. Switch to the {ispn_operator} project if necessary.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_project} ${INSTALL_NAMESPACE}
+----
++
+.. Check that {ispn_operator} is running.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_get_pods}
+NAME                                   READY   STATUS
+infinispan-operator-<id>               1/1     Running
+----
