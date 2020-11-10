@@ -384,6 +384,10 @@ func (z *Controller) configureBackupPod(name string, configMap *corev1.ConfigMap
 		},
 	}
 
+	if len(pod.Spec.InitContainers) > 0 && len(pod.Spec.InitContainers[0].VolumeMounts) > 0 {
+		pod.Spec.InitContainers[0].VolumeMounts[0].Name = dataVolName
+	}
+
 	//pod.Spec.SecurityContext.FSGroup = pointer.Int64Ptr(185)
 	pod.Spec.Volumes = []corev1.Volume{
 		// Volume for mounting zero-capacity yaml configmap
