@@ -38,7 +38,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		// Create a resource without passing any config
 		name := strcase.ToKebab(strings.Replace(t.Name(), "/", "", 1))
 		namespace := tconst.Namespace
-		clusterSize := 1
+		clusterSize := 2
 		numEntries := 100
 
 		// 1. Create initial source cluster
