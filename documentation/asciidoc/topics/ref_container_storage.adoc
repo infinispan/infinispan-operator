@@ -6,7 +6,7 @@ for {datagridservice} nodes but not {cacheservice} nodes.
 
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/cr_container_storage.yaml[]
+include::yaml/cr_container_storage.yaml[]
 ----
 
 <1> Configures the storage size for {datagridservice} nodes.

@@ -1,0 +1,4 @@
+$ {oc_logs} {example_crd_name}-0 | grep x-site
+
+INFO  [org.infinispan.XSITE] (jgroups-5,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC]
+INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC, LON]

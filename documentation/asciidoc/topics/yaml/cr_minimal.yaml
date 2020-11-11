@@ -1,6 +1,6 @@
 apiVersion: infinispan.org/v1 <1>
 kind: Infinispan <2>
 metadata:
-  name: example-infinispan <3>
+  name: {example_crd_name} <3>
 spec:
-  replicas: <4>
+  replicas: 2 <4>

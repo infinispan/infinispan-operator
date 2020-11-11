@@ -1,0 +1,6 @@
+spec:
+  ...
+  logging:
+    categories:
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: fatal
