@@ -13,7 +13,7 @@ Define a service monitor instances that configures Prometheus to monitor your
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/basic_auth.yaml[]
+include::yaml/basic_auth.yaml[]
 ----
 +
 <1> Specifies an application user. `developer` is the default.
@@ -30,7 +30,7 @@ $ {oc_apply_cr} basic-auth.yaml
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/service_monitor.yaml[]
+include::yaml/service_monitor.yaml[]
 ----
 +
 <1> Names the service monitor instances.

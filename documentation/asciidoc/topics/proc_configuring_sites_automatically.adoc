@@ -1,7 +1,6 @@
 [id='configuring_sites-{context}']
-= Configuring {brandname} Clusters for Cross-Site Replication
-Configure {brandname} clusters as backup locations so that they can communicate
-over a dedicated JGroups transport channel for replicating data.
+= Configuring {ispn_operator} to Handle Cross-Site Connections
+Configure {ispn_operator} to establish cross-site views with {brandname} clusters.
 
 .Prerequisites
 
@@ -21,7 +20,6 @@ named `xsite-cluster`.
 .Procedure
 
 . Create an **Infinispan** CR for each {brandname} cluster.
-. Specify a matching name for each {brandname} cluster with metadata.name`.
 . Specify the name of the local site with `spec.service.sites.local.name`.
 . Provide the name, URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 +
@@ -83,16 +81,10 @@ spec:
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-...
-  logging:
-    categories:
-      org.jgroups.protocols.TCP: error
-      org.jgroups.protocols.relay.RELAY2: fatal
+include::yaml/xsite_logging.yaml[]
 ----
 +
-The preceding configuration decreases logging for JGroups TCP and RELAY2
-protocols to reduce excessive messages about cluster backup operations, which
-can result in a large number of log files that use container storage.
+The preceding configuration decreases logging for JGroups TCP and RELAY2 protocols to reduce excessive messages about cluster backup operations, which can result in a large number of log files that use container storage.
 +
 . Configure nodes with any other {datagridservice} resources.
 . Apply the **Infinispan** CRs.
@@ -100,10 +92,7 @@ can result in a large number of log files that use container storage.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_logs} {example_crd_name}-0 | grep x-site
-
-INFO  [org.infinispan.XSITE] (jgroups-5,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC]
-INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC, LON]
+include::cmd_examples/oc_grep_xsite.adoc[]
 ----
 
 .Next steps
@@ -113,6 +102,6 @@ locations to caches.
 
 .Reference
 
-* link:#ref_xsite_crd-xsite[Cross-Site Replication Resources]
+* link:#ref_xsite_crd_automatic-xsite_operator[Cross-Site Replication Resources]
 * link:#adding_backup_locations-caches[Adding Backup Locations to Caches]
 * link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]

@@ -23,7 +23,7 @@ For example, create `my-restore.yaml` with the following:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/cr_restore.yaml[]
+include::yaml/cr_restore.yaml[]
 ----
 +
 <1> Specifies a **Restore** CR.
@@ -35,7 +35,7 @@ include::yaml_annotated/cr_restore.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/cr_backup_resources.yaml[]
+include::yaml/cr_backup_resources.yaml[]
 ----
 +
 <1> Cache templates.

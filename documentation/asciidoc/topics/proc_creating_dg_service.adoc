@@ -10,7 +10,7 @@ cross-site replication, create clusters of {datagridservice} nodes.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-include::yaml_examples/cr_dg_service.yaml[]
+include::yaml/cr_dg_service.yaml[]
 ----
 +
 [NOTE]

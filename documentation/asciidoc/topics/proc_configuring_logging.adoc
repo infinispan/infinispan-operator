@@ -8,7 +8,7 @@ and then apply the changes.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/cr_logging.yaml[]
+include::yaml/cr_logging.yaml[]
 ----
 +
 <1> Configures {brandname} logging.

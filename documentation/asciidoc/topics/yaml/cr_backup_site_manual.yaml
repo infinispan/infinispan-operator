@@ -1,0 +1,20 @@
+spec:
+  ...
+  service:
+    type: DataGrid <1>
+    sites:
+      local:
+        name: LON <2>
+        expose:
+          type: LoadBalancer <3>
+      locations: <4>
+      - name: LON <5>
+        host: infinispan-lon.myhost.com <6>
+        port: 7900 <7>
+      - name: NYC
+        host: infinispan-nyc.myhost.com
+        port: 7900
+  logging:
+    categories:
+      org.jgroups.protocols.TCP: error <8>
+      org.jgroups.protocols.relay.RELAY2: fatal <9>
