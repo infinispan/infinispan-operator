@@ -29,14 +29,11 @@ vet:
 clean:
 	rm -rf build/_output
 
-## codegen          Generates resources and install bundle.
+## codegen          Generates CRDs, k8s code for custom resources and install bundle.
 ##
-codegen: crdsgen install-bundle
-
-## crdsgen          Generates CRDs for API's and Kubernetes code for custom resource.
-##
-crdsgen:
+codegen:
 	./build/crds-gen.sh ${OPERATOR_SDK_VERSION}
+	./build/install-bundle.sh
 
 ## install-bundle   Combine single operator install bundle from the multiples files.
 ##
@@ -85,9 +82,9 @@ run:
 ##                  - Specify cluster access configuration with KUBECONFIG.
 ##                  Example: "make run-local KUBECONFIG=/path/to/admin.kubeconfig"
 ##                  - Override the OKD login user name.
-##                  Example: "make test OC_USER=myuser"
+##                  Example: "make run-local OC_USER=myuser"
 ##                  - Override the project for operator run.
-##                  Example: "make test PROJECT_NAME=infinispan-operator"
+##                  Example: "make run-local PROJECT_NAME=infinispan-operator"
 ##
 run-local: build
 	build/run-local.sh ${KUBECONFIG}
