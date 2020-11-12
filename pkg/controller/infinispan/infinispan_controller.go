@@ -405,6 +405,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *res, err
 	}
 
+	// Update the Infinispan status with the pod status
+	// Wait until all pods have ips assigned
+	// Without those ips, it's not possible to execute next calls
+	if !kube.ArePodIPsReady(podList) {
+		reqLogger.Info("Pods IPs are not ready yet")
+		return reconcile.Result{}, nil
+	}
+
 	// If x-site enable configure the coordinator pods to be selected by the x-site service
 	if infinispan.HasSites() {
 		found := applyLabelsToCoordinatorsPod(podList, cluster, r.client, reqLogger)
@@ -412,14 +420,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			// If a coordinator is not found then requeue early
 			return reconcile.Result{Requeue: true}, nil
 		}
-	}
-
-	// Update the Infinispan status with the pod status
-	// Wait until all pods have ips assigned
-	// Without those ips, it's not possible to execute next calls
-	if !kube.ArePodIPsReady(podList) {
-		reqLogger.Info("Pods IPs are not ready yet")
-		return reconcile.Result{}, nil
 	}
 
 	// All pods ready start autoscaler if needed
