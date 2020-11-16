@@ -24,23 +24,29 @@ const (
 	ImageTypeNative ImageType = "Native"
 )
 
+// equals compares two ConditionType's case insensitive
+func (a ConditionType) equals(b ConditionType) bool {
+	return strings.ToLower(string(a)) == strings.ToLower(string(b))
+}
+
 // GetCondition return the Status of the given condition or nil
 // if condition is not present
-func (ispn *Infinispan) GetCondition(condition string) *metav1.ConditionStatus {
+func (ispn *Infinispan) GetCondition(condition ConditionType) metav1.ConditionStatus {
 	for _, c := range ispn.Status.Conditions {
-		if c.Type == condition {
-			return &c.Status
+		if c.Type.equals(condition) {
+			return c.Status
 		}
 	}
-	return nil
+	// Absence of condition means `False` value
+	return metav1.ConditionFalse
 }
 
 // SetCondition set condition to status
-func (ispn *Infinispan) SetCondition(condition string, status metav1.ConditionStatus, message string) bool {
+func (ispn *Infinispan) SetCondition(condition ConditionType, status metav1.ConditionStatus, message string) bool {
 	changed := false
 	for idx := range ispn.Status.Conditions {
 		c := &ispn.Status.Conditions[idx]
-		if c.Type == condition {
+		if c.Type.equals(condition) {
 			if c.Status != status {
 				c.Status = status
 				changed = true
@@ -57,18 +63,6 @@ func (ispn *Infinispan) SetCondition(condition string, status metav1.ConditionSt
 	return true
 }
 
-// RemoveCondition remove condition from Status
-func (ispn *Infinispan) RemoveCondition(condition string) bool {
-	for idx := range ispn.Status.Conditions {
-		c := &ispn.Status.Conditions[idx]
-		if c.Type == condition {
-			ispn.Status.Conditions = append(ispn.Status.Conditions[:idx], ispn.Status.Conditions[idx+1:]...)
-			return true
-		}
-	}
-	return false
-}
-
 // SetConditions set provided conditions to status
 func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 	changed := false
@@ -78,15 +72,11 @@ func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 	return changed
 }
 
-func (ispn *Infinispan) ExpectConditionStatus(expected map[string]metav1.ConditionStatus, ignoreMissing bool) error {
+func (ispn *Infinispan) ExpectConditionStatus(expected map[ConditionType]metav1.ConditionStatus) error {
 	for key, value := range expected {
 		c := ispn.GetCondition(key)
-		if c == nil {
-			if !ignoreMissing {
-				return fmt.Errorf("Missing Condition '%s'", key)
-			}
-		} else if *c != value {
-			return fmt.Errorf("Infinispan '%s' %s has Status '%s', expected '%s'", ispn.Name, key, *c, value)
+		if c != value {
+			return fmt.Errorf("key '%s' has Status '%s', expected '%s'", key, c, value)
 		}
 	}
 	return nil
@@ -155,13 +145,12 @@ func (ispn *Infinispan) IsDataGrid() bool {
 	return ServiceTypeDataGrid == ispn.Spec.Service.Type
 }
 
-func (ispn *Infinispan) IsConditionTrue(name string) bool {
-	upgradeCondition := ispn.GetCondition(name)
-	return upgradeCondition != nil && *upgradeCondition == metav1.ConditionTrue
+func (ispn *Infinispan) IsConditionTrue(name ConditionType) bool {
+	return ispn.GetCondition(name) == metav1.ConditionTrue
 }
 
 func (ispn *Infinispan) IsUpgradeCondition() bool {
-	return ispn.IsConditionTrue("upgrade")
+	return ispn.IsConditionTrue(ConditionUpgrade)
 }
 
 func (ispn *Infinispan) GetServiceExternalName() string {
@@ -249,7 +238,7 @@ func (ispn *Infinispan) GetLogCategoriesForConfigMap() map[string]string {
 
 // IsWellFormed return true if cluster is well formed
 func (ispn *Infinispan) IsWellFormed() bool {
-	return ispn.IsConditionTrue("wellFormed")
+	return ispn.IsConditionTrue(ConditionWellFormed)
 }
 
 // NotClusterFormed return true is cluster is not well formed
@@ -261,20 +250,18 @@ func (ispn *Infinispan) NotClusterFormed(pods, replicas int) bool {
 
 func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
 	if ispn.IsUpgradeCondition() {
-		stoppingCondition := ispn.GetCondition("stopping")
-		if stoppingCondition != nil {
-			stoppingCompleted := *stoppingCondition == metav1.ConditionFalse
-			if stoppingCompleted {
-				if ispn.Status.ReplicasWantedAtRestart > 0 {
-					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
-					return true
-				}
-				logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
-				return false
+		stoppingCondition := ispn.GetCondition(ConditionStopping)
+		stoppingCompleted := stoppingCondition == metav1.ConditionFalse
+		if stoppingCompleted {
+			if ispn.Status.ReplicasWantedAtRestart > 0 {
+				logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
+				return true
 			}
-			logger.Info("wait for graceful shutdown before update to complete")
+			logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
 			return false
 		}
+		logger.Info("wait for graceful shutdown before update to complete")
+		return false
 	}
 
 	return false

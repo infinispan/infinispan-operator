@@ -80,11 +80,11 @@ func (r *restore) UpdatePhase(phase zero.Phase, phaseErr error) error {
 
 	restorePhase := v2.RestorePhase(phase)
 	var reason string
-	if (phaseErr != nil) {
+	if phaseErr != nil {
 		reason = phaseErr.Error()
 	}
 
-	if instance.Status.Phase == restorePhase && instance.Status.Reason == reason{
+	if instance.Status.Phase == restorePhase && instance.Status.Reason == reason {
 		// Phase already updated so do nothing
 		return nil
 	}

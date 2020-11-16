@@ -63,7 +63,7 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 			log.Info(fmt.Sprintf("Stopping loop for autoscaling on cluster %v. Autoscaling disabled.", clusterNsn))
 			break
 		}
-		if !ispn.IsConditionTrue("wellFormed") || ispn.Spec.Autoscale.Disabled {
+		if !ispn.IsWellFormed() || ispn.Spec.Autoscale.Disabled {
 			// Skip autoscale disabled and not well formed clusters
 			continue
 		}

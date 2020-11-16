@@ -222,7 +222,6 @@ spec:
                     description: Type is the type of the condition.
                     type: string
                 required:
-                - message
                 - status
                 - type
                 type: object

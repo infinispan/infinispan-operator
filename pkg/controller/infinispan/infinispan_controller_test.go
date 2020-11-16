@@ -18,25 +18,25 @@ var podsSameView = []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "pod1-View1
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod2-View1"}, Status: podsReadyStatus},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod3-View1"}, Status: podsReadyStatus},
 }
-var resPodsSameView = ispnv1.InfinispanCondition{Type: "wellFormed", Status: metav1.ConditionTrue, Message: "View: View1"}
+var resPodsSameView = ispnv1.InfinispanCondition{Type: ispnv1.ConditionWellFormed, Status: metav1.ConditionTrue, Message: "View: View1"}
 
 var podsDifferentView = []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "pod1-View1"}, Status: podsReadyStatus},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod2-View2"}, Status: podsReadyStatus},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod3-View2"}, Status: podsReadyStatus},
 }
-var resPodsDifferentView = ispnv1.InfinispanCondition{Type: "wellFormed", Status: metav1.ConditionFalse, Message: "Views: View1,View2"}
+var resPodsDifferentView = ispnv1.InfinispanCondition{Type: ispnv1.ConditionWellFormed, Status: metav1.ConditionFalse, Message: "Views: View1,View2"}
 
 var podsErroredView = []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Namespace: "unitTest", Name: "pod1-View1"}, Status: podsReadyStatus},
 	{ObjectMeta: metav1.ObjectMeta{Namespace: "unitTest", Name: "pod2-ErrorView1"}, Status: podsReadyStatus},
 	{ObjectMeta: metav1.ObjectMeta{Namespace: "unitTest", Name: "pod3-View1"}, Status: podsReadyStatus},
 }
-var resPodsErroredView = ispnv1.InfinispanCondition{Type: "wellFormed", Status: metav1.ConditionUnknown, Message: "Errors: pod2-ErrorView1: error in getting view Views: View1"}
+var resPodsErroredView = ispnv1.InfinispanCondition{Type: ispnv1.ConditionWellFormed, Status: metav1.ConditionUnknown, Message: "Errors: pod2-ErrorView1: error in getting view Views: View1"}
 
 var podsNotReadyView = []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "pod1-View1"}, Status: podsReadyStatus},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod2-View1"}},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod3-View1"}},
 }
-var resPodsNotReadyView = ispnv1.InfinispanCondition{Type: "wellFormed", Status: metav1.ConditionUnknown, Message: "Errors: pod2-View1: pod not ready,pod3-View1: pod not ready Views: View1"}
+var resPodsNotReadyView = ispnv1.InfinispanCondition{Type: ispnv1.ConditionWellFormed, Status: metav1.ConditionUnknown, Message: "Errors: pod2-View1: pod not ready,pod3-View1: pod not ready Views: View1"}
 
 var testTable = []struct {
 	pods      []corev1.Pod

@@ -7,13 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	ConditionPrelimChecksFailed = "preliminaryChecksFailed"
-	ConditionGracefulShutdown   = "gracefulShutdown"
-	ConditionStopping           = "stopping"
-	ConditionWellFormed         = "wellFormed"
-)
-
 // InfinispanAuthInfo authentication info
 type InfinispanAuthInfo struct {
 	Type string `json:"type"`
@@ -158,14 +151,24 @@ type InfinispanSpec struct {
 	Autoscale *Autoscale              `json:"autoscale,optional,omitempty"`
 }
 
+type ConditionType string
+
+const (
+	ConditionPrelimChecksPassed ConditionType = "PreliminaryChecksPassed"
+	ConditionGracefulShutdown   ConditionType = "GracefulShutdown"
+	ConditionStopping           ConditionType = "Stopping"
+	ConditionUpgrade            ConditionType = "Upgrade"
+	ConditionWellFormed         ConditionType = "WellFormed"
+)
+
 // InfinispanCondition define a condition of the cluster
 type InfinispanCondition struct {
 	// Type is the type of the condition.
-	Type string `json:"type"`
+	Type ConditionType `json:"type"`
 	// Status is the status of the condition.
 	Status metav1.ConditionStatus `json:"status"`
 	// Human-readable message indicating details about last transition.
-	Message string `json:"message"`
+	Message string `json:"message,optional,omitempty"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan

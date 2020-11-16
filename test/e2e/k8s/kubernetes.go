@@ -199,8 +199,7 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-		c := infinispan.GetCondition("gracefulShutdown")
-		if err != nil || c == nil || *c != metav1.ConditionTrue {
+		if !infinispan.IsConditionTrue(ispnv1.ConditionGracefulShutdown) {
 			return false, nil
 		}
 		return true, nil
@@ -233,8 +232,7 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-		c := infinispan.GetCondition("wellFormed")
-		if err != nil || c == nil || *c != metav1.ConditionTrue {
+		if err != nil || !infinispan.IsWellFormed() {
 			return false, nil
 		}
 		return true, nil
@@ -400,7 +398,7 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps
 	utils.ExpectNoError(err)
 }
 
-func (k TestKubernetes) WaitForInfinispanCondition(name, namespace, condition string) {
+func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condition ispnv1.ConditionType) {
 	ispn := &ispnv1.Infinispan{}
 	err := wait.Poll(tconst.ConditionPollPeriod, tconst.ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
@@ -410,7 +408,7 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace, condition st
 		if err != nil {
 			return false, nil
 		}
-		if cond := ispn.GetCondition(condition); cond != nil && *cond == metav1.ConditionTrue {
+		if ispn.IsConditionTrue(condition) {
 			log.Info("infinispan condition met", "condition", condition)
 			return true, nil
 		}

@@ -166,7 +166,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Perform all the possible preliminary checks before go on
 	result, err := infinispan.PreliminaryChecks()
 	if err != nil {
-		if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksFailed, "true", err.Error()) {
+		if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, err.Error()) {
 			err1 := r.client.Status().Update(context.TODO(), infinispan)
 			if err1 != nil {
 				reqLogger.Error(err1, "Could not update error conditions")
@@ -174,7 +174,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 		return *result, err
 	}
-	if infinispan.RemoveCondition(infinispanv1.ConditionPrelimChecksFailed) {
+	if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "") {
 		err = r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "Could not update error conditions")
@@ -336,7 +336,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		infinispan.SetCondition("upgrade", metav1.ConditionFalse, "")
+		infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "")
 		err = r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan status")
@@ -655,7 +655,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 			logger.Error(err, "failed to update Infinispan Spec")
 			return &reconcile.Result{}, err
 		}
-		infinispan.SetCondition("upgrade", metav1.ConditionTrue, "")
+		infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
 		err = r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			logger.Error(err, "failed to update Infinispan Status")
@@ -1365,7 +1365,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 		if *statefulSet.Spec.Replicas != 0 {
 			logger.Info("StatefulSet.Spec.Replicas!=0")
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
-			if cond := ispn.GetCondition(infinispanv1.ConditionStopping); cond == nil || *cond != "True" {
+			if !ispn.IsConditionTrue(infinispanv1.ConditionStopping) {
 				res, err := r.gracefulShutdownReq(ispn, podList, logger, cluster)
 				if res != nil {
 					return res, err
@@ -1410,8 +1410,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 		}
 		return &reconcile.Result{}, nil
 	}
-	isGracefulShutdown := ispn.GetCondition(infinispanv1.ConditionGracefulShutdown)
-	if ispn.Spec.Replicas != 0 && isGracefulShutdown != nil && *isGracefulShutdown == "True" {
+	if ispn.Spec.Replicas != 0 && ispn.IsConditionTrue(infinispanv1.ConditionGracefulShutdown) {
 		logger.Info("Resuming from graceful shutdown")
 		// If here we're resuming from graceful shutdown
 		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, ispn)

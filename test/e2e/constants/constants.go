@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,11 +36,11 @@ var (
 	RunSaOperator        = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	OperatorUpgradeStage = strings.ToUpper(constants.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
 	CleanupInfinispan    = strings.ToUpper(constants.GetEnvWithDefault("CLEANUP_INFINISPAN_ON_FINISH", "true"))
-	ExpectedImage	     = constants.GetEnvWithDefault("EXPECTED_IMAGE", "infinispan/server:12.0")
+	ExpectedImage        = constants.GetEnvWithDefault("EXPECTED_IMAGE", "infinispan/server:12.0")
 	NativeImageName      = constants.GetEnvWithDefault("NATIVE_IMAGE", "infinispan/server-native:12.0")
 	ExposeServiceType    = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 
-	OperatorUpgradeStateFlow = []string{"upgrade", "stopping", "wellFormed"}
+	OperatorUpgradeStateFlow = []ispnv1.ConditionType{ispnv1.ConditionUpgrade, ispnv1.ConditionStopping, ispnv1.ConditionWellFormed}
 )
 
 // Options used when deleting resources
