@@ -53,6 +53,10 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 
 		// 3. Backup the cluster's content
 		backupSpec := &v2.Backup{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "infinispan.org/v2alpha1",
+				Kind:       "Backup",
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
@@ -86,6 +90,10 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 
 		// 6. Restore the backed up data from the volume to the target cluster
 		restoreSpec := &v2.Restore{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "infinispan.org/v2alpha1",
+				Kind:       "Restore",
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: namespace,
 				Name:      name,

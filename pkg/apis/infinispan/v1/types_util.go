@@ -250,9 +250,7 @@ func (ispn *Infinispan) NotClusterFormed(pods, replicas int) bool {
 
 func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
 	if ispn.IsUpgradeCondition() {
-		stoppingCondition := ispn.GetCondition(ConditionStopping)
-		stoppingCompleted := stoppingCondition == metav1.ConditionFalse
-		if stoppingCompleted {
+		if ispn.GetCondition(ConditionStopping) == metav1.ConditionFalse {
 			if ispn.Status.ReplicasWantedAtRestart > 0 {
 				logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
 				return true

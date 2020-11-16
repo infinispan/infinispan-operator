@@ -17,7 +17,6 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -217,16 +216,8 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 	}
 
 	if err := ensureClusterStability(infinispan); err != nil {
-		return reconcile.Result{}, fmt.Errorf("Infinispan not stable: %w", err)
-	}
-
-	statefulset := &appsv1.StatefulSet{}
-	if err := z.Client.Get(ctx, clusterKey, statefulset); err != nil {
-		z.Log.Info(fmt.Sprintf("Unable to load Infinispan StatefulSet '%s': %w", clusterName, err))
-		if errors.IsNotFound(err) {
-			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
-		}
-		return reconcile.Result{}, err
+		z.Log.Info("Infinispan not ready: %s", err.Error())
+		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
 	spec, err := instance.Init()
@@ -234,14 +225,14 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 		return reconcile.Result{}, err
 	}
 
-	configMap, err := z.configureServer(name, namespace, spec, infinispan, instance)
+	configMap, err := z.configureServer(name, namespace, infinispan, instance)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("Unable to create zero-capacity configuration: %w", err)
 	}
 
 	err = z.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &corev1.Pod{})
 	if errors.IsNotFound(err) {
-		pod := z.zeroPodSpec(name, namespace, configMap, infinispan, spec, statefulset.Spec.Template.Spec)
+		pod := z.zeroPodSpec(name, namespace, configMap, infinispan, spec)
 		if err := controllerutil.SetControllerReference(instance.AsMeta(), pod, z.Scheme); err != nil {
 			return reconcile.Result{}, fmt.Errorf("Unable to setControllerReference for zero-capacity pod: %w", err)
 		}
@@ -345,8 +336,7 @@ func (z *Controller) isZeroPodReady(request reconcile.Request, instance Resource
 	return false
 }
 
-func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.ConfigMap, ispn *v1.Infinispan, zeroSpec *Spec,
-	podSpec corev1.PodSpec) *corev1.Pod {
+func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.ConfigMap, ispn *v1.Infinispan, zeroSpec *Spec) *corev1.Pod {
 
 	dataVolName := name + "-data"
 	pod := &corev1.Pod{
@@ -429,7 +419,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 	return pod
 }
 
-func (z *Controller) configureServer(name, namespace string, spec *Spec, infinispan *v1.Infinispan, instance Resource) (*corev1.ConfigMap, error) {
+func (z *Controller) configureServer(name, namespace string, infinispan *v1.Infinispan, instance Resource) (*corev1.ConfigMap, error) {
 	clusterConfig := &corev1.ConfigMap{}
 	clusterConfigName := ispnCtrl.ServerConfigMapName(instance.Cluster())
 	clusterKey := types.NamespacedName{
