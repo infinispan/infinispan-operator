@@ -59,8 +59,8 @@ const (
 	CacheServiceJavaOptions                 = "-Xmx%dM -Xms%dM -XX:MaxRAM=%dM -Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=%d -XX:MaxHeapFreeRatio=%d %s"
 	CacheServiceNativeJavaOptions           = "-Xmx%dM -Xms%dM -Dsun.zip.disableMemoryMapping=true %s"
 
-	NativeImageMarker          = "native"
-	InfinispanFinalizer        = "finalizer.infinispan.org"
+	NativeImageMarker        = "native"
+	InfinispanFinalizer      = "finalizer.infinispan.org"
 	ServerConfigRoot         = "/etc/config"
 	ServerSecurityRoot       = "/etc/security"
 	ServerConfigFilename     = "infinispan.yaml"

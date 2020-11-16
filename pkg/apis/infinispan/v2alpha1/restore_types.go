@@ -9,7 +9,7 @@ import (
 type RestoreSpec struct {
 	Cluster   string                     `json:"cluster"`
 	Backup    string                     `json:"backup"`
-	Resources *RestoreResources           `json:"resources,optional,omitempty"`
+	Resources *RestoreResources          `json:"resources,optional,omitempty"`
 	Container v1.InfinispanContainerSpec `json:"container,optional,omitempty"`
 }
 

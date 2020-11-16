@@ -256,13 +256,14 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 }
 
 func ensureClusterStability(infinispan *v1.Infinispan) error {
-	conditions := map[string]metav1.ConditionStatus{
+	conditions := map[v1.ConditionType]metav1.ConditionStatus{
 		v1.ConditionGracefulShutdown:   metav1.ConditionFalse,
-		v1.ConditionPrelimChecksFailed: metav1.ConditionFalse,
+		v1.ConditionPrelimChecksPassed: metav1.ConditionTrue,
+		v1.ConditionUpgrade:            metav1.ConditionFalse,
 		v1.ConditionStopping:           metav1.ConditionFalse,
 		v1.ConditionWellFormed:         metav1.ConditionTrue,
 	}
-	return infinispan.ExpectConditionStatus(conditions, true)
+	return infinispan.ExpectConditionStatus(conditions)
 }
 
 func (z *Controller) execute(httpClient http.HttpClient, request reconcile.Request, instance Resource) (reconcile.Result, error) {
