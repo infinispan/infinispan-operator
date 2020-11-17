@@ -240,7 +240,7 @@ func getSecret(r *ReconcileCache, reqLogger logr.Logger, name, ns string) (*core
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Error(err, fmt.Sprintf("Secret %s not found", name))
-			return nil, reconcile.Result{RequeueAfter: constants.DefaultWaitOnCreateSecret}, err
+			return nil, reconcile.Result{RequeueAfter: constants.DefaultWaitOnCreateResource}, err
 		}
 	}
 	// Error reading the object - requeue the request.

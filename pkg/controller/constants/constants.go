@@ -60,6 +60,7 @@ const (
 	CacheServiceNativeJavaOptions           = "-Xmx%dM -Xms%dM -Dsun.zip.disableMemoryMapping=true %s"
 
 	NativeImageMarker        = "native"
+	GeneratedSecretSuffix    = "generated-secret"
 	InfinispanFinalizer      = "finalizer.infinispan.org"
 	ServerConfigRoot         = "/etc/config"
 	ServerSecurityRoot       = "/etc/security"
@@ -88,14 +89,12 @@ const (
 const (
 	// DefaultMinimumAutoscalePollPeriod minimum period for autoscaler polling loop
 	DefaultMinimumAutoscalePollPeriod = 5 * time.Second
-	//DefaultRequeueOnCreateExposeServiceDelay requeue delay before retry exposed service creation
-	DefaultRequeueOnCreateExposeServiceDelay = 5 * time.Second
 	//DefaultRequeueOnWrongSpec requeue delay on wrong values in Spec
 	DefaultRequeueOnWrongSpec = 5 * time.Second
 	//DefaultWaitOnCluster delay for the Infinispan cluster wait if it not created while Cache creation
 	DefaultWaitOnCluster = 10 * time.Second
-	//DefaultWaitOnCreateSecret delay for wait until secret is created
-	DefaultWaitOnCreateSecret = 2 * time.Second
+	// DefaultWaitOnCreateResource delay for wait until resource (Secret, ConfigMap, Service) is created
+	DefaultWaitOnCreateResource = 2 * time.Second
 	//DefaultWaitClusterNotWellFormed wait delay until cluster is not well formed
 	DefaultWaitClusterNotWellFormed = 15 * time.Second
 )

@@ -107,17 +107,6 @@ func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) 
 	return secret, err
 }
 
-// GetPodIP returns a pod's IP address
-func (k Kubernetes) GetPodIP(podName, namespace string) (string, error) {
-	pod := &v1.Pod{}
-	err := k.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: podName}, pod)
-	if err != nil {
-		return "", err
-	}
-
-	return pod.Status.PodIP, err
-}
-
 // ExecOptions specify execution options
 type ExecOptions struct {
 	Command   []string
