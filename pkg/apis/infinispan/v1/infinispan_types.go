@@ -4,6 +4,7 @@ package v1
 // NOTE: json tags are required. Any new fields you add must have json tags for the fields to be serialized.
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -149,6 +150,7 @@ type InfinispanSpec struct {
 	Logging   *InfinispanLoggingSpec  `json:"logging,optional,omitempty"`
 	Expose    *ExposeSpec             `json:"expose,optional,omitempty"`
 	Autoscale *Autoscale              `json:"autoscale,optional,omitempty"`
+	Affinity  *corev1.Affinity        `json:"affinity,optional,omitempty"`
 }
 
 type ConditionType string
