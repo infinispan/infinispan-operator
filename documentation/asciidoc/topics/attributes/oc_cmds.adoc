@@ -21,3 +21,5 @@
 :oc_create: oc create
 
 :kubectl_exec: oc rsh {example_crd_name}-0
+
+:describe_backup: oc describe Backup my-backup

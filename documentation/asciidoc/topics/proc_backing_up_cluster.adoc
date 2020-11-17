@@ -1,0 +1,68 @@
+[id='backing_up_clusters-{context}']
+= Backing Up {brandname} Clusters
+Create a backup file that stores {brandname} cluster state to a persistent volume.
+
+.Prerequisites
+
+* Create an **Infinispan** CR of `spec.service.type: DataGrid`.
+* Have some resources on your {brandname} cluster to back up.
+Backups archive all resources that the Cache Manager controls, including caches, cache entries, cache templates, Protobuf schema, counters, scripts, and so on.
+
+[IMPORTANT]
+====
+{brandname} backups do not provide snapshot isolation.
+If a write operation occurs on a cache entry that the backup operation has already archived, that write might not be backed up.
+To ensure that you archive the exact state of the cluster, make sure there are no active client connections to the cluster before you back it up.
+====
+
+.Procedure
+
+. Create a **Backup** CR.
++
+For example, create `my-backup.yaml` with the following:
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/cr_backup.yaml[]
+----
++
+<1> Specifies a **Backup** CR.
+<2> Names the backup file.
+<3> Specifies the name of the {brandname} cluster you want to backup.
++
+. Add the `spec.resources` field to back up certain resources only.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/cr_backup_resources.yaml[]
+----
++
+<1> Cache templates.
+<2> Caches by name.
+<3> Counters by name.
+<4> Protobuf schemas for querying.
+<5> Custom server scripts.
++
+. Apply your **Backup** CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} my-backup.yaml
+----
++
+A new pod joins the {brandname} cluster and creates the backup file.
+When the operation is complete, the pod leaves the cluster and logs the following message:
++
+[source,options="nowrap",subs=attributes+]
+----
+ISPN005044: Backup file created 'my-backup.zip'
+----
++
+The resulting backup file is stored in the `{backup_path}` directory.
++
+. Run the following command to verify that the backup is successful:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {describe_backup}
+----

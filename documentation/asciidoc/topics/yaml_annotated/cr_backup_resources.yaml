@@ -1,0 +1,16 @@
+spec:
+  ...
+  resources:
+    cacheConfigs: <1>
+      - distributed-sync-prod
+      - distributed-sync-dev
+    caches: <2>
+      - cache-one
+      - cache-two
+    counters: <3>
+      - counter-name
+    protoSchemas: <4>
+      - authors.proto
+      - books.proto
+    scripts: <5>
+      - wordStream.js
