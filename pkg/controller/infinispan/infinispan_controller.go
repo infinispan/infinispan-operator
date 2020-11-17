@@ -1094,6 +1094,26 @@ func findRemoteLocations(localSiteName string, infinispan *infinispanv1.Infinisp
 	return
 }
 
+func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *corev1.Affinity {
+	// The user hasn't configured Affinity, so we utilise the default strategy of preferring pods are deployed on distinct nodes
+	if i.Spec.Affinity == nil {
+		return &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+					Weight: 100,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: matchLabels,
+						},
+						TopologyKey: "kubernetes.io/hostname",
+					},
+				}},
+			},
+		}
+	}
+	return i.Spec.Affinity
+}
+
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
@@ -1170,6 +1190,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
+					Affinity: podAffinity(m, lsPod),
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
