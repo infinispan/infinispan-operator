@@ -215,8 +215,8 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 		return reconcile.Result{}, err
 	}
 
-	if err := ensureClusterStability(infinispan); err != nil {
-		z.Log.Info("Infinispan not ready: %s", err.Error())
+	if err := infinispan.EnsureClusterStability(); err != nil {
+		z.Log.Info(fmt.Sprintf("Infinispan not ready: %s", err.Error()))
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
@@ -244,17 +244,6 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 
 	// Update status
 	return reconcile.Result{}, instance.UpdatePhase(ZeroInitialized, nil)
-}
-
-func ensureClusterStability(infinispan *v1.Infinispan) error {
-	conditions := map[v1.ConditionType]metav1.ConditionStatus{
-		v1.ConditionGracefulShutdown:   metav1.ConditionFalse,
-		v1.ConditionPrelimChecksPassed: metav1.ConditionTrue,
-		v1.ConditionUpgrade:            metav1.ConditionFalse,
-		v1.ConditionStopping:           metav1.ConditionFalse,
-		v1.ConditionWellFormed:         metav1.ConditionTrue,
-	}
-	return infinispan.ExpectConditionStatus(conditions)
 }
 
 func (z *Controller) execute(httpClient http.HttpClient, request reconcile.Request, instance Resource) (reconcile.Result, error) {
