@@ -238,7 +238,7 @@ func (ispn *Infinispan) GetLogCategoriesForConfigMap() map[string]string {
 
 // IsWellFormed return true if cluster is well formed
 func (ispn *Infinispan) IsWellFormed() bool {
-	return ispn.IsConditionTrue(ConditionWellFormed)
+	return ispn.EnsureClusterStability() == nil
 }
 
 // NotClusterFormed return true is cluster is not well formed
@@ -246,6 +246,17 @@ func (ispn *Infinispan) NotClusterFormed(pods, replicas int) bool {
 	notFormed := ispn.Status.Conditions[0].Status != metav1.ConditionTrue
 	notEnoughMembers := pods < replicas
 	return notFormed || notEnoughMembers
+}
+
+func (ispn *Infinispan) EnsureClusterStability() error {
+	conditions := map[ConditionType]metav1.ConditionStatus{
+		ConditionGracefulShutdown:   metav1.ConditionFalse,
+		ConditionPrelimChecksPassed: metav1.ConditionTrue,
+		ConditionUpgrade:            metav1.ConditionFalse,
+		ConditionStopping:           metav1.ConditionFalse,
+		ConditionWellFormed:         metav1.ConditionTrue,
+	}
+	return ispn.ExpectConditionStatus(conditions)
 }
 
 func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
