@@ -170,7 +170,7 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 	if err := z.Get(context.Background(), clusterObjKey, infinispan); err != nil {
 		if errors.IsNotFound(err) {
-			return reconcile.Result{}, fmt.Errorf("CR '%s' not found: %w", clusterName, err)
+			return reconcile.Result{}, fmt.Errorf("CR '%s' not found", clusterName)
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, fmt.Errorf("Unable to fetch CR '%s': %w", clusterName, err)
@@ -216,7 +216,7 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 	}
 
 	if err := infinispan.EnsureClusterStability(); err != nil {
-		z.Log.Info(fmt.Sprintf("Infinispan not ready: %s", err.Error()))
+		z.Log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", clusterName, err.Error()))
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
