@@ -1,0 +1,62 @@
+[id='restoring_clusters-{context}']
+= Restoring {brandname} Clusters
+Restore {brandname} cluster state from a backup archive.
+
+.Prerequisites
+
+* Create a **Backup** CR on a source cluster.
+* Create a {brandname} cluster of {datagridservice} nodes where you want to restore state.
++
+[IMPORTANT]
+====
+Make sure there are no active client connections to the cluster before you restore the backup.
+Cache entries that you restore from a backup could overwrite more recent cache entries.
+For example, a client does `cache.put(k=2)` before you restore a backup that contains `k=1`.
+====
+
+
+.Procedure
+
+. Create a **Restore** CR.
++
+For example, create `my-restore.yaml` with the following:
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/cr_restore.yaml[]
+----
++
+<1> Specifies a **Restore** CR.
+<2> Provides a unique name for the **Restore** CR.
+<3> Specifies the name of the **Backup** CR.
+<4> Specifies the name of the **Infinispan** CR.
++
+. Add the `spec.resources` field to restore specific resources only.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml_annotated/cr_backup_resources.yaml[]
+----
++
+<1> Cache templates.
+<2> Caches by name.
+<3> Counters by name.
+<4> Protobuf schemas for querying.
+<5> Custom server scripts.
++
+. Apply your **Restore** CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} my-restore.yaml
+----
++
+A new pod joins the {brandname} cluster and restores state from the backup file.
+When the operation is complete, the pod leaves the cluster and logs the following message:
++
+[source,options="nowrap",subs=attributes+]
+----
+ISPN005045: Restore 'my-backup' complete
+----
++
+. Open the {brandname} Console or establish a CLI connection to verify the caches and data are restored to the cluster.
