@@ -665,13 +665,32 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	return nil, nil
 }
 
+func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *corev1.Affinity {
+	// The user hasn't configured Affinity, so we utilise the default strategy of preferring pods are deployed on distinct nodes
+	if i.Spec.Affinity == nil {
+		return &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+					Weight: 100,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: matchLabels,
+						},
+						TopologyKey: "kubernetes.io/hostname",
+					},
+				}},
+			},
+		}
+	}
+	return i.Spec.Affinity
+}
+
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	lsPod := PodLabels(m.ObjectMeta.Name)
 
 	memory := resource.MustParse(m.Spec.Container.Memory)
-
 	replicas := m.Spec.Replicas
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
@@ -696,6 +715,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
+					Affinity: podAffinity(m, lsPod),
 					Containers: []corev1.Container{{
 						Image:          m.ImageName(),
 						Name:           "infinispan",
