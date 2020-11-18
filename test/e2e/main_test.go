@@ -317,7 +317,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 
 	// Wait that current and update revisions match
 	// this ensure that the rolling upgrade completes
-	err = wait.Poll(tconst.DefaultPollPeriod, tconst.SinglePodTimeout, func() (done bool, err error) {
+	err = wait.Poll(tconst.DefaultPollPeriod, 2 * tconst.SinglePodTimeout, func() (done bool, err error) {
 		testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
 		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
 	})

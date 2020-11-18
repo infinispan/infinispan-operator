@@ -6,13 +6,6 @@ go:
 dist: focal
 os: linux
 
-services:
-  - docker
-
-cache:
-  directories:
-  - $GOPATH/pkg/mod
-
 before_install:
   - |
     git fetch origin $TRAVIS_BRANCH
@@ -21,13 +14,12 @@ before_install:
       exit
     }
 
-env:
-  - KIND_VERSION=v0.8.1
-
 jobs:
   include:
     - stage: "Unit Test"
       name: "Unit Test"
+      arch: arm64
+      virt: lxd
       before_script:
         - export GO111MODULE=on
       script:
@@ -36,6 +28,10 @@ jobs:
 
     - stage: "Test"
       name: "Kubernetes"
+      services:
+        - docker
+      env:
+        - KIND_VERSION=v0.8.1
       before_script:
         - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
         - curl -Lo kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64 && chmod +x kind && sudo mv kind /usr/local/bin/
@@ -44,12 +40,11 @@ jobs:
         - kind get kubeconfig > "${KUBECONFIG}"
         - export MAKE_DATADIR_WRITABLE=true
         - export GO111MODULE=on
-      script:
-        - go mod vendor
         - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
         - ./build/prepare-sa-test.sh
+      script:
+        - go mod vendor
         - RUN_SA_OPERATOR=TRUE make test PARALLEL_COUNT=2
-        - kubectl config use-context $TESTING_CONTEXT
       after_failure:
         - kubectl config use-context $TESTING_CONTEXT
         - kubectl get events --all-namespaces

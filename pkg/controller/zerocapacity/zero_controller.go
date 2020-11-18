@@ -210,14 +210,14 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 	if err := z.Client.Get(ctx, clusterKey, infinispan); err != nil {
 		z.Log.Info(fmt.Sprintf("Unable to load Infinispan Cluster '%s': %w", clusterName, err))
 		if errors.IsNotFound(err) {
-			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
+			return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultWaitOnCluster}, nil
 		}
 		return reconcile.Result{}, err
 	}
 
 	if err := infinispan.EnsureClusterStability(); err != nil {
 		z.Log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", clusterName, err.Error()))
-		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
+		return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
 	spec, err := instance.Init()
