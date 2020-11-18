@@ -781,7 +781,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		}
 		dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
 
-		AddServerDataChmodInitContainer(m.ObjectMeta.Name, &dep.Spec.Template.Spec)
+		AddVolumeChmodInitContainer("data-chmod-pv", m.Name, DataMountPath, &dep.Spec.Template.Spec)
 	} else {
 		volumes := &dep.Spec.Template.Spec.Volumes
 		ephemeralVolume := corev1.Volume{
@@ -886,14 +886,14 @@ func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.Env
 }
 
 // Adding an init container that run chmod if needed
-func AddServerDataChmodInitContainer(volumeName string, spec *corev1.PodSpec) {
+func AddVolumeChmodInitContainer(containerName, volumeName, mountPath string, spec *corev1.PodSpec) {
 	if chmod, ok := os.LookupEnv("MAKE_DATADIR_WRITABLE"); ok && chmod == "true" {
 		c := &spec.InitContainers
-		*c = append(*c, ChmodInitContainer("chmod-pv", volumeName, DataMountPath))
+		*c = append(*c, chmodInitContainer(containerName, volumeName, mountPath))
 	}
 }
 
-func ChmodInitContainer(containerName, volumeName, mountPath string) corev1.Container {
+func chmodInitContainer(containerName, volumeName, mountPath string) corev1.Container {
 	return corev1.Container{
 		Image:   consts.InitContainerImageName,
 		Name:    containerName,

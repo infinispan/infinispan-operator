@@ -398,12 +398,9 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 	}
 
 	if zeroSpec.Volume.UpdatePermissions {
-		pod.Spec.InitContainers = []corev1.Container{
-			ispnCtrl.ChmodInitContainer("backup-chmod-pv", name, zeroSpec.Volume.MountPath),
-		}
+		ispnCtrl.AddVolumeChmodInitContainer("backup-chmod-pv", name, zeroSpec.Volume.MountPath, &pod.Spec)
 	}
 
-	ispnCtrl.AddServerDataChmodInitContainer(dataVolName, &pod.Spec)
 	ispnCtrl.AddVolumeForEncryption(ispn, &pod.Spec)
 	return pod
 }
