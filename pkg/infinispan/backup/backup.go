@@ -3,6 +3,7 @@ package backup
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -129,8 +130,15 @@ func (manager *Manager) status(url, name, op string) (Status, error) {
 	case http.StatusNotFound:
 		return StatusUnknown, fmt.Errorf("Unable to retrieve %s with name '%s' from the server", op, name)
 	case http.StatusInternalServerError:
-		return StatusFailed, fmt.Errorf("Unable to retrieve %s with name '%s' due to server error: '%s'", op, name, rsp.Body)
+		return StatusFailed, fmt.Errorf("Unable to retrieve %s with name '%s' due to server error: '%s'", op, name, bodyOrStatus(rsp))
 	default:
-		return StatusUnknown, fmt.Errorf("%s failed. Unexpected response %d: '%s'", op, rsp.StatusCode, rsp.Body)
+		return StatusUnknown, fmt.Errorf("%s failed. Unexpected response %d: '%s'", op, rsp.StatusCode, bodyOrStatus(rsp))
 	}
+}
+
+func bodyOrStatus(rsp *http.Response) interface{} {
+	if body, err := ioutil.ReadAll(rsp.Body); err != nil || string(body) == "" {
+		return rsp.Status
+	}
+	return rsp.Body
 }

@@ -68,7 +68,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		testKube.Create(backupSpec)
 		defer testKube.DeleteBackup(backupSpec)
 
-		// Ensure the backup pod hased joined the cluster
+		// Ensure the backup pod has joined the cluster
 		waitForValidBackupPhase(name, namespace, v2.BackupSucceeded)
 
 		// Ensure that the backup pod has left the cluster, by checking a cluster pod's size
@@ -195,6 +195,16 @@ func assertNumEntries(cacheName, pod string, numEntries int, client ispnclient.H
 	if rsp.StatusCode != http.StatusOK {
 		panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
 	}
+
+	/*
+	body, err := ioutil.ReadAll(rsp.Body)
+	tutils.ExpectNoError(err)
+	numRead, err := strconv.ParseInt(string(body), 10, 64)
+	tutils.ExpectNoError(err)
+	if int(numRead) != numEntries {
+		panic(fmt.Sprintf("Expected %d cache entries but received %d", numEntries, numRead))
+	}
+	*/
 }
 
 func waitForNoCluster(name string) {

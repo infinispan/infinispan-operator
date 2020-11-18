@@ -429,7 +429,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		addAutoscalingEquipment(types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, r)
 	}
 	// Inspect the system and get the current Infinispan conditions
-	currConds := getInfinispanConditions(podList.Items, infinispan, string(infinispan.GetEndpointScheme()), cluster)
+	currConds := getInfinispanConditions(podList.Items, infinispan, cluster)
 
 	// Before updating reload the resource to avoid problems with status update
 	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
@@ -1059,7 +1059,7 @@ func (r *ReconcileInfinispan) secretForInfinispan(identities []byte, m *infinisp
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, protocol string, cluster ispn.ClusterInterface) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, cluster ispn.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	clusterViews := make(map[string]bool)
 	var errors []string
@@ -1071,6 +1071,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 			if kube.IsPodReady(pod) {
 				members, err := cluster.GetClusterMembers(pod.Name)
 				if err == nil {
+					sort.Strings(members)
 					clusterView := strings.Join(members, ",")
 					clusterViews[clusterView] = true
 				} else {

@@ -42,10 +42,12 @@ jobs:
         - export GO111MODULE=on
         - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
         - ./build/prepare-sa-test.sh
+        - ./build/debug-pods.sh &
       script:
         - go mod vendor
         - RUN_SA_OPERATOR=TRUE make test PARALLEL_COUNT=2
       after_failure:
+        - cat debug.log
         - kubectl config use-context $TESTING_CONTEXT
         - kubectl get events --all-namespaces
         - kubectl cluster-info

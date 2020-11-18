@@ -9,7 +9,7 @@ KUBE_DEPLOY_SECRET_NAME=`kubectl -n $TESTING_NAMESPACE get sa infinispan-operato
 KUBE_API_EP=`kubectl get ep kubernetes -n default -o jsonpath='{.subsets[0].addresses[0].ip}'`
 KUBE_API_TOKEN=`kubectl -n $TESTING_NAMESPACE get secret $KUBE_DEPLOY_SECRET_NAME -o jsonpath='{.data.token}'|base64 --decode`
 
-kubectl apply -f deploy/role.yaml -n $TESTING_NAMESPACE
+cat deploy/role.yaml build/debug-role-patch.yaml | kubectl apply -n $TESTING_NAMESPACE -f -
 kubectl apply -f deploy/role_binding.yaml -n $TESTING_NAMESPACE
 kubectl apply -f deploy/clusterrole.yaml -n $TESTING_NAMESPACE
 sed "s/namespace: infinispan-operator/namespace: $TESTING_NAMESPACE/" deploy/clusterrole_binding.yaml | kubectl apply -f -

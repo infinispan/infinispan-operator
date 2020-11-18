@@ -34,14 +34,14 @@ func (a ConditionType) equals(b ConditionType) bool {
 
 // GetCondition return the Status of the given condition or nil
 // if condition is not present
-func (ispn *Infinispan) GetCondition(condition ConditionType) metav1.ConditionStatus {
+func (ispn *Infinispan) GetCondition(condition ConditionType) InfinispanCondition {
 	for _, c := range ispn.Status.Conditions {
 		if c.Type.equals(condition) {
-			return c.Status
+			return c
 		}
 	}
 	// Absence of condition means `False` value
-	return metav1.ConditionFalse
+	return InfinispanCondition{Type: condition, Status: metav1.ConditionFalse}
 }
 
 // SetCondition set condition to status
@@ -78,8 +78,12 @@ func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 func (ispn *Infinispan) ExpectConditionStatus(expected map[ConditionType]metav1.ConditionStatus) error {
 	for key, value := range expected {
 		c := ispn.GetCondition(key)
-		if c != value {
-			return fmt.Errorf("key '%s' has Status '%s', expected '%s'", key, c, value)
+		if c.Status != value {
+			if c.Message == "" {
+				return fmt.Errorf("key '%s' has Status '%s', expected '%s'", key, c.Status, value)
+			} else {
+				return fmt.Errorf("key '%s' has Status '%s', expected '%s' Reason '%s", key, c.Status, value, c.Message)
+			}
 		}
 	}
 	return nil
@@ -149,7 +153,7 @@ func (ispn *Infinispan) IsDataGrid() bool {
 }
 
 func (ispn *Infinispan) IsConditionTrue(name ConditionType) bool {
-	return ispn.GetCondition(name) == metav1.ConditionTrue
+	return ispn.GetCondition(name).Status == metav1.ConditionTrue
 }
 
 func (ispn *Infinispan) IsUpgradeCondition() bool {
@@ -264,7 +268,7 @@ func (ispn *Infinispan) EnsureClusterStability() error {
 
 func (ispn *Infinispan) IsUpgradeNeeded(logger logr.Logger) bool {
 	if ispn.IsUpgradeCondition() {
-		if ispn.GetCondition(ConditionStopping) == metav1.ConditionFalse {
+		if ispn.GetCondition(ConditionStopping).Status == metav1.ConditionFalse {
 			if ispn.Status.ReplicasWantedAtRestart > 0 {
 				logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
 				return true
