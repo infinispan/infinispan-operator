@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	logr "github.com/go-logr/logr"
+	"github.com/go-logr/logr"
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -210,14 +211,14 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 	if err := z.Client.Get(ctx, clusterKey, infinispan); err != nil {
 		z.Log.Info(fmt.Sprintf("Unable to load Infinispan Cluster '%s': %w", clusterName, err))
 		if errors.IsNotFound(err) {
-			return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultWaitOnCluster}, nil
+			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 		}
 		return reconcile.Result{}, err
 	}
 
 	if err := infinispan.EnsureClusterStability(); err != nil {
 		z.Log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", clusterName, err.Error()))
-		return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultWaitOnCluster}, nil
+		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
 	spec, err := instance.Init()
@@ -247,7 +248,7 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 }
 
 func (z *Controller) execute(httpClient http.HttpClient, request reconcile.Request, instance Resource) (reconcile.Result, error) {
-	if !z.isZeroPodReady(request, instance) {
+	if !z.isZeroPodReady(request) {
 		// Don't requeue as reconcile request is received when the zero pod becomes ready
 		return reconcile.Result{}, nil
 	}
@@ -273,10 +274,7 @@ func (z *Controller) waitForExecutionToComplete(httpClient http.HttpClient, requ
 	}
 
 	// Execution has not completed, or it's state is unknown, wait 1 second before retrying
-	return reconcile.Result{
-		Requeue:      true,
-		RequeueAfter: 1 * time.Second,
-	}, nil
+	return reconcile.Result{RequeueAfter: 1 * time.Second,}, nil
 }
 
 func (z *Controller) cleanupResources(request reconcile.Request) (reconcile.Result, error) {
@@ -306,7 +304,7 @@ func wrapErr(old, new error) error {
 	return new
 }
 
-func (z *Controller) isZeroPodReady(request reconcile.Request, instance Resource) bool {
+func (z *Controller) isZeroPodReady(request reconcile.Request) bool {
 	pod := &corev1.Pod{}
 	key := types.NamespacedName{
 		Name:      request.Name,
@@ -316,17 +314,10 @@ func (z *Controller) isZeroPodReady(request reconcile.Request, instance Resource
 	if err := z.Get(context.Background(), key, pod); err != nil {
 		return false
 	}
-
-	for _, c := range pod.Status.Conditions {
-		if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-	return false
+	return kube.IsPodReady(*pod)
 }
 
 func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.ConfigMap, ispn *v1.Infinispan, zeroSpec *Spec) *corev1.Pod {
-
 	dataVolName := name + "-data"
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -335,6 +326,9 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 			Labels:    zeroSpec.PodLabels,
 		},
 		Spec: corev1.PodSpec{
+			SecurityContext: &corev1.PodSecurityContext{
+				FSGroup: pointer.Int64Ptr(1000600000),
+			},
 			Containers: []corev1.Container{{
 				Image:          ispn.ImageName(),
 				Name:           name,

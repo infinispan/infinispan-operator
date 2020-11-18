@@ -123,7 +123,7 @@ func TestGetInfinispanConditions(t *testing.T) {
 	}
 
 	for _, tup := range testTable {
-		conditions := getInfinispanConditions(tup.pods, &spec, "http", m)
+		conditions := getInfinispanConditions(tup.pods, &spec, m)
 		if len(conditions) != 1 {
 			t.Errorf("Expected exaclty 1 condition got %d", len(conditions))
 		}
