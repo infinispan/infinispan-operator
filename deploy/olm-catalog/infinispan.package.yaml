@@ -1,7 +1,0 @@
-channels:
-- currentCSV: infinispan-operator.v9.9.9
-  name: dev-preview
-- currentCSV: infinispan-operator.v9.9.8
-  name: stable
-defaultChannel: dev-preview
-packageName: infinispan
