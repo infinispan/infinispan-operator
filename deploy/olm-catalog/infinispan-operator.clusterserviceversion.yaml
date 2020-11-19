@@ -4,7 +4,6 @@ metadata:
   name: infinispan-operator.v9.9.9
   namespace: placeholder
   annotations:
-    tectonic-visibility: ocs
     capabilities: Full Lifecycle
     categories: "Database"
     repository: https://github.com/infinispan/infinispan-operator
@@ -36,8 +35,7 @@ metadata:
         }
       ]
     description: Create and manage Infinispan clusters.
-    containerImage: docker.io/jboss/infinispan-operator:latest
-    createdAt: 2000-01-01T12:00:00Z
+    containerImage: quay.io/infinispan/operator:latest
     support: Infinispan
     certified: "false"
 spec:
@@ -103,68 +101,6 @@ spec:
   install:
     strategy: deployment
     spec:
-      permissions:
-        - serviceAccountName: infinispan-operator
-          rules:
-          - apiGroups:
-              - ""
-            resources:
-              - pods
-              - services
-              - endpoints
-              - persistentvolumeclaims
-              - events
-              - configmaps
-              - secrets
-            verbs:
-              - '*'
-          - apiGroups:
-              - ""
-            resources:
-              - pods/exec
-            verbs:
-              - create
-          - apiGroups:
-              - ""
-            resources:
-              - namespaces
-            verbs:
-              - get
-          - apiGroups:
-              - apps
-            resources:
-              - deployments
-              - daemonsets
-              - replicasets
-              - statefulsets
-            verbs:
-              - '*'
-          - apiGroups:
-              - route.openshift.io
-            resources:
-              - routes
-              - routes/custom-host
-            verbs:
-              - '*'
-          - apiGroups:
-              - networking.k8s.io
-            resources:
-              - ingresses
-            verbs:
-              - '*'
-          - apiGroups:
-              - monitoring.coreos.com
-            resources:
-              - servicemonitors
-            verbs:
-              - get
-              - create
-          - apiGroups:
-              - infinispan.org
-            resources:
-              - '*'
-            verbs:
-              - '*'
       clusterPermissions:
         - serviceAccountName: infinispan-operator
           rules:
@@ -184,19 +120,21 @@ spec:
             verbs:
               - get
               - list
+          - apiGroups:
+              - storage.k8s.io
+            resources:
+              - storageclasses
+            verbs:
+              - get
               - watch
       deployments:
         - name: infinispan-operator
           spec:
             replicas: 1
-            selector:
-              matchLabels:
-                name: infinispan-operator-alm-owned
             template:
               metadata:
-                name: infinispan-operator-alm-owned
                 labels:
-                  name: infinispan-operator-alm-owned
+                  name: infinispan-operator
               spec:
                 serviceAccountName: infinispan-operator
                 containers:
@@ -218,7 +156,7 @@ spec:
                             fieldPath: metadata.name
                       - name: OPERATOR_NAME
                         value: "infinispan-operator"
-                      - name: DEFAULT_IMAGE
+                      - name: RELATED_IMAGE_OPENJDK 
                         value: "infinispan/server:12.0"
   customresourcedefinitions:
     owned:

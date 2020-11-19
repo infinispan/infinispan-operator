@@ -109,6 +109,7 @@ rules:
   - create
   - update
   - delete
+
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1386,5 +1387,5 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "infinispan-operator"
-            - name: DEFAULT_IMAGE
+            - name: RELATED_IMAGE_OPENJDK
               value: "infinispan/server:12.0"
