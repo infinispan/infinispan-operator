@@ -686,6 +686,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{Requeue: true}, nil
 	}
 
+	// Update the Infinispan status with the pod status
+	// Wait until all pods have ips assigned
+	// Without those ips, it's not possible to execute next calls
+	if !ispncom.ArePodIPsReady(podList) {
+		reqLogger.Info("Pods IPs are not ready yet")
+		return reconcile.Result{}, nil
+	}
+
 	// If x-site enable configure the coordinator pods to be selected by the x-site service
 	if infinispan.HasSites() {
 		found := r.applyLabelsToCoordinatorsPod(podList, infinispan, cluster, reqLogger)
@@ -695,16 +703,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
-	// Update the Infinispan status with the pod status
-	// Wait until all pods have ips assigned
-	// Without those ips, it's not possible to execute next calls
-	if !ispncom.ArePodIPsReady(podList) {
-		reqLogger.Info("Pods IPs are not ready yet")
-		return reconcile.Result{}, nil
-	}
-
 	// All pods ready start autoscaler if needed
-
 	if infinispan.Spec.Autoscale != nil {
 		addAutoscalingEquipment(types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, r)
 	}
