@@ -5,6 +5,7 @@
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -353,6 +354,11 @@ func (in *InfinispanSpec) DeepCopyInto(out *InfinispanSpec) {
 		in, out := &in.Autoscale, &out.Autoscale
 		*out = new(Autoscale)
 		**out = **in
+	}
+	if in.Affinity != nil {
+		in, out := &in.Affinity, &out.Affinity
+		*out = new(corev1.Affinity)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }
