@@ -65,7 +65,7 @@ metadata:
     categories: Database
     repository: https://github.com/infinispan/infinispan-operator
     description: Create and manage Infinispan clusters.
-    containerImage: quay.io/infinispan/operator:2.0.5.Final
+    containerImage: quay.io/infinispan/operator:2.1.0.Dev06
     support: Infinispan
     certified: "false"
   name: infinispan-operator.v2.1.1
@@ -124,7 +124,7 @@ spec:
                         value: infinispan-operator
                       - name: RELATED_IMAGE_OPENJDK
                         value: quay.io/infinispan/server:12.0.0.Dev06
-                    image: jboss/infinispan-operator:latest
+                    image: quay.io/infinispan/operator:2.1.0.Dev06
                     imagePullPolicy: Always
                     name: infinispan-operator
                     ports:
