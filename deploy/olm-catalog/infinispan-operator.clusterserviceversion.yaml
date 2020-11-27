@@ -78,10 +78,12 @@ spec:
         kind: Backup
         name: backups.infinispan.org
         version: v2alpha1
+        displayName: Backup
       - description: Cache is the Schema for the caches API
         kind: Cache
         name: caches.infinispan.org
         version: v2alpha1
+        displayName: Cache
       - description: Infinispan is the Schema for the infinispans API
         kind: Infinispan
         name: infinispans.infinispan.org
@@ -91,6 +93,7 @@ spec:
         kind: Restore
         name: restores.infinispan.org
         version: v2alpha1
+        displayName: Restore
   description: Placeholder description
   displayName: Infinispan Operator
   install:
