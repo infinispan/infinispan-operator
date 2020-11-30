@@ -166,19 +166,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Perform all the possible preliminary checks before go on
 	result, err := infinispan.PreliminaryChecks()
 	if err != nil {
-		if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, err.Error()) {
-			err1 := r.client.Status().Update(context.TODO(), infinispan)
-			if err1 != nil {
-				reqLogger.Error(err1, "Could not update error conditions")
-			}
+		if statusUpdErr := infinispan.UpdateStatus(r.client, reqLogger, func() bool {
+			return infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, err.Error())
+		}, nil); statusUpdErr != nil {
+			return reconcile.Result{}, statusUpdErr
 		}
 		return *result, err
 	}
-	if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "") {
-		err = r.client.Status().Update(context.TODO(), infinispan)
-		if err != nil {
-			reqLogger.Error(err, "Could not update error conditions")
-		}
+	if err = infinispan.UpdateStatus(r.client, reqLogger, func() bool {
+		return infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
+	}, nil); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
@@ -336,10 +334,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "")
-		err = r.client.Status().Update(context.TODO(), infinispan)
-		if err != nil {
-			reqLogger.Error(err, "failed to update Infinispan status")
+		if err := infinispan.UpdateStatus(r.client, reqLogger, func() bool {
+			return infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "")
+		}, nil); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -408,22 +405,14 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Update the Infinispan status with the pod status
 	// Wait until all pods have ips assigned
 	// Without those ips, it's not possible to execute next calls
+
 	if !kube.ArePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
-		err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
-		if err != nil {
-			reqLogger.Error(err, "failed to reload Infinispan status")
-			return reconcile.Result{}, err
-		}
-		if infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready") || infinispan.Status.StatefulSetName != statefulSet.Name {
+		return reconcile.Result{}, infinispan.UpdateStatus(r.client, reqLogger, func() bool {
+			return infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready") || infinispan.Status.StatefulSetName != statefulSet.Name
+		}, func() {
 			infinispan.Status.StatefulSetName = statefulSet.Name
-			err := r.client.Status().Update(context.TODO(), infinispan)
-			if err != nil {
-				reqLogger.Error(err, "failed to update Infinispan status")
-				return reconcile.Result{}, err
-			}
-		}
-		return reconcile.Result{}, nil
+		})
 	}
 
 	// If x-site enable configure the coordinator pods to be selected by the x-site service
@@ -450,12 +439,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Update the Infinispan status with the pod status
-	if infinispan.SetConditions(currConds) {
-		err := r.client.Status().Update(context.TODO(), infinispan)
-		if err != nil {
-			reqLogger.Error(err, "failed to update Infinispan status")
-			return reconcile.Result{}, err
-		}
+	if err := infinispan.UpdateStatus(r.client, reqLogger, func() bool {
+		return infinispan.SetConditions(currConds)
+	}, nil); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	// View didn't form, requeue until view has formed
@@ -486,20 +473,18 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	return reconcile.Result{}, err
 }
 
-func updateSecurity(infinispan *infinispanv1.Infinispan, client client.Client, reqLogger logr.Logger) error {
+func updateSecurity(infinispan *infinispanv1.Infinispan, client client.Client, logger logr.Logger) error {
 	err := client.Update(context.TODO(), infinispan)
 	if err != nil {
-		reqLogger.Error(err, "failed to update Infinispan Spec")
+		logger.Error(err, "failed to update Infinispan Spec")
 		return err
 	}
 	// Copy and update .Status.Security to match .Spec.Security
-	infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
-	err = client.Status().Update(context.TODO(), infinispan)
-	if err != nil {
-		reqLogger.Error(err, "failed to update Infinispan Status", "Infinispan.Namespace", infinispan.Namespace)
-		return err
-	}
-	reqLogger.Info("Security set",
+	return infinispan.UpdateStatus(client, logger, nil, func() {
+		infinispan.Spec.Security.DeepCopyInto(&infinispan.Status.Security)
+	})
+
+	logger.Info("Security set",
 		"Spec.EndpointSecretName", infinispan.Spec.Security.EndpointSecretName,
 		"Status.EndpointSecretName", infinispan.Status.Security.EndpointSecretName)
 	return nil
@@ -666,10 +651,10 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 			logger.Error(err, "failed to update Infinispan Spec")
 			return &reconcile.Result{}, err
 		}
-		infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
-		err = r.client.Status().Update(context.TODO(), infinispan)
-		if err != nil {
-			logger.Error(err, "failed to update Infinispan Status")
+
+		if err := infinispan.UpdateStatus(r.client, logger, func() bool {
+			return infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
+		}, nil); err != nil {
 			return &reconcile.Result{}, err
 		}
 	}
@@ -1414,32 +1399,27 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			}
 
 			// If here all the pods are unready, set statefulset replicas and ispn.replicas to 0
-			ispn.Status.ReplicasWantedAtRestart = *statefulSet.Spec.Replicas
-			err := r.client.Status().Update(context.TODO(), ispn)
-			if err != nil {
-				logger.Error(err, "failed to update Infinispan status")
+			if err := ispn.UpdateStatus(r.client, logger, nil, func() {
+				ispn.Status.ReplicasWantedAtRestart = *statefulSet.Spec.Replicas
+			}); err != nil {
 				return &reconcile.Result{}, err
 			}
 			zeroReplicas := int32(0)
 			statefulSet.Spec.Replicas = &zeroReplicas
-			err = r.client.Update(context.TODO(), statefulSet)
+			err := r.client.Update(context.TODO(), statefulSet)
 			if err != nil {
 				logger.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
 				return &reconcile.Result{}, err
 			}
 		}
-		if statefulSet.Status.CurrentReplicas == 0 {
-			updateStatus = ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "") || updateStatus
-			updateStatus = ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "") || updateStatus
-		}
-		if updateStatus {
-			err := r.client.Status().Update(context.TODO(), ispn)
-			if err != nil {
-				logger.Error(err, "failed to update Infinispan Status")
-				return &reconcile.Result{}, err
+
+		return &reconcile.Result{}, ispn.UpdateStatus(r.client, logger, func() bool {
+			if statefulSet.Status.CurrentReplicas == 0 {
+				updateStatus = ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "") || updateStatus
+				updateStatus = ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "") || updateStatus
 			}
-		}
-		return &reconcile.Result{}, nil
+			return updateStatus
+		}, nil)
 	}
 	if ispn.Spec.Replicas != 0 && ispn.IsConditionTrue(infinispanv1.ConditionGracefulShutdown) {
 		logger.Info("Resuming from graceful shutdown")
@@ -1452,13 +1432,15 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 		if ispn.Spec.Replicas != ispn.Status.ReplicasWantedAtRestart {
 			return &reconcile.Result{Requeue: true}, fmt.Errorf("Spec.Replicas(%d) must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", ispn.Spec.Replicas, ispn.Status.ReplicasWantedAtRestart)
 		}
-		ispn.Status.ReplicasWantedAtRestart = 0
-		ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionFalse, "")
-		err = r.client.Status().Update(context.TODO(), ispn)
-		if err != nil {
-			logger.Error(err, "failed to update Infinispan Status")
+
+		if err := ispn.UpdateStatus(r.client, logger, func() bool {
+			return ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionFalse, "") || ispn.Status.ReplicasWantedAtRestart > 0
+		}, func() {
+			ispn.Status.ReplicasWantedAtRestart = 0
+		}); err != nil {
 			return &reconcile.Result{}, err
 		}
+
 		return &reconcile.Result{Requeue: true}, nil
 	}
 	return nil, nil
@@ -1478,11 +1460,11 @@ func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan,
 				continue
 			}
 			logger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
-			ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionTrue, "")
-			ispn.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionFalse, "")
-			err = r.client.Status().Update(context.TODO(), ispn)
-			if err != nil {
-				logger.Error(err, "This should not happens but failed to update Infinispan Status")
+
+			if err := ispn.UpdateStatus(r.client, logger, func() bool {
+				updated := ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionTrue, "")
+				return ispn.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionFalse, "") || updated
+			}, nil); err != nil {
 				return &reconcile.Result{}, err
 			}
 			// Stop the work and requeue until cluster is down
@@ -1541,10 +1523,9 @@ func (r *ReconcileInfinispan) reconcileEndpointSecret(ispn *infinispanv1.Infinis
 			return &reconcile.Result{}, err
 		}
 		// Copy and update .Status.Security to match .Spec.Security
-		ispn.Spec.Security.DeepCopyInto(&ispn.Status.Security)
-		err = r.client.Status().Update(context.TODO(), ispn)
-		if err != nil {
-			logger.Error(err, "failed to update Infinispan Status")
+		if err := ispn.UpdateStatus(r.client, logger, nil, func() {
+			ispn.Spec.Security.DeepCopyInto(&ispn.Status.Security)
+		}); err != nil {
 			return &reconcile.Result{}, err
 		}
 		logger.Info("Security set",
