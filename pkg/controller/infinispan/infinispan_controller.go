@@ -410,6 +410,19 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Without those ips, it's not possible to execute next calls
 	if !kube.ArePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
+		err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to reload Infinispan status")
+			return reconcile.Result{}, err
+		}
+		if infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready") || infinispan.Status.StatefulSetName != statefulSet.Name {
+			infinispan.Status.StatefulSetName = statefulSet.Name
+			err := r.client.Status().Update(context.TODO(), infinispan)
+			if err != nil {
+				reqLogger.Error(err, "failed to update Infinispan status")
+				return reconcile.Result{}, err
+			}
+		}
 		return reconcile.Result{}, nil
 	}
 
@@ -437,9 +450,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Update the Infinispan status with the pod status
-	changed := infinispan.SetConditions(currConds)
-	infinispan.Status.StatefulSetName = statefulSet.ObjectMeta.Name
-	if changed {
+	if infinispan.SetConditions(currConds) {
 		err := r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan status")
@@ -1003,7 +1014,7 @@ func (r *ReconcileInfinispan) computeConfigMap(xsite *config.XSite, m *infinispa
 
 	loggingCategories := m.GetLogCategoriesForConfigMap()
 	config := config.CreateInfinispanConfiguration(name, loggingCategories, namespace, xsite)
-	// Explicitly set the numner of lock owners in order for zero-capacity nodes to be able to utilise clustered locks
+	// Explicitly set the number of lock owners in order for zero-capacity nodes to be able to utilise clustered locks
 	config.Infinispan.Locks.Owners = m.Spec.Replicas
 
 	err := ConfigureServerEncryption(m, &config, r.client)
