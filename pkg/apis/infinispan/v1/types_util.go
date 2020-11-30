@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,7 +11,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -304,6 +307,30 @@ func (ispn *Infinispan) IsEncryptionCertFromService() bool {
 func (ispn *Infinispan) IsEncryptionCertSourceDefined() bool {
 	ee := ispn.Spec.Security.EndpointEncryption
 	return ee != nil && ee.Type != ""
+}
+
+type StatusUpdateFn func()
+type StatusValidateFn func() bool
+
+func (ispn *Infinispan) UpdateStatus(client client.Client, logger logr.Logger, statusValidate StatusValidateFn, statusUpdate StatusUpdateFn) error {
+	infinispan := &Infinispan{}
+	err := client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, infinispan)
+	if err != nil {
+		logger.Error(err, "failed to reload Infinispan status")
+		return err
+	}
+	infinispan.Status.DeepCopyInto(&ispn.Status)
+	if statusValidate == nil || (statusValidate != nil && statusValidate()) {
+		if statusUpdate != nil {
+			statusUpdate()
+		}
+		err := client.Status().Update(context.TODO(), ispn)
+		if err != nil {
+			logger.Error(err, "failed to update Infinispan status")
+			return err
+		}
+	}
+	return nil
 }
 
 func toMilliDecimalQuantity(value int64) resource.Quantity {
