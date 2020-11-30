@@ -243,7 +243,7 @@ func (ispn *Infinispan) IsWellFormed() bool {
 
 // NotClusterFormed return true is cluster is not well formed
 func (ispn *Infinispan) NotClusterFormed(pods, replicas int) bool {
-	notFormed := ispn.Status.Conditions[0].Status != metav1.ConditionTrue
+	notFormed := !ispn.IsWellFormed()
 	notEnoughMembers := pods < replicas
 	return notFormed || notEnoughMembers
 }
