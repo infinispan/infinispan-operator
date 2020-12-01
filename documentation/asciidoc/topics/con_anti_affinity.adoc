@@ -1,0 +1,34 @@
+[id='anti_affinity-{context}']
+= Anti-Affinity Strategies
+Each {brandname} node in a cluster is a pod that runs on an {k8s} node in a cluster.
+Each {openshift} node runs on a physical host system.
+Anti-affinity works by distributing {brandname} nodes across {k8s} nodes, ensuring that your {brandname} clusters remain available even if hardware failures occur.
+
+{ispn_operator} offers two anti-affinity strategies:
+
+`kubernetes.io/hostname`:: {brandname} replica pods are scheduled on different {k8s} nodes.
+`topology.kubernetes.io/zone`:: {brandname} replica pods are scheduled across multiple zones.
+
+[discrete]
+== Fault tolerance
+Anti-affinity strategies guarantee cluster availability in different ways.
+
+.Scheduling pods on different {k8s} nodes
+
+Provides tolerance of `x` node failures for the following types of cache:
+
+* Replicated: `x = spec.replicas - (spec.replica - 1)` where `spec.replicas >= num_owners`
+* Distributed: `x = num_owners - 1`
+
+.Scheduling pods across multiple zones
+
+Provides tolerance of `x` zone failures when `x` zones exist for the following types of cache:
+
+* Replicated: `x = spec.replicas`
+* Distributed: `x = num_owners - 1`
+
+[NOTE]
+====
+`spec.replicas`:: Defines the number of pods in each {brandname} cluster.
+`num_owners`:: Is the cache configuration attribute that defines the number of replicas for each entry in the cache.
+====
