@@ -32,6 +32,7 @@ spec:
       org.jgroups: trace
   expose: <10>
     type: LoadBalancer
+  affinity <11>
 ----
 
 <1> Names the {brandname} cluster.
@@ -44,3 +45,4 @@ spec:
 <8> Allocates resources to nodes.
 <9> Configures logging.
 <10> Configures services for external traffic.
+<11> Configures affinity and anti-affinity strategies.
