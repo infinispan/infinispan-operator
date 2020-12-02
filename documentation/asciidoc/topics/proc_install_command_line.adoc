@@ -74,3 +74,10 @@ $ {oc_get_pods}
 NAME                                   READY   STATUS
 infinispan-operator-<id>               1/1     Running
 ----
++
+.. Change to the project where your {brandname} cluster runs so you can start applying changes with your **Infinispan** CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_project} ${WATCH_NAMESPACE}
+----
