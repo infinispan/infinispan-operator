@@ -128,14 +128,24 @@ type InfinispanSpec struct {
 	Affinity  *corev1.Affinity        `json:"affinity,optional,omitempty"`
 }
 
+type ConditionType string
+
+const (
+	ConditionPrelimChecksPassed ConditionType = "PreliminaryChecksPassed"
+	ConditionGracefulShutdown   ConditionType = "GracefulShutdown"
+	ConditionStopping           ConditionType = "Stopping"
+	ConditionUpgrade            ConditionType = "Upgrade"
+	ConditionWellFormed         ConditionType = "WellFormed"
+)
+
 // InfinispanCondition define a condition of the cluster
 type InfinispanCondition struct {
 	// Type is the type of the condition.
-	Type string `json:"type"`
+	Type ConditionType `json:"type"`
 	// Status is the status of the condition.
-	Status string `json:"status"`
+	Status metav1.ConditionStatus `json:"status"`
 	// Human-readable message indicating details about last transition.
-	Message string `json:"message"`
+	Message string `json:"message,optional,omitempty"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan
