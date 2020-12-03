@@ -38,12 +38,12 @@ $ make image
 ✅  minikube profile was successfully set to SiteA
 Sending build context to Docker daemon  141.5MB
 ...
-Successfully tagged jboss/infinispan-operator:latest
+Successfully tagged quay.io/infinispan/operator:latest
 
 ✅  minikube profile was successfully set to SiteB
 Sending build context to Docker daemon  141.5MB
 ... 
-Successfully tagged jboss/infinispan-operator:latest
+Successfully tagged quay.io/infinispan/operator:latest
 ```
 
 Next, deploy the operator and example operator instance to both sites:

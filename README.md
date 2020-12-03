@@ -56,7 +56,7 @@ $ oc cluster up
 $ export KUBECONFIG=/path/to/admin.kubeconfig
 ```
 3. Create the Infinispan operator on OKD from the source code.
-  * Use the public  [jboss/infinispan-operator](https://hub.docker.com/r/jboss/infinispan-operator) image:
+  * Use the public  [quay.io/infinispan/operator](https://quay.io/repository/infinispan/operator) image:
   ```
   $ make run
   ```

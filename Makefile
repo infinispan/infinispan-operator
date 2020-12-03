@@ -1,4 +1,4 @@
-IMAGE ?= jboss/infinispan-operator
+IMAGE ?= quay.io/infinispan/operator
 TAG ?= latest
 GOOS ?= linux
 PROG  := infinispan-operator
