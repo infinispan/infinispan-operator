@@ -55,7 +55,7 @@ is gracefully shut down.
 | Operator image
 | string
 | false
-| `infinispan/server:12.0`
+| `quay.io/infinispan/server:12.0`
 | v1
 
 | `profile`
@@ -723,7 +723,7 @@ kind: Infinispan
 metadata:
   name: full-cache-example-infinispan
 spec:
-  image: infinispan/server:12.0
+  image: quay.io/infinispan/server:12.0
   replicas: 4
   profile: Development
   service:
@@ -812,7 +812,7 @@ kind: Infinispan
 metadata:
   name: full-datagrid-example-infinispan
 spec:
-  image: infinispan/server:12.0
+  image: quay.io/infinispan/server:12.0
   replicas: 6
   profile: Performance
   service:

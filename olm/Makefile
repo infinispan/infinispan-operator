@@ -51,9 +51,8 @@ swap-image:
 	sed -i'.backup' "s/jboss\/infinispan-operator/${IMAGE_REPO}\/${IMAGE_NAME}/g" $${csv}; \
 	rm -f *.backup
 
-latest-server = `curl -s https://registry.hub.docker.com/v1/repositories/infinispan/server/tags \
-    | jq '.[].name' \
-    | sort -r \
+latest-server = `curl https://quay.io/api/v1/repository/infinispan/server/tag/ | jq ".tags[].name" \
+    | sort -ur \
     | sed "2q;d" \
     | sed 's/"//g'`
 
