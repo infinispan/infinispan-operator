@@ -36,4 +36,4 @@ spec:
             - name: OPERATOR_NAME
               value: "infinispan-operator"
             - name: RELATED_IMAGE_OPENJDK
-              value: "infinispan/server:12.0"
+              value: "quay.io/infinispan/server:12.0"

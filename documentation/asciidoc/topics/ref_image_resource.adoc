@@ -4,7 +4,7 @@
 [source,options="nowrap",subs=attributes+]
 ----
 spec:
-  image: infinispan/server:latest <1>
+  image: quay.io/infinispan/server:latest <1>
 ----
 
 <1> Lets you specify a {brandname} image to use.
