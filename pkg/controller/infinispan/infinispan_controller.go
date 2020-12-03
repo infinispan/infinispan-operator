@@ -168,8 +168,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *recResult, err
 	} else {
 		if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "") {
-			err1 := r.client.Status().Update(context.TODO(), infinispan)
-			reqLogger.Error(err1, "Could not update error conditions")
+			if err1 := r.client.Status().Update(context.TODO(), infinispan); err1 != nil {
+				reqLogger.Error(err1, "Could not update error conditions")
+				return reconcile.Result{}, err1
+			}
 		}
 	}
 
@@ -521,8 +523,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 		}
 		if found.Status.CurrentReplicas == 0 {
-			updateStatus = updateStatus || infinispan.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")
-			updateStatus = updateStatus || infinispan.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "")
+			updateStatus = infinispan.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "") || updateStatus
+			updateStatus = infinispan.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "") || updateStatus
 		}
 		if updateStatus {
 			r.client.Status().Update(context.TODO(), infinispan)
