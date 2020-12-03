@@ -9,13 +9,13 @@
     install:
       - name: builder-infinispan-operator
 
-- name: "jboss/infinispan-operator"
+- name: "quay.io/infinispan/operator"
   description: "Infinispan Operator"
   version: latest
   from: "registry.access.redhat.com/ubi8/ubi-minimal"
   labels:
     - name: "name"
-      value: "jboss/infinispan-operator"
+      value: "quay.io/infinispan/operator"
     - name: "url"
       value: "https://github.com/infinispan/infinispan-operator"
   modules:

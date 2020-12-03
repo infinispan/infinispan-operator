@@ -4,4 +4,4 @@ pushd ../..
 minikube profile "$1";
 eval "$(minikube docker-env)"
 echo "${DOCKER_HOST}"
-docker build -t jboss/infinispan-operator:latest . -f build/Dockerfile.single
+docker build -t quay.io/infinispan/operator:latest . -f build/Dockerfile.single

@@ -1,7 +1,7 @@
 .PHONY: delete-namespace image push deploy-operator undeploy-operator deploy undeploy create-cache put get
 
 NAMESPACE ?= infinispan-operator
-IMAGE ?= jboss/infinispan-operator
+IMAGE ?= quay.io/infinispan/operator
 TAG ?= latest
 
 ## image                 Builds and creates an operator image
