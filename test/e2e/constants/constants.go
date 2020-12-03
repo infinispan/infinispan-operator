@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,7 +39,7 @@ var (
 	OperatorUpgradeStage = strings.ToUpper(comutil.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
 	ExposeServiceType    = comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 
-	OperatorUpgradeStateFlow = []string{"upgrade", "stopping", "wellFormed"}
+	OperatorUpgradeStateFlow = []ispnv1.ConditionType{ispnv1.ConditionUpgrade, ispnv1.ConditionStopping, ispnv1.ConditionWellFormed}
 )
 
 // Options used when deleting resources
