@@ -2,6 +2,8 @@ package v1
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
@@ -11,23 +13,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+// equals compares two ConditionType's case insensitive
+func (a ConditionType) equals(b ConditionType) bool {
+	return strings.ToLower(string(a)) == strings.ToLower(string(b))
+}
+
 // GetCondition return the Status of the given condition or nil
 // if condition is not present
-func (ispn *Infinispan) GetCondition(condition string) *string {
+func (ispn *Infinispan) GetCondition(condition ConditionType) InfinispanCondition {
 	for _, c := range ispn.Status.Conditions {
-		if c.Type == condition {
-			return &c.Status
+		if c.Type.equals(condition) {
+			return c
 		}
 	}
-	return nil
+	// Absence of condition means `False` value
+	return InfinispanCondition{Type: condition, Status: metav1.ConditionFalse}
 }
 
 // SetCondition set condition to status
-func (ispn *Infinispan) SetCondition(condition, status, message string) bool {
+func (ispn *Infinispan) SetCondition(condition ConditionType, status metav1.ConditionStatus, message string) bool {
 	changed := false
 	for idx := range ispn.Status.Conditions {
 		c := &ispn.Status.Conditions[idx]
-		if c.Type == condition {
+		if c.Type.equals(condition) {
 			if c.Status != status {
 				c.Status = status
 				changed = true
@@ -36,24 +44,11 @@ func (ispn *Infinispan) SetCondition(condition, status, message string) bool {
 				c.Message = message
 				changed = true
 			}
-
 			return changed
 		}
 	}
 	ispn.Status.Conditions = append(ispn.Status.Conditions, InfinispanCondition{Type: condition, Status: status, Message: message})
 	return true
-}
-
-// RemoveCondition remove condition from Status
-func (ispn *Infinispan) RemoveCondition(condition string) bool {
-	for idx := range ispn.Status.Conditions {
-		c := &ispn.Status.Conditions[idx]
-		if c.Type == condition {
-			ispn.Status.Conditions = append(ispn.Status.Conditions[:idx], ispn.Status.Conditions[idx+1:]...)
-			return true
-		}
-	}
-	return false
 }
 
 // SetConditions set provided conditions to status
@@ -63,6 +58,20 @@ func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 		changed = changed || ispn.SetCondition(c.Type, c.Status, c.Message)
 	}
 	return changed
+}
+
+func (ispn *Infinispan) ExpectConditionStatus(expected map[ConditionType]metav1.ConditionStatus) error {
+	for key, value := range expected {
+		c := ispn.GetCondition(key)
+		if c.Status != value {
+			if c.Message == "" {
+				return fmt.Errorf("key '%s' has Status '%s', expected '%s'", key, c.Status, value)
+			} else {
+				return fmt.Errorf("key '%s' has Status '%s', expected '%s' Reason '%s", key, c.Status, value, c.Message)
+			}
+		}
+	}
+	return nil
 }
 
 // ApplyDefaults applies default values to the Infinispan instance
@@ -105,13 +114,12 @@ func (ispn *Infinispan) IsDataGrid() bool {
 	return ServiceTypeDataGrid == ispn.Spec.Service.Type
 }
 
-func (ispn *Infinispan) IsConditionTrue(name string) bool {
-	upgradeCondition := ispn.GetCondition(name)
-	return upgradeCondition != nil && *upgradeCondition == "True"
+func (ispn *Infinispan) IsConditionTrue(name ConditionType) bool {
+	return ispn.GetCondition(name).Status == metav1.ConditionTrue
 }
 
 func (ispn *Infinispan) IsUpgradeCondition() bool {
-	return ispn.IsConditionTrue("upgrade")
+	return ispn.IsConditionTrue(ConditionUpgrade)
 }
 
 func (ispn *Infinispan) GetServiceExternalName() string {
@@ -201,5 +209,5 @@ func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
 
 // IsWellFormed return true if cluster is well formed
 func (ispn *Infinispan) IsWellFormed() bool {
-	return ispn.IsConditionTrue("wellFormed")
+	return ispn.IsConditionTrue(ConditionWellFormed)
 }

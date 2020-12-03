@@ -161,13 +161,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Perform all the possible preliminary checks before go on
 	recResult, err := infinispan.PreliminaryChecks()
 	if err != nil {
-		if infinispan.SetCondition("preliminaryChecksFailed", "true", err.Error()) {
+		if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, err.Error()) {
 			err1 := r.client.Status().Update(context.TODO(), infinispan)
 			reqLogger.Error(err1, "Could not update error conditions")
 		}
 		return *recResult, err
 	} else {
-		if infinispan.RemoveCondition("preliminaryChecksFailed") {
+		if infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "") {
 			err1 := r.client.Status().Update(context.TODO(), infinispan)
 			reqLogger.Error(err1, "Could not update error conditions")
 		}
@@ -297,7 +297,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		infinispan.SetCondition("upgrade", "False", "")
+		infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "")
 		err = r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan status")
@@ -474,7 +474,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				}
 			}
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
-			if cond := infinispan.GetCondition("stopping"); cond == nil || *cond != "True" {
+			if !infinispan.IsConditionTrue(infinispanv1.ConditionStopping) {
 				reqLogger.Info("Sending graceful shutdown request")
 				// send a graceful shutdown to the first ready pod
 				// if there's no ready pod we're in trouble
@@ -489,8 +489,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 							continue
 						}
 						reqLogger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
-						infinispan.SetCondition("stopping", "True", "")
-						infinispan.SetCondition("wellFormed", "False", "")
+						infinispan.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionTrue, "")
+						infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionFalse, "")
 						r.client.Status().Update(context.TODO(), infinispan)
 						if err != nil {
 							reqLogger.Error(err, "This should not happens but failed to update Infinispan Status")
@@ -521,8 +521,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 		}
 		if found.Status.CurrentReplicas == 0 {
-			updateStatus = updateStatus || infinispan.SetCondition("gracefulShutdown", "True", "")
-			updateStatus = updateStatus || infinispan.SetCondition("stopping", "False", "")
+			updateStatus = updateStatus || infinispan.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")
+			updateStatus = updateStatus || infinispan.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "")
 		}
 		if updateStatus {
 			r.client.Status().Update(context.TODO(), infinispan)
@@ -533,8 +533,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 		return reconcile.Result{}, nil
 	}
-	isGracefulShutdown := infinispan.GetCondition("gracefulShutdown")
-	if infinispan.Spec.Replicas != 0 && isGracefulShutdown != nil && *isGracefulShutdown == "True" {
+	if infinispan.Spec.Replicas != 0 && infinispan.IsConditionTrue(infinispanv1.ConditionGracefulShutdown) {
 		reqLogger.Info("Resuming from graceful shutdown")
 		// If here we're resuming from graceful shutdown
 		r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
@@ -548,7 +547,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 		infinispan.Status.ReplicasWantedAtRestart = 0
-		infinispan.SetCondition("gracefulShutdown", "False", "")
+		infinispan.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionFalse, "")
 		err = r.client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to update Infinispan Status")
@@ -558,7 +557,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// If upgrade required, do not process any further and handle upgrades
-	if isUpgradeCondition(infinispan) {
+	if infinispan.IsUpgradeCondition() {
 		reqLogger.Info("isUpgradeCondition")
 		return reconcile.Result{Requeue: true}, nil
 	}
@@ -890,40 +889,26 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 }
 
 func upgradeNeeded(infinispan *infinispanv1.Infinispan, logger logr.Logger) bool {
-	if isUpgradeCondition(infinispan) {
-		stoppingCondition := infinispan.GetCondition("stopping")
-		if stoppingCondition != nil {
-			stoppingCompleted := *stoppingCondition == "False"
-			if stoppingCompleted {
-				if infinispan.Status.ReplicasWantedAtRestart > 0 {
-					logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
-					return true
-				}
-				logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
-				return false
+	if infinispan.IsUpgradeCondition() {
+		if !infinispan.IsConditionTrue(infinispanv1.ConditionStopping) {
+			if infinispan.Status.ReplicasWantedAtRestart > 0 {
+				logger.Info("graceful shutdown after upgrade completed, continue upgrade process")
+				return true
 			}
-			logger.Info("wait for graceful shutdown before update to complete")
+			logger.Info("replicas to restart with not yet set, wait for graceful shutdown to complete")
 			return false
 		}
+		logger.Info("wait for graceful shutdown before update to complete")
+		return false
 	}
-
 	return false
-}
-
-func isUpgradeCondition(infinispan *infinispanv1.Infinispan) bool {
-	return isConditionTrue("upgrade", infinispan)
-}
-
-func isConditionTrue(name string, infinispan *infinispanv1.Infinispan) bool {
-	upgradeCondition := infinispan.GetCondition(name)
-	return upgradeCondition != nil && *upgradeCondition == "True"
 }
 
 func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) {
 	if len(podList.Items) == 0 {
 		return
 	}
-	if isUpgradeCondition(infinispan) {
+	if infinispan.IsUpgradeCondition() {
 		return
 	}
 
@@ -950,7 +935,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 		infinispan.Spec.Replicas = 0
 		infinispan.Spec.Image = desiredImage
 		r.client.Update(context.TODO(), infinispan)
-		infinispan.SetCondition("upgrade", "True", "")
+		infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
 		r.client.Status().Update(context.TODO(), infinispan)
 	}
 }
@@ -1478,7 +1463,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 		}
 	}
 	// Evaluating WellFormed condition
-	wellformed := infinispanv1.InfinispanCondition{Type: "wellFormed"}
+	wellformed := infinispanv1.InfinispanCondition{Type: infinispanv1.ConditionWellFormed}
 	views := make([]string, len(clusterViews))
 	i := 0
 	for k := range clusterViews {
