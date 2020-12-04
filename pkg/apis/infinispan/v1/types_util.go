@@ -324,11 +324,13 @@ func (ispn *Infinispan) UpdateStatus(client client.Client, logger logr.Logger, s
 		if statusUpdate != nil {
 			statusUpdate()
 		}
-		err := client.Status().Update(context.TODO(), ispn)
+		ispn.Status.DeepCopyInto(&infinispan.Status)
+		err := client.Status().Update(context.TODO(), infinispan)
 		if err != nil {
 			logger.Error(err, "failed to update Infinispan status")
 			return err
 		}
+		infinispan.Status.DeepCopyInto(&ispn.Status)
 	}
 	return nil
 }
