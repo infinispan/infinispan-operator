@@ -217,7 +217,6 @@ func TestClusterFormationWithTLS(t *testing.T) {
 
 // Test if spec.container.cpu update is handled
 func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
-	t.Parallel()
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.CPU = "250m"
 	}
