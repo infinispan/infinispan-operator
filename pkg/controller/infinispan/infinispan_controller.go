@@ -830,7 +830,7 @@ func PodReadinessProbe(i *infinispanv1.Infinispan) *corev1.Probe {
 		Handler:             ispn.ClusterStatusHandler(i.GetEndpointScheme()),
 		FailureThreshold:    5,
 		InitialDelaySeconds: 10,
-		PeriodSeconds:       60,
+		PeriodSeconds:       10,
 		SuccessThreshold:    1,
 		TimeoutSeconds:      80,
 	}
