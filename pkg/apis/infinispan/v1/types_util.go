@@ -304,7 +304,7 @@ func (ispn *Infinispan) ApplyEndpointEncryptionSettings(servingCertsMode string,
 // IsEncryptionCertFromService returns true if encryption certificates comes from a cluster service
 func (ispn *Infinispan) IsEncryptionCertFromService() bool {
 	ee := ispn.Spec.Security.EndpointEncryption
-	return ee != nil && (ee.Type == CertificateSourceTypeService || ee.Type == CertificateSourceTypeSecretLowCase)
+	return ee != nil && (ee.Type == CertificateSourceTypeService || ee.Type == CertificateSourceTypeServiceLowCase)
 }
 
 // IsEncryptionCertSourceDefined returns true if encryption certificates source is defined
