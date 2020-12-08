@@ -8,8 +8,8 @@
 
 :example_crd_name: example-infinispan
 :example_namespace: rhdg-namespace
-:pv_path: /opt/datagrid/server/data
-:conf_path: /opt/datagrid/server/conf
+:pv_path: /opt/infinispan/server/data
+:conf_path: /opt/infinispan/server/conf
 
 //
 // Operator
