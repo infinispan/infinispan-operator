@@ -14,7 +14,7 @@
 
 :image_resource: infinispan/server:latest
 
-:pv_path: /opt/datagrid/server/data
+:pv_path: /opt/infinispan/server/data
 
 include::oc_cmds.adoc[]
 include::links.adoc[]
