@@ -8,9 +8,9 @@
 
 :example_crd_name: example-infinispan
 :example_namespace: rhdg-namespace
-:pv_path: /opt/datagrid/server/data
-:conf_path: /opt/datagrid/server/conf
-:backup_path: /opt/datagrid/backups
+:pv_path: /opt/infinispan/server/data
+:conf_path: /opt/infinispan/server/conf
+:backup_path: /opt/infinispan/backups
 
 //
 // Operator
