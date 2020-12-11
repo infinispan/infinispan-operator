@@ -4,7 +4,7 @@ Create a backup file that stores {brandname} cluster state to a persistent volum
 
 .Prerequisites
 
-* Create an **Infinispan** CR of `spec.service.type: DataGrid`.
+* Create an `Infinispan` CR of `spec.service.type: DataGrid`.
 * Have some resources on your {brandname} cluster to back up.
 Backups archive all resources that the Cache Manager controls, including caches, cache entries, cache templates, Protobuf schema, counters, scripts, and so on.
 

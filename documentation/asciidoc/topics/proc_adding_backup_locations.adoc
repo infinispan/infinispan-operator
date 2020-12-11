@@ -8,7 +8,7 @@ can add backup locations to your cache configurations.
 . Create cache configurations that name remote sites as backup locations.
 +
 {brandname} replicates data based on cache names.
-For this reason, site names in your cache configurations must match site names, `spec.service.sites.local.name`, in your **Infinispan** CRs.
+For this reason, site names in your cache configurations must match site names, `spec.service.sites.local.name`, in your `Infinispan` CRs.
 +
 . Configure backup locations to go offline automatically with the `take-offline` element.
 .. Set the amount of time, in milliseconds, before backup locations go offline with the `min-wait` attribute.

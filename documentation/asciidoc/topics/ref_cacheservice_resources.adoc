@@ -37,7 +37,7 @@ spec:
 
 <1> Names the {brandname} cluster.
 <2> Specifies the number of nodes in the cluster.
-<3> Creates {cacheservice} clusters. This is the default for Infinispan CR.
+<3> Creates {cacheservice} clusters. This is the default for the `Infinispan` CR.
 <4> Configures the number of replicas for each cache entry across the cluster.
 <5> Enables and configures automatic cluster scaling.
 <6> Adds an authentication secret with user credentials.

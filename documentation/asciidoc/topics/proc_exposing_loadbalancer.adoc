@@ -10,7 +10,7 @@ a load balancer service.
 
 .Procedure
 
-. Include `spec.expose` in your **Infinispan** CR.
+. Include `spec.expose` in your `Infinispan` CR.
 . Specify `LoadBalancer` as the service type with `spec.expose.type`.
 +
 [source,options="nowrap",subs=attributes+]

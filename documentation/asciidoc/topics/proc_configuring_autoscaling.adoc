@@ -14,13 +14,13 @@ threshold, {ispn_operator} shuts down nodes.
 ====
 Automatic scaling works with the default cache only. If you plan to add other
 caches to your cluster, you should not include the `autoscale` field in your
-**Infinispan** CR. In this case you should use eviction to control the size of
+`Infinispan` CR. In this case you should use eviction to control the size of
 the data container on each node.
 ====
 
 .Procedure
 
-. Add the `spec.autoscale` resource to your **Infinispan** CR to enable automatic scaling.
+. Add the `spec.autoscale` resource to your `Infinispan` CR to enable automatic scaling.
 . Configure memory usage thresholds and number of nodes for your cluster with the `autoscale` field.
 +
 [source,options="nowrap",subs=attributes+]

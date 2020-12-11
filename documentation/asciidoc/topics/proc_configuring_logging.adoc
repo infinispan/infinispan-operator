@@ -3,7 +3,7 @@
 
 .Procedure
 
-. Specify logging configuration with `spec.logging` in your **Infinispan** CR
+. Specify logging configuration with `spec.logging` in your `Infinispan` CR
 and then apply the changes.
 +
 [source,options="nowrap",subs=attributes+]
