@@ -5,7 +5,7 @@
 in a secret so you can retrieve them and use with remote clients.
 
 If the {openshift} service CA is available, {ispn_operator} adds the following
-`spec.security.endpointEncryption` configuration to the **Infinispan** CR:
+`spec.security.endpointEncryption` configuration to the `Infinispan` CR:
 
 [source,options="nowrap",subs=attributes+]
 ----

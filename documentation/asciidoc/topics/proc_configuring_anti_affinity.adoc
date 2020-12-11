@@ -4,7 +4,7 @@ Specify where {k8s} schedules pods for your {brandname} clusters to ensure avail
 
 .Procedure
 
-. Add the `spec.affinity` field to your **Infinispan** CR.
+. Add the `spec.affinity` field to your `Infinispan` CR.
 . Configure anti-affinity strategies with the `podAntiAffinity` field.
 . Define `kubernetes.io/hostname` and `topology.kubernetes.io/zone` strategies with the `topologyKey` field.
 . Set the `weight` field to give preference to one strategy over another when using hostname and zone anti-affinity strategies together.

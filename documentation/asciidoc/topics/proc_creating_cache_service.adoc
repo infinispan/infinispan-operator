@@ -5,7 +5,7 @@ nodes.
 
 .Procedure
 
-. Create an **Infinispan** CR.
+. Create an `Infinispan` CR.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
@@ -19,6 +19,6 @@ spec:
     type: Cache <1>
 ----
 +
-<1> Creates nodes {cacheservice} nodes. This is the default for the **Infinispan** CR.
+<1> Creates nodes {cacheservice} nodes. This is the default for the `Infinispan` CR.
 +
-. Apply your **Infinispan** CR to create the cluster.
+. Apply your `Infinispan` CR to create the cluster.
