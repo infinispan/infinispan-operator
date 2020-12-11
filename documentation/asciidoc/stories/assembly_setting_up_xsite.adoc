@@ -7,7 +7,7 @@ To set up cross-site replication, you configure {ispn_operator} to automatically
 
 [NOTE]
 ====
-You can use both automatic and manual connections for {brandname} clusters in the same **Infinispan** CR.
+You can use both automatic and manual connections for {brandname} clusters in the same `Infinispan` CR.
 However, you must ensure that {brandname} clusters establish connections in the same way at each site.
 ====
 

@@ -13,7 +13,7 @@ endif::productized[]
 
 .Procedure
 
-. Include `spec.expose` in your **Infinispan** CR.
+. Include `spec.expose` in your `Infinispan` CR.
 . Specify `Route` as the service type with `spec.expose.type`.
 . Optionally add a hostname with `spec.expose.host`.
 +

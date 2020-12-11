@@ -6,7 +6,7 @@ cross-site replication, create clusters of {datagridservice} nodes.
 .Procedure
 
 . Specify `DataGrid` as the value for `spec.service.type` in your
-**Infinispan** CR.
+`Infinispan` CR.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
@@ -20,4 +20,4 @@ change the service type, you must delete the existing nodes and create new ones.
 ====
 +
 . Configure nodes with any other {datagridservice} resources.
-. Apply your **Infinispan** CR to create the cluster.
+. Apply your `Infinispan` CR to create the cluster.

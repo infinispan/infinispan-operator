@@ -29,7 +29,7 @@ include::yaml/cr_restore.yaml[]
 <1> Specifies a **Restore** CR.
 <2> Provides a unique name for the **Restore** CR.
 <3> Specifies the name of the **Backup** CR.
-<4> Specifies the name of the **Infinispan** CR.
+<4> Specifies the name of the `Infinispan` CR.
 +
 . Add the `spec.resources` field to restore specific resources only.
 +

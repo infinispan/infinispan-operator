@@ -13,7 +13,7 @@ Review log messages to ensure that {brandname} nodes receive clustered views.
 include::cmd_examples/oc_logs_clusterview.adoc[]
 ----
 
-** Retrieve the **Infinispan** CR for {ispn_operator}.
+** Retrieve the `Infinispan` CR for {ispn_operator}.
 +
 [source,options="nowrap",subs=attributes+]
 ----
