@@ -16,7 +16,7 @@ Use {cacheservice} if you want a volatile, low-latency data store with minimal c
 [IMPORTANT]
 ====
 Because {cacheservice} nodes are volatile you lose all data when you apply
-changes to the cluster with the **Infinispan** CR or update the {brandname}
+changes to the cluster with the `Infinispan` CR or update the {brandname}
 version.
 ====
 

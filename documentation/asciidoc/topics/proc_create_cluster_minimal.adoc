@@ -5,7 +5,7 @@ Use {ispn_operator} to create clusters of two or more {brandname} nodes.
 .Procedure
 
 . Specify the number of {brandname} nodes in the cluster with `spec.replicas`
-in your **Infinispan** CR.
+in your `Infinispan` CR.
 +
 For example, create a `cr_minimal.yaml` file as follows:
 +
@@ -14,7 +14,7 @@ For example, create a `cr_minimal.yaml` file as follows:
 include::cmd_examples/cat_cr_minimal.adoc[]
 ----
 +
-. Apply your **Infinispan** CR.
+. Apply your `Infinispan` CR.
 +
 [source,options="nowrap",subs=attributes+]
 ----

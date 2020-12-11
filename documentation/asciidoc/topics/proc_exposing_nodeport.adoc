@@ -4,7 +4,7 @@ Use a node port service to expose {brandname} clusters on the network.
 
 .Procedure
 
-. Include `spec.expose` in your **Infinispan** CR.
+. Include `spec.expose` in your `Infinispan` CR.
 . Specify `NodePort` as the service type with `spec.expose.type`.
 +
 [source,options="nowrap",subs=attributes+]

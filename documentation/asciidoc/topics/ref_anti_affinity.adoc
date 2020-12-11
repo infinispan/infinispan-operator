@@ -1,11 +1,11 @@
 [id='anti_affinity_configuration-{context}']
 = Anti-Affinity Strategy Configurations
-Configure anti-affinity strategies in your **Infinispan** CR to control where {k8s} schedules {brandname} replica pods.
+Configure anti-affinity strategies in your `Infinispan` CR to control where {k8s} schedules {brandname} replica pods.
 
 [discrete]
 == Schedule pods on different {k8s} nodes
 
-The following is the anti-affinity strategy that {ispn_operator} uses if you do not configure the `spec.affinity` field in your **Infinispan** CR:
+The following is the anti-affinity strategy that {ispn_operator} uses if you do not configure the `spec.affinity` field in your `Infinispan` CR:
 
 ----
 spec:
