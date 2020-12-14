@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/infinispan/infinispan-operator/pkg/apis"
 	"github.com/infinispan/infinispan-operator/pkg/controller"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // blank import (?)
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -85,11 +87,23 @@ func Launch(params Parameters) {
 		os.Exit(1)
 	}
 
-	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(cfg, manager.Options{
+	// Set default manager options
+	options := manager.Options{
 		Namespace:          namespace,
 		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
-	})
+	}
+
+	// Add support for MultiNamespace set in WATCH_NAMESPACE (e.g ns1,ns2)
+	// Note that this is not intended to be used for excluding namespaces, this is better done via a Predicate
+	// Also note that you may face performance issues when using this with a high number of namespaces.
+	// More Info: https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg/cache#MultiNamespacedCacheBuilder
+	if strings.Contains(namespace, ",") {
+		options.Namespace = ""
+		options.NewCache = cache.MultiNamespacedCacheBuilder(strings.Split(namespace, ","))
+	}
+
+	// Create a new manager to provide shared dependencies and start components
+	mgr, err := manager.New(cfg, options)
 	if err != nil {
 		log.Error(err, "")
 		os.Exit(1)
@@ -122,7 +136,11 @@ func Launch(params Parameters) {
 	}
 
 	// Add the Metrics Service
-	addMetrics(ctx, cfg, namespace)
+	if operatorNs, err := k8sutil.GetOperatorNamespace(); err == nil {
+		addMetrics(ctx, cfg, operatorNs)
+	} else {
+		log.Info("Could not get OperatorNamespace. Not in cluster? Skipping addMetrics")
+	}
 
 	log.Info("Starting the Cmd.")
 
