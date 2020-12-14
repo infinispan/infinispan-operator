@@ -499,7 +499,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      ServerConfigMapName(infinispan.ObjectMeta.Name),
+				Name:      infinispan.GetConfigName(),
 				Namespace: infinispan.ObjectMeta.Namespace,
 			},
 		})
@@ -998,7 +998,7 @@ func (r *ReconcileInfinispan) computeConfigMap(xsite *config.XSite, m *infinispa
 			Kind:       "ConfigMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ServerConfigMapName(name),
+			Name:      m.GetConfigName(),
 			Namespace: namespace,
 			Labels:    lsConfigMap,
 		},
@@ -1006,10 +1006,6 @@ func (r *ReconcileInfinispan) computeConfigMap(xsite *config.XSite, m *infinispa
 	}
 
 	return configMap, nil
-}
-
-func ServerConfigMapName(name string) string {
-	return name + "-configuration"
 }
 
 func (r *ReconcileInfinispan) findSecret(m *infinispanv1.Infinispan) (*corev1.Secret, error) {

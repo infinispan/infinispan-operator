@@ -401,7 +401,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 
 func (z *Controller) configureServer(name, namespace string, infinispan *v1.Infinispan, instance Resource) (*corev1.ConfigMap, error) {
 	clusterConfig := &corev1.ConfigMap{}
-	clusterConfigName := ispnCtrl.ServerConfigMapName(instance.Cluster())
+	clusterConfigName := infinispan.GetConfigName()
 	clusterKey := types.NamespacedName{
 		Namespace: namespace,
 		Name:      clusterConfigName,
