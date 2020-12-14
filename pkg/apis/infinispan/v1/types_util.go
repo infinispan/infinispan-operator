@@ -194,6 +194,11 @@ func (ispn *Infinispan) GetSecretName() string {
 	return ispn.Spec.Security.EndpointSecretName
 }
 
+// GetConfigName returns the ConfigMap name for the cluster
+func (ispn *Infinispan) GetConfigName() string {
+	return fmt.Sprintf("%v-configuration", ispn.Name)
+}
+
 // GetEncryptionSecretName ...
 func (ispn *Infinispan) GetEncryptionSecretName() string {
 	if ispn.Spec.Security.EndpointEncryption == nil {
