@@ -218,11 +218,11 @@ func TestClusterFormationWithTLS(t *testing.T) {
 // Test if spec.container.cpu update is handled
 func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
-		ispn.Spec.Container.CPU = "250m"
+		ispn.Spec.Container.CPU = "550m"
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
-		limit := resource.MustParse("250m")
-		request := resource.MustParse("125m")
+		limit := resource.MustParse("550m")
+		request := resource.MustParse("275m")
 		if limit.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"]) != 0 ||
 			request.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"]) != 0 {
 			panic("CPU field not updated")
