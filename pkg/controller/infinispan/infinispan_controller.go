@@ -193,9 +193,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Apply defaults and endpoint encryption settings if not already set
-	infinispan.ApplyDefaults()
-	infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
+	if err = r.update(infinispan, reqLogger, nil, func() {
+		// Apply defaults and endpoint encryption settings if not already set
+		infinispan.ApplyDefaults()
+		infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
+	}); err != nil {
+		return reconcile.Result{}, err
+	}
 
 	// Perform all the possible preliminary checks before go on
 	result, err := infinispan.PreliminaryChecks()
@@ -207,13 +211,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 		return *result, err
 	}
-	if err = r.update(infinispan, reqLogger, func() bool {
+	if err = r.updateStatus(infinispan, reqLogger, func() bool {
 		return infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
-	}, func() {
-		// Apply defaults and endpoint encryption settings if not already set
-		infinispan.ApplyDefaults()
-		infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
-	}); err != nil {
+	}, nil); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -275,11 +275,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			if result, err = LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
 				return *result, err
 			}
-			r.update(infinispan, reqLogger, func() bool {
+			if err := r.update(infinispan, reqLogger, func() bool {
 				return infinispan.Spec.Expose.NodePort == 0 && len(externalService.Spec.Ports) > 0
 			}, func() {
 				infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
-			})
+			}); err != nil {
+				return reconcile.Result{}, err
+			}
 		case infinispanv1.ExposeTypeRoute:
 			var okIngress = false
 			okRoute, err := IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
@@ -296,21 +298,25 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				if result, err = LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
 					return *result, err
 				}
-				r.update(infinispan, reqLogger, func() bool {
+				if err := r.update(infinispan, reqLogger, func() bool {
 					return infinispan.Spec.Expose.Host == "" && externalRoute.Spec.Host != ""
 				}, func() {
 					infinispan.Spec.Expose.Host = externalRoute.Spec.Host
-				})
+				}); err != nil {
+					return reconcile.Result{}, err
+				}
 			} else if okIngress {
 				externalIngress := &networkingv1beta1.Ingress{}
 				if result, err = LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
 					return *result, err
 				}
-				r.update(infinispan, reqLogger, func() bool {
+				if err := r.update(infinispan, reqLogger, func() bool {
 					return infinispan.Spec.Expose.Host == "" && len(externalIngress.Spec.Rules) > 0 && externalIngress.Spec.Rules[0].Host != ""
 				}, func() {
 					infinispan.Spec.Expose.Host = externalIngress.Spec.Rules[0].Host
-				})
+				}); err != nil {
+					return reconcile.Result{}, err
+				}
 			}
 		}
 	}
@@ -405,13 +411,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 	// Inspect the system and get the current Infinispan conditions
 	currConds := getInfinispanConditions(podList.Items, infinispan, cluster)
-
-	// Before updating reload the resource to avoid problems with status update
-	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
-	if err != nil {
-		reqLogger.Error(err, "failed to reload Infinispan status")
-		return reconcile.Result{}, err
-	}
 
 	// Update the Infinispan status with the pod status
 	if err := r.updateStatus(infinispan, reqLogger, func() bool {
@@ -994,7 +993,6 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 	podList *corev1.PodList, logger logr.Logger, cluster ispn.ClusterInterface) (*reconcile.Result, error) {
 	if ispn.Spec.Replicas == 0 {
 		logger.Info(".Spec.Replicas==0")
-		updateStatus := false
 		if *statefulSet.Spec.Replicas != 0 {
 			logger.Info("StatefulSet.Spec.Replicas!=0")
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
@@ -1021,8 +1019,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			}); err != nil {
 				return &reconcile.Result{}, err
 			}
-			zeroReplicas := int32(0)
-			statefulSet.Spec.Replicas = &zeroReplicas
+			statefulSet.Spec.Replicas = pointer.Int32Ptr(0)
 			err := r.client.Update(context.TODO(), statefulSet)
 			if err != nil {
 				logger.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
@@ -1031,8 +1028,9 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 		}
 
 		return &reconcile.Result{}, r.updateStatus(ispn, logger, func() bool {
+			updateStatus := false
 			if statefulSet.Status.CurrentReplicas == 0 {
-				updateStatus = ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "") || updateStatus
+				updateStatus = ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")
 				updateStatus = ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "") || updateStatus
 			}
 			return updateStatus
@@ -1041,11 +1039,6 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 	if ispn.Spec.Replicas != 0 && ispn.IsConditionTrue(infinispanv1.ConditionGracefulShutdown) {
 		logger.Info("Resuming from graceful shutdown")
 		// If here we're resuming from graceful shutdown
-		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, ispn)
-		if err != nil {
-			logger.Error(err, "failed to get Infinispan")
-			return &reconcile.Result{}, err
-		}
 		if ispn.Spec.Replicas != ispn.Status.ReplicasWantedAtRestart {
 			return &reconcile.Result{Requeue: true}, fmt.Errorf("Spec.Replicas(%d) must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", ispn.Spec.Replicas, ispn.Status.ReplicasWantedAtRestart)
 		}
