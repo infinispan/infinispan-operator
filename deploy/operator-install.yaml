@@ -946,8 +946,6 @@ spec:
               type: object
             statefulSetName:
               type: string
-          required:
-          - security
           type: object
       type: object
   version: v1
