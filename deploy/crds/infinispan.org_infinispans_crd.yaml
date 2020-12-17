@@ -675,6 +675,13 @@ spec:
                     certServiceName:
                       type: string
                     type:
+                      description: CertificateSourceType specifies all the possible
+                        sources for the encryption certificate
+                      enum:
+                      - Service
+                      - service
+                      - Secret
+                      - secret
                       type: string
                   type: object
                 endpointSecretName:
@@ -788,6 +795,13 @@ spec:
                     certServiceName:
                       type: string
                     type:
+                      description: CertificateSourceType specifies all the possible
+                        sources for the encryption certificate
+                      enum:
+                      - Service
+                      - service
+                      - Secret
+                      - secret
                       type: string
                   type: object
                 endpointSecretName:

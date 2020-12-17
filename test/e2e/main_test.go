@@ -775,7 +775,7 @@ func getSchemaForRest(ispn *ispnv1.Infinispan) string {
 		panic(err.Error())
 	}
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
-	if curr.Spec.Security.EndpointEncryption.Type != "" {
+	if curr.IsEncryptionCertSourceDefined() {
 		return "https"
 	}
 	return "http"

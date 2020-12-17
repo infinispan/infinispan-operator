@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"net/url"
 	"os"
 
@@ -204,6 +205,31 @@ func (k Kubernetes) PublicIP() string {
 	return u.Hostname()
 }
 
+// GetServingCertsMode returns a label that identify the kind of serving
+// certs service is available. Returns 'openshift.io' for service-ca on openshift
+func (k Kubernetes) GetServingCertsMode() string {
+	if k.hasServiceCAsCRDResource() {
+		return "openshift.io"
+
+		// Code to check if other modes of serving TLS cert service is available
+		// can be added here
+	}
+	return ""
+}
+
+// hasServiceCAsCRDResource returns true if the platform
+// has the servicecas.operator.openshift.io custom resource deployed
+// Used to check if serviceca operator is serving TLS certificates
+func (k Kubernetes) hasServiceCAsCRDResource() bool {
+	// Using an ad-hoc path
+	req := k.RestClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
+	result := req.Do()
+	var status int
+	result.StatusCode(&status)
+	return status >= http.StatusOK && status < http.StatusMultipleChoices
+}
+
+
 // GetNodesHost return the addresses of the k8s nodes
 func (k Kubernetes) GetNodesHost() []string {
 	nodes := &v1.NodeList{}
@@ -247,18 +273,6 @@ func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Option
 		Scheme: scheme,
 		Mapper: mapper,
 	}
-}
-
-// ServiceCAsCRDResourceExists returns true if the platform
-// has the servicecas.operator.openshift.io custom resource deployed
-// Used to check if serviceca operator is serving TLS certificates
-func (k Kubernetes) HasServiceCAsCRDResource() bool {
-	// Using an ad-hoc path
-	req := k.RestClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
-	result := req.Do()
-	var status int
-	result.StatusCode(&status)
-	return status >= 200 && status < 299
 }
 
 // ResourcesList returns a typed list of resource associated with the cluster
