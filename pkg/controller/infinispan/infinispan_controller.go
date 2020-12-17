@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	discovery "k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -155,8 +155,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Apply defaults if not already set
+	// Apply defaults and endpoint encryption settings if not already set
 	infinispan.ApplyDefaults()
+	infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
 
 	// Perform all the possible preliminary checks before go on
 	recResult, err := infinispan.PreliminaryChecks()
@@ -188,18 +189,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Configuring the StatefulSet")
-		// Populate EndpointEncryption if serving cert service is available
-		ee := &infinispan.Spec.Security.EndpointEncryption
-		if getServingCertsMode(kubernetes) == "openshift.io" && (ee.Type == "" || ee.CertSecretName == "") {
-			reqLogger.Info("Serving certificate service present. Configuring into CRD")
-			if ee.Type == "" {
-				ee.Type = "Service"
-				ee.CertServiceName = "service.beta.openshift.io"
-			}
-			if ee.CertSecretName == "" {
-				ee.CertSecretName = infinispan.Name + "-cert-secret"
-			}
-		}
 
 		secret, err := r.findSecret(infinispan)
 		if err != nil && infinispan.Spec.Security.EndpointSecretName != "" {
@@ -1304,7 +1293,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 
 func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) {
 	ee := m.Spec.Security.EndpointEncryption
-	if strings.EqualFold(ee.Type, "Service") {
+	if m.IsEncryptionCertFromService() {
 		if strings.Contains(ee.CertServiceName, "openshift.io") {
 			// Using platform service. Only OpenShift is integrated atm
 			secretName := m.GetEncryptionSecretName()
@@ -1332,7 +1321,7 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulS
 
 func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
 	ee := m.Spec.Security.EndpointEncryption
-	if strings.EqualFold(ee.Type, "Service") {
+	if m.IsEncryptionCertFromService() {
 		if strings.Contains(ee.CertServiceName, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"
 			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
@@ -1862,18 +1851,6 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 	}
 
 	return "", port, nil
-}
-
-// getServingCertsMode returns a label that identify the kind of serving
-// certs service is available. Returns 'openshift.io' for service-ca on openshift
-func getServingCertsMode(remoteKubernetes *ispnutil.Kubernetes) string {
-	if remoteKubernetes.HasServiceCAsCRDResource() {
-		return "openshift.io"
-
-		// Code to check if other modes of serving TLS cert service is available
-		// can be added here
-	}
-	return ""
 }
 
 func (r *ReconcileInfinispan) applyLabelsToCoordinatorsPod(podList *corev1.PodList, infinispan *infinispanv1.Infinispan, cluster ispnutil.ClusterInterface, logger logr.Logger) bool {
