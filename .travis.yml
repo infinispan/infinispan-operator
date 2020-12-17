@@ -3,50 +3,52 @@ language: go
 go:
   - '1.13.x'
 
-sudo: required
-
-services:
-  - docker
-
-cache:
-  directories:
-  - $GOPATH/pkg/mod
+dist: focal
+os: linux
 
 before_install:
   - |
-    git fetch origin $TRAVIS_BRANCH
-    git diff --name-only FETCH_HEAD | grep -qvE '(\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr/|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/' || {
-      echo "Only docs, manual steps, test-integration,CI and OLM files were updated, stopping build process."
-      exit
-    }
-
-env:
-  - KIND_VERSION=v0.5.1
+    if [ "$TRAVIS_PULL_REQUEST" != "false" ] ; then
+      set -e
+      git fetch origin $TRAVIS_BRANCH
+      git diff --name-only FETCH_HEAD | grep -qvE '(\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr/|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/' || {
+        echo "Only docs, manual steps, test-integration,CI and OLM files were updated, stopping build process."
+        travis_terminate 0
+        exit 1
+      }
+    fi
 
 jobs:
   include:
     - stage: "Unit Test"
       name: "Unit Test"
+      arch: arm64
+      virt: lxd
       before_script:
         - export GO111MODULE=on
       script:
         - go mod vendor
         - make unit-test
+
     - stage: "Test"
       name: "Kubernetes"
+      services:
+        - docker
+      env:
+        - KIND_VERSION=v0.8.1
       before_script:
         - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-        - curl -Lo kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64 && chmod +x kind && sudo mv kind /usr/local/bin/
+        - curl -Lo kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64 && chmod +x kind && sudo mv kind /usr/local/bin/
         - kind create cluster --config kind-config.yaml
-        - export KUBECONFIG="$(kind get kubeconfig-path)"
+        - export KUBECONFIG=~/kind-kube-config.yaml
+        - kind get kubeconfig > "${KUBECONFIG}"
         - export MAKE_DATADIR_WRITABLE=true
         - export GO111MODULE=on
-      script:
-        - go mod vendor
         - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
         - ./build/prepare-sa-test.sh
+      script:
+        - go mod vendor
         - RUN_SA_OPERATOR=TRUE make test
-        - kubectl config use-context $TESTING_CONTEXT
       after_failure:
         - kubectl config use-context $TESTING_CONTEXT
         - kubectl get events --all-namespaces
