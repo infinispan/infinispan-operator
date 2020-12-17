@@ -57,4 +57,6 @@ const (
 	DefaultRequeueOnCreateExposeServiceDelay = 5 * time.Second
 	//DefaultRequeueOnWrongSpec requeue delay on wrong values in Spec
 	DefaultRequeueOnWrongSpec = 5 * time.Second
+	//DefaultWaitClusterNotWellFormed wait delay until cluster is not well formed
+	DefaultWaitClusterNotWellFormed = 15 * time.Second
 )
