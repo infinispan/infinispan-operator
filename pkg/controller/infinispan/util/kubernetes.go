@@ -229,7 +229,6 @@ func (k Kubernetes) hasServiceCAsCRDResource() bool {
 	return status >= http.StatusOK && status < http.StatusMultipleChoices
 }
 
-
 // GetNodesHost return the addresses of the k8s nodes
 func (k Kubernetes) GetNodesHost() []string {
 	nodes := &v1.NodeList{}

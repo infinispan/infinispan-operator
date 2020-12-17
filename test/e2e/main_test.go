@@ -95,6 +95,7 @@ func TestNodeStartup(t *testing.T) {
 // Test operator and cluster version upgrade flow
 func TestOperatorUpgrade(t *testing.T) {
 	name := "test-operator-upgrade"
+	spec := DefaultSpec.DeepCopy()
 	switch tconst.OperatorUpgradeStage {
 	case tconst.OperatorUpgradeStageFrom:
 		spec := DefaultSpec.DeepCopy()
@@ -102,6 +103,7 @@ func TestOperatorUpgrade(t *testing.T) {
 		kubernetes.CreateInfinispan(spec, tconst.Namespace)
 		waitForPodsOrFail(spec, 1)
 	case tconst.OperatorUpgradeStageTo:
+		defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
 		for _, state := range tconst.OperatorUpgradeStateFlow {
 			kubernetes.WaitForInfinispanCondition(name, tconst.Namespace, state)
 		}
@@ -131,8 +133,8 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	spec.ObjectMeta.Name = name
 	spec.Spec.Replicas = 2
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
-		EndpointEncryption: ispnv1.EndpointEncryption{
-			Type:           "secret",
+		EndpointEncryption: &ispnv1.EndpointEncryption{
+			Type:           ispnv1.CertificateSourceTypeSecretLowCase,
 			CertSecretName: "secret-certs",
 		},
 	}

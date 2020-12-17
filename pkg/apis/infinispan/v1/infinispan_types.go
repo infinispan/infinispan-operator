@@ -168,9 +168,9 @@ type InfinispanCondition struct {
 type InfinispanStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// +optional
-	Conditions              []InfinispanCondition `json:"conditions,omitempty"`
+	Conditions              []InfinispanCondition `json:"conditions,optional,omitempty"`
 	StatefulSetName         string                `json:"statefulSetName,optional,omitempty"`
-	Security                InfinispanSecurity    `json:"security"`
+	Security                *InfinispanSecurity   `json:"security,optional,omitempty"`
 	ReplicasWantedAtRestart int32                 `json:"replicasWantedAtRestart,omitempty"`
 }
 

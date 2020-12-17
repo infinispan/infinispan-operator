@@ -33,7 +33,7 @@ func ArePodIPsReady(pods *corev1.PodList) bool {
 		}
 	}
 
-	return true
+	return len(pods.Items) > 0
 }
 
 func IsPodReady(pod corev1.Pod) bool {
