@@ -245,5 +245,23 @@ func (ispn *Infinispan) CopyLoggingCategories() map[string]string {
 
 // IsWellFormed return true if cluster is well formed
 func (ispn *Infinispan) IsWellFormed() bool {
-	return ispn.IsConditionTrue(ConditionWellFormed)
+	return ispn.EnsureClusterStability() == nil
+}
+
+// NotClusterFormed return true is cluster is not well formed
+func (ispn *Infinispan) NotClusterFormed(pods, replicas int) bool {
+	notFormed := !ispn.IsWellFormed()
+	notEnoughMembers := pods < replicas
+	return notFormed || notEnoughMembers
+}
+
+func (ispn *Infinispan) EnsureClusterStability() error {
+	conditions := map[ConditionType]metav1.ConditionStatus{
+		ConditionGracefulShutdown:   metav1.ConditionFalse,
+		ConditionPrelimChecksPassed: metav1.ConditionTrue,
+		ConditionUpgrade:            metav1.ConditionFalse,
+		ConditionStopping:           metav1.ConditionFalse,
+		ConditionWellFormed:         metav1.ConditionTrue,
+	}
+	return ispn.ExpectConditionStatus(conditions)
 }

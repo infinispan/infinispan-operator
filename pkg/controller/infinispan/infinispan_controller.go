@@ -680,6 +680,19 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// Without those ips, it's not possible to execute next calls
 	if !ispncom.ArePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
+		err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, infinispan)
+		if err != nil {
+			reqLogger.Error(err, "failed to reload Infinispan status")
+			return reconcile.Result{}, err
+		}
+		if infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready") || infinispan.Status.StatefulSetName != found.Name {
+			infinispan.Status.StatefulSetName = found.Name
+			err := r.client.Status().Update(context.TODO(), infinispan)
+			if err != nil {
+				reqLogger.Error(err, "failed to update Infinispan status")
+				return reconcile.Result{}, err
+			}
+		}
 		return reconcile.Result{}, nil
 	}
 
@@ -718,9 +731,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// View didn't form, requeue until view has formed
-	if notClusterFormed(currConds, podList.Items, infinispan.Spec.Replicas) {
+	if infinispan.NotClusterFormed(len(podList.Items), int(infinispan.Spec.Replicas)) {
 		reqLogger.Info("notClusterFormed")
-		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, nil
+		return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultWaitClusterNotWellFormed}, nil
 	}
 
 	// Below the code for a wellFormed cluster
@@ -939,12 +952,6 @@ func existsCacheServiceDefaultCache(podName string, infinispan *infinispanv1.Inf
 		return false, err
 	}
 	return cluster.ExistsCache(consts.DefaultOperatorUser, pass, consts.DefaultCacheName, podName, namespace, string(protocol))
-}
-
-func notClusterFormed(currConds []infinispanv1.InfinispanCondition, pods []corev1.Pod, replicas int32) bool {
-	notFormed := currConds[0].Status != "True"
-	notEnoughMembers := len(pods) < int(replicas)
-	return notFormed || notEnoughMembers
 }
 
 // GetDefaultCacheTemplateXML return default template for cache
