@@ -193,39 +193,36 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	var preliminaryChecksResult *reconcile.Result
+	var preliminaryChecksError error
 	if err = r.update(infinispan, reqLogger, nil, func() {
 		// Apply defaults and endpoint encryption settings if not already set
 		infinispan.ApplyDefaults()
 		infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
+
+		// Perform all the possible preliminary checks before go on
+		preliminaryChecksResult, preliminaryChecksError = infinispan.PreliminaryChecks()
+		if preliminaryChecksError != nil {
+			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, preliminaryChecksError.Error())
+		} else {
+			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
+		}
 	}); err != nil {
 		return reconcile.Result{}, err
 	}
-
-	// Perform all the possible preliminary checks before go on
-	result, err := infinispan.PreliminaryChecks()
-	if err != nil {
-		if statusUpdErr := r.updateStatus(infinispan, reqLogger, func() bool {
-			return infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, err.Error())
-		}, nil); statusUpdErr != nil {
-			return reconcile.Result{}, statusUpdErr
-		}
-		return *result, err
-	}
-	if err = r.updateStatus(infinispan, reqLogger, func() bool {
-		return infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
-	}, nil); err != nil {
-		return reconcile.Result{}, err
+	if preliminaryChecksResult != nil {
+		return *preliminaryChecksResult, preliminaryChecksError
 	}
 
 	// Wait for the ConfigMap to be created by config-controller
 	configMap := &corev1.ConfigMap{}
-	if result, err = LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r.client, reqLogger); result != nil {
+	if result, err := LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r.client, reqLogger); result != nil {
 		return *result, err
 	}
 
 	// Wait for the Secret to be created by secret-controller or provided by ser
 	secret := &corev1.Secret{}
-	if result, err = LookupResource(infinispan.GetSecretName(), infinispan.Namespace, secret, r.client, reqLogger); result != nil {
+	if result, err := LookupResource(infinispan.GetSecretName(), infinispan.Namespace, secret, r.client, reqLogger); result != nil {
 		return *result, err
 	}
 
@@ -258,12 +255,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Wait for the cluster Service to be created by service-controller
-	if result, err = LookupResource(infinispan.Name, infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
+	if result, err := LookupResource(infinispan.Name, infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
 		return *result, err
 	}
 
 	// Wait for the cluster ping Service to be created by service-controller
-	if result, err = LookupResource(infinispan.GetPingServiceName(), infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
+	if result, err := LookupResource(infinispan.GetPingServiceName(), infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
 		return *result, err
 	}
 
@@ -272,7 +269,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
 			// Wait for the cluster external Service to be created by service-controller
 			externalService := &corev1.Service{}
-			if result, err = LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
+			if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
 				return *result, err
 			}
 			if err := r.update(infinispan, reqLogger, func() bool {
@@ -295,7 +292,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 			if okRoute {
 				externalRoute := &routev1.Route{}
-				if result, err = LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
+				if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
 					return *result, err
 				}
 				if err := r.update(infinispan, reqLogger, func() bool {
@@ -307,7 +304,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				}
 			} else if okIngress {
 				externalIngress := &networkingv1beta1.Ingress{}
-				if result, err = LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
+				if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
 					return *result, err
 				}
 				if err := r.update(infinispan, reqLogger, func() bool {
@@ -350,7 +347,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	result, err = r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
+	result, err := r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
 	if result != nil {
 		return *result, err
 	}
@@ -1177,8 +1174,15 @@ func findIdentitiesSecret(statefulSet *appsv1.StatefulSet) (string, int) {
 	return "", -1
 }
 
-type UpdateFn func()
+// ValidateFn can contains manual logic whether Infinispan CR update needed or not.
+// Mutations (Infinispan CR updates) are only possible in this or UpdateFn functions.
+// All others updates outside this functions will be skipped.
 type ValidateFn func() bool
+
+// UpdateFn can contains logic required for Infinispan CR update.
+// Mutations (Infinispan CR updates) are only possible in this or ValidateFn functions.
+// All others updates outside this functions will be skipped.
+type UpdateFn func()
 
 func (r *ReconcileInfinispan) update(ispn *infinispanv1.Infinispan, logger logr.Logger, validate ValidateFn, update UpdateFn) error {
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, ispn)
@@ -1191,10 +1195,12 @@ func (r *ReconcileInfinispan) update(ispn *infinispanv1.Infinispan, logger logr.
 		if update != nil {
 			update()
 		}
-		err := r.client.Update(context.TODO(), ispn)
-		if err != nil {
-			logger.Error(err, "failed to update Infinispan")
-			return err
+		if !reflect.DeepEqual(existingIspn, ispn) {
+			err := r.client.Update(context.TODO(), ispn)
+			if err != nil {
+				logger.Error(err, "failed to update Infinispan")
+				return err
+			}
 		}
 		if !reflect.DeepEqual(existingIspn.Status, ispn.Status) {
 			err = r.client.Status().Update(context.TODO(), ispn)
