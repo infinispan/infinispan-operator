@@ -872,7 +872,7 @@ func chmodInitContainer(containerName, volumeName, mountPath string) corev1.Cont
 
 func AddVolumeForEncryption(i *infinispanv1.Infinispan, pod *corev1.PodSpec) {
 	secret := i.GetEncryptionSecretName()
-	if secret == "" {
+	if secret == "" || i.IsEncryptionDisabled() {
 		return
 	}
 
@@ -893,6 +893,9 @@ func AddVolumeForEncryption(i *infinispanv1.Infinispan, pod *corev1.PodSpec) {
 }
 
 func ConfigureServerEncryption(m *infinispanv1.Infinispan, c *config.InfinispanConfiguration, client client.Client) error {
+	if m.IsEncryptionDisabled() {
+		return nil
+	}
 	if m.IsEncryptionCertFromService() {
 		if strings.Contains(m.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
 			c.Keystore.CrtPath = "/etc/encrypt"

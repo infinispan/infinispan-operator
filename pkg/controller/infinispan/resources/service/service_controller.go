@@ -343,7 +343,7 @@ func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
 
 // computeRoute compute the Route object
 func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
-	return &routev1.Route{
+	route := &routev1.Route{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Route",
@@ -358,9 +358,12 @@ func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 			To: routev1.RouteTargetReference{
 				Kind: "Service",
 				Name: ispn.Name},
-			TLS: &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough},
 		},
 	}
+	if ispn.GetEncryptionSecretName() != "" && !ispn.IsEncryptionDisabled() {
+		route.Spec.TLS = &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough}
+	}
+	return route
 }
 
 // computeIngress compute the Ingress object
@@ -390,7 +393,7 @@ func computeIngress(ispn *ispnv1.Infinispan) *networkingv1beta1.Ingress {
 										ServicePort: intstr.IntOrString{IntVal: consts.InfinispanPort}}}}},
 					}}},
 		}}
-	if ispn.GetEncryptionSecretName() != "" {
+	if ispn.GetEncryptionSecretName() != "" && !ispn.IsEncryptionDisabled() {
 		ingress.Spec.TLS = []networkingv1beta1.IngressTLS{
 			{
 				Hosts: []string{ispn.Spec.Expose.Host},
