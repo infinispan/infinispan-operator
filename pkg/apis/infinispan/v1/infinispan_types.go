@@ -82,8 +82,8 @@ type InfinispanContainerSpec struct {
 }
 
 type InfinispanSitesLocalSpec struct {
-	Name   string     `json:"name"`
-	Expose ExposeSpec `json:"expose"`
+	Name   string              `json:"name"`
+	Expose CrossSiteExposeSpec `json:"expose"`
 }
 
 type InfinispanSiteLocationSpec struct {
@@ -110,16 +110,35 @@ type ExposeType string
 const (
 	// ExposeTypeNodePort means a service will be exposed on one port of
 	// every node, in addition to 'ClusterIP' type.
-	ExposeTypeNodePort ExposeType = "NodePort"
+	ExposeTypeNodePort ExposeType = ExposeType(corev1.ServiceTypeNodePort)
 
 	// ExposeTypeLoadBalancer means a service will be exposed via an
 	// external load balancer (if the cloud provider supports it), in addition
 	// to 'NodePort' type.
-	ExposeTypeLoadBalancer ExposeType = "LoadBalancer"
+	ExposeTypeLoadBalancer ExposeType = ExposeType(corev1.ServiceTypeLoadBalancer)
 
 	// ExposeTypeRoute means the service will be exposed via
 	// `Route` on Openshift or via `Ingress` on Kubernetes
 	ExposeTypeRoute ExposeType = "Route"
+)
+
+// CrossSiteExposeType describe different exposition methods for Infinispan Cross-Site service
+// +kubebuilder:validation:Enum=NodePort;LoadBalancer;ClusterIP
+type CrossSiteExposeType string
+
+const (
+	// CrossSiteExposeNodePort means a service will be exposed on one port of
+	// every node, in addition to 'ClusterIP' type.
+	CrossSiteExposeTypeNodePort CrossSiteExposeType = CrossSiteExposeType(corev1.ServiceTypeNodePort)
+
+	// CrossSiteExposeTypeLoadBalancer means a service will be exposed via an
+	// external load balancer (if the cloud provider supports it), in addition
+	// to 'NodePort' type.
+	CrossSiteExposeTypeLoadBalancer CrossSiteExposeType = CrossSiteExposeType(corev1.ServiceTypeLoadBalancer)
+
+	// CrossSiteExposeTypeClusterIP means an internal 'ClusterIP'
+	// service will be created without external exposition
+	CrossSiteExposeTypeClusterIP CrossSiteExposeType = CrossSiteExposeType(corev1.ServiceTypeClusterIP)
 )
 
 // ExposeSpec describe how Infinispan will be exposed externally
@@ -129,6 +148,14 @@ type ExposeSpec struct {
 	NodePort    int32             `json:"nodePort,optional,omitempty"`
 	Host        string            `json:"host,optional,omitempty"`
 	Annotations map[string]string `json:"annotations,optional,omitempty"`
+}
+
+// CrossSiteExposeSpec describe how Infinispan Cross-Site service will be exposed externally
+type CrossSiteExposeSpec struct {
+	// Type specifies different exposition methods for data grid
+	Type        CrossSiteExposeType `json:"type"`
+	NodePort    int32               `json:"nodePort,optional,omitempty"`
+	Annotations map[string]string   `json:"annotations,optional,omitempty"`
 }
 
 // Autoscale describe autoscaling configuration for the cluster

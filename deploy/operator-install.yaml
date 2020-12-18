@@ -899,15 +899,13 @@ spec:
                     local:
                       properties:
                         expose:
-                          description: ExposeSpec describe how Infinispan will be
-                            exposed externally
+                          description: CrossSiteExposeSpec describe how Infinispan
+                            Cross-Site service will be exposed externally
                           properties:
                             annotations:
                               additionalProperties:
                                 type: string
                               type: object
-                            host:
-                              type: string
                             nodePort:
                               format: int32
                               type: integer
@@ -917,7 +915,7 @@ spec:
                               enum:
                               - NodePort
                               - LoadBalancer
-                              - Route
+                              - ClusterIP
                               type: string
                           required:
                           - type

@@ -586,11 +586,11 @@ func exposeServiceSpec() *ispnv1.ExposeSpec {
 }
 
 func exposeServiceType() ispnv1.ExposeType {
-	exposeServiceType := cconsts.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	exposeServiceType := cconsts.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", string(ispnv1.ExposeTypeNodePort))
 	switch exposeServiceType {
-	case "NodePort":
+	case string(ispnv1.ExposeTypeNodePort):
 		return ispnv1.ExposeTypeNodePort
-	case "LoadBalancer":
+	case string(ispnv1.ExposeTypeLoadBalancer):
 		return ispnv1.ExposeTypeLoadBalancer
 	default:
 		panic(fmt.Errorf("unknown service type %s", exposeServiceType))
