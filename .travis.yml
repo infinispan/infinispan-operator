@@ -8,13 +8,15 @@ os: linux
 
 before_install:
   - |
-    set -e
-    git fetch origin $TRAVIS_BRANCH
-    git diff --name-only FETCH_HEAD | grep -qvE '(\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr/|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/' || {
-      echo "Only docs, manual steps, test-integration,CI and OLM files were updated, stopping build process."
-      travis_terminate 0
-      exit 1
-    }
+    if [ "$TRAVIS_PULL_REQUEST" != "false" ] ; then
+       set -e
+       git fetch origin $TRAVIS_BRANCH
+       git diff --name-only FETCH_HEAD | grep -qvE '(\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr/|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/' || {
+         echo "Only docs, manual steps, test-integration,CI and OLM files were updated, stopping build process."
+         travis_terminate 0
+         exit 1
+        }
+    fi
 
 jobs:
   include:
