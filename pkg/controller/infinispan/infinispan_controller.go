@@ -784,7 +784,7 @@ func PodPortsWithXsite(i *infinispanv1.Infinispan) []corev1.ContainerPort {
 
 func PodLivenessProbe(i *infinispanv1.Infinispan) *corev1.Probe {
 	return &corev1.Probe{
-		Handler:             ispn.ClusterStatusHandler(i.GetEndpointScheme()),
+		Handler:             ispn.ClusterStatusHandler(i.GetEndpointURIScheme()),
 		FailureThreshold:    5,
 		InitialDelaySeconds: 10,
 		PeriodSeconds:       10,
@@ -795,7 +795,7 @@ func PodLivenessProbe(i *infinispanv1.Infinispan) *corev1.Probe {
 
 func PodReadinessProbe(i *infinispanv1.Infinispan) *corev1.Probe {
 	return &corev1.Probe{
-		Handler:             ispn.ClusterStatusHandler(i.GetEndpointScheme()),
+		Handler:             ispn.ClusterStatusHandler(i.GetEndpointURIScheme()),
 		FailureThreshold:    5,
 		InitialDelaySeconds: 10,
 		PeriodSeconds:       10,

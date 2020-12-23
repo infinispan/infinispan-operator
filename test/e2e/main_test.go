@@ -69,16 +69,8 @@ var MinimalSpec = ispnv1.Infinispan{
 }
 
 func newCluster(user, secret, protocol string, kubernetes *kube.Kubernetes) *ispn.Cluster {
-	ns := tconst.Namespace
-	pass, _ := users.PasswordFromSecret(user, secret, ns, kubernetes)
-	var scheme corev1.URIScheme
-	switch strings.ToUpper(protocol) {
-	case "HTTP":
-		scheme = corev1.URISchemeHTTP
-	case "HTTPS":
-		scheme = corev1.URISchemeHTTPS
-	}
-	return ispn.NewCluster(user, pass, ns, scheme, kubernetes)
+	pass, _ := users.PasswordFromSecret(user, secret, tconst.Namespace, kubernetes)
+	return ispn.NewCluster(user, pass, tconst.Namespace, protocol, kubernetes)
 }
 
 func TestMain(m *testing.M) {
@@ -779,7 +771,7 @@ func createCacheWithXMLTemplate(cacheName, hostAddr, template string, client tes
 		panic(err.Error())
 	}
 	// Accept all the 2xx success codes
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		throwHTTPError(resp)
 	}
 }
@@ -835,9 +827,5 @@ func getSchemaForRest(ispn *ispnv1.Infinispan) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
-	if curr.IsEncryptionCertSourceDefined() {
-		return "https"
-	}
-	return "http"
+	return curr.GetEndpointScheme()
 }
