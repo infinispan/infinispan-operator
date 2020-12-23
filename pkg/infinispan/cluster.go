@@ -53,12 +53,12 @@ type ClusterInterface interface {
 }
 
 // NewCluster creates a new instance of Cluster
-func NewCluster(username, password, namespace string, protocol corev1.URIScheme, kubernetes *kube.Kubernetes) *Cluster {
+func NewCluster(username, password, namespace string, protocol string, kubernetes *kube.Kubernetes) *Cluster {
 	client := curl.New(ispnclient.HttpConfig{
 		Username:  username,
 		Password:  password,
 		Namespace: namespace,
-		Protocol:  strings.ToLower(string(protocol)),
+		Protocol:  protocol,
 	}, kubernetes)
 
 	return &Cluster{

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -186,7 +185,7 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 		Username:  user,
 		Password:  pass,
 		Namespace: namespace,
-		Protocol:  strings.ToLower(string(infinispan.GetEndpointScheme())),
+		Protocol:  infinispan.GetEndpointScheme(),
 	}
 	httpClient := curl.New(httpConfig, z.Kube)
 
