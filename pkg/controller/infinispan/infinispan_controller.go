@@ -179,7 +179,23 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Fetch the Infinispan instance
 	infinispan := &infinispanv1.Infinispan{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, infinispan)
+	infinispan.Name = request.Name
+	infinispan.Namespace = request.Namespace
+	var preliminaryChecksResult *reconcile.Result
+	var preliminaryChecksError error
+	err := r.update(infinispan, reqLogger, nil, func() {
+		// Apply defaults and endpoint encryption settings if not already set
+		infinispan.ApplyDefaults()
+		infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
+
+		// Perform all the possible preliminary checks before go on
+		preliminaryChecksResult, preliminaryChecksError = infinispan.PreliminaryChecks()
+		if preliminaryChecksError != nil {
+			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, preliminaryChecksError.Error())
+		} else {
+			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
+		}
+	})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -193,23 +209,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	var preliminaryChecksResult *reconcile.Result
-	var preliminaryChecksError error
-	if err = r.update(infinispan, reqLogger, nil, func() {
-		// Apply defaults and endpoint encryption settings if not already set
-		infinispan.ApplyDefaults()
-		infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
-
-		// Perform all the possible preliminary checks before go on
-		preliminaryChecksResult, preliminaryChecksError = infinispan.PreliminaryChecks()
-		if preliminaryChecksError != nil {
-			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, preliminaryChecksError.Error())
-		} else {
-			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
-		}
-	}); err != nil {
-		return reconcile.Result{}, err
-	}
 	if preliminaryChecksResult != nil {
 		return *preliminaryChecksResult, preliminaryChecksError
 	}

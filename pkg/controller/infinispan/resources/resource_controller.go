@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -144,7 +143,7 @@ func (r *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Validate that Infinispan CR passed all preliminary checks
 	if !infinispan.IsConditionTrue(ispnv1.ConditionPrelimChecksPassed) {
 		reqLogger.Info("Infinispan CR not ready")
-		return reconcile.Result{RequeueAfter: consts.DefaultRequeueOnWrongSpec}, nil
+		return reconcile.Result{}, nil
 	}
 
 	instance := reconciler.ResourceInstance(infinispan, r, r.Kube, reqLogger)
