@@ -163,7 +163,7 @@ func (ispn *Infinispan) GetSiteServiceName() string {
 }
 
 func (ispn *Infinispan) GetEndpointScheme() corev1.URIScheme {
-	if ispn.IsEncryptionCertSourceDefined() {
+	if ispn.IsEncryptionCertSourceDefined() && !ispn.IsEncryptionDisabled() {
 		return corev1.URISchemeHTTPS
 	}
 	return corev1.URISchemeHTTP
@@ -188,6 +188,12 @@ func (ispn *Infinispan) GetEncryptionSecretName() string {
 func (ispn *Infinispan) IsEncryptionCertSourceDefined() bool {
 	ee := ispn.Spec.Security.EndpointEncryption
 	return ee != nil && ee.Type != ""
+}
+
+// IsEncryptionDisabled returns true if encryption is disable by configuration
+func (ispn *Infinispan) IsEncryptionDisabled() bool {
+	ee := ispn.Spec.Security.EndpointEncryption
+	return ee != nil && ee.Type == CertificateSourceTypeNoneNoEncryption
 }
 
 // IsEncryptionCertFromService returns true if encryption certificates comes from a cluster service

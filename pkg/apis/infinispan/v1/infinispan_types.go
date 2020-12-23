@@ -17,7 +17,7 @@ type InfinispanSecurity struct {
 }
 
 // CertificateSourceType specifies all the possible sources for the encryption certificate
-// +kubebuilder:validation:Enum=Service;service;Secret;secret
+// +kubebuilder:validation:Enum=Service;service;Secret;secret;None
 type CertificateSourceType string
 
 const (
@@ -30,6 +30,9 @@ const (
 	CertificateSourceTypeSecret CertificateSourceType = "Secret"
 	// CertificateSourceTypeSecretLowCase certificate coming from a user provided secret
 	CertificateSourceTypeSecretLowCase CertificateSourceType = "secret"
+
+	// CertificateSourceTypeNoneNoEncryption no certificate encryption disabled
+	CertificateSourceTypeNoneNoEncryption CertificateSourceType = "None"
 )
 
 // EndpointEncryption configuration
