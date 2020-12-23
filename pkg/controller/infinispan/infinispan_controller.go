@@ -349,8 +349,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 							To: routev1.RouteTargetReference{
 								Kind: "Service",
 								Name: infinispan.Name},
-							TLS: &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough},
 						},
+					}
+					if !infinispan.IsEncryptionDisabled() &&
+						infinispan.Spec.Security.EndpointEncryption.CertSecretName != "" {
+						route.Spec.TLS = &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough}
 					}
 					controllerutil.SetControllerReference(infinispan, &route, r.scheme)
 					err = r.client.Create(context.TODO(), &route)
@@ -392,7 +395,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 														ServicePort: intstr.IntOrString{IntVal: 11222}}}}},
 									}}},
 						}}
-					if infinispan.Spec.Security.EndpointEncryption.CertSecretName != "" {
+					if !infinispan.IsEncryptionDisabled() &&
+						infinispan.Spec.Security.EndpointEncryption.CertSecretName != "" {
 						ingress.Spec.TLS = []networkingv1beta1.IngressTLS{
 							{
 								Hosts: []string{infinispan.Spec.Expose.Host},
@@ -1227,7 +1231,7 @@ func setupServiceForEncryption(m *infinispanv1.Infinispan, ser *corev1.Service) 
 
 func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulSet) {
 	secretName := m.GetEncryptionSecretName()
-	if secretName != "" {
+	if secretName != "" && !m.IsEncryptionDisabled() {
 		v := &dep.Spec.Template.Spec.Volumes
 		vm := &dep.Spec.Template.Spec.Containers[0].VolumeMounts
 		*vm = append(*vm, corev1.VolumeMount{Name: EncryptVolumeName, MountPath: EncryptMountPath})
@@ -1241,6 +1245,9 @@ func setupVolumesForEncryption(m *infinispanv1.Infinispan, dep *appsv1.StatefulS
 
 func setupConfigForEncryption(m *infinispanv1.Infinispan, c *ispnutil.InfinispanConfiguration, client client.Client) error {
 	ee := m.Spec.Security.EndpointEncryption
+	if m.IsEncryptionDisabled() {
+		return nil
+	}
 	if m.IsEncryptionCertFromService() {
 		if strings.Contains(ee.CertServiceName, "openshift.io") {
 			c.Keystore.CrtPath = EncryptMountPath

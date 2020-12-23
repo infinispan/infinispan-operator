@@ -682,6 +682,7 @@ spec:
                       - service
                       - Secret
                       - secret
+                      - None
                       type: string
                   type: object
                 endpointSecretName:
@@ -802,6 +803,7 @@ spec:
                       - service
                       - Secret
                       - secret
+                      - None
                       type: string
                   type: object
                 endpointSecretName:
