@@ -12,7 +12,6 @@ oc project "$PROJECT_NAME"
 oc apply -f deploy/role.yaml
 oc apply -f deploy/service_account.yaml
 oc apply -f deploy/role_binding.yaml
-oc apply -f deploy/crds/infinispan.org_infinispans_crd.yaml
-oc apply -f deploy/crds/infinispan.org_caches_crd.yaml
+./build/install-crds.sh
 oc wait --for condition=established crd infinispans.infinispan.org --timeout=60s
 WATCH_NAMESPACE="$PROJECT_NAME" ./build/_output/bin/infinispan-operator -kubeconfig "$KUBECONFIG"

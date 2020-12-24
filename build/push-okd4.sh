@@ -53,7 +53,6 @@ oc apply -f deploy/role.yaml
 oc apply -f deploy/service_account.yaml
 oc apply -f deploy/role_binding.yaml
 oc apply -f deploy/clusterrole.yaml
-oc apply -f deploy/crds/infinispan.org_infinispans_crd.yaml
-oc apply -f deploy/crds/infinispan.org_caches_crd.yaml
+./build/install-crds.sh
 sed -e "s|namespace:.*|namespace: ${PROJECT_NAME}|" deploy/clusterrole_binding.yaml | oc apply -f -
 sed -e "s|image:.*|image: image-registry.openshift-image-registry.svc:5000/${PROJECT_NAME}/infinispan-operator:${VERSION}|" deploy/operator.yaml | oc apply -f -
