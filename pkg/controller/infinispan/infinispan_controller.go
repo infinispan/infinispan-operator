@@ -1497,7 +1497,7 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 		},
 	}
 
-	if m.Spec.Expose.NodePort > 0 {
+	if m.Spec.Expose.NodePort > 0 && m.Spec.Expose.Type != infinispanv1.ExposeTypeLoadBalancer {
 		externalService.Spec.Ports[0].NodePort = m.Spec.Expose.NodePort
 	}
 	// Set Infinispan instance as the owner and controller
