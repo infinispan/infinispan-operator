@@ -114,7 +114,13 @@ func (k TestKubernetes) CreateInfinispan(infinispan *ispnv1.Infinispan, namespac
 
 // DeleteInfinispan deletes the infinispan resource
 // and waits that all the pods are gone
-func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
+func (k TestKubernetes) DeleteInfinispan(name, namespace string, timeout time.Duration) {
+	infinispan := &ispnv1.Infinispan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
 	err := k.Kubernetes.Client.Delete(context.TODO(), infinispan, tconst.DeleteOpts...)
 	ExpectNoError(err)
 
@@ -122,7 +128,7 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 	podList := &v1.PodList{}
 	infinispanLabels := map[string]string{"app": "infinispan-pod"}
 	labelSelector := labels.SelectorFromSet(infinispanLabels)
-	listOps := &client.ListOptions{Namespace: infinispan.Namespace, LabelSelector: labelSelector}
+	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
 		pods := podList.Items

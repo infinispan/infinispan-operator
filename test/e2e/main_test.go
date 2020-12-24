@@ -88,7 +88,7 @@ func TestNodeStartup(t *testing.T) {
 	spec.ObjectMeta.Name = name
 	// Register it
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
 }
 
@@ -96,14 +96,13 @@ func TestNodeStartup(t *testing.T) {
 func TestOperatorUpgrade(t *testing.T) {
 	name := "test-operator-upgrade"
 	spec := DefaultSpec.DeepCopy()
+	spec.ObjectMeta.Name = name
 	switch tconst.OperatorUpgradeStage {
 	case tconst.OperatorUpgradeStageFrom:
-		spec := DefaultSpec.DeepCopy()
-		spec.ObjectMeta.Name = name
 		kubernetes.CreateInfinispan(spec, tconst.Namespace)
 		waitForPodsOrFail(spec, 1)
 	case tconst.OperatorUpgradeStageTo:
-		defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+		defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 		for _, state := range tconst.OperatorUpgradeStateFlow {
 			kubernetes.WaitForInfinispanCondition(name, tconst.Namespace, state)
 		}
@@ -121,7 +120,7 @@ func TestClusterFormation(t *testing.T) {
 	spec.Spec.Replicas = 2
 	// Register it
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 2)
 }
 
@@ -143,7 +142,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	defer kubernetes.DeleteSecret(&encryptionSecret)
 	// Register it
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 2)
 }
 
@@ -202,7 +201,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	name := "test-node-startup"
 	spec.ObjectMeta.Name = name
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, int(ispn.Spec.Replicas))
 	// Get the latest version of the Infinispan resource
 	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
@@ -261,7 +260,7 @@ func TestCacheService(t *testing.T) {
 	spec.Spec.Expose = exposeServiceSpec()
 
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
 
 	user := cconsts.DefaultDeveloperUser
@@ -393,7 +392,7 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	spec := DefaultSpec.DeepCopy()
 	spec.ObjectMeta.Name = clusterName
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+	defer kubernetes.DeleteInfinispan(spec.Name, tconst.Namespace, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)
 
 	ispn := ispnv1.Infinispan{}
@@ -469,7 +468,7 @@ func TestExternalService(t *testing.T) {
 
 	// Register it
 	kubernetes.CreateInfinispan(&spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(&spec, tconst.SinglePodTimeout)
+	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 
 	kubernetes.WaitForPods("app=infinispan-pod", 1, tconst.SinglePodTimeout, tconst.Namespace)
 
@@ -565,7 +564,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		},
 	}
 	kubernetes.CreateInfinispan(&spec, tconst.Namespace)
-	defer kubernetes.DeleteInfinispan(&spec, tconst.SinglePodTimeout)
+	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 
 	kubernetes.WaitForPods("app=infinispan-pod", 1, tconst.SinglePodTimeout, tconst.Namespace)
 
