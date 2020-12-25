@@ -195,7 +195,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		} else {
 			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
 		}
-	})
+	}, false)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -1169,13 +1169,19 @@ func findIdentitiesSecret(statefulSet *appsv1.StatefulSet) (string, int) {
 // All others updates outside this functions will be skipped.
 type UpdateFn func()
 
-func (r *ReconcileInfinispan) update(ispn *infinispanv1.Infinispan, update UpdateFn) error {
-	_, err := kube.Patch(context.TODO(), r.client, ispn, func() error {
+func (r *ReconcileInfinispan) update(ispn *infinispanv1.Infinispan, update UpdateFn, ignoreNotFound ...bool) error {
+	_, err := kube.CreateOrPatch(context.TODO(), r.client, ispn, func() error {
+		if ispn.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(infinispanv1.Resource("infinispan"), ispn.Name)
+		}
 		if update != nil {
 			update()
 		}
 		return nil
 	})
+	if len(ignoreNotFound) == 0 || (len(ignoreNotFound) > 0 && ignoreNotFound[0]) && errors.IsNotFound(err) {
+		return nil
+	}
 	return err
 }
 
