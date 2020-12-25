@@ -44,6 +44,7 @@ jobs:
         - kind get kubeconfig > "${KUBECONFIG}"
         - export MAKE_DATADIR_WRITABLE=true
         - export GO111MODULE=on
+        - export INITCONTAINER_IMAGE=quay.io/quay/busybox:latest
         - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
         - ./build/prepare-sa-test.sh
         - ./build/debug-pods.sh &
