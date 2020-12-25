@@ -71,6 +71,7 @@ rules:
   - list
   - watch
   - create
+  - delete
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -80,6 +81,7 @@ rules:
   - list
   - watch
   - create
+  - delete
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -108,7 +110,7 @@ rules:
   - watch
   - create
   - update
-  - delete
+  - patch
 
 ---
 

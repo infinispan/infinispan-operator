@@ -38,6 +38,3 @@ func applyLabelsToCoordinatorsPod(podList *corev1.PodList, cluster ispn.ClusterI
 	}
 	return coordinatorFound
 }
-
-
-

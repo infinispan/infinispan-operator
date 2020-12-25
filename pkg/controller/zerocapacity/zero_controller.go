@@ -274,7 +274,7 @@ func (z *Controller) waitForExecutionToComplete(httpClient http.HttpClient, requ
 	}
 
 	// Execution has not completed, or it's state is unknown, wait 1 second before retrying
-	return reconcile.Result{RequeueAfter: 1 * time.Second,}, nil
+	return reconcile.Result{RequeueAfter: 1 * time.Second}, nil
 }
 
 func (z *Controller) cleanupResources(request reconcile.Request) (reconcile.Result, error) {
