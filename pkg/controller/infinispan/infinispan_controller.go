@@ -183,7 +183,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	infinispan.Namespace = request.Namespace
 	var preliminaryChecksResult *reconcile.Result
 	var preliminaryChecksError error
-	err := r.update(infinispan, reqLogger, nil, func() {
+	err := r.update(infinispan, func() {
 		// Apply defaults and endpoint encryption settings if not already set
 		infinispan.ApplyDefaults()
 		infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
@@ -271,10 +271,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
 				return *result, err
 			}
-			if err := r.update(infinispan, reqLogger, func() bool {
-				return infinispan.Spec.Expose.NodePort == 0 && len(externalService.Spec.Ports) > 0
-			}, func() {
-				infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
+			if err := r.update(infinispan, func() {
+				if infinispan.Spec.Expose.NodePort == 0 && len(externalService.Spec.Ports) > 0 {
+					infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
+				}
 			}); err != nil {
 				return reconcile.Result{}, err
 			}
@@ -294,10 +294,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
 					return *result, err
 				}
-				if err := r.update(infinispan, reqLogger, func() bool {
-					return infinispan.Spec.Expose.Host == "" && externalRoute.Spec.Host != ""
-				}, func() {
-					infinispan.Spec.Expose.Host = externalRoute.Spec.Host
+				if err := r.update(infinispan, func() {
+					if infinispan.Spec.Expose.Host == "" && externalRoute.Spec.Host != "" {
+						infinispan.Spec.Expose.Host = externalRoute.Spec.Host
+					}
 				}); err != nil {
 					return reconcile.Result{}, err
 				}
@@ -306,10 +306,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
 					return *result, err
 				}
-				if err := r.update(infinispan, reqLogger, func() bool {
-					return infinispan.Spec.Expose.Host == "" && len(externalIngress.Spec.Rules) > 0 && externalIngress.Spec.Rules[0].Host != ""
-				}, func() {
-					infinispan.Spec.Expose.Host = externalIngress.Spec.Rules[0].Host
+				if err := r.update(infinispan, func() {
+					if infinispan.Spec.Expose.Host == "" && len(externalIngress.Spec.Rules) > 0 && externalIngress.Spec.Rules[0].Host != "" {
+						infinispan.Spec.Expose.Host = externalIngress.Spec.Rules[0].Host
+					}
 				}); err != nil {
 					return reconcile.Result{}, err
 				}
@@ -325,9 +325,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-		if err := r.update(infinispan, reqLogger, func() bool {
-			return infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "") || infinispan.Spec.Replicas != infinispan.Status.ReplicasWantedAtRestart
-		}, func() {
+		if err := r.update(infinispan, func() {
+			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "")
 			if infinispan.Spec.Replicas != infinispan.Status.ReplicasWantedAtRestart {
 				reqLogger.Info("removed Infinispan resources, force an upgrade now", "replicasWantedAtRestart", infinispan.Status.ReplicasWantedAtRestart)
 				infinispan.Spec.Replicas = infinispan.Status.ReplicasWantedAtRestart
@@ -380,14 +379,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Update the Infinispan status with the pod status
-	// Wait until all pods have ips assigned
-	// Without those ips, it's not possible to execute next calls
+	// Wait until all pods have IPs assigned
+	// Without those IPs, it's not possible to execute next calls
 
 	if !kube.ArePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
-		return reconcile.Result{}, r.updateStatus(infinispan, reqLogger, func() bool {
-			return infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready") || infinispan.Status.StatefulSetName != statefulSet.Name
-		}, func() {
+		return reconcile.Result{}, r.update(infinispan, func() {
+			infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready")
 			infinispan.Status.StatefulSetName = statefulSet.Name
 		})
 	}
@@ -409,9 +407,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	currConds := getInfinispanConditions(podList.Items, infinispan, cluster)
 
 	// Update the Infinispan status with the pod status
-	if err := r.updateStatus(infinispan, reqLogger, func() bool {
-		return infinispan.SetConditions(currConds)
-	}, nil); err != nil {
+	if err := r.update(infinispan, func() {
+		infinispan.SetConditions(currConds)
+	}); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -560,10 +558,7 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 		}
 	}
 
-	return r.update(infinispan, logger, func() bool {
-		sc := infinispan.Spec.Service.Container
-		return contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) || infinispan.Spec.Image != nil || (sc != nil && sc.Storage != nil && *infinispan.Spec.Service.Container.Storage == "")
-	}, func() {
+	return r.update(infinispan, func() {
 		// Remove finalizer if it defined in the Infinispan CR
 		if contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
 			infinispan.SetFinalizers(remove(infinispan.GetFinalizers(), consts.InfinispanFinalizer))
@@ -601,10 +596,9 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
 	if podDefaultImage != desiredImage {
-		if err := r.update(infinispan, logger, func() bool {
+		if err := r.update(infinispan, func() {
 			logger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", desiredImage)
-			return infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "") || infinispan.Spec.Replicas > 0
-		}, func() {
+			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
 			infinispan.Spec.Replicas = 0
 		}); err != nil {
 			return &reconcile.Result{}, err
@@ -1010,7 +1004,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			}
 
 			// If here all the pods are unready, set statefulset replicas and ispn.replicas to 0
-			if err := r.updateStatus(ispn, logger, nil, func() {
+			if err := r.update(ispn, func() {
 				ispn.Status.ReplicasWantedAtRestart = *statefulSet.Spec.Replicas
 			}); err != nil {
 				return &reconcile.Result{}, err
@@ -1023,14 +1017,12 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			}
 		}
 
-		return &reconcile.Result{}, r.updateStatus(ispn, logger, func() bool {
-			updateStatus := false
+		return &reconcile.Result{}, r.update(ispn, func() {
 			if statefulSet.Status.CurrentReplicas == 0 {
-				updateStatus = ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")
-				updateStatus = ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "") || updateStatus
+				ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")
+				ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "")
 			}
-			return updateStatus
-		}, nil)
+		})
 	}
 	if ispn.Spec.Replicas != 0 && ispn.IsConditionTrue(infinispanv1.ConditionGracefulShutdown) {
 		logger.Info("Resuming from graceful shutdown")
@@ -1039,9 +1031,8 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			return &reconcile.Result{Requeue: true}, fmt.Errorf("Spec.Replicas(%d) must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", ispn.Spec.Replicas, ispn.Status.ReplicasWantedAtRestart)
 		}
 
-		if err := r.updateStatus(ispn, logger, func() bool {
-			return ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionFalse, "") || ispn.Status.ReplicasWantedAtRestart > 0
-		}, func() {
+		if err := r.update(ispn, func() {
+			ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionFalse, "")
 			ispn.Status.ReplicasWantedAtRestart = 0
 		}); err != nil {
 			return &reconcile.Result{}, err
@@ -1067,10 +1058,10 @@ func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan,
 			}
 			logger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
 
-			if err := r.updateStatus(ispn, logger, func() bool {
-				updated := ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionTrue, "")
-				return ispn.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionFalse, "") || updated
-			}, nil); err != nil {
+			if err := r.update(ispn, func() {
+				ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionTrue, "")
+				ispn.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionFalse, "")
+			}); err != nil {
 				return &reconcile.Result{}, err
 			}
 			// Stop the work and requeue until cluster is down
@@ -1173,66 +1164,19 @@ func findIdentitiesSecret(statefulSet *appsv1.StatefulSet) (string, int) {
 	return "", -1
 }
 
-// ValidateFn can contains manual logic whether Infinispan CR update needed or not.
-// Mutations (Infinispan CR updates) are only possible in this or UpdateFn functions.
-// All others updates outside this functions will be skipped.
-type ValidateFn func() bool
-
 // UpdateFn can contains logic required for Infinispan CR update.
-// Mutations (Infinispan CR updates) are only possible in this or ValidateFn functions.
+// Mutations (Infinispan CR Spec and Status updates) are only possible in this function.
 // All others updates outside this functions will be skipped.
 type UpdateFn func()
 
-func (r *ReconcileInfinispan) update(ispn *infinispanv1.Infinispan, logger logr.Logger, validate ValidateFn, update UpdateFn) error {
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, ispn)
-	if err != nil {
-		logger.Error(err, "failed to reload Infinispan")
-		return err
-	}
-	existingIspn := ispn.DeepCopy()
-	if validate == nil || validate() {
+func (r *ReconcileInfinispan) update(ispn *infinispanv1.Infinispan, update UpdateFn) error {
+	_, err := kube.Patch(context.TODO(), r.client, ispn, func() error {
 		if update != nil {
 			update()
 		}
-		if !reflect.DeepEqual(existingIspn, ispn) {
-			err := r.client.Update(context.TODO(), ispn)
-			if err != nil {
-				logger.Error(err, "failed to update Infinispan")
-				return err
-			}
-		}
-		if !reflect.DeepEqual(existingIspn.Status, ispn.Status) {
-			err = r.client.Status().Update(context.TODO(), ispn)
-			if err != nil {
-				logger.Error(err, "failed to update Infinispan status")
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (r *ReconcileInfinispan) updateStatus(ispn *infinispanv1.Infinispan, logger logr.Logger, statusValidate ValidateFn, statusUpdate UpdateFn) error {
-	infinispan := &infinispanv1.Infinispan{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, infinispan)
-	if err != nil {
-		logger.Error(err, "failed to reload Infinispan status")
-		return err
-	}
-	infinispan.Status.DeepCopyInto(&ispn.Status)
-	if statusValidate == nil || statusValidate() {
-		if statusUpdate != nil {
-			statusUpdate()
-		}
-		ispn.Status.DeepCopyInto(&infinispan.Status)
-		err := r.client.Status().Update(context.Background(), infinispan)
-		if err != nil {
-			logger.Error(err, "failed to update Infinispan status")
-			return err
-		}
-		infinispan.Status.DeepCopyInto(&ispn.Status)
-	}
-	return nil
+		return nil
+	})
+	return err
 }
 
 // LabelsResource returns the labels that must me applied to the resource
