@@ -59,25 +59,10 @@ EOF
 <1> Specify `Manual` if you want to manually approve updates from the {operator_channel} channel.
 +
 . Verify the installation.
-.. Switch to the {ispn_operator} project if necessary.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_project} ${INSTALL_NAMESPACE}
-----
-+
-.. Check that {ispn_operator} is running.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ {oc_get_pods}
+$ {oc_get_pods} -n ${INSTALL_NAMESPACE}
 NAME                                   READY   STATUS
 infinispan-operator-<id>               1/1     Running
-----
-+
-.. Change to the project where your {brandname} cluster runs so you can start applying changes with your `Infinispan` CR.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ {oc_project} ${WATCH_NAMESPACE}
 ----
