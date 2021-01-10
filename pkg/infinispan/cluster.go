@@ -93,6 +93,18 @@ func (c Cluster) GetClusterMembers(podName string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", reason, err)
 	}
+	if rsp.StatusCode != http.StatusOK {
+		defer rsp.Body.Close()
+		responseBody, err := ioutil.ReadAll(rsp.Body)
+		if err != nil {
+			return nil, fmt.Errorf( "server side error getting cluster members. Unable to read response body, %v", err)
+		}
+		response := string(responseBody)
+		if response == "" {
+			response = rsp.Status
+		}
+		return nil, fmt.Errorf("unexpected error getting cluster members, response: %v", response)
+	}
 
 	defer rsp.Body.Close()
 	var health Health
