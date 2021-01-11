@@ -17,6 +17,7 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
+	testHttp "github.com/infinispan/infinispan-operator/test/e2e/http"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	testutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -284,7 +285,7 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomRes
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
-func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Duration, client *http.Client, user, password, protocol, namespace string) string {
+func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Duration, client testHttp.HttpClient, namespace string) string {
 	var hostAndPort string
 	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
 		route := &v1.Service{}
@@ -298,7 +299,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		if len(hosts) > 0 {
 			// It should be ok to use the first node address available
 			hostAndPort = fmt.Sprintf("%s:%d", hosts[0], k.Kubernetes.GetNodePort(route))
-			result := checkExternalAddress(client, user, password, protocol, hostAndPort)
+			result := checkExternalAddress(client, hostAndPort)
 			if result {
 				return result, nil
 			}
@@ -310,7 +311,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		if strings.Contains(hostAndPort, "127.0.0.1") {
 			log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
 			hostAndPort = fmt.Sprintf("127.0.0.1:%d", tconst.InfinispanPort)
-			result := checkExternalAddress(client, user, password, protocol, hostAndPort)
+			result := checkExternalAddress(client, hostAndPort)
 			if result {
 				return result, nil
 			}
@@ -321,22 +322,16 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		if err != nil {
 			return false, nil
 		}
-		return checkExternalAddress(client, user, password, protocol, hostAndPort), nil
+		return checkExternalAddress(client, hostAndPort), nil
 	})
 	utils.ExpectNoError(err)
 	return hostAndPort
 }
 
-func checkExternalAddress(client *http.Client, user, password, protocol, hostAndPort string) bool {
-	httpURL := fmt.Sprintf("%s://%s/%s", protocol, hostAndPort, consts.ServerHTTPHealthPath)
-	req, err := http.NewRequest("GET", httpURL, nil)
+func checkExternalAddress(c testHttp.HttpClient, hostAndPort string) bool {
+	httpURL := fmt.Sprintf("%s/%s", hostAndPort, consts.ServerHTTPHealthPath)
+	resp, err := c.Get(httpURL, nil)
 	utils.ExpectNoError(err)
-	req.SetBasicAuth(user, password)
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error(err, "Unable to complete HTTP request for external address")
-		return false
-	}
 	log.Info("Received response for external address", "response code", resp.StatusCode)
 	return resp.StatusCode == http.StatusOK
 }

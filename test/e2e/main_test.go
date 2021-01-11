@@ -1,9 +1,7 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +19,7 @@ import (
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
+	testHttp "github.com/infinispan/infinispan-operator/test/e2e/http"
 	k8s "github.com/infinispan/infinispan-operator/test/e2e/k8s"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
@@ -55,6 +54,7 @@ var DefaultSpec = ispnv1.Infinispan{
 		},
 		Replicas: 1,
 		Expose:   exposeServiceSpec(),
+		Image:    pointer.StringPtr("quay.io/infinispan/server:12.0.0.CR1"),
 	},
 }
 
@@ -358,19 +358,16 @@ func testCacheService(testName string, imageName *string) {
 
 	protocol := getSchemaForRest(&ispn)
 	routeName := fmt.Sprintf("%s-external", spec.Name)
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, user, password, protocol, tconst.Namespace)
+	client := testHttp.New(user, password, protocol)
+	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 
 	cacheName := "default"
 
 	key := "test"
 	value := "test-operator"
-	keyURL := fmt.Sprintf("%v/%v", cacheURL(protocol, cacheName, hostAddr), key)
-	putViaRoute(keyURL, value, client, user, password)
-	actual := getViaRoute(keyURL, client, user, password)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	putViaRoute(keyURL, value, client)
+	actual := getViaRoute(keyURL, client)
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
@@ -391,12 +388,9 @@ func TestPermanentCache(t *testing.T) {
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client := &http.Client{Transport: tr}
-		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, protocol, tconst.Namespace)
-		createCache(protocol, cacheName, usr, pass, hostAddr, "PERMANENT", client)
+		client := testHttp.New(usr, pass, protocol)
+		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
+		createCache(cacheName, hostAddr, "PERMANENT", client)
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
@@ -405,20 +399,17 @@ func TestPermanentCache(t *testing.T) {
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client := &http.Client{Transport: tr}
-		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, protocol, tconst.Namespace)
+		client := testHttp.New(usr, pass, protocol)
+		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 		key := "test"
 		value := "test-operator"
-		keyURL := fmt.Sprintf("%v/%v", cacheURL(protocol, cacheName, hostAddr), key)
-		putViaRoute(keyURL, value, client, usr, pass)
-		actual := getViaRoute(keyURL, client, usr, pass)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		putViaRoute(keyURL, value, client)
+		actual := getViaRoute(keyURL, client)
 		if actual != value {
 			panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 		}
-		deleteCache(getSchemaForRest(ispn), cacheName, usr, pass, hostAddr, client)
+		deleteCache(cacheName, hostAddr, client)
 	}
 
 	genericTestForGracefulShutdown(name, createPermanentCache, usePermanentCache)
@@ -443,14 +434,11 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client := &http.Client{Transport: tr}
-		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, protocol, tconst.Namespace)
-		createCacheWithXMLTemplate(getSchemaForRest(ispn), cacheName, usr, pass, hostAddr, template, client)
-		keyURL := fmt.Sprintf("%v/%v", cacheURL(protocol, cacheName, hostAddr), key)
-		putViaRoute(keyURL, value, client, usr, pass)
+		client := testHttp.New(usr, pass, protocol)
+		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
+		createCacheWithXMLTemplate(cacheName, hostAddr, template, client)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		putViaRoute(keyURL, value, client)
 	}
 
 	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
@@ -458,17 +446,14 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		schema := getSchemaForRest(ispn)
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client := &http.Client{Transport: tr}
-		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, schema, tconst.Namespace)
-		keyURL := fmt.Sprintf("%v/%v", cacheURL(schema, cacheName, hostAddr), key)
-		actual := getViaRoute(keyURL, client, usr, pass)
+		client := testHttp.New(usr, pass, schema)
+		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		actual := getViaRoute(keyURL, client)
 		if actual != value {
 			panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 		}
-		deleteCache(schema, cacheName, usr, pass, hostAddr, client)
+		deleteCache(cacheName, hostAddr, client)
 	}
 
 	genericTestForGracefulShutdown(name, createCacheWithFileStore, useCacheWithFileStore)
@@ -576,21 +561,18 @@ func TestExternalService(t *testing.T) {
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 	schema := getSchemaForRest(&ispn)
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, schema, tconst.Namespace)
+	client := testHttp.New(usr, pass, schema)
+	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 
 	cacheName := "test"
-	createCache(schema, cacheName, usr, pass, hostAddr, "", client)
-	defer deleteCache(schema, cacheName, usr, pass, hostAddr, client)
+	createCache(cacheName, hostAddr, "", client)
+	defer deleteCache(cacheName, hostAddr, client)
 
 	key := "test"
 	value := "test-operator"
-	keyURL := fmt.Sprintf("%v/%v", cacheURL(schema, cacheName, hostAddr), key)
-	putViaRoute(keyURL, value, client, usr, pass)
-	actual := getViaRoute(keyURL, client, usr, pass)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	putViaRoute(keyURL, value, client)
+	actual := getViaRoute(keyURL, client)
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
@@ -727,30 +709,28 @@ func TestExternalServiceWithAuth(t *testing.T) {
 
 func testAuthentication(schema, name, usr, pass string) {
 	routeName := fmt.Sprintf("%s-external", name)
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, schema, tconst.Namespace)
+	badClient := testHttp.New("badUser", "badPass", schema)
+	client := testHttp.New(usr, pass, schema)
+	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 
 	cacheName := "test"
-	createCacheBadCreds(schema, cacheName, "badUser", "badPass", hostAddr, client)
-	createCache(schema, cacheName, usr, pass, hostAddr, "", client)
-	defer deleteCache(schema, cacheName, usr, pass, hostAddr, client)
+	createCacheBadCreds(cacheName, hostAddr, badClient)
+	createCache(cacheName, hostAddr, "", client)
+	defer deleteCache(cacheName, hostAddr, client)
 
 	key := "test"
 	value := "test-operator"
-	keyURL := fmt.Sprintf("%v/%v", cacheURL(schema, cacheName, hostAddr), key)
-	putViaRoute(keyURL, value, client, usr, pass)
-	actual := getViaRoute(keyURL, client, usr, pass)
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	putViaRoute(keyURL, value, client)
+	actual := getViaRoute(keyURL, client)
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 	}
 }
 
-func cacheURL(schema, cacheName, hostAddr string) string {
-	return fmt.Sprintf(schema+"://%v/rest/v2/caches/%s", hostAddr, cacheName)
+func cacheURL(cacheName, hostAddr string) string {
+	return fmt.Sprintf("%v/rest/v2/caches/%s", hostAddr, cacheName)
 }
 
 type httpError struct {
@@ -761,13 +741,20 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected response %v", e.status)
 }
 
-func createCache(schema, cacheName, usr, pass, hostAddr string, flags string, client *http.Client) {
-	httpURL := cacheURL(schema, cacheName, hostAddr)
-	fmt.Printf("Create cache: %v\n", httpURL)
-	httpEmpty(httpURL, "POST", usr, pass, flags, client)
+func createCache(cacheName, hostAddr string, flags string, client testHttp.HttpClient) {
+	httpURL := cacheURL(cacheName, hostAddr)
+	headers := map[string]string{}
+	if flags != "" {
+		headers["Flags"] = flags
+	}
+	resp, err := client.Post(httpURL, "", headers)
+	tutils.ExpectNoError(err)
+	if resp.StatusCode != http.StatusOK {
+		panic(httpError{resp.StatusCode})
+	}
 }
 
-func createCacheBadCreds(schema, cacheName, usr, pass, hostAddr string, client *http.Client) {
+func createCacheBadCreds(cacheName, hostAddr string, client testHttp.HttpClient) {
 	defer func() {
 		data := recover()
 		if data == nil {
@@ -778,18 +765,16 @@ func createCacheBadCreds(schema, cacheName, usr, pass, hostAddr string, client *
 			panic(err)
 		}
 	}()
-	createCache(schema, cacheName, usr, pass, hostAddr, "", client)
+	createCache(cacheName, hostAddr, "", client)
 }
 
-func createCacheWithXMLTemplate(schema, cacheName, user, pass, hostAddr, template string, client *http.Client) {
-	httpURL := cacheURL(schema, cacheName, hostAddr)
+func createCacheWithXMLTemplate(cacheName, hostAddr, template string, client testHttp.HttpClient) {
+	httpURL := cacheURL(cacheName, hostAddr)
 	fmt.Printf("Create cache: %v\n", httpURL)
-	body := bytes.NewBuffer([]byte(template))
-	req, err := http.NewRequest("POST", httpURL, body)
-	req.Header.Set("Content-Type", "application/xml;charset=UTF-8")
-	req.SetBasicAuth(user, pass)
-	fmt.Printf("Put request via route: %v\n", req)
-	resp, err := client.Do(req)
+	headers := map[string]string{
+		"Content-Type": "application/xml;charset=UTF-8",
+	}
+	resp, err := client.Post(httpURL, template, headers)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -799,21 +784,9 @@ func createCacheWithXMLTemplate(schema, cacheName, user, pass, hostAddr, templat
 	}
 }
 
-func deleteCache(schema, cacheName, usr, pass, hostAddr string, client *http.Client) {
-	httpURL := cacheURL(schema, cacheName, hostAddr)
-	fmt.Printf("Delete cache: %v\n", httpURL)
-	httpEmpty(httpURL, "DELETE", usr, pass, "", client)
-}
-
-func httpEmpty(httpURL string, method string, usr string, pass string, flags string, client *http.Client) {
-	req, err := http.NewRequest(method, httpURL, nil)
-	if flags != "" {
-		req.Header.Set("flags", flags)
-	}
-	tutils.ExpectNoError(err)
-
-	req.SetBasicAuth(usr, pass)
-	resp, err := client.Do(req)
+func deleteCache(cacheName, hostAddr string, client testHttp.HttpClient) {
+	httpURL := cacheURL(cacheName, hostAddr)
+	resp, err := client.Delete(httpURL, nil)
 	tutils.ExpectNoError(err)
 
 	if resp.StatusCode != http.StatusOK {
@@ -821,13 +794,8 @@ func httpEmpty(httpURL string, method string, usr string, pass string, flags str
 	}
 }
 
-func getViaRoute(url string, client *http.Client, user string, pass string) string {
-	req, err := http.NewRequest("GET", url, nil)
-	req.SetBasicAuth(user, pass)
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err.Error())
-	}
+func getViaRoute(url string, client testHttp.HttpClient) string {
+	resp, err := client.Get(url, nil)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		throwHTTPError(resp)
@@ -839,13 +807,11 @@ func getViaRoute(url string, client *http.Client, user string, pass string) stri
 	return string(bodyBytes)
 }
 
-func putViaRoute(url string, value string, client *http.Client, user string, pass string) {
-	body := bytes.NewBuffer([]byte(value))
-	req, err := http.NewRequest("POST", url, body)
-	req.Header.Set("Content-Type", "text/plain")
-	req.SetBasicAuth(user, pass)
-	fmt.Printf("Put request via route: %v\n", req)
-	resp, err := client.Do(req)
+func putViaRoute(url, value string, client testHttp.HttpClient) {
+	headers := map[string]string{
+		"Content-Type": "text/plain",
+	}
+	resp, err := client.Post(url, value, headers)
 	if err != nil {
 		panic(err.Error())
 	}

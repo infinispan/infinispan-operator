@@ -51,7 +51,7 @@ func (c *CurlClient) Post(podName, path, payload string, headers map[string]stri
 func (c *CurlClient) executeCurlCommand(podName string, path string, headers map[string]string, args ...string) (*http.Response, error, string) {
 	httpURL := fmt.Sprintf("%s://%s:%d/%s", c.config.Protocol, podName, consts.InfinispanPort, path)
 	user := fmt.Sprintf("-u %v:%v", c.credentials.Username, c.credentials.Password)
-	curl := fmt.Sprintf("curl -i --insecure --http1.1 %s %s %s %s", user, headerString(headers), strings.Join(args, " "), httpURL)
+	curl := fmt.Sprintf("curl -i --insecure --digest --http1.1 %s %s %s %s", user, headerString(headers), strings.Join(args, " "), httpURL)
 
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(
 		kube.ExecOptions{
@@ -64,7 +64,17 @@ func (c *CurlClient) executeCurlCommand(podName string, path string, headers map
 		return nil, err, execErr
 	}
 
-	rsp, err := http.ReadResponse(bufio.NewReader(&execOut), nil)
+	reader := bufio.NewReader(&execOut)
+	rsp, err := http.ReadResponse(reader, nil)
+	if err != nil {
+		return nil, err, ""
+	}
+
+	if rsp.StatusCode != http.StatusUnauthorized {
+		return rsp, nil, "Expected 401 DIGEST response before content"
+	}
+
+	rsp, err = http.ReadResponse(reader, nil)
 	if err != nil {
 		return nil, err, ""
 	}
