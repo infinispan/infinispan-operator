@@ -4,7 +4,7 @@
 
 This is an OpenShift operator to run and rule Infinispan.
 
-### System Requirements
+### System Requirements XXX
 
 * [go](https://github.com/golang/go)
 * Docker
