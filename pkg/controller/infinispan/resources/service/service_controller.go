@@ -265,7 +265,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 			},
 		},
 	}
-	if exposeConf.NodePort > 0 {
+	if exposeConf.NodePort > 0 && exposeConf.Type == ispnv1.ExposeTypeNodePort {
 		exposeSpec.Ports[0].NodePort = exposeConf.NodePort
 	}
 
