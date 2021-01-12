@@ -133,7 +133,7 @@ func CreateController(name string, reconciler Reconciler, mgr manager.Manager) e
 
 func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reconciler := z.Reconciler
-	resource := reflect.TypeOf(reconciler.Type()).Name()
+	resource := reflect.TypeOf(reconciler.Type()).Elem().Name()
 	namespace := request.Namespace
 
 	reqLogger := z.Log.WithValues("Request.Namespace", namespace, "Request.Name", request.Name)
