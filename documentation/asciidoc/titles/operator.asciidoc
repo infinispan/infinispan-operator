@@ -15,6 +15,6 @@ include::{topics}/attributes/community-attributes.adoc[]
 [id='infinispan_operator']
 = Running {brandname} on {k8s} with {ispn_operator} {ispn_operator_version}
 
-{ispn_operator} {ispn_operator_version} works with {brandname} Server {ispn_version}
+{ispn_operator} {ispn_operator_version} corresponds to {brandname} {ispn_version}.
 
 include::stories.adoc[]
