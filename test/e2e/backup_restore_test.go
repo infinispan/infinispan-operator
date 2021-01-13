@@ -15,6 +15,7 @@ import (
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
+	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
@@ -47,7 +48,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 
 		// 2. Populate the cluster with some data to backup
 		protocol := getSchemaForRest(infinispan)
-		cluster := newCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, testKube.Kubernetes)
+		cluster := utils.NewCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, namespace, testKube.Kubernetes)
 		cacheName := "someCache"
 		populateCache(cacheName, sourceCluster+"-0", numEntries, cluster.Client)
 
@@ -86,7 +87,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		waitForPodsOrFail(infinispan, clusterSize)
 
 		// Recreate the cluster instance to use the credentials of the new cluster
-		cluster = newCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, testKube.Kubernetes)
+		cluster = utils.NewCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, namespace, testKube.Kubernetes)
 
 		// 6. Restore the backed up data from the volume to the target cluster
 		restoreSpec := &v2.Restore{
@@ -197,13 +198,13 @@ func assertNumEntries(cacheName, pod string, numEntries int, client ispnclient.H
 	}
 
 	/*
-	body, err := ioutil.ReadAll(rsp.Body)
-	tutils.ExpectNoError(err)
-	numRead, err := strconv.ParseInt(string(body), 10, 64)
-	tutils.ExpectNoError(err)
-	if int(numRead) != numEntries {
-		panic(fmt.Sprintf("Expected %d cache entries but received %d", numEntries, numRead))
-	}
+		body, err := ioutil.ReadAll(rsp.Body)
+		tutils.ExpectNoError(err)
+		numRead, err := strconv.ParseInt(string(body), 10, 64)
+		tutils.ExpectNoError(err)
+		if int(numRead) != numEntries {
+			panic(fmt.Sprintf("Expected %d cache entries but received %d", numEntries, numRead))
+		}
 	*/
 }
 

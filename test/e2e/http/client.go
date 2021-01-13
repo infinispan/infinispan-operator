@@ -26,19 +26,19 @@ type authenticationRealm struct {
 
 type client struct {
 	*http.Client
-	username string
-	password string
-	protocol string
-	authRealm *authenticationRealm
+	username       string
+	password       string
+	protocol       string
+	authRealm      *authenticationRealm
 	requestCounter int
 }
 
 func New(username, password, protocol string) HttpClient {
 	return &client{
-		username: username,
-		password: password,
-		protocol: protocol,
-		authRealm: nil,
+		username:       username,
+		password:       password,
+		protocol:       protocol,
+		authRealm:      nil,
 		requestCounter: 0,
 		Client: &http.Client{
 			Transport: &http.Transport{
