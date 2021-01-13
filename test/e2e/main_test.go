@@ -98,7 +98,7 @@ func TestMain(m *testing.M) {
 func TestOperatorUpgrade(t *testing.T) {
 	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
-	spec.ObjectMeta.Name = name
+	spec.Name = name
 	spec.Namespace = tconst.Namespace
 	switch tconst.OperatorUpgradeStage {
 	case tconst.OperatorUpgradeStageFrom:
@@ -154,7 +154,7 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
 	ephemeralStorage := true
-	spec.ObjectMeta.Name = name
+	spec.Name = name
 	spec.Spec.Service.Container = &ispnv1.InfinispanServiceContainerSpec{EphemeralStorage: &ephemeralStorage}
 	// Register it
 	testKube.CreateInfinispan(spec, tconst.Namespace)
@@ -176,7 +176,7 @@ func TestClusterFormation(t *testing.T) {
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
-	spec.ObjectMeta.Name = name
+	spec.Name = name
 	spec.Spec.Replicas = 2
 	// Register it
 	testKube.CreateInfinispan(spec, tconst.Namespace)
@@ -190,7 +190,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
-	spec.ObjectMeta.Name = name
+	spec.Name = name
 	spec.Spec.Replicas = 2
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
 		EndpointEncryption: &ispnv1.EndpointEncryption{
@@ -222,7 +222,7 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 	}
 	spec := MinimalSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
-	spec.ObjectMeta.Name = name
+	spec.Name = name
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -239,7 +239,7 @@ func TestContainerMemoryUpdate(t *testing.T) {
 	}
 	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
-	spec.ObjectMeta.Name = name
+	spec.Name = name
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -263,7 +263,7 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 	}
 	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
-	spec.ObjectMeta.Name = name
+	spec.Name = name
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -455,7 +455,7 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	// Create a resource without passing any config
 	// Register it
 	spec := DefaultSpec.DeepCopy()
-	spec.ObjectMeta.Name = clusterName
+	spec.Name = clusterName
 	testKube.CreateInfinispan(spec, tconst.Namespace)
 	defer testKube.DeleteInfinispan(spec, tconst.SinglePodTimeout)
 	waitForPodsOrFail(spec, 1)

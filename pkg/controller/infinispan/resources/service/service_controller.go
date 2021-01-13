@@ -184,10 +184,10 @@ func setupServiceForEncryption(ispn *ispnv1.Infinispan, service *corev1.Service)
 		if strings.Contains(ispn.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
 			// Using platform service. Only OpenShift is integrated atm
 			secretName := ispn.GetEncryptionSecretName()
-			if service.ObjectMeta.Annotations == nil {
-				service.ObjectMeta.Annotations = map[string]string{}
+			if service.Annotations == nil {
+				service.Annotations = map[string]string{}
 			}
-			service.ObjectMeta.Annotations[ispn.Spec.Security.EndpointEncryption.CertServiceName+"/serving-cert-secret-name"] = secretName
+			service.Annotations[ispn.Spec.Security.EndpointEncryption.CertServiceName+"/serving-cert-secret-name"] = secretName
 		}
 	}
 }
@@ -368,7 +368,7 @@ func computeIngress(ispn *ispnv1.Infinispan) *networkingv1beta1.Ingress {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ispn.GetServiceExternalName(),
 			Namespace: ispn.Namespace,
-			Labels:    ExternalServiceLabels(ispn.ObjectMeta.Name),
+			Labels:    ExternalServiceLabels(ispn.Name),
 		},
 		Spec: networkingv1beta1.IngressSpec{
 			TLS: []networkingv1beta1.IngressTLS{},

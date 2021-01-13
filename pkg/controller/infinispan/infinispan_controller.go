@@ -471,8 +471,8 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.ObjectMeta.Name,
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Name:      infinispan.Name,
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -483,7 +483,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetConfigName(),
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -493,8 +493,8 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.ObjectMeta.Name,
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Name:      infinispan.Name,
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -505,7 +505,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetPingServiceName(),
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -516,7 +516,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetServiceExternalName(),
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -527,7 +527,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetSiteServiceName(),
-				Namespace: infinispan.ObjectMeta.Namespace,
+				Namespace: infinispan.Namespace,
 			},
 		})
 	if err != nil && !errors.IsNotFound(err) {
@@ -630,7 +630,7 @@ func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *cor
 // deploymentForInfinispan returns an infinispan Deployment object
 func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
-	lsPod := PodLabels(m.ObjectMeta.Name)
+	lsPod := PodLabels(m.Name)
 
 	memory := resource.MustParse(m.Spec.Container.Memory)
 	replicas := m.Spec.Replicas
@@ -640,8 +640,8 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        m.ObjectMeta.Name,
-			Namespace:   m.ObjectMeta.Namespace,
+			Name:        m.Name,
+			Namespace:   m.Namespace,
 			Annotations: consts.DeploymentAnnotations,
 			Labels:      map[string]string{"template": "infinispan-ephemeral"},
 		},
@@ -720,8 +720,8 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		}
 
 		pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name,
-			Namespace: m.ObjectMeta.Namespace,
+			Name:      m.Name,
+			Namespace: m.Namespace,
 		},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{
@@ -1093,7 +1093,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 			res.Requests["memory"] = quantity
 			res.Limits["memory"] = quantity
 			logger.Info("memory changed, update infinispan", "memory", quantity, "previous memory", previousMemory)
-			statefulSet.Spec.Template.ObjectMeta.Annotations["updateDate"] = time.Now().String()
+			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateNeeded = true
 		}
 	}
@@ -1105,7 +1105,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 			res.Requests["cpu"] = cpuReq
 			res.Limits["cpu"] = cpuLim
 			logger.Info("cpu changed, update infinispan", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
-			statefulSet.Spec.Template.ObjectMeta.Annotations["updateDate"] = time.Now().String()
+			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateNeeded = true
 		}
 	}
@@ -1117,7 +1117,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	if secretName, secretIndex := findIdentitiesSecret(statefulSet); secretIndex >= 0 && secretName != ispn.GetSecretName() {
 		// Update new Secret name inside StatefulSet.Spec.Template
 		statefulSet.Spec.Template.Spec.Volumes[secretIndex].Secret.SecretName = ispn.GetSecretName()
-		statefulSet.Spec.Template.ObjectMeta.Annotations["updateDate"] = time.Now().String()
+		statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 		updateNeeded = true
 	}
 
@@ -1149,7 +1149,7 @@ func updateStatefulSetEnv(statefulSet *appsv1.StatefulSet, envName, newValue str
 	prevEnvValue := (*env)[envIndex].Value
 	if prevEnvValue != newValue {
 		(*env)[envIndex].Value = newValue
-		statefulSet.Spec.Template.ObjectMeta.Annotations["updateDate"] = time.Now().String()
+		statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 		return true
 	}
 	return false
