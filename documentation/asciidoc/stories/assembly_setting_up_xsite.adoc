@@ -13,6 +13,7 @@ However, you must ensure that {brandname} clusters establish connections in the 
 
 include::assembly_automatically_connecting_clusters.adoc[leveloffset=+1]
 include::assembly_manually_connecting_clusters.adoc[leveloffset=+1]
+include::{topics}/proc_configuring_xsite_within_clusters.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]
