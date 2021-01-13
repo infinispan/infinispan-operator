@@ -70,7 +70,7 @@ func Add(mgr manager.Manager) error {
 }
 
 func (c *configResource) Process() (reconcile.Result, error) {
-	xsite := &config.XSite{}
+	var xsite *config.XSite
 	if c.infinispan.HasSites() {
 		// Check x-site configuration first.
 		// Must be done before creating any Infinispan resources,
@@ -83,7 +83,8 @@ func (c *configResource) Process() (reconcile.Result, error) {
 			return *result, err
 		}
 
-		err := ComputeXSite(c.infinispan, c.kube, siteService, c.log, xsite)
+		var err error
+		xsite, err = ComputeXSite(c.infinispan, c.kube, siteService, c.log)
 		if err != nil {
 			c.log.Error(err, "Error in computeXSite configuration")
 			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
