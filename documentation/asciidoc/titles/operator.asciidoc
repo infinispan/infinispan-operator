@@ -14,9 +14,11 @@
 include::{topics}/attributes/community-attributes.adoc[]
 
 [id='infinispan_operator']
-= {ispn_operator} Guide
+= {ispn_operator} {ispn_operator_version} Guide
 
 The {ispn_operator} provides operational intelligence and reduces management
 complexity for deploying {brandname} on {k8s} and {openshift}.
+
+{ispn_operator} {ispn_operator_version} works with {brandname} Server {ispn_version}
 
 include::stories.adoc[]
