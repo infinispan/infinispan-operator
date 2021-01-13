@@ -11,9 +11,9 @@ import (
 type InfinispanConfiguration struct {
 	Infinispan Infinispan `yaml:"infinispan"`
 	JGroups    JGroups    `yaml:"jgroups"`
-	Keystore   Keystore   `yaml:"keystore"`
-	XSite      XSite      `yaml:"xsite"`
-	Logging    Logging    `yaml:"logging"`
+	Keystore   Keystore   `yaml:"keystore,omitempty"`
+	XSite      *XSite     `yaml:"xsite,omitempty"`
+	Logging    Logging    `yaml:"logging,omitempty"`
 }
 
 type Infinispan struct {
@@ -101,7 +101,7 @@ func CreateInfinispanConfiguration(name string, loggingCategories map[string]str
 	}
 
 	if xsite != nil {
-		config.XSite = *xsite
+		config.XSite = xsite
 	}
 
 	return config

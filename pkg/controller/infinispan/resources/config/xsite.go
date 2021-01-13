@@ -20,51 +20,51 @@ import (
 )
 
 // ComputeXSite compute the xsite struct for cross site function
-func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger logr.Logger, xsite *config.XSite) error {
-	if infinispan.HasSites() {
-		siteServiceName := infinispan.GetSiteServiceName()
-		localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger)
-		if err != nil {
-			logger.Error(err, "error retrieving local x-site service information")
-			return err
-		}
-
-		if localSiteHost == "" {
-			msg := "local x-site service host not yet available"
-			logger.Info(msg)
-			return fmt.Errorf(msg)
-		}
-
-		logger.Info("local site service",
-			"service name", siteServiceName,
-			"host", localSiteHost,
-			"port", localSitePort,
-		)
-
-		xsite.Address = localSiteHost
-		xsite.Name = infinispan.Spec.Service.Sites.Local.Name
-		xsite.Port = localSitePort
-
-		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
-		for _, remoteLocation := range remoteLocations {
-			var err error
-			if remoteLocation.Host != "" {
-				err = appendBackupSite(&remoteLocation, xsite)
-			} else if remoteLocation.URL != "" { // lookup remote service via kubernetes api
-				err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
-			} else {
-				msg := fmt.Sprintf("invalid xsite location, remote name: %s does not define host or url", remoteLocation.Name)
-				logger.Info(msg)
-				err = fmt.Errorf(msg)
-			}
-			if err != nil {
-				return err
-			}
-		}
-
-		logger.Info("x-site configured", "configuration", xsite)
+func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger logr.Logger) (*config.XSite, error) {
+	siteServiceName := infinispan.GetSiteServiceName()
+	localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger)
+	if err != nil {
+		logger.Error(err, "error retrieving local x-site service information")
+		return nil, err
 	}
-	return nil
+
+	if localSiteHost == "" {
+		msg := "local x-site service host not yet available"
+		logger.Info(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	logger.Info("local site service",
+		"service name", siteServiceName,
+		"host", localSiteHost,
+		"port", localSitePort,
+	)
+
+	xsite := &config.XSite{
+		Address: localSiteHost,
+		Name:    infinispan.Spec.Service.Sites.Local.Name,
+		Port:    localSitePort,
+	}
+
+	remoteLocations := findRemoteLocations(xsite.Name, infinispan)
+	for _, remoteLocation := range remoteLocations {
+		var err error
+		if remoteLocation.Host != "" {
+			appendBackupSite(&remoteLocation, xsite)
+		} else if remoteLocation.URL != "" { // lookup remote service via kubernetes api
+			err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
+		} else {
+			msg := fmt.Sprintf("invalid xsite location, remote name: %s does not define host or url", remoteLocation.Name)
+			logger.Info(msg)
+			err = fmt.Errorf(msg)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	logger.Info("x-site configured", "configuration", xsite)
+	return xsite, nil
 }
 
 func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes,
@@ -119,11 +119,11 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 	)
 	remoteLocation.Host = host
 	remoteLocation.Port = port
-	return appendBackupSite(remoteLocation, xsite)
+	appendBackupSite(remoteLocation, xsite)
+	return nil
 }
 
-func appendBackupSite(remoteLocation *ispnv1.InfinispanSiteLocationSpec, xsite *config.XSite) error {
-
+func appendBackupSite(remoteLocation *ispnv1.InfinispanSiteLocationSpec, xsite *config.XSite) {
 	host := remoteLocation.Host
 	port := remoteLocation.Port
 	if port == 0 {
@@ -137,7 +137,6 @@ func appendBackupSite(remoteLocation *ispnv1.InfinispanSiteLocationSpec, xsite *
 	}
 
 	xsite.Backups = append(xsite.Backups, backupSite)
-	return nil
 }
 
 func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kubernetes, logger logr.Logger) (string, int32, error) {
