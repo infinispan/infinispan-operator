@@ -145,6 +145,8 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kuber
 		return GetNodePortServiceHostPort(service.Spec.Ports[0].NodePort, kubernetes, logger)
 	case corev1.ServiceTypeLoadBalancer:
 		return getLoadBalancerServiceHostPort(service, logger)
+	case corev1.ServiceTypeClusterIP:
+		return service.Name, service.Spec.Ports[0].Port, nil
 	default:
 		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
 	}

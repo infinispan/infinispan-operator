@@ -1,0 +1,20 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-clusterb
+spec:
+  replicas: 1
+  expose:
+    type: LoadBalancer
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: SiteB
+        expose:
+          type: ClusterIP
+      locations:
+        - name: SiteA
+          host: example-clustera-site
+        - name: SiteB
+          host: example-clusterb-site

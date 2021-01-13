@@ -288,22 +288,27 @@ func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
 	exposeSpec := corev1.ServiceSpec{}
 	exposeConf := ispn.Spec.Service.Sites.Local.Expose
 	exposeSpec.Selector = lsPodSelector
-	nodePort := int32(0)
-	if exposeConf.NodePort != 0 {
-		nodePort = exposeConf.NodePort
-	}
+
 	switch exposeConf.Type {
-	case ispnv1.ExposeTypeNodePort:
+	case ispnv1.CrossSiteExposeTypeNodePort:
 		exposeSpec.Type = corev1.ServiceTypeNodePort
 		exposeSpec.Ports = []corev1.ServicePort{
 			{
 				Port:       consts.CrossSitePort,
-				NodePort:   nodePort,
+				NodePort:   exposeConf.NodePort,
 				TargetPort: intstr.IntOrString{IntVal: consts.CrossSitePort},
 			},
 		}
-	case ispnv1.ExposeTypeLoadBalancer:
+	case ispnv1.CrossSiteExposeTypeLoadBalancer:
 		exposeSpec.Type = corev1.ServiceTypeLoadBalancer
+		exposeSpec.Ports = []corev1.ServicePort{
+			{
+				Port:       consts.CrossSitePort,
+				TargetPort: intstr.IntOrString{IntVal: consts.CrossSitePort},
+			},
+		}
+	case ispnv1.CrossSiteExposeTypeClusterIP:
+		exposeSpec.Type = corev1.ServiceTypeClusterIP
 		exposeSpec.Ports = []corev1.ServicePort{
 			{
 				Port:       consts.CrossSitePort,
