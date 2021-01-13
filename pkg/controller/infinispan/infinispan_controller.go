@@ -46,6 +46,7 @@ import (
 
 const (
 	DataMountPath        = "/opt/infinispan/server/data"
+	DataMountVolume      = "data-volume"
 	EncryptMountPath     = "/etc/encrypt"
 	ConfigVolumeName     = "config-volume"
 	EncryptVolumeName    = "encrypt-volume"
@@ -679,7 +680,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							Name:      IdentitiesVolumeName,
 							MountPath: consts.ServerSecurityRoot,
 						}, {
-							Name:      m.Name,
+							Name:      DataMountVolume,
 							MountPath: DataMountPath,
 						}},
 					}},
@@ -723,7 +724,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		}
 
 		pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
-			Name:      m.Name,
+			Name:      DataMountVolume,
 			Namespace: m.Namespace,
 		},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -749,11 +750,11 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		}
 		dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
 
-		AddVolumeChmodInitContainer("data-chmod-pv", m.Name, DataMountPath, &dep.Spec.Template.Spec)
+		AddVolumeChmodInitContainer("data-chmod-pv", DataMountVolume, DataMountPath, &dep.Spec.Template.Spec)
 	} else {
 		volumes := &dep.Spec.Template.Spec.Volumes
 		ephemeralVolume := corev1.Volume{
-			Name: m.Name,
+			Name: DataMountVolume,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
