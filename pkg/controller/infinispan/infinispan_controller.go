@@ -275,6 +275,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				if infinispan.Spec.Expose.NodePort == 0 && len(externalService.Spec.Ports) > 0 {
 					infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
 				}
+				if infinispan.GetExposeType() == infinispanv1.ExposeTypeLoadBalancer && len(externalService.Status.LoadBalancer.Ingress) > 0 {
+					infinispan.Spec.Expose.Host = externalService.Status.LoadBalancer.Ingress[0].Hostname
+				}
 			}); err != nil {
 				return reconcile.Result{}, err
 			}
