@@ -46,6 +46,7 @@ import (
 
 const (
 	DataMountPath        = "/opt/infinispan/server/data"
+	DataVolumeName       = "data-volume"
 	EncryptMountPath     = "/etc/encrypt"
 	ConfigVolumeName     = "config-volume"
 	EncryptVolumeName    = "encrypt-volume"
@@ -676,7 +677,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							Name:      IdentitiesVolumeName,
 							MountPath: consts.ServerSecurityRoot,
 						}, {
-							Name:      m.Name,
+							Name:      DataVolumeName,
 							MountPath: DataMountPath,
 						}},
 					}},
@@ -720,7 +721,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		}
 
 		pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
-			Name:      m.ObjectMeta.Name,
+			Name:      DataVolumeName,
 			Namespace: m.ObjectMeta.Namespace,
 		},
 			Spec: corev1.PersistentVolumeClaimSpec{
