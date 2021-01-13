@@ -19,6 +19,6 @@ include::{topics}/attributes/community-attributes.adoc[]
 The {ispn_operator} provides operational intelligence and reduces management
 complexity for deploying {brandname} on {k8s} and {openshift}.
 
-{ispn_operator} {ispn_operator_version} works with {brandname} Server {ispn_version}
+{ispn_operator} {ispn_operator_version} corresponds to {brandname} {ispn_version}.
 
 include::stories.adoc[]
