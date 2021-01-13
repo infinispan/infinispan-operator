@@ -73,8 +73,7 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 		// Data memory percent usage array, one value per pod
 		metricDataMemoryPercentUsed := map[string]int{}
 		podList := &corev1.PodList{}
-		name := ispn.ObjectMeta.Name
-		err = kubernetes.ResourcesList(ispn.ObjectMeta.Namespace, LabelsResource(name, ""), podList)
+		err = kubernetes.ResourcesList(ispn.Namespace, LabelsResource(ispn.Name, ""), podList)
 		if err != nil {
 			continue
 		}

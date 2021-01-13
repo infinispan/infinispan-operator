@@ -415,7 +415,7 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condi
 func debugPods(required int, pods []v1.Pod) {
 	log.Info("pod list incomplete", "required", required, "pod list size", len(pods))
 	for _, pod := range pods {
-		log.Info("pod info", "name", pod.ObjectMeta.Name, "statuses", pod.Status.ContainerStatuses)
+		log.Info("pod info", "name", pod.Name, "statuses", pod.Status.ContainerStatuses)
 	}
 }
 
