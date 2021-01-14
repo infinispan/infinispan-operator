@@ -90,11 +90,13 @@ type InfinispanSitesLocalSpec struct {
 }
 
 type InfinispanSiteLocationSpec struct {
-	Name       string `json:"name"`
-	Host       string `json:"host,optional,omitempty"`
-	Port       int32  `json:"port,optional,omitempty"`
-	URL        string `json:"url,optional,omitempty"`
-	SecretName string `json:"secretName,optional,omitempty"`
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace,optional,omitempty"`
+	ClusterName string `json:"clusterName,optional,omitempty"`
+	Host        string `json:"host,optional,omitempty"`
+	Port        int32  `json:"port,optional,omitempty"`
+	URL         string `json:"url,optional,omitempty"`
+	SecretName  string `json:"secretName,optional,omitempty"`
 }
 
 type InfinispanSitesSpec struct {

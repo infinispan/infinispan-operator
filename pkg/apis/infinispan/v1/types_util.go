@@ -201,7 +201,7 @@ func (ispn *Infinispan) GetExposeType() ExposeType {
 }
 
 func (ispn *Infinispan) GetSiteServiceName() string {
-	return fmt.Sprintf("%v-site", ispn.Name)
+	return fmt.Sprintf(constants.SiteServiceTemplate, ispn.Name)
 }
 
 // GetEndpointScheme returns the protocol scheme used by the Infinispan cluster

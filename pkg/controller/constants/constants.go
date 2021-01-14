@@ -62,6 +62,7 @@ const (
 	NativeImageMarker        = "native"
 	GeneratedSecretSuffix    = "generated-secret"
 	InfinispanFinalizer      = "finalizer.infinispan.org"
+	SiteServiceTemplate      = "%v-site"
 	ServerConfigRoot         = "/etc/config"
 	ServerSecurityRoot       = "/etc/security"
 	ServerConfigFilename     = "infinispan.yaml"
@@ -99,11 +100,15 @@ const (
 	DefaultWaitClusterNotWellFormed = 15 * time.Second
 )
 
-// GetEnvWithDefault return GetEnv(name) if exists else return defVal
-func GetEnvWithDefault(name, defVal string) string {
-	str := os.Getenv(name)
-	if str != "" {
-		return str
+// GetWithDefault return value if not empty else return defValue
+func GetWithDefault(value, defValue string) string {
+	if value == "" {
+		return defValue
 	}
-	return defVal
+	return value
+}
+
+// GetEnvWithDefault return os.Getenv(name) if exists else return defValue
+func GetEnvWithDefault(name, defValue string) string {
+	return GetWithDefault(os.Getenv(name), defValue)
 }

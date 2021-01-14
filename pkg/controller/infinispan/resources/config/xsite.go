@@ -69,7 +69,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 
 func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes,
 	logger logr.Logger, xsite *config.XSite) error {
-	restConfig, err := getRemoteSiteRESTConfig(infinispan, remoteLocation, kubernetes, logger)
+	restConfig, err := getRemoteSiteRESTConfig(infinispan.Namespace, remoteLocation, kubernetes, logger)
 	if err != nil {
 		return err
 	}
@@ -87,10 +87,12 @@ func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.
 	return nil
 }
 
-func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec,
-	remoteKubernetes *kube.Kubernetes, logger logr.Logger, xsite *config.XSite) error {
-	siteServiceName := infinispan.GetSiteServiceName()
-	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
+func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, remoteKubernetes *kube.Kubernetes, logger logr.Logger, xsite *config.XSite) error {
+	name := consts.GetWithDefault(remoteLocation.ClusterName, infinispan.Name)
+	namespace := consts.GetWithDefault(remoteLocation.Namespace, infinispan.Namespace)
+	siteServiceName := fmt.Sprintf(consts.SiteServiceTemplate, name)
+	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: namespace}
+
 	siteService := &corev1.Service{}
 	err := remoteKubernetes.Client.Get(context.TODO(), namespacedName, siteService)
 	if err != nil {
@@ -217,7 +219,7 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 	return "", port, nil
 }
 
-func getRemoteSiteRESTConfig(infinispan *ispnv1.Infinispan, location *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes, logger logr.Logger) (*restclient.Config, error) {
+func getRemoteSiteRESTConfig(namespace string, location *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes, logger logr.Logger) (*restclient.Config, error) {
 	backupSiteURL, err := url.Parse(location.URL)
 	if err != nil {
 		return nil, err
@@ -231,13 +233,13 @@ func getRemoteSiteRESTConfig(infinispan *ispnv1.Infinispan, location *ispnv1.Inf
 
 	// All remote sites locations are accessed via encrypted http
 	copyURL.Scheme = "https"
-	namespace := infinispan.Namespace
+	locationNamespace := consts.GetWithDefault(location.Namespace, namespace)
 
 	switch scheme := backupSiteURL.Scheme; scheme {
 	case "minikube":
-		return kubernetes.GetMinikubeRESTConfig(copyURL.String(), location.SecretName, namespace, logger)
+		return kubernetes.GetMinikubeRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
 	case "openshift":
-		return kubernetes.GetOpenShiftRESTConfig(copyURL.String(), location.SecretName, namespace, logger)
+		return kubernetes.GetOpenShiftRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
 	default:
 		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
 	}
