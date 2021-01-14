@@ -49,6 +49,10 @@ jobs:
       script:
         - go mod vendor
         - RUN_SA_OPERATOR=TRUE make test
+          # Run multinamespace tests as admin
+          # skip role settings check for now
+        - kubectl config use-context $TESTING_CONTEXT
+        - make multinamespace-test
       after_failure:
         - kubectl config use-context $TESTING_CONTEXT
         - kubectl get events --all-namespaces
