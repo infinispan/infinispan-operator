@@ -1,0 +1,22 @@
+[id='disabling_encryption-{context}']
+= Disabling Encryption
+You can disable encryption so clients do not need TLS certificates to establish connections with {brandname}.
+
+[IMPORTANT]
+====
+{brandname} does not recommend disabling encryption in production environments where endpoints are exposed outside the {k8s} cluster via `spec.expose.type`.
+====
+
+.Procedure
+
+* Set `None` as the value for the `spec.security.endpointEncryption.type` field in your `Infinispan` CR and then apply the changes.
++
+[source,options="nowrap",subs=attributes+]
+----
+spec:
+  ...
+  security:
+    endpointEncryption:
+            type: None <1>
+----
+<1> Disables encryption for {brandname} endpoints.
