@@ -11,7 +11,7 @@ import (
 
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
-	curl "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -99,11 +99,7 @@ func (c Cluster) GetClusterMembers(podName string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf( "server side error getting cluster members. Unable to read response body, %v", err)
 		}
-		response := string(responseBody)
-		if response == "" {
-			response = rsp.Status
-		}
-		return nil, fmt.Errorf("unexpected error getting cluster members, response: %v", response)
+		return nil, fmt.Errorf("unexpected error getting cluster members, response: %v", consts.GetWithDefault(string(responseBody), rsp.Status))
 	}
 
 	defer rsp.Body.Close()
