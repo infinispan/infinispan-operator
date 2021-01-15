@@ -104,6 +104,14 @@ func (m mockCluster) GetCacheManagerInfo(cacheManagerName, podName string) (map[
 	return nil, nil
 }
 
+func (m mockCluster) GetLoggers(podName string) (map[string]string, error) {
+	return nil, nil
+}
+
+func (m mockCluster) SetLogger(podName, loggerName, loggerLevel string) error {
+	return nil
+}
+
 // TestGetInfinispanConditions test for getInfinispanConditions func
 func TestGetInfinispanConditions(t *testing.T) {
 	var m mockCluster

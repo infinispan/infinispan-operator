@@ -37,6 +37,11 @@ type Health struct {
 	ClusterHealth ClusterHealth `json:"cluster_health"`
 }
 
+type Logger struct {
+	Name      string   `json:"name"`
+	Level     string   `json:"level"`
+}
+
 // ClusterInterface represents the interface of a Cluster instance
 type ClusterInterface interface {
 	GetClusterSize(podName string) (int, error)
@@ -50,6 +55,8 @@ type ClusterInterface interface {
 	CacheNames(podName string) ([]string, error)
 	GetMetrics(podName, postfix string) (*bytes.Buffer, error)
 	GetCacheManagerInfo(cacheManagerName, podName string) (map[string]interface{}, error)
+	GetLoggers(podName string) (map[string]string, error)
+	SetLogger(podName, loggerName, loggerLevel string) error
 }
 
 // NewCluster creates a new instance of Cluster
@@ -270,4 +277,36 @@ func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (map[stri
 		return nil, fmt.Errorf("unable to decode: %v", err)
 	}
 	return info, nil
+}
+
+func (c Cluster) GetLoggers(podName string) (map[string]string, error) {
+	rsp, err, reason := c.Client.Get(podName, consts.ServerHTTPLoggersPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unexpected error getting cluster loggers, stderr: %v, err: %v", reason, err)
+	}
+
+	defer rsp.Body.Close()
+	var loggers []Logger
+	if err := json.NewDecoder(rsp.Body).Decode(&loggers); err != nil {
+		return nil, fmt.Errorf("unable to decode: %v", err)
+	}
+	lm := make(map[string]string)
+	for _, logger := range loggers {
+		if logger.Name != "" {
+			lm[logger.Name] = logger.Level
+		}
+	}
+	return lm, nil
+}
+
+func (c Cluster) SetLogger(podName, loggerName, loggerLevel string) error {
+	path := fmt.Sprintf(consts.ServerHTTPModifyLoggerPath, loggerName, strings.ToUpper(loggerLevel))
+	rsp, err, reason := c.Client.Put(podName, path, "", nil)
+	if err != nil {
+		return fmt.Errorf("unexpected error setting cluster logger, stderr: %v, err: %v", reason, err)
+	}
+	if rsp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("unexpected response %d", rsp.StatusCode)
+	}
+	return nil
 }

@@ -666,6 +666,14 @@ spec:
               properties:
                 categories:
                   additionalProperties:
+                    description: LoggingLevelType describe the logging level for selected
+                      category
+                    enum:
+                    - trace
+                    - debug
+                    - info
+                    - warn
+                    - error
                     type: string
                   type: object
               type: object
