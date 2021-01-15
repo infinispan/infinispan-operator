@@ -104,8 +104,20 @@ type InfinispanSitesSpec struct {
 	Locations []InfinispanSiteLocationSpec `json:"locations,omitempty"`
 }
 
+// LoggingLevelType describe the logging level for selected category
+// +kubebuilder:validation:Enum=trace;debug;info;warn;error
+type LoggingLevelType string
+
+const (
+	LoggingLevelTrace LoggingLevelType = "trace"
+	LoggingLevelDebug LoggingLevelType = "debug"
+	LoggingLevelInfo  LoggingLevelType = "info"
+	LoggingLevelWarn  LoggingLevelType = "warn"
+	LoggingLevelError LoggingLevelType = "error"
+)
+
 type InfinispanLoggingSpec struct {
-	Categories map[string]string `json:"categories,omitempty"`
+	Categories map[string]LoggingLevelType `json:"categories,omitempty"`
 }
 
 // ExposeType describe different exposition methods for Infinispan

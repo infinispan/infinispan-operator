@@ -48,6 +48,14 @@ func (c *CurlClient) Post(podName, path, payload string, headers map[string]stri
 	return c.executeCurlCommand(podName, path, headers, data, "-X POST")
 }
 
+func (c *CurlClient) Put(podName, path, payload string, headers map[string]string) (*http.Response, error, string) {
+	data := ""
+	if payload != "" {
+		data = fmt.Sprintf("-d $'%s'", payload)
+	}
+	return c.executeCurlCommand(podName, path, headers, data, "-X PUT")
+}
+
 func (c *CurlClient) executeCurlCommand(podName string, path string, headers map[string]string, args ...string) (*http.Response, error, string) {
 	httpURL := fmt.Sprintf("%s://%s:%d/%s", c.config.Protocol, podName, consts.InfinispanPort, path)
 	user := fmt.Sprintf("-u %v:%v", c.credentials.Username, c.credentials.Password)

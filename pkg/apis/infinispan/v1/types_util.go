@@ -266,14 +266,14 @@ func (ispn *Infinispan) GetJavaOptions() string {
 	return ""
 }
 
-// GetLogCategoriesForConfigMap return a map of log category for the Infinispan configuration
-func (ispn *Infinispan) GetLogCategoriesForConfigMap() map[string]string {
+// GetLogCategoriesForConfig return a map of log category for the Infinispan configuration
+func (ispn *Infinispan) GetLogCategoriesForConfig() map[string]string {
 	if ispn.Spec.Logging != nil {
 		categories := ispn.Spec.Logging.Categories
 		if categories != nil {
 			copied := make(map[string]string, len(categories))
 			for category, level := range categories {
-				copied[category] = level
+				copied[category] = string(level)
 			}
 			return copied
 		}

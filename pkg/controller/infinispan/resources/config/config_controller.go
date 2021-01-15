@@ -9,7 +9,7 @@ import (
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,7 +70,7 @@ func Add(mgr manager.Manager) error {
 }
 
 func (c *configResource) Process() (reconcile.Result, error) {
-	var xsite *config.XSite
+	xsite := &configuration.XSite{}
 	if c.infinispan.HasSites() {
 		// Check x-site configuration first.
 		// Must be done before creating any Infinispan resources,
@@ -91,27 +91,23 @@ func (c *configResource) Process() (reconcile.Result, error) {
 		}
 	}
 
-	configMap, err := c.computeConfigMap(xsite)
+	err := c.computeAndReconcileConfigMap(xsite)
 	if err != nil {
-		c.log.Error(err, "Could not create Infinispan configuration")
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	err = c.reconcileConfigMap(configMap)
-	if err != nil {
-		c.log.Error(err, "Error in reconcileConfigMap")
+		c.log.Error(err, "Error while computing and reconciling ConfigMap")
 		return reconcile.Result{Requeue: true}, nil
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (c configResource) computeConfigMap(xsite *config.XSite) (*corev1.ConfigMap, error) {
+// computeAndReconcileConfigMap computes, creates or updates the ConfigMap for the Infinispan
+func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite) error {
 	name := c.infinispan.Name
 	namespace := c.infinispan.Namespace
 
-	loggingCategories := c.infinispan.GetLogCategoriesForConfigMap()
-	config := config.CreateInfinispanConfiguration(name, loggingCategories, namespace, xsite)
+	lsConfigMap := infinispan.LabelsResource(name, "infinispan-configmap-configuration")
+	loggingCategories := c.infinispan.GetLogCategoriesForConfig()
+	config := configuration.CreateInfinispanConfiguration(name, namespace, loggingCategories, xsite)
 	// Explicitly set the number of lock owners in order for zero-capacity nodes to be able to utilise clustered locks
 	if c.infinispan.Spec.Replicas > 0 {
 		config.Infinispan.Locks.Owners = c.infinispan.Spec.Replicas
@@ -119,52 +115,42 @@ func (c configResource) computeConfigMap(xsite *config.XSite) (*corev1.ConfigMap
 
 	err := infinispan.ConfigureServerEncryption(c.infinispan, &config, c.client)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	configYaml, err := config.Yaml()
-	if err != nil {
-		return nil, err
-	}
-	lsConfigMap := infinispan.LabelsResource(name, "infinispan-configmap-configuration")
-	configMap := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
+
+	configMapObject := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.infinispan.GetConfigName(),
 			Namespace: namespace,
-			Labels:    lsConfigMap,
-		},
-		Data: map[string]string{consts.ServerConfigFilename: string(configYaml)},
-	}
-
-	return configMap, nil
-}
-
-// reconcileConfigMap creates or updates the ConfigMap for the Infinispan
-func (c configResource) reconcileConfigMap(configMap *corev1.ConfigMap) error {
-	configMapObject := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      configMap.Name,
-			Namespace: configMap.Namespace,
 		},
 	}
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.client, configMapObject, func() error {
 		if configMapObject.CreationTimestamp.IsZero() {
-			configMapObject.Data = configMap.Data
-			configMapObject.Annotations = configMap.Annotations
-			configMapObject.Labels = configMap.Labels
+			configYaml, err := config.Yaml()
+			if err != nil {
+				return err
+			}
+			configMapObject.Data = map[string]string{consts.ServerConfigFilename: configYaml}
+			configMapObject.Labels = lsConfigMap
 			// Set Infinispan instance as the owner and controller
 			controllerutil.SetControllerReference(c.infinispan, configMapObject, c.scheme)
 		} else {
-			configMapObject.Data[consts.ServerConfigFilename] = configMap.Data[consts.ServerConfigFilename]
+			previousConfig, err := configuration.FromYaml(configMapObject.Data[consts.ServerConfigFilename])
+			if err == nil {
+				// Protecting Logging configuration from changes
+				config.Logging = previousConfig.Logging
+			}
+			configYaml, err := config.Yaml()
+			if err != nil {
+				return err
+			}
+			configMapObject.Data[consts.ServerConfigFilename] = configYaml
 		}
 		return nil
 	})
 	if err == nil && result != controllerutil.OperationResultNone {
-		c.log.Info(fmt.Sprintf("ConfigMap '%s' %s", configMap.Name, result))
+		c.log.Info(fmt.Sprintf("ConfigMap '%s' %s", name, result))
 	}
 	return err
 }

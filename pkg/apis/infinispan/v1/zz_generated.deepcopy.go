@@ -201,7 +201,7 @@ func (in *InfinispanLoggingSpec) DeepCopyInto(out *InfinispanLoggingSpec) {
 	*out = *in
 	if in.Categories != nil {
 		in, out := &in.Categories, &out.Categories
-		*out = make(map[string]string, len(*in))
+		*out = make(map[string]LoggingLevelType, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}

@@ -48,7 +48,7 @@ const (
 	InfinispanPingPortName = "ping"
 	CrossSitePort          = 7900
 	CrossSitePortName      = "xsite"
-	// DefaultCacheManagerName default cache manager name used for cross site
+	// DefaultCacheManagerName default cache manager name
 	DefaultCacheManagerName                 = "default"
 	CacheServiceFixedMemoryXmxMb            = 200
 	CacheServiceJvmNativeMb                 = 220
@@ -72,8 +72,10 @@ const (
 
 	ServerHTTPBasePath         = "rest/v2"
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
-	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/default/health"
+	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/" + DefaultCacheManagerName + "/health"
 	ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
+	ServerHTTPLoggersPath      = ServerHTTPBasePath + "/logging/loggers"
+	ServerHTTPModifyLoggerPath = ServerHTTPLoggersPath + "/%s?level=%s"
 
 	DefaultCacheTemplate = `<infinispan>
 		<cache-container>

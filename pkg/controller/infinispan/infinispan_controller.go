@@ -323,7 +323,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	if infinispan.IsUpgradeNeeded(reqLogger) {
 		reqLogger.Info("Upgrade needed")
-		err = r.destroyResources(infinispan, reqLogger)
+		err = r.destroyResources(infinispan)
 		if err != nil {
 			reqLogger.Error(err, "failed to delete resources before upgrade")
 			return reconcile.Result{}, err
@@ -424,6 +424,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Below the code for a wellFormed cluster
+	err = configureLoggers(podList, cluster, infinispan)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	// Create default cache if it doesn't exists.
 	if infinispan.IsCache() {
@@ -445,6 +449,26 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	return reconcile.Result{}, err
 }
 
+func configureLoggers(pods *corev1.PodList, cluster ispn.ClusterInterface, infinispan *infinispanv1.Infinispan) error {
+	if infinispan.Spec.Logging != nil && len(infinispan.Spec.Logging.Categories) > 0 {
+		for _, pod := range pods.Items {
+			serverLoggers, err := cluster.GetLoggers(pod.Name)
+			if err != nil {
+				return err
+			}
+			for category, level := range infinispan.Spec.Logging.Categories {
+				serverLevel, ok := serverLoggers[category]
+				if !(ok && strings.ToLower(string(level)) == strings.ToLower(serverLevel)) {
+					if err := cluster.SetLogger(pod.Name, category, string(level)); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // LookupResource lookup for resource to be created by separate resource controller
 func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger) (*reconcile.Result, error) {
 	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
@@ -458,7 +482,7 @@ func LookupResource(name, namespace string, resource runtime.Object, client clie
 	return nil, nil
 }
 
-func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinispan, logger logr.Logger) error {
+func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinispan) error {
 	// TODO destroying all upgradable resources for recreation is too manual
 	// Labels cannot easily be used to remove all resources with a given label.
 	// Resource controller could be used to make this easier.
@@ -467,7 +491,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	// Then, stateful set could be controlled by Infinispan to keep current logic.
 
 	// Remove finalizer (we don't use it anymore) if it present and set owner reference for old PVCs
-	err := r.upgradeInfinispan(infinispan, logger)
+	err := r.upgradeInfinispan(infinispan)
 	if err != nil {
 		return err
 	}
@@ -541,7 +565,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	return nil
 }
 
-func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinispan, logger logr.Logger) error {
+func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinispan) error {
 	if contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
 		// Set Infinispan CR as owner reference for PVC if it not defined
 		pvcs := &corev1.PersistentVolumeClaimList{}

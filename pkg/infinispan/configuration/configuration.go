@@ -81,7 +81,7 @@ func FromYaml(src string) (*InfinispanConfiguration, error) {
 }
 
 // CreateInfinispanConfiguration generates a server configuration
-func CreateInfinispanConfiguration(name string, loggingCategories map[string]string, namespace string, xsite *XSite) InfinispanConfiguration {
+func CreateInfinispanConfiguration(name, namespace string, loggingCategories map[string]string, xsite *XSite) InfinispanConfiguration {
 	query := fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace)
 	jgroups := JGroups{Transport: "tcp", DNSPing: DNSPing{Query: query}}
 
