@@ -21,6 +21,7 @@ import (
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	testHttp "github.com/infinispan/infinispan-operator/test/e2e/http"
 	k8s "github.com/infinispan/infinispan-operator/test/e2e/k8s"
+	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -68,11 +69,6 @@ var MinimalSpec = ispnv1.Infinispan{
 	},
 }
 
-func newCluster(user, secret, protocol string, kubernetes *kube.Kubernetes) *ispn.Cluster {
-	pass, _ := users.PasswordFromSecret(user, secret, tconst.Namespace, kubernetes)
-	return ispn.NewCluster(user, pass, tconst.Namespace, protocol, kubernetes)
-}
-
 func TestMain(m *testing.M) {
 	namespace := strings.ToLower(tconst.Namespace)
 	if "TRUE" == tconst.RunLocalOperator {
@@ -84,7 +80,7 @@ func TestMain(m *testing.M) {
 			testKube.DeleteCRD("restore.infinispan.org")
 			testKube.NewNamespace(namespace)
 		}
-		stopCh := testKube.RunOperator(namespace)
+		stopCh := testKube.RunOperator(namespace, "../../deploy/crds/")
 		code := m.Run()
 		close(stopCh)
 		os.Exit(code)
@@ -484,7 +480,7 @@ func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
 	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(tconst.Namespace, ispnctrl.PodLabels(spec.Name), pods))
 
 	// Check that the cluster size is num querying the first pod
-	cluster := newCluster(cconsts.DefaultOperatorUser, ispn.GetSecretName(), protocol, testKube.Kubernetes)
+	cluster := utils.NewCluster(cconsts.DefaultOperatorUser, ispn.GetSecretName(), protocol, tconst.Namespace, testKube.Kubernetes)
 	waitForClusterSize(num, pods.Items[0].Name, cluster)
 }
 

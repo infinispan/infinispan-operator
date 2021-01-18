@@ -51,6 +51,10 @@ jobs:
       script:
         - go mod vendor
         - RUN_SA_OPERATOR=TRUE make test PARALLEL_COUNT=2
+          # Run multinamespace tests as admin
+          # skip role settings check for now
+        - kubectl config use-context $TESTING_CONTEXT
+        - make multinamespace-test PARALLEL_COUNT=2
       after_failure:
         - cat debug.log
         - kubectl config use-context $TESTING_CONTEXT

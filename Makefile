@@ -111,6 +111,11 @@ unit-test: build
 test: build
 	build/run-tests.sh ${KUBECONFIG}
 
+## test             Perform end to end (e2e) tests in multinamespace mode
+##                  Same setting as `ŧest` rule
+multinamespace-test: build
+	build/run-multinamespace-tests.sh ${KUBECONFIG}
+
 ## upgrade-test         Performs test upgrade from one operator version to another against different git branches
 ##                      This script deploys operator to the OKD/OCP cluster from the local source code or already
 ##                      build image located inside the docker registry.

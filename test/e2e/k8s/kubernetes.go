@@ -461,11 +461,11 @@ func (k TestKubernetes) DeleteSecret(secret *v1.Secret) {
 }
 
 // RunOperator runs an operator on a Kubernetes cluster
-func (k TestKubernetes) RunOperator(namespace string) chan struct{} {
-	k.installCRD("../../deploy/crds/infinispan.org_infinispans_crd.yaml")
-	k.installCRD("../../deploy/crds/infinispan.org_caches_crd.yaml")
-	k.installCRD("../../deploy/crds/infinispan.org_backups_crd.yaml")
-	k.installCRD("../../deploy/crds/infinispan.org_restores_crd.yaml")
+func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
+	k.installCRD(crdsPath + "infinispan.org_infinispans_crd.yaml")
+	k.installCRD(crdsPath + "infinispan.org_caches_crd.yaml")
+	k.installCRD(crdsPath + "infinispan.org_backups_crd.yaml")
+	k.installCRD(crdsPath + "infinispan.org_restores_crd.yaml")
 	stopCh := make(chan struct{})
 	go runOperatorLocally(stopCh, namespace)
 	return stopCh
