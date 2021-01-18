@@ -450,18 +450,19 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 }
 
 func configureLoggers(pods *corev1.PodList, cluster ispn.ClusterInterface, infinispan *infinispanv1.Infinispan) error {
-	if infinispan.Spec.Logging != nil && len(infinispan.Spec.Logging.Categories) > 0 {
-		for _, pod := range pods.Items {
-			serverLoggers, err := cluster.GetLoggers(pod.Name)
-			if err != nil {
-				return err
-			}
-			for category, level := range infinispan.Spec.Logging.Categories {
-				serverLevel, ok := serverLoggers[category]
-				if !(ok && strings.ToLower(string(level)) == strings.ToLower(serverLevel)) {
-					if err := cluster.SetLogger(pod.Name, category, string(level)); err != nil {
-						return err
-					}
+	if infinispan.Spec.Logging == nil || len(infinispan.Spec.Logging.Categories) == 0 {
+		return nil
+	}
+	for _, pod := range pods.Items {
+		serverLoggers, err := cluster.GetLoggers(pod.Name)
+		if err != nil {
+			return err
+		}
+		for category, level := range infinispan.Spec.Logging.Categories {
+			serverLevel, ok := serverLoggers[category]
+			if !(ok && string(level) == serverLevel) {
+				if err := cluster.SetLogger(pod.Name, category, string(level)); err != nil {
+					return err
 				}
 			}
 		}
