@@ -38,8 +38,8 @@ type Health struct {
 }
 
 type Logger struct {
-	Name      string   `json:"name"`
-	Level     string   `json:"level"`
+	Name  string `json:"name"`
+	Level string `json:"level"`
 }
 
 // ClusterInterface represents the interface of a Cluster instance
@@ -87,26 +87,15 @@ func (c Cluster) GetClusterSize(podName string) (int, error) {
 
 // GracefulShutdown performs clean cluster shutdown
 func (c Cluster) GracefulShutdown(podName string) error {
-	_, err, reason := c.Client.Post(podName, consts.ServerHTTPClusterStop, "", nil)
-	if err != nil {
-		return fmt.Errorf("unexpected error during graceful shutdown, stderr: %v, err: %v", reason, err)
-	}
-	return nil
+	rsp, err, reason := c.Client.Post(podName, consts.ServerHTTPClusterStop, "", nil)
+	return validateResponse(rsp, reason, err, "during graceful shutdown", http.StatusOK)
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
 func (c Cluster) GetClusterMembers(podName string) ([]string, error) {
 	rsp, err, reason := c.Client.Get(podName, consts.ServerHTTPHealthPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", reason, err)
-	}
-	if rsp.StatusCode != http.StatusOK {
-		defer rsp.Body.Close()
-		responseBody, err := ioutil.ReadAll(rsp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("server side error getting cluster members. Unable to read response body, %v", err)
-		}
-		return nil, fmt.Errorf("unexpected error getting cluster members, response: %v", consts.GetWithDefault(string(responseBody), rsp.Status))
+	if err := validateResponse(rsp, reason, err, "getting cluster members", http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	defer rsp.Body.Close()
@@ -120,8 +109,8 @@ func (c Cluster) GetClusterMembers(podName string) ([]string, error) {
 // ExistsCache returns true if cacheName cache exists on the podName pod
 func (c Cluster) ExistsCache(cacheName, podName string) (bool, error) {
 	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
-	rsp, err, _ := c.Client.Head(podName, path, nil)
-	if err != nil {
+	rsp, err, reason := c.Client.Head(podName, path, nil)
+	if err := validateResponse(rsp, reason, err, "validating cache exists", http.StatusOK, http.StatusNotFound); err != nil {
 		return false, err
 	}
 
@@ -130,17 +119,16 @@ func (c Cluster) ExistsCache(cacheName, podName string) (bool, error) {
 		return true, nil
 	case http.StatusNotFound:
 		return false, nil
-	default:
-		return false, fmt.Errorf("HTTP response code: %d", rsp.StatusCode)
 	}
+	return false, nil
 }
 
 // CacheNames return the names of the cluster caches available on the pod `podName`
 func (c Cluster) CacheNames(podName string) ([]string, error) {
 	path := fmt.Sprintf("%s/caches", consts.ServerHTTPBasePath)
 	rsp, err, reason := c.Client.Get(podName, path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error getting cluster members, stderr: %v, err: %v", reason, err)
+	if err := validateResponse(rsp, reason, err, "getting caches", http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	defer rsp.Body.Close()
@@ -158,40 +146,14 @@ func (c Cluster) CreateCacheWithTemplate(cacheName, cacheXML, podName string) er
 
 	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
 	rsp, err, reason := c.Client.Post(podName, path, cacheXML, headers)
-	if err != nil {
-		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", reason, err)
-	}
-
-	defer rsp.Body.Close()
-	httpCode := rsp.StatusCode
-	if httpCode >= http.StatusMultipleChoices || httpCode < http.StatusOK {
-		bodyBytes, err := ioutil.ReadAll(rsp.Body)
-		if err != nil {
-			return fmt.Errorf("server side error creating cache. Unable to read response body")
-		}
-		return fmt.Errorf("server side error creating cache: %s", string(bodyBytes))
-	}
-	return nil
+	return validateResponse(rsp, reason, err, "creating cache", http.StatusOK)
 }
 
 // CreateCacheWithTemplateName create cluster cache on the pod `podName`
 func (c Cluster) CreateCacheWithTemplateName(cacheName, templateName, podName string) error {
 	path := fmt.Sprintf("%s/caches/%s?template=%s", consts.ServerHTTPBasePath, cacheName, templateName)
 	rsp, err, reason := c.Client.Post(podName, path, "", nil)
-	if err != nil {
-		return fmt.Errorf("unexpected error creating cache, stderr: %v, err: %v", reason, err)
-	}
-
-	defer rsp.Body.Close()
-	httpCode := rsp.StatusCode
-	if httpCode >= http.StatusMultipleChoices || httpCode < http.StatusOK {
-		bodyBytes, err := ioutil.ReadAll(rsp.Body)
-		if err != nil {
-			return fmt.Errorf("server side error creating cache. Unable to read response body")
-		}
-		return fmt.Errorf("server side error creating cache: %s", string(bodyBytes))
-	}
-	return nil
+	return validateResponse(rsp, reason, err, "creating cache with template", http.StatusOK)
 }
 
 func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
@@ -244,9 +206,10 @@ func (c Cluster) GetMetrics(podName, postfix string) (*bytes.Buffer, error) {
 
 	path := fmt.Sprintf("metrics/%s", postfix)
 	rsp, err, reason := c.Client.Get(podName, path, headers)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error getting metrics, stderr: %v, err: %v", reason, err)
+	if err := validateResponse(rsp, reason, err, "getting metrics", http.StatusOK); err != nil {
+		return nil, err
 	}
+
 	defer rsp.Body.Close()
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(rsp.Body)
@@ -267,8 +230,8 @@ func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
 func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("%s/cache-managers/%s", consts.ServerHTTPBasePath, cacheManagerName)
 	rsp, err, reason := c.Client.Get(podName, path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error getting cache manager info, stderr: %v, err: %v", reason, err)
+	if err := validateResponse(rsp, reason, err, "getting cache manager info", http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	defer rsp.Body.Close()
@@ -281,8 +244,8 @@ func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (map[stri
 
 func (c Cluster) GetLoggers(podName string) (map[string]string, error) {
 	rsp, err, reason := c.Client.Get(podName, consts.ServerHTTPLoggersPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error getting cluster loggers, stderr: %v, err: %v", reason, err)
+	if err := validateResponse(rsp, reason, err, "getting cluster loggers", http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	defer rsp.Body.Close()
@@ -302,11 +265,33 @@ func (c Cluster) GetLoggers(podName string) (map[string]string, error) {
 func (c Cluster) SetLogger(podName, loggerName, loggerLevel string) error {
 	path := fmt.Sprintf(consts.ServerHTTPModifyLoggerPath, loggerName, strings.ToUpper(loggerLevel))
 	rsp, err, reason := c.Client.Put(podName, path, "", nil)
+	if err := validateResponse(rsp, reason, err, "setting cluster logger", http.StatusNoContent); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateResponse(rsp *http.Response, reason string, err error, entity string, validCodes ...int) error {
 	if err != nil {
-		return fmt.Errorf("unexpected error setting cluster logger, stderr: %v, err: %v", reason, err)
+		return fmt.Errorf("unexpected error %s, stderr: %v, err: %v", entity, reason, err)
 	}
-	if rsp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("unexpected response %d", rsp.StatusCode)
+
+	if rsp == nil || len(validCodes) == 0 {
+		return nil
 	}
+
+	for _, code := range validCodes {
+		if code == rsp.StatusCode {
+			return nil
+		}
+	}
+
+	defer rsp.Body.Close()
+	responseBody, responseErr := ioutil.ReadAll(rsp.Body)
+	if responseErr != nil {
+		fmt.Errorf("server side error %s. Unable to read response body, %v", entity, responseErr)
+	}
+	return fmt.Errorf("unexpected error %s, response: %v", reason, consts.GetWithDefault(string(responseBody), rsp.Status))
+
 	return nil
 }
