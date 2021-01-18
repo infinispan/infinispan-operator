@@ -97,9 +97,9 @@ spec:
     - type: SingleNamespace
       supported: true
     - type: MultiNamespace
-      supported: false
+      supported: true
     - type: AllNamespaces
-      supported: false
+      supported: true
   install:
     strategy: deployment
     spec:

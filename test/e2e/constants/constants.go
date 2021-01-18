@@ -34,6 +34,7 @@ var (
 	CPU                  = comutil.GetEnvWithDefault("INFINISPAN_CPU", "500m")
 	Memory               = comutil.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 	Namespace            = strings.ToLower(comutil.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
+	MultiNamespace       = strings.ToLower(comutil.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
 	RunLocalOperator     = strings.ToUpper(comutil.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
 	RunSaOperator        = strings.ToUpper(comutil.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	OperatorUpgradeStage = strings.ToUpper(comutil.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))

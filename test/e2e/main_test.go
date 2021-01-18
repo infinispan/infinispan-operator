@@ -70,6 +70,8 @@ func TestMain(m *testing.M) {
 			kubernetes.DeleteCRD("caches.infinispan.org")
 			kubernetes.NewNamespace(namespace)
 		}
+		kubernetes.InstallRBAC(namespace, "../../deploy/")
+		kubernetes.InstallCRD("../../deploy/crds/")
 		stopCh := kubernetes.RunOperator(namespace)
 		code := m.Run()
 		close(stopCh)
