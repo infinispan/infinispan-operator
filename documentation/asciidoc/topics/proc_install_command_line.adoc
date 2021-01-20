@@ -23,6 +23,7 @@ $ {oc_new_project} ${WATCH_NAMESPACE} <2>
 +
 . Create an `OperatorGroup` resource.
 +
+.Watch a specific {brandname} cluster
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_apply_cr} - << EOF
@@ -36,6 +37,11 @@ spec:
  - ${WATCH_NAMESPACE}
 EOF
 ----
++
+[NOTE]
+====
+You can omit `spec.targetNamespaces` from `OperatorGroup` to make {ispn_operator} available in all namespaces.
+====
 +
 . Create a subscription for {ispn_operator}.
 +
