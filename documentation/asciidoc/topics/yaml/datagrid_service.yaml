@@ -15,7 +15,7 @@ spec:
     # Configures cross-site replication.
     sites:
       local:
-      name: NYC
+      name: azure
       expose:
         type: LoadBalancer
       locations:
@@ -23,6 +23,10 @@ spec:
         url: openshift://api.azure.host:6443
         secretName: azure-token
       - name: aws
+        # Specifies the cluster name at the backup location if does not match the local cluster name.
+        clusterName: {example_crd_name} <6>
+        # Specifies the cluster namespace at the backup location if does not match the local cluster.
+        namespace: {example_namespace} <7>
         url: openshift://api.aws.host:6443
         secretName: aws-token
   # Configures authentication and encryption.
