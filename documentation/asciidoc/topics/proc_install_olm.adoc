@@ -22,7 +22,7 @@ going on to the next node.
 . Select **Install** and continue to **Create Operator Subscription**.
 . Specify options for your subscription.
 +
-Installation Mode:: You can install {ispn_operator} into specific namespaces only.
+Installation Mode:: You can install {ispn_operator} into specific namespaces or multiple namespaces.
 //Community
 ifndef::productized[]
 Update Channel:: Subscribe to updates for {ispn_operator} versions.
