@@ -17,7 +17,7 @@ spec:
       storageClassName: my-storage-class
     sites: <5>
       local:
-      name: NYC
+      name: azure
       expose:
         type: LoadBalancer
       locations:
@@ -25,26 +25,28 @@ spec:
         url: openshift://api.azure.host:6443
         secretName: azure-token
       - name: aws
+        clusterName: {example_crd_name} <6>
+        namespace: {example_namespace} <7>
         url: openshift://api.aws.host:6443
         secretName: aws-token
   security:
-    endpointSecretName: endpoint-identities <6>
-    endpointEncryption: <7>
+    endpointSecretName: endpoint-identities <8>
+    endpointEncryption: <9>
         type: Secret
         certSecretName: tls-secret
-  container: <8>
+  container: <10>
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "1000m"
     memory: 1Gi
-  logging: <9>
+  logging: <11>
     categories:
       org.infinispan: debug
       org.jgroups: debug
       org.jgroups.protocols.TCP: error
       org.jgroups.protocols.relay.RELAY2: fatal
-  expose: <10>
+  expose: <12>
     type: LoadBalancer
-  affinity <11>
+  affinity <13>
 ----
 
 <1> Names the {brandname} cluster.
@@ -52,9 +54,11 @@ spec:
 <3> Creates {datagridservice} clusters.
 <4> Configures node storage resources.
 <5> Provides connection information for backup locations.
-<6> Adds an authentication secret with user credentials.
-<7> Adds a custom encryption secret for secure connections.
-<8> Allocates resources to nodes.
-<9> Configures logging.
-<10> Configures services for external traffic.
-<11> Configures affinity and anti-affinity strategies.
+<6> Specifies the name of the {brandname} cluster at the backup location if it does not match the name of the local cluster.
+<7> Specifies the {k8s} namespace for the {brandname} cluster at the backup location if it is not the same as the local cluster.
+<8> Adds an authentication secret with user credentials.
+<9> Adds a custom encryption secret for secure connections.
+<10> Allocates resources to nodes.
+<11> Configures logging.
+<12> Configures services for external traffic.
+<13> Configures affinity and anti-affinity strategies.
