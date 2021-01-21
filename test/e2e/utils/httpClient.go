@@ -1,4 +1,4 @@
-package http
+package utils
 
 import (
 	"bytes"
@@ -10,11 +10,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 )
 
-type HttpClient interface {
+// HTTPClient can perform HTTP operations
+type HTTPClient interface {
 	Delete(path string, headers map[string]string) (*http.Response, error)
 	Get(path string, headers map[string]string) (*http.Response, error)
 	Post(path, payload string, headers map[string]string) (*http.Response, error)
@@ -24,7 +23,7 @@ type authenticationRealm struct {
 	Username, Password, Realm, NONCE, QOP, Opaque, Algorithm string
 }
 
-type client struct {
+type httpClientConfig struct {
 	*http.Client
 	username       string
 	password       string
@@ -33,8 +32,9 @@ type client struct {
 	requestCounter int
 }
 
-func New(username, password, protocol string) HttpClient {
-	return &client{
+// NewHTTPClient return a new HTTPClient
+func NewHTTPClient(username, password, protocol string) HTTPClient {
+	return &httpClientConfig{
 		username:       username,
 		password:       password,
 		protocol:       protocol,
@@ -50,35 +50,35 @@ func New(username, password, protocol string) HttpClient {
 	}
 }
 
-func (c *client) Delete(path string, headers map[string]string) (*http.Response, error) {
+func (c *httpClientConfig) Delete(path string, headers map[string]string) (*http.Response, error) {
 	httpURL := fmt.Sprintf("%s://%s", c.protocol, path)
 	fmt.Println("DELETE ", httpURL)
 	req, err := http.NewRequest("DELETE", httpURL, nil)
-	utils.ExpectNoError(err)
+	ExpectNoError(err)
 	return c.exec(req, headers)
 }
 
-func (c *client) Get(path string, headers map[string]string) (*http.Response, error) {
+func (c *httpClientConfig) Get(path string, headers map[string]string) (*http.Response, error) {
 	httpURL := fmt.Sprintf("%s://%s", c.protocol, path)
 	fmt.Println("GET ", httpURL)
 	req, err := http.NewRequest("GET", httpURL, nil)
-	utils.ExpectNoError(err)
+	ExpectNoError(err)
 	return c.exec(req, headers)
 }
 
-func (c *client) Post(path, payload string, headers map[string]string) (*http.Response, error) {
+func (c *httpClientConfig) Post(path, payload string, headers map[string]string) (*http.Response, error) {
 	httpURL := fmt.Sprintf("%s://%s", c.protocol, path)
 	body := bytes.NewBuffer([]byte(payload))
 	fmt.Println("POST ", httpURL)
 	req, err := http.NewRequest("POST", httpURL, body)
-	utils.ExpectNoError(err)
+	ExpectNoError(err)
 	return c.exec(req, headers)
 }
 
-func (c *client) exec(req *http.Request, headers map[string]string) (*http.Response, error) {
+func (c *httpClientConfig) exec(req *http.Request, headers map[string]string) (*http.Response, error) {
 	if c.authRealm == nil {
 		rsp, err := c.Do(req)
-		utils.ExpectNoError(err)
+		ExpectNoError(err)
 		if rsp.StatusCode != http.StatusUnauthorized {
 			return rsp, fmt.Errorf("Expected 401 DIGEST response before content: %v", rsp)
 		}
