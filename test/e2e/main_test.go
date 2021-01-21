@@ -18,8 +18,6 @@ import (
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
-	testHttp "github.com/infinispan/infinispan-operator/test/e2e/http"
-	k8s "github.com/infinispan/infinispan-operator/test/e2e/k8s"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,8 +31,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var testKube = k8s.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
-var serviceAccountKube = k8s.NewTestKubernetes("")
+var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
+var serviceAccountKube = tutils.NewTestKubernetes("")
 
 var log = logf.Log.WithName("main_test")
 
@@ -345,7 +343,7 @@ func testCacheService(testName string, imageName *string) {
 
 	protocol := getSchemaForRest(&ispn)
 	routeName := fmt.Sprintf("%s-external", spec.Name)
-	client := testHttp.New(user, password, protocol)
+	client := tutils.New(user, password, protocol)
 	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 
 	cacheName := "default"
@@ -375,7 +373,7 @@ func TestPermanentCache(t *testing.T) {
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 
-		client := testHttp.New(usr, pass, protocol)
+		client := tutils.New(usr, pass, protocol)
 		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 		createCache(cacheName, hostAddr, "PERMANENT", client)
 	}
@@ -386,7 +384,7 @@ func TestPermanentCache(t *testing.T) {
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
-		client := testHttp.New(usr, pass, protocol)
+		client := tutils.New(usr, pass, protocol)
 		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 		key := "test"
 		value := "test-operator"
@@ -421,7 +419,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
-		client := testHttp.New(usr, pass, protocol)
+		client := tutils.New(usr, pass, protocol)
 		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 		createCacheWithXMLTemplate(cacheName, hostAddr, template, client)
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
@@ -433,7 +431,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
 		schema := getSchemaForRest(ispn)
-		client := testHttp.New(usr, pass, schema)
+		client := tutils.New(usr, pass, schema)
 		hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
 		actual := getViaRoute(keyURL, client)
@@ -503,7 +501,7 @@ func TestExternalService(t *testing.T) {
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 	schema := getSchemaForRest(&ispn)
 
-	client := testHttp.New(usr, pass, schema)
+	client := tutils.New(usr, pass, schema)
 	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 
 	cacheName := "test"
@@ -651,8 +649,8 @@ func TestExternalServiceWithAuth(t *testing.T) {
 
 func testAuthentication(schema, name, usr, pass string) {
 	routeName := fmt.Sprintf("%s-external", name)
-	badClient := testHttp.New("badUser", "badPass", schema)
-	client := testHttp.New(usr, pass, schema)
+	badClient := tutils.New("badUser", "badPass", schema)
+	client := tutils.New(usr, pass, schema)
 	hostAddr := testKube.WaitForExternalService(routeName, tconst.RouteTimeout, client, tconst.Namespace)
 
 	cacheName := "test"
@@ -683,7 +681,7 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected response %v", e.status)
 }
 
-func createCache(cacheName, hostAddr string, flags string, client testHttp.HttpClient) {
+func createCache(cacheName, hostAddr string, flags string, client tutils.HttpClient) {
 	httpURL := cacheURL(cacheName, hostAddr)
 	headers := map[string]string{}
 	if flags != "" {
@@ -696,7 +694,7 @@ func createCache(cacheName, hostAddr string, flags string, client testHttp.HttpC
 	}
 }
 
-func createCacheBadCreds(cacheName, hostAddr string, client testHttp.HttpClient) {
+func createCacheBadCreds(cacheName, hostAddr string, client tutils.HttpClient) {
 	defer func() {
 		data := recover()
 		if data == nil {
@@ -710,7 +708,7 @@ func createCacheBadCreds(cacheName, hostAddr string, client testHttp.HttpClient)
 	createCache(cacheName, hostAddr, "", client)
 }
 
-func createCacheWithXMLTemplate(cacheName, hostAddr, template string, client testHttp.HttpClient) {
+func createCacheWithXMLTemplate(cacheName, hostAddr, template string, client tutils.HttpClient) {
 	httpURL := cacheURL(cacheName, hostAddr)
 	fmt.Printf("Create cache: %v\n", httpURL)
 	headers := map[string]string{
@@ -726,7 +724,7 @@ func createCacheWithXMLTemplate(cacheName, hostAddr, template string, client tes
 	}
 }
 
-func deleteCache(cacheName, hostAddr string, client testHttp.HttpClient) {
+func deleteCache(cacheName, hostAddr string, client tutils.HttpClient) {
 	httpURL := cacheURL(cacheName, hostAddr)
 	resp, err := client.Delete(httpURL, nil)
 	tutils.ExpectNoError(err)
@@ -736,7 +734,7 @@ func deleteCache(cacheName, hostAddr string, client testHttp.HttpClient) {
 	}
 }
 
-func getViaRoute(url string, client testHttp.HttpClient) string {
+func getViaRoute(url string, client tutils.HttpClient) string {
 	resp, err := client.Get(url, nil)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -749,7 +747,7 @@ func getViaRoute(url string, client testHttp.HttpClient) string {
 	return string(bodyBytes)
 }
 
-func putViaRoute(url, value string, client testHttp.HttpClient) {
+func putViaRoute(url, value string, client tutils.HttpClient) {
 	headers := map[string]string{
 		"Content-Type": "text/plain",
 	}

@@ -8,13 +8,13 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
-	k8s "github.com/infinispan/infinispan-operator/test/e2e/k8s"
+	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var testKube = k8s.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
-var serviceAccountKube = k8s.NewTestKubernetes("")
+var testKube = utils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
+var serviceAccountKube = utils.NewTestKubernetes("")
 
 var log = logf.Log.WithName("main_test")
 
