@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -44,7 +43,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		infinispan := clusterSpec(sourceCluster, namespace, clusterSize)
 		testKube.Create(infinispan)
 		defer testKube.DeleteInfinispan(infinispan, tconst.SinglePodTimeout)
-		waitForPodsOrFail(infinispan, clusterSize)
+		testKube.WaitForInfinispanPods(clusterSize, tconst.SinglePodTimeout, infinispan.Name, tconst.Namespace)
 
 		// 2. Populate the cluster with some data to backup
 		protocol := getSchemaForRest(infinispan)
@@ -73,7 +72,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		waitForValidBackupPhase(name, namespace, v2.BackupSucceeded)
 
 		// Ensure that the backup pod has left the cluster, by checking a cluster pod's size
-		waitForPodsOrFail(infinispan, clusterSize)
+		testKube.WaitForInfinispanPods(clusterSize, tconst.SinglePodTimeout, infinispan.Name, tconst.Namespace)
 
 		// 4. Delete the original cluster
 		testKube.DeleteInfinispan(infinispan, tconst.SinglePodTimeout)
@@ -84,7 +83,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		infinispan = clusterSpec(targetCluster, namespace, clusterSize)
 		testKube.Create(infinispan)
 		defer testKube.DeleteInfinispan(infinispan, tconst.SinglePodTimeout)
-		waitForPodsOrFail(infinispan, clusterSize)
+		testKube.WaitForInfinispanPods(clusterSize, tconst.SinglePodTimeout, infinispan.Name, tconst.Namespace)
 
 		// Recreate the cluster instance to use the credentials of the new cluster
 		cluster = utils.NewCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, namespace, testKube.Kubernetes)
@@ -112,7 +111,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		waitForValidRestorePhase(name, namespace, v2.RestoreSucceeded)
 
 		// Ensure that the restore pod has left the cluster, by checking a cluster pod's size
-		waitForPodsOrFail(infinispan, clusterSize)
+		testKube.WaitForInfinispanPods(clusterSize, tconst.SinglePodTimeout, infinispan.Name, tconst.Namespace)
 
 		// 7. Ensure that all data is in the target cluster
 		assertNumEntries(cacheName, targetCluster+"-0", numEntries, cluster.Client)
@@ -124,7 +123,7 @@ func waitForValidBackupPhase(name, namespace string, phase v2.BackupPhase) {
 	err := wait.Poll(10*time.Millisecond, tconst.TestTimeout, func() (bool, error) {
 		backup = testKube.GetBackup(name, namespace)
 		if backup.Status.Phase == v2.BackupFailed && phase != v2.BackupFailed {
-			return true, errors.New(fmt.Sprintf("backup failed. Reason: %s", backup.Status.Reason))
+			return true, fmt.Errorf("backup failed. Reason: %s", backup.Status.Reason)
 		}
 		return phase == backup.Status.Phase, nil
 	})
@@ -138,7 +137,7 @@ func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) {
 	err := wait.Poll(10*time.Millisecond, tconst.TestTimeout, func() (bool, error) {
 		restore := testKube.GetRestore(name, namespace)
 		if restore.Status.Phase == v2.RestoreFailed {
-			return true, errors.New(fmt.Sprintf("restore failed. Reason: %s", restore.Status.Reason))
+			return true, fmt.Errorf("restore failed. Reason: %s", restore.Status.Reason)
 		}
 		return phase == restore.Status.Phase, nil
 	})
