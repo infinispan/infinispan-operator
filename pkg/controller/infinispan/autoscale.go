@@ -67,7 +67,7 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 			continue
 		}
 		// We need the password and the scheme to get the metrics
-		pass, err := cluster.GetPassword(constants.DefaultOperatorUser, ispn.Spec.Security.EndpointSecretName, ispn.Namespace)
+		pass, err := cluster.GetPassword(constants.DefaultOperatorUser, ispn.GetSecretName(), ispn.Namespace)
 		protocol := ispn.GetEndpointScheme()
 		if err != nil {
 			continue
