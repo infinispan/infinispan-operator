@@ -97,7 +97,7 @@ func (c Cluster) GetClusterMembers(podName string) ([]string, error) {
 		defer rsp.Body.Close()
 		responseBody, err := ioutil.ReadAll(rsp.Body)
 		if err != nil {
-			return nil, fmt.Errorf( "server side error getting cluster members. Unable to read response body, %v", err)
+			return nil, fmt.Errorf("server side error getting cluster members. Unable to read response body, %v", err)
 		}
 		return nil, fmt.Errorf("unexpected error getting cluster members, response: %v", consts.GetWithDefault(string(responseBody), rsp.Status))
 	}
@@ -235,7 +235,7 @@ func (c Cluster) GetMetrics(podName, postfix string) (*bytes.Buffer, error) {
 	headers := make(map[string]string)
 	headers["Accept"] = "application/json"
 
-	path := fmt.Sprintf("%s/metrics/%s", consts.ServerHTTPBasePath, postfix)
+	path := fmt.Sprintf("metrics/%s", postfix)
 	rsp, err, reason := c.Client.Get(podName, path, headers)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error getting metrics, stderr: %v, err: %v", reason, err)
