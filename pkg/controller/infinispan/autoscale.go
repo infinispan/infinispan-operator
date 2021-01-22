@@ -79,7 +79,7 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 		}
 
 		user := constants.DefaultOperatorUser
-		pass, err := users.PasswordFromSecret(user, ispn.Spec.Security.EndpointSecretName, ispn.Namespace, kubernetes)
+		pass, err := users.PasswordFromSecret(user, ispn.GetSecretName(), ispn.Namespace, kubernetes)
 		if err != nil {
 			continue
 		}
@@ -127,7 +127,7 @@ func getMetricMinPodNum(podName string, cluster *ispnutil.Cluster) (int32, error
 }
 
 func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster *ispnutil.Cluster) error {
-	res, err := cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_default_statistics_data_memory_used")
+	res, err := cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_container_stats_data_memory_used")
 	if err != nil {
 		return err
 	}
