@@ -16,7 +16,6 @@ import (
 	restoreCtrl "github.com/infinispan/infinispan-operator/pkg/controller/restore"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
-	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -95,11 +94,11 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 			Namespace: namespace,
 		},
 	}
-	err := k.Kubernetes.Client.Delete(context.TODO(), obj, tconst.DeleteOpts...)
+	err := k.Kubernetes.Client.Delete(context.TODO(), obj, DeleteOpts...)
 	ExpectMaybeNotFound(err)
 
 	fmt.Println("Waiting for the namespace to be removed")
-	err = wait.Poll(tconst.DefaultPollPeriod, tconst.MaxWaitTimeout, func() (done bool, err error) {
+	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: namespace}, obj)
 		if err != nil && errors.IsNotFound(err) {
 			return true, nil
@@ -147,22 +146,22 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 
 func (k TestKubernetes) DeleteBackup(backup *ispnv2.Backup) {
 	labelSelector := labels.SelectorFromSet(backupCtrl.PodLabels(backup.Name, backup.Spec.Cluster))
-	k.DeleteResource(backup.Namespace, labelSelector, backup, tconst.SinglePodTimeout)
+	k.DeleteResource(backup.Namespace, labelSelector, backup, SinglePodTimeout)
 }
 
 func (k TestKubernetes) DeleteRestore(restore *ispnv2.Restore) {
 	labelSelector := labels.SelectorFromSet(restoreCtrl.PodLabels(restore.Name, restore.Spec.Cluster))
-	k.DeleteResource(restore.Namespace, labelSelector, restore, tconst.SinglePodTimeout)
+	k.DeleteResource(restore.Namespace, labelSelector, restore, SinglePodTimeout)
 }
 
 // DeleteResource deletes the k8 resource and waits that all the pods and pvs associated with that resource are gone
 func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selector, obj runtime.Object, timeout time.Duration) {
-	err := k.Kubernetes.Client.Delete(context.TODO(), obj, tconst.DeleteOpts...)
+	err := k.Kubernetes.Client.Delete(context.TODO(), obj, DeleteOpts...)
 	ExpectMaybeNotFound(err)
 
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: selector}
 	podList := &v1.PodList{}
-	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
 		if err != nil || len(podList.Items) != 0 {
 			return false, nil
@@ -171,7 +170,7 @@ func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selecto
 	})
 	ExpectNoError(err)
 	// Check that PersistentVolumeClaims have been cleanup
-	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		pvc := &v1.PersistentVolumeClaimList{}
 		err = k.Kubernetes.Client.List(context.TODO(), pvc, listOps)
 		if err != nil || len(pvc.Items) != 0 {
@@ -191,11 +190,11 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 	infinispan.Spec.Replicas = 0
 
 	// Workaround for OpenShift local test (clear GVK on decode in the client)
-	infinispan.TypeMeta = tconst.InfinispanTypeMeta
+	infinispan.TypeMeta = InfinispanTypeMeta
 	err = k.Kubernetes.Client.Update(context.TODO(), infinispan)
 	ExpectNoError(err)
 
-	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 		if !infinispan.IsConditionTrue(ispnv1.ConditionGracefulShutdown) {
 			return false, nil
@@ -213,9 +212,9 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 	ExpectNoError(err)
 	infinispan.Spec.Replicas = replicas
-	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		// Workaround for OpenShift local test (clear GVK on decode in the client)
-		infinispan.TypeMeta = tconst.InfinispanTypeMeta
+		infinispan.TypeMeta = InfinispanTypeMeta
 		err1 := k.Kubernetes.Client.Update(context.TODO(), infinispan)
 		if err1 != nil {
 			fmt.Printf("Error updating infinispan %s\n", err1)
@@ -228,7 +227,7 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 
 	ExpectNoError(err)
 
-	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
 		if err != nil || !infinispan.IsWellFormed() {
 			return false, nil
@@ -255,7 +254,7 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomRes
 	ExpectNoError(err)
 
 	fmt.Println("Wait for CRD to be established")
-	err = wait.Poll(tconst.DefaultPollPeriod, tconst.MaxWaitTimeout, func() (done bool, err error) {
+	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 		if err != nil {
 			return false, fmt.Errorf("unable to get CRD: %v", err)
@@ -284,7 +283,7 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomRes
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
 func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Duration, client HTTPClient, namespace string) string {
 	var hostAndPort string
-	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		route := &v1.Service{}
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: routeName}, route)
 		ExpectNoError(err)
@@ -307,7 +306,7 @@ func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Du
 		// so try using cluster ip instead
 		if strings.Contains(hostAndPort, "127.0.0.1") {
 			log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
-			hostAndPort = fmt.Sprintf("127.0.0.1:%d", tconst.InfinispanPort)
+			hostAndPort = fmt.Sprintf("127.0.0.1:%d", InfinispanPort)
 			result := checkExternalAddress(client, hostAndPort)
 			if result {
 				return result, nil
@@ -337,10 +336,10 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
 	// If the cluster exposes external IP then return it
 	if len(route.Status.LoadBalancer.Ingress) == 1 {
 		if route.Status.LoadBalancer.Ingress[0].IP != "" {
-			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].IP+":%d", tconst.InfinispanPort), nil
+			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].IP+":%d", InfinispanPort), nil
 		}
 		if route.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].Hostname+":%d", tconst.InfinispanPort), nil
+			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].Hostname+":%d", InfinispanPort), nil
 		}
 	}
 
@@ -358,7 +357,7 @@ func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duratio
 // WaitForPods waits for pods with given ListOptions to reach the desired count in ContainersReady state
 func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps *client.ListOptions, callback func([]v1.Pod) bool) {
 	podList := &v1.PodList{}
-	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
 		if err != nil {
 			return false, nil
@@ -392,7 +391,7 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps
 
 func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condition ispnv1.ConditionType) {
 	ispn := &ispnv1.Infinispan{}
-	err := wait.Poll(tconst.ConditionPollPeriod, tconst.ConditionWaitTimeout, func() (done bool, err error) {
+	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
 		if err != nil && errors.IsNotFound(err) {
 			return false, err
@@ -423,7 +422,7 @@ func (k TestKubernetes) DeleteCRD(name string) {
 			Name: name,
 		},
 	}
-	err := k.Kubernetes.Client.Delete(context.TODO(), crd, tconst.DeleteOpts...)
+	err := k.Kubernetes.Client.Delete(context.TODO(), crd, DeleteOpts...)
 	ExpectMaybeNotFound(err)
 }
 
@@ -453,7 +452,7 @@ func (k TestKubernetes) CreateSecret(secret *v1.Secret, namespace string) {
 
 // DeleteSecret deletes a secret
 func (k TestKubernetes) DeleteSecret(secret *v1.Secret) {
-	err := k.Kubernetes.Client.Delete(context.TODO(), secret, tconst.DeleteOpts...)
+	err := k.Kubernetes.Client.Delete(context.TODO(), secret, DeleteOpts...)
 	ExpectNoError(err)
 }
 

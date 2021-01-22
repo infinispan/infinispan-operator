@@ -13,7 +13,6 @@ import (
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
-	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,7 +33,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 	return func(t *testing.T) {
 		// Create a resource without passing any config
 		name := strcase.ToKebab(strings.Replace(t.Name(), "/", "", 1))
-		namespace := tconst.Namespace
+		namespace := tutils.Namespace
 		clusterSize := 2
 		numEntries := 100
 
@@ -42,8 +41,8 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		sourceCluster := name + "-source"
 		infinispan := clusterSpec(sourceCluster, namespace, clusterSize)
 		testKube.Create(infinispan)
-		defer testKube.DeleteInfinispan(infinispan, tconst.SinglePodTimeout)
-		testKube.WaitForInfinispanPods(clusterSize, tconst.SinglePodTimeout, infinispan.Name, tconst.Namespace)
+		defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 2. Populate the cluster with some data to backup
 		protocol := getSchemaForRest(infinispan)
@@ -72,18 +71,18 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		waitForValidBackupPhase(name, namespace, v2.BackupSucceeded)
 
 		// Ensure that the backup pod has left the cluster, by checking a cluster pod's size
-		testKube.WaitForInfinispanPods(clusterSize, tconst.SinglePodTimeout, infinispan.Name, tconst.Namespace)
+		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 4. Delete the original cluster
-		testKube.DeleteInfinispan(infinispan, tconst.SinglePodTimeout)
+		testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
 		waitForNoCluster(sourceCluster)
 
 		// 5. Create a new cluster to restore the backup to
 		targetCluster := name + "-target"
 		infinispan = clusterSpec(targetCluster, namespace, clusterSize)
 		testKube.Create(infinispan)
-		defer testKube.DeleteInfinispan(infinispan, tconst.SinglePodTimeout)
-		testKube.WaitForInfinispanPods(clusterSize, tconst.SinglePodTimeout, infinispan.Name, tconst.Namespace)
+		defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// Recreate the cluster instance to use the credentials of the new cluster
 		cluster = utils.NewCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, namespace, testKube.Kubernetes)
@@ -111,7 +110,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		waitForValidRestorePhase(name, namespace, v2.RestoreSucceeded)
 
 		// Ensure that the restore pod has left the cluster, by checking a cluster pod's size
-		testKube.WaitForInfinispanPods(clusterSize, tconst.SinglePodTimeout, infinispan.Name, tconst.Namespace)
+		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 7. Ensure that all data is in the target cluster
 		assertNumEntries(cacheName, targetCluster+"-0", numEntries, cluster.Client)
@@ -120,7 +119,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 
 func waitForValidBackupPhase(name, namespace string, phase v2.BackupPhase) {
 	var backup *v2.Backup
-	err := wait.Poll(10*time.Millisecond, tconst.TestTimeout, func() (bool, error) {
+	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
 		backup = testKube.GetBackup(name, namespace)
 		if backup.Status.Phase == v2.BackupFailed && phase != v2.BackupFailed {
 			return true, fmt.Errorf("backup failed. Reason: %s", backup.Status.Reason)
@@ -134,7 +133,7 @@ func waitForValidBackupPhase(name, namespace string, phase v2.BackupPhase) {
 }
 
 func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) {
-	err := wait.Poll(10*time.Millisecond, tconst.TestTimeout, func() (bool, error) {
+	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
 		restore := testKube.GetRestore(name, namespace)
 		if restore.Status.Phase == v2.RestoreFailed {
 			return true, fmt.Errorf("restore failed. Reason: %s", restore.Status.Reason)
@@ -154,7 +153,7 @@ func datagridService(name, namespace string, replicas int) *v1.Infinispan {
 
 func cacheService(name, namespace string, replicas int) *v1.Infinispan {
 	return &v1.Infinispan{
-		TypeMeta: tconst.InfinispanTypeMeta,
+		TypeMeta: tutils.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -209,8 +208,8 @@ func assertNumEntries(cacheName, pod string, numEntries int, client ispnclient.H
 
 func waitForNoCluster(name string) {
 	statefulSet := &appsv1.StatefulSet{}
-	namespacedName := types.NamespacedName{Namespace: tconst.Namespace, Name: name}
-	err := wait.Poll(tconst.DefaultPollPeriod, tconst.SinglePodTimeout, func() (done bool, err error) {
+	namespacedName := types.NamespacedName{Namespace: tutils.Namespace, Name: name}
+	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
 		e := testKube.Kubernetes.Client.Get(context.Background(), namespacedName, statefulSet)
 		return e != nil && k8errors.IsNotFound(e), nil
 	})
