@@ -7,21 +7,20 @@ import (
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
-	"github.com/infinispan/infinispan-operator/test/e2e/utils"
+	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var testKube = utils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
-var serviceAccountKube = utils.NewTestKubernetes("")
+var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
+var serviceAccountKube = tutils.NewTestKubernetes("")
 
 var log = logf.Log.WithName("main_test")
 
 var MinimalSpec = ispnv1.Infinispan{
-	TypeMeta: tconst.InfinispanTypeMeta,
+	TypeMeta: tutils.InfinispanTypeMeta,
 	ObjectMeta: metav1.ObjectMeta{
-		Name: tconst.DefaultClusterName,
+		Name: tutils.DefaultClusterName,
 	},
 	Spec: ispnv1.InfinispanSpec{
 		Replicas: 1,
@@ -29,9 +28,9 @@ var MinimalSpec = ispnv1.Infinispan{
 }
 
 func TestMain(m *testing.M) {
-	nsAsString := strings.ToLower(tconst.MultiNamespace)
+	nsAsString := strings.ToLower(tutils.MultiNamespace)
 	namespaces := strings.Split(nsAsString, ",")
-	if "TRUE" == tconst.RunLocalOperator {
+	if "TRUE" == tutils.RunLocalOperator {
 		for _, namespace := range namespaces {
 			testKube.DeleteNamespace(namespace)
 		}
@@ -55,7 +54,7 @@ func TestMain(m *testing.M) {
 // Test if single node working correctly
 func TestMultinamespaceNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
-	nsAsString := strings.ToLower(tconst.MultiNamespace)
+	nsAsString := strings.ToLower(tutils.MultiNamespace)
 	namespaces := strings.Split(nsAsString, ",")
 	var wg sync.WaitGroup
 	for _, namespace := range namespaces {
@@ -63,10 +62,10 @@ func TestMultinamespaceNodeStartup(t *testing.T) {
 		spec.Namespace = namespace
 		// Register it
 		testKube.CreateInfinispan(spec, namespace)
-		defer testKube.DeleteInfinispan(spec, tconst.SinglePodTimeout)
+		defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 		wg.Add(1)
 		go func() {
-			testKube.WaitForInfinispanPods(1, tconst.SinglePodTimeout, spec.Name, spec.Namespace)
+			testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, spec.Namespace)
 			wg.Done()
 		}()
 	}
