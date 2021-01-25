@@ -569,8 +569,8 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 		}
 		infinispan.Spec.Image = nil
 		sc := infinispan.Spec.Service.Container
-		if sc != nil && sc.Storage != nil && *infinispan.Spec.Service.Container.Storage == "" {
-			infinispan.Spec.Service.Container.Storage = nil
+		if sc != nil && sc.Storage != nil && *sc.Storage == "" {
+			sc.Storage = nil
 		}
 	})
 }

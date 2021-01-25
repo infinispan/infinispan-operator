@@ -144,9 +144,8 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
-	ephemeralStorage := true
 	spec.Name = name
-	spec.Spec.Service.Container = &ispnv1.InfinispanServiceContainerSpec{EphemeralStorage: &ephemeralStorage}
+	spec.Spec.Service.Container = &ispnv1.InfinispanServiceContainerSpec{EphemeralStorage: true}
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)

@@ -248,16 +248,6 @@ func (in *InfinispanServiceContainerSpec) DeepCopyInto(out *InfinispanServiceCon
 		*out = new(string)
 		**out = **in
 	}
-	if in.EphemeralStorage != nil {
-		in, out := &in.EphemeralStorage, &out.EphemeralStorage
-		*out = new(bool)
-		**out = **in
-	}
-	if in.StorageClassName != nil {
-		in, out := &in.StorageClassName, &out.StorageClassName
-		*out = new(string)
-		**out = **in
-	}
 	return
 }
 
