@@ -91,7 +91,7 @@ func TestNodeStartup(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
-	waitForPodsOrFail(spec, 1)
+	kubernetes.WaitForInfinispanPods(1, tconst.SinglePodTimeout, spec.Name, spec.Namespace)
 }
 
 // Test operator and cluster version upgrade flow
@@ -102,7 +102,7 @@ func TestOperatorUpgrade(t *testing.T) {
 	switch tconst.OperatorUpgradeStage {
 	case tconst.OperatorUpgradeStageFrom:
 		kubernetes.CreateInfinispan(spec, tconst.Namespace)
-		waitForPodsOrFail(spec, 1)
+		kubernetes.WaitForInfinispanPods(1, tconst.SinglePodTimeout, spec.Name, spec.Namespace)
 	case tconst.OperatorUpgradeStageTo:
 		defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 		for _, state := range tconst.OperatorUpgradeStateFlow {
@@ -123,7 +123,7 @@ func TestClusterFormation(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
-	waitForPodsOrFail(spec, 2)
+	kubernetes.WaitForInfinispanPods(2, tconst.SinglePodTimeout, spec.Name, spec.Namespace)
 }
 
 // Test if the cluster is working correctly
@@ -145,7 +145,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	// Register it
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
-	waitForPodsOrFail(spec, 2)
+	kubernetes.WaitForInfinispanPods(2, tconst.SinglePodTimeout, spec.Name, spec.Namespace)
 }
 
 // Test if spec.container.cpu update is handled
@@ -204,7 +204,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	spec.ObjectMeta.Name = name
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
-	waitForPodsOrFail(spec, int(ispn.Spec.Replicas))
+	kubernetes.WaitForInfinispanPods(int(ispn.Spec.Replicas), tconst.SinglePodTimeout, spec.Name, spec.Namespace)
 	// Get the latest version of the Infinispan resource
 	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
 	if err != nil {
@@ -263,7 +263,7 @@ func TestCacheService(t *testing.T) {
 
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
-	waitForPodsOrFail(spec, 1)
+	kubernetes.WaitForInfinispanPods(1, tconst.SinglePodTimeout, spec.Name, spec.Namespace)
 
 	user := cconsts.DefaultDeveloperUser
 	password, err := cluster.Kubernetes.GetPassword(user, spec.GetSecretName(), tconst.Namespace)
@@ -395,7 +395,7 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	spec.ObjectMeta.Name = clusterName
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(spec.Name, tconst.Namespace, tconst.SinglePodTimeout)
-	waitForPodsOrFail(spec, 1)
+	kubernetes.WaitForInfinispanPods(1, tconst.SinglePodTimeout, spec.Name, spec.Namespace)
 
 	ispn := ispnv1.Infinispan{}
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
@@ -408,41 +408,6 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 
 	// Do something that checks that permanent changes are there again
 	verifier(&ispn)
-}
-
-func waitForPodsOrFail(spec *ispnv1.Infinispan, num int) {
-	// Wait that "num" pods are up
-	kubernetes.WaitForPods("app=infinispan-pod", num, tconst.SinglePodTimeout, tconst.Namespace)
-	ispn := ispnv1.Infinispan{}
-	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
-	protocol := getSchemaForRest(&ispn)
-	pods := kubernetes.GetPods("app=infinispan-pod", tconst.Namespace)
-	podName := pods[0].Name
-
-	pass, err := cluster.Kubernetes.GetPassword(cconsts.DefaultOperatorUser, spec.GetSecretName(), tconst.Namespace)
-	testutil.ExpectNoError(err)
-
-	expectedClusterSize := num
-	// Check that the cluster size is num querying the first pod
-	var lastErr error
-	err = wait.Poll(time.Second, tconst.TestTimeout, func() (done bool, err error) {
-		value, err := cluster.GetClusterSize(cconsts.DefaultOperatorUser, pass, podName, tconst.Namespace, protocol)
-		if err != nil {
-			lastErr = err
-			return false, nil
-		}
-		if value > expectedClusterSize {
-			return true, fmt.Errorf("more than expected nodes in cluster (expected=%v, actual=%v)", expectedClusterSize, value)
-		}
-
-		return value == num, nil
-	})
-
-	if err == wait.ErrWaitTimeout && lastErr != nil {
-		err = fmt.Errorf("timed out waiting for the condition, last error: %v", lastErr)
-	}
-
-	testutil.ExpectNoError(err)
 }
 
 func TestExternalService(t *testing.T) {

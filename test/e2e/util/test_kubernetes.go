@@ -378,6 +378,11 @@ func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
 	return "", fmt.Errorf("external address not found")
 }
 
+// WaitForInfinispanPods waits for pods in the given namespace, having the standard Infinispan pod label "app=infinispan-pod" ContainersReady state
+func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) {
+	k.WaitForPods("app=infinispan-pod", required, timeout, namespace)
+}
+
 // WaitForPods waits for pods in the given namespace, having a certain label to reach the desired count in ContainersReady state
 func (k TestKubernetes) WaitForPods(label string, required int, timeout time.Duration, namespace string) {
 	labelSelector, err := labels.Parse(label)
