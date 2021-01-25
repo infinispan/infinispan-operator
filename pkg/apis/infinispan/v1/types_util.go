@@ -346,8 +346,8 @@ func toMilliDecimalQuantity(value int64) resource.Quantity {
 // IsEphemeralStorage
 func (ispn *Infinispan) IsEphemeralStorage() bool {
 	cont := ispn.Spec.Service.Container
-	if cont != nil && cont.EphemeralStorage != nil {
-		return *cont.EphemeralStorage
+	if cont != nil {
+		return cont.EphemeralStorage
 	}
 	return false
 }
@@ -355,8 +355,8 @@ func (ispn *Infinispan) IsEphemeralStorage() bool {
 // StorageClassName returns a storage class name if it defined
 func (ispn *Infinispan) StorageClassName() string {
 	sc := ispn.Spec.Service.Container
-	if sc != nil && sc.StorageClassName != nil {
-		return *sc.StorageClassName
+	if sc != nil {
+		return sc.StorageClassName
 	}
 	return ""
 }
