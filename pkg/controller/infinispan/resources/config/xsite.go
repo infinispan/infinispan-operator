@@ -236,8 +236,8 @@ func getRemoteSiteRESTConfig(namespace string, location *ispnv1.InfinispanSiteLo
 	locationNamespace := consts.GetWithDefault(location.Namespace, namespace)
 
 	switch scheme := backupSiteURL.Scheme; scheme {
-	case "minikube":
-		return kubernetes.GetMinikubeRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
+	case "kubernetes", "minikube":
+		return kubernetes.GetKubernetesRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
 	case "openshift":
 		return kubernetes.GetOpenShiftRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
 	default:

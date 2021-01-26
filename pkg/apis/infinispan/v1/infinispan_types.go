@@ -95,6 +95,7 @@ type InfinispanSiteLocationSpec struct {
 	ClusterName string `json:"clusterName,optional,omitempty"`
 	Host        string `json:"host,optional,omitempty"`
 	Port        int32  `json:"port,optional,omitempty"`
+	// +kubebuilder:validation:Pattern=`^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+)?$`
 	URL         string `json:"url,optional,omitempty"`
 	SecretName  string `json:"secretName,optional,omitempty"`
 }
