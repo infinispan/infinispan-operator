@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infinispan-operator-config
+data:
+  grafana.dashboard.namespace: namespace-for-testing
+  grafana.dashboard.name: infinispan                 # default value if not provided
+  grafana.dashboard.monitoring.key: middleware       # default value

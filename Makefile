@@ -2,7 +2,7 @@ IMAGE ?= quay.io/infinispan/operator
 TAG ?= latest
 GOOS ?= linux
 PROG  := infinispan-operator
-OPERATOR_SDK_VERSION ?= v0.15.2
+OPERATOR_SDK_VERSION ?= v0.16.0
 KUBECONFIG ?= ${HOME}/.kube/config
 
 .PHONY: dep build image push run clean help

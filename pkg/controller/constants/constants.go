@@ -111,6 +111,8 @@ const (
 	DefaultWaitOnCluster = 10 * time.Second
 	// DefaultWaitOnCreateResource delay for wait until resource (Secret, ConfigMap, Service) is created
 	DefaultWaitOnCreateResource = 2 * time.Second
+	// DefaultLongWaitOnCreateResource delay for wait until non core resource is create (only Grafana CRD atm)
+	DefaultLongWaitOnCreateResource = 60 * time.Second
 	//DefaultWaitClusterNotWellFormed wait delay until cluster is not well formed
 	DefaultWaitClusterNotWellFormed = 15 * time.Second
 )
