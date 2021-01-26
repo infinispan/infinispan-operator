@@ -15,8 +15,8 @@ spec:
           type: NodePort
       locations:
       - name: SiteA
-        url: minikube://192.168.99.101:8443
+        url: kubernetes://192.168.99.101:8443
         secretName: site-secrets
       - name: SiteB
-        url: minikube://192.168.99.102:8443
+        url: kubernetes://192.168.99.102:8443
         secretName: site-secrets

@@ -246,8 +246,8 @@ func (k Kubernetes) GetServingCertsMode() string {
 	return ""
 }
 
-func (k Kubernetes) GetMinikubeRESTConfig(masterURL, secretName, namespace string, logger logr.Logger) (*restclient.Config, error) {
-	logger.Info("connect to backup minikube cluster", "url", masterURL)
+func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace string, logger logr.Logger) (*restclient.Config, error) {
+	logger.Info("connect to backup Kubernetes cluster", "url", masterURL)
 
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
