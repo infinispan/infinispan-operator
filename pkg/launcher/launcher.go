@@ -10,6 +10,7 @@ import (
 
 	"github.com/infinispan/infinispan-operator/pkg/apis"
 	"github.com/infinispan/infinispan-operator/pkg/controller"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/grafana"
 	"github.com/infinispan/infinispan-operator/version"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
@@ -129,8 +130,20 @@ func Launch(params Parameters) {
 		os.Exit(1)
 	}
 
+	// Setup scheme for Grafana
+	if err := grafana.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// TODO: should I worry about the context here?
+	if err := grafana.EnsureDashboardExported(context.Background(), namespace, mgr); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
