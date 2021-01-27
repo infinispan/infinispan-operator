@@ -7,7 +7,7 @@ For evaluation and demonstration purposes, you can configure {brandname} to back
 . Create an `Infinispan` CR for each {brandname} cluster.
 . Specify the name of the local site with `spec.service.sites.local.name`.
 . Set `ClusterIP` as the value of the `spec.service.sites.local.expose.type` field.
-. Provide the name and host for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
+. Provide the hostname in the URL for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 +
 The following is an example `Infinispan` CR definition:
 +
@@ -30,11 +30,11 @@ spec:
           type: ClusterIP
       locations:
         - name: SiteA
-          host: example-clustera-site <1>
+          url: xsite://example-clustera-site <1>
         - name: SiteB
-          host: example-clusterb-site
+          url: xsite://example-clusterb-site
 ----
-<1> The value of the `host` field is the {k8s} service name that resolves to an internal IP address.
+<1> The value of the hostname in the `URL` field is the {k8s} service name that resolves to an internal IP address.
 +
 . Configure nodes with any other {datagridservice} resources.
 . Apply the `Infinispan` CRs.

@@ -93,11 +93,13 @@ type InfinispanSiteLocationSpec struct {
 	Name        string `json:"name"`
 	Namespace   string `json:"namespace,optional,omitempty"`
 	ClusterName string `json:"clusterName,optional,omitempty"`
-	Host        string `json:"host,optional,omitempty"`
-	Port        int32  `json:"port,optional,omitempty"`
-	// +kubebuilder:validation:Pattern=`^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+)?$`
-	URL         string `json:"url,optional,omitempty"`
-	SecretName  string `json:"secretName,optional,omitempty"`
+	// Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
+	Host *string `json:"host,optional,omitempty"`
+	// Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
+	Port *int32 `json:"port,optional,omitempty"`
+	// +kubebuilder:validation:Pattern=`(^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)+$)|(^(infinispan\+xsite):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)*$)`
+	URL        string `json:"url,optional,omitempty"`
+	SecretName string `json:"secretName,optional,omitempty"`
 }
 
 type InfinispanSitesSpec struct {

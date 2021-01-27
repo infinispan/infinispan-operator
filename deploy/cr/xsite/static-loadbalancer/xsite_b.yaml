@@ -15,8 +15,6 @@ spec:
           type: LoadBalancer
       locations:
       - name: SiteA
-        host: infinispan-sitea.myhost.com
-        port: 7900
+        url: infinispan+xsite://infinispan-sitea.myhost.com:7900
       - name: SiteB
-        host: infinispan-siteb.myhost.com
-        port: 7900
+        url: infinispan+xsite://infinispan-siteb.myhost.com:7900

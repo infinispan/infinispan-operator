@@ -760,18 +760,22 @@ spec:
                           clusterName:
                             type: string
                           host:
+                            description: Deprecated and to be removed on subsequent
+                              release. Use .URL with infinispan+xsite schema instead.
                             type: string
                           name:
                             type: string
                           namespace:
                             type: string
                           port:
+                            description: Deprecated and to be removed on subsequent
+                              release. Use .URL with infinispan+xsite schema instead.
                             format: int32
                             type: integer
                           secretName:
                             type: string
                           url:
-                            pattern: ^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+)?$
+                            pattern: (^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)+$)|(^(infinispan\+xsite):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)*$)
                             type: string
                         required:
                         - name
