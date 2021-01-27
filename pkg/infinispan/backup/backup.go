@@ -22,10 +22,10 @@ type RestoreConfig struct {
 
 type Resources struct {
 	Caches       []string `json:"caches,optional,omitempty"`
-	CacheConfigs []string `json:"cache-configs,optional,omitempty"`
+	Templates    []string `json:"templates,optional,omitempty"`
 	Counters     []string `json:"counters,optional,omitempty"`
 	ProtoSchemas []string `json:"proto-schemas,optional,omitempty"`
-	Scripts      []string `json:"scripts,optional,omitempty"`
+	Tasks        []string `json:"tasks,optional,omitempty"`
 }
 
 type Status string

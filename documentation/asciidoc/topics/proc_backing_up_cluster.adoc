@@ -41,7 +41,7 @@ include::yaml/cr_backup_resources.yaml[]
 <2> Caches by name.
 <3> Counters by name.
 <4> Protobuf schemas for querying.
-<5> Custom server scripts.
+<5> Custom server tasks.
 +
 . Apply your **Backup** CR.
 +

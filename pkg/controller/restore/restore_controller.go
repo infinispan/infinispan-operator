@@ -9,11 +9,14 @@ import (
 	zero "github.com/infinispan/infinispan-operator/pkg/controller/zerocapacity"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -47,7 +50,6 @@ func (r *reconcileRestore) ResourceInstance(name types.NamespacedName, ctrl *zer
 		return nil, err
 	}
 
-	instance.ApplyDefaults()
 	restore := &restore{
 		instance: instance,
 		client:   r.Client,
@@ -97,6 +99,32 @@ func (r *restore) UpdatePhase(phase zero.Phase, phaseErr error) error {
 	return nil
 }
 
+func (r *restore) Transform() (bool, error) {
+	restore := r.instance
+	res, err := kube.CreateOrPatch(ctx, r.client, restore, func() error {
+		if restore.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(v2.Resource("restore"), restore.Name)
+		}
+		restore.Spec.ApplyDefaults()
+		resources := restore.Spec.Resources
+		if resources == nil {
+			return
+		}
+
+		if len(resources.CacheConfigs) > 0 {
+			resources.Templates = resources.CacheConfigs
+			resources.CacheConfigs = nil
+		}
+
+		if len(resources.Scripts) > 0 {
+			resources.Tasks = resources.Scripts
+			resources.Scripts = nil
+		}
+		return nil
+	})
+	return res != controllerutil.OperationResultNone, err
+}
+
 func (r *restore) Init() (*zero.Spec, error) {
 	backup := &v2.Backup{}
 	backupKey := types.NamespacedName{
@@ -130,7 +158,13 @@ func (r *restore) Exec(client http.HttpClient) error {
 	if instance.Spec.Resources == nil {
 		resources = backup.Resources{}
 	} else {
-		resources = backup.Resources(*instance.Spec.Resources)
+		resources = backup.Resources{
+			Caches:       instance.Spec.Resources.Caches,
+			Counters:     instance.Spec.Resources.Counters,
+			ProtoSchemas: instance.Spec.Resources.ProtoSchemas,
+			Templates:    instance.Spec.Resources.Templates,
+			Tasks:        instance.Spec.Resources.Tasks,
+		}
 	}
 	config := &backup.RestoreConfig{
 		Location:  fmt.Sprintf("%[1]s/%[2]s/%[2]s.zip", DataMountPath, instance.Spec.Backup),

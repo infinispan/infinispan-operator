@@ -1,7 +1,7 @@
 spec:
   ...
   resources:
-    cacheConfigs: <1>
+    templates: <1>
       - distributed-sync-prod
       - distributed-sync-dev
     caches: <2>
@@ -12,5 +12,5 @@ spec:
     protoSchemas: <4>
       - authors.proto
       - books.proto
-    scripts: <5>
+    tasks: <5>
       - wordStream.js

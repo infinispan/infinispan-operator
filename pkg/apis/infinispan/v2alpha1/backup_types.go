@@ -20,10 +20,15 @@ type BackupVolumeSpec struct {
 
 type BackupResources struct {
 	Caches       []string `json:"caches,optional,omitempty"`
-	CacheConfigs []string `json:"cacheConfigs,optional,omitempty"`
+	Templates    []string `json:"templates,optional,omitempty"`
 	Counters     []string `json:"counters,optional,omitempty"`
 	ProtoSchemas []string `json:"protoSchemas,optional,omitempty"`
-	Scripts      []string `json:"scripts,optional,omitempty"`
+	Tasks        []string `json:"tasks,optional,omitempty"`
+
+	// Deprecated and to be removed on subsequent release. Use .Templates instead.
+	CacheConfigs []string `json:"cacheConfigs,optional,omitempty"`
+	// Deprecated and to be removed on subsequent release. Use .Tasks instead.
+	Scripts []string `json:"scripts,optional,omitempty"`
 }
 
 type BackupPhase string
