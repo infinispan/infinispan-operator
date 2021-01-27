@@ -636,6 +636,19 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	lsPod := PodLabels(m.Name)
 
+	pvcs := &corev1.PersistentVolumeClaimList{}
+	err := kubernetes.ResourcesList(m.Namespace, LabelsResource(m.Name, ""), pvcs)
+	if err != nil {
+		return nil, err
+	}
+	dataVolumeName := DataMountVolume
+	for _, pvc := range pvcs.Items {
+		if strings.HasPrefix(pvc.Name, fmt.Sprintf("%s-%s", m.Name, m.Name)) {
+			dataVolumeName = m.Name
+			break
+		}
+	}
+
 	memory := resource.MustParse(m.Spec.Container.Memory)
 	replicas := m.Spec.Replicas
 	dep := &appsv1.StatefulSet{
@@ -680,7 +693,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							Name:      IdentitiesVolumeName,
 							MountPath: consts.ServerSecurityRoot,
 						}, {
-							Name:      DataMountVolume,
+							Name:      dataVolumeName,
 							MountPath: DataMountPath,
 						}},
 					}},
@@ -724,7 +737,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		}
 
 		pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
-			Name:      DataMountVolume,
+			Name:      dataVolumeName,
 			Namespace: m.Namespace,
 		},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -750,11 +763,11 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		}
 		dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
 
-		AddVolumeChmodInitContainer("data-chmod-pv", DataMountVolume, DataMountPath, &dep.Spec.Template.Spec)
+		AddVolumeChmodInitContainer("data-chmod-pv", dataVolumeName, DataMountPath, &dep.Spec.Template.Spec)
 	} else {
 		volumes := &dep.Spec.Template.Spec.Volumes
 		ephemeralVolume := corev1.Volume{
-			Name: DataMountVolume,
+			Name: dataVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
