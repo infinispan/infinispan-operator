@@ -1,6 +1,6 @@
 [id='anti_affinity-{context}']
 = Anti-Affinity Strategies
-Each {brandname} node in a cluster is a pod that runs on an {k8s} node in a cluster.
+Each {brandname} node in a cluster runs in a pod that runs on an {k8s} node in a cluster.
 Each {openshift} node runs on a physical host system.
 Anti-affinity works by distributing {brandname} nodes across {k8s} nodes, ensuring that your {brandname} clusters remain available even if hardware failures occur.
 
@@ -13,18 +13,23 @@ Anti-affinity works by distributing {brandname} nodes across {k8s} nodes, ensuri
 == Fault tolerance
 Anti-affinity strategies guarantee cluster availability in different ways.
 
+[NOTE]
+====
+The equations in the following section apply only if the number of {k8s} nodes or zones is greater than the number of {brandname} nodes.
+====
+
 .Scheduling pods on different {k8s} nodes
 
 Provides tolerance of `x` node failures for the following types of cache:
 
-* Replicated: `x = spec.replicas - (spec.replica - 1)` where `spec.replicas >= num_owners`
+* Replicated: `x = spec.replicas - 1`
 * Distributed: `x = num_owners - 1`
 
 .Scheduling pods across multiple zones
 
 Provides tolerance of `x` zone failures when `x` zones exist for the following types of cache:
 
-* Replicated: `x = spec.replicas`
+* Replicated: `x = spec.replicas - 1`
 * Distributed: `x = num_owners - 1`
 
 [NOTE]
