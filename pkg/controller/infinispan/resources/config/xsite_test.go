@@ -32,15 +32,15 @@ var staticXSiteInfinispan = &ispnv1.Infinispan{
 				Locations: []ispnv1.InfinispanSiteLocationSpec{
 					{
 						Name: "SiteA",
-						URL:  "xsite://example-clustera-site",
+						URL:  "infinispan+xsite://example-clustera-site",
 					},
 					{
 						Name: "SiteB",
-						URL:  "xsite://example-clusterb-site",
+						URL:  "infinispan+xsite://example-clusterb-site",
 					},
 					{
 						Name: "SiteC",
-						URL:  "xsite://example-clusterc-site:7901",
+						URL:  "infinispan+xsite://example-clusterc-site:7901",
 					},
 				},
 			},
