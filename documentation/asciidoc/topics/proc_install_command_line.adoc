@@ -8,22 +8,33 @@ As an alternative to installing {ispn_operator} through the **OperatorHub** on {
 
 .Procedure
 
-. Create projects for {ispn_operator} and {brandname} clusters.
-+
-You can install {ispn_operator} in the same project as your {brandname} cluster or in separate projects.
+. Set up projects.
+.. Create a project for {ispn_operator}.
+.. If you want {ispn_operator} to control a specific {brandname} cluster only, create a project for that cluster.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_new_project} ${INSTALL_NAMESPACE} <1>
 $ {oc_new_project} ${WATCH_NAMESPACE} <2>
 ----
-+
 <1> Creates a project into which you install {ispn_operator}.
-<2> Creates a separate project for the {brandname} cluster that {ispn_operator} controls.
+<2> Optionally creates a project for a specific {brandname} cluster if you do not want {ispn_operator} to watch all projects.
 +
 . Create an `OperatorGroup` resource.
 +
-.Watch a specific {brandname} cluster
+.Control all {brandname} clusters
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} - << EOF
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+ name: datagrid
+ namespace: ${INSTALL_NAMESPACE}
+EOF
+----
++
+.Control a specific {brandname} cluster
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_apply_cr} - << EOF
@@ -37,11 +48,6 @@ spec:
  - ${WATCH_NAMESPACE}
 EOF
 ----
-+
-[NOTE]
-====
-You can omit `spec.targetNamespaces` from `OperatorGroup` to make {ispn_operator} available in all namespaces.
-====
 +
 . Create a subscription for {ispn_operator}.
 +

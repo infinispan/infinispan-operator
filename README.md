@@ -167,7 +167,7 @@ spec:
   replicas: 3
 ```
 
-### Further Configurtation
+### Further Configuration
 
 Infinispan operator has other capabilities.
 Check the
