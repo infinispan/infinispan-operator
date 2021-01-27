@@ -289,9 +289,7 @@ func validateResponse(rsp *http.Response, reason string, err error, entity strin
 	defer rsp.Body.Close()
 	responseBody, responseErr := ioutil.ReadAll(rsp.Body)
 	if responseErr != nil {
-		fmt.Errorf("server side error %s. Unable to read response body, %v", entity, responseErr)
+		return fmt.Errorf("server side error %s. Unable to read response body, %v", entity, responseErr)
 	}
 	return fmt.Errorf("unexpected error %s, response: %v", reason, consts.GetWithDefault(string(responseBody), rsp.Status))
-
-	return nil
 }

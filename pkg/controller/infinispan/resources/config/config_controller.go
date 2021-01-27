@@ -108,10 +108,6 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 	lsConfigMap := infinispan.LabelsResource(name, "infinispan-configmap-configuration")
 	loggingCategories := c.infinispan.GetLogCategoriesForConfig()
 	config := configuration.CreateInfinispanConfiguration(name, namespace, loggingCategories, xsite)
-	// Explicitly set the number of lock owners in order for zero-capacity nodes to be able to utilise clustered locks
-	if c.infinispan.Spec.Replicas > 0 {
-		config.Infinispan.Locks.Owners = c.infinispan.Spec.Replicas
-	}
 
 	err := infinispan.ConfigureServerEncryption(c.infinispan, &config, c.client)
 	if err != nil {

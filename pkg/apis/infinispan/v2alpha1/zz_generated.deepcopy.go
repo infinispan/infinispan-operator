@@ -95,8 +95,8 @@ func (in *BackupResources) DeepCopyInto(out *BackupResources) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.CacheConfigs != nil {
-		in, out := &in.CacheConfigs, &out.CacheConfigs
+	if in.Templates != nil {
+		in, out := &in.Templates, &out.Templates
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -107,6 +107,16 @@ func (in *BackupResources) DeepCopyInto(out *BackupResources) {
 	}
 	if in.ProtoSchemas != nil {
 		in, out := &in.ProtoSchemas, &out.ProtoSchemas
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Tasks != nil {
+		in, out := &in.Tasks, &out.Tasks
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.CacheConfigs != nil {
+		in, out := &in.CacheConfigs, &out.CacheConfigs
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -377,8 +387,8 @@ func (in *RestoreResources) DeepCopyInto(out *RestoreResources) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.CacheConfigs != nil {
-		in, out := &in.CacheConfigs, &out.CacheConfigs
+	if in.Templates != nil {
+		in, out := &in.Templates, &out.Templates
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
@@ -389,6 +399,16 @@ func (in *RestoreResources) DeepCopyInto(out *RestoreResources) {
 	}
 	if in.ProtoSchemas != nil {
 		in, out := &in.ProtoSchemas, &out.ProtoSchemas
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Tasks != nil {
+		in, out := &in.Tasks, &out.Tasks
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.CacheConfigs != nil {
+		in, out := &in.CacheConfigs, &out.CacheConfigs
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

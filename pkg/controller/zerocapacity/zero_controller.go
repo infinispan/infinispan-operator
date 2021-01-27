@@ -40,6 +40,8 @@ type Resource interface {
 	Phase() Phase
 	// Update the current state of the resource to reflect the most recent Phase
 	UpdatePhase(phase Phase, phaseErr error) error
+	// Transform any CR resources, adding defaults or updating fields for backwards-compatibility if required
+	Transform() (bool, error)
 	// Ensure that all prerequisite resources are available and create any required resources before returning the zero spec
 	Init() (*Spec, error)
 	// Perform the operation(s) that are required on the zero-capacity pod
@@ -153,8 +155,13 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	phase := instance.Phase()
+
 	switch phase {
 	case "":
+		// Perform any transformations required on the CR for backwards-compatibility. Returning if a tranformation or error occurs
+		if transformed, err := instance.Transform(); transformed || err != nil {
+			return reconcile.Result{}, err
+		}
 		return reconcile.Result{}, instance.UpdatePhase(ZeroInitializing, nil)
 	case ZeroInitializing:
 		return z.initializeResources(request, instance)
@@ -418,8 +425,8 @@ func (z *Controller) configureServer(name, namespace string, infinispan *v1.Infi
 	if err != nil {
 		return nil, fmt.Errorf("Unable to parse existing config: %s", clusterConfigName)
 	}
+
 	config.Infinispan.ZeroCapacityNode = true
-	config.Infinispan.Locks.Owners = infinispan.Spec.Replicas
 
 	if err := ispnCtrl.ConfigureServerEncryption(infinispan, config, z.Client); err != nil {
 		return nil, fmt.Errorf("Unable to configure zero-capacity encryption: %w", err)

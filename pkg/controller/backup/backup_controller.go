@@ -10,6 +10,7 @@ import (
 	zero "github.com/infinispan/infinispan-operator/pkg/controller/zerocapacity"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -51,7 +52,6 @@ func (r *reconcileBackup) ResourceInstance(key types.NamespacedName, ctrl *zero.
 		return nil, err
 	}
 
-	instance.Spec.ApplyDefaults()
 	return &backupResource{
 		instance: instance,
 		client:   r.Client,
@@ -98,6 +98,33 @@ func (r *backupResource) UpdatePhase(phase zero.Phase, phaseErr error) error {
 		return fmt.Errorf("Failed to update Backup status: %w", err)
 	}
 	return nil
+}
+
+func (r *backupResource) Transform() (bool, error) {
+	backup := r.instance
+	// TODO not working, investigate why?
+	res, err := kube.CreateOrPatch(ctx, r.client, backup, func() error {
+		if backup.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(v2.Resource("backup"), backup.Name)
+		}
+		backup.Spec.ApplyDefaults()
+		resources := backup.Spec.Resources
+		if resources == nil {
+			return
+		}
+
+		if len(resources.CacheConfigs) > 0 {
+			resources.Templates = resources.CacheConfigs
+			resources.CacheConfigs = nil
+		}
+
+		if len(resources.Scripts) > 0 {
+			resources.Tasks = resources.Scripts
+			resources.Scripts = nil
+		}
+		return nil
+	})
+	return res != controllerutil.OperationResultNone, err
 }
 
 func (r *backupResource) Init() (*zero.Spec, error) {
@@ -184,7 +211,13 @@ func (r *backupResource) Exec(client http.HttpClient) error {
 	if instance.Spec.Resources == nil {
 		resources = backup.Resources{}
 	} else {
-		resources = backup.Resources(*instance.Spec.Resources)
+		resources = backup.Resources{
+			Caches:       instance.Spec.Resources.Caches,
+			Counters:     instance.Spec.Resources.Counters,
+			ProtoSchemas: instance.Spec.Resources.ProtoSchemas,
+			Templates:    instance.Spec.Resources.Templates,
+			Tasks:        instance.Spec.Resources.Tasks,
+		}
 	}
 	config := &backup.BackupConfig{
 		Directory: DataMountPath,

@@ -49,6 +49,8 @@ spec:
             resources:
               properties:
                 cacheConfigs:
+                  description: Deprecated and to be removed on subsequent release.
+                    Use .Templates instead.
                   items:
                     type: string
                   type: array
@@ -65,6 +67,16 @@ spec:
                     type: string
                   type: array
                 scripts:
+                  description: Deprecated and to be removed on subsequent release.
+                    Use .Tasks instead.
+                  items:
+                    type: string
+                  type: array
+                tasks:
+                  items:
+                    type: string
+                  type: array
+                templates:
                   items:
                     type: string
                   type: array
