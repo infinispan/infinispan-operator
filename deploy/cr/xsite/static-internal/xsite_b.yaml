@@ -15,6 +15,6 @@ spec:
           type: ClusterIP
       locations:
         - name: SiteA
-          host: example-clustera-site
+          url: infinispan+xsite://example-clustera-site
         - name: SiteB
-          host: example-clusterb-site
+          url: infinispan+xsite://example-clusterb-site

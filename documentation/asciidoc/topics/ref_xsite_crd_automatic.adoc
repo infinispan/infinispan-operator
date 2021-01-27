@@ -16,9 +16,9 @@ ifndef::productized[]
 <4> Provides connection information for all backup locations.
 <5> Specifies a backup location that matches `.spec.service.sites.local.name`.
 <6> Specifies a backup location.
-//* Use `xsite://` if the backup location has a static hostname and port.
 * Use `kubernetes://` if the backup location is a Kubernetes instance.
 * Use `openshift://` if the backup location is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API.
+* Use `xsite://` if the backup location has a static hostname and port.
 <7> Specifies the access secret for a site.
 +
 [NOTE]

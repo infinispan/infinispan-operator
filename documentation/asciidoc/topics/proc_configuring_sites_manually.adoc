@@ -1,16 +1,17 @@
 [id='configuring_sites-{context}']
-= Specifying {brandname} Cluster Hostnames for Cross-Site Replication
-Specify hostnames and ports for {brandname} clusters so they can establish connections and form cross-site views.
+= Specifying {brandname} Cluster static hosts and ports for Cross-Site Replication
+Specify static hosts and ports for {brandname} clusters so they can establish connections and form cross-site views.
 
 .Prerequisites
 
-* Ensure that you have the correct hostnames and port numbers for each {brandname} cluster that you plan to configure as a backup location.
+* Ensure that you have the correct hosts and port numbers for each {brandname} cluster that you plan to configure as a backup location.
 
 .Procedure
 
 . Create an `Infinispan` CR for each {brandname} cluster.
 . Specify the name of the local site with `spec.service.sites.local.name`.
-. Provide the name, host, and port for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
+. Provide the name and static host and port URL for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
+. Port can be omitted and default `7900` value will be used.
 +
 The following are example `Infinispan` CR definitions for **LON** and **NYC**:
 +
@@ -33,11 +34,9 @@ spec:
           type: LoadBalancer
       locations:
         - name: LON
-          host: infinispan-lon.myhost.com
-          port: 7900
+          url: xsite://infinispan-lon.myhost.com:7900
         - name: NYC
-          host: infinispan-nyc.myhost.com
-          port: 7900
+          url: xsite://infinispan-nyc.myhost.com:7900
 ----
 +
 * **NYC**
@@ -59,11 +58,9 @@ spec:
           type: LoadBalancer
       locations:
         - name: NYC
-          host: infinispan-nyc.myhost.com
-          port: 7900
+          url: xsite://infinispan-nyc.myhost.com:7900
         - name: LON
-          host: infinispan-lon.myhost.com
-          port: 7900
+          url: xsite://infinispan-lon.myhost.com
 ----
 +
 . Adjust logging levels for cross-site replication as follows:

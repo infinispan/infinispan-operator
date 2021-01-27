@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
@@ -48,18 +49,18 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 
 	remoteLocations := findRemoteLocations(xsite.Name, infinispan)
 	for _, remoteLocation := range remoteLocations {
-		var err error
-		if remoteLocation.Host != "" {
-			appendBackupSite(&remoteLocation, xsite)
-		} else if remoteLocation.URL != "" { // lookup remote service via kubernetes api
-			err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite)
-		} else {
-			msg := fmt.Sprintf("invalid xsite location, remote name: %s does not define host or url", remoteLocation.Name)
-			logger.Info(msg)
-			err = fmt.Errorf(msg)
-		}
+		backupSiteURL, err := url.Parse(remoteLocation.URL)
 		if err != nil {
 			return nil, err
+		}
+		if backupSiteURL.Scheme == consts.StaticCrossSiteUriSchema {
+			port, _ := strconv.ParseInt(backupSiteURL.Port(), 10, 32)
+			appendBackupSite(remoteLocation.Name, backupSiteURL.Hostname(), int32(port), xsite)
+		} else {
+			// lookup remote service via kubernetes API
+			if err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -117,22 +118,18 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 		"host", host,
 		"port", port,
 	)
-	remoteLocation.Host = host
-	remoteLocation.Port = port
-	appendBackupSite(remoteLocation, xsite)
+	appendBackupSite(remoteLocation.Name, host, port, xsite)
 	return nil
 }
 
-func appendBackupSite(remoteLocation *ispnv1.InfinispanSiteLocationSpec, xsite *config.XSite) {
-	host := remoteLocation.Host
-	port := remoteLocation.Port
+func appendBackupSite(name, host string, port int32, xsite *config.XSite) {
 	if port == 0 {
 		port = consts.CrossSitePort
 	}
 
 	backupSite := config.BackupSite{
 		Address: host,
-		Name:    remoteLocation.Name,
+		Name:    name,
 		Port:    port,
 	}
 
@@ -240,7 +237,7 @@ func getRemoteSiteRESTConfig(namespace string, location *ispnv1.InfinispanSiteLo
 	case "openshift":
 		return kubernetes.GetOpenShiftRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
 	default:
-		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
+		return nil, fmt.Errorf("backup site URL scheme '%s' not supported for remote connection", scheme)
 	}
 }
 
