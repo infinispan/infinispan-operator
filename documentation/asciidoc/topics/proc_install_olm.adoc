@@ -1,18 +1,14 @@
 [id='create_olm_subscription']
 = Installing {ispn_operator} on {openshift}
-Create subscriptions to {ispn_operator} on {openshiftshort} so you can install
-different {brandname} versions and receive automatic updates.
+Create subscriptions to {ispn_operator} on {openshiftshort} so you can install different {brandname} versions and receive automatic updates.
 
-Automatic updates apply to {ispn_operator} first and then for each {brandname}
-node.
-{ispn_operator} updates clusters one node at a time, gracefully shutting
-down each node and then bringing it back online with the updated version before
-going on to the next node.
+Automatic updates apply to {ispn_operator} first and then for each {brandname} node.
+{ispn_operator} updates clusters one node at a time, gracefully shutting down each node and then bringing it back online with the updated version before going on to the next node.
 
 .Prerequisites
 
 * Access to **OperatorHub** running on {openshiftshort}. Some {openshiftshort} environments, such as {ocp}, can require administrator credentials.
-* An {openshiftshort} project for {ispn_operator}.
+* Have an {openshiftshort} project for {ispn_operator} if you plan to install it into a specific namespace.
 
 .Procedure
 
@@ -22,7 +18,7 @@ going on to the next node.
 . Select **Install** and continue to **Create Operator Subscription**.
 . Specify options for your subscription.
 +
-Installation Mode:: You can install {ispn_operator} into specific namespaces or multiple namespaces.
+Installation Mode:: You can install {ispn_operator} into a **Specific** namespace or **All** namespaces.
 //Community
 ifndef::productized[]
 Update Channel:: Subscribe to updates for {ispn_operator} versions.
