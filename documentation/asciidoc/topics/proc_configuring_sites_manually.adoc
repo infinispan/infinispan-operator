@@ -1,5 +1,5 @@
 [id='configuring_sites-{context}']
-= Specifying {brandname} Cluster static hosts and ports for Cross-Site Replication
+= Specifying Static Hosts and Ports for {brandname} Clusters
 Specify static hosts and ports for {brandname} clusters so they can establish connections and form cross-site views.
 
 .Prerequisites
@@ -10,8 +10,7 @@ Specify static hosts and ports for {brandname} clusters so they can establish co
 
 . Create an `Infinispan` CR for each {brandname} cluster.
 . Specify the name of the local site with `spec.service.sites.local.name`.
-. Provide the name and static host and port URL for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
-. Port can be omitted and default `7900` value will be used.
+. Provide the name and static URL for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 +
 The following are example `Infinispan` CR definitions for **LON** and **NYC**:
 +
@@ -34,9 +33,9 @@ spec:
           type: LoadBalancer
       locations:
         - name: LON
-          url: xsite://infinispan-lon.myhost.com:7900
+          url: infinispan+xsite://infinispan-lon.myhost.com:7900
         - name: NYC
-          url: xsite://infinispan-nyc.myhost.com:7900
+          url: infinispan+xsite://infinispan-nyc.myhost.com:7900
 ----
 +
 * **NYC**
@@ -58,9 +57,9 @@ spec:
           type: LoadBalancer
       locations:
         - name: NYC
-          url: xsite://infinispan-nyc.myhost.com:7900
+          url: infinispan+xsite://infinispan-nyc.myhost.com:7900
         - name: LON
-          url: xsite://infinispan-lon.myhost.com
+          url: infinispan+xsite://infinispan-lon.myhost.com
 ----
 +
 . Adjust logging levels for cross-site replication as follows:

@@ -9,9 +9,9 @@ spec:
           type: LoadBalancer <3>
       locations: <4>
       - name: LON <5>
-        url: xsite://infinispan-lon.myhost.com:7900 <6>
+        url: infinispan+xsite://infinispan-lon.myhost.com:7900 <6>
       - name: NYC
-        url: xsite://infinispan-nyc.myhost.com:7900
+        url: infinispan+xsite://infinispan-nyc.myhost.com:7900
   logging:
     categories:
       org.jgroups.protocols.TCP: error <7>
