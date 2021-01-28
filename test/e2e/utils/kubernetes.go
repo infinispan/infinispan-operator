@@ -92,7 +92,6 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 	obj := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace,
-			Namespace: namespace,
 		},
 	}
 	err := k.Kubernetes.Client.Delete(context.TODO(), obj, DeleteOpts...)
@@ -100,7 +99,7 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 
 	fmt.Println("Waiting for the namespace to be removed")
 	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: namespace}, obj)
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: namespace}, obj)
 		if err != nil && errors.IsNotFound(err) {
 			return true, nil
 		}
@@ -438,6 +437,16 @@ func (k TestKubernetes) DeleteCRD(name string) {
 	}
 	err := k.Kubernetes.Client.Delete(context.TODO(), crd, DeleteOpts...)
 	ExpectMaybeNotFound(err)
+
+	fmt.Println("Waiting for the CRD to be removed")
+	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: name}, crd)
+		if err != nil && errors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, nil
+	})
+	ExpectNoError(err)
 }
 
 // Nodes returns a list of running nodes in the cluster
