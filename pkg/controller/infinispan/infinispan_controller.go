@@ -30,7 +30,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/discovery"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -126,36 +125,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 	return nil
-}
-
-// TODO: #686 need to be implemented here
-func getDiscoveryClient() (discovery.DiscoveryInterface, error) {
-	discovery, err := discovery.NewDiscoveryClientForConfig(kubernetes.RestConfig)
-	return discovery, err
-}
-
-func IsGroupVersionSupported(groupVersion string, kind string) (bool, error) {
-	cli, err := getDiscoveryClient()
-	if err != nil {
-		log.Error(err, "Failed to return a discovery client for the current reconciler")
-		return false, err
-	}
-
-	res, err := cli.ServerResourcesForGroupVersion(groupVersion)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	for _, v := range res.APIResources {
-		if v.Kind == kind {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 var _ reconcile.Reconciler = &ReconcileInfinispan{}
@@ -284,11 +253,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 		case infinispanv1.ExposeTypeRoute:
 			var okIngress = false
-			okRoute, err := IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
+			okRoute, err := kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
 			if err != nil {
 				reqLogger.Error(err, fmt.Sprintf("Failed to check if %s,%s is supported", routev1.GroupVersion.String(), "Route"))
 				// Log an error and try to check with Ingress
-				okIngress, err = IsGroupVersionSupported(networkingv1beta1.SchemeGroupVersion.String(), "Ingress")
+				okIngress, err = kubernetes.IsGroupVersionSupported(networkingv1beta1.SchemeGroupVersion.String(), "Ingress")
 				if err != nil {
 					reqLogger.Error(err, fmt.Sprintf("Failed to check if %s,%s is supported", networkingv1beta1.SchemeGroupVersion.String(), "Ingress"))
 				}

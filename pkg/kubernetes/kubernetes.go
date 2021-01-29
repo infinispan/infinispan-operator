@@ -10,10 +10,12 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	restclient "k8s.io/client-go/rest"
@@ -97,6 +99,29 @@ func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
 	return kubernetes, nil
 }
 
+// TODO: #686 need to be implemented here
+func (k Kubernetes) IsGroupVersionSupported(groupVersion string, kind string) (bool, error) {
+	cli, err := discovery.NewDiscoveryClientForConfig(k.RestConfig)
+	if err != nil {
+		return false, err
+	}
+	res, err := cli.ServerResourcesForGroupVersion(groupVersion)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	for _, v := range res.APIResources {
+		if v.Kind == kind {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // GetSecret returns secret associated with given secret name
 func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) {
 	secret := &v1.Secret{}
@@ -178,9 +203,11 @@ func (k Kubernetes) PublicIP() string {
 }
 
 // GetNodesHost return the addresses of the k8s nodes
-func (k Kubernetes) GetNodesHost() []string {
+func (k Kubernetes) GetNodesHost() ([]string, error) {
 	nodes := &v1.NodeList{}
-	k.Client.List(context.TODO(), nodes)
+	if err := k.Client.List(context.TODO(), nodes); err != nil {
+		return nil, err
+	}
 	nodeHosts := make([]string, 0, nodes.Size())
 	for _, n := range nodes.Items {
 		for _, v := range n.Status.Addresses {
@@ -194,7 +221,7 @@ func (k Kubernetes) GetNodesHost() []string {
 			}
 		}
 	}
-	return nodeHosts
+	return nodeHosts, nil
 }
 
 // FindKubeConfig returns local Kubernetes configuration

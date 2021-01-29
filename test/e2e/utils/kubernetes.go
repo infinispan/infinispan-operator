@@ -17,6 +17,7 @@ import (
 	restoreCtrl "github.com/infinispan/infinispan-operator/pkg/controller/restore"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
+	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -53,6 +54,7 @@ func init() {
 	addToScheme(&ispnv2.SchemeBuilder.SchemeBuilder, scheme)
 	addToScheme(&appsv1.SchemeBuilder, scheme)
 	addToScheme(&storagev1.SchemeBuilder, scheme)
+	routev1.Install(scheme)
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
@@ -281,42 +283,53 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomRes
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
-func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Duration, client HTTPClient, namespace string) string {
+func (k TestKubernetes) WaitForExternalService(routeName, namespace string, exposeType ispnv1.ExposeType, timeout time.Duration, client HTTPClient) string {
 	var hostAndPort string
 	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
-		route := &v1.Service{}
-		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: routeName}, route)
-		ExpectNoError(err)
+		switch exposeType {
+		case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
+			route := &v1.Service{}
+			err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: routeName}, route)
+			ExpectNoError(err)
 
-		// depending on the k8s cluster setting, service is sometime available
-		// via Ingress address sometime via node port. So trying both the methods
-		// Try node port first
-		hosts := k.Kubernetes.GetNodesHost()
-		if len(hosts) > 0 {
-			// It should be ok to use the first node address available
-			hostAndPort = fmt.Sprintf("%s:%d", hosts[0], k.Kubernetes.GetNodePort(route))
-			result := checkExternalAddress(client, hostAndPort)
-			if result {
-				return result, nil
+			// depending on the k8s cluster setting, service is sometime available
+			// via Ingress address sometime via node port. So trying both the methods
+			// Try node port first
+			hosts, err := k.Kubernetes.GetNodesHost()
+			ExpectNoError(err)
+			if len(hosts) > 0 {
+				// It should be ok to use the first node address available
+				hostAndPort = fmt.Sprintf("%s:%d", hosts[0], k.Kubernetes.GetNodePort(route))
+				result := checkExternalAddress(client, hostAndPort)
+				if result {
+					return result, nil
+				}
 			}
-		}
 
-		// if node port fails and it points to 127.0.0.1,
-		// it could be running kubernetes-inside-docker,
-		// so try using cluster ip instead
-		if strings.Contains(hostAndPort, "127.0.0.1") {
-			log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
-			hostAndPort = fmt.Sprintf("127.0.0.1:%d", InfinispanPort)
-			result := checkExternalAddress(client, hostAndPort)
-			if result {
-				return result, nil
+			// if node port fails and it points to 127.0.0.1,
+			// it could be running kubernetes-inside-docker,
+			// so try using cluster ip instead
+			if strings.Contains(hostAndPort, "127.0.0.1") {
+				log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
+				hostAndPort = fmt.Sprintf("127.0.0.1:%d", InfinispanPort)
+				result := checkExternalAddress(client, hostAndPort)
+				if result {
+					return result, nil
+				}
 			}
-		}
 
-		// then try to get ingress information
-		hostAndPort, err = k.getExternalAddress(route)
-		if err != nil {
-			return false, nil
+			// then try to get ingress information
+			hostAndPort, err = k.getExternalAddress(route)
+			if err != nil {
+				return false, nil
+			}
+		case ispnv1.ExposeTypeRoute:
+			route := &routev1.Route{}
+			err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: routeName}, route)
+			ExpectNoError(err)
+			if route.Spec.Host != "" {
+				hostAndPort = route.Spec.Host
+			}
 		}
 		return checkExternalAddress(client, hostAndPort), nil
 	})
