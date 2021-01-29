@@ -50,7 +50,6 @@ var DefaultSpec = ispnv1.Infinispan{
 		},
 		Replicas: 1,
 		Expose:   exposeServiceSpec(),
-		Image:    pointer.StringPtr("quay.io/infinispan/server:12.0.0.CR1"),
 	},
 }
 
