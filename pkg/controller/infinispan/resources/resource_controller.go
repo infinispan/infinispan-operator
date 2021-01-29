@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -97,7 +96,7 @@ func CreateController(name string, reconciler Reconciler, mgr manager.Manager) e
 	for index, obj := range reconciler.Types() {
 		if !obj.GroupVersionSupported {
 			// Validate that GroupVersion is supported on runtime platform
-			ok, err := infinispan.IsGroupVersionSupported(obj.GroupVersion.String(), obj.Kind())
+			ok, err := r.Kube.IsGroupVersionSupported(obj.GroupVersion.String(), obj.Kind())
 			if err != nil {
 				r.Log.Error(err, fmt.Sprintf("Failed to check if GVK '%s' is supported", obj.GroupVersionKind()))
 				continue
