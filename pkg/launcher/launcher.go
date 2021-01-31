@@ -118,7 +118,7 @@ func Launch(params Parameters) {
 	}
 
 	// Setup Scheme for Route
-	if err := routev1.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := routev1.Install(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

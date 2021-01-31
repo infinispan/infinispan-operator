@@ -15,6 +15,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
+	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -48,6 +49,7 @@ func init() {
 	addToScheme(&apiextv1beta1.SchemeBuilder, scheme)
 	addToScheme(&ispnv1.SchemeBuilder.SchemeBuilder, scheme)
 	addToScheme(&appsv1.SchemeBuilder, scheme)
+	routev1.Install(scheme)
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
@@ -305,43 +307,54 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomRes
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
-func (k TestKubernetes) WaitForExternalService(routeName string, timeout time.Duration, client *http.Client, user, password, protocol, namespace string) string {
+func (k TestKubernetes) WaitForExternalService(routeName, namespace string, exposeType ispnv1.ExposeType, timeout time.Duration, client *http.Client, user, password, protocol string) string {
 	var hostAndPort string
 	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
-		route := &v1.Service{}
-		ns := types.NamespacedName{Name: routeName, Namespace: namespace}
-		err = k.Kubernetes.Client.Get(context.TODO(), ns, route)
-		ExpectNoError(err)
+		switch exposeType {
+		case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
+			route := &v1.Service{}
+			ns := types.NamespacedName{Name: routeName, Namespace: namespace}
+			err = k.Kubernetes.Client.Get(context.TODO(), ns, route)
+			ExpectNoError(err)
 
-		// depending on the k8s cluster setting, service is sometime available
-		// via Ingress address sometime via node port. So trying both the methods
-		// Try node port first
-		hosts := k.Kubernetes.GetNodesHost()
-		if len(hosts) > 0 {
-			// It should be ok to use the first node address available
-			hostAndPort = fmt.Sprintf("%s:%d", hosts[0], k.Kubernetes.GetNodePort(route))
-			result := checkExternalAddress(client, user, password, protocol, hostAndPort)
-			if result {
-				return result, nil
+			// depending on the k8s cluster setting, service is sometime available
+			// via Ingress address sometime via node port. So trying both the methods
+			// Try node port first
+			hosts, err := k.Kubernetes.GetNodesHost()
+			ExpectNoError(err)
+			if len(hosts) > 0 {
+				// It should be ok to use the first node address available
+				hostAndPort = fmt.Sprintf("%s:%d", hosts[0], k.Kubernetes.GetNodePort(route))
+				result := checkExternalAddress(client, user, password, protocol, hostAndPort)
+				if result {
+					return result, nil
+				}
 			}
-		}
 
-		// if node port fails and it points to 127.0.0.1,
-		// it could be running kubernetes-inside-docker,
-		// so try using cluster ip instead
-		if strings.Contains(hostAndPort, "127.0.0.1") {
-			log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
-			hostAndPort = fmt.Sprintf("127.0.0.1:%d", tconst.DefaultClusterPort)
-			result := checkExternalAddress(client, user, password, protocol, hostAndPort)
-			if result {
-				return result, nil
+			// if node port fails and it points to 127.0.0.1,
+			// it could be running kubernetes-inside-docker,
+			// so try using cluster ip instead
+			if strings.Contains(hostAndPort, "127.0.0.1") {
+				log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
+				hostAndPort = fmt.Sprintf("127.0.0.1:%d", tconst.DefaultClusterPort)
+				result := checkExternalAddress(client, user, password, protocol, hostAndPort)
+				if result {
+					return result, nil
+				}
 			}
-		}
 
-		// then try to get ingress information
-		hostAndPort, err = k.getExternalAddress(route)
-		if err != nil {
-			return false, nil
+			// then try to get ingress information
+			hostAndPort, err = k.getExternalAddress(route)
+			if err != nil {
+				return false, nil
+			}
+		case ispnv1.ExposeTypeRoute:
+			route := &routev1.Route{}
+			err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: routeName}, route)
+			ExpectNoError(err)
+			if route.Spec.Host != "" {
+				hostAndPort = route.Spec.Host
+			}
 		}
 		return checkExternalAddress(client, user, password, protocol, hostAndPort), nil
 	})
