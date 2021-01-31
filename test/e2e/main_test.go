@@ -18,6 +18,7 @@ import (
 	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
+	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -273,14 +274,14 @@ func TestCacheService(t *testing.T) {
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 
 	protocol := getSchemaForRest(&ispn)
-	routeName := fmt.Sprintf("%s-external", name)
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, user, password, protocol, tconst.Namespace)
+	hostAddr := kubernetes.WaitForExternalService(ispn.GetServiceExternalName(), tconst.Namespace, spec.GetExposeType(), tconst.RouteTimeout, client, user, password, protocol)
 
 	cacheName := "default"
+	waitForCacheToBeCreated(cacheURL(protocol, cacheName, hostAddr), client, user, password)
 
 	key := "test"
 	value := "test-operator"
@@ -303,28 +304,26 @@ func TestPermanentCache(t *testing.T) {
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
 		testutil.ExpectNoError(err)
-		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, protocol, tconst.Namespace)
+		hostAddr := kubernetes.WaitForExternalService(ispn.GetServiceExternalName(), tconst.Namespace, ispn.GetExposeType(), tconst.RouteTimeout, client, usr, pass, protocol)
 		createCache(protocol, cacheName, usr, pass, hostAddr, "PERMANENT", client)
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
 		testutil.ExpectNoError(err)
-		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, protocol, tconst.Namespace)
+		hostAddr := kubernetes.WaitForExternalService(ispn.GetServiceExternalName(), tconst.Namespace, ispn.GetExposeType(), tconst.RouteTimeout, client, usr, pass, protocol)
 		key := "test"
 		value := "test-operator"
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(protocol, cacheName, hostAddr), key)
@@ -354,14 +353,13 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
 		testutil.ExpectNoError(err)
-		routeName := fmt.Sprintf("%s-external", name)
 		protocol := getSchemaForRest(ispn)
 
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, protocol, tconst.Namespace)
+		hostAddr := kubernetes.WaitForExternalService(ispn.GetServiceExternalName(), tconst.Namespace, ispn.GetExposeType(), tconst.RouteTimeout, client, usr, pass, protocol)
 		createCacheWithXMLTemplate(getSchemaForRest(ispn), cacheName, usr, pass, hostAddr, template, client)
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(protocol, cacheName, hostAddr), key)
 		putViaRoute(keyURL, value, client, usr, pass)
@@ -370,13 +368,12 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
 		pass, err := cluster.Kubernetes.GetPassword(usr, ispn.GetSecretName(), tconst.Namespace)
 		testutil.ExpectNoError(err)
-		routeName := fmt.Sprintf("%s-external", name)
 		schema := getSchemaForRest(ispn)
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, schema, tconst.Namespace)
+		hostAddr := kubernetes.WaitForExternalService(ispn.GetServiceExternalName(), tconst.Namespace, ispn.GetExposeType(), tconst.RouteTimeout, client, usr, pass, schema)
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(schema, cacheName, hostAddr), key)
 		actual := getViaRoute(keyURL, client, usr, pass)
 		if actual != value {
@@ -442,7 +439,6 @@ func TestExternalService(t *testing.T) {
 	pass, err := cluster.Kubernetes.GetPassword(usr, spec.GetSecretName(), tconst.Namespace)
 	testutil.ExpectNoError(err)
 
-	routeName := fmt.Sprintf("%s-external", name)
 	ispn := ispnv1.Infinispan{}
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 	schema := getSchemaForRest(&ispn)
@@ -451,7 +447,7 @@ func TestExternalService(t *testing.T) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, schema, tconst.Namespace)
+	hostAddr := kubernetes.WaitForExternalService(ispn.GetServiceExternalName(), tconst.Namespace, ispn.GetExposeType(), tconst.RouteTimeout, client, usr, pass, schema)
 
 	cacheName := "test"
 	createCache(schema, cacheName, usr, pass, hostAddr, "", client)
@@ -477,10 +473,16 @@ func exposeServiceSpec() *ispnv1.ExposeSpec {
 func exposeServiceType() ispnv1.ExposeType {
 	exposeServiceType := comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 	switch exposeServiceType {
-	case "NodePort":
+	case string(ispnv1.ExposeTypeNodePort):
 		return ispnv1.ExposeTypeNodePort
-	case "LoadBalancer":
+	case string(ispnv1.ExposeTypeLoadBalancer):
 		return ispnv1.ExposeTypeLoadBalancer
+	case string(ispnv1.ExposeTypeRoute):
+		okRoute, err := kubernetes.Kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
+		if err == nil && okRoute {
+			return ispnv1.ExposeTypeRoute
+		}
+		panic(fmt.Errorf("expose type Route is not supported on the platform: %w", err))
 	default:
 		panic(fmt.Errorf("unknown service type %s", exposeServiceType))
 	}
@@ -539,7 +541,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 
 	schema := getSchemaForRest(&ispn)
-	testAuthentication(schema, name, usr, pass)
+	testAuthentication(schema, ispn.GetServiceExternalName(), ispn.GetExposeType(), usr, pass)
 	// Update the auth credentials.
 	identities = util.CreateIdentitiesFor(usr, newpass)
 	identitiesYaml, err = yaml.Marshal(identities)
@@ -595,16 +597,15 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	// so we're not introducing any delay
 	time.Sleep(10 * time.Second)
 	kubernetes.WaitForPods("app=infinispan-pod", 1, tconst.SinglePodTimeout, tconst.Namespace)
-	testAuthentication(schema, name, usr, newpass)
+	testAuthentication(schema, ispn.GetServiceExternalName(), spec.GetExposeType(), usr, newpass)
 }
 
-func testAuthentication(schema, name, usr, pass string) {
-	routeName := fmt.Sprintf("%s-external", name)
+func testAuthentication(schema, routeName string, exposeType ispnv1.ExposeType, usr, pass string) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	hostAddr := kubernetes.WaitForExternalService(routeName, tconst.RouteTimeout, client, usr, pass, schema, tconst.Namespace)
+	hostAddr := kubernetes.WaitForExternalService(routeName, tconst.Namespace, exposeType, tconst.RouteTimeout, client, usr, pass, schema)
 
 	cacheName := "test"
 	createCacheBadCreds(schema, cacheName, "badUser", "badPass", hostAddr, client)
@@ -727,6 +728,20 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 	}
 }
 
+func waitForCacheToBeCreated(url string, client *http.Client, user string, pass string) {
+	err := wait.Poll(tconst.DefaultPollPeriod, tconst.MaxWaitTimeout, func() (done bool, err error) {
+		req, err := http.NewRequest("GET", url, nil)
+		req.SetBasicAuth(user, pass)
+		fmt.Printf("Wait for cache to be created: %v\n", req)
+		resp, err := client.Do(req)
+		if err != nil {
+			return false, err
+		}
+		return resp.StatusCode == http.StatusOK, nil
+	})
+	testutil.ExpectNoError(err)
+}
+
 func throwHTTPError(resp *http.Response) {
 	errorBytes, _ := ioutil.ReadAll(resp.Body)
 	panic(fmt.Errorf("unexpected HTTP status code (%d): %s", resp.StatusCode, string(errorBytes)))
@@ -739,9 +754,7 @@ func getSchemaForRest(ispn *ispnv1.Infinispan) string {
 		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
 		return len(curr.Status.Conditions) > 0, nil
 	})
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
 	kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
 	if curr.IsEncryptionCertSourceDefined() {
 		return "https"

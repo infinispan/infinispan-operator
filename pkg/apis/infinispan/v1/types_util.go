@@ -177,6 +177,10 @@ func (ispn *Infinispan) GetSecretName() string {
 	return ispn.Spec.Security.EndpointSecretName
 }
 
+func (ispn *Infinispan) GetExposeType() ExposeType {
+	return ispn.Spec.Expose.Type
+}
+
 func (ispn *Infinispan) GetEncryptionSecretName() string {
 	if ispn.Spec.Security.EndpointEncryption == nil {
 		return ""
