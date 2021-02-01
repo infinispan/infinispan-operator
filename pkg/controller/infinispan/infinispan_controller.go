@@ -195,9 +195,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Wait for the Secret to be created by secret-controller or provided by ser
-	secret := &corev1.Secret{}
-	if result, err := LookupResource(infinispan.GetSecretName(), infinispan.Namespace, secret, r.client, reqLogger); result != nil {
-		return *result, err
+	var secret *corev1.Secret
+	if infinispan.IsAuthenticationEnabled() {
+		secret = &corev1.Secret{}
+		if result, err := LookupResource(infinispan.GetSecretName(), infinispan.Namespace, secret, r.client, reqLogger); result != nil {
+			return *result, err
+		}
 	}
 
 	// Reconcile the StatefulSet
@@ -335,13 +338,18 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *result, err
 	}
 
-	user := consts.DefaultOperatorUser
-	pass, err := users.PasswordFromSecret(user, infinispan.GetSecretName(), infinispan.GetNamespace(), kubernetes)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+	var cluster *ispn.Cluster
+	if infinispan.IsAuthenticationEnabled() {
+		user := consts.DefaultOperatorUser
+		pass, err := users.PasswordFromSecret(user, infinispan.GetSecretName(), infinispan.GetNamespace(), kubernetes)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 
-	cluster := ispn.NewCluster(user, pass, request.Namespace, infinispan.GetEndpointScheme(), kubernetes)
+		cluster = ispn.NewCluster(user, pass, request.Namespace, infinispan.GetEndpointScheme(), kubernetes)
+	} else {
+		cluster = ispn.NewClusterNoAuth(request.Namespace, infinispan.GetEndpointScheme(), kubernetes)
+	}
 
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
@@ -703,7 +711,6 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						Name:  "infinispan",
 						Env: PodEnv(m, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hashString(configMap.Data[consts.ServerConfigFilename])},
-							{Name: "IDENTITIES_HASH", Value: hashString(string(secret.Data[consts.ServerIdentitiesFilename]))},
 						}),
 						LivenessProbe:  PodLivenessProbe(m),
 						Ports:          PodPortsWithXsite(m),
@@ -713,9 +720,6 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      ConfigVolumeName,
 							MountPath: consts.ServerConfigRoot,
-						}, {
-							Name:      IdentitiesVolumeName,
-							MountPath: consts.ServerSecurityRoot,
 						}, {
 							Name:      dataVolumeName,
 							MountPath: DataMountPath,
@@ -728,17 +732,20 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 								LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
 							},
 						},
-					}, {
-						Name: IdentitiesVolumeName,
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: secret.Name,
-							},
-						},
 					}},
 				},
 			},
 		},
+	}
+
+	// Only append IDENTITIES_HASH and secret volume if authentication is enabled
+	spec := &dep.Spec.Template.Spec
+	if AddVolumeForAuthentication(m, spec) {
+		spec.Containers[0].Env = append(spec.Containers[0].Env,
+			corev1.EnvVar{
+				Name:  "IDENTITIES_HASH",
+				Value: hashString(string(secret.Data[consts.ServerIdentitiesFilename])),
+			})
 	}
 
 	if !m.IsEphemeralStorage() {
@@ -807,6 +814,30 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	return dep, nil
 }
 
+// Returns true if the volume has been added
+func AddVolumeForAuthentication(i *infinispanv1.Infinispan, spec *corev1.PodSpec) bool {
+	if !i.IsAuthenticationEnabled() {
+		return false
+	}
+
+	v := &spec.Volumes
+	*v = append(*v, corev1.Volume{
+		Name: IdentitiesVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: i.GetSecretName(),
+			},
+		},
+	})
+
+	vm := &spec.Containers[0].VolumeMounts
+	*vm = append(*vm, corev1.VolumeMount{
+		Name:      IdentitiesVolumeName,
+		MountPath: consts.ServerSecurityRoot,
+	})
+	return true
+}
+
 func PodPorts(i *infinispanv1.Infinispan) []corev1.ContainerPort {
 	ports := []corev1.ContainerPort{
 		{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
@@ -865,7 +896,8 @@ func PodResources(spec infinispanv1.InfinispanContainerSpec) corev1.ResourceRequ
 func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{Name: "CONFIG_PATH", Value: consts.ServerConfigPath},
-		{Name: "IDENTITIES_PATH", Value: consts.ServerIdentitiesPath},
+		// Prevent the image from generating a user if authentication disabled
+		{Name: "MANAGED_ENV", Value: "TRUE"},
 		{Name: "JAVA_OPTIONS", Value: i.GetJavaOptions()},
 		{Name: "EXTRA_JAVA_OPTIONS", Value: i.Spec.Container.ExtraJvmOpts},
 		{Name: "DEFAULT_IMAGE", Value: consts.DefaultImageName},
@@ -884,6 +916,10 @@ func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.Env
 				}
 			}
 		}
+	}
+
+	if i.IsAuthenticationEnabled() {
+		envVars = append(envVars, corev1.EnvVar{Name: "IDENTITIES_PATH", Value: consts.ServerIdentitiesPath})
 	}
 
 	if systemEnv != nil {
@@ -1168,7 +1204,9 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	}
 
 	// Validate Secret changes (by the hash of the identities.yaml key value)
-	updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", hashString(string(secret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
+	if ispn.IsAuthenticationEnabled() {
+		updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", hashString(string(secret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
+	}
 
 	// Validate extra Java options changes
 	if updateStatefulSetEnv(statefulSet, "EXTRA_JAVA_OPTIONS", ispnContr.ExtraJvmOpts) {

@@ -14,7 +14,6 @@ import (
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -23,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/pointer"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
@@ -34,8 +34,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestBackupRestore(t *testing.T) {
-	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService))
-	// t.Run(string(v1.ServiceTypeCache), testBackupRestore(cacheService))
+	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService, 2))
+	t.Run(string(v1.ServiceTypeDataGrid)+"NoAuth", testBackupRestore(datagridServiceNoAuth, 1))
+	// t.Run(string(v1.ServiceTypeCache), testBackupRestore(cacheService, 2))
 }
 
 func TestBackupRestoreTransformations(t *testing.T) {
@@ -113,12 +114,11 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	}))
 }
 
-func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
+func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T) {
 	return func(t *testing.T) {
 		// Create a resource without passing any config
 		name := strcase.ToKebab(strings.Replace(t.Name(), "/", "", 1))
 		namespace := tutils.Namespace
-		clusterSize := 2
 		numEntries := 100
 
 		// 1. Create initial source cluster
@@ -129,8 +129,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 2. Populate the cluster with some data to backup
-		protocol := testKube.GetSchemaForRest(infinispan)
-		cluster := utils.NewCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, namespace, testKube.Kubernetes)
+		cluster := utils.NewCluster(infinispan, testKube)
 		cacheName := "someCache"
 		populateCache(cacheName, sourceCluster+"-0", numEntries, infinispan, cluster.Client)
 		assertNumEntries(cacheName, sourceCluster+"-0", numEntries, infinispan, cluster.Client)
@@ -171,7 +170,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// Recreate the cluster instance to use the credentials of the new cluster
-		cluster = utils.NewCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, namespace, testKube.Kubernetes)
+		cluster = utils.NewCluster(infinispan, testKube)
 
 		// 6. Restore the backed up data from the volume to the target cluster
 		restoreName := "restore"
@@ -232,6 +231,12 @@ func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) {
 		println(fmt.Sprintf("Expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason))
 	}
 	tutils.ExpectNoError(err)
+}
+
+func datagridServiceNoAuth(name, namespace string, replicas int) *v1.Infinispan {
+	infinispan := datagridService(name, namespace, replicas)
+	infinispan.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	return infinispan
 }
 
 func datagridService(name, namespace string, replicas int) *v1.Infinispan {

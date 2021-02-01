@@ -11,24 +11,20 @@ import (
 
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	client "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 )
 
 type CurlClient struct {
-	credentials security.Credentials
+	credentials *client.Credentials
 	config      client.HttpConfig
 	*kube.Kubernetes
 }
 
 func New(c client.HttpConfig, kubernetes *kube.Kubernetes) *CurlClient {
 	return &CurlClient{
-		config: c,
-		credentials: security.Credentials{
-			Username: c.Username,
-			Password: c.Password,
-		},
-		Kubernetes: kubernetes,
+		config:      c,
+		credentials: c.Credentials,
+		Kubernetes:  kubernetes,
 	}
 }
 
@@ -58,16 +54,21 @@ func (c *CurlClient) Put(podName, path, payload string, headers map[string]strin
 
 func (c *CurlClient) executeCurlCommand(podName string, path string, headers map[string]string, args ...string) (*http.Response, error, string) {
 	httpURL := fmt.Sprintf("%s://%s:%d/%s", c.config.Protocol, podName, consts.InfinispanPort, path)
+
+	headerStr := headerString(headers)
+	argStr := strings.Join(args, " ")
+
+	if c.credentials != nil {
+		return c.executeCurlWithAuth(httpURL, headerStr, argStr, podName)
+	}
+	return c.executeCurlNoAuth(httpURL, headerStr, argStr, podName)
+}
+
+func (c *CurlClient) executeCurlWithAuth(httpURL, headers, args, podName string) (*http.Response, error, string) {
 	user := fmt.Sprintf("-u %v:%v", c.credentials.Username, c.credentials.Password)
-	curl := fmt.Sprintf("curl -i --insecure --digest --http1.1 %s %s %s %s", user, headerString(headers), strings.Join(args, " "), httpURL)
+	curl := fmt.Sprintf("curl -i --insecure --digest --http1.1 %s %s %s %s", user, headers, args, httpURL)
 
-	execOut, execErr, err := c.Kubernetes.ExecWithOptions(
-		kube.ExecOptions{
-			Command:   []string{"bash", "-c", curl},
-			PodName:   podName,
-			Namespace: c.config.Namespace,
-		})
-
+	execOut, execErr, err := c.exec(curl, podName)
 	if err != nil {
 		return nil, err, execErr
 	}
@@ -82,7 +83,31 @@ func (c *CurlClient) executeCurlCommand(podName string, path string, headers map
 		return rsp, nil, "Expected 401 DIGEST response before content"
 	}
 
-	rsp, err = http.ReadResponse(reader, nil)
+	return handleContent(reader)
+}
+
+func (c *CurlClient) executeCurlNoAuth(httpURL, headers, args, podName string) (*http.Response, error, string) {
+	curl := fmt.Sprintf("curl -i --insecure --http1.1 %s %s %s", headers, args, httpURL)
+	execOut, execErr, err := c.exec(curl, podName)
+	if err != nil {
+		return nil, err, execErr
+	}
+
+	reader := bufio.NewReader(&execOut)
+	return handleContent(reader)
+}
+
+func (c *CurlClient) exec(cmd, podName string) (bytes.Buffer, string, error) {
+	return c.Kubernetes.ExecWithOptions(
+		kube.ExecOptions{
+			Command:   []string{"bash", "-c", cmd},
+			PodName:   podName,
+			Namespace: c.config.Namespace,
+		})
+}
+
+func handleContent(reader *bufio.Reader) (*http.Response, error, string) {
+	rsp, err := http.ReadResponse(reader, nil)
 	if err != nil {
 		return nil, err, ""
 	}
@@ -92,7 +117,6 @@ func (c *CurlClient) executeCurlCommand(podName string, path string, headers map
 	io.Copy(b, rsp.Body)
 	rsp.Body.Close()
 	rsp.Body = ioutil.NopCloser(b)
-
 	return rsp, nil, ""
 }
 

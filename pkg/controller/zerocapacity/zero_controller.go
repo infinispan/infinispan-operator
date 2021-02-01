@@ -183,16 +183,23 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, fmt.Errorf("Unable to fetch CR '%s': %w", clusterName, err)
 	}
 
-	user := consts.DefaultOperatorUser
-	pass, err := users.PasswordFromSecret(user, infinispan.GetSecretName(), namespace, z.Kube)
-	if err != nil {
-		return reconcile.Result{}, err
+	var credentials *ispnclient.Credentials
+	if infinispan.IsAuthenticationEnabled() {
+		user := consts.DefaultOperatorUser
+		pass, err := users.PasswordFromSecret(user, infinispan.GetSecretName(), namespace, z.Kube)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		credentials = &ispnclient.Credentials{
+			Username: user,
+			Password: pass,
+		}
 	}
 	httpConfig := ispnclient.HttpConfig{
-		Username:  user,
-		Password:  pass,
-		Namespace: namespace,
-		Protocol:  infinispan.GetEndpointScheme(),
+		Credentials: credentials,
+		Namespace:   namespace,
+		Protocol:    infinispan.GetEndpointScheme(),
 	}
 	httpClient := curl.New(httpConfig, z.Kube)
 
@@ -348,10 +355,6 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 						Name:      ispnCtrl.ConfigVolumeName,
 						MountPath: consts.ServerConfigRoot,
 					},
-					{
-						Name:      ispnCtrl.IdentitiesVolumeName,
-						MountPath: consts.ServerSecurityRoot,
-					},
 					// Utilise Ephemeral vol as we're only interested in data related to CR
 					{
 						Name:      dataVolName,
@@ -385,14 +388,6 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				},
-				{
-					Name: ispnCtrl.IdentitiesVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						Secret: &corev1.SecretVolumeSource{
-							SecretName: ispn.GetSecretName(),
-						},
-					},
-				},
 			},
 		},
 	}
@@ -401,6 +396,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 		ispnCtrl.AddVolumeChmodInitContainer("backup-chmod-pv", name, zeroSpec.Volume.MountPath, &pod.Spec)
 	}
 
+	ispnCtrl.AddVolumeForAuthentication(ispn, &pod.Spec)
 	ispnCtrl.AddVolumeForEncryption(ispn, &pod.Spec)
 	return pod
 }

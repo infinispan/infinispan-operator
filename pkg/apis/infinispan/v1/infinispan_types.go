@@ -9,15 +9,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// InfinispanAuthInfo authentication info
-type InfinispanAuthInfo struct {
-	Type string `json:"type"`
-}
-
 // InfinispanSecurity info for the user application connection
 type InfinispanSecurity struct {
-	EndpointSecretName string              `json:"endpointSecretName,optional,omitempty"`
-	EndpointEncryption *EndpointEncryption `json:"endpointEncryption,optional,omitempty"`
+	EndpointAuthentication *bool               `json:"endpointAuthentication,optional,omitempty"`
+	EndpointSecretName     string              `json:"endpointSecretName,optional,omitempty"`
+	EndpointEncryption     *EndpointEncryption `json:"endpointEncryption,optional,omitempty"`
 }
 
 // CertificateSourceType specifies all the possible sources for the encryption certificate
