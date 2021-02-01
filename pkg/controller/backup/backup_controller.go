@@ -76,37 +76,21 @@ func (r *backupResource) Phase() zero.Phase {
 }
 
 func (r *backupResource) UpdatePhase(phase zero.Phase, phaseErr error) error {
-	instance := r.instance
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}, instance); err != nil {
-		return fmt.Errorf("Failed to reload Backup status: %w", err)
-	}
-
-	backupPhase := v2.BackupPhase(phase)
-	var reason string
-	if phaseErr != nil {
-		reason = phaseErr.Error()
-	}
-
-	if instance.Status.Phase == backupPhase && instance.Status.Reason == reason {
-		// Phase already updated so do nothing
-		return nil
-	}
-	instance.Status.Phase = backupPhase
-	instance.Status.Reason = reason
-
-	if err := r.client.Status().Update(ctx, r.instance); err != nil {
-		return fmt.Errorf("Failed to update Backup status: %w", err)
-	}
-	return nil
+	_, err := r.update(func() {
+		backup := r.instance
+		var reason string
+		if phaseErr != nil {
+			reason = phaseErr.Error()
+		}
+		backup.Status.Phase = v2.BackupPhase(phase)
+		backup.Status.Reason = reason
+	})
+	return err
 }
 
 func (r *backupResource) Transform() (bool, error) {
-	backup := r.instance
-	// TODO not working, investigate why?
-	res, err := kube.CreateOrPatch(ctx, r.client, backup, func() error {
-		if backup.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(v2.Resource("backup"), backup.Name)
-		}
+	return r.update(func() {
+		backup := r.instance
 		backup.Spec.ApplyDefaults()
 		resources := backup.Spec.Resources
 		if resources == nil {
@@ -122,6 +106,16 @@ func (r *backupResource) Transform() (bool, error) {
 			resources.Tasks = resources.Scripts
 			resources.Scripts = nil
 		}
+	})
+}
+
+func (r *backupResource) update(mutate func()) (bool, error) {
+	backup := r.instance
+	res, err := kube.CreateOrPatch(ctx, r.client, backup, func() error {
+		if backup.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(v2.Resource("backup"), backup.Name)
+		}
+		mutate()
 		return nil
 	})
 	return res != controllerutil.OperationResultNone, err

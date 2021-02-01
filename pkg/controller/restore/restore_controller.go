@@ -75,36 +75,21 @@ func (r *restore) Phase() zero.Phase {
 }
 
 func (r *restore) UpdatePhase(phase zero.Phase, phaseErr error) error {
-	instance := r.instance
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}, instance); err != nil {
-		return fmt.Errorf("Failed to reload Restore status: %w", err)
-	}
-
-	restorePhase := v2.RestorePhase(phase)
-	var reason string
-	if phaseErr != nil {
-		reason = phaseErr.Error()
-	}
-
-	if instance.Status.Phase == restorePhase && instance.Status.Reason == reason {
-		// Phase already updated so do nothing
-		return nil
-	}
-	instance.Status.Phase = restorePhase
-	instance.Status.Reason = reason
-
-	if err := r.client.Status().Update(ctx, r.instance); err != nil {
-		return fmt.Errorf("Failed to update Restore status: %w", err)
-	}
-	return nil
+	_, err := r.update(func() {
+		restore := r.instance
+		var reason string
+		if phaseErr != nil {
+			reason = phaseErr.Error()
+		}
+		restore.Status.Phase = v2.RestorePhase(phase)
+		restore.Status.Reason = reason
+	})
+	return err
 }
 
 func (r *restore) Transform() (bool, error) {
-	restore := r.instance
-	res, err := kube.CreateOrPatch(ctx, r.client, restore, func() error {
-		if restore.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(v2.Resource("restore"), restore.Name)
-		}
+	return r.update(func() {
+		restore := r.instance
 		restore.Spec.ApplyDefaults()
 		resources := restore.Spec.Resources
 		if resources == nil {
@@ -120,6 +105,16 @@ func (r *restore) Transform() (bool, error) {
 			resources.Tasks = resources.Scripts
 			resources.Scripts = nil
 		}
+	})
+}
+
+func (r *restore) update(mutate func()) (bool, error) {
+	restore := r.instance
+	res, err := kube.CreateOrPatch(ctx, r.client, restore, func() error {
+		if restore.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(v2.Resource("restore"), restore.Name)
+		}
+		mutate()
 		return nil
 	})
 	return res != controllerutil.OperationResultNone, err
