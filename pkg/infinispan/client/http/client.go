@@ -1,12 +1,18 @@
 package http
 
-import "net/http"
+import (
+	"net/http"
+)
+
+type Credentials struct {
+	Username string
+	Password string
+}
 
 type HttpConfig struct {
-	Username  string
-	Password  string
-	Namespace string
-	Protocol  string
+	Credentials *Credentials
+	Namespace   string
+	Protocol    string
 }
 
 type HttpClient interface {

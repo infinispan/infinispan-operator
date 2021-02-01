@@ -14,12 +14,17 @@ type InfinispanConfiguration struct {
 	Keystore   Keystore   `yaml:"keystore,omitempty"`
 	XSite      *XSite     `yaml:"xsite,omitempty"`
 	Logging    Logging    `yaml:"logging,omitempty"`
+	Endpoints  Endpoints  `yaml:"endpoints"`
 }
 
 type Infinispan struct {
 	ClusterName      string `yaml:"clusterName"`
 	ZeroCapacityNode bool   `yaml:"zeroCapacityNode"`
 	Locks            Locks  `yaml:"locks"`
+}
+
+type Endpoints struct {
+	Authenticate bool `yaml:"auth"`
 }
 
 type Locks struct {
@@ -81,15 +86,20 @@ func FromYaml(src string) (*InfinispanConfiguration, error) {
 }
 
 // CreateInfinispanConfiguration generates a server configuration
-func CreateInfinispanConfiguration(name, namespace string, loggingCategories map[string]string, xsite *XSite) InfinispanConfiguration {
-	query := fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace)
-	jgroups := JGroups{Transport: "tcp", DNSPing: DNSPing{Query: query}}
-
+func CreateInfinispanConfiguration(name, namespace string, auth bool, loggingCategories map[string]string, xsite *XSite) InfinispanConfiguration {
 	config := InfinispanConfiguration{
 		Infinispan: Infinispan{
 			ClusterName: name,
 		},
-		JGroups: jgroups,
+		JGroups: JGroups{
+			Transport: "tcp",
+			DNSPing: DNSPing{
+				Query: fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
+			},
+		},
+		Endpoints: Endpoints{
+			Authenticate: auth,
+		},
 	}
 	if consts.JGroupsDiagnosticsFlag == "TRUE" {
 		config.JGroups.Diagnostics = true

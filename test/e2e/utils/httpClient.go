@@ -25,8 +25,8 @@ type authenticationRealm struct {
 
 type httpClientConfig struct {
 	*http.Client
-	username       string
-	password       string
+	username       *string
+	password       *string
 	protocol       string
 	authRealm      *authenticationRealm
 	requestCounter int
@@ -34,6 +34,14 @@ type httpClientConfig struct {
 
 // NewHTTPClient return a new HTTPClient
 func NewHTTPClient(username, password, protocol string) HTTPClient {
+	return new(&username, &password, protocol)
+}
+
+func NewHTTPClientNoAuth(protocol string) HTTPClient {
+	return new(nil, nil, protocol)
+}
+
+func new(username, password *string, protocol string) HTTPClient {
 	return &httpClientConfig{
 		username:       username,
 		password:       password,
@@ -76,22 +84,28 @@ func (c *httpClientConfig) Post(path, payload string, headers map[string]string)
 }
 
 func (c *httpClientConfig) exec(req *http.Request, headers map[string]string) (*http.Response, error) {
-	if c.authRealm == nil {
-		rsp, err := c.Do(req)
-		ExpectNoError(err)
-		if rsp.StatusCode != http.StatusUnauthorized {
-			return rsp, fmt.Errorf("Expected 401 DIGEST response before content: %v", rsp)
+	if c.isAuthRequired() {
+		if c.authRealm == nil {
+			rsp, err := c.Do(req)
+			ExpectNoError(err)
+			if rsp.StatusCode != http.StatusUnauthorized {
+				return rsp, fmt.Errorf("Expected 401 DIGEST response before content: %v", rsp)
+			}
+			c.authRealm = getAuthorization(*c.username, *c.password, rsp)
 		}
-		c.authRealm = getAuthorization(c.username, c.password, rsp)
+		c.requestCounter++
+		authStr := getAuthString(c.authRealm, req.URL, req.Method, c.requestCounter)
+		for header, value := range headers {
+			req.Header.Add(header, value)
+		}
+		req.Header.Add("Authorization", authStr)
 	}
-	c.requestCounter++
-	authStr := getAuthString(c.authRealm, req.URL, req.Method, c.requestCounter)
-	for header, value := range headers {
-		req.Header.Add(header, value)
-	}
-	req.Header.Add("Authorization", authStr)
 	rsp, err := c.Do(req)
 	return rsp, err
+}
+
+func (c *httpClientConfig) isAuthRequired() bool {
+	return c.username != nil
 }
 
 func getAuthorization(username, password string, resp *http.Response) *authenticationRealm {

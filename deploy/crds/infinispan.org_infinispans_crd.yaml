@@ -683,6 +683,8 @@ spec:
             security:
               description: InfinispanSecurity info for the user application connection
               properties:
+                endpointAuthentication:
+                  type: boolean
                 endpointEncryption:
                   description: EndpointEncryption configuration
                   properties:
@@ -820,6 +822,8 @@ spec:
             security:
               description: InfinispanSecurity info for the user application connection
               properties:
+                endpointAuthentication:
+                  type: boolean
                 endpointEncryption:
                   description: EndpointEncryption configuration
                   properties:

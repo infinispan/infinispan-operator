@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
@@ -32,8 +33,17 @@ func getAbsolutePath(relativeFilePath string) string {
 }
 
 // NewCluster returns a new infinispan.Cluster ready to use
-func NewCluster(user, secret, protocol, namespace string, kubernetes *kube.Kubernetes) *ispn.Cluster {
-	pass, _ := users.PasswordFromSecret(user, secret, namespace, kubernetes)
-	return ispn.NewCluster(user, pass, namespace, protocol, kubernetes)
-}
+func NewCluster(infinispan *v1.Infinispan, kube *TestKubernetes) *ispn.Cluster {
+	k8s := kube.Kubernetes
+	namespace := infinispan.Namespace
+	protocol := kube.GetSchemaForRest(infinispan)
 
+	if !infinispan.IsAuthenticationEnabled() {
+		return ispn.NewClusterNoAuth(namespace, protocol, k8s)
+	}
+
+	user := constants.DefaultOperatorUser
+	secret := infinispan.GetSecretName()
+	pass, _ := users.PasswordFromSecret(user, secret, namespace, k8s)
+	return ispn.NewCluster(user, pass, namespace, protocol, k8s)
+}

@@ -684,6 +684,40 @@ func testAuthentication(schema, routeName string, exposeType ispnv1.ExposeType, 
 	}
 }
 
+func TestAuthenticationDisabled(t *testing.T) {
+	t.Parallel()
+	namespace := tutils.Namespace
+	// Create a resource without passing any config
+	infinispan := DefaultSpec.DeepCopy()
+	name := strcase.ToKebab(t.Name())
+	infinispan.Name = name
+	infinispan.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+
+	// Create the cluster
+	testKube.CreateInfinispan(infinispan, namespace)
+	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, name, namespace)
+
+	// Ensure the identities secret is not created
+	secret := &corev1.Secret{}
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      infinispan.GetSecretName(),
+	}
+	tutils.ExpectNotFound(testKube.Kubernetes.Client.Get(context.TODO(), key, secret))
+
+	// Ensure that rest requests do not require authentication
+	client := tutils.NewHTTPClientNoAuth(testKube.GetSchemaForRest(infinispan))
+	routeName := fmt.Sprintf("%s-external", name)
+	hostAddr := testKube.WaitForExternalService(routeName, namespace, infinispan.GetExposeType(), tutils.RouteTimeout, client)
+	url := fmt.Sprintf("%v/rest/v2/caches", hostAddr)
+	rsp, err := client.Get(url, nil)
+	tutils.ExpectNoError(err)
+	if rsp.StatusCode != http.StatusOK {
+		panic(httpError{rsp.StatusCode})
+	}
+}
+
 func cacheURL(cacheName, hostAddr string) string {
 	return fmt.Sprintf("%v/rest/v2/caches/%s", hostAddr, cacheName)
 }

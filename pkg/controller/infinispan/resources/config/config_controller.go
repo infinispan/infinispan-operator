@@ -107,7 +107,9 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 
 	lsConfigMap := infinispan.LabelsResource(name, "infinispan-configmap-configuration")
 	loggingCategories := c.infinispan.GetLogCategoriesForConfig()
-	config := configuration.CreateInfinispanConfiguration(name, namespace, loggingCategories, xsite)
+
+	authenticate := c.infinispan.IsAuthenticationEnabled()
+	config := configuration.CreateInfinispanConfiguration(name, namespace, authenticate, loggingCategories, xsite)
 
 	err := infinispan.ConfigureServerEncryption(c.infinispan, &config, c.client)
 	if err != nil {

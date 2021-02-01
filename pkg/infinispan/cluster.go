@@ -60,12 +60,23 @@ type ClusterInterface interface {
 }
 
 // NewCluster creates a new instance of Cluster
+func NewClusterNoAuth(namespace string, protocol string, kubernetes *kube.Kubernetes) *Cluster {
+	return cluster(namespace, protocol, nil, kubernetes)
+}
+
 func NewCluster(username, password, namespace string, protocol string, kubernetes *kube.Kubernetes) *Cluster {
+	credentials := &ispnclient.Credentials{
+		Username: username,
+		Password: password,
+	}
+	return cluster(namespace, protocol, credentials, kubernetes)
+}
+
+func cluster(namespace, protocol string, credentials *ispnclient.Credentials, kubernetes *kube.Kubernetes) *Cluster {
 	client := curl.New(ispnclient.HttpConfig{
-		Username:  username,
-		Password:  password,
-		Namespace: namespace,
-		Protocol:  protocol,
+		Credentials: credentials,
+		Namespace:   namespace,
+		Protocol:    protocol,
 	}, kubernetes)
 
 	return &Cluster{
