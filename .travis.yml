@@ -45,15 +45,13 @@ jobs:
         - kind get kubeconfig > "${KUBECONFIG}"
         - export MAKE_DATADIR_WRITABLE=true
         - export GO111MODULE=on
+        - export RUN_SA_OPERATOR=TRUE
         - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
         - ./build/prepare-sa-test.sh
       script:
         - go mod vendor
-        - RUN_SA_OPERATOR=TRUE make test
-          # Run multinamespace tests as admin
-          # skip role settings check for now
-        - kubectl config use-context $TESTING_CONTEXT
-        - make multinamespace-test
+        # Run multinamespace tests as admin (skip role settings check)
+        - make test PARALLEL_COUNT=2 && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
       after_failure:
         - kubectl config use-context $TESTING_CONTEXT
         - kubectl get events --all-namespaces
