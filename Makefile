@@ -109,12 +109,21 @@ unit-test: build
 ##                  Example: "make test PARALLEL_COUNT=2"
 ##
 test: build
-	build/run-tests.sh ${KUBECONFIG}
+	build/run-tests.sh ${KUBECONFIG} main
 
-## test             Perform end to end (e2e) tests in multinamespace mode
-##                  Same setting as `ŧest` rule
+## multinamespace-test Perform end to end (e2e) tests in multinamespace mode
+##                     Same setting as `ŧest` rule
+##
+
 multinamespace-test: build
-	build/run-multinamespace-tests.sh ${KUBECONFIG}
+	build/run-tests.sh ${KUBECONFIG} multinamespace
+
+## backuprestore-test Perform end to end (e2e) tests for Backup/Restore CR's
+##                     Same setting as `ŧest` rule
+##
+
+backuprestore-test: build
+	build/run-tests.sh ${KUBECONFIG} backup-restore
 
 ## upgrade-test         Performs test upgrade from one operator version to another against different git branches
 ##                      This script deploys operator to the OKD/OCP cluster from the local source code or already

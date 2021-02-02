@@ -1,9 +1,10 @@
-package e2e
+package backup_restore
 
 import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +23,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
+var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
+
 type clusterSpec func(name, namespace string, clusterSize int) *v1.Infinispan
+
+func TestMain(m *testing.M) {
+	tutils.RunOperator(m, testKube)
+}
 
 func TestBackupRestore(t *testing.T) {
 	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService))
@@ -45,7 +52,7 @@ func testBackupRestore(clusterSpec clusterSpec) func(*testing.T) {
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 2. Populate the cluster with some data to backup
-		protocol := getSchemaForRest(infinispan)
+		protocol := testKube.GetSchemaForRest(infinispan)
 		cluster := utils.NewCluster(cconsts.DefaultOperatorUser, infinispan.GetSecretName(), protocol, namespace, testKube.Kubernetes)
 		cacheName := "someCache"
 		populateCache(cacheName, sourceCluster+"-0", numEntries, cluster.Client)
