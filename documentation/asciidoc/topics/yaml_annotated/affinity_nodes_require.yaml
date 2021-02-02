@@ -1,0 +1,10 @@
+spec:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution: <1>
+      - labelSelector:
+          matchLabels:
+            app: infinispan-pod
+            clusterName: <cluster_name>
+            infinispan_cr: <cluster_name>
+        topologyKey: "topology.kubernetes.io/hostname"
