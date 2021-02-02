@@ -51,9 +51,8 @@ jobs:
         - ./build/debug-pods.sh &
       script:
         - go mod vendor
-        # Run multinamespace tests as admin
-        # skip role settings check for now
-        - make test PARALLEL_COUNT=2 && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
+        # Run multinamespace tests as admin (skip role settings check)
+        - make test PARALLEL_COUNT=2 && make backuprestore-test && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
       after_failure:
         - cat debug.log
         - kubectl config use-context $TESTING_CONTEXT

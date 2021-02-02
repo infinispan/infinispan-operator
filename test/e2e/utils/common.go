@@ -36,3 +36,4 @@ func NewCluster(user, secret, protocol, namespace string, kubernetes *kube.Kuber
 	pass, _ := users.PasswordFromSecret(user, secret, namespace, kubernetes)
 	return ispn.NewCluster(user, pass, namespace, protocol, kubernetes)
 }
+

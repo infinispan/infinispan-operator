@@ -1,4 +1,4 @@
-package e2e
+package main
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -65,24 +64,7 @@ var MinimalSpec = ispnv1.Infinispan{
 }
 
 func TestMain(m *testing.M) {
-	namespace := strings.ToLower(tutils.Namespace)
-	if "TRUE" == tutils.RunLocalOperator {
-		if "TRUE" != tutils.RunSaOperator && tutils.OperatorUpgradeStage != tutils.OperatorUpgradeStageTo {
-			testKube.DeleteNamespace(namespace)
-			testKube.DeleteCRD("infinispans.infinispan.org")
-			testKube.DeleteCRD("caches.infinispan.org")
-			testKube.DeleteCRD("backup.infinispan.org")
-			testKube.DeleteCRD("restore.infinispan.org")
-			testKube.NewNamespace(namespace)
-		}
-		stopCh := testKube.RunOperator(namespace, "../../deploy/crds/")
-		code := m.Run()
-		close(stopCh)
-		os.Exit(code)
-	} else {
-		code := m.Run()
-		os.Exit(code)
-	}
+	tutils.RunOperator(m, testKube)
 }
 
 // Test operator and cluster version upgrade flow
@@ -339,7 +321,7 @@ func testCacheService(testName string, imageName *string) {
 	ispn := ispnv1.Infinispan{}
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 
-	protocol := getSchemaForRest(&ispn)
+	protocol := testKube.GetSchemaForRest(&ispn)
 	routeName := fmt.Sprintf("%s-external", spec.Name)
 	client := tutils.NewHTTPClient(user, password, protocol)
 	hostAddr := testKube.WaitForExternalService(routeName, tutils.RouteTimeout, client, tutils.Namespace)
@@ -366,7 +348,7 @@ func TestPermanentCache(t *testing.T) {
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
-		protocol := getSchemaForRest(ispn)
+		protocol := testKube.GetSchemaForRest(ispn)
 		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
@@ -380,7 +362,7 @@ func TestPermanentCache(t *testing.T) {
 		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
-		protocol := getSchemaForRest(ispn)
+		protocol := testKube.GetSchemaForRest(ispn)
 
 		client := tutils.NewHTTPClient(usr, pass, protocol)
 		hostAddr := testKube.WaitForExternalService(routeName, tutils.RouteTimeout, client, tutils.Namespace)
@@ -415,7 +397,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
-		protocol := getSchemaForRest(ispn)
+		protocol := testKube.GetSchemaForRest(ispn)
 
 		client := tutils.NewHTTPClient(usr, pass, protocol)
 		hostAddr := testKube.WaitForExternalService(routeName, tutils.RouteTimeout, client, tutils.Namespace)
@@ -428,7 +410,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		routeName := fmt.Sprintf("%s-external", name)
-		schema := getSchemaForRest(ispn)
+		schema := testKube.GetSchemaForRest(ispn)
 		client := tutils.NewHTTPClient(usr, pass, schema)
 		hostAddr := testKube.WaitForExternalService(routeName, tutils.RouteTimeout, client, tutils.Namespace)
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
@@ -497,7 +479,7 @@ func TestExternalService(t *testing.T) {
 	routeName := fmt.Sprintf("%s-external", name)
 	ispn := ispnv1.Infinispan{}
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
-	schema := getSchemaForRest(&ispn)
+	schema := testKube.GetSchemaForRest(&ispn)
 
 	client := tutils.NewHTTPClient(usr, pass, schema)
 	hostAddr := testKube.WaitForExternalService(routeName, tutils.RouteTimeout, client, tutils.Namespace)
@@ -585,7 +567,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	ispn := ispnv1.Infinispan{}
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 
-	schema := getSchemaForRest(&ispn)
+	schema := testKube.GetSchemaForRest(&ispn)
 	testAuthentication(schema, name, usr, pass)
 	// Update the auth credentials.
 	identities = users.CreateIdentitiesFor(usr, newpass)
@@ -761,17 +743,4 @@ func putViaRoute(url, value string, client tutils.HTTPClient) {
 func throwHTTPError(resp *http.Response) {
 	errorBytes, _ := ioutil.ReadAll(resp.Body)
 	panic(fmt.Errorf("unexpected HTTP status code (%d): %s", resp.StatusCode, string(errorBytes)))
-}
-
-func getSchemaForRest(ispn *ispnv1.Infinispan) string {
-	curr := ispnv1.Infinispan{}
-	// Wait for the operator to populate Infinispan CR data
-	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
-		return len(curr.Status.Conditions) > 0, nil
-	})
-	if err != nil {
-		panic(err.Error())
-	}
-	return curr.GetEndpointScheme()
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"testing"
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
@@ -408,6 +409,19 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condi
 	ExpectNoError(err)
 }
 
+func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
+	curr := ispnv1.Infinispan{}
+	// Wait for the operator to populate Infinispan CR data
+	err := wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
+		k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
+		return len(curr.Status.Conditions) > 0, nil
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+	return curr.GetEndpointScheme()
+}
+
 func debugPods(required int, pods []v1.Pod) {
 	log.Info("pod list incomplete", "required", required, "pod list size", len(pods))
 	for _, pod := range pods {
@@ -476,6 +490,27 @@ func (k TestKubernetes) installCRD(path string) {
 	k.CreateOrUpdateAndWaitForCRD(&crd)
 }
 
+func RunOperator(m *testing.M, k *TestKubernetes) {
+	namespace := strings.ToLower(Namespace)
+	if "TRUE" == RunLocalOperator {
+		if "TRUE" != RunSaOperator && OperatorUpgradeStage != OperatorUpgradeStageTo {
+			k.DeleteNamespace(namespace)
+			k.DeleteCRD("infinispans.infinispan.org")
+			k.DeleteCRD("caches.infinispan.org")
+			k.DeleteCRD("backup.infinispan.org")
+			k.DeleteCRD("restore.infinispan.org")
+			k.NewNamespace(namespace)
+		}
+		stopCh := k.RunOperator(namespace, "../../../deploy/crds/")
+		code := m.Run()
+		close(stopCh)
+		os.Exit(code)
+	} else {
+		code := m.Run()
+		os.Exit(code)
+	}
+}
+
 // Run the operator locally
 func runOperatorLocally(stopCh chan struct{}, namespace string) {
 	kubeConfig := kube.FindKubeConfig()
@@ -483,3 +518,4 @@ func runOperatorLocally(stopCh chan struct{}, namespace string) {
 	_ = os.Setenv("KUBECONFIG", kubeConfig)
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
 }
+
