@@ -28,9 +28,7 @@ var (
 	DefaultCPULimit int64 = 500
 
 	DeploymentAnnotations = map[string]string{
-		"description":                    "Infinispan 10 (Ephemeral)",
-		"iconClass":                      "icon-infinispan",
-		"openshift.io/display-name":      "Infinispan 10 (Ephemeral)",
+		"openshift.io/display-name":      "Infinispan Cluster",
 		"openshift.io/documentation-url": "http://infinispan.org/documentation/",
 	}
 )

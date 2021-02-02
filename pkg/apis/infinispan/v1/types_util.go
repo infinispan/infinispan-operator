@@ -1,7 +1,10 @@
 package v1
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -22,6 +25,21 @@ const (
 
 	// Container image based on Quarkus native runtime
 	ImageTypeNative ImageType = "Native"
+)
+
+const (
+	// PodTargetLabels labels propagated to pods
+	PodTargetLabels string = "infinispan.org/podTargetLabels"
+	// TargetLabels labels propagated to services/ingresses/routes
+	TargetLabels string = "infinispan.org/targetLabels"
+	// OperatorPodTargetLabels labels propagated by the operator to pods
+	OperatorPodTargetLabels string = "infinispan.org/operatorPodTargetLabels"
+	// OperatorTargetLabels labels propagated by the operator to services/ingresses/routes
+	OperatorTargetLabels string = "infinispan.org/operatorTargetLabels"
+	// OperatorTargetLabelsEnvVarName is the name of the envvar containg operator label/value map for services/ingresses/routes
+	OperatorTargetLabelsEnvVarName string = "INFINISPAN_OPERATOR_TARGET_LABELS"
+	// OperatorPodTargetLabelsEnvVarName is the name of the envvar containg operator label/value map for pods
+	OperatorPodTargetLabelsEnvVarName string = "INFINISPAN_OPERATOR_POD_TARGET_LABELS"
 )
 
 // equals compares two ConditionType's case insensitive
@@ -368,4 +386,82 @@ func (ispn *Infinispan) StorageSize() string {
 		return *sc.Storage
 	}
 	return ""
+}
+
+// AddLabelsForPods adds to the user maps the labels defined for pods in the infinispan CR. New values override old ones in map.
+func (ispn *Infinispan) AddLabelsForPods(uMap map[string]string) {
+	addLabelsFor(ispn, PodTargetLabels, uMap)
+}
+
+// AddLabelsForServices adds to the user maps the labels defined for services and ingresses/routes in the infinispan CR. New values override old ones in map.
+func (ispn *Infinispan) AddLabelsForServices(uMap map[string]string) {
+	addLabelsFor(ispn, TargetLabels, uMap)
+}
+
+// AddOperatorLabelsForPods adds to the user maps the labels defined for pods in the infinispan CR by the operator. New values override old ones in map.
+func (ispn *Infinispan) AddOperatorLabelsForPods(uMap map[string]string) {
+	addLabelsFor(ispn, OperatorPodTargetLabels, uMap)
+}
+
+// AddOperatorLabelsForServices adds to the user maps the labels defined for services and ingresses/routes in the infinispan CR. New values override old ones in map.
+func (ispn *Infinispan) AddOperatorLabelsForServices(uMap map[string]string) {
+	addLabelsFor(ispn, OperatorTargetLabels, uMap)
+}
+
+func addLabelsFor(ispn *Infinispan, target string, uMap map[string]string) {
+	if ispn.Annotations == nil {
+		return
+	}
+	labels := ispn.Annotations[target]
+	for _, label := range strings.Split(labels, ",") {
+		tLabel := strings.Trim(label, " ")
+		if lval := strings.Trim(ispn.Labels[tLabel], " "); lval != "" {
+			uMap[tLabel] = lval
+		}
+	}
+}
+
+// ApplyOperatorLabels applies operator labels to be propagated to pods and services
+// Env vars INFINISPAN_OPERATOR_TARGET_LABELS, INFINISPAN_OPERATOR_POD_TARGET_LABELS
+// must contain a json map of labels, the former will be applied to services/ingresses/routes, the latter to pods
+func (ispn *Infinispan) ApplyOperatorLabels() error {
+	var errStr string
+	err := applyLabels(ispn, OperatorTargetLabelsEnvVarName, OperatorTargetLabels)
+	if err != nil {
+		errStr = fmt.Sprintf("Error unmarshalling "+OperatorTargetLabelsEnvVarName+" envvar: %v\n", err)
+	}
+	err = applyLabels(ispn, OperatorPodTargetLabelsEnvVarName, OperatorPodTargetLabels)
+	if err != nil {
+		errStr = errStr + fmt.Sprintf("Error unmarshalling "+OperatorPodTargetLabelsEnvVarName+" envvar: %v\n", err)
+	}
+	if errStr != "" {
+		return errors.New(errStr)
+	}
+	return nil
+}
+
+func applyLabels(ispn *Infinispan, envvar, annotationName string) error {
+	labels := os.Getenv(envvar)
+	if labels == "" {
+		return nil
+	}
+	labelMap := make(map[string]string)
+	err := json.Unmarshal([]byte(labels), &labelMap)
+	if err == nil {
+		if len(labelMap) > 0 {
+			svcLabels := ""
+			if ispn.Labels == nil {
+				ispn.Labels = make(map[string]string)
+			}
+			for name, value := range labelMap {
+				ispn.Labels[name] = value
+				svcLabels = svcLabels + name + ","
+			}
+			if ispn.Annotations == nil {
+				ispn.Annotations = make(map[string]string)
+			}
+			ispn.Annotations[annotationName] = strings.TrimRight(svcLabels, ", ")
+		}
+	}
+	return err
 }
