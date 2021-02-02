@@ -193,7 +193,7 @@ func setupServiceForEncryption(ispn *ispnv1.Infinispan, service *corev1.Service)
 }
 
 func computeService(ispn *ispnv1.Infinispan) *corev1.Service {
-	return &corev1.Service{
+	service := corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
@@ -214,10 +214,14 @@ func computeService(ispn *ispnv1.Infinispan) *corev1.Service {
 			},
 		},
 	}
+	// This way CR labels will override operator labels with same name
+	ispn.AddOperatorLabelsForServices(service.Labels)
+	ispn.AddLabelsForServices(service.Labels)
+	return &service
 }
 
 func computePingService(ispn *ispnv1.Infinispan) *corev1.Service {
-	return &corev1.Service{
+	pingService := corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
@@ -239,6 +243,10 @@ func computePingService(ispn *ispnv1.Infinispan) *corev1.Service {
 			},
 		},
 	}
+	// This way CR labels will override operator labels with same name
+	ispn.AddOperatorLabelsForServices(pingService.Labels)
+	ispn.AddLabelsForServices(pingService.Labels)
+	return &pingService
 }
 
 // computeServiceExternal compute the external service
@@ -269,7 +277,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 		exposeSpec.Ports[0].NodePort = exposeConf.NodePort
 	}
 
-	externalService := &corev1.Service{
+	externalService := corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
@@ -277,7 +285,10 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 		ObjectMeta: metadata,
 		Spec:       exposeSpec,
 	}
-	return externalService
+	// This way CR labels will override operator labels with same name
+	ispn.AddOperatorLabelsForServices(externalService.Labels)
+	ispn.AddLabelsForServices(externalService.Labels)
+	return &externalService
 }
 
 // computeSiteService compute the XSite service
@@ -337,13 +348,15 @@ func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
 		ObjectMeta: objectMeta,
 		Spec:       exposeSpec,
 	}
-
+	// This way CR labels will override operator labels with same name
+	ispn.AddOperatorLabelsForServices(siteService.Labels)
+	ispn.AddLabelsForServices(siteService.Labels)
 	return &siteService
 }
 
 // computeRoute compute the Route object
 func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
-	route := &routev1.Route{
+	route := routev1.Route{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Route",
@@ -363,7 +376,11 @@ func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 	if ispn.GetEncryptionSecretName() != "" && !ispn.IsEncryptionDisabled() {
 		route.Spec.TLS = &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough}
 	}
-	return route
+
+	// This way CR labels will override operator labels with same name
+	ispn.AddOperatorLabelsForServices(route.Labels)
+	ispn.AddLabelsForServices(route.Labels)
+	return &route
 }
 
 // computeIngress compute the Ingress object
@@ -400,6 +417,9 @@ func computeIngress(ispn *ispnv1.Infinispan) *networkingv1beta1.Ingress {
 			},
 		}
 	}
+	// This way CR labels will override operator labels with same name
+	ispn.AddOperatorLabelsForServices(ingress.Labels)
+	ispn.AddLabelsForServices(ingress.Labels)
 	return &ingress
 }
 

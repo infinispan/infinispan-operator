@@ -11,6 +11,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources/config"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
@@ -103,10 +105,42 @@ func TestOperatorUpgrade(t *testing.T) {
 func TestNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
+	spec.Annotations = make(map[string]string)
+	spec.Annotations[v1.TargetLabels] = "my-svc-label"
+	spec.Labels = make(map[string]string)
+	spec.Labels["my-svc-label"] = "my-svc-value"
+	os.Setenv(v1.OperatorTargetLabelsEnvVarName, "{\"operator-svc-label\":\"operator-svc-value\"}")
+	defer os.Unsetenv(v1.OperatorTargetLabelsEnvVarName)
+	spec.Annotations[v1.PodTargetLabels] = "my-pod-label"
+	spec.Labels["my-svc-label"] = "my-svc-value"
+	spec.Labels["my-pod-label"] = "my-pod-value"
+	os.Setenv(v1.OperatorPodTargetLabelsEnvVarName, "{\"operator-pod-label\":\"operator-pod-value\"}")
+	defer os.Unsetenv(v1.OperatorPodTargetLabelsEnvVarName)
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	ispn := ispnv1.Infinispan{}
+	pod := corev1.Pod{}
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name, Namespace: tutils.Namespace}, &ispn))
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name + "-0", Namespace: tutils.Namespace}, &pod))
+	if pod.Labels["my-pod-label"] != ispn.Labels["my-pod-label"] ||
+		pod.Labels["operator-pod-label"] != "operator-pod-value" ||
+		ispn.Labels["operator-pod-label"] != "operator-pod-value" {
+		panic("Labels haven't been propagated to pods")
+	}
+	svcList := &corev1.ServiceList{}
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(ispn.ObjectMeta.Namespace, labels.Set{}, svcList))
+	if len(svcList.Items) == 0 {
+		panic("No services found for cluster")
+	}
+	for _, svc := range svcList.Items {
+		if svc.Labels["my-svc-label"] != ispn.Labels["my-svc-label"] ||
+			svc.Labels["operator-svc-label"] != "operator-svc-value" ||
+			ispn.Labels["operator-svc-label"] != "operator-svc-value" {
+			panic("Labels haven't been propagated to services")
+		}
+	}
 }
 
 // Run some functions for testing rights not covered by integration tests

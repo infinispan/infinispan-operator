@@ -156,6 +156,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	err := r.update(infinispan, func() {
 		// Apply defaults and endpoint encryption settings if not already set
 		infinispan.ApplyDefaults()
+		errLabel := infinispan.ApplyOperatorLabels()
+		if errLabel != nil {
+			reqLogger.Error(errLabel, "Error applying operator label")
+		}
 		infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
 
 		// Perform all the possible preliminary checks before go on
@@ -643,6 +647,9 @@ func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *cor
 func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	lsPod := PodLabels(m.Name)
+	labelsForPod := PodLabels(m.Name)
+	m.AddOperatorLabelsForPods(labelsForPod)
+	m.AddLabelsForPods(labelsForPod)
 
 	pvcs := &corev1.PersistentVolumeClaimList{}
 	err := kubernetes.ResourcesList(m.Namespace, LabelsResource(m.Name, ""), pvcs)
@@ -668,7 +675,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			Name:        m.Name,
 			Namespace:   m.Namespace,
 			Annotations: consts.DeploymentAnnotations,
-			Labels:      map[string]string{"template": "infinispan-ephemeral"},
+			Labels:      map[string]string{},
 		},
 		Spec: appsv1.StatefulSetSpec{
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
@@ -678,7 +685,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			Replicas: &replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      lsPod,
+					Labels:      labelsForPod,
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
