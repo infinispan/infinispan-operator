@@ -71,20 +71,23 @@ run-local: build
 	build/run-local.sh ${KUBECONFIG}
 
 ## unit-test   Perform unit test
+##
 unit-test: build
 	go test ./pkg/controller/infinispan -v
 
-## test        Perform end to end (e2e) tests on running clusters.
-##             - Specify the target cluster with KUBECONFIG.
-##             - Example: "make test KUBECONFIG=/path/to/admin.kubeconfig"
+## test                 Perform end to end (e2e) tests on running clusters.
+##                      - Specify the target cluster with KUBECONFIG.
+##                      - Example: "make test KUBECONFIG=/path/to/admin.kubeconfig"
 ##
 test: build
-	build/run-tests.sh ${KUBECONFIG}
+	build/run-tests.sh ${KUBECONFIG} main
 
-## test             Perform end to end (e2e) tests in multinamespace mode
-##                  Same setting as `ŧest` rule
+## multinamespace-test  Perform end to end (e2e) tests in multinamespace mode
+##                      Same setting as `ŧest` rule
+##
 multinamespace-test: build
-	build/run-multinamespace-tests.sh ${KUBECONFIG}
+	build/run-tests.sh ${KUBECONFIG} multinamespace
+
 ## upgrade-test         Performs test upgrade from one operator version to another against different git branches
 ##                      This script deploys operator to the OKD/OCP cluster from the local source code or already
 ##                      build image located inside the docker registry.
