@@ -44,17 +44,16 @@ jobs:
         - kind get kubeconfig > "${KUBECONFIG}"
         - export MAKE_DATADIR_WRITABLE=true
         - export GO111MODULE=on
+        - export RUN_SA_OPERATOR=TRUE
         - export INITCONTAINER_IMAGE=quay.io/quay/busybox:latest
         - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
         - ./build/prepare-sa-test.sh
         - ./build/debug-pods.sh &
       script:
         - go mod vendor
-        - RUN_SA_OPERATOR=TRUE make test PARALLEL_COUNT=2
-          # Run multinamespace tests as admin
-          # skip role settings check for now
-        - kubectl config use-context $TESTING_CONTEXT
-        - make multinamespace-test PARALLEL_COUNT=2
+        # Run multinamespace tests as admin
+        # skip role settings check for now
+        - make test PARALLEL_COUNT=2 && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
       after_failure:
         - cat debug.log
         - kubectl config use-context $TESTING_CONTEXT
