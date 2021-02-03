@@ -4,7 +4,7 @@ You can disable encryption so clients do not need TLS certificates to establish 
 
 [IMPORTANT]
 ====
-{brandname} does not recommend disabling encryption in production environments where endpoints are exposed outside the {k8s} cluster via `spec.expose.type`.
+Do not disable encryption if endpoints are accessible from outside the {k8s} cluster via `spec.expose.type`.
 ====
 
 .Procedure

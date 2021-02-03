@@ -1,0 +1,14 @@
+[id='authentication']
+:context: security
+= Configuring Authentication
+Application users need credentials to access {brandname} clusters.
+You can use default, generated credentials or add your own.
+
+include::{topics}/ref_default_credentials.adoc[leveloffset=+1]
+include::{topics}/proc_retrieving_credentials.adoc[leveloffset=+1]
+include::{topics}/proc_adding_credentials.adoc[leveloffset=+1]
+include::{topics}/proc_disabling_authentication.adoc[leveloffset=+1]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]
