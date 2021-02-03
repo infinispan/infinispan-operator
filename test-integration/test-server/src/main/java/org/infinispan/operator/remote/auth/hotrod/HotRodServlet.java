@@ -15,6 +15,9 @@ import org.infinispan.client.hotrod.configuration.SaslQop;
 import org.infinispan.client.hotrod.exceptions.HotRodClientException;
 import org.infinispan.commons.marshall.ProtoStreamMarshaller;
 
+/**
+ * Used by MinimalSetupIT with unencrypted endpoints.
+ */
 @WebServlet("/hotrod/auth")
 public class HotRodServlet extends HttpServlet {
    private static final long serialVersionUID = 1L;
@@ -33,7 +36,6 @@ public class HotRodServlet extends HttpServlet {
          if(username != null || password != null) {
             builder.security().authentication().realm("default").serverName("infinispan").username(username).password(password).enable();
          }
-         builder.security().ssl().trustStorePath("/etc/minimal-setup-cert-secret/tls.crt");
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());
          RemoteCache<String, String> rc = rcm.administration().getOrCreateCache("hotrod-auth-test", "org.infinispan.DIST_SYNC");
