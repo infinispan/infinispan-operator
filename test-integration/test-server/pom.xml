@@ -11,7 +11,7 @@
     <packaging>war</packaging>
 
     <properties>
-        <version.infinispan.hotrod>11.0.3.Final</version.infinispan.hotrod>
+        <version.infinispan.hotrod>11.0.9.Final</version.infinispan.hotrod>
         <version.jboss.servlet>1.0.2.Final</version.jboss.servlet>
         <version.maven.war>3.2.2</version.maven.war>
 

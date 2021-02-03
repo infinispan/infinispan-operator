@@ -37,17 +37,9 @@ import lombok.extern.slf4j.Slf4j;
  *   expose:
  *     type: Route
  *   replicas: 2
- *
- * Should result in the same as:
- *
- * spec:
- *   replicas: 2
- *   container:
- *     cpu: 500m
- *     memory: 512Mi
- *   service:
- *     type: Cache
- *     replicationFactor: 2
+ *   security:
+ *     endpointEncryption:
+ *       type: None
  */
 @Slf4j
 @CleanBeforeAll
@@ -69,8 +61,6 @@ class MinimalSetupIT {
       hostName = openShift.generateHostname(appName + "-external");
 
       infinispan.deploy();
-
-      testServer.withSecret(appName + "-cert-secret");
       testServer.deploy();
 
       infinispan.waitFor();
@@ -81,7 +71,7 @@ class MinimalSetupIT {
       pass = developer.getPassword();
 
       Https.doesUrlReturnOK("http://" + testServerHost + "/ping").waitFor();
-      Https.doesUrlReturnCode("https://" + hostName, 200).waitFor();
+      Https.doesUrlReturnCode("http://" + hostName, 200).waitFor();
    }
 
    /**
@@ -100,7 +90,7 @@ class MinimalSetupIT {
    @Test
    void clusteringTest() throws Exception{
       // Create entry through REST
-      String cacheUrl = "https://" + hostName + "/rest/v2/caches/cluster-test/";
+      String cacheUrl = "http://" + hostName + "/rest/v2/caches/cluster-test/";
       String keyUrl = cacheUrl + "cluster-test-key";
 
       Http.post(cacheUrl).basicAuth(user, pass).preemptiveAuth().data(Caches.fragile("cluster-test"), ContentType.APPLICATION_XML).trustAll().execute();
@@ -124,7 +114,7 @@ class MinimalSetupIT {
     */
    @Test
    void restAuthTest() throws Exception {
-      String cacheUrl = "https://" + hostName + "/rest/v2/caches/rest-auth-test/";
+      String cacheUrl = "http://" + hostName + "/rest/v2/caches/rest-auth-test/";
       String keyUrl = cacheUrl + "authorized-rest-key";
 
       Http authorizedCachePut = Http.post(cacheUrl).basicAuth(user, pass).preemptiveAuth().data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML).trustAll();
@@ -159,7 +149,7 @@ class MinimalSetupIT {
     */
    @Test
    void defaultCacheAvailabilityTest() throws Exception {
-      String keyUrl = "https://" + hostName + "/rest/v2/caches/default/availability-test";
+      String keyUrl = "http://" + hostName + "/rest/v2/caches/default/availability-test";
 
       Http put = Http.put(keyUrl).basicAuth(user, pass).preemptiveAuth().trustAll().data("default-cache-value", ContentType.TEXT_PLAIN);
       Http get = Http.get(keyUrl).basicAuth(user, pass).preemptiveAuth().trustAll();
@@ -173,7 +163,7 @@ class MinimalSetupIT {
     */
    @Test
    void defaultReplicationFactorTest() throws Exception {
-      String request = "https://" + hostName + "/rest/v2/caches/default?action=config";
+      String request = "http://" + hostName + "/rest/v2/caches/default?action=config";
       String config = Http.get(request).basicAuth(user, pass).trustAll().execute().response();
       String numOwners = Stream.of(config.split(",")).filter(s -> s.contains("owners")).map(s -> s.trim().split(":")[1].trim()).findFirst().orElse("-1");
 
