@@ -14,6 +14,9 @@ import org.infinispan.client.hotrod.configuration.ClientIntelligence;
 import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
 import org.infinispan.client.hotrod.exceptions.HotRodClientException;
 
+/**
+ * Used by MinimalSetupIT with unencrypted endpoints.
+ */
 @WebServlet("/hotrod/cluster")
 public class HotRodCluster extends HttpServlet {
    private static final long serialVersionUID = 2L;
@@ -29,7 +32,6 @@ public class HotRodCluster extends HttpServlet {
          ConfigurationBuilder builder = new ConfigurationBuilder();
          builder.addServer().host(serviceName).port(11222);
          builder.security().authentication().realm("default").serverName("infinispan").username(username).password(password).enable();
-         builder.security().ssl().trustStorePath("/etc/minimal-setup-cert-secret/tls.crt");
          builder.clientIntelligence(ClientIntelligence.BASIC);
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());

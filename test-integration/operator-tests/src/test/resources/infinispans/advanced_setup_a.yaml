@@ -3,6 +3,15 @@ kind: Infinispan
 metadata:
   name: advanced-setup-a
 spec:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app: infinispan-pod
+            clusterName: advanced-setup-a
+            infinispan_cr: advanced-setup-a
+        topologyKey: "topology.kubernetes.io/zone"
   expose:
     type: Route
   container:
