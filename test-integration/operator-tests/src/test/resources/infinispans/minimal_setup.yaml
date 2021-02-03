@@ -6,3 +6,6 @@ spec:
   expose:
     type: Route
   replicas: 2
+  security:
+    endpointEncryption:
+      type: None

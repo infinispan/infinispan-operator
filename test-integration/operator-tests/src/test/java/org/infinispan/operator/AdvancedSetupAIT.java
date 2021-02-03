@@ -3,6 +3,8 @@ package org.infinispan.operator;
 import java.io.IOException;
 import java.nio.file.Paths;
 
+import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.apps.StatefulSet;
 import org.apache.http.entity.ContentType;
 import org.assertj.core.api.Assertions;
 import org.infinispan.Caches;
@@ -35,26 +37,7 @@ import lombok.extern.slf4j.Slf4j;
  * Compared to MinimalSetupIT this set of tests are running
  * against features that need to be configured.
  *
- * spec:
- *   expose:
- *     type: Route
- *   container:
- *     cpu: 1500m
- *     memory: 1Gi
- *   logging:
- *     categories:
- *       x.y.z: trace
- *       t.u.v: debug
- *   security:
- *     endpointEncryption:
- *        type: secret
- *        certSecretName: encryption-secret
- *     endpointSecretName: connect-secret
- *   service:
- *     type: DataGrid
- *     container:
- *       storage: 2Gi
- *   replicas: 2
+ * Check advanced_setup_a.yaml Infinispan CR in test resources for input configuration.
  */
 @Slf4j
 @CleanBeforeAll
@@ -164,6 +147,18 @@ class AdvancedSetupAIT {
       Assertions.assertThatThrownBy(
             () -> getConfiguration(null, null).administration().getOrCreateCache("testcache", new XMLStringConfiguration(Caches.testCache()))
       ).isInstanceOf(HotRodClientException.class);
+   }
+
+   /**
+    * Verifies that AntiAffinity settings get propagated to StatefulSet.
+    */
+   @Test
+   void antiAffinityTest() {
+      StatefulSet ss = openShift.getStatefulSet(appName);
+      Affinity affinity = ss.getSpec().getTemplate().getSpec().getAffinity();
+
+      Assertions.assertThat(affinity).isNotNull();
+      Assertions.assertThat(affinity.getPodAntiAffinity().getRequiredDuringSchedulingIgnoredDuringExecution()).isNotNull();
    }
 
    private RemoteCacheManager getConfiguration(String username, String password) {

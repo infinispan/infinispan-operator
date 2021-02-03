@@ -3,9 +3,13 @@ package org.infinispan.operator;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.entity.ContentType;
 import org.assertj.core.api.Assertions;
@@ -33,12 +37,12 @@ import lombok.extern.slf4j.Slf4j;
  *
  * spec:
  *   autoscale:
- *     maxMemUsagePercent: 70
+ *     maxMemUsagePercent: 40
  *     maxReplicas: 5
- *     minMemUsagePercent: 30
+ *     minMemUsagePercent: 20
  *     minReplicas: 3
  *   expose:
- *     type: LoadBalancer
+ *     type: Route
  *   service:
  *     type: Cache
  *     replicationFactor: 3
@@ -60,6 +64,7 @@ class AdvancedSetupBIT {
    @BeforeAll
    static void deploy() throws Exception {
       appName = infinispan.getClusterName();
+      hostName = openShift.generateHostname(appName + "-external");
 
       infinispan.deploy();
       testServer.withSecret(appName + "-cert-secret").deploy();
@@ -75,11 +80,7 @@ class AdvancedSetupBIT {
       log.info("Password: {}", pass);
 
       Https.doesUrlReturnOK("http://" + testServer.host() + "/ping").waitFor();
-
-      Service external = openShift.services().withName(appName + "-external").get();
-      hostName = external.getStatus().getLoadBalancer().getIngress().get(0).getHostname();
-
-      Https.doesUrlReturnCode("https://" + hostName + ":11222/console/welcome", 200).interval(TimeUnit.SECONDS, 10).waitFor();
+      Https.doesUrlReturnCode("https://" + hostName + "/console/welcome", 200).interval(TimeUnit.SECONDS, 10).waitFor();
    }
 
    /**
@@ -89,7 +90,7 @@ class AdvancedSetupBIT {
    static void undeploy() throws IOException {
       infinispan.delete();
 
-      new CleanUpValidator(openShift, appName).withExposedLoadBalancer().withDefaultCredentials().withOpenShiftCerts().validate();
+      new CleanUpValidator(openShift, appName).withExposedRoute().withDefaultCredentials().withOpenShiftCerts().validate();
    }
 
    /**
@@ -98,7 +99,7 @@ class AdvancedSetupBIT {
     */
    @Test
    void defaultCacheAvailabilityTest() throws Exception {
-      String keyUrl = "https://" + hostName + ":11222/rest/v2/caches/default/availability-test";
+      String keyUrl = "https://" + hostName + "/rest/v2/caches/default/availability-test";
 
       Http put = Http.put(keyUrl).basicAuth(user, pass).data("default-cache-value", ContentType.TEXT_PLAIN).trustAll();
       Http get = Http.get(keyUrl).basicAuth(user, pass).trustAll();
@@ -122,11 +123,23 @@ class AdvancedSetupBIT {
    }
 
    /**
+    * Default AntiAffinity settings should prevent scheduling all three nodes on the same OCP host.
+    * It's required to have OCP cluster with at least 3 worker nodes for the test to pass
+    */
+   @Test
+   void antiAffinityTest() {
+      List<Pod> clusterPods = openShift.pods().withLabel("clusterName", appName).list().getItems();
+      Set<String> nodeNames = clusterPods.stream().map(p -> p.getSpec().getNodeName()).collect(Collectors.toSet());
+
+      Assertions.assertThat(nodeNames).hasSize(3);
+   }
+
+   /**
     * Verifies replicationFactor of default cache is set to 1 by reading cache configuration.
     */
    @Test
    void replicationFactorTest() throws Exception {
-      String request = "https://" + hostName + ":11222/rest/v2/caches/default?action=config";
+      String request = "https://" + hostName + "/rest/v2/caches/default?action=config";
       String config = Http.get(request).basicAuth(user, pass).trustAll().execute().response();
       String numOwners = Stream.of(config.split(",")).filter(s -> s.contains("owners")).map(s -> s.trim().split(":")[1].trim()).findFirst().orElse("-1");
 
@@ -138,13 +151,15 @@ class AdvancedSetupBIT {
     */
    @Test
    void autoscalingTest() throws Exception {
-      String request = "https://" + hostName + ":11222/rest/v2/caches/default/autoscaling-key-";
+      String request = "https://" + hostName + "/rest/v2/caches/default/autoscaling-key-";
       int i = 0;
       while (openShift.pods().withLabel("clusterName", appName).list().getItems().size() < 5) {
          i++;
          Http.put(request + i).basicAuth(user, pass).data(RandomStringUtils.randomAlphanumeric(1048576), ContentType.TEXT_PLAIN).trustAll().execute();
+         System.out.print(".");
          Waiters.sleep(300);
       }
+      System.out.println();
       Waiters.sleep(TimeUnit.MINUTES, 1);
       while (openShift.pods().withLabel("clusterName", appName).list().getItems().size() > 3) {
          Http.delete(request + i).basicAuth(user, pass).trustAll().execute();

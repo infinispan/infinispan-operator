@@ -4,12 +4,12 @@ metadata:
   name: advanced-setup-b
 spec:
   autoscale:
-    maxMemUsagePercent: 70
+    maxMemUsagePercent: 40
     maxReplicas: 5
-    minMemUsagePercent: 30
+    minMemUsagePercent: 20
     minReplicas: 3
   expose:
-    type: LoadBalancer
+    type: Route
   service:
     type: Cache
     replicationFactor: 3
