@@ -710,6 +710,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						LivenessProbe:  PodLivenessProbe(m),
 						Ports:          PodPortsWithXsite(m),
 						ReadinessProbe: PodReadinessProbe(m),
+						StartupProbe:   PodStartupProbe(m),
 						Resources:      PodResources(m.Spec.Container),
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      ConfigVolumeName,
@@ -825,24 +826,26 @@ func PodPortsWithXsite(i *infinispanv1.Infinispan) []corev1.ContainerPort {
 }
 
 func PodLivenessProbe(i *infinispanv1.Infinispan) *corev1.Probe {
-	return &corev1.Probe{
-		Handler:             ispn.ClusterStatusHandler(i.GetEndpointURIScheme()),
-		FailureThreshold:    5,
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       10,
-		SuccessThreshold:    1,
-		TimeoutSeconds:      80,
-	}
+	return probe(i, 5, 10, 10, 1, 80)
 }
 
 func PodReadinessProbe(i *infinispanv1.Infinispan) *corev1.Probe {
+	return probe(i, 5, 10, 10, 1, 80)
+}
+
+func PodStartupProbe(i *infinispanv1.Infinispan) *corev1.Probe {
+	// Maximum 10 minutes (60 * 10s) to finish startup
+	return probe(i, 60, 10, 10, 1, 80)
+}
+
+func probe(i *infinispanv1.Infinispan, failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
 	return &corev1.Probe{
 		Handler:             ispn.ClusterStatusHandler(i.GetEndpointURIScheme()),
-		FailureThreshold:    5,
-		InitialDelaySeconds: 10,
-		PeriodSeconds:       10,
-		SuccessThreshold:    1,
-		TimeoutSeconds:      80,
+		FailureThreshold:    failureThreshold,
+		InitialDelaySeconds: initialDelay,
+		PeriodSeconds:       period,
+		SuccessThreshold:    successThreshold,
+		TimeoutSeconds:      timeout,
 	}
 }
 
