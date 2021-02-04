@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -279,11 +280,7 @@ func (k Kubernetes) GetNodesHost() ([]string, error) {
 
 // FindKubeConfig returns local Kubernetes configuration
 func FindKubeConfig() string {
-	kubeConfig := os.Getenv("KUBECONFIG")
-	if kubeConfig != "" {
-		return kubeConfig
-	}
-	return "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
+	return consts.GetEnvWithDefault("KUBECONFIG", consts.DefaultKubeConfig)
 }
 
 func setConfigDefaults(config *rest.Config) *rest.Config {

@@ -1,15 +1,15 @@
 package constants
 
 import (
+	"os"
 	"time"
 
-	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var (
 	// DefaultImageName is used if a specific image name is not provided
-	DefaultImageName = common.GetDefaultInfinispanJavaImage()
+	DefaultImageName = GetDefaultInfinispanJavaImage()
 
 	// DefaultMemorySize string with default size for memory
 	DefaultMemorySize = resource.MustParse("512Mi")
@@ -58,3 +58,18 @@ const (
 	//DefaultWaitClusterNotWellFormed wait delay until cluster is not well formed
 	DefaultWaitClusterNotWellFormed = 15 * time.Second
 )
+
+const DefaultKubeConfig = "~/.kube/config"
+
+// GetWithDefault return value if not empty else return defValue
+func GetWithDefault(value, defValue string) string {
+	if value == "" {
+		return defValue
+	}
+	return value
+}
+
+// GetEnvWithDefault return os.Getenv(name) if exists else return defValue
+func GetEnvWithDefault(name, defValue string) string {
+	return GetWithDefault(os.Getenv(name), defValue)
+}

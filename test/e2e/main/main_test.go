@@ -15,7 +15,6 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
-	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	tconst "github.com/infinispan/infinispan-operator/test/e2e/constants"
 	testutil "github.com/infinispan/infinispan-operator/test/e2e/util"
 	routev1 "github.com/openshift/api/route/v1"
@@ -504,7 +503,7 @@ func exposeServiceSpec() *ispnv1.ExposeSpec {
 }
 
 func exposeServiceType() ispnv1.ExposeType {
-	exposeServiceType := comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	exposeServiceType := cconsts.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 	switch exposeServiceType {
 	case string(ispnv1.ExposeTypeNodePort):
 		return ispnv1.ExposeTypeNodePort
