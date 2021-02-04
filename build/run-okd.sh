@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 OC_USER=${OC_USER:-kubeadmin}
-KUBECONFIG=${1-openshift.local.clusterup/openshift-apiserver/admin.kubeconfig}
+KUBECONFIG=${1-${HOME}/.kube/config}
+PROJECT_NAME=${PROJECT_NAME-default}
 
 echo "Using KUBECONFIG '${KUBECONFIG}'"
 echo "Using PROJECT_NAME '${PROJECT_NAME}'"

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -31,14 +31,14 @@ const (
 )
 
 var (
-	CPU                  = comutil.GetEnvWithDefault("INFINISPAN_CPU", "500m")
-	Memory               = comutil.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
-	Namespace            = strings.ToLower(comutil.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
-	MultiNamespace       = strings.ToLower(comutil.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
-	RunLocalOperator     = strings.ToUpper(comutil.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
-	RunSaOperator        = strings.ToUpper(comutil.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
-	OperatorUpgradeStage = strings.ToUpper(comutil.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
-	ExposeServiceType    = comutil.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	CPU                  = consts.GetEnvWithDefault("INFINISPAN_CPU", "500m")
+	Memory               = consts.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
+	Namespace            = strings.ToLower(consts.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
+	MultiNamespace       = strings.ToLower(consts.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
+	RunLocalOperator     = strings.ToUpper(consts.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
+	RunSaOperator        = strings.ToUpper(consts.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
+	OperatorUpgradeStage = strings.ToUpper(consts.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
+	ExposeServiceType    = consts.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 
 	OperatorUpgradeStateFlow = []ispnv1.ConditionType{ispnv1.ConditionUpgrade, ispnv1.ConditionStopping, ispnv1.ConditionWellFormed}
 )
