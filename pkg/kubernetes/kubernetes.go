@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/go-logr/logr"
+	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -24,11 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-)
-
-const (
-	// Using for local run and test only
-	ClusterUpKubeConfig = "../../openshift.local.clusterup/kube-apiserver/admin.kubeconfig"
 )
 
 // Kubernetes abstracts interaction with a Kubernetes cluster
@@ -226,11 +221,7 @@ func (k Kubernetes) GetNodesHost() ([]string, error) {
 
 // FindKubeConfig returns local Kubernetes configuration
 func FindKubeConfig() string {
-	kubeConfig := os.Getenv("KUBECONFIG")
-	if kubeConfig != "" {
-		return kubeConfig
-	}
-	return ClusterUpKubeConfig
+	return consts.GetEnvWithDefault("KUBECONFIG", consts.DefaultKubeConfig)
 }
 
 func setConfigDefaults(config *rest.Config) *rest.Config {

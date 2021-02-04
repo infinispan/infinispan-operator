@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-KUBECONFIG=${1-openshift.local.clusterup/openshift-apiserver/admin.kubeconfig}
+KUBECONFIG=${1-${HOME}/.kube/config}
 TEST_BUNDLE=${2-main}
 
 echo "Using KUBECONFIG '${KUBECONFIG}'"

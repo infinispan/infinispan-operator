@@ -102,6 +102,8 @@ const (
 	DefaultWaitClusterNotWellFormed = 15 * time.Second
 )
 
+const DefaultKubeConfig = "~/.kube/config"
+
 // GetWithDefault return value if not empty else return defValue
 func GetWithDefault(value, defValue string) string {
 	if value == "" {
