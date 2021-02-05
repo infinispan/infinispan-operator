@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RHsyseng/operator-utils/pkg/olm"
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
@@ -224,6 +225,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 	if err != nil {
 		reqLogger.Error(err, "failed to get StatefulSet")
+		return reconcile.Result{}, err
+	}
+
+	// Update Pod's status for the OLM
+	if err := r.update(infinispan, func() {
+		infinispan.Status.PodStatus = olm.GetSingleStatefulSetStatus(*statefulSet)
+	}); err != nil {
 		return reconcile.Result{}, err
 	}
 
