@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -295,14 +296,18 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	}
 	generation := ss.Status.ObservedGeneration
 
-	// Change the Infinispan spec
-	modifier(&ispn)
-	// Workaround for OpenShift local test (clear GVK on decode in the client)
-	ispn.TypeMeta = tutils.InfinispanTypeMeta
-	err = testKube.Kubernetes.Client.Update(context.TODO(), &ispn)
-	if err != nil {
-		panic(err.Error())
-	}
+	_, err = controllerutil.CreateOrUpdate(context.TODO(), testKube.Kubernetes.Client, &ispn, func() error {
+		if ispn.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(ispnv1.Resource("infinispan"), ispn.Name)
+		}
+		// Change the Infinispan spec
+		modifier(&ispn)
+		// Workaround for OpenShift local test (clear GVK on decode in the client)
+		ispn.TypeMeta = tutils.InfinispanTypeMeta
+
+		return nil
+	})
+	tutils.ExpectMaybeNotFound(err)
 
 	// Wait for a new generation to appear
 	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
@@ -357,7 +362,7 @@ func testCacheService(testName string, imageName *string) {
 
 	protocol := testKube.GetSchemaForRest(&ispn)
 	client := tutils.NewHTTPClient(user, password, protocol)
-	hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, spec.GetExposeType(), tutils.RouteTimeout, client, )
+	hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, spec.GetExposeType(), tutils.RouteTimeout, client)
 
 	cacheName := "default"
 	waitForCacheToBeCreated(cacheName, hostAddr, client)
