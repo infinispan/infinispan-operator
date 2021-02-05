@@ -90,6 +90,18 @@ spec:
         name: infinispans.infinispan.org
         version: v1
         displayName: Infinispan Cluster
+        specDescriptors:
+          - description: The desired number of member Pods for the Infinispan cluster.
+            displayName: Replicas
+            path: replicas
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:podCount'
+        statusDescriptors:
+          - description: The current pods
+            displayName: Pods Status
+            path: podStatus
+            x-descriptors:
+              - "urn:alm:descriptor:com.tectonic.ui:podStatuses"
       - description: Restore is the Schema for the restores API
         kind: Restore
         name: restores.infinispan.org

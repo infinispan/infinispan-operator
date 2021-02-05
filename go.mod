@@ -3,18 +3,19 @@ module github.com/infinispan/infinispan-operator
 go 1.13
 
 require (
+	github.com/RHsyseng/operator-utils v0.0.0-20200506183821-e3b4a2ba9c30
 	github.com/go-logr/logr v0.1.0
-	github.com/go-openapi/spec v0.19.4
+	github.com/go-openapi/spec v0.19.6
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/operator-framework/operator-sdk v0.15.2
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
-	gopkg.in/yaml.v2 v2.2.4
-	k8s.io/api v0.0.0
+	gopkg.in/yaml.v2 v2.2.8
+	k8s.io/api v0.17.2
 	k8s.io/apiextensions-apiserver v0.0.0
-	k8s.io/apimachinery v0.0.0
+	k8s.io/apimachinery v0.17.2
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4

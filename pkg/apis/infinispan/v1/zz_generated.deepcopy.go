@@ -411,6 +411,7 @@ func (in *InfinispanStatus) DeepCopyInto(out *InfinispanStatus) {
 		*out = new(InfinispanSecurity)
 		(*in).DeepCopyInto(*out)
 	}
+	in.PodStatus.DeepCopyInto(&out.PodStatus)
 	return
 }
 

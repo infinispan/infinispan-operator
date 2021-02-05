@@ -997,6 +997,25 @@ spec:
                 - type
                 type: object
               type: array
+            podStatus:
+              properties:
+                ready:
+                  description: Deployments are ready to serve requests
+                  items:
+                    type: string
+                  type: array
+                starting:
+                  description: Deployments are starting, may or may not succeed
+                  items:
+                    type: string
+                  type: array
+                stopped:
+                  description: Deployments are not starting, unclear what next step
+                    will be
+                  items:
+                    type: string
+                  type: array
+              type: object
             replicasWantedAtRestart:
               format: int32
               type: integer

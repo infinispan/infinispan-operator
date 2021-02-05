@@ -4,6 +4,7 @@ package v1
 // NOTE: json tags are required. Any new fields you add must have json tags for the fields to be serialized.
 
 import (
+	"github.com/RHsyseng/operator-utils/pkg/olm"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -227,6 +228,7 @@ type InfinispanStatus struct {
 	StatefulSetName         string                `json:"statefulSetName,optional,omitempty"`
 	Security                *InfinispanSecurity   `json:"security,optional,omitempty"`
 	ReplicasWantedAtRestart int32                 `json:"replicasWantedAtRestart,optional,omitempty"`
+	PodStatus               olm.DeploymentStatus  `json:"podStatus,optional,omitempty"`
 }
 
 // +genclient
