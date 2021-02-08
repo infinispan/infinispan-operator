@@ -91,7 +91,7 @@ spec:
         version: v1
         displayName: Infinispan Cluster
         specDescriptors:
-          - description: The desired number of member Pods for the Infinispan cluster.
+          - description: The desired number of nodes for the Infinispan cluster.
             displayName: Replicas
             path: replicas
             x-descriptors:
