@@ -142,8 +142,8 @@ func Launch(params Parameters) {
 		os.Exit(1)
 	}
 
-	// TODO: should I worry about the context here?
-	if err := grafana.EnsureDashboardExported(context.Background(), namespace, mgr); err != nil {
+	// TODO: This will be inside the below if, but can't test currently - only here to test out using CreateAndPatch
+	if err := grafana.Create(namespace, mgr); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
@@ -151,6 +151,11 @@ func Launch(params Parameters) {
 	// Add the Metrics Service
 	if operatorNs, err := k8sutil.GetOperatorNamespace(); err == nil {
 		addMetrics(ctx, cfg, operatorNs)
+
+		// if err := grafana.Create(operatorNs, mgr); err != nil {
+		// 	log.Error(err, "")
+		// 	os.Exit(1)
+		// }
 	} else {
 		log.Info("Could not get OperatorNamespace. Not in cluster? Skipping addMetrics")
 	}
