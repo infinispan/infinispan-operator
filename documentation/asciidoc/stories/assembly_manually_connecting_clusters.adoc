@@ -1,9 +1,9 @@
 [id='manually_connecting_clusters']
 :context: xsite_manual
 = Manually Connecting {brandname} Clusters
-Specify hostnames and ports so {brandname} clusters can establish connections with backup locations and form cross-site views.
-You can manually configure connections for cross-site replication so {brandname} clusters running on {openshiftshort} can back up to clusters running in different environments, such as virtual machine or bare-metal deployments.
-Manually configuring connections for cross-site replication is also necessary when access to the Kubernetes API is not available outside the {openshiftshort} cluster where {brandname} runs.
+Configure cross-site replication manually so {brandname} clusters running on {openshiftshort} can back up to clusters running in platforms other than {k8s}.
+
+Manually configuring cross-site replication is also necessary when access to the Kubernetes API is not available outside the {k8s} cluster where {brandname} runs.
 
 include::{topics}/proc_configuring_sites_manually.adoc[leveloffset=+1]
 include::{topics}/ref_xsite_crd_manual.adoc[leveloffset=+1]

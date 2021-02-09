@@ -20,6 +20,6 @@ ifdef::productized[]
 endif::productized[]
 <4> Provides connection information for all backup locations.
 <5> Specifies a backup location that matches `.spec.service.sites.local.name`.
-<6> Specifies the hostname and port URL for the backup location. The default port is `7900`.
+<6> Specifies the static URL for the backup location in the format of `infinispan+xsite://<hostname>:<port>`. The default port is `7900`.
 <7> Logs error messages for the JGroups TCP protocol.
 <8> Logs fatal messages for the JGroups RELAY2 protocol.
