@@ -3,8 +3,10 @@ package backup_restore
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -194,6 +196,14 @@ func populateCache(cacheName, pod string, numEntries int, client ispnclient.Http
 }
 
 func assertNumEntries(cacheName, pod string, numEntries int, client ispnclient.HttpClient) {
+	healthUrl := "/rest/v2/cache-managers/default/health"
+	healthResponse, err, _ := client.Get(pod, healthUrl, nil)
+	tutils.ExpectNoError(err)
+
+	body, err := ioutil.ReadAll(healthResponse.Body)
+	tutils.ExpectNoError(err)
+	println(fmt.Sprintf("Health response %s, status: %d", string(body), healthResponse.StatusCode))
+
 	url := fmt.Sprintf("/rest/v2/caches/%s?action=size", cacheName)
 	rsp, err, _ := client.Get(pod, url, nil)
 
@@ -202,6 +212,11 @@ func assertNumEntries(cacheName, pod string, numEntries int, client ispnclient.H
 		panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
 	}
 
+	body, err = ioutil.ReadAll(rsp.Body)
+	tutils.ExpectNoError(err)
+	numRead, err := strconv.ParseInt(string(body), 10, 64)
+	tutils.ExpectNoError(err)
+	println(fmt.Sprintf("Restored: %d entries", numRead))
 	/*
 		body, err := ioutil.ReadAll(rsp.Body)
 		tutils.ExpectNoError(err)
