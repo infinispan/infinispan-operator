@@ -88,7 +88,7 @@ func (c Cluster) GetClusterSize(podName string) (int, error) {
 // GracefulShutdown performs clean cluster shutdown
 func (c Cluster) GracefulShutdown(podName string) error {
 	rsp, err, reason := c.Client.Post(podName, consts.ServerHTTPClusterStop, "", nil)
-	return validateResponse(rsp, reason, err, "during graceful shutdown", http.StatusOK)
+	return validateResponse(rsp, reason, err, "during graceful shutdown", http.StatusNoContent)
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
@@ -273,7 +273,7 @@ func (c Cluster) SetLogger(podName, loggerName, loggerLevel string) error {
 
 func validateResponse(rsp *http.Response, reason string, err error, entity string, validCodes ...int) error {
 	if err != nil {
-		return fmt.Errorf("unexpected error %s, stderr: %v, err: %v", entity, reason, err)
+		return fmt.Errorf("unexpected error %s, stderr: %s, err: %v", entity, reason, err)
 	}
 
 	if rsp == nil || len(validCodes) == 0 {
@@ -289,7 +289,7 @@ func validateResponse(rsp *http.Response, reason string, err error, entity strin
 	defer rsp.Body.Close()
 	responseBody, responseErr := ioutil.ReadAll(rsp.Body)
 	if responseErr != nil {
-		return fmt.Errorf("server side error %s. Unable to read response body, %v", entity, responseErr)
+		fmt.Errorf("server side error %s. Unable to read response body, %v", entity, responseErr)
 	}
-	return fmt.Errorf("unexpected error %s, response: %v", reason, consts.GetWithDefault(string(responseBody), rsp.Status))
+	return fmt.Errorf("unexpected error %s, response: %v", entity, consts.GetWithDefault(string(responseBody), rsp.Status))
 }
