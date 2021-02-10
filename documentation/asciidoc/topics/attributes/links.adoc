@@ -15,6 +15,12 @@
 
 :link_k8s_node_port: https://kubernetes.io/docs/concepts/services-networking/service/#nodeport[Type NodePort]
 
+:link_k8s_labels: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/[Labels and Selectors]
+
+:link_k8s_labels_guide: https://github.com/kubernetes/kubernetes/blob/release-1.0/docs/user-guide/labels.md[Labels: Kubernetes User Guide]
+
+:link_k8s_annotations: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/[Annotations]
+
 :link_os_sa_tokens: https://docs.openshift.com/container-platform/4.5/authentication/using-service-accounts-in-applications.html[Using service accounts in applications]
 
 :link_os_crds: https://docs.openshift.com/container-platform/4.5/operators/crds/crd-managing-resources-from-crds.html[Managing resources from Custom Resource Definitions]
