@@ -3,7 +3,7 @@
 
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/cr_backup_site.yaml[]
+include::yaml/cr_backup_site.yaml[]
 ----
 
 //Community

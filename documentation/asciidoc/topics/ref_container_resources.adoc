@@ -3,7 +3,7 @@
 
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/cr_container_resources.yaml[]
+include::yaml/cr_container_resources.yaml[]
 ----
 
 <1> Specifies JVM options.
