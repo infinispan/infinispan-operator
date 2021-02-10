@@ -1,0 +1,10 @@
+# Defines global labels for services.
+- name: INFINISPAN_OPERATOR_TARGET_LABELS
+  value: |
+    {"svc-label1":"svc-value1",
+     "svc-label2":"svc-value2"}
+# Defines global labels for pods.
+- name: INFINISPAN_OPERATOR_POD_TARGET_LABELS
+  value: |
+    {"pod-label1":"pod-value1",
+     "pod-label2":"pod-value2"}

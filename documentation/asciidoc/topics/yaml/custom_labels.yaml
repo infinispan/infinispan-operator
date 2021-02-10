@@ -1,0 +1,15 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  annotations:
+    # Add labels that you want to attach to services.
+    infinispan.org/targetLabels: svc-label1, svc-label2
+    # Add labels that you want to attach to pods.
+    infinispan.org/podTargetLabels: pod-label1, pod-label2
+  labels:
+    # Add values for your labels.
+    svc-label1: svc-value2
+    pod-label1: pod-value2
+    # The operator does not attach these labels and values to resources.
+    my-label: my-value
+    environment: development
