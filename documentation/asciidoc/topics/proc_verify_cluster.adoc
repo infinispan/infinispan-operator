@@ -24,7 +24,7 @@ The response indicates that {brandname} pods have received clustered views:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_examples/verify_cluster_view.yaml[]
+include::yaml/verify_cluster_view.yaml[]
 ----
 
 [TIP]

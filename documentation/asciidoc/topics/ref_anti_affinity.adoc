@@ -9,7 +9,7 @@ The following is the anti-affinity strategy that {ispn_operator} uses if you do 
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/affinity_nodes_prefer.yaml[]
+include::yaml/affinity_nodes_prefer.yaml[]
 ----
 <1> Sets the hostname strategy as most preferred.
 <2> Schedules {brandname} replica pods on different {k8s} nodes.
@@ -18,7 +18,7 @@ include::yaml_annotated/affinity_nodes_prefer.yaml[]
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/affinity_nodes_require.yaml[]
+include::yaml/affinity_nodes_require.yaml[]
 ----
 <1> {k8s} does not schedule {brandname} pods if there are no different nodes available.
 
@@ -34,7 +34,7 @@ The following example prefers multiple zones when scheduling pods:
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/affinity_zones_prefer.yaml[]
+include::yaml/affinity_zones_prefer.yaml[]
 ----
 <1> Sets the zone strategy as most preferred.
 <2> Schedules {brandname} replica pods across multiple zones.
@@ -45,6 +45,6 @@ include::yaml_annotated/affinity_zones_prefer.yaml[]
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/affinity_zones_require.yaml[]
+include::yaml/affinity_zones_require.yaml[]
 ----
 <1> Uses the zone strategy only when scheduling {brandname} replica pods.

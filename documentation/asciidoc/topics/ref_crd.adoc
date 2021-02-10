@@ -12,7 +12,7 @@ The minimal `Infinispan` CR is as follows:
 
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml_annotated/cr_minimal.yaml[]
+include::yaml/cr_minimal.yaml[]
 ----
 
 <1> Declares the `Infinispan` API version.

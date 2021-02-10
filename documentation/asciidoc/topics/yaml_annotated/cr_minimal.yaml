@@ -1,6 +1,0 @@
-apiVersion: infinispan.org/v1 <1>
-kind: Infinispan <2>
-metadata:
-  name: example-infinispan <3>
-spec:
-  replicas: <4>
