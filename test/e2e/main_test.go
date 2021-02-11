@@ -87,12 +87,45 @@ func TestMain(m *testing.M) {
 func TestNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
 	spec := DefaultSpec.DeepCopy()
+	spec.Annotations = make(map[string]string)
+	spec.Annotations[ispnv1.TargetLabels] = "my-svc-label"
+	spec.Labels = make(map[string]string)
+	spec.Labels["my-svc-label"] = "my-svc-value"
+	os.Setenv(ispnv1.OperatorTargetLabelsEnvVarName, "{\"operator-svc-label\":\"operator-svc-value\"}")
+	defer os.Unsetenv(ispnv1.OperatorTargetLabelsEnvVarName)
+	spec.Annotations[ispnv1.PodTargetLabels] = "my-pod-label"
+	spec.Labels["my-svc-label"] = "my-svc-value"
+	spec.Labels["my-pod-label"] = "my-pod-value"
+	os.Setenv(ispnv1.OperatorPodTargetLabelsEnvVarName, "{\"operator-pod-label\":\"operator-pod-value\"}")
+	defer os.Unsetenv(ispnv1.OperatorPodTargetLabelsEnvVarName)
 	name := "test-node-startup"
 	spec.ObjectMeta.Name = name
 	// Register it
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	kubernetes.WaitForInfinispanPods(1, tconst.SinglePodTimeout, spec.Name, spec.Namespace)
+	ispn := ispnv1.Infinispan{}
+	pod := corev1.Pod{}
+	testutil.ExpectNoError(kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name, Namespace: tconst.Namespace}, &ispn))
+	testutil.ExpectNoError(kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name + "-0", Namespace: tconst.Namespace}, &pod))
+	if pod.Labels["my-pod-label"] != ispn.Labels["my-pod-label"] ||
+		pod.Labels["operator-pod-label"] != "operator-pod-value" ||
+		ispn.Labels["operator-pod-label"] != "operator-pod-value" {
+		panic("Labels haven't been propagated to pods")
+	}
+
+	svcList := &corev1.ServiceList{}
+	testutil.ExpectNoError(kubernetes.Kubernetes.ResourcesList(ispn.ObjectMeta.Name, ispn.ObjectMeta.Namespace, "", svcList))
+	if len(svcList.Items) == 0 {
+		panic("No services found for cluster")
+	}
+	for _, svc := range svcList.Items {
+		if svc.Labels["my-svc-label"] != ispn.Labels["my-svc-label"] ||
+			svc.Labels["operator-svc-label"] != "operator-svc-value" ||
+			ispn.Labels["operator-svc-label"] != "operator-svc-value" {
+			panic("Labels haven't been propagated to services")
+		}
+	}
 }
 
 // Test operator and cluster version upgrade flow
