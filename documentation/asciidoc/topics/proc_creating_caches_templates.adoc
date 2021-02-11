@@ -12,7 +12,7 @@ can find a list of available configuration templates in {brandname} Console.
 
 .Procedure
 
-. Create a **Cache** CR that specifies the name of the template you want to use.
+. Create a `Cache` CR that specifies the name of the template you want to use.
 +
 For example, the following CR creates a cache named "mycache" that uses the `org.infinispan.DIST_SYNC` cache configuration template:
 +
@@ -30,13 +30,13 @@ spec:
   templateName: org.infinispan.DIST_SYNC <5>
 ----
 +
-<1> Names the **Cache** CR.
+<1> Names the `Cache` CR.
 <2> Specifies a secret that provides credentials with `username` and `password` keys or an override for custom credentials secrets.
 <3> Specifies the name of the target {brandname} cluster where you want {ispn_operator} to create the cache.
 <4> Names the {brandname} cache instance.
 <5> Specifies the `infinispan.org` cache configuration template to create the cache.
 +
-. Apply the **Cache** CR, for example:
+. Apply the `Cache` CR, for example:
 +
 [source,options="nowrap",subs=attributes+]
 ----

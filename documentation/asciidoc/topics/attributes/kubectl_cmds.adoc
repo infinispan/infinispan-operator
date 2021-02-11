@@ -1,3 +1,13 @@
+//
+// Use attributes for client commands in docs.
+// Community docs use kubectl.
+// Downstream docs use oc.
+//
+
+//
+// Community
+//
+ifdef::community[]
 :oc_get_pods: kubectl get pods
 :oc_get_pods_w: kubectl get pods -w
 :oc_get_secret: kubectl get secret
@@ -5,16 +15,35 @@
 :oc_get_services: kubectl get services
 :oc_get_service: kubectl get services
 :oc_get_routes: kubectl get ingress
-
 :oc_apply_cr: kubectl apply -f
 :oc_apply_cr_custom: kubectl apply -f my_crd.yaml
-
 :oc_logs: kubectl logs
-
 :oc_wait: kubectl wait
-
 :oc_well_formed: kubectl wait --for condition=wellFormed --timeout=240s infinispan/{example_crd_name}
-
 :oc_create: kubectl create
-
 :kubectl_exec: kubectl exec -it {example_crd_name}-0 -- /bin/bash
+:describe_backup: kubectl describe Backup my-backup -n namespace
+endif::community[]
+
+//
+// Downstream
+//
+ifdef::downstream[]
+:oc_get_pods: oc get pods
+:oc_get_pods_w: oc get pods -w
+:oc_get_secret: oc get secret
+:oc_get_infinispan: oc get infinispan
+:oc_get_services: oc get services
+:oc_get_service: oc get services
+:oc_get_routes: oc get routes
+:oc_new_project: oc new-project
+:oc_project: oc project
+:oc_apply_cr: oc apply -f
+:oc_apply_cr_custom: oc apply -f my_crd.yaml
+:oc_logs: oc logs
+:oc_wait: oc wait
+:oc_well_formed: oc wait --for condition=wellFormed --timeout=240s infinispan/{example_crd_name}
+:oc_create: oc create
+:kubectl_exec: oc rsh {example_crd_name}-0
+:describe_backup: oc describe Backup my-backup
+endif::downstream[]

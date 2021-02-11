@@ -1,0 +1,32 @@
+[id='client_connection_details-{context}']
+= Client Connection Details
+Before you can connect to {brandname}, you need to retrieve the following pieces of information:
+
+* Service hostname
+* Port
+* Authentication credentials
+* TLS certificate, if you use encryption
+
+.Service hostnames
+
+The service hostname depends on how you expose {brandname} on the network or if your clients are running on {k8s}.
+
+For clients running on {k8s}, you can use the name of the internal service that {ispn_operator} creates.
+
+For clients running outside {k8s}, the service hostname is the location URL if you use a load balancer.
+For a node port service, the service hostname is the node host name.
+For a route, the service hostname is either a custom hostname or a system-defined hostname.
+
+.Ports
+
+Client connections on {k8s} and through load balancers use port `11222`.
+
+Node port services use a port in the range of `30000` to `60000`.
+Routes use either port `80` (unencrypted) or `443` (encrypted).
+
+[role="_additional-resources"]
+.Additional resources
+
+* link:#network_services[Configuring Network Access to {brandname}]
+* link:#getting_credentials-authn[Retrieving Credentials]
+* link:#getting_certs-tls[Retrieving TLS Certificates]

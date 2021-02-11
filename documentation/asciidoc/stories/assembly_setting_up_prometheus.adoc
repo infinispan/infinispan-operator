@@ -1,3 +1,4 @@
+ifdef::context[:parent-context: {context}]
 [id='prometheus']
 :context: monitor
 = Monitoring {brandname} with Prometheus

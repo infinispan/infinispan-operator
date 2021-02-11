@@ -1,0 +1,62 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  # Names the cluster.
+  name: {example_crd_name}
+spec:
+  # Specifies the number of nodes in the cluster.
+  replicas: 6
+  service:
+    # Configures the service type as Data Grid.
+    type: DataGrid
+    # Configures storage resources.
+    container:
+      storage: 2Gi
+    # Configures cross-site replication.
+    sites:
+      local:
+      name: NYC
+      expose:
+        type: LoadBalancer
+      locations:
+      - name: azure
+        url: openshift://api.azure.host:6443
+        secretName: azure-token
+      - name: aws
+        url: openshift://api.aws.host:6443
+        secretName: aws-token
+  # Configures authentication and encryption.
+  security:
+    # Defines a secret with custom credentials.
+    endpointSecretName: endpoint-identities
+    # Adds a custom TLS certificate to encrypt client connections.
+    endpointEncryption:
+        type: Secret
+        certSecretName: tls-secret
+  # Sets container resources.
+  container:
+    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
+    cpu: "1000m"
+    memory: 1Gi
+  # Configures logging levels.
+  logging:
+    categories:
+      org.infinispan: debug
+      org.jgroups: debug
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: fatal
+  # Configures how the cluster is exposed on the network.
+  expose:
+    type: LoadBalancer
+  # Configures affinity and anti-affinity strategies.
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: infinispan-pod
+              clusterName: {example_crd_name}
+              infinispan_cr: {example_crd_name}
+          topologyKey: "kubernetes.io/hostname"

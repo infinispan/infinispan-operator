@@ -1,3 +1,4 @@
+ifdef::context[:parent-context: {context}]
 [id='backup_sites']
 :context: xsite
 = Configuring Cross-Site Replication

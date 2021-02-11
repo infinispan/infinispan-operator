@@ -8,6 +8,7 @@ Specify where {k8s} schedules pods for your {brandname} clusters to ensure avail
 . Configure anti-affinity strategies as necessary.
 . Apply your `Infinispan` CR.
 
-.Reference
+[role="_additional-resources"]
+.Additional resources
 
 * link:{k8s_docs}#anti_affinity_configuration-availability[Anti-Affinity Strategy Configurations]

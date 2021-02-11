@@ -14,7 +14,7 @@ When {ispn_operator} creates {brandname} clusters, it uses `spec.container.cpu`
 and `spec.container.memory` to:
 
 * Ensure that {k8s} has sufficient capacity to run the {brandname} node. By
-default {ispn_operator} requests **512Mi** of `memory` and **0.5** `cpu` from 
+default {ispn_operator} requests **512Mi** of `memory` and **0.5** `cpu` from
 the {k8s} scheduler.
 * Constrain node resource usage. {ispn_operator} sets the values of `cpu` and
 `memory` as resource limits.
@@ -24,7 +24,7 @@ By default, {ispn_operator} does not log garbage collection (GC) messages.
 You can optionally add the following JVM options to direct GC messages to
 stdout:
 
-[source,options="nowrap",subs=attributes+]
+[source,yaml,options="nowrap",subs=attributes+]
 ----
 extraJvmOpts: "-Xlog:gc*:stdout:time,level,tags"
 ----
