@@ -441,11 +441,11 @@ func (ispn *Infinispan) ApplyOperatorLabels() error {
 	var errStr string
 	err := applyLabels(ispn, OperatorTargetLabelsEnvVarName, OperatorTargetLabels)
 	if err != nil {
-		errStr = fmt.Sprintf("Error unmarshalling "+OperatorTargetLabelsEnvVarName+" envvar: %v\n", err)
+		errStr = fmt.Sprintf("Error unmarshalling %s environment variable: %v\n", OperatorTargetLabelsEnvVarName, err)
 	}
 	err = applyLabels(ispn, OperatorPodTargetLabelsEnvVarName, OperatorPodTargetLabels)
 	if err != nil {
-		errStr = errStr + fmt.Sprintf("Error unmarshalling "+OperatorPodTargetLabelsEnvVarName+" envvar: %v\n", err)
+		errStr = errStr + fmt.Sprintf("Error unmarshalling %s environment variable: %v", OperatorPodTargetLabelsEnvVarName, err)
 	}
 	if errStr != "" {
 		return errors.New(errStr)
