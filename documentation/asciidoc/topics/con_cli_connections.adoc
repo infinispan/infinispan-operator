@@ -1,0 +1,22 @@
+[id='cli_connections-{context}']
+= Connecting with the {brandname} CLI
+Use the command line interface (CLI) to connect to your {brandname} cluster and perform administrative operations.
+
+The CLI is available as part of the server distribution, which you can run on your local host to establish remote connections to {brandname} clusters on {openshiftshort}.
+
+//Community
+ifdef::community[]
+Alternatively, you can use the infinispan/cli image at link:https://github.com/infinispan/infinispan-images[https://github.com/infinispan/infinispan-images].
+endif::community[]
+
+[NOTE]
+====
+It is possible to open a remote shell to a {brandname} node and access the CLI.
+
+[source,options="nowrap",subs=attributes+]
+----
+$ {kubectl_exec}
+----
+
+However using the CLI in this way consumes memory allocated to the container, which can lead to out of memory exceptions.
+====

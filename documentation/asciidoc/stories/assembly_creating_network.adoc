@@ -1,3 +1,4 @@
+ifdef::context[:parent-context: {context}]
 [id='network_services']
 :context: access
 = Configuring Network Access to {brandname}

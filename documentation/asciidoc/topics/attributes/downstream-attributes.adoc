@@ -1,5 +1,10 @@
 //
-// Attributes for building Red Hat Data Grid documentation.
+// Attributes for building downstream documentation.
+//
+
+//
+// Most attributes for downstream are available in rhdg-common.
+// If you add an entry to community-attributes.adoc please also add it here.
 //
 
 //
@@ -10,34 +15,4 @@
 :example_namespace: rhdg-namespace
 :pv_path: /opt/infinispan/server/data
 :conf_path: /opt/infinispan/server/conf
-
-//
-// Operator
-//
-
-:ispn_operator: Data Grid Operator
-:k8s: OpenShift
-:okd: OKD
-
-//
-// OpenShift
-//
-
-:openshift: Red Hat OpenShift
-:openshiftshort: OpenShift
-:openshiftplatform: Red Hat OpenShift Container Platform
-:ocp: OpenShift Container Platform
-:osweb: OpenShift Web Console
-
-//
-// Community attributes
-//
-
-:brandname: Data Grid
-:fullbrandname: Red Hat Data Grid
-
-//
-// Cloud services
-//
-:datagridservice: Data Grid Service
-:cacheservice: Cache Service
+:backup_path: /opt/infinispan/backups

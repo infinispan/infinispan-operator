@@ -111,8 +111,9 @@ INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: R
 If your clusters have formed a cross-site view, you can start adding backup
 locations to caches.
 
-.Reference
+[role="_additional-resources"]
+.Additional resources
 
 * link:#ref_xsite_crd-xsite[Cross-Site Replication Resources]
-* link:#adding_backup_locations-caches[Adding Backup Locations to Caches]
+* link:#adding_backup_locations-cache-cr[Adding Backup Locations to Caches]
 * link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]

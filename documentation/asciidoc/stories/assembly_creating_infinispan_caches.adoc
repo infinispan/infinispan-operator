@@ -1,0 +1,52 @@
+ifdef::context[:parent-context: {context}]
+[id='create_caches_cr']
+:context: cache-cr
+= Creating Caches with {ispn_operator}
+Use `Cache` CRs to add cache configuration with {ispn_operator} and control how {brandname} stores your data.
+
+//Community
+ifdef::community[]
+[IMPORTANT]
+====
+The `Cache` CR is not yet functionally complete.
+The capability to create caches with {ispn_operator} is still under development and not recommended for production environments or critical workloads.
+====
+endif::community[]
+
+//Downstream
+ifdef::downstream[]
+[IMPORTANT]
+====
+Creating caches with {ispn_operator} is available as a technology preview.
+
+Technology Preview features or capabilities are not supported with Red Hat
+production service-level agreements (SLAs) and might not be functionally
+complete. Red Hat does not recommend using them for production. These features
+provide early access to upcoming product features, enabling customers to test
+functionality and provide feedback during the development process.
+
+link:{link_tech_preview}
+====
+endif::downstream[]
+
+When using `Cache` CRs, the following rules apply:
+
+* `Cache` CRs apply to {datagridservice} nodes only.
+* You can create a single cache for each `Cache` CR.
+* If your `Cache` CR contains both a template and an XML configuration, {ispn_operator} uses the template.
+* If you edit caches in the {osweb}, the changes are reflected through the user interface but do not take effect on the {brandname} cluster. You cannot edit caches. To change cache configuration, you must first delete the cache through the console or CLI and then re-create the cache.
+* Deleting `Cache` CRs in the {osweb} does not remove caches from {brandname} clusters. You must delete caches through the console or CLI.
+
+include::{topics}/proc_adding_cache_auth_secrets.adoc[leveloffset=+1]
+include::{topics}/proc_using_custom_cache_auth.adoc[leveloffset=+2]
+include::{topics}/proc_creating_caches_xml.adoc[leveloffset=+1]
+include::{topics}/proc_creating_caches_templates.adoc[leveloffset=+1]
+
+//Adding Cache Configuration
+include::{topics}/proc_adding_backup_locations.adoc[leveloffset=+1]
+include::{topics}/con_backups_automatic_offline.adoc[leveloffset=+2]
+include::{topics}/proc_adding_cache_stores.adoc[leveloffset=+1]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

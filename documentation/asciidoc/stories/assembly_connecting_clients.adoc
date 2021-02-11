@@ -1,0 +1,33 @@
+ifdef::context[:parent-context: {context}]
+[id='connecting_clients']
+:context: clients
+= Establishing Remote Client Connections
+Connect to {brandname} clusters from the {brandname} Console, Command Line Interface (CLI), and remote clients.
+
+include::{topics}/con_client_connection_details.adoc[leveloffset=+1]
+include::{topics}/con_creating_caches.adoc[leveloffset=+1]
+
+//CLI
+include::{topics}/con_cli_connections.adoc[leveloffset=+1]
+include::{topics}/proc_creating_caches_cli.adoc[leveloffset=+2]
+include::{topics}/proc_creating_caches_batch.adoc[leveloffset=+2]
+
+//Console
+include::{topics}/proc_connecting_console.adoc[leveloffset=+1]
+
+//Hot Rod
+include::{topics}/con_hotrod_clients.adoc[leveloffset=+1]
+include::{topics}/ref_hotrod_configuration_builder.adoc[leveloffset=+2]
+include::{topics}/ref_hotrod_properties.adoc[leveloffset=+2]
+include::{topics}/proc_creating_caches_hotrod.adoc[leveloffset=+2]
+
+//REST
+include::{topics}/proc_connecting_rest.adoc[leveloffset=+1]
+
+//Cache Service
+include::{topics}/proc_creating_caches_cache_service.adoc[leveloffset=+1]
+include::{topics}/ref_default_cache_service_config.adoc[leveloffset=+2]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

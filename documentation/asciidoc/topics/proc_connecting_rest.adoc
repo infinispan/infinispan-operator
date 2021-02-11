@@ -1,0 +1,19 @@
+[id='connecting_rest-{context}']
+= Accessing the REST API
+{brandname} provides a RESTful interface that you can interact with using HTTP clients.
+
+.Prerequisites
+
+* Expose {brandname} on the network so you can access the REST API. +
+For example, configure a load balancer service or create a route.
+
+.Procedure
+
+* Access the REST API with any HTTP client at `$SERVICE_HOSTNAME:$PORT/rest/v2`.
++
+Replace `$SERVICE_HOSTNAME:$PORT` with the hostname and port where {brandname} is available on the network.
+
+[role="_additional-resources"]
+.Additional resources
+
+* link:{rest_docs}[{brandname} REST API]

@@ -1,6 +1,9 @@
 //
 // This file contains attributes for building community documentation.
-// Global community attributes are defined in the pom.xml.
+//
+
+//
+// Attributes in this file need to be included in downstream-attributes.adoc.
 //
 
 //
@@ -18,17 +21,19 @@
 :conf_path: /opt/infinispan/server/conf
 
 //
-// Operator
+// Infinispan
 //
 
 :ispn_operator: Infinispan Operator
 :ispn_operator_version: 2.0
 :ispn_version: 11.0
-:k8s: Kubernetes
-:okd: OKD
+:brandname: Infinispan
+:fullbrandname: Infinispan
+:datagridservice: Data Grid Service
+:cacheservice: Cache Service
 
 //
-// OpenShift
+// OpenShift and Kubernetes
 //
 
 :openshift: Red Hat OpenShift
@@ -36,22 +41,12 @@
 :openshiftplatform: Red Hat OpenShift Container Platform
 :ocp: OpenShift Container Platform
 :osweb: OpenShift Web Console
+:k8s: Kubernetes
+:okd: OKD
 
 //
-// Community attributes
+// Doc links
 //
-
-:brandname: Infinispan
-:fullbrandname: Infinispan
-
-//
-// Cloud services
-//
-
-:datagridservice: Data Grid Service
-:cacheservice: Cache Service
-
-// Stable Links
 
 //HotRod Java client
 :hotrod_docs: https://infinispan.org/docs/stable/titles/hotrod_java/hotrod_java.html
@@ -60,4 +55,7 @@
 :xsite_docs: https://infinispan.org/docs/stable/titles/xsite/xsite.html
 
 //Server
-:server_docs:  https://infinispan.org/docs/stable/titles/server/server.html
+:server_docs: https://infinispan.org/docs/stable/titles/server/server.html
+
+//REST
+:rest_docs: https://infinispan.org/docs/stable/titles/rest/rest.html

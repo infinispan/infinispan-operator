@@ -1,3 +1,4 @@
+ifdef::context[:parent-context: {context}]
 [id='start_operator']
 :context: start
 = Getting Started with {ispn_operator}

@@ -34,6 +34,7 @@ the `persistence` element as follows:
 </infinispan>
 ----
 
-.Reference
+[role="_additional-resources"]
+.Additional resources
 
 * link:#storage_resources-resources[Storage Resources]
