@@ -10,7 +10,7 @@ using valid `infinispan.xml` cache definitions.
 
 .Procedure
 
-. Create a **Cache** CR that contains the XML cache definition you want to
+. Create a `Cache` CR that contains the XML cache definition you want to
 create.
 +
 [source,options="nowrap",subs=attributes+]
@@ -27,13 +27,13 @@ spec:
   template: <infinispan><cache-container><distributed-cache name="mycache" mode="SYNC"><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan> <5>
 ----
 +
-<1> Names the **Cache** CR.
+<1> Names the `Cache` CR.
 <2> Specifies a secret that provides credentials with `username` and `password` keys or an override for custom credentials secrets.
 <3> Specifies the name of the target {brandname} cluster where you want {ispn_operator} to create the cache.
 <4> Names the cache on the {brandname} cluster.
 <5> Specifies the XML cache definition to create the cache. Note that the `name` attribute is ignored. Only `spec.name` applies to the resulting cache.
 +
-. Apply the **Cache** CR, for example:
+. Apply the `Cache` CR, for example:
 +
 [source,options="nowrap",subs=attributes+]
 ----

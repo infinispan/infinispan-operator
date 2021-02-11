@@ -1,4 +1,4 @@
-[id='configuring_sites_in_clusters-{context}']
+[id='configuring_sites_in_clusters']
 = Configuring Sites in the Same {k8s} Cluster
 For evaluation and demonstration purposes, you can configure {brandname} to back up between nodes in the same {k8s} cluster.
 

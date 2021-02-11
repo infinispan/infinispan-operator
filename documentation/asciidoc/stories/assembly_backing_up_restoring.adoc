@@ -1,3 +1,4 @@
+ifdef::context[:parent-context: {context}]
 [id='backing_restoring']
 :context: backup_restore
 = Backing Up and Restoring {brandname} Clusters

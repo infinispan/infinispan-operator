@@ -3,7 +3,7 @@
 {ispn_operator} requires that credentials exist as values for the `username`
 and `password` keys in a secret. If you have a custom secret that contains
 {brandname} credentials, but uses different key names, you can override those
-names in your **Cache** CR.
+names in your `Cache` CR.
 
 For example, you have a secret named "my-credentials" that holds a list of
 {brandname} users and their passwords as follows:
@@ -19,7 +19,7 @@ stringData:
 
 .Procedure
 
-* In your **Cache** CR, override custom key names with `username` and `password` as follows:
+* In your `Cache` CR, override custom key names with `username` and `password` as follows:
 
 [source,options="nowrap",subs=attributes+]
 ----

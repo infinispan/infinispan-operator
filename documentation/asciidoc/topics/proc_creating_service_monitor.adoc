@@ -58,7 +58,8 @@ endif::community[]
 $ {oc_apply_cr} service-monitor.yaml
 ----
 
-.References
+[role="_additional-resources"]
+.Additional resources
 
 * {link_prometheus_operator}
 * {link_os_monitoring}

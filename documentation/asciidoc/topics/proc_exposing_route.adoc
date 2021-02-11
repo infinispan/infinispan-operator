@@ -37,12 +37,29 @@ endif::downstream[]
 <2> Optionally specifies the hostname where {brandname} is exposed.
 +
 . Apply the changes.
-. Verify that the  is available.
+. Verify that the route is available.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_get_routes}
 
 NAME                 CLASS    HOSTS   ADDRESS   PORTS   AGE
-{example_crd_name}   <none>   *                 80      73s
+{example_crd_name}   <none>   *                 443     73s
 ----
+
+.Route ports
+When you create a route, it exposes a port on the network that accepts client connections and redirects traffic to {brandname} services that listen on port `11222`.
+
+The port where the route is available depends on whether you use encryption or not.
+
+[%header,cols=2*]
+|===
+|Port
+|Description
+
+|`80`
+|Encryption is disabled.
+
+|`443`
+|Encryption is enabled.
+|===

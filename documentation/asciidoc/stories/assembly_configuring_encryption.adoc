@@ -1,11 +1,12 @@
-[id='securing_endpoints']
-:context: security
-= Securing {brandname} Connections
+ifdef::context[:parent-context: {context}]
+[id='encrypting_connections']
+:context: tls
+= Configuring Encryption
 Encrypt connections between clients and {brandname} nodes with {openshift}
 service certificates or custom TLS certificates.
 
 include::{topics}/ref_encryption_service_ca.adoc[leveloffset=+1]
-include::{topics}/proc_retrieving_tls_certificates.adoc[leveloffset=+2]
+include::{topics}/proc_retrieving_tls_certificates.adoc[leveloffset=+1]
 include::{topics}/proc_disabling_encryption.adoc[leveloffset=+1]
 include::{topics}/proc_encrypting_endpoints_tls_secret.adoc[leveloffset=+1]
 include::{topics}/ref_secret_tls_certificate.adoc[leveloffset=+2]
