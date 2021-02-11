@@ -128,6 +128,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	err := r.update(infinispan, func() {
 		// Apply defaults and endpoint encryption settings if not already set
 		infinispan.ApplyDefaults()
+		errLabel := infinispan.ApplyOperatorLabels()
+		if errLabel != nil {
+			reqLogger.Error(errLabel, "Error applying operator label")
+		}
 		infinispan.ApplyEndpointEncryptionSettings(kubernetes.GetServingCertsMode(), reqLogger)
 
 		// Perform all the possible preliminary checks before go on
@@ -325,6 +329,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 						route.Spec.TLS = &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough}
 					}
 					controllerutil.SetControllerReference(infinispan, &route, r.scheme)
+
+					// This way CR labels will override operator labels with same name
+					infinispan.AddOperatorLabelsForServices(route.Labels)
+					infinispan.AddLabelsForServices(route.Labels)
 					err = r.client.Create(context.TODO(), &route)
 					if err != nil {
 						reqLogger.Error(err, "failed to create Route", "Route", route)
@@ -372,6 +380,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 							}}
 					}
 					controllerutil.SetControllerReference(infinispan, &ingress, r.scheme)
+
+					// This way CR labels will override operator labels with same name
+					infinispan.AddOperatorLabelsForServices(ingress.Labels)
+					infinispan.AddLabelsForServices(ingress.Labels)
 					err = r.client.Create(context.TODO(), &ingress)
 					if err != nil {
 						reqLogger.Error(err, "failed to create Ingress", "Ingress", ingress)
@@ -986,6 +998,9 @@ func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *cor
 func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	lsPod := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
+	labelsForPod := ispncom.LabelsResource(m.ObjectMeta.Name, "infinispan-pod")
+	m.AddOperatorLabelsForPods(labelsForPod)
+	m.AddLabelsForPods(labelsForPod)
 	// This field specifies the flavor of the
 	// Infinispan cluster. "" is plain community edition (vanilla)
 	var imageName string
@@ -1044,7 +1059,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			Name:        m.ObjectMeta.Name,
 			Namespace:   m.ObjectMeta.Namespace,
 			Annotations: consts.DeploymentAnnotations,
-			Labels:      map[string]string{"template": "infinispan-ephemeral"},
+			Labels:      map[string]string{},
 		},
 		Spec: appsv1.StatefulSetSpec{
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
@@ -1054,7 +1069,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 			Replicas: &replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      lsPod,
+					Labels:      labelsForPod,
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
@@ -1413,6 +1428,10 @@ func (r *ReconcileInfinispan) serviceForInfinispan(m *infinispanv1.Infinispan) *
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, service, r.scheme)
 
+	// This way CR labels will override operator labels with same name
+	m.AddOperatorLabelsForServices(service.Labels)
+	m.AddLabelsForServices(service.Labels)
+
 	return service
 }
 
@@ -1444,6 +1463,10 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, service, r.scheme)
+
+	// This way CR labels will override operator labels with same name
+	m.AddOperatorLabelsForServices(service.Labels)
+	m.AddLabelsForServices(service.Labels)
 
 	return service
 }
@@ -1478,6 +1501,11 @@ func (r *ReconcileInfinispan) serviceExternal(m *infinispanv1.Infinispan) *corev
 	}
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(m, externalService, r.scheme)
+
+	// This way CR labels will override operator labels with same name
+	m.AddOperatorLabelsForServices(externalService.Labels)
+	m.AddLabelsForServices(externalService.Labels)
+
 	return externalService
 }
 
@@ -1544,6 +1572,10 @@ func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinisp
 		},
 		Spec: exposeSpec,
 	}
+
+	// This way CR labels will override operator labels with same name
+	infinispan.AddOperatorLabelsForServices(siteService.Labels)
+	infinispan.AddLabelsForServices(siteService.Labels)
 
 	// Set Infinispan instance as the owner and controller
 	controllerutil.SetControllerReference(infinispan, &siteService, r.scheme)
