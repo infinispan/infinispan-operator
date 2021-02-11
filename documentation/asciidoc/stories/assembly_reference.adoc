@@ -1,3 +1,4 @@
+ifdef::context[:parent-context: {context}]
 [id='operator_reference']
 :context: ref
 = Reference

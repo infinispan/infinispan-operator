@@ -1,0 +1,12 @@
+[id='client_intelligence-{context}']
+= Hot Rod Clients
+Hot Rod is a binary TCP protocol that {brandname} provides for high-performance data transfer capabilities with remote clients.
+
+.Client intelligence
+
+Client intelligence refers to mechanisms the Hot Rod protocol provides so that clients can locate and send requests to {brandname} nodes.
+
+Hot Rod clients running on {k8s} can access internal IP addresses for {brandname} nodes so you can use any client intelligence.
+The default intelligence, `HASH_DISTRIBUTION_AWARE`, is recommended because it allows clients to route requests to primary owners, which improves performance.
+
+Hot Rod clients running outside {k8s} must use `BASIC` intelligence.

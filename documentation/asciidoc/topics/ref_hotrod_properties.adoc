@@ -1,0 +1,62 @@
+[id='hotrod_properties-{context}']
+= Hot Rod Client Properties
+You can configure Hot Rod client connections with the `hotrod-client.properties` file on the application classpath.
+
+[NOTE]
+====
+`$SERVICE_HOSTNAME:$PORT` denotes the hostname and port that allows access to your {brandname} cluster.
+You should replace these variables with the actual hostname and port for your environment.
+====
+
+[discrete]
+== On {k8s}
+
+Hot Rod clients running on {k8s} can use the following properties:
+
+[source,options="nowrap",subs=attributes+]
+----
+# Connection
+infinispan.client.hotrod.server_list=$SERVICE_HOSTNAME:$PORT
+
+# Authentication
+infinispan.client.hotrod.use_auth=true
+infinispan.client.hotrod.auth_username=developer
+infinispan.client.hotrod.auth_password=$PASSWORD
+infinispan.client.hotrod.auth_server_name=$CLUSTER_NAME
+infinispan.client.hotrod.sasl_properties.javax.security.sasl.qop=auth
+infinispan.client.hotrod.sasl_mechanism=SCRAM-SHA-512
+
+# Encryption
+infinispan.client.hotrod.sni_host_name=$SERVICE_HOSTNAME
+# Path to the TLS certificate.
+# Clients automatically generate trust stores from certificates.
+infinispan.client.hotrod.trust_store_path=/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+----
+
+[discrete]
+== Outside {k8s}
+
+Hot Rod clients running outside {k8s} can use the following properties:
+
+[source,options="nowrap",subs=attributes+]
+----
+# Connection
+infinispan.client.hotrod.server_list=$SERVICE_HOSTNAME:$PORT
+
+# Client intelligence
+infinispan.client.hotrod.client_intelligence=BASIC
+
+# Authentication
+infinispan.client.hotrod.use_auth=true
+infinispan.client.hotrod.auth_username=developer
+infinispan.client.hotrod.auth_password=$PASSWORD
+infinispan.client.hotrod.auth_server_name=$CLUSTER_NAME
+infinispan.client.hotrod.sasl_properties.javax.security.sasl.qop=auth
+infinispan.client.hotrod.sasl_mechanism=SCRAM-SHA-512
+
+# Encryption
+infinispan.client.hotrod.sni_host_name=$SERVICE_HOSTNAME
+# Path to the TLS certificate.
+# Clients automatically generate trust stores from certificates.
+infinispan.client.hotrod.trust_store_path=tls.crt
+----

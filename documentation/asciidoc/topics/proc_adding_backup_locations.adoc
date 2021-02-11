@@ -56,7 +56,8 @@ The following configuration examples show backup locations for caches:
 </infinispan>
 ----
 
-.Reference
+[role="_additional-resources"]
+.Additional resources
 
 * link:#backup_sites[Setting Up Cross-Site Replication]
 * link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]

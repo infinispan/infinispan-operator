@@ -26,7 +26,7 @@ $ oc policy add-role-to-user view system:serviceaccount:<namespace>:lon
 +
 . Repeat the preceding steps on your other {openshiftshort} clusters.
 
-
-.Reference
+[role="_additional-resources"]
+.Additional resources
 
 link:{link_os_sa_tokens}

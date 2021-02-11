@@ -1,90 +1,71 @@
 [id='creating_caches_hotrod-{context}']
-= Creating Caches with Hot Rod Java Clients
-Configure Hot Rod Java clients to connect to {brandname} clusters running on {openshiftshort}.
+= Creating Caches with Hot Rod Clients
+You can remotely create caches on {brandname} clusters running on {k8s} with Hot Rod clients.
+However, {brandname} recommends that you create caches using {brandname} Console, the CLI, or with `Cache` CRs instead of with Hot Rod clients.
 
-.Procedure
+[discrete]
+== Programmatically creating caches
 
-* Configure Hot Rod Java clients with a `hotrod-client.properties` file in the application classpath or with the `ConfigurationBuilder` class.
-+
-[NOTE]
-====
-Hot Rod clients running outside of {openshiftshort} must use BASIC client intelligence.
-====
+The following example shows how to add cache configurations to the `ConfigurationBuilder` and then create them with the `RemoteCacheManager`:
 
-.Hot Rod client properties
-
-[source,options="nowrap"]
-----
-# Connection
-infinispan.client.hotrod.server_list=$SERVICE_HOSTNAME:11222
-
-# Client intelligence
-infinispan.client.hotrod.client_intelligence=BASIC
-
-# Authentication
-infinispan.client.hotrod.use_auth=true
-infinispan.client.hotrod.auth_username=developer
-infinispan.client.hotrod.auth_password=$PASSWORD
-infinispan.client.hotrod.auth_server_name=$CLUSTER_NAME
-infinispan.client.hotrod.sasl_properties.javax.security.sasl.qop=auth
-infinispan.client.hotrod.sasl_mechanism=DIGEST-MD5
-
-# Encryption
-infinispan.client.hotrod.sni_host_name=$SERVICE_HOSTNAME
-# Path to the TLS certificate.
-# Clients automatically generate trust stores from certificates.
-infinispan.client.hotrod.trust_store_path=tls.crt
-
-# Add configuration for specific caches
-infinispan.client.hotrod.cache.my-cache.template_name=org.infinispan.DIST_SYNC
-infinispan.client.hotrod.cache.another-cache.configuration=<infinispan><cache-container><distributed-cache name=\"another-cache\"/></cache-container></infinispan>
-infinispan.client.hotrod.cache.my-other-cache.configuration_uri=file:/path/to/configuration.xml
-----
-
-.ConfigurationBuilder
-
-[source,java,options="nowrap"]
+[source,java,options="nowrap",subs=attributes+]
 ----
 import org.infinispan.client.hotrod.DefaultTemplate;
 import org.infinispan.client.hotrod.RemoteCache;
 import org.infinispan.client.hotrod.RemoteCacheManager;
-import org.infinispan.client.hotrod.configuration.ClientIntelligence;
-import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
-import org.infinispan.client.hotrod.configuration.SaslQop;
-import org.infinispan.client.hotrod.impl.ConfigurationProperties;
 ...
 
-ConfigurationBuilder builder = new ConfigurationBuilder();
-      builder.addServer()
-               .host("$SERVICE_HOSTNAME")
-               .port(ConfigurationProperties.DEFAULT_HOTROD_PORT)
-             .security().authentication()
-               .username("username")
-               .password("password")
-               .realm("default")
-               .saslQop(SaslQop.AUTH)
-               .saslMechanism("DIGEST-MD5")
-             .ssl()
-               .sniHostName("$SERVICE_HOSTNAME")
-               .trustStorePath("/path/to/tls.crt");
-      builder.clientIntelligence(ClientIntelligence.BASIC);
       builder.remoteCache("my-cache")
-               .templateName(DefaultTemplate.DIST_SYNC);
+             .templateName(DefaultTemplate.DIST_SYNC);
       builder.remoteCache("another-cache")
-               .configuration("<infinispan><cache-container><distributed-cache name=\"another-cache\"><encoding media-type=\"application/x-protostream\"/></distributed-cache></cache-container></infinispan>");
+             .configuration("<infinispan><cache-container><distributed-cache name=\"another-cache\"><encoding media-type=\"application/x-protostream\"/></distributed-cache></cache-container></infinispan>");
       try (RemoteCacheManager cacheManager = new RemoteCacheManager(builder.build())) {
-         // Get a remote cache that does not exist.
-         // Rather than return null, create the cache from a template.
-         RemoteCache<String, String> cache = cacheManager.getCache("my-cache");
-         /// Store a value.
-         cache.put("hello", "world");
-         // Retrieve the value and print it.
-         System.out.printf("key = %s\n", cache.get("hello"));
+      // Get a remote cache that does not exist.
+      // Rather than return null, create the cache from a template.
+      RemoteCache<String, String> cache = cacheManager.getCache("my-cache");
+      // Store a value.
+      cache.put("hello", "world");
+      // Retrieve the value and print it.
+      System.out.printf("key = %s\n", cache.get("hello"));
 ----
 
+This example shows how to create a cache named CacheWithXMLConfiguration using the `XMLStringConfiguration()` method to pass the cache configuration as XML:
 
+[source,java,options="nowrap",subs=attributes+]
+----
+import org.infinispan.client.hotrod.RemoteCacheManager;
+import org.infinispan.commons.configuration.XMLStringConfiguration;
+...
 
-.Reference
+private void createCacheWithXMLConfiguration() {
+    String cacheName = "CacheWithXMLConfiguration";
+    String xml = String.format("<infinispan>" +
+                                  "<cache-container>" +
+                                  "<distributed-cache name=\"%s\" mode=\"SYNC\">" +
+                                    "<encoding media-type=\"application/x-protostream\"/>" +
+                                    "<locking isolation=\"READ_COMMITTED\"/>" +
+                                    "<transaction mode=\"NON_XA\"/>" +
+                                    "<expiration lifespan=\"60000\" interval=\"20000\"/>" +
+                                  "</distributed-cache>" +
+                                  "</cache-container>" +
+                                "</infinispan>"
+                                , cacheName);
+    manager.administration().getOrCreateCache(cacheName, new XMLStringConfiguration(xml));
+    System.out.println("Cache with configuration exists or is created.");
+}
+----
 
-* link:{hotrod_docs}#configuring_hotrod[Configuring Hot Rod Java Clients]
-* link:{hotrod_docs}#create_cache_hotrod[Creating Caches with Hot Rod Java Clients]
+[discrete]
+== Using Hot Rod client properties
+
+When you invoke `cacheManager.getCache()` calls for named caches that do not exist, {brandname} creates them from the Hot Rod client properties instead of returning null.
+
+Add cache configuration to Hot Rod client properties as in the following example:
+
+[source,options="nowrap",subs=attributes+]
+----
+# Add cache configuration
+infinispan.client.hotrod.cache.my-cache.template_name=org.infinispan.DIST_SYNC
+infinispan.client.hotrod.cache.another-cache.configuration=<infinispan><cache-container><distributed-cache name=\"another-cache\"/></cache-container></infinispan>
+infinispan.client.hotrod.cache.my-other-cache.configuration_uri=file:/path/to/configuration.xml
+----

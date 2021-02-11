@@ -1,0 +1,51 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  # Names the cluster.
+  name: {example_crd_name}
+spec:
+  # Specifies the number of nodes in the cluster.
+  replicas: 4
+  service:
+    # Configures the service type as Cache.
+    type: Cache
+    # Sets the number of replicas for each entry across the cluster.
+    replicationFactor: 2
+  # Enables and configures automatic scaling.
+  autoscale:
+    maxMemUsagePercent: 70
+    maxReplicas: 5
+    minMemUsagePercent: 30
+    minReplicas: 2
+  # Configures authentication and encryption.
+  security:
+    # Defines a secret with custom credentials.
+    endpointSecretName: endpoint-identities
+    # Adds a custom TLS certificate to encrypt client connections.
+    endpointEncryption:
+        type: Secret
+        certSecretName: tls-secret
+  # Sets container resources.
+  container:
+    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
+    cpu: "2000m"
+    memory: 1Gi
+  # Configures logging levels.
+  logging:
+    categories:
+      org.infinispan: trace
+      org.jgroups: trace
+  # Configures how the cluster is exposed on the network.
+  expose:
+    type: LoadBalancer
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: infinispan-pod
+              clusterName: {example_crd_name}
+              infinispan_cr: {example_crd_name}
+          topologyKey: "kubernetes.io/hostname"

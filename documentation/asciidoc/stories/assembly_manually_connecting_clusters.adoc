@@ -1,3 +1,4 @@
+ifdef::context[:parent-context: {context}]
 [id='manually_connecting_clusters']
 :context: xsite_manual
 = Manually Connecting {brandname} Clusters
