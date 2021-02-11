@@ -18,7 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -136,31 +135,46 @@ func (s serviceResource) Process() (reconcile.Result, error) {
 			}
 		}
 	}
-	s.cleanupExternalExpose(externalExposeType)
-
+	if err := s.cleanupExternalExpose(externalExposeType); err != nil {
+		return reconcile.Result{}, err
+	}
 	return reconcile.Result{}, nil
 }
 
 // reconcileResource creates the resource (Service, Route or Ingress) for Infinispan if needed
-func (s serviceResource) reconcileResource(resource metav1.Object) error {
-	// Validates that resource not created yet
-	foundResource := &unstructured.Unstructured{}
-	ro, _ := resource.(runtime.Object)
-	kind := ro.GetObjectKind().GroupVersionKind().Kind
-	foundResource.SetGroupVersionKind(ro.GetObjectKind().GroupVersionKind())
-	err := s.client.Get(context.TODO(), types.NamespacedName{Namespace: resource.GetNamespace(), Name: resource.GetName()}, resource.(runtime.Object))
-	if errors.IsNotFound(err) {
-		// Set Infinispan instance as the owner and controller
-		controllerutil.SetControllerReference(s.infinispan, resource, s.scheme)
-		err := s.client.Create(ctx, ro)
-		if err != nil {
-			s.log.Error(err, fmt.Sprintf("failed to create %s", kind), kind, resource)
-			return err
-		}
-		s.log.Info(fmt.Sprintf("Created %s", kind), kind, resource.GetName())
-		return nil
+func (s serviceResource) reconcileResource(resource runtime.Object) error {
+	unstructuredResource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(resource)
+	if err != nil {
+		return err
 	}
-	return err
+	key, err := client.ObjectKeyFromObject(resource)
+	if err != nil {
+		return err
+	}
+	findResource := &unstructured.Unstructured{}
+	findResource.SetGroupVersionKind(resource.GetObjectKind().GroupVersionKind())
+	findResource.SetName(key.Name)
+	findResource.SetNamespace(key.Namespace)
+
+	result, err := controllerutil.CreateOrUpdate(context.TODO(), s.client, findResource, func() error {
+		creationTimestamp := findResource.GetCreationTimestamp()
+		metadata := unstructuredResource["metadata"].(map[string]interface{})
+		if creationTimestamp.IsZero() {
+			controllerutil.SetControllerReference(s.infinispan, findResource, s.scheme)
+			unstructured.SetNestedField(findResource.UnstructuredContent(), unstructuredResource["spec"], "spec")
+			unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["annotations"], "metadata", "annotations")
+		}
+		unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
+		return nil
+	})
+	if err != nil {
+		s.log.Error(err, fmt.Sprintf("failed to create or update %s", findResource.GetKind()), findResource)
+		return err
+	}
+	if result != controllerutil.OperationResultNone {
+		s.log.Info(fmt.Sprintf("%s %s %s", strings.Title(string(result)), findResource.GetKind(), findResource.GetName()))
+	}
+	return nil
 }
 
 func (s serviceResource) cleanupExternalExpose(excludeKind string) error {
@@ -170,8 +184,7 @@ func (s serviceResource) cleanupExternalExpose(excludeKind string) error {
 			externalObject.SetGroupVersionKind(obj.GroupVersionKind())
 			externalObject.SetName(s.infinispan.GetServiceExternalName())
 			externalObject.SetNamespace(s.infinispan.Namespace)
-			err := s.client.Delete(ctx, externalObject)
-			if err != nil && !errors.IsNotFound(err) {
+			if err := s.client.Delete(ctx, externalObject); err != nil && !errors.IsNotFound(err) {
 				return err
 			}
 		}
