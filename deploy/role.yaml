@@ -97,3 +97,13 @@ rules:
   - create
   - update
   - patch
+- apiGroups:
+    - integreatly.org
+  resources:
+    - grafanadashboards
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - delete
