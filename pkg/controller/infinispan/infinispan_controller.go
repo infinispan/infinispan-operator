@@ -339,6 +339,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	if err = r.updatePodsLabels(infinispan, podList); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	result, err := r.scheduleUpgradeIfNeeded(infinispan, podList, reqLogger)
 	if result != nil {
 		return *result, err
@@ -669,7 +673,41 @@ func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *cor
 	return i.Spec.Affinity
 }
 
-// deploymentForInfinispan returns an infinispan Deployment object
+func (r *ReconcileInfinispan) updatePodsLabels(m *infinispanv1.Infinispan, podList *corev1.PodList) error {
+	if len(podList.Items) == 0 {
+		return nil
+	}
+
+	labelsForPod := PodLabels(m.Name)
+	m.AddOperatorLabelsForPods(labelsForPod)
+	m.AddLabelsForPods(labelsForPod)
+
+	for _, pod := range podList.Items {
+		podLabels := make(map[string]string)
+		for index, value := range pod.Labels {
+			if _, ok := labelsForPod[index]; ok || consts.SystemPodLabels[index] {
+				podLabels[index] = value
+			}
+		}
+		for index, value := range labelsForPod {
+			podLabels[index] = value
+		}
+
+		_, err := controllerutil.CreateOrUpdate(context.TODO(), r.client, &pod, func() error {
+			if pod.CreationTimestamp.IsZero() {
+				return errors.NewNotFound(corev1.Resource(""), pod.Name)
+			}
+			pod.Labels = podLabels
+			return nil
+		})
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+// statefulSetForInfinispan returns an infinispan StatefulSet object
 func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	lsPod := PodLabels(m.Name)
@@ -1187,6 +1225,7 @@ func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan,
 // reconcileContainerConf reconcile the .Container struct is changed in .Spec. This needs a cluster restart
 func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet, configMap *corev1.ConfigMap, secret *corev1.Secret, logger logr.Logger) (*reconcile.Result, error) {
 	updateNeeded := false
+	rollingUpgrade := true
 	// Ensure the deployment size is the same as the spec
 	replicas := ispn.Spec.Replicas
 	previousReplicas := *statefulSet.Spec.Replicas
@@ -1194,6 +1233,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 		statefulSet.Spec.Replicas = &replicas
 		logger.Info("replicas changed, update infinispan", "replicas", replicas, "previous replicas", previousReplicas)
 		updateNeeded = true
+		rollingUpgrade = false
 	}
 
 	// Changes to statefulset.spec.template.spec.containers[].resources
@@ -1262,6 +1302,13 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 
 	if updateNeeded {
 		logger.Info("updateNeeded")
+		// If updating the parameters results in a rolling upgrade, we can update the labels here too
+		if rollingUpgrade {
+			labelsForPod := PodLabels(ispn.Name)
+			ispn.AddOperatorLabelsForPods(labelsForPod)
+			ispn.AddLabelsForPods(labelsForPod)
+			statefulSet.Spec.Template.Labels = labelsForPod
+		}
 		err := r.client.Update(context.TODO(), statefulSet)
 		if err != nil {
 			logger.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
@@ -1302,7 +1349,7 @@ type UpdateFn func()
 func (r *ReconcileInfinispan) update(ispn *infinispanv1.Infinispan, update UpdateFn, ignoreNotFound ...bool) error {
 	_, err := kube.CreateOrPatch(context.TODO(), r.client, ispn, func() error {
 		if ispn.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(infinispanv1.Resource("infinispan"), ispn.Name)
+			return errors.NewNotFound(infinispanv1.Resource("infinispan.org"), ispn.Name)
 		}
 		if update != nil {
 			update()

@@ -1,0 +1,14 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+  annotations:
+    infinispan.org/podTargetLabels: propagateMeToPods, meTooToPods
+    infinispan.org/targetLabels: propagateMeToServices, meTooToServices
+  labels:
+    propagateMeToPods: value1
+    meTooToPods: value2
+    propagateMeToServices: value3
+    meTooToServices: value4
+spec:
+  replicas: 1

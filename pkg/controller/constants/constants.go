@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -31,6 +32,12 @@ var (
 		"openshift.io/display-name":      "Infinispan Cluster",
 		"openshift.io/documentation-url": "http://infinispan.org/documentation/",
 	}
+
+	SystemPodLabels = map[string]bool{
+		appsv1.StatefulSetPodNameLabel:  true,
+		appsv1.StatefulSetRevisionLabel: true,
+		CoordinatorPodLabel:             true,
+	}
 )
 
 const (
@@ -46,6 +53,7 @@ const (
 	InfinispanPingPortName   = "ping"
 	CrossSitePort            = 7900
 	CrossSitePortName        = "xsite"
+	CoordinatorPodLabel      = "coordinator"
 	StaticCrossSiteUriSchema = "infinispan+xsite"
 	// DefaultCacheManagerName default cache manager name used for cross site
 	DefaultCacheManagerName                 = "default"

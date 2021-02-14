@@ -15,10 +15,10 @@ func applyLabelsToCoordinatorsPod(podList *corev1.PodList, cluster ispn.ClusterI
 	for _, item := range podList.Items {
 		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultCacheManagerName, item.Name)
 		if err == nil {
-			lab, ok := item.Labels["coordinator"]
-			if cacheManagerInfo["coordinator"].(bool) {
+			lab, ok := item.Labels[consts.CoordinatorPodLabel]
+			if cacheManagerInfo[consts.CoordinatorPodLabel].(bool) {
 				if !ok || lab != "true" {
-					item.Labels["coordinator"] = "true"
+					item.Labels[consts.CoordinatorPodLabel] = "true"
 					err = client.Update(context.TODO(), &item)
 				}
 				coordinatorFound = (err == nil)
@@ -26,7 +26,7 @@ func applyLabelsToCoordinatorsPod(podList *corev1.PodList, cluster ispn.ClusterI
 				if ok && lab == "true" {
 					// If present leave the label but false the value
 					if ok {
-						item.Labels["coordinator"] = "false"
+						item.Labels[consts.CoordinatorPodLabel] = "false"
 						err = client.Update(context.TODO(), &item)
 					}
 				}
