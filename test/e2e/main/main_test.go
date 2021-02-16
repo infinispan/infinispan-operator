@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -25,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
@@ -124,23 +124,81 @@ func TestNodeStartup(t *testing.T) {
 	pod := corev1.Pod{}
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name, Namespace: tutils.Namespace}, &ispn))
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name + "-0", Namespace: tutils.Namespace}, &pod))
-	if pod.Labels["my-pod-label"] != ispn.Labels["my-pod-label"] ||
-		pod.Labels["operator-pod-label"] != "operator-pod-value" ||
-		ispn.Labels["operator-pod-label"] != "operator-pod-value" {
-		panic("Labels haven't been propagated to pods")
+
+	// Checking labels propagation to pods
+	// from Infinispan CR to pods
+	if pod.Labels["my-pod-label"] != ispn.Labels["my-pod-label"] {
+		panic("Infinispan CR labels haven't been propagated to pods")
 	}
+
+	// from operator environment
+	if tutils.RunLocalOperator == "TRUE" {
+		// running locally, labels are hardcoded and set by the testsuite
+		if pod.Labels["operator-pod-label"] != "operator-pod-value" ||
+			ispn.Labels["operator-pod-label"] != "operator-pod-value" {
+			panic("Infinispan CR labels haven't been propagated to pods")
+		}
+	} else {
+		// operator deployed on cluster, labels are set by the deployment
+		if !areOperatorLabelsPropagated(spec.Namespace, ispnv1.OperatorPodTargetLabelsEnvVarName, pod.Labels) {
+			panic("Operator labels haven't been propagated to pods")
+		}
+	}
+
 	svcList := &corev1.ServiceList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(ispn.ObjectMeta.Namespace, labels.Set{}, svcList))
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(ispn.ObjectMeta.Namespace, map[string]string{"infinispan_cr": "test-node-startup"}, svcList))
 	if len(svcList.Items) == 0 {
 		panic("No services found for cluster")
 	}
 	for _, svc := range svcList.Items {
-		if svc.Labels["my-svc-label"] != ispn.Labels["my-svc-label"] ||
-			svc.Labels["operator-svc-label"] != "operator-svc-value" ||
-			ispn.Labels["operator-svc-label"] != "operator-svc-value" {
-			panic("Labels haven't been propagated to services")
+		// from Infinispan CR to service
+		if svc.Labels["my-svc-label"] != ispn.Labels["my-svc-label"] {
+			panic("Infinispan CR labels haven't been propagated to services")
+		}
+
+		// from operator environment
+		if tutils.RunLocalOperator == "TRUE" {
+			// running locally, labels are hardcoded and set by the testsuite
+			if svc.Labels["operator-svc-label"] != "operator-svc-value" ||
+				ispn.Labels["operator-svc-label"] != "operator-svc-value" {
+				panic("Labels haven't been propagated to services")
+			}
+		} else {
+			// operator deployed on cluster, labels are set by the deployment
+			if !areOperatorLabelsPropagated(spec.Namespace, ispnv1.OperatorTargetLabelsEnvVarName, svc.Labels) {
+				panic("Operator labels haven't been propagated to services")
+			}
 		}
 	}
+}
+
+// areOperatorLabelsPropagated helper function that read the labels from the infinispan operator pod
+// and match them with the labels map provided by the caller
+func areOperatorLabelsPropagated(namespace, varName string, labels map[string]string) bool {
+	podList := &corev1.PodList{}
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(namespace, map[string]string{"name": "infinispan-operator"}, podList))
+	if len(podList.Items) == 0 {
+		panic("Cannot get the Infinispan operator pod")
+	}
+	labelsAsString := ""
+	for _, item := range podList.Items[0].Spec.Containers[0].Env {
+		if item.Name == varName {
+			labelsAsString = item.Value
+		}
+	}
+	if labelsAsString == "" {
+		return true
+	}
+	opLabels := make(map[string]string)
+	if json.Unmarshal([]byte(labelsAsString), &opLabels) != nil {
+		return true
+	}
+	for name, value := range opLabels {
+		if labels[name] != value {
+			return false
+		}
+	}
+	return true
 }
 
 // Run some functions for testing rights not covered by integration tests
@@ -357,7 +415,7 @@ func testCacheService(testName string, imageName *string) {
 
 	protocol := testKube.GetSchemaForRest(&ispn)
 	client := tutils.NewHTTPClient(user, password, protocol)
-	hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, spec.GetExposeType(), tutils.RouteTimeout, client, )
+	hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, spec.GetExposeType(), tutils.RouteTimeout, client)
 
 	cacheName := "default"
 	waitForCacheToBeCreated(cacheName, hostAddr, client)
