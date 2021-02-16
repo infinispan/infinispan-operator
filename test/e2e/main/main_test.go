@@ -177,7 +177,7 @@ func TestNodeStartup(t *testing.T) {
 				operatorNS = spec.Namespace
 			}
 			// operator deployed on cluster, labels are set by the deployment
-			if !areOperatorLabelsPropagated(spec.Namespace, ispnv1.OperatorTargetLabelsEnvVarName, svc.Labels) {
+			if !areOperatorLabelsPropagated(operatorNS, ispnv1.OperatorTargetLabelsEnvVarName, svc.Labels) {
 				panic("Operator labels haven't been propagated to services")
 			}
 		}
