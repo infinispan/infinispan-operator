@@ -139,8 +139,14 @@ func TestNodeStartup(t *testing.T) {
 			panic("Infinispan CR labels haven't been propagated to pods")
 		}
 	} else {
+		// Get the operator namespace from the env if it's different
+		// from the testsuite one
+		operatorNS := tutils.OperatorNamespace
+		if operatorNS == "" {
+			operatorNS = spec.Namespace
+		}
 		// operator deployed on cluster, labels are set by the deployment
-		if !areOperatorLabelsPropagated(spec.Namespace, ispnv1.OperatorPodTargetLabelsEnvVarName, pod.Labels) {
+		if !areOperatorLabelsPropagated(operatorNS, ispnv1.OperatorPodTargetLabelsEnvVarName, pod.Labels) {
 			panic("Operator labels haven't been propagated to pods")
 		}
 	}
@@ -164,6 +170,12 @@ func TestNodeStartup(t *testing.T) {
 				panic("Labels haven't been propagated to services")
 			}
 		} else {
+			// Get the operator namespace from the env if it's different
+			// from the testsuite one
+			operatorNS := tutils.OperatorNamespace
+			if operatorNS == "" {
+				operatorNS = spec.Namespace
+			}
 			// operator deployed on cluster, labels are set by the deployment
 			if !areOperatorLabelsPropagated(spec.Namespace, ispnv1.OperatorTargetLabelsEnvVarName, svc.Labels) {
 				panic("Operator labels haven't been propagated to services")
