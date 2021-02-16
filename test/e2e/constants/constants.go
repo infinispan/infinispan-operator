@@ -35,6 +35,7 @@ var (
 	Memory               = consts.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 	Namespace            = strings.ToLower(consts.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
 	MultiNamespace       = strings.ToLower(consts.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
+	OperatorNamespace    = strings.ToLower(consts.GetEnvWithDefault("TESTING_OPERATOR_NAMESPACE", ""))
 	RunLocalOperator     = strings.ToUpper(consts.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
 	RunSaOperator        = strings.ToUpper(consts.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	OperatorUpgradeStage = strings.ToUpper(consts.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
