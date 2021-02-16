@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -23,8 +24,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	labutil "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var kubernetes = testutil.NewTestKubernetes()
@@ -107,24 +110,85 @@ func TestNodeStartup(t *testing.T) {
 	pod := corev1.Pod{}
 	testutil.ExpectNoError(kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name, Namespace: tconst.Namespace}, &ispn))
 	testutil.ExpectNoError(kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name + "-0", Namespace: tconst.Namespace}, &pod))
-	if pod.Labels["my-pod-label"] != ispn.Labels["my-pod-label"] ||
-		pod.Labels["operator-pod-label"] != "operator-pod-value" ||
-		ispn.Labels["operator-pod-label"] != "operator-pod-value" {
-		panic("Labels haven't been propagated to pods")
+
+	// Checking labels propagation to pods
+	// from Infinispan CR to pods
+	if pod.Labels["my-pod-label"] != ispn.Labels["my-pod-label"] {
+		panic("Infinispan CR labels haven't been propagated to pods")
 	}
 
+	// from operator environment
+	if tconst.RunLocalOperator == "TRUE" {
+		// running locally, labels are hardcoded and set by the testsuite
+		if pod.Labels["operator-pod-label"] != "operator-pod-value" ||
+			ispn.Labels["operator-pod-label"] != "operator-pod-value" {
+			panic("Infinispan CR labels haven't been propagated to pods")
+		}
+	} else {
+		// operator deployed on cluster, labels are set by the deployment
+		if !areOperatorLabelsPropagated(spec.Namespace, ispnv1.OperatorPodTargetLabelsEnvVarName, pod.Labels) {
+			panic("Operator labels haven't been propagated to pods")
+		}
+	}
+
+	// Checking labels propagation to all the services
 	svcList := &corev1.ServiceList{}
 	testutil.ExpectNoError(kubernetes.Kubernetes.ResourcesList(ispn.ObjectMeta.Name, ispn.ObjectMeta.Namespace, "", svcList))
 	if len(svcList.Items) == 0 {
 		panic("No services found for cluster")
 	}
 	for _, svc := range svcList.Items {
-		if svc.Labels["my-svc-label"] != ispn.Labels["my-svc-label"] ||
-			svc.Labels["operator-svc-label"] != "operator-svc-value" ||
-			ispn.Labels["operator-svc-label"] != "operator-svc-value" {
-			panic("Labels haven't been propagated to services")
+		// from Infinispan CR to service
+		if svc.Labels["my-svc-label"] != ispn.Labels["my-svc-label"] {
+			panic("Infinispan CR labels haven't been propagated to services")
+		}
+
+		// from operator environment
+		if tconst.RunLocalOperator == "TRUE" {
+			// running locally, labels are hardcoded and set by the testsuite
+			if svc.Labels["operator-svc-label"] != "operator-svc-value" ||
+				ispn.Labels["operator-svc-label"] != "operator-svc-value" {
+				panic("Labels haven't been propagated to services")
+			}
+		} else {
+			// operator deployed on cluster, labels are set by the deployment
+			if !areOperatorLabelsPropagated(spec.Namespace, ispnv1.OperatorTargetLabelsEnvVarName, svc.Labels) {
+				panic("Operator labels haven't been propagated to services")
+			}
 		}
 	}
+}
+
+// areOperatorLabelsPropagated helper function that read the labels from the infinispan operator pod
+// and match them with the labels map provided by the caller
+func areOperatorLabelsPropagated(namespace, varName string, labels map[string]string) bool {
+	labelSelector, err := labutil.Parse("name=infinispan-operator")
+	testutil.ExpectNoError(err)
+	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
+	podList := &corev1.PodList{}
+	testutil.ExpectNoError(kubernetes.Kubernetes.Client.List(context.TODO(), podList, listOps))
+	if len(podList.Items) == 0 {
+		panic("Cannot get the Infinispan operator pod")
+	}
+	labelsAsString := ""
+	for _, item := range podList.Items[0].Spec.Containers[0].Env {
+		if item.Name == varName {
+			labelsAsString = item.Value
+		}
+	}
+	if labelsAsString == "" {
+		return true
+	}
+	opLabels := make(map[string]string)
+	if json.Unmarshal([]byte(labelsAsString), &opLabels) != nil {
+		return true
+	}
+	for name, value := range opLabels {
+		if labels[name] != value {
+			return false
+		}
+	}
+	return true
 }
 
 // Test operator and cluster version upgrade flow
