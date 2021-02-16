@@ -12,6 +12,8 @@
 
 //Include community attributes
 include::{topics}/attributes/community-attributes.adoc[]
+include::{topics}/attributes/kubectl_cmds.adoc[]
+include::{topics}/attributes/links.adoc[]
 
 [id='infinispan_operator']
 = {ispn_operator} {ispn_operator_version} Guide
