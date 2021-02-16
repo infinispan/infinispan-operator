@@ -20,15 +20,15 @@ Automatic updates apply to {ispn_operator} first and then for each {brandname} n
 +
 Installation Mode:: You can install {ispn_operator} into a **Specific** namespace or **All** namespaces.
 //Community
-ifndef::productized[]
+ifdef::community[]
 Update Channel:: Subscribe to updates for {ispn_operator} versions.
 Approval Strategies:: When new {brandname} versions become available, you can install updates manually or let {ispn_operator} install them automatically.
-endif::productized[]
-//Product
-ifdef::productized[]
+endif::community[]
+//Downstream
+ifdef::downstream[]
 Update Channel:: Get updates for {ispn_operator} {operator_channel}.
 Approval Strategies:: Automatically install updates from the {operator_channel} channel or require approval before installation.
-endif::productized[]
+endif::downstream[]
 +
 . Select **Subscribe** to install {ispn_operator}.
 . Navigate to **Installed Operators** to verify the {ispn_operator} installation.

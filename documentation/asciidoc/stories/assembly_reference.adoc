@@ -5,9 +5,9 @@ Find information about {brandname} services and clusters that you create with
 {ispn_operator}.
 
 //Community includes image
-ifndef::productized[]
+ifdef::community[]
 include::{topics}/ref_image_resource.adoc[leveloffset=+1]
-endif::productized[]
+endif::community[]
 include::{topics}/ref_services.adoc[leveloffset=+1]
 
 // Restore the parent context.

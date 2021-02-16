@@ -9,15 +9,15 @@ include::yaml/cr_backup_site_manual.yaml[]
 <1> Specifies {datagridservice}. {brandname} supports cross-site replication with {datagridservice} clusters only.
 <2> Names the local site for a {brandname} cluster.
 //Community
-ifndef::productized[]
+ifdef::community[]
 <3> Defines the externally exposed service.
 * Use `NodePort` for local clusters on the same network.
 * Use `LoadBalancer` for independent {openshiftshort} clusters.
-endif::productized[]
-//Product
-ifdef::productized[]
+endif::community[]
+//Downstream
+ifdef::downstream[]
 <3> Specifies `LoadBalancer` as the service that handles communication between backup locations.
-endif::productized[]
+endif::downstream[]
 <4> Provides connection information for all backup locations.
 <5> Specifies a backup location that matches `.spec.service.sites.local.name`.
 <6> Specifies the static URL for the backup location in the format of `infinispan+xsite://<hostname>:<port>`. The default port is `7900`.

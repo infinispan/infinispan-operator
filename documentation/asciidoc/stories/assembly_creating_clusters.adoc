@@ -7,13 +7,13 @@
 
 * Install {ispn_operator}.
 //Community
-ifndef::productized[]
+ifdef::community[]
 * Have an `oc` or a `kubectl` client.
-endif::productized[]
-//Product
-ifdef::productized[]
+endif::community[]
+//Downstream
+ifdef::downstream[]
 * Have an `oc` client.
-endif::productized[]
+endif::downstream[]
 
 include::{topics}/ref_crd.adoc[leveloffset=+1]
 include::{topics}/proc_create_cluster_minimal.adoc[leveloffset=+1]
