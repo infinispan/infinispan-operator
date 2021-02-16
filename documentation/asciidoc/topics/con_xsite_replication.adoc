@@ -3,13 +3,13 @@
 The following illustration provides an example in which {ispn_operator} manages a {brandname} cluster at a data center in New York City, **NYC**.
 At another data center in London, **LON**, {ispn_operator} also manages a {brandname} cluster.
 
-ifndef::productized[]
+ifdef::community[]
 image::xsite-ispn.svg[]
-endif::productized[]
+endif::community[]
 
-ifdef::productized[]
+ifdef::downstream[]
 image::xsite-rhdg.svg[]
-endif::productized[]
+endif::downstream[]
 
 {ispn_operator} uses the Kubernetes API to establish a secure connection between the {ocp} clusters in **NYC** and **LON**.
 {ispn_operator} then creates a cross-site replication service so {brandname} clusters can back up data across locations.

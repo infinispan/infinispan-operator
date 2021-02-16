@@ -3,27 +3,27 @@
 Global labels are automatically propagated to all {brandname} resources.
 
 //Downstream
-ifdef::productized[]
+ifdef::downstream[]
 [NOTE]
 ====
 {ispn_operator} automatically applies global metering labels that you can use to monitor your Red Hat subscription details.
 ====
-endif::productized[]
+endif::downstream[]
 
 You can add and modify global labels for {ispn_operator} with the `env` field in the operator yaml.
 
 //Community
-ifndef::productized[]
+ifdef::community[]
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/publisher_labels.yaml[]
 ----
-endif::productized[]
+endif::community[]
 
 //Downstream
-ifdef::productized[]
+ifdef::downstream[]
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/publisher_labels_downstream.yaml[]
 ----
-endif::productized[]
+endif::downstream[]

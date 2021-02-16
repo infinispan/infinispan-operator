@@ -42,6 +42,3 @@
 //
 :datagridservice: Data Grid Service
 :cacheservice: Cache Service
-
-include::oc_cmds.adoc[]
-include::links.adoc[]

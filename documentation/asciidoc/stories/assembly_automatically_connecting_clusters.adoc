@@ -10,10 +10,10 @@ To automatically connect {brandname} clusters, {ispn_operator} in each {openshif
 
 include::{topics}/con_xsite_replication.adoc[leveloffset=+1]
 //Community
-ifndef::productized[]
+ifdef::community[]
 include::{topics}/proc_xsite_manual_clusterrole.adoc[leveloffset=+1]
 include::{topics}/proc_creating_kubernetes_site_secrets.adoc[leveloffset=+1]
-endif::productized[]
+endif::community[]
 include::{topics}/proc_creating_sa_tokens.adoc[leveloffset=+1]
 include::{topics}/proc_exchanging_sa_tokens.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+1]

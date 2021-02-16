@@ -4,6 +4,11 @@
 //
 
 //
+// Conditional statements
+//
+:community:
+
+//
 // Operator resources
 //
 
@@ -46,9 +51,6 @@
 
 :datagridservice: Data Grid Service
 :cacheservice: Cache Service
-
-include::kubectl_cmds.adoc[]
-include::links.adoc[]
 
 // Stable Links
 
