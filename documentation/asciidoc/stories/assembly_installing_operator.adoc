@@ -5,14 +5,14 @@ Install {ispn_operator} into a {k8s} namespace to create and manage {brandname}
 clusters.
 
 include::{topics}/proc_install_olm.adoc[leveloffset=+1]
-ifdef::productized[]
+ifdef::downstream[]
 include::{topics}/proc_install_command_line.adoc[leveloffset=+1]
-endif::productized[]
+endif::downstream[]
 //Community Only
-ifndef::productized[]
+ifdef::community[]
 include::{topics}/proc_install_operatorhub.adoc[leveloffset=+1]
 include::{topics}/proc_install_manually.adoc[leveloffset=+1]
-endif::productized[]
+endif::community[]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

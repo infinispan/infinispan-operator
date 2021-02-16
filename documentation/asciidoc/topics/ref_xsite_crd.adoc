@@ -7,7 +7,7 @@ include::yaml/cr_backup_site.yaml[]
 ----
 
 //Community
-ifndef::productized[]
+ifdef::community[]
 <1> Specifies {datagridservice}. {brandname} supports cross-site replication with {datagridservice} clusters only.
 <2> Names the local site for a {brandname} cluster.
 <3> Defines the externally exposed service.
@@ -29,10 +29,10 @@ Kubernetes environment.
 +
 <8> Logs error messages for the JGroups TCP protocol.
 <9> Logs fatal messages for the JGroups RELAY2 protocol.
-endif::productized[]
+endif::community[]
 
-//Product
-ifdef::productized[]
+//Downstream
+ifdef::downstream[]
 <1> Specifies {datagridservice}. {brandname} supports cross-site replication with {datagridservice} clusters only.
 <2> Names the local site for a {brandname} cluster.
 <3> Specifies `LoadBalancer` as the service that handles communication between backup locations.
@@ -42,4 +42,4 @@ ifdef::productized[]
 <7> Specifies the secret that contains the service account token for the backup site.
 <8> Logs error messages for the JGroups TCP protocol.
 <9> Logs fatal messages for the JGroups RELAY2 protocol.
-endif::productized[]
+endif::downstream[]

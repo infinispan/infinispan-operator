@@ -40,14 +40,14 @@ include::yaml/service_monitor.yaml[]
 <5> Specifies the authentication secret with {brandname} credentials.
 <6> Specifies that {brandname} clusters use endpoint encryption.
 //Community
-ifndef::productized[]
+ifdef::community[]
 If you do not use endpoint encryption, remove `spec.endpoints.scheme`.
-endif::productized[]
+endif::community[]
 <7> Specifies the Common Name (CN) of the TLS certificate for {brandname} encryption. If you use an {openshiftshort} service certificate, the CN matches the `metadata.name` resource for your {brandname} cluster.
 //Community
-ifndef::productized[]
+ifdef::community[]
 If you do not use endpoint encryption, remove `spec.endpoints.tlsConfig`.
-endif::productized[]
+endif::community[]
 <8> Specifies the namespace of your {brandname} cluster.
 <9> Specifies the name of your {brandname} cluster.
 +

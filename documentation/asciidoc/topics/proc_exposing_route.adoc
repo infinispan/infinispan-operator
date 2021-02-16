@@ -1,15 +1,15 @@
 [id='exposing_routes-{context}']
 = Exposing {brandname} Through Routes
 //Community
-ifndef::productized[]
+ifdef::community[]
 Use a {k8s} Ingress or an {openshiftshort} Route with passthrough encryption to
 make {brandname} clusters available on the network.
-endif::productized[]
-//Product
-ifdef::productized[]
+endif::community[]
+//Downstream
+ifdef::downstream[]
 Use an {openshiftshort} Route with passthrough encryption to make {brandname}
 clusters available on the network.
-endif::productized[]
+endif::downstream[]
 
 .Procedure
 
@@ -27,13 +27,13 @@ spec:
 ----
 +
 //Community
-ifndef::productized[]
+ifdef::community[]
 <1> Exposes {brandname} on the network through a {k8s} Ingress or {openshiftshort} Route.
-endif::productized[]
-//Product
-ifdef::productized[]
+endif::community[]
+//Downstream
+ifdef::downstream[]
 <1> Exposes {brandname} on the network through an {openshiftshort} Route.
-endif::productized[]
+endif::downstream[]
 <2> Optionally specifies the hostname where {brandname} is exposed.
 +
 . Apply the changes.
