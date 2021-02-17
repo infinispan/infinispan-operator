@@ -698,6 +698,8 @@ spec:
                   properties:
                     storage:
                       type: string
+                    storageClassName:
+                      type: string
                   type: object
                 replicationFactor:
                   format: int32

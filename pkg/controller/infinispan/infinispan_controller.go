@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -771,9 +772,8 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 
 		for _, pvc := range pvcs.Items {
 			if !metav1.IsControlledBy(&pvc, infinispan) {
-				blockOwnerDeletion := false
 				controllerutil.SetControllerReference(infinispan, &pvc, r.scheme)
-				pvc.OwnerReferences[0].BlockOwnerDeletion = &blockOwnerDeletion
+				pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
 				err := r.client.Update(context.TODO(), &pvc)
 				if err != nil {
 					return err
@@ -1175,9 +1175,15 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 		},
 	}
 
-	blockOwnerDeletion := false
 	controllerutil.SetControllerReference(m, pvc, r.scheme)
-	pvc.OwnerReferences[0].BlockOwnerDeletion = &blockOwnerDeletion
+	pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
+	// Set a storage class if it specified
+	if storageClassName := m.Spec.Service.Container.StorageClassName; storageClassName != "" {
+		if _, err = ispnutil.FindStorageClass(storageClassName, r.client); err != nil {
+			return nil, err
+		}
+		pvc.Spec.StorageClassName = &storageClassName
+	}
 	dep.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*pvc}
 
 	// Adding persistent volume mount
@@ -1457,7 +1463,7 @@ func (r *ReconcileInfinispan) serviceForDNSPing(m *infinispanv1.Infinispan) *cor
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
-			ClusterIP: "None",
+			ClusterIP: corev1.ClusterIPNone,
 			Selector:  lsPodSelector,
 			Ports: []corev1.ServicePort{
 				{

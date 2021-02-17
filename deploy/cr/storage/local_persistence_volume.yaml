@@ -1,0 +1,25 @@
+# Please note, this is example only file
+# nodeSelectorTerms and path can be changed related to your running environment
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: example-infinispan-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /tmp/
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role.kubernetes.io/worker
+              operator: In
+              values:
+                - 'true'
+                - ''
