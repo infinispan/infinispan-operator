@@ -6,6 +6,17 @@ over a dedicated JGroups transport channel for replicating data.
 .Prerequisites
 
 * Create secrets that contain service account tokens for each backup location.
+* Ensure that {k8s} project names match.
++
+[IMPORTANT]
+====
+To perform cross-site replication, {ispn_operator} requires {brandname}
+clusters to have the same name and run in matching namespaces.
+
+For example, you create a cluster at **LON** in a project named
+`xsite-cluster`. The cluster at **NYC** must also run in a project
+named `xsite-cluster`.
+====
 
 .Procedure
 
@@ -13,9 +24,6 @@ over a dedicated JGroups transport channel for replicating data.
 . Specify a matching name for each {brandname} cluster with metadata.name`.
 . Specify the name of the local site with `spec.service.sites.local.name`.
 . Provide the name, URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
-. Specify cluster names and namespaces for {brandname} clusters at each site with the the `clusterName` and `namespace` fields, if necessary.
-+
-You need to specify cluster names and namespaces for backup locations only if they do not match those for the local {brandname} cluster.
 +
 The following are example `Infinispan` CR definitions for **LON** and **NYC**:
 +
@@ -41,8 +49,6 @@ spec:
           url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
           secretName: lon-token
         - name: NYC
-          clusterName: {example_crd_name}
-          namespace: {example_namespace}
           url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
           secretName: nyc-token
 ----
@@ -69,8 +75,6 @@ spec:
           url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
           secretName: nyc-token
         - name: LON
-          clusterName: {example_crd_name}
-          namespace: {example_namespace}
           url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
           secretName: lon-token
 ----
