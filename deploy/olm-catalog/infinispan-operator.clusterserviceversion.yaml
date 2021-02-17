@@ -193,12 +193,12 @@ spec:
             replicas: 1
             selector:
               matchLabels:
-                name: infinispan-operator-alm-owned
+                name: infinispan-operator
             template:
               metadata:
-                name: infinispan-operator-alm-owned
+                name: infinispan-operator
                 labels:
-                  name: infinispan-operator-alm-owned
+                  name: infinispan-operator
               spec:
                 serviceAccountName: infinispan-operator
                 containers:
