@@ -177,7 +177,7 @@ func (ispn *Infinispan) IsExposed() bool {
 }
 
 func (ispn *Infinispan) GetSiteServiceName() string {
-	return fmt.Sprintf(consts.SiteServiceTemplate, ispn.Name)
+	return fmt.Sprintf("%v-site", ispn.Name)
 }
 
 func (ispn *Infinispan) GetEndpointScheme() corev1.URIScheme {
