@@ -35,6 +35,7 @@ const (
 	DefaultCacheName = "default"
 	// DefaultCacheManagerName default cache manager name used for cross site
 	DefaultCacheManagerName                 = "default"
+	SiteServiceTemplate                     = "%v-site"
 	CacheServiceFixedMemoryXmxMb            = 200
 	CacheServiceJvmNativeMb                 = 220
 	CacheServiceMaxRamMb                    = CacheServiceFixedMemoryXmxMb + CacheServiceJvmNativeMb
