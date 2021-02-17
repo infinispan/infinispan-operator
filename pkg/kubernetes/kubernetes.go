@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -316,4 +317,18 @@ func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	err := k.Client.List(context.TODO(), list, listOps)
 	return err
+}
+
+func (k Kubernetes) Logs(pod, namespace string) (string, error) {
+	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Stream()
+	if err != nil {
+		return "", err
+	}
+
+	defer readCloser.Close()
+	body, err := ioutil.ReadAll(readCloser)
+	if err != nil {
+		return "", err
+	}
+	return string(body), err
 }

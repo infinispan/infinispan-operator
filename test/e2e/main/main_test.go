@@ -19,7 +19,6 @@ import (
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,44 +36,15 @@ var serviceAccountKube = tutils.NewTestKubernetes("")
 
 var log = logf.Log.WithName("main_test")
 
-var DefaultSpec = ispnv1.Infinispan{
-	TypeMeta: tutils.InfinispanTypeMeta,
-	ObjectMeta: metav1.ObjectMeta{
-		Name: tutils.DefaultClusterName,
-	},
-	Spec: ispnv1.InfinispanSpec{
-		Service: ispnv1.InfinispanServiceSpec{
-			Type: ispnv1.ServiceTypeDataGrid,
-		},
-		Container: ispnv1.InfinispanContainerSpec{
-			CPU:    tutils.CPU,
-			Memory: tutils.Memory,
-		},
-		Replicas: 1,
-		Expose:   exposeServiceSpec(),
-	},
-}
-
-var MinimalSpec = ispnv1.Infinispan{
-	TypeMeta: tutils.InfinispanTypeMeta,
-	ObjectMeta: metav1.ObjectMeta{
-		Name: tutils.DefaultClusterName,
-	},
-	Spec: ispnv1.InfinispanSpec{
-		Replicas: 2,
-	},
-}
-
 func TestMain(m *testing.M) {
 	tutils.RunOperator(m, testKube)
 }
 
 // Test operator and cluster version upgrade flow
 func TestOperatorUpgrade(t *testing.T) {
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	name := strcase.ToKebab(t.Name())
 	spec.Name = name
-	spec.Namespace = tutils.Namespace
 	switch tutils.OperatorUpgradeStage {
 	case tutils.OperatorUpgradeStageFrom:
 		testKube.CreateInfinispan(spec, tutils.Namespace)
@@ -105,7 +75,7 @@ func TestOperatorUpgrade(t *testing.T) {
 // Test if single node working correctly
 func TestNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	spec.Annotations = make(map[string]string)
 	spec.Annotations[v1.TargetLabels] = "my-svc-label"
 	spec.Labels = make(map[string]string)
@@ -230,7 +200,7 @@ func TestRolesSynthetic(t *testing.T) {
 func TestNodeWithEphemeralStorage(t *testing.T) {
 	t.Parallel()
 	// Create a resource without passing any config
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	name := strcase.ToKebab(t.Name())
 	spec.Name = name
 	spec.Spec.Service.Container = &ispnv1.InfinispanServiceContainerSpec{EphemeralStorage: true}
@@ -253,7 +223,7 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 func TestClusterFormation(t *testing.T) {
 	t.Parallel()
 	// Create a resource without passing any config
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	name := strcase.ToKebab(t.Name())
 	spec.Name = name
 	spec.Spec.Replicas = 2
@@ -268,19 +238,16 @@ func TestClusterFormation(t *testing.T) {
 func TestClusterFormationWithTLS(t *testing.T) {
 	t.Parallel()
 	// Create a resource without passing any config
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	name := strcase.ToKebab(t.Name())
 	spec.Name = name
 	spec.Spec.Replicas = 2
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
-		EndpointEncryption: &ispnv1.EndpointEncryption{
-			Type:           "secret",
-			CertSecretName: "secret-certs",
-		},
+		EndpointEncryption: &tutils.EndpointEncryption,
 	}
 	// Create secret
-	testKube.CreateSecret(&encryptionSecret, tutils.Namespace)
-	defer testKube.DeleteSecret(&encryptionSecret)
+	testKube.CreateSecret(&tutils.EncryptionSecret, tutils.Namespace)
+	defer testKube.DeleteSecret(&tutils.EncryptionSecret)
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
@@ -301,9 +268,9 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 			panic("CPU field not updated")
 		}
 	}
-	spec := MinimalSpec.DeepCopy()
+	spec := tutils.MinimalSpec
 	spec.Name = strcase.ToKebab(t.Name())
-	genericTestForContainerUpdated(*spec, modifier, verifier)
+	genericTestForContainerUpdated(spec, modifier, verifier)
 }
 
 // Test if spec.container.memory update is handled
@@ -317,7 +284,7 @@ func TestContainerMemoryUpdate(t *testing.T) {
 			panic("Memory field not updated")
 		}
 	}
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	spec.Name = strcase.ToKebab(t.Name())
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
@@ -340,7 +307,7 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 		}
 		panic("JAVA_OPTIONS not updated")
 	}
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	spec.Name = strcase.ToKebab(t.Name())
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
@@ -353,7 +320,7 @@ func TestEndpointAuthenticationUpdate(t *testing.T) {
 	var verifier = func(ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 	}
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	spec.Name = strcase.ToKebab(t.Name())
 	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	genericTestForContainerUpdated(*spec, modifier, verifier)
@@ -406,11 +373,11 @@ func TestCacheServiceNativeImage(t *testing.T) {
 }
 
 func testCacheService(testName string, imageName *string) {
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	spec.Name = strcase.ToKebab(testName)
 	spec.Spec.Image = imageName
 	spec.Spec.Service.Type = ispnv1.ServiceTypeCache
-	spec.Spec.Expose = exposeServiceSpec()
+	spec.Spec.Expose = tutils.ExposeServiceSpec(testKube)
 
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
@@ -527,7 +494,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan)) {
 	// Create a resource without passing any config
 	// Register it
-	spec := DefaultSpec.DeepCopy()
+	spec := tutils.DefaultSpec(testKube)
 	spec.Name = clusterName
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
@@ -564,7 +531,7 @@ func TestExternalService(t *testing.T) {
 				Memory: tutils.Memory,
 			},
 			Replicas: 1,
-			Expose:   exposeServiceSpec(),
+			Expose:   tutils.ExposeServiceSpec(testKube),
 		},
 	}
 
@@ -597,30 +564,6 @@ func TestExternalService(t *testing.T) {
 
 	if actual != value {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
-	}
-}
-
-func exposeServiceSpec() *ispnv1.ExposeSpec {
-	return &ispnv1.ExposeSpec{
-		Type: exposeServiceType(),
-	}
-}
-
-func exposeServiceType() ispnv1.ExposeType {
-	exposeServiceType := cconsts.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", string(ispnv1.ExposeTypeNodePort))
-	switch exposeServiceType {
-	case string(ispnv1.ExposeTypeNodePort):
-		return ispnv1.ExposeTypeNodePort
-	case string(ispnv1.ExposeTypeLoadBalancer):
-		return ispnv1.ExposeTypeLoadBalancer
-	case string(ispnv1.ExposeTypeRoute):
-		okRoute, err := testKube.Kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
-		if err == nil && okRoute {
-			return ispnv1.ExposeTypeRoute
-		}
-		panic(fmt.Errorf("expose type Route is not supported on the platform: %w", err))
-	default:
-		panic(fmt.Errorf("unknown service type %s", exposeServiceType))
 	}
 }
 
@@ -663,7 +606,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 				Memory: tutils.Memory,
 			},
 			Replicas: 1,
-			Expose:   exposeServiceSpec(),
+			Expose:   tutils.ExposeServiceSpec(testKube),
 		},
 	}
 	testKube.CreateInfinispan(&spec, tutils.Namespace)
@@ -748,8 +691,8 @@ func TestAuthenticationDisabled(t *testing.T) {
 	t.Parallel()
 	namespace := tutils.Namespace
 	// Create a resource without passing any config
-	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
+	spec := tutils.DefaultSpec(testKube)
 	spec.Name = name
 	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 
@@ -798,6 +741,7 @@ func createCache(cacheName, hostAddr string, flags string, client tutils.HTTPCli
 		headers["Flags"] = flags
 	}
 	resp, err := client.Post(httpURL, "", headers)
+	tutils.ExpectNoError(err)
 	tutils.ExpectNoError(err)
 	if resp.StatusCode != http.StatusOK {
 		panic(httpError{resp.StatusCode})

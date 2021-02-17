@@ -15,9 +15,9 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: infinispan-operator
   labels:
     name: infinispan-operator
+  name: infinispan-operator
 rules:
 - apiGroups:
   - ""
@@ -39,6 +39,12 @@ rules:
 - apiGroups:
   - ""
   resources:
+    - pods/log
+  verbs:
+    - get
+- apiGroups:
+  - ""
+  resources:
   - pods/exec
   verbs:
   - create
@@ -49,6 +55,17 @@ rules:
   - deployments
   verbs:
   - get
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - apps
   resources:
@@ -104,6 +121,9 @@ rules:
   - restores
   - restores/status
   - restores/finalizers
+  - batches
+  - batches/status
+  - batches/finalizers
   verbs:
   - get
   - list
@@ -1408,6 +1428,71 @@ spec:
               type: string
             reason:
               description: Reason indicates the reason for any Restore related failures.
+              type: string
+          required:
+          - phase
+          type: object
+      type: object
+  version: v2alpha1
+  versions:
+  - name: v2alpha1
+    served: true
+    storage: true
+
+---
+
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: batches.infinispan.org
+  labels:
+    name: infinispan-operator
+spec:
+  group: infinispan.org
+  names:
+    kind: Batch
+    listKind: BatchList
+    plural: batches
+    singular: batch
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Batch is the Schema for the batches API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: BatchSpec defines the desired state of Batch
+          properties:
+            cluster:
+              type: string
+            config:
+              type: string
+            configMap:
+              type: string
+          required:
+          - cluster
+          type: object
+        status:
+          description: BatchStatus defines the observed state of Batch
+          properties:
+            phase:
+              description: State indicates the current state of the batch operation
+              type: string
+            reason:
+              description: Reason indicates the reason for any batch related failures.
               type: string
           required:
           - phase

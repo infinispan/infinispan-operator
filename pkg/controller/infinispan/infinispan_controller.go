@@ -190,7 +190,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Wait for the ConfigMap to be created by config-controller
 	configMap := &corev1.ConfigMap{}
-	if result, err := LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r.client, reqLogger); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r.client, reqLogger); result != nil {
 		return *result, err
 	}
 
@@ -198,7 +198,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	var secret *corev1.Secret
 	if infinispan.IsAuthenticationEnabled() {
 		secret = &corev1.Secret{}
-		if result, err := LookupResource(infinispan.GetSecretName(), infinispan.Namespace, secret, r.client, reqLogger); result != nil {
+		if result, err := kube.LookupResource(infinispan.GetSecretName(), infinispan.Namespace, secret, r.client, reqLogger); result != nil {
 			return *result, err
 		}
 	}
@@ -239,12 +239,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Wait for the cluster Service to be created by service-controller
-	if result, err := LookupResource(infinispan.Name, infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
+	if result, err := kube.LookupResource(infinispan.Name, infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
 		return *result, err
 	}
 
 	// Wait for the cluster ping Service to be created by service-controller
-	if result, err := LookupResource(infinispan.GetPingServiceName(), infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetPingServiceName(), infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
 		return *result, err
 	}
 
@@ -253,7 +253,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
 			// Wait for the cluster external Service to be created by service-controller
 			externalService := &corev1.Service{}
-			if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
+			if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
 				return *result, err
 			}
 			if err := r.update(infinispan, func() {
@@ -279,7 +279,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			}
 			if okRoute {
 				externalRoute := &routev1.Route{}
-				if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
+				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
 					return *result, err
 				}
 				if err := r.update(infinispan, func() {
@@ -291,7 +291,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				}
 			} else if okIngress {
 				externalIngress := &networkingv1beta1.Ingress{}
-				if result, err := LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
+				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
 					return *result, err
 				}
 				if err := r.update(infinispan, func() {
@@ -465,19 +465,6 @@ func configureLoggers(pods *corev1.PodList, cluster ispn.ClusterInterface, infin
 		}
 	}
 	return nil
-}
-
-// LookupResource lookup for resource to be created by separate resource controller
-func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger) (*reconcile.Result, error) {
-	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Info(fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name))
-			return &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
-		}
-		return &reconcile.Result{}, err
-	}
-	return nil, nil
 }
 
 func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinispan) error {

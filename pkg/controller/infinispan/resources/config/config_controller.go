@@ -79,7 +79,7 @@ func (c *configResource) Process() (reconcile.Result, error) {
 		// For cross site, reconcile must come before compute, because
 		// we need xsite service details to compute xsite struct
 		siteService := &corev1.Service{}
-		if result, err := infinispan.LookupResource(c.infinispan.GetSiteServiceName(), c.infinispan.Namespace, siteService, c.client, c.log); result != nil {
+		if result, err := kube.LookupResource(c.infinispan.GetSiteServiceName(), c.infinispan.Namespace, siteService, c.client, c.log); result != nil {
 			return *result, err
 		}
 

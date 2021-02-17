@@ -126,6 +126,13 @@ multinamespace-test: build
 backuprestore-test: build
 	build/run-tests.sh ${KUBECONFIG} backup-restore
 
+## batch-test Perform end to end (e2e) tests for Batch CR's
+##                     Same setting as `ŧest` rule
+##
+
+batch-test: build
+	build/run-tests.sh ${KUBECONFIG} batch
+
 ## upgrade-test         Performs test upgrade from one operator version to another against different git branches
 ##                      This script deploys operator to the OKD/OCP cluster from the local source code or already
 ##                      build image located inside the docker registry.

@@ -40,7 +40,7 @@ jobs:
         - go mod vendor
       script:
         # Run multinamespace tests as admin (skip role settings check)
-        - make test PARALLEL_COUNT=2 && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
+        - make test PARALLEL_COUNT=2 && make batch-test PARALLEL_COUNT=2 && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
       after_failure:
         - cat debug.log
         - kubectl config use-context $TESTING_CONTEXT
