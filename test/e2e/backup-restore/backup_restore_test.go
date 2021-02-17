@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 
 func TestBackupRestore(t *testing.T) {
 	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService))
-	t.Run(string(v1.ServiceTypeCache), testBackupRestore(cacheService))
+	// t.Run(string(v1.ServiceTypeCache), testBackupRestore(cacheService))
 }
 
 func TestBackupRestoreTransformations(t *testing.T) {
