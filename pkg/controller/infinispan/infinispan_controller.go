@@ -1589,7 +1589,7 @@ func (r *ReconcileInfinispan) createSiteService(siteServiceName string, infinisp
 }
 
 func appendRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) error {
-	restConfig, err := getRemoteSiteRESTConfig(infinispan.Namespace, remoteLocation, logger)
+	restConfig, err := getRemoteSiteRESTConfig(infinispan, remoteLocation, logger)
 	if err != nil {
 		return err
 	}
@@ -1607,7 +1607,7 @@ func appendRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infini
 	return nil
 }
 
-func getRemoteSiteRESTConfig(namespace string, location *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) (*restclient.Config, error) {
+func getRemoteSiteRESTConfig(infinispan *infinispanv1.Infinispan, location *infinispanv1.InfinispanSiteLocationSpec, logger logr.Logger) (*restclient.Config, error) {
 	backupSiteURL, err := url.Parse(location.URL)
 	if err != nil {
 		return nil, err
@@ -1621,20 +1621,19 @@ func getRemoteSiteRESTConfig(namespace string, location *infinispanv1.Infinispan
 
 	// All remote sites locations are accessed via encrypted http
 	copyURL.Scheme = "https"
-	locationNamespace := consts.GetWithDefault(location.Namespace, namespace)
 
 	switch scheme := backupSiteURL.Scheme; scheme {
 	case "minikube":
-		return getKubernetesRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
+		return getMinikubeRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
 	case "openshift":
-		return getOpenShiftRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
+		return getOpenShiftRESTConfig(copyURL.String(), location.SecretName, infinispan, logger)
 	default:
 		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
 	}
 }
 
-func getKubernetesRESTConfig(masterURL, secretName, namespace string, logger logr.Logger) (*restclient.Config, error) {
-	logger.Info("connect to backup kubernetes cluster", "url", masterURL)
+func getMinikubeRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
+	logger.Info("connect to backup minikube cluster", "url", masterURL)
 
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
@@ -1642,7 +1641,7 @@ func getKubernetesRESTConfig(masterURL, secretName, namespace string, logger log
 		return nil, err
 	}
 
-	secret, err := kubernetes.GetSecret(secretName, namespace)
+	secret, err := kubernetes.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
 	if err != nil {
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
@@ -1655,7 +1654,7 @@ func getKubernetesRESTConfig(masterURL, secretName, namespace string, logger log
 	return config, nil
 }
 
-func getOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr.Logger) (*restclient.Config, error) {
+func getOpenShiftRESTConfig(masterURL string, secretName string, infinispan *infinispanv1.Infinispan, logger logr.Logger) (*restclient.Config, error) {
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
 		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
@@ -1665,7 +1664,7 @@ func getOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr
 	// Skip-tls for accessing other OpenShift clusters
 	config.Insecure = true
 
-	secret, err := kubernetes.GetSecret(secretName, namespace)
+	secret, err := kubernetes.GetSecret(secretName, infinispan.ObjectMeta.Namespace)
 	if err != nil {
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
@@ -1680,11 +1679,8 @@ func getOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr
 }
 
 func appendKubernetesRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispanv1.Infinispan, remoteLocation *infinispanv1.InfinispanSiteLocationSpec, remoteKubernetes *ispnutil.Kubernetes, logger logr.Logger) error {
-	name := consts.GetWithDefault(remoteLocation.ClusterName, infinispan.Name)
-	namespace := consts.GetWithDefault(remoteLocation.Namespace, infinispan.Namespace)
-	siteServiceName := fmt.Sprintf(consts.SiteServiceTemplate, name)
-	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: namespace}
-
+	siteServiceName := infinispan.GetSiteServiceName()
+	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: infinispan.Namespace}
 	siteService := &corev1.Service{}
 	err := remoteKubernetes.Client.Get(context.TODO(), namespacedName, siteService)
 	if err != nil {
