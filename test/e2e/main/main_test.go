@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
@@ -22,12 +23,13 @@ import (
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labutil "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var kubernetes = testutil.NewTestKubernetes()
@@ -270,7 +272,9 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 			panic("CPU field not updated")
 		}
 	}
-	genericTestForContainerUpdated(MinimalSpec, modifier, verifier)
+	spec := MinimalSpec
+	spec.Namespace = tconst.Namespace
+	genericTestForContainerUpdated(spec, modifier, verifier)
 }
 
 // Test if spec.container.memory update is handled
@@ -283,7 +287,9 @@ func TestContainerMemoryUpdate(t *testing.T) {
 			panic("Memory field not updated")
 		}
 	}
-	genericTestForContainerUpdated(DefaultSpec, modifier, verifier)
+	spec := DefaultSpec
+	spec.Namespace = tconst.Namespace
+	genericTestForContainerUpdated(spec, modifier, verifier)
 }
 
 func TestContainerJavaOptsUpdate(t *testing.T) {
@@ -303,41 +309,41 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 		}
 		panic("JAVA_OPTIONS not updated")
 	}
-	genericTestForContainerUpdated(DefaultSpec, modifier, verifier)
+	spec := DefaultSpec
+	spec.Namespace = tconst.Namespace
+	genericTestForContainerUpdated(spec, modifier, verifier)
 }
 
 // Test if single node working correctly
 func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*appsv1.StatefulSet)) {
 	spec := ispn.DeepCopy()
 	name := "test-node-startup"
-	spec.ObjectMeta.Name = name
+	spec.Name = name
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	kubernetes.WaitForInfinispanPods(int(ispn.Spec.Replicas), tconst.SinglePodTimeout, spec.Name, spec.Namespace)
-	// Get the latest version of the Infinispan resource
-	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, spec)
-	if err != nil {
-		panic(err.Error())
-	}
-
 	// Get the associate statefulset
 	ss := appsv1.StatefulSet{}
 
 	// Get the current generation
-	err = kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
 	if err != nil {
 		panic(err.Error())
 	}
 	generation := ss.Status.ObservedGeneration
 
-	// Change the Infinispan spec
-	modifier(spec)
-	// Workaround for OpenShift local test (clear GVK on decode in the client)
-	spec.TypeMeta = tconst.InfinispanTypeMeta
-	err = kubernetes.Kubernetes.Client.Update(context.TODO(), spec)
-	if err != nil {
-		panic(err.Error())
-	}
+	_, err = controllerutil.CreateOrUpdate(context.TODO(), kubernetes.Kubernetes.Client, &ispn, func() error {
+		if ispn.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(ispnv1.Resource("infinispan"), ispn.Name)
+		}
+		// Change the Infinispan spec
+		modifier(&ispn)
+		// Workaround for OpenShift local test (clear GVK on decode in the client)
+		ispn.TypeMeta = tconst.InfinispanTypeMeta
+
+		return nil
+	})
+	testutil.ExpectMaybeNotFound(err)
 
 	// Wait for a new generation to appear
 	err = wait.Poll(tconst.DefaultPollPeriod, tconst.SinglePodTimeout, func() (done bool, err error) {
