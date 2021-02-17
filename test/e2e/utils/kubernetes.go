@@ -93,7 +93,7 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 	fmt.Printf("Delete namespace %s\n", namespace)
 	obj := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      namespace,
+			Name: namespace,
 		},
 	}
 	err := k.Kubernetes.Client.Delete(context.TODO(), obj, DeleteOpts...)
@@ -130,6 +130,16 @@ func (k TestKubernetes) GetRestore(name, namespace string) *ispnv2.Restore {
 	return restore
 }
 
+func (k TestKubernetes) GetBatch(name, namespace string) *ispnv2.Batch {
+	batch := &ispnv2.Batch{}
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+	ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, batch))
+	return batch
+}
+
 func (k TestKubernetes) Create(obj runtime.Object) {
 	ExpectNoError(k.Kubernetes.Client.Create(context.TODO(), obj))
 }
@@ -154,6 +164,11 @@ func (k TestKubernetes) DeleteBackup(backup *ispnv2.Backup) {
 func (k TestKubernetes) DeleteRestore(restore *ispnv2.Restore) {
 	labelSelector := labels.SelectorFromSet(restoreCtrl.PodLabels(restore.Name, restore.Spec.Cluster))
 	k.DeleteResource(restore.Namespace, labelSelector, restore, SinglePodTimeout)
+}
+
+func (k TestKubernetes) DeleteBatch(batch *ispnv2.Batch) {
+	labelSelector := labels.SelectorFromSet(restoreCtrl.PodLabels(batch.Name, batch.Spec.Cluster))
+	k.DeleteResource(batch.Namespace, labelSelector, batch, SinglePodTimeout)
 }
 
 // DeleteResource deletes the k8 resource and waits that all the pods and pvs associated with that resource are gone
@@ -502,6 +517,7 @@ func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
 	k.installCRD(crdsPath + "infinispan.org_caches_crd.yaml")
 	k.installCRD(crdsPath + "infinispan.org_backups_crd.yaml")
 	k.installCRD(crdsPath + "infinispan.org_restores_crd.yaml")
+	k.installCRD(crdsPath + "infinispan.org_batches_crd.yaml")
 	stopCh := make(chan struct{})
 	go runOperatorLocally(stopCh, namespace)
 	return stopCh
@@ -525,6 +541,7 @@ func RunOperator(m *testing.M, k *TestKubernetes) {
 			k.DeleteCRD("caches.infinispan.org")
 			k.DeleteCRD("backup.infinispan.org")
 			k.DeleteCRD("restore.infinispan.org")
+			k.DeleteCRD("batch.infinispan.org")
 			k.NewNamespace(namespace)
 		}
 		stopCh := k.RunOperator(namespace, "../../../deploy/crds/")
@@ -544,4 +561,3 @@ func runOperatorLocally(stopCh chan struct{}, namespace string) {
 	_ = os.Setenv("KUBECONFIG", kubeConfig)
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
 }
-

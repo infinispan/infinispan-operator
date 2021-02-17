@@ -10,6 +10,7 @@ OPERATOR_SOURCE_INSTALL_FILES=(
   "deploy/crds/infinispan.org_caches_crd.yaml"
   "deploy/crds/infinispan.org_backups_crd.yaml"
   "deploy/crds/infinispan.org_restores_crd.yaml"
+  "deploy/crds/infinispan.org_batches_crd.yaml"
   "deploy/operator.yaml"
 )
 

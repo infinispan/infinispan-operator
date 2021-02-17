@@ -70,6 +70,7 @@ if operator-sdk generate crds; then
   allsed -i -e "/name: caches.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_caches_crd.yaml
   allsed -i -e "/name: backups.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_backups_crd.yaml
   allsed -i -e "/name: restores.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_restores_crd.yaml
+  allsed -i -e "/name: batches.infinispan.org/a \  labels:\n    name: infinispan-operator" deploy/crds/infinispan.org_batches_crd.yaml
 
   echo "Generating Kubernetes code for custom resources..."
   operator-sdk generate k8s
