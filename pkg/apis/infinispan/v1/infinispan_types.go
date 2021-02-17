@@ -5,11 +5,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// InfinispanAuthInfo authentication info
-type InfinispanAuthInfo struct {
-	Type string `json:"type"`
-}
-
 // InfinispanSecurity info for the user application connection
 type InfinispanSecurity struct {
 	EndpointSecretName string              `json:"endpointSecretName,optional,omitempty"`
@@ -85,9 +80,12 @@ type InfinispanSitesLocalSpec struct {
 }
 
 type InfinispanSiteLocationSpec struct {
-	Name       string `json:"name"`
-	URL        string `json:"url"`
-	SecretName string `json:"secretName"`
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace,optional,omitempty"`
+	ClusterName string `json:"clusterName,optional,omitempty"`
+	// +kubebuilder:validation:Pattern=`^(minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+)?$`
+	URL         string `json:"url"`
+	SecretName  string `json:"secretName"`
 }
 
 type InfinispanSitesSpec struct {
