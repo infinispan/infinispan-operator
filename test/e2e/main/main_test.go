@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -350,43 +349,23 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	testKube.CreateInfinispan(&ispn, tutils.Namespace)
 	defer testKube.DeleteInfinispan(&ispn, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
-	// Get the latest version of the Infinispan resource
-	err := testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ispn)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// Get the associate statefulset
+	// Get the associate StatefulSet
 	ss := appsv1.StatefulSet{}
 
 	// Get the current generation
-	err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
-	if err != nil {
-		panic(err.Error())
-	}
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss))
 	generation := ss.Status.ObservedGeneration
 
-	_, err = controllerutil.CreateOrUpdate(context.TODO(), testKube.Kubernetes.Client, &ispn, func() error {
-		if ispn.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(ispnv1.Resource("infinispan"), ispn.Name)
-		}
-		// Change the Infinispan spec
+	tutils.ExpectNoError(testKube.UpdateInfinispan(&ispn, func() {
 		modifier(&ispn)
-		// Workaround for OpenShift local test (clear GVK on decode in the client)
-		ispn.TypeMeta = tutils.InfinispanTypeMeta
-
-		return nil
-	})
-	tutils.ExpectMaybeNotFound(err)
+	}))
 
 	// Wait for a new generation to appear
-	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
 		testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
-	if err != nil {
-		panic(err.Error())
-	}
+	tutils.ExpectNoError(err)
 
 	// Wait that current and update revisions match
 	// this ensure that the rolling upgrade completes
@@ -394,9 +373,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 		testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
 		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
 	})
-	if err != nil {
-		panic(err.Error())
-	}
+	tutils.ExpectNoError(err)
 
 	// Check that the update has been propagated
 	verifier(&ss)
@@ -702,34 +679,21 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	ss := appsv1.StatefulSet{}
 
 	// Get the current generation
-	err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
-	if err != nil {
-		panic(err.Error())
-	}
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss))
 	generation := ss.Status.ObservedGeneration
 
-	// Update the resource
-	err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &spec)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	spec.Spec.Security.EndpointSecretName = "conn-secret-test-1"
-	// Workaround for OpenShift local test (clear GVK on decode in the client)
-	spec.TypeMeta = tutils.InfinispanTypeMeta
-	err = testKube.Kubernetes.Client.Update(context.TODO(), &spec)
-	if err != nil {
-		panic(fmt.Errorf(err.Error()))
-	}
+	err = testKube.UpdateInfinispan(&spec, func() {
+		spec.Spec.Security.EndpointSecretName = "conn-secret-test-1"
+	})
+	tutils.ExpectNoError(err)
 
 	// Wait for a new generation to appear
 	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
 		testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
-	if err != nil {
-		panic(err.Error())
-	}
+	tutils.ExpectNoError(err)
+
 	// Sleep for a while to be sure that the old pods are gone
 	// The restart is ongoing and it would that more than 10 sec
 	// so we're not introducing any delay
@@ -839,9 +803,7 @@ func createCacheWithXMLTemplate(cacheName, hostAddr, template string, client tut
 		"Content-Type": "application/xml;charset=UTF-8",
 	}
 	resp, err := client.Post(httpURL, template, headers)
-	if err != nil {
-		panic(err.Error())
-	}
+	tutils.ExpectNoError(err)
 	// Accept all the 2xx success codes
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		throwHTTPError(resp)
@@ -865,9 +827,7 @@ func getViaRoute(url string, client tutils.HTTPClient) string {
 		throwHTTPError(resp)
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		panic(err.Error())
-	}
+	tutils.ExpectNoError(err)
 	return string(bodyBytes)
 }
 
@@ -876,9 +836,7 @@ func putViaRoute(url, value string, client tutils.HTTPClient) {
 		"Content-Type": "text/plain",
 	}
 	resp, err := client.Post(url, value, headers)
-	if err != nil {
-		panic(err.Error())
-	}
+	tutils.ExpectNoError(err)
 	if resp.StatusCode != http.StatusNoContent {
 		throwHTTPError(resp)
 	}
