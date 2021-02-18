@@ -203,6 +203,26 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
+	// Persistent volume claim for custom variables
+	if infinispan.Spec.Container.CustomLibrariesPVName != "" {
+		customPvc := &corev1.PersistentVolumeClaim{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name + "-custom-libraries"}, customPvc)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info(fmt.Sprintf("Creating '%s'", infinispan.Spec.Container.CustomLibrariesPVName))
+				customPvc.Name = infinispan.Name + "-custom-libraries"
+				customPvc.Namespace = infinispan.Namespace
+				customPvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{"ReadOnlyMany"}
+				customPvc.Spec.Resources.Requests = corev1.ResourceList{corev1.ResourceStorage: consts.DefaultPVSize}
+				customPvc.Spec.VolumeName = infinispan.Spec.Container.CustomLibrariesPVName
+				err = r.client.Create(context.TODO(), customPvc)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+		}
+	}
+
 	// Reconcile the StatefulSet
 	// Check if the StatefulSet already exists, if not create a new one
 	statefulSet := &appsv1.StatefulSet{}
@@ -682,6 +702,26 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 	memory := resource.MustParse(m.Spec.Container.Memory)
 	replicas := m.Spec.Replicas
+	volumeMounts := []corev1.VolumeMount{{
+		Name:      ConfigVolumeName,
+		MountPath: consts.ServerConfigRoot,
+	}, {
+		Name:      dataVolumeName,
+		MountPath: DataMountPath,
+	}}
+	volumes := []corev1.Volume{{
+		Name: ConfigVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
+			},
+		},
+	}}
+	if m.Spec.Container.CustomLibrariesPVName != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: "custom-libraries", MountPath: "/opt/infinispan/server/lib", ReadOnly: true})
+		volumes = append(volumes, corev1.Volume{Name: "custom-libraries", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: m.Name + "-custom-libraries", ReadOnly: true}}})
+	}
+
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -717,22 +757,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						ReadinessProbe: PodReadinessProbe(m),
 						StartupProbe:   PodStartupProbe(m),
 						Resources:      PodResources(m.Spec.Container),
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      ConfigVolumeName,
-							MountPath: consts.ServerConfigRoot,
-						}, {
-							Name:      dataVolumeName,
-							MountPath: DataMountPath,
-						}},
+						VolumeMounts:   volumeMounts,
 					}},
-					Volumes: []corev1.Volume{{
-						Name: ConfigVolumeName,
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
-							},
-						},
-					}},
+					Volumes: volumes,
 				},
 			},
 		},

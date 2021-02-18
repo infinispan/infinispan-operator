@@ -79,6 +79,8 @@ type InfinispanContainerSpec struct {
 	ExtraJvmOpts string `json:"extraJvmOpts,optional,omitempty"`
 	Memory       string `json:"memory,optional,omitempty"`
 	CPU          string `json:"cpu,optional,omitempty"`
+	// Name of the persistent volumes with custom libraries
+	CustomLibrariesPVName string `json:"customLibrariesPVName,optional,omitempty"`
 }
 
 type InfinispanSitesLocalSpec struct {
