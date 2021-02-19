@@ -49,10 +49,10 @@ jobs:
         - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
         - ./build/prepare-sa-test.sh
         - ./build/debug-pods.sh &
-      script:
         - go mod vendor
+      script:
         # Run multinamespace tests as admin (skip role settings check)
-        - make test PARALLEL_COUNT=2 && make backuprestore-test && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
+        - make test PARALLEL_COUNT=2
       after_failure:
         - cat debug.log
         - kubectl config use-context $TESTING_CONTEXT
@@ -61,3 +61,6 @@ jobs:
         - df -h
         - docker ps -a
         - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
+    - # stage name not required, will continue to use `Test`
+      script:
+        - make backuprestore-test
