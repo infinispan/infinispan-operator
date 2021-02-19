@@ -79,8 +79,6 @@ type InfinispanContainerSpec struct {
 	ExtraJvmOpts string `json:"extraJvmOpts,optional,omitempty"`
 	Memory       string `json:"memory,optional,omitempty"`
 	CPU          string `json:"cpu,optional,omitempty"`
-	// Name of the persistent volumes with custom libraries
-	CustomLibrariesPVName string `json:"customLibrariesPVName,optional,omitempty"`
 }
 
 type InfinispanSitesLocalSpec struct {
@@ -186,6 +184,13 @@ type Autoscale struct {
 	Disabled           bool  `json:"disabled,optional,omitempty"`
 }
 
+// InfinispanExternalDependencies describes all the external dependencies
+// used by the Infinispan cluster: i.e. lib folder with custom jar, maven artifact, images ...
+type InfinispanExternalDependencies struct {
+	// Name of the persistent volumes with custom libraries
+	CustomLibrariesPVName string `json:"customLibrariesPVName,optional,omitempty"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	Replicas  int32                   `json:"replicas"`
@@ -197,6 +202,8 @@ type InfinispanSpec struct {
 	Expose    *ExposeSpec             `json:"expose,optional,omitempty"`
 	Autoscale *Autoscale              `json:"autoscale,optional,omitempty"`
 	Affinity  *corev1.Affinity        `json:"affinity,optional,omitempty"`
+	// External dependencies needed by the Infinispan cluster
+	Dependencies *InfinispanExternalDependencies `json:"dependencies,optional,omitempty"`
 }
 
 type ConditionType string

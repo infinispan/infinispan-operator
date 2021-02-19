@@ -45,12 +45,14 @@ import (
 )
 
 const (
-	DataMountPath        = "/opt/infinispan/server/data"
-	DataMountVolume      = "data-volume"
-	EncryptMountPath     = "/etc/encrypt"
-	ConfigVolumeName     = "config-volume"
-	EncryptVolumeName    = "encrypt-volume"
-	IdentitiesVolumeName = "identities-volume"
+	DataMountPath             = "/opt/infinispan/server/data"
+	DataMountVolume           = "data-volume"
+	CustomLibrariesMountPath  = "/opt/infinispan/server/lib/custom-libraries"
+	CustomLibrariesVolumeName = "custom-libraries"
+	EncryptMountPath          = "/etc/encrypt"
+	ConfigVolumeName          = "config-volume"
+	EncryptVolumeName         = "encrypt-volume"
+	IdentitiesVolumeName      = "identities-volume"
 )
 
 var log = logf.Log.WithName("controller_infinispan")
@@ -204,17 +206,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Persistent volume claim for custom variables
-	if infinispan.Spec.Container.CustomLibrariesPVName != "" {
+	if infinispan.HasCustomLibraries() {
 		customPvc := &corev1.PersistentVolumeClaim{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name + "-custom-libraries"}, customPvc)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info(fmt.Sprintf("Creating '%s'", infinispan.Spec.Container.CustomLibrariesPVName))
+				reqLogger.Info(fmt.Sprintf("Creating '%s'", infinispan.Spec.Dependencies.CustomLibrariesPVName))
 				customPvc.Name = infinispan.Name + "-custom-libraries"
 				customPvc.Namespace = infinispan.Namespace
 				customPvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{"ReadOnlyMany"}
 				customPvc.Spec.Resources.Requests = corev1.ResourceList{corev1.ResourceStorage: consts.DefaultPVSize}
-				customPvc.Spec.VolumeName = infinispan.Spec.Container.CustomLibrariesPVName
+				customPvc.Spec.VolumeName = infinispan.Spec.Dependencies.CustomLibrariesPVName
 				err = r.client.Create(context.TODO(), customPvc)
 				if err != nil {
 					return reconcile.Result{}, err
@@ -717,9 +719,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			},
 		},
 	}}
-	if m.Spec.Container.CustomLibrariesPVName != "" {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: "custom-libraries", MountPath: "/opt/infinispan/server/lib", ReadOnly: true})
-		volumes = append(volumes, corev1.Volume{Name: "custom-libraries", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: m.Name + "-custom-libraries", ReadOnly: true}}})
+	if m.HasCustomLibraries() {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: CustomLibrariesVolumeName, MountPath: CustomLibrariesMountPath, ReadOnly: true})
+		volumes = append(volumes, corev1.Volume{Name: CustomLibrariesVolumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: m.Name + "-custom-libraries", ReadOnly: true}}})
 	}
 
 	dep := &appsv1.StatefulSet{

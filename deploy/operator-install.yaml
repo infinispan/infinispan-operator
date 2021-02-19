@@ -815,12 +815,16 @@ spec:
               properties:
                 cpu:
                   type: string
-                customLibrariesPVName:
-                  description: Name of the persistent volumes with custom libraries
-                  type: string
                 extraJvmOpts:
                   type: string
                 memory:
+                  type: string
+              type: object
+            dependencies:
+              description: External dependencies needed by the Infinispan cluster
+              properties:
+                customLibrariesPVName:
+                  description: Name of the persistent volumes with custom libraries
                   type: string
               type: object
             expose:
@@ -1232,9 +1236,6 @@ spec:
               properties:
                 cpu:
                   type: string
-                customLibrariesPVName:
-                  description: Name of the persistent volumes with custom libraries
-                  type: string
                 extraJvmOpts:
                   type: string
                 memory:
@@ -1354,9 +1355,6 @@ spec:
                 container
               properties:
                 cpu:
-                  type: string
-                customLibrariesPVName:
-                  description: Name of the persistent volumes with custom libraries
                   type: string
                 extraJvmOpts:
                   type: string
