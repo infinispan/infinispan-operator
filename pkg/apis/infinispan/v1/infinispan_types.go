@@ -188,7 +188,7 @@ type Autoscale struct {
 // used by the Infinispan cluster: i.e. lib folder with custom jar, maven artifact, images ...
 type InfinispanExternalDependencies struct {
 	// Name of the persistent volumes with custom libraries
-	CustomLibrariesPVName string `json:"customLibrariesPVName,optional,omitempty"`
+	Volume string `json:"volume,optional,omitempty"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan

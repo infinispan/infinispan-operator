@@ -823,7 +823,7 @@ spec:
             dependencies:
               description: External dependencies needed by the Infinispan cluster
               properties:
-                customLibrariesPVName:
+                volume:
                   description: Name of the persistent volumes with custom libraries
                   type: string
               type: object
