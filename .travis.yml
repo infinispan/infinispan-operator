@@ -29,30 +29,37 @@ jobs:
       script:
         - go mod vendor
         - make unit-test
-
     - stage: "Test"
-      name: "Kubernetes"
+      name: "Core and Multi-namespace tests"
       services:
         - docker
       env:
         - KIND_VERSION=v0.9.0
       before_script:
-        - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-        - curl -Lo kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64 && chmod +x kind && sudo mv kind /usr/local/bin/
-        - kind create cluster --config kind-config.yaml
-        - export KUBECONFIG=~/kind-kube-config.yaml
-        - kind get kubeconfig > "${KUBECONFIG}"
-        - export MAKE_DATADIR_WRITABLE=true
-        - export GO111MODULE=on
-        - export RUN_SA_OPERATOR=TRUE
-        - export INITCONTAINER_IMAGE=quay.io/quay/busybox:latest
-        - export TESTING_CONTEXT=`kubectl --insecure-skip-tls-verify config current-context`
-        - ./build/prepare-sa-test.sh
-        - ./build/debug-pods.sh &
-      script:
+        - source ./build/travis/configure-travis-ci.sh
         - go mod vendor
+      script:
         # Run multinamespace tests as admin (skip role settings check)
-        - make test PARALLEL_COUNT=2 && make backuprestore-test && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
+        - make test PARALLEL_COUNT=2 && kubectl config use-context $TESTING_CONTEXT && make multinamespace-test
+      after_failure:
+        - cat debug.log
+        - kubectl config use-context $TESTING_CONTEXT
+        - kubectl get events --all-namespaces
+        - kubectl cluster-info
+        - df -h
+        - docker ps -a
+        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
+    - # stage name not required, will continue to use `Test`
+      name: "Backup/Restore tests"
+      services:
+        - docker
+      env:
+        - KIND_VERSION=v0.9.0
+      before_script:
+        - source ./build/travis/configure-travis-ci.sh
+        - go mod vendor
+      script:
+        - make backuprestore-test
       after_failure:
         - cat debug.log
         - kubectl config use-context $TESTING_CONTEXT
