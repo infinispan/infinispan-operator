@@ -1,7 +1,15 @@
 [id='adding_custom_labels-{context}']
 = Adding Labels to {brandname} Resources
-Attach key/value labels to resources that {ispn_operator} creates, such as services and pods.
+Attach key/value labels to pods and services that {ispn_operator} creates and manages.
 These labels help you identify relationships between objects to better organize and monitor {brandname} resources.
+
+//Downstream
+ifdef::downstream[]
+[NOTE]
+====
+{ispn_operator} automatically applies labels to pods so you can monitor your Red Hat subscription details.
+====
+endif::downstream[]
 
 .Procedure
 
