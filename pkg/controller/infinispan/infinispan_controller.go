@@ -316,7 +316,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 
 		if err := r.update(infinispan, func() {
-			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "")
 			if infinispan.Spec.Replicas != infinispan.Status.ReplicasWantedAtRestart {
 				reqLogger.Info("removed Infinispan resources, force an upgrade now", "replicasWantedAtRestart", infinispan.Status.ReplicasWantedAtRestart)
 				infinispan.Spec.Replicas = infinispan.Status.ReplicasWantedAtRestart
@@ -324,11 +323,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}); err != nil {
 			return reconcile.Result{}, err
 		}
+		if err := r.update(infinispan, func() {
+			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "")
+		}); err != nil {
+			return reconcile.Result{}, err
+		}
+
 
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	// List the pods for this infinispan's deployment
+	// List the pods for this Infinispan's deployment
 	podList := &corev1.PodList{}
 	if err := kubernetes.ResourcesList(infinispan.Namespace, PodLabels(infinispan.Name), podList); err != nil {
 		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace")
@@ -630,10 +635,14 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
 	if podDefaultImage != desiredImage {
+		logger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", desiredImage)
 		if err := r.update(infinispan, func() {
-			logger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", desiredImage)
-			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
 			infinispan.Spec.Replicas = 0
+		}); err != nil {
+			return &reconcile.Result{}, err
+		}
+		if err := r.update(infinispan, func() {
+			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
 		}); err != nil {
 			return &reconcile.Result{}, err
 		}
