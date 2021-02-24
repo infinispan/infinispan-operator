@@ -16,7 +16,10 @@ include::{topics}/ref_datagridservice_resources.adoc[leveloffset=+2]
 
 //Labelling
 include::{topics}/proc_adding_custom_labels.adoc[leveloffset=+1]
+//Community content
+ifdef::community[]
 include::{topics}/ref_label_environment_variables.adoc[leveloffset=+2]
+endif::community[]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]
