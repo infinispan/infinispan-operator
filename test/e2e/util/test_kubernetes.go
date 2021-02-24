@@ -153,17 +153,19 @@ func (k TestKubernetes) DeleteInfinispan(name, namespace string, timeout time.Du
 	ExpectNoError(err)
 }
 
-// GracefulShutdownInfinispan deletes the infinispan resource
-// and waits that all the pods are gone
+// GracefulShutdownInfinispan deletes the infinispan resource and waits that all the pods are gone
 func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
 	ns := types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-	ExpectNoError(err)
-	infinispan.Spec.Replicas = 0
-
-	// Workaround for OpenShift local test (clear GVK on decode in the client)
-	infinispan.TypeMeta = tconst.InfinispanTypeMeta
-	err = k.Kubernetes.Client.Update(context.TODO(), infinispan)
+	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+		updErr := k.UpdateInfinispan(infinispan, func() {
+			infinispan.Spec.Replicas = 0
+		})
+		if updErr != nil {
+			fmt.Printf("Error updating infinispan %v\n", updErr)
+			return false, nil
+		}
+		return true, nil
+	})
 	ExpectNoError(err)
 
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
@@ -173,30 +175,22 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 		}
 		return true, nil
 	})
-
 	ExpectNoError(err)
 }
 
-// GracefulRestartInfinispan restarts the infinispan resource
-// and waits that cluster is wellformed
+// GracefulRestartInfinispan restarts the infinispan resource and waits that cluster is wellformed
 func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan, replicas int32, timeout time.Duration) {
 	ns := types.NamespacedName{Name: infinispan.Name, Namespace: infinispan.Namespace}
-	err := k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-	ExpectNoError(err)
-	infinispan.Spec.Replicas = replicas
-	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
-		// Workaround for OpenShift local test (clear GVK on decode in the client)
-		infinispan.TypeMeta = tconst.InfinispanTypeMeta
-		err1 := k.Kubernetes.Client.Update(context.TODO(), infinispan)
-		if err1 != nil {
-			fmt.Printf("Error updating infinispan %s\n", err1)
-			err1 = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
+	err := wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
+		updErr := k.UpdateInfinispan(infinispan, func() {
 			infinispan.Spec.Replicas = replicas
+		})
+		if updErr != nil {
+			fmt.Printf("Error updating infinispan %v\n", updErr)
 			return false, nil
 		}
 		return true, nil
 	})
-
 	ExpectNoError(err)
 
 	err = wait.Poll(tconst.DefaultPollPeriod, timeout, func() (done bool, err error) {
@@ -206,7 +200,6 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 		}
 		return true, nil
 	})
-
 	ExpectNoError(err)
 }
 
@@ -262,6 +255,23 @@ func (k TestKubernetes) CreateOrUpdateRoleBinding(binding *rbacv1.RoleBinding, n
 	}
 
 	ExpectNoError(err)
+}
+
+func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func()) error {
+	_, err := controllerutil.CreateOrUpdate(context.TODO(), k.Kubernetes.Client, ispn, func() error {
+		if ispn.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(ispnv1.Resource("infinispan.org"), ispn.Name)
+		}
+		// Change the Infinispan spec
+		if update != nil {
+			update()
+		}
+		// Workaround for OpenShift local test (clear GVK on decode in the client)
+		ispn.TypeMeta = tconst.InfinispanTypeMeta
+
+		return nil
+	})
+	return err
 }
 
 // CreateOrUpdateAndWaitForCRD creates a Custom Resource Definition, waiting it to become ready.
