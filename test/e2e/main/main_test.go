@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/util"
@@ -29,6 +28,7 @@ import (
 	labutil "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -176,7 +176,7 @@ func TestNodeStartup(t *testing.T) {
 // areOperatorLabelsPropagated helper function that read the labels from the infinispan operator pod
 // and match them with the labels map provided by the caller
 func areOperatorLabelsPropagated(namespace, varName string, labels map[string]string) bool {
-	labelSelector, err := labutil.Parse("name=infinispan-operator")
+	labelSelector, err := labutil.Parse("name in (infinispan-operator,infinispan-operator-alm-owned)")
 	testutil.ExpectNoError(err)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	podList := &corev1.PodList{}
