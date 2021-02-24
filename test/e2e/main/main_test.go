@@ -22,14 +22,12 @@ import (
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labutil "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var kubernetes = testutil.NewTestKubernetes()
@@ -322,37 +320,25 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	kubernetes.WaitForInfinispanPods(int(ispn.Spec.Replicas), tconst.SinglePodTimeout, spec.Name, spec.Namespace)
-	// Get the associate statefulset
+	// Get the associate StatefulSet
 	ss := appsv1.StatefulSet{}
 
 	// Get the current generation
 	err := kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
+
 	generation := ss.Status.ObservedGeneration
 
-	_, err = controllerutil.CreateOrUpdate(context.TODO(), kubernetes.Kubernetes.Client, &ispn, func() error {
-		if ispn.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(ispnv1.Resource("infinispan"), ispn.Name)
-		}
-		// Change the Infinispan spec
+	testutil.ExpectNoError(kubernetes.UpdateInfinispan(&ispn, func() {
 		modifier(&ispn)
-		// Workaround for OpenShift local test (clear GVK on decode in the client)
-		ispn.TypeMeta = tconst.InfinispanTypeMeta
-
-		return nil
-	})
-	testutil.ExpectMaybeNotFound(err)
+	}))
 
 	// Wait for a new generation to appear
 	err = wait.Poll(tconst.DefaultPollPeriod, tconst.SinglePodTimeout, func() (done bool, err error) {
 		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
 
 	// Wait that current and update revisions match
 	// this ensure that the rolling upgrade completes
@@ -360,9 +346,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
 		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
 	})
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
 
 	// Check that the update has been propagated
 	verifier(&ss)
@@ -679,33 +663,23 @@ func TestExternalServiceWithAuth(t *testing.T) {
 
 	// Get the current generation
 	err = kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
+
 	generation := ss.Status.ObservedGeneration
 
 	// Update the resource
-	err = kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &spec)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	spec.Spec.Security.EndpointSecretName = "conn-secret-test-1"
-	// Workaround for OpenShift local test (clear GVK on decode in the client)
-	spec.TypeMeta = tconst.InfinispanTypeMeta
-	err = kubernetes.Kubernetes.Client.Update(context.TODO(), &spec)
-	if err != nil {
-		panic(fmt.Errorf(err.Error()))
-	}
+	err = kubernetes.UpdateInfinispan(&spec, func() {
+		spec.Spec.Security.EndpointSecretName = "conn-secret-test-1"
+	})
+	testutil.ExpectNoError(err)
 
 	// Wait for a new generation to appear
 	err = wait.Poll(tconst.DefaultPollPeriod, tconst.SinglePodTimeout, func() (done bool, err error) {
 		kubernetes.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
+
 	// Sleep for a while to be sure that the old pods are gone
 	// The restart is ongoing and it would that more than 10 sec
 	// so we're not introducing any delay
@@ -778,9 +752,8 @@ func createCacheWithXMLTemplate(schema, cacheName, user, pass, hostAddr, templat
 	req.SetBasicAuth(user, pass)
 	fmt.Printf("Put request via route: %v\n", req)
 	resp, err := client.Do(req)
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
+
 	// Accept all the 2xx success codes
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		throwHTTPError(resp)
@@ -813,17 +786,15 @@ func getViaRoute(url string, client *http.Client, user string, pass string) stri
 	req, err := http.NewRequest("GET", url, nil)
 	req.SetBasicAuth(user, pass)
 	resp, err := client.Do(req)
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
+
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		throwHTTPError(resp)
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
+
 	return string(bodyBytes)
 }
 
@@ -834,9 +805,8 @@ func putViaRoute(url string, value string, client *http.Client, user string, pas
 	req.SetBasicAuth(user, pass)
 	fmt.Printf("Put request via route: %v\n", req)
 	resp, err := client.Do(req)
-	if err != nil {
-		panic(err.Error())
-	}
+	testutil.ExpectNoError(err)
+
 	if resp.StatusCode != http.StatusNoContent {
 		throwHTTPError(resp)
 	}
