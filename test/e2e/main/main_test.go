@@ -320,6 +320,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	kubernetes.CreateInfinispan(spec, tconst.Namespace)
 	defer kubernetes.DeleteInfinispan(name, tconst.Namespace, tconst.SinglePodTimeout)
 	kubernetes.WaitForInfinispanPods(int(ispn.Spec.Replicas), tconst.SinglePodTimeout, spec.Name, spec.Namespace)
+	kubernetes.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 	// Get the associate StatefulSet
 	ss := appsv1.StatefulSet{}
 
