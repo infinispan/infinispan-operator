@@ -266,6 +266,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				reqLogger.Info("removed Infinispan resources, force an upgrade now", "replicasWantedAtRestart", infinispan.Status.ReplicasWantedAtRestart)
 				infinispan.Spec.Replicas = infinispan.Status.ReplicasWantedAtRestart
 			}
+		}); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := r.update(infinispan, func() {
 			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionFalse, "")
 		}); err != nil {
 			return reconcile.Result{}, err
@@ -824,9 +828,13 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	if podDefaultImage != desiredImage {
 		logger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", desiredImage)
 		if err := r.update(infinispan, func() {
-			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
 			infinispan.Spec.Replicas = 0
 			infinispan.Spec.Image = desiredImage
+		}); err != nil {
+			logger.Error(err, "Unable to update Infinispan CR")
+		}
+		if err := r.update(infinispan, func() {
+			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
 		}); err != nil {
 			logger.Error(err, "Unable to update Infinispan CR")
 		}
