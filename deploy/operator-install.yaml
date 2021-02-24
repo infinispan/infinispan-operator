@@ -820,6 +820,13 @@ spec:
                 memory:
                   type: string
               type: object
+            dependencies:
+              description: External dependencies needed by the Infinispan cluster
+              properties:
+                volumeClaimName:
+                  description: Name of the persistent volume claim with custom libraries
+                  type: string
+              type: object
             expose:
               description: ExposeSpec describe how Infinispan will be exposed externally
               properties:

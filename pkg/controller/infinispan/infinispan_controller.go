@@ -45,12 +45,14 @@ import (
 )
 
 const (
-	DataMountPath        = "/opt/infinispan/server/data"
-	DataMountVolume      = "data-volume"
-	EncryptMountPath     = "/etc/encrypt"
-	ConfigVolumeName     = "config-volume"
-	EncryptVolumeName    = "encrypt-volume"
-	IdentitiesVolumeName = "identities-volume"
+	DataMountPath             = "/opt/infinispan/server/data"
+	DataMountVolume           = "data-volume"
+	CustomLibrariesMountPath  = "/opt/infinispan/server/lib/custom-libraries"
+	CustomLibrariesVolumeName = "custom-libraries"
+	EncryptMountPath          = "/etc/encrypt"
+	ConfigVolumeName          = "config-volume"
+	EncryptVolumeName         = "encrypt-volume"
+	IdentitiesVolumeName      = "identities-volume"
 )
 
 var log = logf.Log.WithName("controller_infinispan")
@@ -682,6 +684,27 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 	memory := resource.MustParse(m.Spec.Container.Memory)
 	replicas := m.Spec.Replicas
+	volumeMounts := []corev1.VolumeMount{{
+		Name:      ConfigVolumeName,
+		MountPath: consts.ServerConfigRoot,
+	}, {
+		Name:      dataVolumeName,
+		MountPath: DataMountPath,
+	}}
+	volumes := []corev1.Volume{{
+		Name: ConfigVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
+			},
+		},
+	}}
+
+	if m.HasCustomLibraries() {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: CustomLibrariesVolumeName, MountPath: CustomLibrariesMountPath, ReadOnly: true})
+		volumes = append(volumes, corev1.Volume{Name: CustomLibrariesVolumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: m.Spec.Dependencies.VolumeClaimName, ReadOnly: true}}})
+	}
+
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -717,22 +740,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						ReadinessProbe: PodReadinessProbe(m),
 						StartupProbe:   PodStartupProbe(m),
 						Resources:      PodResources(m.Spec.Container),
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      ConfigVolumeName,
-							MountPath: consts.ServerConfigRoot,
-						}, {
-							Name:      dataVolumeName,
-							MountPath: DataMountPath,
-						}},
+						VolumeMounts:   volumeMounts,
 					}},
-					Volumes: []corev1.Volume{{
-						Name: ConfigVolumeName,
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
-							},
-						},
-					}},
+					Volumes: volumes,
 				},
 			},
 		},
