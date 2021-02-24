@@ -701,31 +701,8 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	}}
 
 	if m.HasCustomLibraries() {
-		// Persistent volume claim for custom libraries
-		customPvc := &corev1.PersistentVolumeClaim{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("%s-custom-libraries", m.GetName()),
-				Namespace: m.GetNamespace(),
-			},
-			Spec: corev1.PersistentVolumeClaimSpec{
-				AccessModes: []corev1.PersistentVolumeAccessMode{"ReadOnlyMany"},
-				Resources: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceStorage: consts.DefaultPVSize},
-				},
-				VolumeName: m.Spec.Dependencies.Volume,
-			},
-		}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: m.GetNamespace(), Name: fmt.Sprintf("%s-custom-libraries", m.GetName())}, customPvc)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				reqLogger.Info(fmt.Sprintf("Creating '%s'", m.Spec.Dependencies.Volume))
-				err = r.client.Create(context.TODO(), customPvc)
-			} else if err != nil {
-				return nil, err
-			}
-		}
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: CustomLibrariesVolumeName, MountPath: CustomLibrariesMountPath, ReadOnly: true})
-		volumes = append(volumes, corev1.Volume{Name: CustomLibrariesVolumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: fmt.Sprintf("%s-custom-libraries", m.GetName()), ReadOnly: true}}})
+		volumes = append(volumes, corev1.Volume{Name: CustomLibrariesVolumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: m.Spec.Dependencies.VolumeClaimName, ReadOnly: true}}})
 	}
 
 	dep := &appsv1.StatefulSet{

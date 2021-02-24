@@ -475,5 +475,5 @@ func applyLabels(ispn *Infinispan, envvar, annotationName string) error {
 
 // HasCustomLibraries true if custom libraries are defined
 func (ispn *Infinispan) HasCustomLibraries() bool {
-	return ispn.Spec.Dependencies != nil && ispn.Spec.Dependencies.Volume != ""
+	return ispn.Spec.Dependencies != nil && ispn.Spec.Dependencies.VolumeClaimName != ""
 }

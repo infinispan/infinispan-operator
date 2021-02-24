@@ -823,8 +823,8 @@ spec:
             dependencies:
               description: External dependencies needed by the Infinispan cluster
               properties:
-                volume:
-                  description: Name of the persistent volumes with custom libraries
+                volumeClaimName:
+                  description: Name of the persistent volume claim with custom libraries
                   type: string
               type: object
             expose:
