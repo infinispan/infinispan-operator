@@ -23,6 +23,9 @@ ifdef::community[]
 :oc_create: kubectl create
 :kubectl_exec: kubectl exec -it {example_crd_name}-0 -- /bin/bash
 :describe_backup: kubectl describe Backup my-backup -n namespace
+:set_namespace: kubectl config set-context --current --namespace={example_namespace}
+:oc_delete_pod: kubectl delete pod
+:oc_copy: kubectl cp
 :oc_configmap: kubectl create configmap
 endif::community[]
 
@@ -39,6 +42,7 @@ ifdef::downstream[]
 :oc_get_routes: oc get routes
 :oc_new_project: oc new-project
 :oc_project: oc project
+:set_namespace: oc project {example_namespace}
 :oc_apply_cr: oc apply -f
 :oc_apply_cr_custom: oc apply -f my_crd.yaml
 :oc_logs: oc logs
@@ -47,5 +51,7 @@ ifdef::downstream[]
 :oc_create: oc create
 :kubectl_exec: oc rsh {example_crd_name}-0
 :describe_backup: oc describe Backup my-backup
+:oc_delete_pod: oc delete pod
+:oc_copy: oc cp
 :oc_configmap: oc create configmap
 endif::downstream[]

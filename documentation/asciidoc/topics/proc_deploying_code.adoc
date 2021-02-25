@@ -1,0 +1,16 @@
+[id='deploying-code_{context}']
+= Deploying Custom Code
+Make your custom code available to {brandname} clusters.
+
+.Prerequisites
+
+* Create a persistent volume claim (PVC) and copy your code artifacts to it.
+
+.Procedure
+
+* Specify the persistent volume with `spec.dependencies.VolumeClaimName` in your `Infinispan` CR and then apply the changes.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/dependencies.yaml[]
+----
