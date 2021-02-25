@@ -1,6 +1,5 @@
-FROM golang:1.13 AS build
-ENV GO111MODULE=on
-WORKDIR /infinispan-operator
+FROM registry.access.redhat.com/ubi8/go-toolset:1.13.15 AS build
+USER root
 COPY go.mod go.sum ./
 RUN go mod tidy
 COPY . .
