@@ -6,9 +6,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import cz.xtf.core.waiting.SimpleWaiter;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.entity.ContentType;
@@ -153,6 +155,8 @@ class AdvancedSetupBIT {
    void autoscalingTest() throws Exception {
       String request = "https://" + hostName + "/rest/v2/caches/default/autoscaling-key-";
       int i = 0;
+
+      System.out.print("Loading");
       while (openShift.pods().withLabel("clusterName", appName).list().getItems().size() < 5) {
          i++;
          Http.put(request + i).basicAuth(user, pass).data(RandomStringUtils.randomAlphanumeric(1048576), ContentType.TEXT_PLAIN).trustAll().execute();
@@ -160,14 +164,22 @@ class AdvancedSetupBIT {
          Waiters.sleep(300);
       }
       System.out.println();
-      Waiters.sleep(TimeUnit.MINUTES, 1);
-      while (openShift.pods().withLabel("clusterName", appName).list().getItems().size() > 3) {
+      System.out.println("Loading finished");
+
+      // Wait for WellFormed. Cycle above exits moment last pod is created but not ready.
+      infinispan.waitFor();
+
+      System.out.print("Deleting");
+      while (i > 1) {
          Http.delete(request + i).basicAuth(user, pass).trustAll().execute();
          i--;
+         System.out.print(".");
          Waiters.sleep(300);
-         if(i < 1) {
-            throw new IllegalStateException("No more keys to be deleted and cluster size is still has more then 3 replicas.");
-         }
       }
+      System.out.println();
+      System.out.println("Deleting finished");
+
+      BooleanSupplier bs = () -> openShift.pods().withLabel("clusterName", appName).list().getItems().size() == 3;
+      new SimpleWaiter(bs, TimeUnit.MINUTES, 3, "Waiting for cluster stabilization").waitFor();
    }
 }
