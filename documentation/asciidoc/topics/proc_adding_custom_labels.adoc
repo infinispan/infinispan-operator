@@ -7,7 +7,7 @@ These labels help you identify relationships between objects to better organize 
 ifdef::downstream[]
 [NOTE]
 ====
-{ispn_operator} automatically applies labels to pods so you can monitor your Red Hat subscription details.
+Red Hat subscription labels are automatically applied to {brandname} pods.
 ====
 endif::downstream[]
 
