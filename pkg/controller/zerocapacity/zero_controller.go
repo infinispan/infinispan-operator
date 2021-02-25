@@ -246,7 +246,10 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 
 	err = z.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &corev1.Pod{})
 	if errors.IsNotFound(err) {
-		pod := z.zeroPodSpec(name, namespace, configMap, infinispan, spec)
+		pod, err := z.zeroPodSpec(name, namespace, configMap, infinispan, spec)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("Unable to compute Spec for zero-capacity pod: %w", err)
+		}
 		if err := controllerutil.SetControllerReference(instance.AsMeta(), pod, z.Scheme); err != nil {
 			return reconcile.Result{}, fmt.Errorf("Unable to setControllerReference for zero-capacity pod: %w", err)
 		}
@@ -330,7 +333,11 @@ func (z *Controller) isZeroPodReady(request reconcile.Request) bool {
 	return kube.IsPodReady(*pod)
 }
 
-func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.ConfigMap, ispn *v1.Infinispan, zeroSpec *Spec) *corev1.Pod {
+func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.ConfigMap, ispn *v1.Infinispan, zeroSpec *Spec) (*corev1.Pod, error) {
+	podResources, err := ispnCtrl.PodResources(zeroSpec.Container)
+	if err != nil {
+		return nil, err
+	}
 	dataVolName := name + "-data"
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -349,7 +356,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 				LivenessProbe:  ispnCtrl.PodLivenessProbe(ispn),
 				Ports:          ispnCtrl.PodPorts(ispn),
 				ReadinessProbe: ispnCtrl.PodReadinessProbe(ispn),
-				Resources:      ispnCtrl.PodResources(zeroSpec.Container),
+				Resources:      *podResources,
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      ispnCtrl.ConfigVolumeName,
@@ -398,7 +405,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 
 	ispnCtrl.AddVolumeForAuthentication(ispn, &pod.Spec)
 	ispnCtrl.AddVolumeForEncryption(ispn, &pod.Spec)
-	return pod
+	return pod, nil
 }
 
 func (z *Controller) configureServer(name, namespace string, infinispan *v1.Infinispan, instance Resource) (*corev1.ConfigMap, error) {
