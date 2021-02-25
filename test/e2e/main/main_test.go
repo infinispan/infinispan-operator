@@ -79,6 +79,7 @@ func TestOperatorUpgrade(t *testing.T) {
 	case tutils.OperatorUpgradeStageFrom:
 		testKube.CreateInfinispan(spec, tutils.Namespace)
 		testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+		testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 	case tutils.OperatorUpgradeStageTo:
 		if tutils.CleanupInfinispan == "TRUE" {
 			defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
@@ -120,6 +121,7 @@ func TestNodeStartup(t *testing.T) {
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 	ispn := ispnv1.Infinispan{}
 	pod := corev1.Pod{}
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name, Namespace: tutils.Namespace}, &ispn))
@@ -236,6 +238,7 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Making sure no PVCs were created
 	pvcs := &corev1.PersistentVolumeClaimList{}
@@ -258,7 +261,7 @@ func TestClusterFormation(t *testing.T) {
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 }
 
 // Test if the cluster is working correctly
@@ -282,6 +285,7 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 }
 
 // Test if spec.container.cpu update is handled
@@ -349,6 +353,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	testKube.CreateInfinispan(&ispn, tutils.Namespace)
 	defer testKube.DeleteInfinispan(&ispn, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 	// Get the associate StatefulSet
 	ss := appsv1.StatefulSet{}
 
@@ -399,6 +404,7 @@ func testCacheService(testName string, imageName *string) {
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	user := cconsts.DefaultDeveloperUser
 	password, err := users.PasswordFromSecret(user, spec.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
@@ -515,6 +521,7 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	ispn := ispnv1.Infinispan{}
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
@@ -555,6 +562,7 @@ func TestExternalService(t *testing.T) {
 	defer testKube.DeleteInfinispan(&spec, tutils.SinglePodTimeout)
 
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	pass, err := users.PasswordFromSecret(usr, spec.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 	tutils.ExpectNoError(err)
@@ -651,6 +659,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	defer testKube.DeleteInfinispan(&spec, tutils.SinglePodTimeout)
 
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	ispn := ispnv1.Infinispan{}
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
@@ -699,6 +708,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	// so we're not introducing any delay
 	time.Sleep(10 * time.Second)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 	testAuthentication(schema, ispn.GetServiceExternalName(), spec.GetExposeType(), usr, newpass)
 }
 
@@ -727,28 +737,29 @@ func TestAuthenticationDisabled(t *testing.T) {
 	t.Parallel()
 	namespace := tutils.Namespace
 	// Create a resource without passing any config
-	infinispan := DefaultSpec.DeepCopy()
+	spec := DefaultSpec.DeepCopy()
 	name := strcase.ToKebab(t.Name())
-	infinispan.Name = name
-	infinispan.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	spec.Name = name
+	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 
 	// Create the cluster
-	testKube.CreateInfinispan(infinispan, namespace)
-	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+	testKube.CreateInfinispan(spec, namespace)
+	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, name, namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure the identities secret is not created
 	secret := &corev1.Secret{}
 	key := types.NamespacedName{
 		Namespace: namespace,
-		Name:      infinispan.GetSecretName(),
+		Name:      spec.GetSecretName(),
 	}
 	tutils.ExpectNotFound(testKube.Kubernetes.Client.Get(context.TODO(), key, secret))
 
 	// Ensure that rest requests do not require authentication
-	client := tutils.NewHTTPClientNoAuth(testKube.GetSchemaForRest(infinispan))
+	client := tutils.NewHTTPClientNoAuth(testKube.GetSchemaForRest(spec))
 	routeName := fmt.Sprintf("%s-external", name)
-	hostAddr := testKube.WaitForExternalService(routeName, namespace, infinispan.GetExposeType(), tutils.RouteTimeout, client)
+	hostAddr := testKube.WaitForExternalService(routeName, namespace, spec.GetExposeType(), tutils.RouteTimeout, client)
 	url := fmt.Sprintf("%v/rest/v2/caches", hostAddr)
 	rsp, err := client.Get(url, nil)
 	tutils.ExpectNoError(err)
