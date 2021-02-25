@@ -72,6 +72,7 @@ func NewTestKubernetes(ctx string) *TestKubernetes {
 
 // NewNamespace creates a new namespace
 func (k TestKubernetes) NewNamespace(namespace string) {
+	k.DeleteNamespace(namespace)
 	fmt.Printf("Create namespace %s\n", namespace)
 	obj := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -511,16 +512,16 @@ func (k TestKubernetes) DeleteSecret(secret *v1.Secret) {
 	ExpectNoError(err)
 }
 
-// RunOperator runs an operator on a Kubernetes cluster
-func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
-	k.installCRD(crdsPath + "infinispan.org_infinispans_crd.yaml")
-	k.installCRD(crdsPath + "infinispan.org_caches_crd.yaml")
-	k.installCRD(crdsPath + "infinispan.org_backups_crd.yaml")
-	k.installCRD(crdsPath + "infinispan.org_restores_crd.yaml")
-	k.installCRD(crdsPath + "infinispan.org_batches_crd.yaml")
-	stopCh := make(chan struct{})
-	go runOperatorLocally(stopCh, namespace)
-	return stopCh
+func (k TestKubernetes) InstallAllCRDs(path string) {
+	for _, cr := range OperatorCRNames {
+		k.installCRD(fmt.Sprintf("%sinfinispan.org_%s_crd.yaml", path, cr))
+	}
+}
+
+func (k TestKubernetes) DeleteAllCRDs() {
+	for _, cr := range OperatorCRNames {
+		k.DeleteCRD(cr + ".infinispan.org")
+	}
 }
 
 func (k TestKubernetes) installCRD(path string) {
@@ -532,19 +533,10 @@ func (k TestKubernetes) installCRD(path string) {
 	k.CreateOrUpdateAndWaitForCRD(&crd)
 }
 
-func RunOperator(m *testing.M, k *TestKubernetes) {
-	namespace := strings.ToLower(Namespace)
+func (k TestKubernetes) InstallOperator(m *testing.M) {
 	if "TRUE" == RunLocalOperator {
-		if "TRUE" != RunSaOperator && OperatorUpgradeStage != OperatorUpgradeStageTo {
-			k.DeleteNamespace(namespace)
-			k.DeleteCRD("infinispans.infinispan.org")
-			k.DeleteCRD("caches.infinispan.org")
-			k.DeleteCRD("backup.infinispan.org")
-			k.DeleteCRD("restore.infinispan.org")
-			k.DeleteCRD("batch.infinispan.org")
-			k.NewNamespace(namespace)
-		}
-		stopCh := k.RunOperator(namespace, "../../../deploy/crds/")
+		cleanResources := "TRUE" != RunSaOperator && OperatorUpgradeStage != OperatorUpgradeStageTo
+		stopCh := k.InstallAndRunOperator(strings.ToLower(Namespace), "../../../deploy/crds/", cleanResources)
 		code := m.Run()
 		close(stopCh)
 		os.Exit(code)
@@ -554,10 +546,24 @@ func RunOperator(m *testing.M, k *TestKubernetes) {
 	}
 }
 
+// Install and Run the operator using the deploy files at path
+func (k TestKubernetes) InstallAndRunOperator(namespaces, crdPath string, clean bool) chan struct{} {
+	if clean {
+		k.DeleteAllCRDs()
+		for _, ns := range strings.Split(namespaces, ",") {
+			k.NewNamespace(ns)
+		}
+	}
+	k.InstallAllCRDs(crdPath)
+	stopCh := make(chan struct{})
+	go runOperatorLocally(stopCh, namespaces)
+	return stopCh
+}
+
 // Run the operator locally
-func runOperatorLocally(stopCh chan struct{}, namespace string) {
+func runOperatorLocally(stopCh chan struct{}, namespaces string) {
 	kubeConfig := kube.FindKubeConfig()
-	_ = os.Setenv("WATCH_NAMESPACE", namespace)
+	_ = os.Setenv("WATCH_NAMESPACE", namespaces)
 	_ = os.Setenv("KUBECONFIG", kubeConfig)
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
 }

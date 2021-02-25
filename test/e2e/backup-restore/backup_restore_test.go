@@ -30,7 +30,7 @@ var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 type clusterSpec func(name, namespace string, clusterSize int) *v1.Infinispan
 
 func TestMain(m *testing.M) {
-	tutils.RunOperator(m, testKube)
+	testKube.InstallOperator(m)
 }
 
 func TestBackupRestore(t *testing.T) {

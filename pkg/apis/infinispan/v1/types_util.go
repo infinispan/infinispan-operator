@@ -177,7 +177,7 @@ func (ispn *Infinispan) ImageName() string {
 	if ispn.Spec.Image != nil && *ispn.Spec.Image != "" {
 		return *ispn.Spec.Image
 	}
-	return constants.DefaultImageName
+	return constants.GetDefaultInfinispanJavaImage()
 }
 
 func (ispn *Infinispan) ImageType() ImageType {

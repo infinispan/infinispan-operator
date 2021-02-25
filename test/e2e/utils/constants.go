@@ -43,6 +43,7 @@ var (
 	ExposeServiceType    = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 
 	OperatorUpgradeStateFlow = []ispnv1.ConditionType{ispnv1.ConditionUpgrade, ispnv1.ConditionStopping, ispnv1.ConditionWellFormed}
+	OperatorCRNames          = []string{"infinispans", "caches", "backups", "restores", "batches"}
 )
 
 // Options used when deleting resources

@@ -620,7 +620,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	podDefaultImage := kube.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
 
 	// Get Infinispan image that the operator creates
-	desiredImage := consts.DefaultImageName
+	desiredImage := consts.GetDefaultInfinispanJavaImage()
 
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
@@ -956,7 +956,7 @@ func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.Env
 		{Name: "MANAGED_ENV", Value: "TRUE"},
 		{Name: "JAVA_OPTIONS", Value: i.GetJavaOptions()},
 		{Name: "EXTRA_JAVA_OPTIONS", Value: i.Spec.Container.ExtraJvmOpts},
-		{Name: "DEFAULT_IMAGE", Value: consts.DefaultImageName},
+		{Name: "DEFAULT_IMAGE", Value: consts.GetDefaultInfinispanJavaImage()},
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var

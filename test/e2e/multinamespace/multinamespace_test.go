@@ -15,7 +15,7 @@ import (
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 var serviceAccountKube = tutils.NewTestKubernetes("")
 
-var log = logf.Log.WithName("main_test")
+var log = logf.Log.WithName("multinamespace_test")
 
 var MinimalSpec = ispnv1.Infinispan{
 	TypeMeta: tutils.InfinispanTypeMeta,
@@ -29,19 +29,8 @@ var MinimalSpec = ispnv1.Infinispan{
 
 func TestMain(m *testing.M) {
 	nsAsString := strings.ToLower(tutils.MultiNamespace)
-	namespaces := strings.Split(nsAsString, ",")
 	if "TRUE" == tutils.RunLocalOperator {
-		for _, namespace := range namespaces {
-			testKube.DeleteNamespace(namespace)
-		}
-		testKube.DeleteCRD("infinispans.infinispan.org")
-		testKube.DeleteCRD("caches.infinispan.org")
-		testKube.DeleteCRD("backup.infinispan.org")
-		testKube.DeleteCRD("restore.infinispan.org")
-		for _, namespace := range namespaces {
-			testKube.NewNamespace(namespace)
-		}
-		stopCh := testKube.RunOperator(nsAsString, "../../../deploy/crds/")
+		stopCh := testKube.InstallAndRunOperator(nsAsString, "../../../deploy/crds/", true)
 		code := m.Run()
 		close(stopCh)
 		os.Exit(code)

@@ -133,6 +133,12 @@ backuprestore-test: build
 batch-test: build
 	build/run-tests.sh ${KUBECONFIG} batch
 
+## upgrade-test Perform end to end (e2e) tests for upgrades
+##
+
+upgrade-test: build
+	build/run-tests.sh ${KUBECONFIG} upgrade
+
 ## upgrade-test         Performs test upgrade from one operator version to another against different git branches
 ##                      This script deploys operator to the OKD/OCP cluster from the local source code or already
 ##                      build image located inside the docker registry.
@@ -141,30 +147,30 @@ batch-test: build
 ##                      - Override the OKD login user name.
 ##                      Example: "make upgrade-test OC_USER=myuser"
 ##                      - Override the project for operator run.
-##                      Example: "make upgrade-test PROJECT_NAME=infinispan-operator"
+##                      Example: "make manual-upgrade-test PROJECT_NAME=infinispan-operator"
 ##                      - Specify source migration git branch or tag name. This is required parameter.
-##                      Example: "make upgrade-test FROM_UPGRADE_VERSION=2.0.x"
+##                      Example: "make manual-upgrade-test FROM_UPGRADE_VERSION=2.0.x"
 ##                      - Override from source code build flag.
-##                      Example: "make upgrade-test FROM_SOURCE_BUILD_FLAG=true"
+##                      Example: "make manual-upgrade-test FROM_SOURCE_BUILD_FLAG=true"
 ##                      - Specify target migration git branch or tag name. If it's not defined the current branch will be used as target.
-##                      Example: "make upgrade-test TO_UPGRADE_VERSION=master"
+##                      Example: "make manual-upgrade-test TO_UPGRADE_VERSION=master"
 ##                      - Override to source code build flag.
-##                      Example: "make upgrade-test TO_SOURCE_BUILD_FLAG=true"
+##                      Example: "make manual-upgrade-test TO_SOURCE_BUILD_FLAG=true"
 ##
-upgrade-test:
-	build/upgrade-test.sh ${KUBECONFIG}
+manual-upgrade-test:
+	build/manual-upgrade-test.sh ${KUBECONFIG}
 
-## upgrade-test-local   Performs test upgrade from one operator version to another
+## manual-upgrade-test-local   Performs test upgrade from one operator version to another
 ##                      This script runs operator locally connecting to the any located OKD/OCP/K8S cluster
 ##                      - Specify the testing cluster with KUBECONFIG.
-##                      Example: "make upgrade-test-local KUBECONFIG=/path/to/admin.kubeconfig"
-##                      Example: "make upgrade-test-local FROM_UPGRADE_VERSION=2.0.x"
+##                      Example: "make manual-upgrade-test-local KUBECONFIG=/path/to/admin.kubeconfig"
+##                      Example: "make manual-upgrade-test-local FROM_UPGRADE_VERSION=2.0.x"
 ##                      - Specify target migration git branch or tag name. If it's not defined the current branch will be used as target.
-##                      Example: "make upgrade-test-local TO_UPGRADE_VERSION=master"
+##                      Example: "make manual-upgrade-test-local TO_UPGRADE_VERSION=master"
 
 ##
-upgrade-test-local:
-	build/upgrade-test-local.sh ${KUBECONFIG}
+manual-upgrade-test-local:
+	build/manual-upgrade-test-local.sh ${KUBECONFIG}
 
 ## release          Release a versioned operator.
 ##                  - Requires 'RELEASE_NAME=X.Y.Z'. Defaults to dry run.

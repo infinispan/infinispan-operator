@@ -37,7 +37,7 @@ var serviceAccountKube = tutils.NewTestKubernetes("")
 var log = logf.Log.WithName("main_test")
 
 func TestMain(m *testing.M) {
-	tutils.RunOperator(m, testKube)
+	testKube.InstallOperator(m)
 }
 
 // Test operator and cluster version upgrade flow

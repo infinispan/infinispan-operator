@@ -1,6 +1,8 @@
 package constants
 
-import "runtime"
+import (
+	"runtime"
+)
 
 const (
 	// OperandImageOpenJDK envvar name for OpenJDK operand image
