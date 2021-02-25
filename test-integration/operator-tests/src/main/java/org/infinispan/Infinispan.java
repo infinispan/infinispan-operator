@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
 import org.infinispan.cr.InfinispanObject;
-import org.infinispan.cr.Status;
 import org.infinispan.cr.status.Condition;
 import org.infinispan.crd.InfinispanContextProvider;
 import org.infinispan.identities.Credentials;
@@ -61,8 +60,6 @@ public class Infinispan {
    }
 
    public void waitFor() {
-      openShift.waiters().areExactlyNPodsReady(infinispanObject.getSpec().getReplicas(), "clusterName", clusterName).timeout(TimeUnit.MINUTES, 5).waitFor();
-
       BooleanSupplier bs = () -> {
          sync();
 
@@ -76,6 +73,10 @@ public class Infinispan {
       };
 
       new SimpleWaiter(bs).timeout(TimeUnit.MINUTES, 3).waitFor();
+
+      if(openShift.getLabeledPods("clusterName", clusterName).size() != infinispanObject.getSpec().getReplicas()) {
+         throw new IllegalStateException(clusterName + " is WellFormed but cluster pod count doesn't match expected replicas!");
+      }
    }
 
    public Credentials getDefaultCredentials() throws IOException {
