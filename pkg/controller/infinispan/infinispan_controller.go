@@ -329,7 +329,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-
 		return reconcile.Result{Requeue: true}, nil
 	}
 
@@ -691,7 +690,10 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		}
 	}
 
-	memory := resource.MustParse(m.Spec.Container.Memory)
+	memory, err := resource.ParseQuantity(m.Spec.Container.Memory)
+	if err != nil {
+		return nil, err
+	}
 	replicas := m.Spec.Replicas
 	volumeMounts := []corev1.VolumeMount{{
 		Name:      ConfigVolumeName,
@@ -714,6 +716,10 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		volumes = append(volumes, corev1.Volume{Name: CustomLibrariesVolumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: m.Spec.Dependencies.VolumeClaimName, ReadOnly: true}}})
 	}
 
+	podResources, err := PodResources(m.Spec.Container)
+	if err != nil {
+		return nil, err
+	}
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -748,7 +754,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						Ports:          PodPortsWithXsite(m),
 						ReadinessProbe: PodReadinessProbe(m),
 						StartupProbe:   PodStartupProbe(m),
-						Resources:      PodResources(m.Spec.Container),
+						Resources:      *podResources,
 						VolumeMounts:   volumeMounts,
 					}},
 					Volumes: volumes,
@@ -897,19 +903,25 @@ func probe(i *infinispanv1.Infinispan, failureThreshold, initialDelay, period, s
 	}
 }
 
-func PodResources(spec infinispanv1.InfinispanContainerSpec) corev1.ResourceRequirements {
-	memory := resource.MustParse(spec.Memory)
-	cpuRequests, cpuLimits := spec.GetCpuResources()
-	return corev1.ResourceRequirements{
+func PodResources(spec infinispanv1.InfinispanContainerSpec) (*corev1.ResourceRequirements, error) {
+	memory, err := resource.ParseQuantity(spec.Memory)
+	if err != nil {
+		return nil, err
+	}
+	cpuRequests, cpuLimits, err := spec.GetCpuResources()
+	if err != nil {
+		return nil, err
+	}
+	return &corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuRequests,
+			corev1.ResourceCPU:    *cpuRequests,
 			corev1.ResourceMemory: memory,
 		},
 		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuLimits,
+			corev1.ResourceCPU:    *cpuLimits,
 			corev1.ResourceMemory: memory,
 		},
-	}
+	}, nil
 }
 
 func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {
@@ -1188,7 +1200,10 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	res := &statefulSet.Spec.Template.Spec.Containers[0].Resources
 	ispnContr := &ispn.Spec.Container
 	if ispnContr.Memory != "" {
-		quantity := resource.MustParse(ispnContr.Memory)
+		quantity, err := resource.ParseQuantity(ispnContr.Memory)
+		if err != nil {
+			return &reconcile.Result{}, err
+		}
 		previousMemory := res.Requests["memory"]
 		if quantity.Cmp(previousMemory) != 0 {
 			res.Requests["memory"] = quantity
@@ -1199,12 +1214,15 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 		}
 	}
 	if ispnContr.CPU != "" {
-		cpuReq, cpuLim := ispn.Spec.Container.GetCpuResources()
+		cpuReq, cpuLim, err := ispn.Spec.Container.GetCpuResources()
+		if err != nil {
+			return &reconcile.Result{}, err
+		}
 		previousCPUReq := res.Requests["cpu"]
 		previousCPULim := res.Limits["cpu"]
 		if cpuReq.Cmp(previousCPUReq) != 0 || cpuLim.Cmp(previousCPULim) != 0 {
-			res.Requests["cpu"] = cpuReq
-			res.Limits["cpu"] = cpuLim
+			res.Requests["cpu"] = *cpuReq
+			res.Limits["cpu"] = *cpuLim
 			logger.Info("cpu changed, update infinispan", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateNeeded = true

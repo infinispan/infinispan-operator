@@ -157,7 +157,10 @@ func (ispn *Infinispan) ApplyEndpointEncryptionSettings(servingCertsMode string,
 func (ispn *Infinispan) PreliminaryChecks() (*reconcile.Result, error) {
 	// If a CacheService is requested, checks that the pods have enough memory
 	if ispn.Spec.Service.Type == ServiceTypeCache {
-		memoryQ := resource.MustParse(ispn.Spec.Container.Memory)
+		memoryQ, err := resource.ParseQuantity(ispn.Spec.Container.Memory)
+		if err != nil {
+			return &reconcile.Result{RequeueAfter: consts.DefaultRequeueOnWrongSpec}, err
+		}
 		memory := memoryQ.Value()
 		nativeMemoryOverhead := (memory * consts.CacheServiceJvmNativePercentageOverhead) / 100
 		occupiedMemory := (consts.CacheServiceJvmNativeMb * 1024 * 1024) +
@@ -268,11 +271,14 @@ func (ispn *Infinispan) GetEncryptionSecretName() string {
 	return ispn.Spec.Security.EndpointEncryption.CertSecretName
 }
 
-func (spec *InfinispanContainerSpec) GetCpuResources() (resource.Quantity, resource.Quantity) {
-	cpuLimits := resource.MustParse(spec.CPU)
+func (spec *InfinispanContainerSpec) GetCpuResources() (*resource.Quantity, *resource.Quantity, error) {
+	cpuLimits, err := resource.ParseQuantity(spec.CPU)
+	if err != nil {
+		return nil, nil, err
+	}
 	cpuRequestsMillis := cpuLimits.MilliValue() / 2
 	cpuRequests := toMilliDecimalQuantity(cpuRequestsMillis)
-	return cpuRequests, cpuLimits
+	return &cpuRequests, &cpuLimits, nil
 }
 
 func (ispn *Infinispan) GetJavaOptions() string {
