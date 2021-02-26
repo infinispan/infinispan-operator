@@ -354,7 +354,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 				Name:           name,
 				Env:            ispnCtrl.PodEnv(ispn, nil),
 				LivenessProbe:  ispnCtrl.PodLivenessProbe(ispn),
-				Ports:          ispnCtrl.PodPorts(ispn),
+				Ports:          ispnCtrl.PodPorts(),
 				ReadinessProbe: ispnCtrl.PodReadinessProbe(ispn),
 				Resources:      *podResources,
 				VolumeMounts: []corev1.VolumeMount{
