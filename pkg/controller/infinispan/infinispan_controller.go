@@ -329,7 +329,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 
-
 		return reconcile.Result{Requeue: true}, nil
 	}
 
@@ -835,7 +834,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 // Returns true if the volume has been added
 func AddVolumeForAuthentication(i *infinispanv1.Infinispan, spec *corev1.PodSpec) bool {
-	if !i.IsAuthenticationEnabled() {
+	if _, index := findIdentitiesSecret(spec); !i.IsAuthenticationEnabled() || index >= 0 {
 		return false
 	}
 
@@ -857,7 +856,7 @@ func AddVolumeForAuthentication(i *infinispanv1.Infinispan, spec *corev1.PodSpec
 	return true
 }
 
-func PodPorts(i *infinispanv1.Infinispan) []corev1.ContainerPort {
+func PodPorts() []corev1.ContainerPort {
 	ports := []corev1.ContainerPort{
 		{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
 		{ContainerPort: consts.InfinispanPort, Name: consts.InfinispanPortName, Protocol: corev1.ProtocolTCP},
@@ -866,7 +865,7 @@ func PodPorts(i *infinispanv1.Infinispan) []corev1.ContainerPort {
 }
 
 func PodPortsWithXsite(i *infinispanv1.Infinispan) []corev1.ContainerPort {
-	ports := PodPorts(i)
+	ports := PodPorts()
 	if i.HasSites() {
 		ports = append(ports, corev1.ContainerPort{ContainerPort: consts.CrossSitePort, Name: consts.CrossSitePortName, Protocol: corev1.ProtocolTCP})
 	}
@@ -1185,7 +1184,8 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	}
 
 	// Changes to statefulset.spec.template.spec.containers[].resources
-	res := &statefulSet.Spec.Template.Spec.Containers[0].Resources
+	spec := &statefulSet.Spec.Template.Spec
+	res := spec.Containers[0].Resources
 	ispnContr := &ispn.Spec.Container
 	if ispnContr.Memory != "" {
 		quantity := resource.MustParse(ispnContr.Memory)
@@ -1215,16 +1215,24 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
 
 	// Validate identities Secret name changes
-	if secretName, secretIndex := findIdentitiesSecret(statefulSet); secretIndex >= 0 && secretName != ispn.GetSecretName() {
+	if secretName, secretIndex := findIdentitiesSecret(&statefulSet.Spec.Template.Spec); secretIndex >= 0 && secretName != ispn.GetSecretName() {
 		// Update new Secret name inside StatefulSet.Spec.Template
 		statefulSet.Spec.Template.Spec.Volumes[secretIndex].Secret.SecretName = ispn.GetSecretName()
 		statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 		updateNeeded = true
 	}
 
-	// Validate Secret changes (by the hash of the identities.yaml key value)
 	if ispn.IsAuthenticationEnabled() {
-		updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", hashString(string(secret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
+		if AddVolumeForAuthentication(ispn, spec) {
+			spec.Containers[0].Env = append(spec.Containers[0].Env,
+				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: hashString(string(secret.Data[consts.ServerIdentitiesFilename]))},
+				corev1.EnvVar{Name: "IDENTITIES_PATH", Value: consts.ServerIdentitiesPath},
+			)
+			updateNeeded = true
+		} else {
+			// Validate Secret changes (by the hash of the identities.yaml key value)
+			updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", hashString(string(secret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
+		}
 	}
 
 	// Validate extra Java options changes
@@ -1258,8 +1266,8 @@ func updateStatefulSetEnv(statefulSet *appsv1.StatefulSet, envName, newValue str
 	return false
 }
 
-func findIdentitiesSecret(statefulSet *appsv1.StatefulSet) (string, int) {
-	for i, volumes := range statefulSet.Spec.Template.Spec.Volumes {
+func findIdentitiesSecret(pod *corev1.PodSpec) (string, int) {
+	for i, volumes := range pod.Volumes {
 		if volumes.Secret != nil && volumes.Name == IdentitiesVolumeName {
 			return volumes.Secret.SecretName, i
 		}

@@ -298,8 +298,7 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 		}
 	}
 	spec := MinimalSpec.DeepCopy()
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec.Name = strcase.ToKebab(t.Name())
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -315,8 +314,7 @@ func TestContainerMemoryUpdate(t *testing.T) {
 		}
 	}
 	spec := DefaultSpec.DeepCopy()
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec.Name = strcase.ToKebab(t.Name())
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -339,8 +337,21 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 		panic("JAVA_OPTIONS not updated")
 	}
 	spec := DefaultSpec.DeepCopy()
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec.Name = strcase.ToKebab(t.Name())
+	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
+func TestEndpointAuthenticationUpdate(t *testing.T) {
+	t.Parallel()
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
+	}
+	var verifier = func(ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+	}
+	spec := DefaultSpec.DeepCopy()
+	spec.Name = strcase.ToKebab(t.Name())
+	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
