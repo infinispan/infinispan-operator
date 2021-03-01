@@ -12,6 +12,6 @@ metadata:
     svc-label2: svc-value2
     pod-label1: pod-value1
     pod-label2: pod-value2
-    # The operator does not attach these labels to pods.
+    # The operator does not attach these labels to resources.
     my-label: my-value
     environment: development
