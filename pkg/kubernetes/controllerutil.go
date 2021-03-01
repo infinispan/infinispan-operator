@@ -32,8 +32,6 @@ const (
 // It returns the executed operation and an error.
 //
 // Ported from https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/controller/controllerutil/controllerutil.go
-// TODO: Status.Conditions and Spec fields can't be updated inside single call due to https://github.com/kubernetes-sigs/controller-runtime/issues/1392
-// TODO: Please use separate calls for this case
 func CreateOrPatch(ctx context.Context, c client.Client, obj runtime.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 	key, err := client.ObjectKeyFromObject(obj)
 	if err != nil {
