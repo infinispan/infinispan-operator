@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 export MAKE_DATADIR_WRITABLE=true
 export GO111MODULE=on
 export RUN_SA_OPERATOR=TRUE

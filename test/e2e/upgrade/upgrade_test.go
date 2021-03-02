@@ -81,7 +81,7 @@ func getDockerImageSha() string {
 	stdout, err := cmd.Output()
 
 	if err != nil {
-		panic(fmt.Errorf("Unable to get Docker image sha: stdout=%s: %w", string(stdout), err))
+		panic(fmt.Errorf("INFINISPAN_IMAGE_SHA='%s'. Unable to get Docker image sha: : %w", os.Getenv("INFINISPAN_IMAGE_SHA"), err))
 	}
 	s := string(stdout)
 	return strings.TrimSuffix(s, "\n")
