@@ -203,6 +203,10 @@ func (ispn *Infinispan) GetServiceExternalName() string {
 	return fmt.Sprintf("%s-external", ispn.Name)
 }
 
+func (ispn *Infinispan) GetAdminServiceName() string {
+	return fmt.Sprintf("%s-admin", ispn.Name)
+}
+
 func (ispn *Infinispan) GetPingServiceName() string {
 	return fmt.Sprintf("%s-ping", ispn.Name)
 }
@@ -247,6 +251,11 @@ func (ispn *Infinispan) GetSecretName() string {
 		return fmt.Sprintf("%v-generated-secret", ispn.GetName())
 	}
 	return ispn.Spec.Security.EndpointSecretName
+}
+
+// GetSecretName returns the admin secret name associated with a server
+func (ispn *Infinispan) GetAdminSecretName() string {
+	return fmt.Sprintf("%v-generated-admin-secret", ispn.GetName())
 }
 
 func (ispn *Infinispan) IsAuthenticationEnabled() bool {

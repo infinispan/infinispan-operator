@@ -20,14 +20,6 @@ type Credentials struct {
 	Password string
 }
 
-// CreateIdentities generates default identities
-func createIdentities() Identities {
-	developer := Credentials{Username: consts.DefaultDeveloperUser, Password: getRandomStringForAuth(16)}
-	operator := Credentials{Username: consts.DefaultOperatorUser, Password: getRandomStringForAuth(16)}
-	identities := Identities{Credentials: []Credentials{developer, operator}}
-	return identities
-}
-
 // TODO certain characters having issues, so reduce sample for now
 // var acceptedChars = []byte(",-./=@\\abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 var acceptedChars = []byte("123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -48,23 +40,28 @@ func getRandomStringForAuth(size int) string {
 }
 
 // CreateIdentitiesFor creates identities for a given username/password combination
-func CreateIdentitiesFor(usr string, pass string) Identities {
-	// Adding required "operator" user
-	operator := Credentials{Username: consts.DefaultOperatorUser, Password: getRandomStringForAuth(16)}
-	credentials := Credentials{Username: usr, Password: pass}
-	identities := Identities{Credentials: []Credentials{credentials, operator}}
-	return identities
-}
-
-// GetCredentials get identities credentials in yaml format
-func GetCredentials() ([]byte, error) {
-	identities := createIdentities()
+func CreateIdentitiesFor(usr string, pass string) ([]byte, error) {
+	identities := Identities{
+		Credentials: []Credentials{{
+			Username: usr,
+			Password: pass,
+		}},
+	}
 	data, err := yaml.Marshal(identities)
 	if err != nil {
 		return nil, err
 	}
-
 	return data, nil
+}
+
+// GetUserCredentials get identities credentials in yaml format
+func GetAdminCredentials() ([]byte, error) {
+	return CreateIdentitiesFor(consts.DefaultOperatorUser, getRandomStringForAuth(16))
+}
+
+// GetUserCredentials get identities credentials in yaml format
+func GetUserCredentials() ([]byte, error) {
+	return CreateIdentitiesFor(consts.DefaultDeveloperUser, getRandomStringForAuth(16))
 }
 
 // FindPassword finds a user's password
@@ -84,8 +81,8 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 	return "", errors.New("no operator credentials found")
 }
 
-// PasswordFromSecret returns password associated with a user in a given secret
-func PasswordFromSecret(user, secretName, namespace string, k *kube.Kubernetes) (string, error) {
+// passwordFromSecret returns password associated with a user in a given secret
+func passwordFromSecret(user, secretName, namespace string, k *kube.Kubernetes) (string, error) {
 	secret, err := k.GetSecret(secretName, namespace)
 	if err != nil {
 		return "", nil
@@ -96,6 +93,13 @@ func PasswordFromSecret(user, secretName, namespace string, k *kube.Kubernetes) 
 	if err != nil {
 		return "", err
 	}
-
 	return pass, nil
+}
+
+func UserPassword(user, secretName, namespace string, k *kube.Kubernetes) (string, error) {
+	return passwordFromSecret(user, secretName, namespace, k)
+}
+
+func AdminPassword(secretName, namespace string, k *kube.Kubernetes) (string, error) {
+	return passwordFromSecret(consts.DefaultOperatorUser, secretName, namespace, k)
 }

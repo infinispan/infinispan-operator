@@ -14,7 +14,6 @@ import (
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,7 +33,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestBackupRestore(t *testing.T) {
-	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService, 2))
+	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService, 1))
 	t.Run(string(v1.ServiceTypeDataGrid)+"NoAuth", testBackupRestore(datagridServiceNoAuth, 1))
 	// t.Run(string(v1.ServiceTypeCache), testBackupRestore(cacheService, 2))
 }
@@ -129,10 +128,10 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 2. Populate the cluster with some data to backup
-		cluster := utils.NewCluster(infinispan, testKube)
+		hostAddr, client := utils.HTTPClientAndHost(infinispan, testKube)
 		cacheName := "someCache"
-		populateCache(cacheName, sourceCluster+"-0", numEntries, infinispan, cluster.Client)
-		assertNumEntries(cacheName, sourceCluster+"-0", numEntries, infinispan, cluster.Client)
+		populateCache(cacheName, hostAddr, numEntries, infinispan, client)
+		assertNumEntries(cacheName, hostAddr, numEntries, infinispan, client)
 
 		// 3. Backup the cluster's content
 		backupName := "backup"
@@ -170,7 +169,7 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// Recreate the cluster instance to use the credentials of the new cluster
-		cluster = utils.NewCluster(infinispan, testKube)
+		hostAddr, client = utils.HTTPClientAndHost(infinispan, testKube)
 
 		// 6. Restore the backed up data from the volume to the target cluster
 		restoreName := "restore"
@@ -199,7 +198,7 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 7. Ensure that all data is in the target cluster
-		assertNumEntries(cacheName, targetCluster+"-0", numEntries, infinispan, cluster.Client)
+		assertNumEntries(cacheName, hostAddr, numEntries, infinispan, client)
 	}
 }
 
@@ -248,6 +247,7 @@ func datagridService(name, namespace string, replicas int) *v1.Infinispan {
 }
 
 func cacheService(name, namespace string, replicas int) *v1.Infinispan {
+	tutils.DefaultSpec(testKube)
 	return &v1.Infinispan{
 		TypeMeta: tutils.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
@@ -256,13 +256,14 @@ func cacheService(name, namespace string, replicas int) *v1.Infinispan {
 		},
 		Spec: v1.InfinispanSpec{
 			Replicas: int32(replicas),
+			Expose:   tutils.ExposeServiceSpec(testKube),
 		},
 	}
 }
 
-func populateCache(cacheName, pod string, numEntries int, infinispan *v1.Infinispan, client ispnclient.HttpClient) {
+func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infinispan, client tutils.HTTPClient) {
 	post := func(url, payload string, status int, headers map[string]string) {
-		rsp, err, _ := client.Post(pod, url, payload, headers)
+		rsp, err := client.Post(url, payload, headers)
 		tutils.ExpectNoError(err)
 		if rsp.StatusCode != status {
 			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
@@ -271,24 +272,24 @@ func populateCache(cacheName, pod string, numEntries int, infinispan *v1.Infinis
 
 	headers := map[string]string{"Content-Type": "application/json"}
 	if infinispan.Spec.Service.Type == v1.ServiceTypeCache {
-		url := fmt.Sprintf("/rest/v2/caches/%s?template=default", cacheName)
+		url := fmt.Sprintf("%s/rest/v2/caches/%s?template=default", host, cacheName)
 		post(url, "", http.StatusOK, nil)
 	} else {
-		url := fmt.Sprintf("/rest/v2/caches/%s", cacheName)
+		url := fmt.Sprintf("%s/rest/v2/caches/%s", host, cacheName)
 		config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
 		post(url, config, http.StatusOK, headers)
 	}
 
 	for i := 0; i < numEntries; i++ {
-		url := fmt.Sprintf("/rest/v2/caches/%s/%d", cacheName, i)
+		url := fmt.Sprintf("%s/rest/v2/caches/%s/%d", host, cacheName, i)
 		value := fmt.Sprintf("{\"value\":\"%d\"}", i)
 		post(url, value, http.StatusNoContent, headers)
 	}
 }
 
-func assertNumEntries(cacheName, pod string, numEntries int, infinispan *v1.Infinispan, client ispnclient.HttpClient) {
-	url := fmt.Sprintf("/rest/v2/caches/%s?action=size", cacheName)
-	rsp, err, _ := client.Get(pod, url, nil)
+func assertNumEntries(cacheName, host string, numEntries int, infinispan *v1.Infinispan, client tutils.HTTPClient) {
+	url := fmt.Sprintf("%s/rest/v2/caches/%s?action=size", host, cacheName)
+	rsp, err := client.Get(url, nil)
 
 	tutils.ExpectNoError(err)
 	if rsp.StatusCode != http.StatusOK {

@@ -10,7 +10,6 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/infinispan"
-	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -78,13 +77,11 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 			continue
 		}
 
-		user := constants.DefaultOperatorUser
-		pass, err := users.PasswordFromSecret(user, ispn.GetSecretName(), ispn.Namespace, kubernetes)
+		cluster, err := NewCluster(&ispn, kubernetes)
 		if err != nil {
 			continue
 		}
 
-		cluster := ispnutil.NewCluster(user, pass, ispn.Namespace, ispn.GetEndpointScheme(), kubernetes)
 		for _, pItem := range podList.Items {
 			podName := pItem.Name
 			// time.Sleep(time.Duration(10000/len(podList.Items)) * time.Millisecond)

@@ -4,24 +4,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// CopyWithDefaultsForEmptyVals return a copy of with defaults in place of empty fields
-func (c *Cache) CopyWithDefaultsForEmptyVals() *Cache {
-	ret := c.DeepCopy()
-	if ret.Spec.AdminAuth.Password.Key == "" {
-		ret.Spec.AdminAuth.Password.Key = "password"
-	}
-	if ret.Spec.AdminAuth.Username.Key == "" {
-		ret.Spec.AdminAuth.Username.Key = "username"
-	}
-	if ret.Spec.AdminAuth.Password.Name == "" {
-		ret.Spec.AdminAuth.Password.Name = c.Spec.AdminAuth.SecretName
-	}
-	if ret.Spec.AdminAuth.Username.Name == "" {
-		ret.Spec.AdminAuth.Username.Name = c.Spec.AdminAuth.SecretName
-	}
-	return ret
-}
-
 // SetCondition set condition to status
 func (cache *Cache) SetCondition(condition string, status metav1.ConditionStatus, message string) bool {
 	changed := false

@@ -24,7 +24,8 @@ type Infinispan struct {
 }
 
 type Endpoints struct {
-	Authenticate bool `yaml:"auth"`
+	Authenticate   bool `yaml:"auth"`
+	DedicatedAdmin bool `yaml:"dedicatedAdmin"`
 }
 
 type Locks struct {
@@ -98,7 +99,8 @@ func CreateInfinispanConfiguration(name, namespace string, auth bool, loggingCat
 			},
 		},
 		Endpoints: Endpoints{
-			Authenticate: auth,
+			Authenticate:   auth,
+			DedicatedAdmin: true,
 		},
 	}
 	if consts.JGroupsDiagnosticsFlag == "TRUE" {

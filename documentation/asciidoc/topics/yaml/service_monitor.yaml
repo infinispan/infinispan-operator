@@ -7,7 +7,7 @@ metadata:
   namespace: infinispan-monitoring <2>
 spec:
   endpoints:
-    - targetPort: 11222 <3>
+    - targetPort: 11223 <3>
       path: /metrics <4>
       honorLabels: true
       basicAuth:
@@ -19,14 +19,10 @@ spec:
           name: basic-auth
       interval: 30s
       scrapeTimeout: 10s
-      scheme: https <6>
-      tlsConfig:
-        insecureSkipVerify: true
-        serverName: {example_crd_name} <7>
   namespaceSelector:
     matchNames:
-      - infinispan <8>
+      - infinispan <6>
   selector:
     matchLabels:
       app: infinispan-service
-      clusterName: {example_crd_name} <9>
+      clusterName: {example_crd_name} <7>

@@ -1122,7 +1122,8 @@ spec:
           description: CacheSpec defines the desired state of Cache
           properties:
             adminAuth:
-              description: Authentication info
+              description: Deprecated. This no longer has any effect. The operator's
+                admin credentials are now used to perform cache operations
               properties:
                 password:
                   description: Secret and key containing the admin password for authentication.

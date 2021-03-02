@@ -13,8 +13,6 @@ import (
 	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -225,16 +223,6 @@ func (c Cluster) GetMetrics(podName, postfix string) (*bytes.Buffer, error) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(rsp.Body)
 	return buf, nil
-}
-
-// Return handler for querying cluster status
-func ClusterStatusHandler(scheme corev1.URIScheme) corev1.Handler {
-	return corev1.Handler{
-		HTTPGet: &corev1.HTTPGetAction{
-			Scheme: scheme,
-			Path:   consts.ServerHTTPHealthStatusPath,
-			Port:   intstr.FromInt(consts.InfinispanPort)},
-	}
 }
 
 // GetCacheManagerInfo via REST v2 interface

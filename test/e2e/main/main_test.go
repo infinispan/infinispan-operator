@@ -19,7 +19,6 @@ import (
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -385,7 +384,7 @@ func testCacheService(testName string, imageName *string) {
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	user := cconsts.DefaultDeveloperUser
-	password, err := users.PasswordFromSecret(user, spec.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
+	password, err := users.UserPassword(user, spec.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 	tutils.ExpectNoError(err)
 
 	ispn := ispnv1.Infinispan{}
@@ -419,7 +418,7 @@ func TestPermanentCache(t *testing.T) {
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
 		protocol := testKube.GetSchemaForRest(ispn)
-		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
+		pass, err := users.UserPassword(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 
 		client := tutils.NewHTTPClient(usr, pass, protocol)
@@ -428,7 +427,7 @@ func TestPermanentCache(t *testing.T) {
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
+		pass, err := users.UserPassword(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		protocol := testKube.GetSchemaForRest(ispn)
 
@@ -462,7 +461,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 
 	// Define function for the generic stop/start test procedure
 	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
+		pass, err := users.UserPassword(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 		protocol := testKube.GetSchemaForRest(ispn)
 
@@ -474,7 +473,7 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 	}
 
 	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		pass, err := users.PasswordFromSecret(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
+		pass, err := users.UserPassword(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 		tutils.ExpectNoError(err)
 
 		schema := testKube.GetSchemaForRest(ispn)
@@ -542,7 +541,7 @@ func TestExternalService(t *testing.T) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
-	pass, err := users.PasswordFromSecret(usr, spec.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
+	pass, err := users.UserPassword(usr, spec.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
 	tutils.ExpectNoError(err)
 
 	ispn := ispnv1.Infinispan{}
@@ -574,8 +573,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	usr := "connectorusr"
 	pass := "connectorpass"
 	newpass := "connectornewpass"
-	identities := users.CreateIdentitiesFor(usr, pass)
-	identitiesYaml, err := yaml.Marshal(identities)
+	identitiesYaml, err := users.CreateIdentitiesFor(usr, pass)
 	tutils.ExpectNoError(err)
 
 	// Create secret with application credentials
@@ -621,8 +619,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	schema := testKube.GetSchemaForRest(&ispn)
 	testAuthentication(schema, ispn.GetServiceExternalName(), ispn.GetExposeType(), usr, pass)
 	// Update the auth credentials.
-	identities = users.CreateIdentitiesFor(usr, newpass)
-	identitiesYaml, err = yaml.Marshal(identities)
+	identitiesYaml, err = users.CreateIdentitiesFor(usr, newpass)
 	tutils.ExpectNoError(err)
 
 	// Create secret with application credentials

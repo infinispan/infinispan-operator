@@ -201,7 +201,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	cliArgs := fmt.Sprintf("--connect '%s' --trustall --file '%s/%s'", url, BatchVolumeRoot, BatchFilename)
+	cliArgs := fmt.Sprintf("--connect '%s' --file '%s/%s'", url, BatchVolumeRoot, BatchFilename)
 
 	labels := batchLabels(batch.Name)
 	infinispan.AddLabelsForPods(labels)
@@ -296,17 +296,11 @@ func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 }
 
 func connectionUrl(i *v1.Infinispan) (string, error) {
-	var authString string
-	if i.IsAuthenticationEnabled() {
-		user := consts.DefaultOperatorUser
-		pass, err := users.PasswordFromSecret(user, i.GetSecretName(), i.GetNamespace(), kubernetes)
-		if err != nil {
-			return "", err
-		}
-		authString = fmt.Sprintf("%s:%s", url.QueryEscape(user), url.QueryEscape(pass))
+	pass, err := users.AdminPassword(i.GetAdminSecretName(), i.Namespace, kubernetes)
+	if err != nil {
+		return "", err
 	}
-
-	url := fmt.Sprintf("%s://%s@%s:%d", i.GetEndpointScheme(), authString, i.Name, consts.InfinispanPort)
+	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(pass), i.GetAdminServiceName(), consts.InfinispanAdminPort)
 	return url, nil
 }
 
