@@ -72,11 +72,16 @@ func assertPodImage(image string, ispn *v1.Infinispan) {
 }
 
 func getDockerImageSha() string {
-	cmd := exec.Command("docker", "inspect", "--format='{{index .RepoDigests 0}}'", constants.DefaultOperandImageOpenJDK)
+	sha := tutils.ImageSha
+	if sha != "" {
+		return sha
+	}
+	// If the INFINISPAN_IMAGE_SHA env variable has not been set, attempt to retreive
+	cmd := exec.Command("docker", "inspect", "--format={{index .RepoDigests 0}}", constants.DefaultOperandImageOpenJDK)
 	stdout, err := cmd.Output()
 
 	if err != nil {
-		panic(fmt.Errorf("Unable to get Docker image sha: stdout=%s: %w", string(stdout), err))
+		panic(fmt.Errorf("INFINISPAN_IMAGE_SHA='%s'. Unable to get Docker image sha: : %w", os.Getenv("INFINISPAN_IMAGE_SHA"), err))
 	}
 	s := string(stdout)
 	return strings.TrimSuffix(s, "\n")
