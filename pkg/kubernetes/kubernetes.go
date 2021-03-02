@@ -79,7 +79,7 @@ func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 
 }
 
-// NewKubernetesFromMasterURL creates a new Kubernetes from the Kubernetes master URL to connect to
+// NewKubernetesFromConfig creates a new Kubernetes from the Kubernetes master URL to connect to
 func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
 	kubeClient, err := client.New(config, client.Options{})
 	if err != nil {

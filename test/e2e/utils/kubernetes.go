@@ -211,7 +211,6 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 
 // GracefulRestartInfinispan restarts the infinispan resource and waits that cluster is WellFormed
 func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan, replicas int32, timeout time.Duration) {
-	ns := types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}
 	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		updErr := k.UpdateInfinispan(infinispan, func() {
 			infinispan.Spec.Replicas = replicas
@@ -225,14 +224,7 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 	})
 	ExpectNoError(err)
 
-	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-		if err != nil || !infinispan.IsWellFormed() {
-			return false, nil
-		}
-		return true, nil
-	})
-	ExpectNoError(err)
+	k.WaitForInfinispanCondition(infinispan.Name, infinispan.Namespace, ispnv1.ConditionWellFormed)
 }
 
 func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func()) error {
