@@ -156,6 +156,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	err := r.update(infinispan, func() {
 		// Apply defaults and endpoint encryption settings if not already set
 		infinispan.ApplyDefaults()
+		infinispan.Spec.Affinity = podAffinity(infinispan, PodLabels(infinispan.Name))
 		errLabel := infinispan.ApplyOperatorLabels()
 		if errLabel != nil {
 			reqLogger.Error(errLabel, "Error applying operator label")
@@ -740,7 +741,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
-					Affinity: podAffinity(m, lsPod),
+					Affinity: m.Spec.Affinity,
 					Containers: []corev1.Container{{
 						Image: m.ImageName(),
 						Name:  "infinispan",
@@ -1225,6 +1226,11 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateNeeded = true
 		}
+	}
+
+	if !reflect.DeepEqual(spec.Affinity, ispn.Spec.Affinity) {
+		spec.Affinity = ispn.Spec.Affinity
+		updateNeeded = true
 	}
 
 	// Validate ConfigMap changes (by the hash of the infinispan.yaml key value)
