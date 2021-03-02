@@ -340,9 +340,9 @@ func (z *Controller) zeroPodSpec(name, namespace, configMap string, podSecurityC
 				Image:          ispn.ImageName(),
 				Name:           name,
 				Env:            ispnCtrl.PodEnv(ispn, nil),
-				LivenessProbe:  ispnCtrl.PodLivenessProbe(ispn),
+				LivenessProbe:  ispnCtrl.PodLivenessProbe(),
 				Ports:          ispnCtrl.PodPorts(),
-				ReadinessProbe: ispnCtrl.PodReadinessProbe(ispn),
+				ReadinessProbe: ispnCtrl.PodReadinessProbe(),
 				Resources:      *podResources,
 				VolumeMounts: []corev1.VolumeMount{
 					{
