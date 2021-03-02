@@ -32,9 +32,25 @@ type Health struct {
 	ClusterHealth ClusterHealth `json:"cluster_health"`
 }
 
+type CacheManagerInfo struct {
+	Coordinator bool           `json:"coordinator"`
+	SitesView   *[]interface{} `json:"sites_view,omitempty"`
+}
+
 type Logger struct {
 	Name  string `json:"name"`
 	Level string `json:"level"`
+}
+
+func (i CacheManagerInfo) GetSitesView() (map[string]bool, error) {
+	sitesView := make(map[string]bool)
+	if i.SitesView == nil {
+		return nil, fmt.Errorf("retrieving the cross-site view is not supported with the server image you are using")
+	}
+	for _, site := range *i.SitesView {
+		sitesView[site.(string)] = true
+	}
+	return sitesView, nil
 }
 
 // ClusterInterface represents the interface of a Cluster instance
@@ -49,7 +65,7 @@ type ClusterInterface interface {
 	GetMaxMemoryUnboundedBytes(podName string) (uint64, error)
 	CacheNames(podName string) ([]string, error)
 	GetMetrics(podName, postfix string) (*bytes.Buffer, error)
-	GetCacheManagerInfo(cacheManagerName, podName string) (map[string]interface{}, error)
+	GetCacheManagerInfo(cacheManagerName, podName string) (*CacheManagerInfo, error)
 	GetLoggers(podName string) (map[string]string, error)
 	SetLogger(podName, loggerName, loggerLevel string) error
 }
@@ -243,7 +259,7 @@ func (c Cluster) GetMetrics(podName, postfix string) (buf *bytes.Buffer, err err
 }
 
 // GetCacheManagerInfo via REST v2 interface
-func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (info map[string]interface{}, err error) {
+func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (info *CacheManagerInfo, err error) {
 	path := fmt.Sprintf("%s/cache-managers/%s", consts.ServerHTTPBasePath, cacheManagerName)
 	rsp, err, reason := c.Client.Get(podName, path, nil)
 	if err = validateResponse(rsp, reason, err, "getting cache manager info", http.StatusOK); err != nil {

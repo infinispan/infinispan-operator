@@ -324,17 +324,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Info("Pods IPs are not ready yet")
 		return reconcile.Result{}, r.update(infinispan, func() {
 			infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready")
+			infinispan.RemoveCondition(infinispanv1.ConditionCrossSiteViewFormed)
 			infinispan.Status.StatefulSetName = statefulSet.Name
 		})
-	}
-
-	// If x-site enable configure the coordinator pods to be selected by the x-site service
-	if infinispan.HasSites() {
-		found := applyLabelsToCoordinatorsPod(podList, cluster, r.client, reqLogger)
-		if !found {
-			// If a coordinator is not found then requeue early
-			return reconcile.Result{Requeue: true}, nil
-		}
 	}
 
 	// All pods ready start autoscaler if needed
@@ -354,7 +346,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// View didn't form, requeue until view has formed
 	if infinispan.NotClusterFormed(len(podList.Items), int(infinispan.Spec.Replicas)) {
 		reqLogger.Info("notClusterFormed")
-		return reconcile.Result{Requeue: true, RequeueAfter: consts.DefaultWaitClusterNotWellFormed}, nil
+		return reconcile.Result{RequeueAfter: consts.DefaultWaitClusterNotWellFormed}, nil
 	}
 
 	// Below the code for a wellFormed cluster
@@ -440,6 +432,20 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			infinispan.Status.ConsoleUrl = nil
 		}); err != nil {
 			return reconcile.Result{}, err
+		}
+	}
+
+	// If x-site enable configure the coordinator pods to be selected by the x-site service
+	if infinispan.HasSites() {
+		crossSiteViewCondition, err := r.applyLabelsToCoordinatorsPod(podList, infinispan.GetSitesLocations(""), cluster)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		err = r.update(infinispan, func() {
+			infinispan.SetConditions([]infinispanv1.InfinispanCondition{*crossSiteViewCondition})
+		})
+		if err != nil || crossSiteViewCondition.Status != metav1.ConditionTrue {
+			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, err
 		}
 	}
 
@@ -784,10 +790,10 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 							{Name: "CONFIG_HASH", Value: hashString(configMap.Data[consts.ServerConfigFilename])},
 							{Name: "ADMIN_IDENTITIES_HASH", Value: hashString(string(adminSecret.Data[consts.ServerIdentitiesFilename]))},
 						}),
-						LivenessProbe:  PodLivenessProbe(m),
+						LivenessProbe:  PodLivenessProbe(),
 						Ports:          PodPortsWithXsite(m),
-						ReadinessProbe: PodReadinessProbe(m),
-						StartupProbe:   PodStartupProbe(m),
+						ReadinessProbe: PodReadinessProbe(),
+						StartupProbe:   PodStartupProbe(),
 						Resources:      *podResources,
 						VolumeMounts:   volumeMounts,
 					}},
@@ -918,20 +924,20 @@ func PodPortsWithXsite(i *infinispanv1.Infinispan) []corev1.ContainerPort {
 	return ports
 }
 
-func PodLivenessProbe(i *infinispanv1.Infinispan) *corev1.Probe {
-	return probe(i, 5, 10, 10, 1, 80)
+func PodLivenessProbe() *corev1.Probe {
+	return probe(5, 10, 10, 1, 80)
 }
 
-func PodReadinessProbe(i *infinispanv1.Infinispan) *corev1.Probe {
-	return probe(i, 5, 10, 10, 1, 80)
+func PodReadinessProbe() *corev1.Probe {
+	return probe(5, 10, 10, 1, 80)
 }
 
-func PodStartupProbe(i *infinispanv1.Infinispan) *corev1.Probe {
+func PodStartupProbe() *corev1.Probe {
 	// Maximum 10 minutes (60 * 10s) to finish startup
-	return probe(i, 60, 10, 10, 1, 80)
+	return probe(60, 10, 10, 1, 80)
 }
 
-func probe(i *infinispanv1.Infinispan, failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
+func probe(failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
 	return &corev1.Probe{
 		Handler: corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{

@@ -44,8 +44,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 		Port:    localSitePort,
 	}
 
-	remoteLocations := findRemoteLocations(xsite.Name, infinispan)
-	for _, remoteLocation := range remoteLocations {
+	for _, remoteLocation := range infinispan.GetSitesLocations(xsite.Name) {
 		backupSiteURL, err := url.Parse(remoteLocation.URL)
 		if err != nil {
 			return nil, err
@@ -194,17 +193,6 @@ func getRemoteSiteRESTConfig(namespace string, location *ispnv1.InfinispanSiteLo
 	default:
 		return nil, fmt.Errorf("backup site URL scheme '%s' not supported for remote connection", scheme)
 	}
-}
-
-func findRemoteLocations(localSiteName string, infinispan *ispnv1.Infinispan) (remoteLocations []ispnv1.InfinispanSiteLocationSpec) {
-	locations := infinispan.Spec.Service.Sites.Locations
-	for _, location := range locations {
-		if localSiteName != location.Name {
-			remoteLocations = append(remoteLocations, location)
-		}
-	}
-
-	return
 }
 
 func lookupHost(host string, logger logr.Logger) (string, error) {
