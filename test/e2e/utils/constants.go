@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"os"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ const (
 )
 
 var (
+	ImageSha             = os.Getenv("INFINISPAN_IMAGE_SHA")
 	CPU                  = constants.GetEnvWithDefault("INFINISPAN_CPU", "500m")
 	Memory               = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 	Namespace            = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
