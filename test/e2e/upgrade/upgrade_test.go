@@ -77,7 +77,7 @@ func getDockerImageSha() string {
 		return sha
 	}
 	// If the INFINISPAN_IMAGE_SHA env variable has not been set, attempt to retreive
-	cmd := exec.Command("docker", "inspect", "--format={{index .RepoDigests 0}}", constants.DefaultOperandImageOpenJDK)
+	cmd := exec.Command("docker", "inspect", "'--format='{{index .RepoDigests 0}}'", constants.DefaultOperandImageOpenJDK)
 	stdout, err := cmd.Output()
 
 	if err != nil {
