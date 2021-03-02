@@ -9,7 +9,6 @@ import (
 
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,10 +29,10 @@ var EncryptionSecret = corev1.Secret{
 		Kind:       "Secret",
 	},
 	ObjectMeta: metav1.ObjectMeta{
-		Name: EncryptionSecretName,
+		Name:      EncryptionSecretName,
 		Namespace: Namespace,
 	},
-	Type:       corev1.SecretTypeOpaque,
+	Type: corev1.SecretTypeOpaque,
 	StringData: map[string]string{
 		"tls.key": tlsKey,
 		"tls.crt": tlsCrt},
@@ -165,18 +164,21 @@ func getAbsolutePath(relativeFilePath string) string {
 	return absPath
 }
 
-// NewCluster returns a new infinispan.Cluster ready to use
-func NewCluster(infinispan *v1.Infinispan, kube *TestKubernetes) *ispn.Cluster {
-	k8s := kube.Kubernetes
-	namespace := infinispan.Namespace
-	protocol := kube.GetSchemaForRest(infinispan)
+func clientForCluster(i *v1.Infinispan, kube *TestKubernetes) HTTPClient {
+	protocol := kube.GetSchemaForRest(i)
 
-	if !infinispan.IsAuthenticationEnabled() {
-		return ispn.NewClusterNoAuth(namespace, protocol, k8s)
+	if !i.IsAuthenticationEnabled() {
+		return NewHTTPClientNoAuth(protocol)
 	}
 
-	user := constants.DefaultOperatorUser
-	secret := infinispan.GetSecretName()
-	pass, _ := users.PasswordFromSecret(user, secret, namespace, k8s)
-	return ispn.NewCluster(user, pass, namespace, protocol, k8s)
+	user := constants.DefaultDeveloperUser
+	pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes)
+	ExpectNoError(err)
+	return NewHTTPClient(user, pass, protocol)
+}
+
+func HTTPClientAndHost(i *v1.Infinispan, kube *TestKubernetes) (string, HTTPClient) {
+	client := clientForCluster(i, kube)
+	hostAddr := kube.WaitForExternalService(i.GetServiceExternalName(), i.Namespace, i.GetExposeType(), RouteTimeout, client)
+	return hostAddr, client
 }

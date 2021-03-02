@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	infinispanv2alpha1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
-	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	caches "github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/version"
@@ -99,6 +97,15 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
+	if instance.Spec.AdminAuth != nil {
+		reqLogger.Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
+		_, err := controllerutil.CreateOrUpdate(context.TODO(), r.client, instance, func() error {
+			instance.Spec.AdminAuth = nil
+			return nil
+		})
+		return reconcile.Result{}, err
+	}
+
 	// Reconcile cache
 	reqLogger.Info("Identify the target cluster")
 	// Fetch the Infinispan cluster info
@@ -119,11 +126,6 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		reqLogger.Info(fmt.Sprintf("Infinispan cluster %s not well formed", ispnInstance.Name))
 		return reconcile.Result{RequeueAfter: constants.DefaultWaitOnCluster}, err
 	}
-	// Authentication is required to go on from here
-	user, pass, result, err := getCredentials(r, reqLogger, instance.CopyWithDefaultsForEmptyVals())
-	if err != nil {
-		return result, err
-	}
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
 	labelSelector := labels.SelectorFromSet(ispnctrl.LabelsResource(ispnInstance.Name, ""))
@@ -137,7 +139,10 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, nil
 	}
 
-	cluster := ispn.NewCluster(user, pass, instance.Namespace, ispnInstance.GetEndpointScheme(), kubernetes)
+	cluster, err := ispnctrl.NewCluster(ispnInstance, kubernetes)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	existsCache, err := cluster.ExistsCache(instance.GetCacheName(), podList.Items[0].Name)
 	if err == nil {
 		if existsCache {
@@ -215,34 +220,4 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 	}
 	return reconcile.Result{}, nil
-}
-
-func getCredentials(r *ReconcileCache, reqLogger logr.Logger, instance *infinispanv2alpha1.Cache) (string, string, reconcile.Result, error) {
-	userSecret, result, err := getSecret(r, reqLogger, instance.Spec.AdminAuth.Username.Name, instance.Namespace)
-	if err != nil {
-		return "", "", result, err
-	}
-	passSecret := userSecret
-	if instance.Spec.AdminAuth.Username.Name != instance.Spec.AdminAuth.Password.Name {
-		passSecret, result, err = getSecret(r, reqLogger, instance.Spec.AdminAuth.Username.Name, instance.Namespace)
-		if err != nil {
-			return "", "", result, err
-		}
-	}
-	user := string(userSecret.Data[instance.Spec.AdminAuth.Username.Key])
-	pass := string(passSecret.Data[instance.Spec.AdminAuth.Password.Key])
-	return user, pass, reconcile.Result{}, nil
-}
-
-func getSecret(r *ReconcileCache, reqLogger logr.Logger, name, ns string) (*corev1.Secret, reconcile.Result, error) {
-	userSecret := &corev1.Secret{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, userSecret)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Error(err, fmt.Sprintf("Secret %s not found", name))
-			return nil, reconcile.Result{RequeueAfter: constants.DefaultWaitOnCreateResource}, err
-		}
-	}
-	// Error reading the object - requeue the request.
-	return userSecret, reconcile.Result{}, err
 }

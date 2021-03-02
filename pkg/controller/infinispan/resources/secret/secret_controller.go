@@ -75,38 +75,80 @@ func Add(mgr manager.Manager) error {
 }
 
 func (s *secretResource) Process() (reconcile.Result, error) {
+	secretExists, err := s.secretExists(s.infinispan.GetAdminSecretName())
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// If the operator secret does not already exist create it with generated identities
+	if !secretExists {
+		if err = s.createAdminIdentitiesSecret(); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	// If the user has provided their own secret or authentication is disabled, do nothing
 	if !s.infinispan.IsGeneratedSecret() {
 		return reconcile.Result{}, nil
 	}
-	if err := s.client.Get(context.TODO(), types.NamespacedName{Namespace: s.infinispan.Namespace, Name: s.infinispan.GetSecretName()}, &corev1.Secret{}); err == nil || !errors.IsNotFound(err) {
-		return reconcile.Result{}, err
-	}
 
-	s.log.Info("Creating identities for Secret")
-	// Generate the Secret identities
-	if identities, err := users.GetCredentials(); err == nil {
-		// Generate the Secret
-		s.log.Info(fmt.Sprintf("Creating Secret %s", s.infinispan.GetSecretName()))
-		return reconcile.Result{}, s.client.Create(ctx, s.computeSecret(identities))
-	} else {
+	// Create the user identities secret if it doesn't already exist
+	secretExists, err = s.secretExists(s.infinispan.GetSecretName())
+	if secretExists || err != nil {
 		return reconcile.Result{}, err
 	}
+	return reconcile.Result{}, s.createUserIdentitiesSecret()
 }
 
-func (s secretResource) computeSecret(identities []byte) *corev1.Secret {
+func (s secretResource) createUserIdentitiesSecret() error {
+	identities, err := users.GetUserCredentials()
+	if err != nil {
+		return err
+	}
+	return s.createSecret(s.infinispan.GetSecretName(), "infinispan-secret-identities", identities)
+}
+
+func (s secretResource) createAdminIdentitiesSecret() error {
+	identities, err := users.GetAdminCredentials()
+	if err != nil {
+		return err
+	}
+	return s.createSecret(s.infinispan.GetAdminSecretName(), "infinispan-secret-admin-identities", identities)
+}
+
+func (s secretResource) createSecret(name, label string, identities []byte) error {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.infinispan.GetSecretName(),
+			Name:      name,
 			Namespace: s.infinispan.Namespace,
-			Labels:    infinispan.LabelsResource(s.infinispan.Name, "infinispan-secret-identities"),
+			Labels:    infinispan.LabelsResource(s.infinispan.Name, label),
 		},
 		Type:       corev1.SecretTypeOpaque,
 		StringData: map[string]string{consts.ServerIdentitiesFilename: string(identities)},
 	}
-	controllerutil.SetControllerReference(s.infinispan, secret, s.scheme)
-	return secret
+
+	s.log.Info(fmt.Sprintf("Creating Identities Secret %s", secret.Name))
+	_, err := controllerutil.CreateOrUpdate(ctx, s.client, secret, func() error {
+		return controllerutil.SetControllerReference(s.infinispan, secret, s.scheme)
+	})
+
+	if err != nil {
+		return fmt.Errorf("Unable to create identities secret: %w", err)
+	}
+	return nil
+}
+
+func (s secretResource) secretExists(name string) (bool, error) {
+	err := s.client.Get(ctx, types.NamespacedName{Namespace: s.infinispan.Namespace, Name: name}, &corev1.Secret{})
+	if err == nil {
+		return true, nil
+	}
+	if errors.IsNotFound(err) {
+		return false, nil
+	}
+	return false, err
 }

@@ -53,7 +53,7 @@ func (c *CurlClient) Put(podName, path, payload string, headers map[string]strin
 }
 
 func (c *CurlClient) executeCurlCommand(podName string, path string, headers map[string]string, args ...string) (*http.Response, error, string) {
-	httpURL := fmt.Sprintf("%s://%s:%d/%s", c.config.Protocol, podName, consts.InfinispanPort, path)
+	httpURL := fmt.Sprintf("%s://%s:%d/%s", c.config.Protocol, podName, consts.InfinispanAdminPort, path)
 
 	headerStr := headerString(headers)
 	argStr := strings.Join(args, " ")

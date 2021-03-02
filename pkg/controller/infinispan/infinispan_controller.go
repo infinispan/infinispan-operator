@@ -19,7 +19,6 @@ import (
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
-	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/version"
 	routev1 "github.com/openshift/api/route/v1"
@@ -31,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -53,6 +53,7 @@ const (
 	ConfigVolumeName          = "config-volume"
 	EncryptVolumeName         = "encrypt-volume"
 	IdentitiesVolumeName      = "identities-volume"
+	AdminIdentitiesVolumeName = "admin-identities-volume"
 )
 
 var log = logf.Log.WithName("controller_infinispan")
@@ -195,12 +196,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Wait for the Secret to be created by secret-controller or provided by ser
-	var secret *corev1.Secret
+	var userSecret *corev1.Secret
 	if infinispan.IsAuthenticationEnabled() {
-		secret = &corev1.Secret{}
-		if result, err := kube.LookupResource(infinispan.GetSecretName(), infinispan.Namespace, secret, r.client, reqLogger); result != nil {
+		userSecret = &corev1.Secret{}
+		if result, err := kube.LookupResource(infinispan.GetSecretName(), infinispan.Namespace, userSecret, r.client, reqLogger); result != nil {
 			return *result, err
 		}
+	}
+
+	adminSecret := &corev1.Secret{}
+	if result, err := kube.LookupResource(infinispan.GetAdminSecretName(), infinispan.Namespace, adminSecret, r.client, reqLogger); result != nil {
+		return *result, err
 	}
 
 	// Reconcile the StatefulSet
@@ -211,7 +217,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Info("Configuring the StatefulSet")
 
 		// Define a new StatefulSet
-		statefulSet, err = r.statefulSetForInfinispan(infinispan, secret, configMap)
+		statefulSet, err = r.statefulSetForInfinispan(infinispan, adminSecret, userSecret, configMap)
 		if err != nil {
 			reqLogger.Error(err, "failed to configure new StatefulSet")
 			return reconcile.Result{}, err
@@ -346,17 +352,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *result, err
 	}
 
-	var cluster *ispn.Cluster
-	if infinispan.IsAuthenticationEnabled() {
-		user := consts.DefaultOperatorUser
-		pass, err := users.PasswordFromSecret(user, infinispan.GetSecretName(), infinispan.GetNamespace(), kubernetes)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		cluster = ispn.NewCluster(user, pass, request.Namespace, infinispan.GetEndpointScheme(), kubernetes)
-	} else {
-		cluster = ispn.NewClusterNoAuth(request.Namespace, infinispan.GetEndpointScheme(), kubernetes)
+	cluster, err := NewCluster(infinispan, kubernetes)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
 
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
@@ -374,7 +372,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Here where to reconcile with spec updates that reflect into
 	// changes to statefulset.spec.container.
-	res, err = r.reconcileContainerConf(infinispan, statefulSet, configMap, secret, reqLogger)
+	res, err = r.reconcileContainerConf(infinispan, statefulSet, configMap, userSecret, reqLogger)
 	if res != nil {
 		return *res, err
 	}
@@ -695,7 +693,7 @@ func (r *ReconcileInfinispan) updatePodsLabels(m *infinispanv1.Infinispan, podLi
 }
 
 // statefulSetForInfinispan returns an infinispan StatefulSet object
-func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, secret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
+func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, adminSecret, userSecret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	lsPod := PodLabels(m.Name)
 	labelsForPod := PodLabels(m.Name)
@@ -726,12 +724,22 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	}, {
 		Name:      dataVolumeName,
 		MountPath: DataMountPath,
+	}, {
+		Name:      AdminIdentitiesVolumeName,
+		MountPath: consts.ServerAdminIdentitiesRoot,
 	}}
 	volumes := []corev1.Volume{{
 		Name: ConfigVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
+			},
+		},
+	}, {
+		Name: AdminIdentitiesVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: m.GetAdminSecretName(),
 			},
 		},
 	}}
@@ -774,6 +782,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						Name:  "infinispan",
 						Env: PodEnv(m, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hashString(configMap.Data[consts.ServerConfigFilename])},
+							{Name: "ADMIN_IDENTITIES_HASH", Value: hashString(adminSecret.StringData[consts.ServerIdentitiesFilename])},
 						}),
 						LivenessProbe:  PodLivenessProbe(m),
 						Ports:          PodPortsWithXsite(m),
@@ -790,11 +799,11 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 	// Only append IDENTITIES_HASH and secret volume if authentication is enabled
 	spec := &dep.Spec.Template.Spec
-	if AddVolumeForAuthentication(m, spec) {
+	if AddVolumeForUserAuthentication(m, spec) {
 		spec.Containers[0].Env = append(spec.Containers[0].Env,
 			corev1.EnvVar{
 				Name:  "IDENTITIES_HASH",
-				Value: hashString(string(secret.Data[consts.ServerIdentitiesFilename])),
+				Value: hashString(string(userSecret.Data[consts.ServerIdentitiesFilename])),
 			})
 	}
 
@@ -865,7 +874,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 }
 
 // Returns true if the volume has been added
-func AddVolumeForAuthentication(i *infinispanv1.Infinispan, spec *corev1.PodSpec) bool {
+func AddVolumeForUserAuthentication(i *infinispanv1.Infinispan, spec *corev1.PodSpec) bool {
 	if _, index := findIdentitiesSecret(spec); !i.IsAuthenticationEnabled() || index >= 0 {
 		return false
 	}
@@ -883,15 +892,16 @@ func AddVolumeForAuthentication(i *infinispanv1.Infinispan, spec *corev1.PodSpec
 	vm := &spec.Containers[0].VolumeMounts
 	*vm = append(*vm, corev1.VolumeMount{
 		Name:      IdentitiesVolumeName,
-		MountPath: consts.ServerSecurityRoot,
+		MountPath: consts.ServerUserIdentitiesRoot,
 	})
 	return true
 }
 
 func PodPorts() []corev1.ContainerPort {
 	ports := []corev1.ContainerPort{
+		{ContainerPort: consts.InfinispanAdminPort, Name: consts.InfinispanAdminPortName, Protocol: corev1.ProtocolTCP},
 		{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
-		{ContainerPort: consts.InfinispanPort, Name: consts.InfinispanPortName, Protocol: corev1.ProtocolTCP},
+		{ContainerPort: consts.InfinispanUserPort, Name: consts.InfinispanUserPortName, Protocol: corev1.ProtocolTCP},
 	}
 	return ports
 }
@@ -919,7 +929,12 @@ func PodStartupProbe(i *infinispanv1.Infinispan) *corev1.Probe {
 
 func probe(i *infinispanv1.Infinispan, failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
 	return &corev1.Probe{
-		Handler:             ispn.ClusterStatusHandler(i.GetEndpointURIScheme()),
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Scheme: corev1.URISchemeHTTP,
+				Path:   consts.ServerHTTPHealthStatusPath,
+				Port:   intstr.FromInt(consts.InfinispanAdminPort)},
+		},
 		FailureThreshold:    failureThreshold,
 		InitialDelaySeconds: initialDelay,
 		PeriodSeconds:       period,
@@ -957,6 +972,7 @@ func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.Env
 		{Name: "JAVA_OPTIONS", Value: i.GetJavaOptions()},
 		{Name: "EXTRA_JAVA_OPTIONS", Value: i.Spec.Container.ExtraJvmOpts},
 		{Name: "DEFAULT_IMAGE", Value: consts.DefaultImageName},
+		{Name: "ADMIN_IDENTITIES_PATH", Value: consts.ServerAdminIdentitiesPath},
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var
@@ -975,7 +991,7 @@ func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.Env
 	}
 
 	if i.IsAuthenticationEnabled() {
-		envVars = append(envVars, corev1.EnvVar{Name: "IDENTITIES_PATH", Value: consts.ServerIdentitiesPath})
+		envVars = append(envVars, corev1.EnvVar{Name: "IDENTITIES_PATH", Value: consts.ServerUserIdentitiesPath})
 	}
 
 	if systemEnv != nil {
@@ -1264,6 +1280,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 
 	// Validate ConfigMap changes (by the hash of the infinispan.yaml key value)
 	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
+	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hashString(configMap.Data[consts.ServerIdentitiesFilename])) || updateNeeded
 
 	// Validate identities Secret name changes
 	if secretName, secretIndex := findIdentitiesSecret(&statefulSet.Spec.Template.Spec); secretIndex >= 0 && secretName != ispn.GetSecretName() {
@@ -1274,10 +1291,10 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	}
 
 	if ispn.IsAuthenticationEnabled() {
-		if AddVolumeForAuthentication(ispn, spec) {
+		if AddVolumeForUserAuthentication(ispn, spec) {
 			spec.Containers[0].Env = append(spec.Containers[0].Env,
 				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: hashString(string(secret.Data[consts.ServerIdentitiesFilename]))},
-				corev1.EnvVar{Name: "IDENTITIES_PATH", Value: consts.ServerIdentitiesPath},
+				corev1.EnvVar{Name: "IDENTITIES_PATH", Value: consts.ServerUserIdentitiesPath},
 			)
 			updateNeeded = true
 		} else {

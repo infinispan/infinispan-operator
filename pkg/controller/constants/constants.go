@@ -47,10 +47,12 @@ const (
 	DefaultDeveloperUser = "developer"
 	// DefaultCacheName default cache name for the CacheService
 	DefaultCacheName         = "default"
-	InfinispanPort           = 11222
-	InfinispanPortName       = "infinispan"
+	InfinispanAdminPort      = 11223
+	InfinispanAdminPortName  = "infinispan-adm"
+	InfinispanUserPortName   = "infinispan"
 	InfinispanPingPort       = 8888
 	InfinispanPingPortName   = "ping"
+	InfinispanUserPort       = 11222
 	CrossSitePort            = 7900
 	CrossSitePortName        = "xsite"
 	CoordinatorPodLabel      = "coordinator"
@@ -66,16 +68,19 @@ const (
 	CacheServiceJavaOptions                 = "-Xmx%dM -Xms%dM -XX:MaxRAM=%dM -Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=%d -XX:MaxHeapFreeRatio=%d %s"
 	CacheServiceNativeJavaOptions           = "-Xmx%dM -Xms%dM -Dsun.zip.disableMemoryMapping=true %s"
 
-	NativeImageMarker        = "native"
-	GeneratedSecretSuffix    = "generated-secret"
-	InfinispanFinalizer      = "finalizer.infinispan.org"
-	SiteServiceTemplate      = "%v-site"
-	ServerConfigRoot         = "/etc/config"
-	ServerSecurityRoot       = "/etc/security"
-	ServerConfigFilename     = "infinispan.yaml"
-	ServerConfigPath         = ServerConfigRoot + "/" + ServerConfigFilename
-	ServerIdentitiesFilename = "identities.yaml"
-	ServerIdentitiesPath     = ServerSecurityRoot + "/" + ServerIdentitiesFilename
+	NativeImageMarker         = "native"
+	GeneratedSecretSuffix     = "generated-secret"
+	InfinispanFinalizer       = "finalizer.infinispan.org"
+	SiteServiceTemplate       = "%v-site"
+	ServerConfigRoot          = "/etc/config"
+	ServerSecurityRoot        = "/etc/security"
+	ServerConfigFilename      = "infinispan.yaml"
+	ServerConfigPath          = ServerConfigRoot + "/" + ServerConfigFilename
+	ServerIdentitiesFilename  = "identities.yaml"
+	ServerAdminIdentitiesRoot = ServerSecurityRoot + "/admin"
+	ServerAdminIdentitiesPath = ServerAdminIdentitiesRoot + "/" + ServerIdentitiesFilename
+	ServerUserIdentitiesRoot  = ServerSecurityRoot + "/user"
+	ServerUserIdentitiesPath  = ServerUserIdentitiesRoot + "/" + ServerIdentitiesFilename
 
 	ServerHTTPBasePath         = "rest/v2"
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"

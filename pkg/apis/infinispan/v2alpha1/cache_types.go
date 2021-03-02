@@ -20,8 +20,8 @@ type AdminAuth struct {
 
 // CacheSpec defines the desired state of Cache
 type CacheSpec struct {
-	// Authentication info
-	AdminAuth AdminAuth `json:"adminAuth,omitempty"`
+	// Deprecated. This no longer has any effect. The operator's admin credentials are now used to perform cache operations
+	AdminAuth *AdminAuth `json:"adminAuth,omitempty"`
 	// Name of the cluster where to create the cache
 	ClusterName string `json:"clusterName,omitempty"`
 	// Name of the cache to be created. If empty ObjectMeta.Name will be used

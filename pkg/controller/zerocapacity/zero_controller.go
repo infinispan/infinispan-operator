@@ -11,10 +11,7 @@ import (
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
-	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
-	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -183,25 +180,10 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, fmt.Errorf("Unable to fetch CR '%s': %w", clusterName, err)
 	}
 
-	var credentials *ispnclient.Credentials
-	if infinispan.IsAuthenticationEnabled() {
-		user := consts.DefaultOperatorUser
-		pass, err := users.PasswordFromSecret(user, infinispan.GetSecretName(), namespace, z.Kube)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		credentials = &ispnclient.Credentials{
-			Username: user,
-			Password: pass,
-		}
+	httpClient, err := ispnCtrl.NewHttpClient(infinispan, z.Kube)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
-	httpConfig := ispnclient.HttpConfig{
-		Credentials: credentials,
-		Namespace:   namespace,
-		Protocol:    infinispan.GetEndpointScheme(),
-	}
-	httpClient := curl.New(httpConfig, z.Kube)
 
 	if phase == ZeroInitialized {
 		return z.execute(httpClient, request, instance)
@@ -362,6 +344,10 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 						Name:      ispnCtrl.ConfigVolumeName,
 						MountPath: consts.ServerConfigRoot,
 					},
+					{
+						Name:      ispnCtrl.AdminIdentitiesVolumeName,
+						MountPath: consts.ServerAdminIdentitiesRoot,
+					},
 					// Utilise Ephemeral vol as we're only interested in data related to CR
 					{
 						Name:      dataVolName,
@@ -383,6 +369,15 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 							LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
 						},
 					}},
+				// Volume for admin credentials
+				{
+					Name: ispnCtrl.AdminIdentitiesVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: ispn.GetAdminSecretName(),
+						},
+					},
+				},
 				// Volume for reading/writing data
 				{
 					Name:         name,
@@ -403,7 +398,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 		ispnCtrl.AddVolumeChmodInitContainer("backup-chmod-pv", name, zeroSpec.Volume.MountPath, &pod.Spec)
 	}
 
-	ispnCtrl.AddVolumeForAuthentication(ispn, &pod.Spec)
+	ispnCtrl.AddVolumeForUserAuthentication(ispn, &pod.Spec)
 	ispnCtrl.AddVolumeForEncryption(ispn, &pod.Spec)
 	return pod, nil
 }
