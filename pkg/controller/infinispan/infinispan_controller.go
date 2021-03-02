@@ -82,9 +82,6 @@ func secondaryResourceTypes() []SecondaryResourceType {
 		{&appsv1.StatefulSet{}, predicate.Funcs{
 			CreateFunc: func(e event.CreateEvent) bool {
 				return false
-			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				return false
 			}},
 		},
 		{&corev1.ConfigMap{}, predicate.Funcs{
