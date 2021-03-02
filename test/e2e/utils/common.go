@@ -7,20 +7,22 @@ import (
 	"path/filepath"
 	"strings"
 
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/iancoleman/strcase"
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/tools/clientcmd/api"
 )
 
 const EncryptionSecretNamePostfix = "secret-certs"
 
-func EndpointEncryption(name string) *v1.EndpointEncryption {
-	return &v1.EndpointEncryption{
-		Type:           v1.CertificateSourceTypeSecret,
+func EndpointEncryption(name string) *ispnv1.EndpointEncryption {
+	return &ispnv1.EndpointEncryption{
+		Type:           ispnv1.CertificateSourceTypeSecret,
 		CertSecretName: fmt.Sprintf("%s-%s", name, EncryptionSecretNamePostfix),
 	}
 }
@@ -94,28 +96,28 @@ JIZewMLKq/A0Du6D+VGSpJdZZ+7FkzbFyAh88Xa3AoGAB7MNR0PtxzVAOQbxgmCe
 KbdDDTEAHRXtTh9n1TIOXlE=
 -----END PRIVATE KEY-----`
 
-var MinimalSpec = v1.Infinispan{
+var MinimalSpec = ispnv1.Infinispan{
 	TypeMeta: InfinispanTypeMeta,
 	ObjectMeta: metav1.ObjectMeta{
 		Name: DefaultClusterName,
 	},
-	Spec: v1.InfinispanSpec{
+	Spec: ispnv1.InfinispanSpec{
 		Replicas: 2,
 	},
 }
 
-func DefaultSpec(testKube *TestKubernetes) *v1.Infinispan {
-	return &v1.Infinispan{
+func DefaultSpec(testKube *TestKubernetes) *ispnv1.Infinispan {
+	return &ispnv1.Infinispan{
 		TypeMeta: InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DefaultClusterName,
 			Namespace: Namespace,
 		},
-		Spec: v1.InfinispanSpec{
-			Service: v1.InfinispanServiceSpec{
-				Type: v1.ServiceTypeDataGrid,
+		Spec: ispnv1.InfinispanSpec{
+			Service: ispnv1.InfinispanServiceSpec{
+				Type: ispnv1.ServiceTypeDataGrid,
 			},
-			Container: v1.InfinispanContainerSpec{
+			Container: ispnv1.InfinispanContainerSpec{
 				CPU:    CPU,
 				Memory: Memory,
 			},
@@ -125,23 +127,78 @@ func DefaultSpec(testKube *TestKubernetes) *v1.Infinispan {
 	}
 }
 
-func ExposeServiceSpec(testKube *TestKubernetes) *v1.ExposeSpec {
-	return &v1.ExposeSpec{
+func CrossSiteSpec(name string, replicas int32, primarySite, backupSite string) *ispnv1.Infinispan {
+	return &ispnv1.Infinispan{
+		TypeMeta: InfinispanTypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: strcase.ToKebab(name + primarySite),
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Replicas: replicas,
+			Service: ispnv1.InfinispanServiceSpec{
+				Type: ispnv1.ServiceTypeDataGrid,
+				Sites: &ispnv1.InfinispanSitesSpec{
+					Local: ispnv1.InfinispanSitesLocalSpec{
+						Name: "Site" + primarySite,
+						Expose: ispnv1.CrossSiteExposeSpec{
+							Type: ispnv1.CrossSiteExposeTypeClusterIP,
+						},
+					},
+					Locations: []ispnv1.InfinispanSiteLocationSpec{
+						{
+							Name:       "Site" + backupSite,
+							SecretName: secretSiteName(backupSite),
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func CrossSiteSecret(siteName, namespace string, clientConfig *api.Config) *corev1.Secret {
+	currentContext := clientConfig.CurrentContext
+	clusterKey := clientConfig.Contexts[currentContext].Cluster
+	authInfoKey := clientConfig.Contexts[currentContext].AuthInfo
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretSiteName(siteName),
+			Namespace: namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"certificate-authority": clientConfig.Clusters[clusterKey].CertificateAuthorityData,
+			"client-certificate":    clientConfig.AuthInfos[authInfoKey].ClientCertificateData,
+			"client-key":            clientConfig.AuthInfos[authInfoKey].ClientKeyData,
+		},
+	}
+}
+
+func secretSiteName(siteName string) string {
+	return "secret-site-" + strings.ToLower(siteName)
+}
+
+func ExposeServiceSpec(testKube *TestKubernetes) *ispnv1.ExposeSpec {
+	return &ispnv1.ExposeSpec{
 		Type: exposeServiceType(testKube),
 	}
 }
 
-func exposeServiceType(testKube *TestKubernetes) v1.ExposeType {
-	exposeServiceType := constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", string(v1.ExposeTypeNodePort))
+func exposeServiceType(testKube *TestKubernetes) ispnv1.ExposeType {
+	exposeServiceType := constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", string(ispnv1.ExposeTypeNodePort))
 	switch exposeServiceType {
-	case string(v1.ExposeTypeNodePort):
-		return v1.ExposeTypeNodePort
-	case string(v1.ExposeTypeLoadBalancer):
-		return v1.ExposeTypeLoadBalancer
-	case string(v1.ExposeTypeRoute):
+	case string(ispnv1.ExposeTypeNodePort):
+		return ispnv1.ExposeTypeNodePort
+	case string(ispnv1.ExposeTypeLoadBalancer):
+		return ispnv1.ExposeTypeLoadBalancer
+	case string(ispnv1.ExposeTypeRoute):
 		okRoute, err := testKube.Kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
 		if err == nil && okRoute {
-			return v1.ExposeTypeRoute
+			return ispnv1.ExposeTypeRoute
 		}
 		panic(fmt.Errorf("expose type Route is not supported on the platform: %w", err))
 	default:
@@ -168,7 +225,7 @@ func getAbsolutePath(relativeFilePath string) string {
 	return absPath
 }
 
-func clientForCluster(i *v1.Infinispan, kube *TestKubernetes) HTTPClient {
+func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 	protocol := kube.GetSchemaForRest(i)
 
 	if !i.IsAuthenticationEnabled() {
@@ -181,7 +238,7 @@ func clientForCluster(i *v1.Infinispan, kube *TestKubernetes) HTTPClient {
 	return NewHTTPClient(user, pass, protocol)
 }
 
-func HTTPClientAndHost(i *v1.Infinispan, kube *TestKubernetes) (string, HTTPClient) {
+func HTTPClientAndHost(i *ispnv1.Infinispan, kube *TestKubernetes) (string, HTTPClient) {
 	client := clientForCluster(i, kube)
 	hostAddr := kube.WaitForExternalService(i.GetServiceExternalName(), i.Namespace, i.GetExposeType(), RouteTimeout, client)
 	return hostAddr, client
