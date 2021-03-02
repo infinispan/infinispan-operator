@@ -9,7 +9,6 @@ import (
 
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -77,12 +76,12 @@ func getDockerImageSha() string {
 		return sha
 	}
 	// If the INFINISPAN_IMAGE_SHA env variable has not been set, attempt to retreive
-	cmd := exec.Command("docker", "inspect", "'--format='{{index .RepoDigests 0}}'", constants.DefaultOperandImageOpenJDK)
+	cmd := exec.Command("skopeo inspect docker://quay.io/infinispan/server:12.0 | jq -r '.Digest'")
 	stdout, err := cmd.Output()
 
 	if err != nil {
-		panic(fmt.Errorf("INFINISPAN_IMAGE_SHA='%s'. Unable to get Docker image sha: : %w", os.Getenv("INFINISPAN_IMAGE_SHA"), err))
+		panic(fmt.Errorf("Unable to get Docker image sha: : %w", err))
 	}
-	s := string(stdout)
-	return strings.TrimSuffix(s, "\n")
+	sha = strings.TrimSuffix(string(stdout), "\n")
+	return fmt.Sprintf("docker://quay.io/infinispan/server%s", sha)
 }
