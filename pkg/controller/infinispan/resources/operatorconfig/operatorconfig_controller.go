@@ -4,18 +4,14 @@ import (
 	"context"
 	"strings"
 
-	"github.com/go-logr/logr"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -23,8 +19,9 @@ import (
 )
 
 const (
-	ControllerName = "operator-config-controller"
-	configMapName  = "infinispan-operator-config"
+	ControllerName         = "operator-config-controller"
+	configMapName          = "infinispan-operator-config"
+	operatorDeploymentName = "infinispan-operator"
 )
 
 const (
@@ -43,10 +40,7 @@ var defaultOperatorConfig = map[string]string{
 
 // ReconcileInfinispan reconciles a Infinispan object
 type ReconcileOperatorConfig struct {
-	client client.Client
-	scheme *runtime.Scheme
-	Log    logr.Logger
-	Kube   *kube.Kubernetes
+	*base.ReconcilerBase
 }
 
 func Add(mgr manager.Manager) error {
@@ -56,7 +50,7 @@ func Add(mgr manager.Manager) error {
 // addOperatorConfig installs a reconciler for a specific object.
 // Only events coming from operatorNs/infinispan-operator-config will be processed
 func addOperatorConfig(mgr manager.Manager) error {
-	r := &ReconcileOperatorConfig{client: mgr.GetClient(), scheme: mgr.GetScheme(), Log: logf.Log.WithName("operator-config-controller"), Kube: kube.NewKubernetesFromController(mgr)}
+	r := &ReconcileOperatorConfig{base.NewReconcilerBaseFromManager(ControllerName, mgr)}
 	// Create a new controller
 	c, err := controller.New(ControllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -94,16 +88,17 @@ var currentConfig map[string]string = make(map[string]string)
 // Reconcile reads the operator configuration in the `infinispan-operator-config` ConfigMap and
 // applies the configuration to the cluster.
 func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	r.InitLogger("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	operatorNs, err := getOperatorNamespace()
 	if err != nil {
-		r.Log.Error(err, "Error getting operator runtime namespace")
+		r.Logger().Error(err, "Error getting operator runtime namespace")
 		return reconcile.Result{Requeue: true}, nil
 	}
 
 	configMap := &corev1.ConfigMap{}
-	err = r.client.Get(ctx, types.NamespacedName{Namespace: operatorNs, Name: configMapName}, configMap)
+	err = r.Get(ctx, types.NamespacedName{Namespace: operatorNs, Name: configMapName}, configMap)
 	if err != nil && !errors.IsNotFound(err) {
-		r.Log.Error(err, "Error getting operator configuration resource")
+		r.Logger().Error(err, "Error getting operator configuration resource")
 		return reconcile.Result{Requeue: true}, nil
 	}
 

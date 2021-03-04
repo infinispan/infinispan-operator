@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
@@ -13,7 +13,6 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -36,20 +35,14 @@ type reconcileConfig struct {
 }
 
 type configResource struct {
+	*base.ReconcilerBase
 	infinispan *ispnv1.Infinispan
-	client     client.Client
-	scheme     *runtime.Scheme
-	kube       *kube.Kubernetes
-	log        logr.Logger
 }
 
-func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
+func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller) resources.Resource {
 	return &configResource{
-		infinispan: infinispan,
-		client:     r.Client,
-		scheme:     ctrl.Scheme,
-		kube:       kube,
-		log:        log,
+		ReconcilerBase: ctrl.ReconcilerBase,
+		infinispan:     infinispan,
 	}
 }
 
@@ -79,21 +72,21 @@ func (c *configResource) Process() (reconcile.Result, error) {
 		// For cross site, reconcile must come before compute, because
 		// we need xsite service details to compute xsite struct
 		siteService := &corev1.Service{}
-		if result, err := kube.LookupResource(c.infinispan.GetSiteServiceName(), c.infinispan.Namespace, siteService, c.client, c.log); result != nil {
+		if result, err := c.LookupResource(c.infinispan.GetSiteServiceName(), c.infinispan.Namespace, siteService, c.infinispan, c); result != nil {
 			return *result, err
 		}
 
 		var err error
-		xsite, err = ComputeXSite(c.infinispan, c.kube, siteService, c.log)
+		xsite, err = ComputeXSite(c.infinispan, c.Kubernetes, siteService, c.Logger())
 		if err != nil {
-			c.log.Error(err, "Error in computeXSite configuration")
+			c.Logger().Error(err, "Error in computeXSite configuration")
 			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 		}
 	}
 
 	err := c.computeAndReconcileConfigMap(xsite)
 	if err != nil {
-		c.log.Error(err, "Error while computing and reconciling ConfigMap")
+		c.Logger().Error(err, "Error while computing and reconciling ConfigMap")
 		return reconcile.Result{Requeue: true}, nil
 	}
 
@@ -105,13 +98,13 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 	name := c.infinispan.Name
 	namespace := c.infinispan.Namespace
 
-	lsConfigMap := infinispan.LabelsResource(name, "infinispan-configmap-configuration")
+	lsConfigMap := kube.LabelsResource(name, "infinispan-configmap-configuration")
 	loggingCategories := c.infinispan.GetLogCategoriesForConfig()
 
 	authenticate := c.infinispan.IsAuthenticationEnabled()
 	config := configuration.CreateInfinispanConfiguration(name, namespace, authenticate, loggingCategories, xsite)
 
-	err := infinispan.ConfigureServerEncryption(c.infinispan, &config, c.client)
+	err := infinispan.ConfigureServerEncryption(c.infinispan, &config, c.Client)
 	if err != nil {
 		return err
 	}
@@ -125,7 +118,7 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 		},
 	}
 
-	result, err := controllerutil.CreateOrUpdate(ctx, c.client, configMapObject, func() error {
+	result, err := controllerutil.CreateOrUpdate(ctx, c.Client, configMapObject, func() error {
 		if configMapObject.CreationTimestamp.IsZero() {
 			configYaml, err := config.Yaml()
 			if err != nil {
@@ -134,7 +127,7 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 			configMapObject.Data = map[string]string{consts.ServerConfigFilename: configYaml}
 			configMapObject.Labels = lsConfigMap
 			// Set Infinispan instance as the owner and controller
-			if err = controllerutil.SetControllerReference(c.infinispan, configMapObject, c.scheme); err != nil {
+			if err = controllerutil.SetControllerReference(c.infinispan, configMapObject, c.Scheme); err != nil {
 				return err
 			}
 		} else {
@@ -152,7 +145,7 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 		return nil
 	})
 	if err == nil && result != controllerutil.OperationResultNone {
-		c.log.Info(fmt.Sprintf("ConfigMap '%s' %s", name, result))
+		c.Logger().Info(fmt.Sprintf("ConfigMap '%s' %s", name, result))
 	}
 	return err
 }

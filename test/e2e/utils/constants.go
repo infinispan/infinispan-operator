@@ -19,7 +19,7 @@ const (
 	ConditionPollPeriod = 1 * time.Second
 	// Maximum time to wait for resources
 	MaxWaitTimeout       = 120 * time.Second
-	ConditionWaitTimeout = 120 * time.Second
+	ConditionWaitTimeout = 180 * time.Second
 	DefaultClusterName   = "test-node-startup"
 
 	OperatorUpgradeStageNone = "NONE"

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,13 +49,14 @@ func TestMain(m *testing.M) {
 }
 
 // Test if single node working correctly
-func TestMultinamespaceNodeStartup(t *testing.T) {
+func TestMultiNamespaceNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
 	nsAsString := strings.ToLower(tutils.MultiNamespace)
 	namespaces := strings.Split(nsAsString, ",")
 	var wg sync.WaitGroup
 	for _, namespace := range namespaces {
 		spec := MinimalSpec.DeepCopy()
+		spec.Name = strcase.ToKebab(t.Name())
 		spec.Namespace = namespace
 		// Register it
 		testKube.CreateInfinispan(spec, namespace)

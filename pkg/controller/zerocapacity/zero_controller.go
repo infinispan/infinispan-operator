@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/go-logr/logr"
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
@@ -18,11 +18,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -74,12 +72,8 @@ type VolumeSpec struct {
 }
 
 type Controller struct {
-	client.Client
-	Name       string
+	*base.ReconcilerBase
 	Reconciler Reconciler
-	Kube       *kube.Kubernetes
-	Log        logr.Logger
-	Scheme     *runtime.Scheme
 }
 
 type Phase string
@@ -103,12 +97,8 @@ const (
 
 func CreateController(name string, reconciler Reconciler, mgr manager.Manager) error {
 	r := &Controller{
-		Name:       name,
-		Client:     mgr.GetClient(),
-		Reconciler: reconciler,
-		Kube:       kube.NewKubernetesFromController(mgr),
-		Log:        logf.Log.WithName(name),
-		Scheme:     mgr.GetScheme(),
+		ReconcilerBase: base.NewReconcilerBaseFromManager(name, mgr),
+		Reconciler:     reconciler,
 	}
 
 	// Create a new controller
@@ -134,9 +124,9 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 	resource := reflect.TypeOf(reconciler.Type()).Elem().Name()
 	namespace := request.Namespace
 
-	reqLogger := z.Log.WithValues("Request.Namespace", namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling " + resource)
-	defer reqLogger.Info("----- End Reconciling " + resource)
+	z.InitLogger("Request.Namespace", namespace, "Request.Name", request.Name)
+	z.Logger().Info("Reconciling " + resource)
+	defer z.Logger().Info("----- End Reconciling " + resource)
 
 	instance, err := reconciler.ResourceInstance(request.NamespacedName, z)
 	if err != nil {
@@ -179,7 +169,7 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, fmt.Errorf("Unable to fetch CR '%s': %w", clusterName, err)
 	}
 
-	httpClient, err := ispnCtrl.NewHttpClient(infinispan, z.Kube)
+	httpClient, err := ispnCtrl.NewHttpClient(infinispan, z.Kubernetes)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -203,7 +193,7 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 
 	infinispan := &v1.Infinispan{}
 	if err := z.Client.Get(ctx, clusterKey, infinispan); err != nil {
-		z.Log.Info(fmt.Sprintf("Unable to load Infinispan Cluster '%s': %s", clusterName, err))
+		z.Logger().Info(fmt.Sprintf("Unable to load Infinispan Cluster '%s': %s", clusterName, err))
 		if errors.IsNotFound(err) {
 			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 		}
@@ -211,14 +201,14 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 	}
 
 	if err := infinispan.EnsureClusterStability(); err != nil {
-		z.Log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", clusterName, err.Error()))
+		z.Logger().Info(fmt.Sprintf("Infinispan '%s' not ready: %s", clusterName, err.Error()))
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
 	podList := &corev1.PodList{}
-	podLabels := ispnCtrl.PodLabels(infinispan.Name)
-	if err := z.Kube.ResourcesList(infinispan.Namespace, podLabels, podList); err != nil {
-		z.Log.Error(err, "Failed to list pods")
+	podLabels := kube.PodLabels(infinispan.Name)
+	if err := z.ResourcesList(infinispan.Namespace, podLabels, podList); err != nil {
+		z.Logger().Error(err, "Failed to list pods")
 		return reconcile.Result{}, err
 	}
 	podSecurityCtx := podList.Items[0].Spec.SecurityContext
@@ -259,7 +249,7 @@ func (z *Controller) execute(httpClient http.HttpClient, request reconcile.Reque
 	}
 
 	if err := instance.Exec(httpClient); err != nil {
-		z.Log.Error(err, "Unable to execute action on zero-capacity pod", "request.Name", request.Name)
+		z.Logger().Error(err, "Unable to execute action on zero-capacity pod", "request.Name", request.Name)
 		return reconcile.Result{}, instance.UpdatePhase(ZeroFailed, err)
 	}
 
@@ -270,7 +260,7 @@ func (z *Controller) waitForExecutionToComplete(httpClient http.HttpClient, requ
 	phase, err := instance.ExecStatus(httpClient)
 
 	if err != nil || phase == ZeroFailed {
-		z.Log.Error(err, "Execution failed", "request.Name", request.Name)
+		z.Logger().Error(err, "Execution failed", "request.Name", request.Name)
 		return reconcile.Result{}, instance.UpdatePhase(ZeroFailed, err)
 	}
 
@@ -334,7 +324,7 @@ func (z *Controller) zeroPodSpec(name, namespace, configMap string, podSecurityC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    labels,
+			Labels:    zeroSpec.PodLabels,
 		},
 		Spec: corev1.PodSpec{
 			SecurityContext: podSecurityCtx,

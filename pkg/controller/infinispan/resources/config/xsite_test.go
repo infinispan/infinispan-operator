@@ -5,7 +5,6 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,11 +51,9 @@ var staticSiteService = &corev1.Service{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      staticXSiteInfinispan.GetSiteServiceName(),
 		Namespace: namespace,
-		Labels:    infinispan.LabelsResource(staticXSiteInfinispan.Name, "infinispan-service"),
 	},
 	Spec: corev1.ServiceSpec{
-		Type:     corev1.ServiceTypeClusterIP,
-		Selector: infinispan.ServiceLabels(staticXSiteInfinispan.Name),
+		Type: corev1.ServiceTypeClusterIP,
 		Ports: []corev1.ServicePort{
 			{
 				Port:       consts.CrossSitePort,

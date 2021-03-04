@@ -7,12 +7,15 @@ import (
 	"sync"
 	"time"
 
-	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/go-logr/logr"
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnutil "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var autoscaleThreadPool = struct {
@@ -34,12 +37,12 @@ func addAutoscalingEquipment(clusterNsn types.NamespacedName, r *ReconcileInfini
 }
 
 func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
-	log.Info(fmt.Sprintf("Starting loop for autoscaling on cluster %v", clusterNsn))
+	r.Logger().Info(fmt.Sprintf("Starting loop for autoscaling on cluster %v", clusterNsn))
 	for {
 		time.Sleep(constants.DefaultMinimumAutoscalePollPeriod)
-		ispn := infinispanv1.Infinispan{}
+		ispn := ispnv1.Infinispan{}
 		// Check all the cluster in the namespace for autoscaling
-		err := r.client.Get(context.TODO(), clusterNsn, &ispn)
+		err := r.Get(context.TODO(), clusterNsn, &ispn)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Ispn cluster doesn't exists any more
@@ -47,10 +50,10 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 				delete(autoscaleThreadPool.m, clusterNsn)
 				autoscaleThreadPool.Unlock()
 				// leaving the loop
-				log.Info(fmt.Sprintf("Stopping loop for autoscaling on cluster %v. Cluster deleted.", clusterNsn))
+				r.Logger().Info(fmt.Sprintf("Stopping loop for autoscaling on cluster %v. Cluster deleted.", clusterNsn))
 				break
 			}
-			log.Error(err, "Unable to select cluster pods list")
+			r.Logger().Error(err, "Unable to select cluster pods list")
 			continue
 		}
 		// Skip this cluster if autoscale is not enabled or ServiceType is not CacheService
@@ -59,7 +62,7 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 			autoscaleThreadPool.Lock()
 			delete(autoscaleThreadPool.m, clusterNsn)
 			autoscaleThreadPool.Unlock()
-			log.Info(fmt.Sprintf("Stopping loop for autoscaling on cluster %v. Autoscaling disabled.", clusterNsn))
+			r.Logger().Info(fmt.Sprintf("Stopping loop for autoscaling on cluster %v. Autoscaling disabled.", clusterNsn))
 			break
 		}
 		if !ispn.IsWellFormed() || ispn.Spec.Autoscale.Disabled {
@@ -72,12 +75,12 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 		// Data memory percent usage array, one value per pod
 		metricDataMemoryPercentUsed := map[string]int{}
 		podList := &corev1.PodList{}
-		err = kubernetes.ResourcesList(ispn.Namespace, LabelsResource(ispn.Name, ""), podList)
+		err = r.ResourcesList(ispn.Namespace, kube.LabelsResource(ispn.Name, ""), podList)
 		if err != nil {
 			continue
 		}
 
-		cluster, err := NewCluster(&ispn, kubernetes)
+		cluster, err := NewCluster(&ispn, r.Kubernetes)
 		if err != nil {
 			continue
 		}
@@ -86,27 +89,27 @@ func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 			podName := pItem.Name
 			// time.Sleep(time.Duration(10000/len(podList.Items)) * time.Millisecond)
 			if metricMinPodNum == 0 {
-				metricMinPodNum, err = getMetricMinPodNum(podName, cluster)
+				metricMinPodNum, err = getMetricMinPodNum(podName, cluster, r.Logger())
 				if err != nil {
-					log.Error(err, "Unable to get metricMinPodNum for pod", "podName", podName)
+					r.Logger().Error(err, "Unable to get metricMinPodNum for pod", "podName", podName)
 				}
 			}
-			err = getMetricDataMemoryPercentUsage(&metricDataMemoryPercentUsed, podName, cluster)
+			err = getMetricDataMemoryPercentUsage(&metricDataMemoryPercentUsed, podName, cluster, r.Logger())
 			if err != nil {
-				log.Error(err, "Unable to get DataMemoryUsed for pod", "podName", podName)
+				r.Logger().Error(err, "Unable to get DataMemoryUsed for pod", "podName", podName)
 			}
 		}
-		autoscaleOnPercentUsage(&metricDataMemoryPercentUsed, metricMinPodNum, &ispn)
+		autoscaleOnPercentUsage(&metricDataMemoryPercentUsed, metricMinPodNum, &ispn, r.Client, r.Logger())
 	}
 }
 
 // getMetricMinPodNum get the minimum number of nodes required to avoid data lost
-func getMetricMinPodNum(podName string, cluster *ispnutil.Cluster) (int32, error) {
+func getMetricMinPodNum(podName string, cluster *ispnutil.Cluster, logger logr.Logger) (int32, error) {
 	res, err := cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_default_cluster_cache_stats_required_minimum_number_of_nodes")
 	if err != nil {
 		return 0, err
 	}
-	log.Info(res.String())
+	logger.Info(res.String())
 	minNumOfNodes := map[string]int32{}
 	err = json.Unmarshal(res.Bytes(), &minNumOfNodes)
 	if err != nil {
@@ -123,12 +126,12 @@ func getMetricMinPodNum(podName string, cluster *ispnutil.Cluster) (int32, error
 	return ret, nil
 }
 
-func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster *ispnutil.Cluster) error {
+func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster *ispnutil.Cluster, logger logr.Logger) error {
 	res, err := cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_container_stats_data_memory_used")
 	if err != nil {
 		return err
 	}
-	log.Info(res.String())
+	logger.Info(res.String())
 	usedMap := map[string]int{}
 	err = json.Unmarshal(res.Bytes(), &usedMap)
 	if err != nil || len(usedMap) < 1 {
@@ -144,7 +147,7 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster 
 	if err != nil {
 		return err
 	}
-	log.Info(res.String())
+	logger.Info(res.String())
 	totalMap := map[string]int{}
 	err = json.Unmarshal(res.Bytes(), &totalMap)
 	if err != nil || len(totalMap) < 1 {
@@ -157,11 +160,11 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster 
 	}
 
 	(*m)["dataMemPercentUsage;node="+podName] = int(used * 100 / total)
-	log.Info("Current memory usage percent", "value", (*m)["dataMemPercentUsage;node="+podName])
+	logger.Info("Current memory usage percent", "value", (*m)["dataMemPercentUsage;node="+podName])
 	return nil
 }
 
-func autoscaleOnPercentUsage(usage *map[string]int, minPodNum int32, ispn *infinispanv1.Infinispan) {
+func autoscaleOnPercentUsage(usage *map[string]int, minPodNum int32, ispn *ispnv1.Infinispan, client client.Client, logger logr.Logger) {
 	hiTh := ispn.Spec.Autoscale.MaxMemUsagePercent
 	loTh := ispn.Spec.Autoscale.MinMemUsagePercent
 	maxReplicas := ispn.Spec.Autoscale.MaxReplicas
@@ -172,7 +175,7 @@ func autoscaleOnPercentUsage(usage *map[string]int, minPodNum int32, ispn *infin
 		// donwscale if all the pods are below lower threshold
 		// upscale if just one pod is over the high threshold
 		for _, v := range *usage {
-			log.Info("Current memory usage percent", "value", v)
+			logger.Info("Current memory usage percent", "value", v)
 			if v < loTh {
 				continue
 			}
@@ -185,20 +188,20 @@ func autoscaleOnPercentUsage(usage *map[string]int, minPodNum int32, ispn *infin
 		// Downscale or upscale acting directly on infinispan.spec.replicas field
 		if upscale && ispn.Spec.Replicas < ispn.Spec.Autoscale.MaxReplicas {
 			ispn.Spec.Replicas++
-			err := kubernetes.Client.Update(context.TODO(), ispn)
+			err := client.Update(context.TODO(), ispn)
 			if err != nil {
-				log.Error(err, "Unable to upscale")
+				logger.Error(err, "Unable to upscale")
 			}
-			log.Info("Upscaling cluster", "Name", ispn.Name, "New Replicas", ispn.Spec.Replicas)
+			logger.Info("Upscaling cluster", "Name", ispn.Name, "New Replicas", ispn.Spec.Replicas)
 			return
 		}
 		if downscale && ispn.Spec.Replicas > minPodNum && ispn.Spec.Replicas > ispn.Spec.Autoscale.MinReplicas {
 			ispn.Spec.Replicas--
-			err := kubernetes.Client.Update(context.TODO(), ispn)
+			err := client.Update(context.TODO(), ispn)
 			if err != nil {
-				log.Error(err, "Unable to downscale")
+				logger.Error(err, "Unable to downscale")
 			}
-			log.Info("Downscaling cluster", "Name", ispn.Name, "New Replicas", ispn.Spec.Replicas)
+			logger.Info("Downscaling cluster", "Name", ispn.Name, "New Replicas", ispn.Spec.Replicas)
 			return
 		}
 	}

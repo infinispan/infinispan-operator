@@ -6,10 +6,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
@@ -46,20 +45,14 @@ type reconcileService struct {
 }
 
 type serviceResource struct {
+	*base.ReconcilerBase
 	infinispan *ispnv1.Infinispan
-	client     client.Client
-	scheme     *runtime.Scheme
-	kube       *kube.Kubernetes
-	log        logr.Logger
 }
 
-func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
+func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller) resources.Resource {
 	return &serviceResource{
-		infinispan: infinispan,
-		client:     r.Client,
-		scheme:     ctrl.Scheme,
-		kube:       kube,
-		log:        log,
+		ReconcilerBase: ctrl.ReconcilerBase,
+		infinispan:     infinispan,
 	}
 }
 
@@ -157,12 +150,12 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 	findResource.SetName(key.Name)
 	findResource.SetNamespace(key.Namespace)
 
-	result, err := controllerutil.CreateOrUpdate(context.TODO(), s.client, findResource, func() error {
+	result, err := controllerutil.CreateOrUpdate(context.TODO(), s.Client, findResource, func() error {
 		creationTimestamp := findResource.GetCreationTimestamp()
 		metadata := unstructuredResource["metadata"].(map[string]interface{})
 		spec := unstructuredResource["spec"].(map[string]interface{})
 		if creationTimestamp.IsZero() {
-			if err = controllerutil.SetControllerReference(s.infinispan, findResource, s.scheme); err != nil {
+			if err = controllerutil.SetControllerReference(s.infinispan, findResource, s.Scheme); err != nil {
 				return err
 			}
 			_ = unstructured.SetNestedField(findResource.UnstructuredContent(), spec, "spec")
@@ -185,11 +178,11 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 		return nil
 	})
 	if err != nil {
-		s.log.Error(err, fmt.Sprintf("failed to create or update %s", findResource.GetKind()), findResource.GetKind(), findResource)
+		s.Logger().Error(err, fmt.Sprintf("failed to create or update %s", findResource.GetKind()), findResource.GetKind(), findResource)
 		return err
 	}
 	if result != controllerutil.OperationResultNone {
-		s.log.Info(fmt.Sprintf("%s %s %s", strings.Title(string(result)), findResource.GetKind(), findResource.GetName()))
+		s.Logger().Info(fmt.Sprintf("%s %s %s", strings.Title(string(result)), findResource.GetKind(), findResource.GetName()))
 	}
 	return nil
 }
@@ -201,7 +194,7 @@ func (s serviceResource) cleanupExternalExpose(excludeKind string) error {
 			externalObject.SetGroupVersionKind(obj.GroupVersionKind())
 			externalObject.SetName(s.infinispan.GetServiceExternalName())
 			externalObject.SetNamespace(s.infinispan.Namespace)
-			if err := s.client.Delete(ctx, externalObject); err != nil && !errors.IsNotFound(err) {
+			if err := s.Delete(ctx, externalObject); err != nil && !errors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -231,11 +224,11 @@ func computeService(ispn *ispnv1.Infinispan) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ispn.GetServiceName(),
 			Namespace: ispn.Namespace,
-			Labels:    infinispan.LabelsResource(ispn.Name, "infinispan-service"),
+			Labels:    kube.LabelsResource(ispn.Name, "infinispan-service"),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: infinispan.ServiceLabels(ispn.Name),
+			Selector: kube.ServiceLabels(ispn.Name),
 			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanUserPortName,
@@ -263,12 +256,12 @@ func computePingService(ispn *ispnv1.Infinispan) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ispn.GetPingServiceName(),
 			Namespace: ispn.Namespace,
-			Labels:    infinispan.LabelsResource(ispn.Name, "infinispan-service-ping"),
+			Labels:    kube.LabelsResource(ispn.Name, "infinispan-service-ping"),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,
-			Selector:  infinispan.ServiceLabels(ispn.Name),
+			Selector:  kube.ServiceLabels(ispn.Name),
 			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanPingPortName,
@@ -299,7 +292,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 
 	exposeSpec := corev1.ServiceSpec{
 		Type:     externalServiceType,
-		Selector: infinispan.ServiceLabels(ispn.Name),
+		Selector: kube.ServiceLabels(ispn.Name),
 		Ports: []corev1.ServicePort{
 			{
 				Port:       int32(consts.InfinispanUserPort),
@@ -327,7 +320,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 
 // computeSiteService compute the XSite service
 func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
-	lsPodSelector := infinispan.PodLabels(ispn.Name)
+	lsPodSelector := kube.PodLabels(ispn.Name)
 	lsPodSelector["coordinator"] = "true"
 
 	exposeSpec := corev1.ServiceSpec{}
@@ -368,7 +361,7 @@ func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
 		Annotations: map[string]string{
 			"service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp",
 		},
-		Labels: infinispan.LabelsResource(ispn.Name, "infinispan-service-xsite"),
+		Labels: kube.LabelsResource(ispn.Name, "infinispan-service-xsite"),
 	}
 	if exposeConf.Annotations != nil && len(exposeConf.Annotations) > 0 {
 		objectMeta.Annotations = exposeConf.Annotations
@@ -462,5 +455,5 @@ func computeIngress(ispn *ispnv1.Infinispan) *networkingv1beta1.Ingress {
 }
 
 func ExternalServiceLabels(name string) map[string]string {
-	return infinispan.LabelsResource(name, "infinispan-service-external")
+	return kube.LabelsResource(name, "infinispan-service-external")
 }

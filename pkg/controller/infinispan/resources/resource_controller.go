@@ -6,18 +6,15 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -52,26 +49,18 @@ type Reconciler interface {
 	// Events for the struct handled by this controller
 	EventsPredicate() predicate.Predicate
 	// Create a new instance of Infinispan wrapping the actual k8s type
-	ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *Controller, kube *kube.Kubernetes, log logr.Logger) Resource
+	ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *Controller) Resource
 }
 
 type Controller struct {
-	client.Client
-	Name       string
+	*base.ReconcilerBase
 	Reconciler Reconciler
-	Kube       *kube.Kubernetes
-	Log        logr.Logger
-	Scheme     *runtime.Scheme
 }
 
 func CreateController(name string, reconciler Reconciler, mgr manager.Manager) error {
 	r := &Controller{
-		Name:       name,
-		Client:     mgr.GetClient(),
-		Reconciler: reconciler,
-		Kube:       kube.NewKubernetesFromController(mgr),
-		Log:        logf.Log.WithName(name),
-		Scheme:     mgr.GetScheme(),
+		ReconcilerBase: base.NewReconcilerBaseFromManager(name, mgr),
+		Reconciler:     reconciler,
 	}
 
 	// Create a new controller
@@ -96,9 +85,9 @@ func CreateController(name string, reconciler Reconciler, mgr manager.Manager) e
 	for index, obj := range reconciler.Types() {
 		if !obj.GroupVersionSupported {
 			// Validate that GroupVersion is supported on runtime platform
-			ok, err := r.Kube.IsGroupVersionSupported(obj.GroupVersion.String(), obj.Kind())
+			ok, err := r.IsGroupVersionSupported(obj.GroupVersion.String(), obj.Kind())
 			if err != nil {
-				r.Log.Error(err, fmt.Sprintf("Failed to check if GVK '%s' is supported", obj.GroupVersionKind()))
+				r.Logger().Error(err, fmt.Sprintf("Failed to check if GVK '%s' is supported", obj.GroupVersionKind()))
 				continue
 			}
 			reconciler.Types()[index].GroupVersionSupported = ok
@@ -127,12 +116,12 @@ func (r *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 	resources := strings.Join(objects, ",")
 	namespace := request.Namespace
-	reqLogger := r.Log.WithValues("Reconciling", resources, "Request.Namespace", namespace, "Request.Name", request.Name)
+	r.InitLogger("Reconciling", resources, "Request.Namespace", namespace, "Request.Name", request.Name)
 
 	infinispan := &ispnv1.Infinispan{}
 	if err := r.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: request.Name}, infinispan); err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Infinispan CR not found")
+			r.Logger().Info("Infinispan CR not found")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -141,11 +130,11 @@ func (r *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	// Validate that Infinispan CR passed all preliminary checks
 	if !infinispan.IsConditionTrue(ispnv1.ConditionPrelimChecksPassed) {
-		reqLogger.Info("Infinispan CR not ready")
+		r.Logger().Info("Infinispan CR is not preliminary check passed")
 		return reconcile.Result{}, nil
 	}
 
-	instance := reconciler.ResourceInstance(infinispan, r, r.Kube, reqLogger)
+	instance := reconciler.ResourceInstance(infinispan, r)
 	// Process resource
 	return instance.Process()
 }

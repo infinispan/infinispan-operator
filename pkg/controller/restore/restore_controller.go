@@ -5,13 +5,12 @@ import (
 	"fmt"
 
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	zero "github.com/infinispan/infinispan-operator/pkg/controller/zerocapacity"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,9 +34,8 @@ type reconcileRestore struct {
 }
 
 type restore struct {
+	*base.ReconcilerBase
 	instance *v2.Restore
-	client   client.Client
-	scheme   *runtime.Scheme
 }
 
 func Add(mgr manager.Manager) error {
@@ -51,9 +49,8 @@ func (r *reconcileRestore) ResourceInstance(name types.NamespacedName, ctrl *zer
 	}
 
 	restore := &restore{
-		instance: instance,
-		client:   r.Client,
-		scheme:   ctrl.Scheme,
+		ReconcilerBase: ctrl.ReconcilerBase,
+		instance:       instance,
 	}
 	return restore, nil
 }
@@ -75,8 +72,8 @@ func (r *restore) Phase() zero.Phase {
 }
 
 func (r *restore) UpdatePhase(phase zero.Phase, phaseErr error) error {
-	_, err := r.update(func() {
-		restore := r.instance
+	restore := r.instance
+	_, err := r.UpdateResource(restore, func() {
 		var reason string
 		if phaseErr != nil {
 			reason = phaseErr.Error()
@@ -88,8 +85,8 @@ func (r *restore) UpdatePhase(phase zero.Phase, phaseErr error) error {
 }
 
 func (r *restore) Transform() (bool, error) {
-	return r.update(func() {
-		restore := r.instance
+	restore := r.instance
+	result, err := r.UpdateResource(restore, func() {
 		restore.Spec.ApplyDefaults()
 		resources := restore.Spec.Resources
 		if resources == nil {
@@ -106,18 +103,7 @@ func (r *restore) Transform() (bool, error) {
 			resources.Scripts = nil
 		}
 	})
-}
-
-func (r *restore) update(mutate func()) (bool, error) {
-	restore := r.instance
-	res, err := kube.CreateOrPatch(ctx, r.client, restore, func() error {
-		if restore.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(v2.Resource("restore"), restore.Name)
-		}
-		mutate()
-		return nil
-	})
-	return res != controllerutil.OperationResultNone, err
+	return result != controllerutil.OperationResultNone, err
 }
 
 func (r *restore) Init() (*zero.Spec, error) {
@@ -127,7 +113,7 @@ func (r *restore) Init() (*zero.Spec, error) {
 		Name:      r.instance.Spec.Backup,
 	}
 
-	if err := r.client.Get(ctx, backupKey, backup); err != nil {
+	if err := r.Get(ctx, backupKey, backup); err != nil {
 		return nil, fmt.Errorf("Unable to load Infinispan Backup '%s': %w", backupKey.Name, err)
 	}
 
@@ -180,7 +166,7 @@ func (r *restore) ExecStatus(client http.HttpClient) (zero.Phase, error) {
 }
 
 func PodLabels(backup, cluster string) map[string]string {
-	m := ispnctrl.ServiceLabels(cluster)
+	m := kube.ServiceLabels(cluster)
 	m["restore_cr"] = backup
 	return m
 }

@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/eventlog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
@@ -24,7 +29,13 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	EventReasonResourceNotReady = "ResourceNotReady"
 )
 
 // Kubernetes abstracts interaction with a Kubernetes cluster
@@ -79,7 +90,7 @@ func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 
 }
 
-// NewKubernetesFromConfig creates a new Kubernetes from the Kubernetes master URL to connect to
+// NewKubernetesFromConfig creates a new Kubernetes from the Kubernetes from remote REST configuration
 func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
 	kubeClient, err := client.New(config, client.Options{})
 	if err != nil {
@@ -191,10 +202,6 @@ func resolveConfig(ctx string) *rest.Config {
 	return internal
 }
 
-func (k Kubernetes) GetNodePort(service *corev1.Service) int32 {
-	return service.Spec.Ports[0].NodePort
-}
-
 // FindKubeConfig returns local Kubernetes configuration
 func FindKubeConfig() string {
 	return consts.GetEnvWithDefault("KUBECONFIG", consts.DefaultKubeConfig)
@@ -292,6 +299,19 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace stri
 	return nil, fmt.Errorf("token required connect to OpenShift cluster")
 }
 
+// LookupResource lookup for resource to be created by separate resource controller
+func (k Kubernetes) LookupResource(name, namespace string, resource runtime.Object, owner runtime.Object, eventlogger eventlog.EventLogger) (*reconcile.Result, error) {
+	err := k.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			eventlogger.LogAndSendEvent(owner, fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name), EventReasonResourceNotReady)
+			return &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
+		}
+		return &reconcile.Result{}, err
+	}
+	return nil, nil
+}
+
 func (k Kubernetes) GetNodeHost(logger logr.Logger) (string, error) {
 	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
 	//So, we get the workers list. It needs some permissions cluster-reader permission
@@ -366,6 +386,28 @@ func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime
 	return err
 }
 
+func (k Kubernetes) UpdateResource(resource runtime.Object, update func(), ignoreNotFound ...bool) (controllerutil.OperationResult, error) {
+	result, err := CreateOrPatch(context.TODO(), k.Client, resource, func() error {
+		unstructuredResource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(resource)
+		if err != nil {
+			return err
+		}
+		object := unstructured.Unstructured{Object: unstructuredResource}
+		creationTimestamp := object.GetCreationTimestamp()
+		if creationTimestamp.IsZero() {
+			return errors.NewNotFound(ispnv1.Resource(strings.ToLower(object.GetKind())), object.GetName())
+		}
+		if update != nil {
+			update()
+		}
+		return nil
+	})
+	if len(ignoreNotFound) == 0 || (len(ignoreNotFound) > 0 && ignoreNotFound[0]) && errors.IsNotFound(err) {
+		return result, nil
+	}
+	return result, err
+}
+
 func (k Kubernetes) Logs(pod, namespace string) (logs string, err error) {
 	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Stream()
 	if err != nil {
@@ -373,7 +415,7 @@ func (k Kubernetes) Logs(pod, namespace string) (logs string, err error) {
 	}
 
 	defer func() {
-		cerr := readCloser.Close();
+		cerr := readCloser.Close()
 		if err == nil {
 			err = cerr
 		}

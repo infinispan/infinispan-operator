@@ -17,13 +17,12 @@ import (
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,10 +32,12 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const testName = "main_test"
+
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 var serviceAccountKube = tutils.NewTestKubernetes("")
 
-var log = logf.Log.WithName("main_test")
+var log = logf.Log.WithName(testName)
 
 func TestMain(m *testing.M) {
 	tutils.RunOperator(m, testKube)
@@ -62,7 +63,7 @@ func TestOperatorUpgrade(t *testing.T) {
 
 		// Validates that all pods are running with desired image
 		pods := &corev1.PodList{}
-		err := testKube.Kubernetes.ResourcesList(tutils.Namespace, ispnctrl.PodLabels(spec.Name), pods)
+		err := serviceAccountKube.ResourcesList(tutils.Namespace, kube.PodLabels(spec.Name), pods)
 		tutils.ExpectNoError(err)
 		for _, pod := range pods.Items {
 			if pod.Spec.Containers[0].Image != tutils.ExpectedImage {
@@ -126,7 +127,7 @@ func TestNodeStartup(t *testing.T) {
 	}
 
 	svcList := &corev1.ServiceList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(ispn.ObjectMeta.Namespace, map[string]string{"infinispan_cr": "test-node-startup"}, svcList))
+	tutils.ExpectNoError(serviceAccountKube.ResourcesList(ispn.ObjectMeta.Namespace, map[string]string{"infinispan_cr": "test-node-startup"}, svcList))
 	if len(svcList.Items) == 0 {
 		panic("No services found for cluster")
 	}
@@ -162,7 +163,7 @@ func TestNodeStartup(t *testing.T) {
 // and match them with the labels map provided by the caller
 func areOperatorLabelsPropagated(namespace, varName string, labels map[string]string) bool {
 	podList := &corev1.PodList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(namespace, map[string]string{"name": "infinispan-operator"}, podList))
+	tutils.ExpectNoError(serviceAccountKube.ResourcesList(namespace, map[string]string{"name": "infinispan-operator"}, podList))
 	if len(podList.Items) == 0 {
 		panic("Cannot get the Infinispan operator pod")
 	}
@@ -192,8 +193,7 @@ func TestRolesSynthetic(t *testing.T) {
 	_, err := serviceAccountKube.Kubernetes.GetNodeHost(log)
 	tutils.ExpectNoError(err)
 
-	_, err = kube.FindStorageClass("not-present-storage-class", serviceAccountKube.Kubernetes.Client)
-	if !errors.IsNotFound(err) {
+	if result, err := serviceAccountKube.LookupResource("not-present-storage-class", tutils.Namespace, &storagev1.StorageClass{}, nil, serviceAccountKube); result != nil && err != nil {
 		tutils.ExpectNoError(err)
 	}
 }
@@ -214,7 +214,7 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 
 	// Making sure no PVCs were created
 	pvcs := &corev1.PersistentVolumeClaimList{}
-	err := testKube.Kubernetes.ResourcesList(spec.Namespace, ispnctrl.PodLabels(spec.Name), pvcs)
+	err := serviceAccountKube.ResourcesList(spec.Namespace, kube.PodLabels(spec.Name), pvcs)
 	tutils.ExpectNoError(err)
 	if len(pvcs.Items) > 0 {
 		tutils.ExpectNoError(fmt.Errorf("persistent volume claims were found (count = %d) but not expected for ephemeral storage configuration", len(pvcs.Items)))

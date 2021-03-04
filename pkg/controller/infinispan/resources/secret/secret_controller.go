@@ -5,17 +5,15 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -39,20 +37,14 @@ type reconcileSecret struct {
 }
 
 type secretResource struct {
+	*base.ReconcilerBase
 	infinispan *ispnv1.Infinispan
-	client     client.Client
-	scheme     *runtime.Scheme
-	kube       *kube.Kubernetes
-	log        logr.Logger
 }
 
-func (r reconcileSecret) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
+func (r reconcileSecret) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller) resources.Resource {
 	return &secretResource{
-		infinispan: infinispan,
-		client:     r.Client,
-		scheme:     ctrl.Scheme,
-		kube:       kube,
-		log:        log,
+		ReconcilerBase: ctrl.ReconcilerBase,
+		infinispan:     infinispan,
 	}
 }
 
@@ -135,7 +127,7 @@ func (s secretResource) createSecret(name, label string, identities []byte, admi
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: s.infinispan.Namespace,
-			Labels:    infinispan.LabelsResource(s.infinispan.Name, label),
+			Labels:    kube.LabelsResource(s.infinispan.Name, label),
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{consts.ServerIdentitiesFilename: identities},
@@ -147,9 +139,9 @@ func (s secretResource) createSecret(name, label string, identities []byte, admi
 		}
 	}
 
-	s.log.Info(fmt.Sprintf("Creating Identities Secret %s", secret.Name))
-	_, err := controllerutil.CreateOrUpdate(ctx, s.client, secret, func() error {
-		return controllerutil.SetControllerReference(s.infinispan, secret, s.scheme)
+	s.Logger().Info(fmt.Sprintf("Creating Identities Secret %s", secret.Name))
+	_, err := controllerutil.CreateOrUpdate(ctx, s.Client, secret, func() error {
+		return controllerutil.SetControllerReference(s.infinispan, secret, s.Scheme)
 	})
 
 	if err != nil {
@@ -177,7 +169,7 @@ func (s secretResource) addCliProperties(secret *corev1.Secret) error {
 
 func (s secretResource) getSecret(name string) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	err := s.client.Get(ctx, types.NamespacedName{Namespace: s.infinispan.Namespace, Name: name}, secret)
+	err := s.Get(ctx, types.NamespacedName{Namespace: s.infinispan.Namespace, Name: name}, secret)
 	if err == nil {
 		return secret, nil
 	}
@@ -188,7 +180,7 @@ func (s secretResource) getSecret(name string) (*corev1.Secret, error) {
 }
 
 func (s secretResource) update(secret *corev1.Secret, mutate func() error) (bool, error) {
-	res, err := kube.CreateOrPatch(ctx, s.client, secret, func() error {
+	res, err := kube.CreateOrPatch(ctx, s.Client, secret, func() error {
 		if secret.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(corev1.Resource("secret"), secret.Name)
 		}

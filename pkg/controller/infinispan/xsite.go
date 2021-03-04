@@ -21,7 +21,7 @@ func (r *ReconcileInfinispan) applyLabelsToCoordinatorsPod(podList *corev1.PodLi
 			if cacheManagerInfo.Coordinator {
 				if !ok || lab != strconv.FormatBool(cacheManagerInfo.Coordinator) {
 					item.Labels[consts.CoordinatorPodLabel] = strconv.FormatBool(cacheManagerInfo.Coordinator)
-					if err = r.client.Update(context.TODO(), &item); err != nil {
+					if err = r.Update(context.TODO(), &item); err != nil {
 						return nil, err
 					}
 				}
@@ -51,7 +51,7 @@ func (r *ReconcileInfinispan) applyLabelsToCoordinatorsPod(podList *corev1.PodLi
 					// If present leave the label but false the value
 					if ok {
 						item.Labels[consts.CoordinatorPodLabel] = strconv.FormatBool(cacheManagerInfo.Coordinator)
-						if err = r.client.Update(context.TODO(), &item); err != nil {
+						if err = r.Update(context.TODO(), &item); err != nil {
 							return nil, err
 						}
 					}

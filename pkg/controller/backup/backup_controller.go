@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	zero "github.com/infinispan/infinispan-operator/pkg/controller/zerocapacity"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
@@ -37,9 +37,8 @@ type reconcileBackup struct {
 }
 
 type backupResource struct {
+	*base.ReconcilerBase
 	instance *v2.Backup
-	client   client.Client
-	scheme   *runtime.Scheme
 }
 
 func Add(mgr manager.Manager) error {
@@ -53,9 +52,8 @@ func (r *reconcileBackup) ResourceInstance(key types.NamespacedName, ctrl *zero.
 	}
 
 	return &backupResource{
-		instance: instance,
-		client:   r.Client,
-		scheme:   ctrl.Scheme,
+		ReconcilerBase: ctrl.ReconcilerBase,
+		instance:       instance,
 	}, nil
 }
 
@@ -76,8 +74,8 @@ func (r *backupResource) Phase() zero.Phase {
 }
 
 func (r *backupResource) UpdatePhase(phase zero.Phase, phaseErr error) error {
-	_, err := r.update(func() {
-		backup := r.instance
+	backup := r.instance
+	_, err := r.UpdateResource(backup, func() {
 		var reason string
 		if phaseErr != nil {
 			reason = phaseErr.Error()
@@ -89,8 +87,8 @@ func (r *backupResource) UpdatePhase(phase zero.Phase, phaseErr error) error {
 }
 
 func (r *backupResource) Transform() (bool, error) {
-	return r.update(func() {
-		backup := r.instance
+	backup := r.instance
+	result, err := r.UpdateResource(backup, func() {
 		backup.Spec.ApplyDefaults()
 		resources := backup.Spec.Resources
 		if resources == nil {
@@ -107,18 +105,7 @@ func (r *backupResource) Transform() (bool, error) {
 			resources.Scripts = nil
 		}
 	})
-}
-
-func (r *backupResource) update(mutate func()) (bool, error) {
-	backup := r.instance
-	res, err := kube.CreateOrPatch(ctx, r.client, backup, func() error {
-		if backup.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(v2.Resource("backup"), backup.Name)
-		}
-		mutate()
-		return nil
-	})
-	return res != controllerutil.OperationResultNone, err
+	return result != controllerutil.OperationResultNone, err
 }
 
 func (r *backupResource) Init() (*zero.Spec, error) {
@@ -146,7 +133,7 @@ func (r *backupResource) Init() (*zero.Spec, error) {
 
 func (r *backupResource) getOrCreatePvc() error {
 	pvc := &corev1.PersistentVolumeClaim{}
-	err := r.client.Get(ctx, types.NamespacedName{
+	err := r.Get(ctx, types.NamespacedName{
 		Name:      r.instance.Name,
 		Namespace: r.instance.Namespace,
 	}, pvc)
@@ -191,10 +178,10 @@ func (r *backupResource) getOrCreatePvc() error {
 			StorageClassName: volumeSpec.StorageClassName,
 		},
 	}
-	if err = controllerutil.SetControllerReference(r.instance, pvc, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(r.instance, pvc, r.Scheme); err != nil {
 		return err
 	}
-	if err = r.client.Create(ctx, pvc); err != nil {
+	if err = r.Create(ctx, pvc); err != nil {
 		return fmt.Errorf("Unable to create pvc: %w", err)
 	}
 	return nil
@@ -231,7 +218,7 @@ func (r *backupResource) ExecStatus(client http.HttpClient) (zero.Phase, error) 
 }
 
 func PodLabels(backup, cluster string) map[string]string {
-	m := ispnctrl.ServiceLabels(cluster)
+	m := kube.ServiceLabels(cluster)
 	m["backup_cr"] = backup
 	return m
 }

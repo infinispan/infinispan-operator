@@ -6,26 +6,26 @@ import (
 
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/base"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
+
+var ctx = context.Background()
 
 const (
 	ControllerName  = "batch-controller"
@@ -34,19 +34,12 @@ const (
 	BatchVolumeRoot = "/etc/batch"
 )
 
-var (
-	kubernetes *kube.Kubernetes
-	log        = logf.Log.WithName(ControllerName)
-	ctx        = context.Background()
-)
-
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
 }
 
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	kubernetes = kube.NewKubernetesFromController(mgr)
-	return &reconcileBatch{Client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &reconcileBatch{base.NewReconcilerBaseFromManager(ControllerName, mgr)}
 }
 
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
@@ -75,20 +68,18 @@ var _ reconcile.Reconciler = &reconcileBatch{}
 
 // reconcileBatch reconciles a Batch object
 type reconcileBatch struct {
-	client.Client
-	scheme *runtime.Scheme
+	*base.ReconcilerBase
 }
 
 type batchResource struct {
+	base.ReconcilerBase
 	instance    *v2.Batch
-	client      client.Client
-	scheme      *runtime.Scheme
 	requestName types.NamespacedName
 }
 
 func (r *reconcileBatch) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Batch")
+	r.InitLogger("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	r.Logger().Info("Reconciling Batch")
 
 	// Fetch the Batch instance
 	instance := &v2.Batch{}
@@ -105,10 +96,9 @@ func (r *reconcileBatch) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	batch := &batchResource{
-		instance:    instance,
-		client:      r.Client,
-		scheme:      r.scheme,
-		requestName: request.NamespacedName,
+		ReconcilerBase: *r.ReconcilerBase,
+		instance:       instance,
+		requestName:    request.NamespacedName,
 	}
 
 	phase := instance.Status.Phase
@@ -147,12 +137,12 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 	spec := batch.Spec
 	// Ensure the Infinispan cluster exists
 	infinispan := &v1.Infinispan{}
-	if result, err := kube.LookupResource(spec.Cluster, batch.Namespace, infinispan, r.client, log); result != nil {
+	if result, err := r.LookupResource(spec.Cluster, batch.Namespace, infinispan, batch, r); result != nil {
 		return *result, err
 	}
 
 	if err := infinispan.EnsureClusterStability(); err != nil {
-		log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", spec.Cluster, err.Error()))
+		r.Logger().Info(fmt.Sprintf("Infinispan '%s' not ready: %s", spec.Cluster, err.Error()))
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
@@ -164,32 +154,30 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 				Namespace: batch.Namespace,
 			},
 		}
-		_, err := controllerutil.CreateOrUpdate(ctx, r.client, configMap, func() error {
+		_, err := controllerutil.CreateOrUpdate(ctx, r.Client, configMap, func() error {
 			configMap.Data = map[string]string{BatchFilename: *spec.Config}
-			return controllerutil.SetControllerReference(batch, configMap, r.scheme)
+			return controllerutil.SetControllerReference(batch, configMap, r.Scheme)
 		})
 
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("Unable to create ConfigMap '%s': %w", configMap.Name, err)
 		}
 
-		updated, err := r.update(func() error {
+		result, err := r.UpdateResource(batch, func() {
 			batch.Spec.ConfigMap = &batch.Name
-			return nil
 		})
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("Unable to update Batch .Spec: %w", err)
 		}
-		if updated {
+		if result != controllerutil.OperationResultNone {
 			return reconcile.Result{}, nil
 		}
 	}
 
 	// We update the phase separately to the spec as the status update is ignored when in the update mutate function
-	_, err := r.update(func() error {
+	_, err := r.UpdateResource(batch, func() {
 		batch.Status.ClusterUID = &infinispan.UID
 		batch.Status.Phase = v2.BatchInitialized
-		return nil
 	})
 	return reconcile.Result{}, err
 }
@@ -197,7 +185,7 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 func (r *batchResource) execute() (reconcile.Result, error) {
 	batch := r.instance
 	infinispan := &v1.Infinispan{}
-	if result, err := kube.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, r.client, log); result != nil {
+	if result, err := r.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, batch, r); result != nil {
 		return *result, err
 	}
 
@@ -265,8 +253,8 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, job, func() error {
-		return controllerutil.SetControllerReference(batch, job, r.scheme)
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, job, func() error {
+		return controllerutil.SetControllerReference(batch, job, r.Scheme)
 	})
 
 	if err != nil {
@@ -278,7 +266,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 	batch := r.instance
 	job := &batchv1.Job{}
-	if result, err := kube.LookupResource(batch.Name, batch.Namespace, job, r.client, log); result != nil {
+	if result, err := r.LookupResource(batch.Name, batch.Namespace, job, batch, r); result != nil {
 		return *result, err
 	}
 
@@ -294,20 +282,19 @@ func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 
 			if condition.Type == batchv1.JobFailed {
 				var reason string
-				podName, err := GetJobPodName(batch.Name, batch.Namespace, r.client)
+				podName, err := GetJobPodName(batch.Name, batch.Namespace, r.Client)
 				if err != nil {
 					reason = err.Error()
 				} else {
-					reason, err = kubernetes.Logs(podName, batch.Namespace)
+					reason, err = r.Logs(podName, batch.Namespace)
 					if err != nil {
 						reason = fmt.Errorf("Unable to retrive logs for batch %s: %w", batch.Name, err).Error()
 					}
 				}
 
-				_, err = r.update(func() error {
+				_, err = r.UpdateResource(r.instance, func() {
 					r.instance.Status.Phase = v2.BatchFailed
 					r.instance.Status.Reason = reason
-					return nil
 				})
 				return reconcile.Result{}, err
 			}
@@ -318,28 +305,16 @@ func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 }
 
 func (r *batchResource) UpdatePhase(phase v2.BatchPhase, phaseErr error) error {
-	_, err := r.update(func() error {
-		batch := r.instance
+	batch := r.instance
+	_, err := r.UpdateResource(batch, func() {
 		var reason string
 		if phaseErr != nil {
 			reason = phaseErr.Error()
 		}
 		batch.Status.Phase = phase
 		batch.Status.Reason = reason
-		return nil
 	})
 	return err
-}
-
-func (r *batchResource) update(mutate func() error) (bool, error) {
-	batch := r.instance
-	res, err := kube.CreateOrPatch(ctx, r.client, batch, func() error {
-		if batch.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(v2.Resource("batch"), batch.Name)
-		}
-		return mutate()
-	})
-	return res != controllerutil.OperationResultNone, err
 }
 
 func batchLabels(name string) map[string]string {

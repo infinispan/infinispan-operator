@@ -5,15 +5,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -149,17 +145,4 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj runtime.Object)
 		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")
 	}
 	return nil
-}
-
-// LookupResource lookup for resource to be created by separate resource controller
-func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger) (*reconcile.Result, error) {
-	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Info(fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name))
-			return &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
-		}
-		return &reconcile.Result{}, err
-	}
-	return nil, nil
 }
