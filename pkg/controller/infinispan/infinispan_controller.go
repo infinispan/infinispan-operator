@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -128,6 +129,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	err := r.update(infinispan, func() {
 		// Apply defaults and endpoint encryption settings if not already set
 		infinispan.ApplyDefaults()
+		infinispan.Spec.Affinity = podAffinity(infinispan, ispncom.LabelsResource(infinispan.Name, "infinispan-pod"))
 		errLabel := infinispan.ApplyOperatorLabels()
 		if errLabel != nil {
 			reqLogger.Error(errLabel, "Error applying operator label")
@@ -584,6 +586,11 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			reqLogger.Info("cpu changed, update infinispan", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
 			updateNeeded = true
 		}
+	}
+
+	if !reflect.DeepEqual(found.Spec.Template.Spec.Affinity, infinispan.Spec.Affinity) {
+		found.Spec.Template.Spec.Affinity = infinispan.Spec.Affinity
+		updateNeeded = true
 	}
 
 	// Validate extra Java options changes
@@ -1073,7 +1080,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 					Annotations: map[string]string{"updateDate": time.Now().String()},
 				},
 				Spec: corev1.PodSpec{
-					Affinity: podAffinity(m, lsPod),
+					Affinity: m.Spec.Affinity,
 					Containers: []corev1.Container{{
 						Image: imageName,
 						Name:  "infinispan",
