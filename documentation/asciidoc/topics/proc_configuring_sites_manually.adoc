@@ -73,12 +73,15 @@ can result in a large number of log files that use container storage.
 +
 . Configure nodes with any other {datagridservice} resources.
 . Apply the `Infinispan` CRs.
-. Check node logs to verify that {brandname} clusters form a cross-site view, for example:
+. Verify that {brandname} clusters form a cross-site view.
+.. Retrieve the `Infinispan` CR.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/oc_grep_xsite.adoc[]
+include::cmd_examples/get_infinispan.adoc[]
 ----
++
+.. Check for the `type: CrossSiteViewFormed` condition.
 
 .Next steps
 
