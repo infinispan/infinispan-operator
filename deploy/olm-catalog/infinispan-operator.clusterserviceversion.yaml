@@ -218,6 +218,7 @@ spec:
                 - list
                 - watch
                 - create
+                - delete
             - apiGroups:
                 - networking.k8s.io
               resources:
@@ -227,6 +228,7 @@ spec:
                 - list
                 - watch
                 - create
+                - delete
             - apiGroups:
                 - monitoring.coreos.com
               resources:
@@ -255,7 +257,7 @@ spec:
                 - watch
                 - create
                 - update
-                - delete
+                - patch
           serviceAccountName: infinispan-operator
       clusterPermissions:
         - serviceAccountName: infinispan-operator
