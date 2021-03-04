@@ -209,7 +209,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 		reqLogger.Info("Creating a new ConfigMap", "ConfigMap.Name", configMap.Name)
 		err = r.client.Create(context.TODO(), configMap)
-		if err != nil {
+		if err != nil && !errors.IsAlreadyExists(err) {
 			reqLogger.Error(err, "failed to create new ConfigMap")
 			return reconcile.Result{}, err
 		}
