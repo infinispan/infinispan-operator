@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	comutil "github.com/infinispan/infinispan-operator/pkg/controller/utils/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -109,6 +110,10 @@ func (ispn *Infinispan) ApplyDefaults() {
 	}
 	if ispn.Spec.Container.Memory == "" {
 		ispn.Spec.Container.Memory = constants.DefaultMemorySize.String()
+	}
+	if ispn.Spec.Container.CPU == "" {
+		cpuLimitString := common.ToMilliDecimalQuantity(constants.DefaultCPULimit)
+		ispn.Spec.Container.CPU = cpuLimitString.String()
 	}
 }
 
