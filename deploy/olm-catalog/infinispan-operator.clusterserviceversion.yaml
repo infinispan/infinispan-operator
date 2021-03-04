@@ -80,35 +80,147 @@ spec:
         name: backups.infinispan.org
         version: v2alpha1
         displayName: Backup
+        specDescriptors:
+          - displayName: Cluster name
+            description: Names your Infinispan cluster.
+            path: cluster
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan'
+          - displayName: Storage class name
+            description: Names the storage class object for persistent volume claims.
+            path: volume.storageClassName
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:StorageClass'
+      - description: Restore API schema.
+        kind: Restore
+        name: restores.infinispan.org
+        version: v2alpha1
+        displayName: Restore
+        specDescriptors:
+          - displayName: Cluster name
+            description: Infinispan cluster name
+            path: cluster
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan'
+          - displayName: Backup name
+            description: Specifies an Infinispan backup to restore.
+            path: backup
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:infinispan.org:v2alpha1:Backup'
       - description: Cache is the Schema for the caches API
         kind: Cache
         name: caches.infinispan.org
         version: v2alpha1
         displayName: Cache
+        specDescriptors:
+          - displayName: Cluster name
+            description: Infinispan cluster name
+            path: clusterName
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan'
+          - displayName: Authentication secret
+            description: Names the secret that contains user credentials.
+            path: adminAuth.secretName
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:Secret'
       - description: Infinispan is the Schema for the infinispans API
         kind: Infinispan
         name: infinispans.infinispan.org
         version: v1
         displayName: Infinispan Cluster
         specDescriptors:
-          - description: The desired number of nodes for the Infinispan cluster.
+          - description: Controls the number of nodes in your Infinispan cluster.
             displayName: Replicas
             path: replicas
             x-descriptors:
               - 'urn:alm:descriptor:com.tectonic.ui:podCount'
+          - description: Enable or disable user authentication.
+            displayName: Toggle authentication
+            path: security.endpointAuthentication
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:booleanSwitch'
+          - displayName: Configure encryption
+            description: Disable or modify endpoint encryption.
+            path: security.endpointEncryption.type
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:select:Service'
+              - 'urn:alm:descriptor:com.tectonic.ui:select:Secret'
+              - 'urn:alm:descriptor:com.tectonic.ui:select:None'
+          - displayName: Encryption secret
+            description: Names the secret that contains TLS certificates.
+            path: security.endpointEncryption.certSecretName
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:Secret'
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldDependency:security.endpointEncryption.type:Secret'
+          - displayName: Encryption service
+            description: Names the service that encrypts client traffic.
+            path: security.endpointEncryption.certServiceName
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldDependency:security.endpointEncryption.type:Service'
+          - displayName: Authentication secret
+            description: Names the secret that contains user credentials.
+            path: security.endpointSecretName
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:Secret'
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldDependency:security.endpointAuthentication:true'
+          - displayName: Service type
+            description: Configures the service type.
+            path: service.type
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:select:Cache'
+              - 'urn:alm:descriptor:com.tectonic.ui:select:DataGrid'
+          - displayName: Backup location secret
+            description: Names the access secret that allows backups to a remote site.
+            path: service.sites.locations[].secretName
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:Secret'
+          - displayName: Node port
+            description: Specifies the node port that accepts traffic from a load balancer service.
+            path: service.sites.local.expose.nodePort
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldDependency:service.sites.local.expose.type:NodePort'
+          - displayName: Number of owners
+            description: Controls cache replication factor, or number of copies for each entry.
+            path: service.replicationFactor
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:number'
+          - description: Enable/disable container ephemeral storage
+            displayName: Container ephemeral storage
+            path: service.container.ephemeralStorage
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:booleanSwitch'
+          - displayName: Storage size
+            description: Sets the amount of storage for the persistent volume claim.
+            path: service.container.storage
+            x-descriptors:
+              - 'urn:alm:descriptor:text'
+          - displayName: Storage class name
+            description: Names the storage class object for persistent volume claims.
+            path: service.container.storageClassName
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:StorageClass'
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldDependency:service.container.ephemeralStorage:false'
+          - displayName: Route hostname
+            description: Defines the network hostname for your Infinispan cluster.
+            path: expose.host
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:text'
+              - 'urn:alm:descriptor:com.tectonic.ui:fieldDependency:expose.type:Route'
+          - displayName: Persistent volume claim (PVC) name
+            description: Names the PVC that holds custom libraries.
+            path: dependencies.volumeClaimName
+            x-descriptors:
+              - 'urn:alm:descriptor:io.kubernetes:PersistentVolumeClaim'
         statusDescriptors:
-          - description: The current pods
-            displayName: Pods Status
+          - description: Displays the current status of pods.
+            displayName: Pod Status
             path: podStatus
             x-descriptors:
-              - "urn:alm:descriptor:com.tectonic.ui:podStatuses"
-      - description: Restore is the Schema for the restores API
-        kind: Restore
-        name: restores.infinispan.org
-        version: v2alpha1
-        displayName: Restore
+              - 'urn:alm:descriptor:com.tectonic.ui:podStatuses'
   description: |
-    Infinispan is a distributed, in-memory data store that increases application performance and delivers open-source capabilities to handle demanding use cases.
+    Infinispan is a distributed in-memory data store built on open-source technology.
 
     ### Core Capabilities
     * **Schemaless data structure:** Store different objects as key-value pairs.

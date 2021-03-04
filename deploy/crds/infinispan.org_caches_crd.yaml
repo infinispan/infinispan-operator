@@ -89,6 +89,8 @@ spec:
             templateName:
               description: Name of the template to be used to create this cache
               type: string
+          required:
+          - clusterName
           type: object
         status:
           description: CacheStatus defines the observed state of Cache
