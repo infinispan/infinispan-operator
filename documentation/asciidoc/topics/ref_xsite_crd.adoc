@@ -27,8 +27,10 @@ This secret contains different authentication objects, depending on your
 Kubernetes environment.
 ====
 +
-<8> Logs error messages for the JGroups TCP protocol.
-<9> Logs fatal messages for the JGroups RELAY2 protocol.
+<8> Specifies the cluster name at the backup location if it is different to the cluster name at the local site.
+<9> Specifies the namespace of the {brandname} cluster at the backup location if it does not match the namespace at the local site.
+<10> Logs error messages for the JGroups TCP protocol.
+<11> Logs fatal messages for the JGroups RELAY2 protocol.
 endif::community[]
 
 //Downstream
@@ -40,6 +42,8 @@ ifdef::downstream[]
 <5> Specifies a backup location that matches `.spec.service.sites.local.name`.
 <6> Specifies the URL of the {openshiftshort} API for the backup location.
 <7> Specifies the secret that contains the service account token for the backup site.
-<8> Logs error messages for the JGroups TCP protocol.
-<9> Logs fatal messages for the JGroups RELAY2 protocol.
+<8> Specifies the cluster name at the backup location if it is different to the cluster name at the local site.
+<9> Specifies the namespace of the {brandname} cluster at the backup location if it does not match the namespace at the local site.
+<10> Logs error messages for the JGroups TCP protocol.
+<11> Logs fatal messages for the JGroups RELAY2 protocol.
 endif::downstream[]
