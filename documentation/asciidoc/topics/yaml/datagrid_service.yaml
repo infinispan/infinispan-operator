@@ -26,7 +26,9 @@ spec:
         url: openshift://api.azure.host:6443
         secretName: azure-token
       - name: aws
+        # Specifies the cluster name at the backup location.
         clusterName: {example_crd_name}
+        # Specifies the namespace for the cluster at the backup location.
         namespace: {example_namespace}
         url: openshift://api.aws.host:6443
         secretName: aws-token
