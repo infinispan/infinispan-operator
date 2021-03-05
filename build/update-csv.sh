@@ -4,6 +4,7 @@ YQ_MAJ_VERSION=${1:-4}
 installYQ() {
     printf "Installing yq ..."
     GO111MODULE=on go get github.com/mikefarah/yq/v4
+    PATH=$GOPATH/bin:$PATH
     yq --version
 }
 
@@ -14,6 +15,7 @@ OPERATOR_ROLES_FILES=(
 
 OPERATOR_CSV_FILE="deploy/olm-catalog/infinispan-operator.clusterserviceversion.yaml"
 
+#Ensure that GOPATH/bin is in the PATH
 printf "Validating yq installation..."
 if ! [ -x "$(command -v yq)" ]; then
   printf "Not found\n"
