@@ -3,7 +3,8 @@
 YQ_MAJ_VERSION=${1:-4}
 installYQ() {
     printf "Installing yq ..."
-    GO111MODULE=on go get github.com/mikefarah/yq/v4
+    GO111MODULE=off go get -u github.com/myitcv/gobin
+    gobin github.com/mikefarah/yq/v4@v4.6.1
     PATH=$(go env GOPATH)/bin:$PATH
     yq --version
 }
