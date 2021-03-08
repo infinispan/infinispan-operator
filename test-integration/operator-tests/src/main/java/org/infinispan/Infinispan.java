@@ -63,8 +63,8 @@ public class Infinispan {
       BooleanSupplier bs = () -> {
          sync();
 
-         List<Condition> conditions = infinispanObject.getStatus().getConditions();
-         if (conditions != null) {
+         if (infinispanObject.getStatus() != null) {
+            List<Condition> conditions = infinispanObject.getStatus().getConditions();
             Condition wellFormed = conditions.stream().filter(c -> "WellFormed".equals(c.getType())).findFirst().orElse(null);
             return wellFormed != null && "True".equals(wellFormed.getStatus());
          } else {
