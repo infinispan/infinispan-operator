@@ -316,15 +316,12 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 			// depending on the k8s cluster setting, service is sometime available
 			// via Ingress address sometime via node port. So trying both the methods
 			// Try node port first
-			hosts, err := k.Kubernetes.GetNodesHost()
+			host, err := k.Kubernetes.GetNodeHost(log)
 			ExpectNoError(err)
-			if len(hosts) > 0 {
-				// It should be ok to use the first node address available
-				hostAndPort = fmt.Sprintf("%s:%d", hosts[0], k.Kubernetes.GetNodePort(route))
-				result := checkExternalAddress(client, hostAndPort)
-				if result {
-					return result, nil
-				}
+			hostAndPort = fmt.Sprintf("%s:%d", host, k.Kubernetes.GetNodePort(route))
+			result := checkExternalAddress(client, hostAndPort)
+			if result {
+				return result, nil
 			}
 
 			// if node port fails and it points to 127.0.0.1,
@@ -340,7 +337,7 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 			}
 
 			// then try to get ingress information
-			hostAndPort, err = k.getExternalAddress(route)
+			hostAndPort, err = k.Kubernetes.GetExternalAddress(route)
 			if err != nil {
 				return false, nil
 			}
@@ -364,21 +361,6 @@ func checkExternalAddress(c HTTPClient, hostAndPort string) bool {
 	ExpectNoError(err)
 	log.Info("Received response for external address", "response code", resp.StatusCode)
 	return resp.StatusCode == http.StatusOK
-}
-
-func (k TestKubernetes) getExternalAddress(route *v1.Service) (string, error) {
-	// If the cluster exposes external IP then return it
-	if len(route.Status.LoadBalancer.Ingress) == 1 {
-		if route.Status.LoadBalancer.Ingress[0].IP != "" {
-			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].IP+":%d", consts.InfinispanUserPort), nil
-		}
-		if route.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			return fmt.Sprintf(route.Status.LoadBalancer.Ingress[0].Hostname+":%d", consts.InfinispanUserPort), nil
-		}
-	}
-
-	// Return empty address if nothing available
-	return "", fmt.Errorf("external address not found")
 }
 
 func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) {

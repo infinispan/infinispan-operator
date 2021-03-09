@@ -399,7 +399,8 @@ func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 			Host: ispn.Spec.Expose.Host,
 			To: routev1.RouteTargetReference{
 				Kind: "Service",
-				Name: ispn.Name},
+				Name: ispn.Name,
+			},
 		},
 	}
 	if ispn.GetEncryptionSecretName() != "" && !ispn.IsEncryptionDisabled() {

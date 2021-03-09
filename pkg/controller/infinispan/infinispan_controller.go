@@ -255,6 +255,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	if infinispan.IsExposed() {
+		var exposeAddress string
 		switch infinispan.GetExposeType() {
 		case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
 			// Wait for the cluster external Service to be created by service-controller
@@ -262,15 +263,17 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
 				return *result, err
 			}
-			if err := r.update(infinispan, func() {
-				if infinispan.Spec.Expose.NodePort == 0 && len(externalService.Spec.Ports) > 0 {
-					infinispan.Spec.Expose.NodePort = externalService.Spec.Ports[0].NodePort
+			if len(externalService.Spec.Ports) > 0 && infinispan.GetExposeType() == infinispanv1.ExposeTypeNodePort {
+				if exposeHost, err := kubernetes.GetNodeHost(reqLogger); err != nil {
+					return reconcile.Result{}, err
+				} else {
+					exposeAddress = fmt.Sprintf("%s:%d", exposeHost, externalService.Spec.Ports[0].NodePort)
 				}
-				if infinispan.GetExposeType() == infinispanv1.ExposeTypeLoadBalancer && len(externalService.Status.LoadBalancer.Ingress) > 0 {
-					infinispan.Spec.Expose.Host = externalService.Status.LoadBalancer.Ingress[0].Hostname
+			} else if infinispan.GetExposeType() == infinispanv1.ExposeTypeLoadBalancer {
+				// Waiting for LoadBalancer cloud provider to update the configured hostname inside Status field
+				if exposeAddress, err = kubernetes.GetExternalAddress(externalService); err != nil {
+					return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 				}
-			}); err != nil {
-				return reconcile.Result{}, err
 			}
 		case infinispanv1.ExposeTypeRoute:
 			var okIngress = false
@@ -288,26 +291,31 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
 					return *result, err
 				}
-				if err := r.update(infinispan, func() {
-					if infinispan.Spec.Expose.Host == "" && externalRoute.Spec.Host != "" {
-						infinispan.Spec.Expose.Host = externalRoute.Spec.Host
-					}
-				}); err != nil {
-					return reconcile.Result{}, err
-				}
+				exposeAddress = externalRoute.Spec.Host
 			} else if okIngress {
 				externalIngress := &networkingv1beta1.Ingress{}
 				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
 					return *result, err
 				}
-				if err := r.update(infinispan, func() {
-					if infinispan.Spec.Expose.Host == "" && len(externalIngress.Spec.Rules) > 0 && externalIngress.Spec.Rules[0].Host != "" {
-						infinispan.Spec.Expose.Host = externalIngress.Spec.Rules[0].Host
-					}
-				}); err != nil {
-					return reconcile.Result{}, err
+				if len(externalIngress.Spec.Rules) > 0 {
+					exposeAddress = externalIngress.Spec.Rules[0].Host
 				}
 			}
+		}
+		if err := r.update(infinispan, func() {
+			if exposeAddress == "" {
+				infinispan.Status.ConsoleUrl = nil
+			} else {
+				infinispan.Status.ConsoleUrl = pointer.StringPtr(fmt.Sprintf("%s://%s/console", infinispan.GetEndpointScheme(), exposeAddress))
+			}
+		}); err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		if err := r.update(infinispan, func() {
+			infinispan.Status.ConsoleUrl = nil
+		}); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 

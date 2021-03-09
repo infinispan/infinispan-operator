@@ -214,11 +214,16 @@ spec:
             x-descriptors:
               - 'urn:alm:descriptor:io.kubernetes:PersistentVolumeClaim'
         statusDescriptors:
-          - description: Displays the current status of pods.
+          - description: The current pods
             displayName: Pod Status
             path: podStatus
             x-descriptors:
               - 'urn:alm:descriptor:com.tectonic.ui:podStatuses'
+          - displayName: Infinispan Console URL
+            description: Infinispan Console location
+            path: consoleUrl
+            x-descriptors:
+              - 'urn:alm:descriptor:org.w3:link'
   description: |
     Infinispan is a distributed in-memory data store built on open-source technology.
 

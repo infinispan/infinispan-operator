@@ -83,6 +83,6 @@ func TestComputeXSiteStatic(t *testing.T) {
 
 	assert.Equal(t, "SiteC", xsite.Backups[1].Name, "Backup site name")
 	assert.Equal(t, "example-clusterc-site", xsite.Backups[1].Address, "Backup site address")
-	assert.Equal(t, int32(consts.CrossSitePort + 1), xsite.Backups[1].Port, "Backup site port")
+	assert.Equal(t, int32(consts.CrossSitePort+1), xsite.Backups[1].Port, "Backup site port")
 
 }

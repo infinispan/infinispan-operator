@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 
 	"github.com/go-logr/logr"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -119,8 +119,8 @@ func (k Kubernetes) IsGroupVersionSupported(groupVersion string, kind string) (b
 }
 
 // GetSecret returns secret associated with given secret name
-func (k Kubernetes) GetSecret(secretName, namespace string) (*v1.Secret, error) {
-	secret := &v1.Secret{}
+func (k Kubernetes) GetSecret(secretName, namespace string) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
 	err := k.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 		Name(options.PodName).
 		Namespace(options.Namespace).
 		SubResource("exec").
-		VersionedParams(&v1.PodExecOptions{
+		VersionedParams(&corev1.PodExecOptions{
 			Command: options.Command,
 			Stdin:   false,
 			Stdout:  true,
@@ -188,36 +188,8 @@ func resolveConfig(ctx string) *rest.Config {
 	return internal
 }
 
-func (k Kubernetes) GetNodePort(service *v1.Service) int32 {
+func (k Kubernetes) GetNodePort(service *corev1.Service) int32 {
 	return service.Spec.Ports[0].NodePort
-}
-
-// PublicIP returns the public IP address of the Kubernetes cluster
-func (k Kubernetes) PublicIP() string {
-	u, _ := url.Parse(k.RestConfig.Host)
-	return u.Hostname()
-}
-
-// GetNodesHost return the addresses of the k8s nodes
-func (k Kubernetes) GetNodesHost() ([]string, error) {
-	nodes := &v1.NodeList{}
-	if err := k.Client.List(context.TODO(), nodes); err != nil {
-		return nil, err
-	}
-	nodeHosts := make([]string, 0, nodes.Size())
-	for _, n := range nodes.Items {
-		for _, v := range n.Status.Addresses {
-			if v.Type == v1.NodeHostName {
-				// Fallback using hostname if internal IP address is not available
-				nodeHosts = append(nodeHosts, v.Address)
-			}
-			if v.Type == v1.NodeInternalIP {
-				nodeHosts = append(nodeHosts, v.Address)
-				break
-			}
-		}
-	}
-	return nodeHosts, nil
 }
 
 // FindKubeConfig returns local Kubernetes configuration
@@ -226,7 +198,7 @@ func FindKubeConfig() string {
 }
 
 func setConfigDefaults(config *rest.Config) *rest.Config {
-	gv := v1.SchemeGroupVersion
+	gv := corev1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/api"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
@@ -309,6 +281,72 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace stri
 	}
 
 	return nil, fmt.Errorf("token required connect to OpenShift cluster")
+}
+
+func (k Kubernetes) GetNodeHost(logger logr.Logger) (string, error) {
+	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
+	//So, we get the workers list. It needs some permissions cluster-reader permission
+	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
+	workerList := &corev1.NodeList{}
+
+	//select workers first
+	req, err := labels.NewRequirement("node-role.kubernetes.io/worker", selection.Exists, nil)
+	if err != nil {
+		return "", err
+	}
+	listOps := &client.ListOptions{
+		LabelSelector: labels.NewSelector().Add(*req),
+	}
+	err = k.Client.List(context.TODO(), workerList, listOps)
+
+	if err != nil || len(workerList.Items) == 0 {
+		// Fallback selecting everything
+		err = k.Client.List(context.TODO(), workerList, &client.ListOptions{})
+		if err != nil {
+			return "", err
+		}
+	}
+
+	for _, node := range workerList.Items {
+		//host := k.PublicIP() //returns REST API endpoint. not good.
+		//iterate over the all the nodes and return the first ready
+		nodeStatus := node.Status
+		for _, nodeCondition := range nodeStatus.Conditions {
+			if nodeCondition.Type == corev1.NodeReady && nodeCondition.Status == corev1.ConditionTrue && len(nodeStatus.Addresses) > 0 {
+				for _, addressType := range []corev1.NodeAddressType{corev1.NodeExternalIP, corev1.NodeInternalIP} {
+					if host := GetNodeAddress(node, addressType); host != "" {
+						logger.Info("Found ready worker node.", "Host", host)
+						return host, nil
+					}
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("no worker node found")
+}
+
+func GetNodeAddress(node corev1.Node, addressType corev1.NodeAddressType) string {
+	for _, a := range node.Status.Addresses {
+		if a.Type == addressType && a.Address != "" {
+			return a.Address
+		}
+	}
+	return ""
+}
+
+// GetExternalAddress extract LoadBalancer Hostname (typically for AWS load-balancers) or IP (typically for GCE or OpenStack load-balancers) address
+func (k Kubernetes) GetExternalAddress(route *corev1.Service) (string, error) {
+	// If the cluster exposes external IP then return it
+	if len(route.Status.LoadBalancer.Ingress) > 0 {
+		if route.Status.LoadBalancer.Ingress[0].IP != "" {
+			return fmt.Sprintf("%s:%d", route.Status.LoadBalancer.Ingress[0].IP, route.Spec.Ports[0].Port), nil
+		}
+		if route.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			return fmt.Sprintf("%s:%d", route.Status.LoadBalancer.Ingress[0].Hostname, route.Spec.Ports[0].Port), nil
+		}
+	}
+	// Return empty address if nothing available
+	return "", fmt.Errorf("external address not found")
 }
 
 // ResourcesList returns a typed list of resource associated with the cluster

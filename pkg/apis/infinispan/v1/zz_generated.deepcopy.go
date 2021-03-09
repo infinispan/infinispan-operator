@@ -422,6 +422,11 @@ func (in *InfinispanStatus) DeepCopyInto(out *InfinispanStatus) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.PodStatus.DeepCopyInto(&out.PodStatus)
+	if in.ConsoleUrl != nil {
+		in, out := &in.ConsoleUrl, &out.ConsoleUrl
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
