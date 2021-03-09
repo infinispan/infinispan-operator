@@ -58,6 +58,25 @@ type InfinispanServiceContainerSpec struct {
 	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
+// UpgradePolicy specifies all the possible policies that rule the ispn cluster upgrade
+type UpgradePolicy string
+
+const (
+	// UpgradePolicyManual only user can manually trigger a cluster upgrade
+	UpgradePolicyManual UpgradePolicy = "Manual"
+	// UpgradePolicyCVE cluster upgrade is triggered automatically only if a CVE upgrade is available
+	UpgradePolicyCVE UpgradePolicy = "CVE"
+	// UpgradePolicyLatest cluster upgrade is triggered automatically if a new image is available
+	UpgradePolicyLatest UpgradePolicy = "Latest"
+)
+
+// InfinispanUpgrade represents the upgrade strategy
+type InfinispanUpgrade struct {
+	// Policy represent the current upgrade policy for this cluster
+	// +optional
+	Policy *UpgradePolicy `json:"strategy,omitempty"`
+}
+
 // +kubebuilder:validation:Enum=DataGrid;Cache
 type ServiceType string
 
@@ -253,6 +272,8 @@ type InfinispanSpec struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// +optional
 	CloudEvents *InfinispanCloudEvents `json:"cloudEvents,omitempty"`
+	// +optional
+	Upgrade *InfinispanUpgrade `json:"upgrade,omitempy"`
 	// External dependencies needed by the Infinispan cluster
 	// +optional
 	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`
