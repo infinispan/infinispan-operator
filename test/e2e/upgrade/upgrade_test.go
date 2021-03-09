@@ -1,18 +1,23 @@
 package upgrade
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -71,17 +76,35 @@ func assertPodImage(image string, ispn *v1.Infinispan) {
 }
 
 func getDockerImageSha() string {
-	sha := tutils.ImageSha
-	if sha != "" {
-		return sha
+	name := "sha-pod"
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: tutils.Namespace,
+		},
+		Spec: corev1.PodSpec{
+			SecurityContext: &corev1.PodSecurityContext{
+				FSGroup: pointer.Int64Ptr(1000600000),
+			},
+			Containers: []corev1.Container{{
+				Image: constants.DefaultOperandImageOpenJDK,
+				Name:  name,
+			}},
+		},
 	}
-	// If the INFINISPAN_IMAGE_SHA env variable has not been set, attempt to retreive
-	cmd := exec.Command("skopeo inspect docker://quay.io/infinispan/server:12.0 | jq -r '.Digest'")
-	stdout, err := cmd.Output()
+	testKube.Create(pod)
+	defer testKube.Delete(pod)
 
-	if err != nil {
-		panic(fmt.Errorf("Unable to get Docker image sha: : %w", err))
-	}
-	sha = strings.TrimSuffix(string(stdout), "\n")
-	return fmt.Sprintf("docker://quay.io/infinispan/server%s", sha)
+	err := wait.Poll(tutils.DefaultPollPeriod, tutils.MaxWaitTimeout, func() (done bool, err error) {
+		err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: tutils.Namespace}, pod)
+		if err != nil && errors.IsNotFound(err) {
+			return false, nil
+		}
+		if len(pod.Status.ContainerStatuses) > 0 {
+			return pod.Status.ContainerStatuses[0].ImageID != "", nil
+		}
+		return false, nil
+	})
+	tutils.ExpectNoError(err)
+	return strings.TrimPrefix(pod.Status.ContainerStatuses[0].ImageID, "docker-pullable://")
 }

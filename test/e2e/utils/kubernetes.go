@@ -141,6 +141,10 @@ func (k TestKubernetes) GetBatch(name, namespace string) *ispnv2.Batch {
 	return batch
 }
 
+func (k TestKubernetes) Delete(obj runtime.Object) {
+	ExpectNoError(k.Kubernetes.Client.Delete(context.TODO(), obj))
+}
+
 func (k TestKubernetes) Create(obj runtime.Object) {
 	ExpectNoError(k.Kubernetes.Client.Create(context.TODO(), obj))
 }
