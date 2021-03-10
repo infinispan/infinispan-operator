@@ -30,7 +30,7 @@ func createIdentities() Identities {
 
 // TODO certain characters having issues, so reduce sample for now
 // var acceptedChars = []byte(",-./=@\\abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-var acceptedChars = []byte("@123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var acceptedChars = []byte("123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 var alphaChars = acceptedChars[8:]
 
 // getRandomStringForAuth generate a random string that can be used as a

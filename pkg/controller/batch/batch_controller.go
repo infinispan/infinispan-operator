@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
@@ -302,10 +303,10 @@ func connectionUrl(i *v1.Infinispan) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		authString = fmt.Sprintf("%s:%s@", user, pass)
+		authString = fmt.Sprintf("%s:%s", url.QueryEscape(user), url.QueryEscape(pass))
 	}
 
-	url := fmt.Sprintf("%s://%s%s:%d", i.GetEndpointScheme(), authString, i.Name, consts.InfinispanPort)
+	url := fmt.Sprintf("%s://%s@%s:%d", i.GetEndpointScheme(), authString, i.Name, consts.InfinispanPort)
 	return url, nil
 }
 
