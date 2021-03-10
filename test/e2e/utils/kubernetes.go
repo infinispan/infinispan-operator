@@ -304,7 +304,7 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomRes
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
-func (k TestKubernetes) WaitForExternalService(routeName, namespace string, exposeType ispnv1.ExposeType, timeout time.Duration, client HTTPClient) string {
+func (k TestKubernetes) WaitForExternalService(routeName, namespace string, exposeType ispnv1.ExposeType, timeout time.Duration, httpClient HTTPClient) string {
 	var hostAndPort string
 	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		switch exposeType {
@@ -313,15 +313,19 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 			err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: routeName}, route)
 			ExpectNoError(err)
 
+			// Retrieve the pods associated with the route so that we can retrieve the nodeName of a pod within that service
+			podList := &v1.PodList{}
+			labelSelector := labels.SelectorFromSet(route.Spec.Selector)
+			listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
+			err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
+
 			// depending on the k8s cluster setting, service is sometime available
 			// via Ingress address sometime via node port. So trying both the methods
 			// Try node port first
-			hosts, err := k.Kubernetes.GetNodesHost()
 			ExpectNoError(err)
-			if len(hosts) > 0 {
-				// It should be ok to use the first node address available
-				hostAndPort = fmt.Sprintf("%s:%d", hosts[0], k.Kubernetes.GetNodePort(route))
-				result := checkExternalAddress(client, hostAndPort)
+			if len(podList.Items) > 0 {
+				hostAndPort = fmt.Sprintf("%s:%d", podList.Items[0].Status.HostIP, k.Kubernetes.GetNodePort(route))
+				result := checkExternalAddress(httpClient, hostAndPort)
 				if result {
 					return result, nil
 				}
@@ -333,7 +337,7 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 			if strings.Contains(hostAndPort, "127.0.0.1") {
 				log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
 				hostAndPort = fmt.Sprintf("127.0.0.1:%d", InfinispanPort)
-				result := checkExternalAddress(client, hostAndPort)
+				result := checkExternalAddress(httpClient, hostAndPort)
 				if result {
 					return result, nil
 				}
@@ -352,7 +356,7 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 				hostAndPort = route.Spec.Host
 			}
 		}
-		return checkExternalAddress(client, hostAndPort), nil
+		return checkExternalAddress(httpClient, hostAndPort), nil
 	})
 	ExpectNoError(err)
 	return hostAndPort
