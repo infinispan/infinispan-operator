@@ -383,16 +383,10 @@ func testCacheService(testName string, imageName *string) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
-	user := cconsts.DefaultDeveloperUser
-	password, err := users.UserPassword(user, spec.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
-	tutils.ExpectNoError(err)
-
 	ispn := ispnv1.Infinispan{}
 	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
 
-	protocol := testKube.GetSchemaForRest(&ispn)
-	client := tutils.NewHTTPClient(user, password, protocol)
-	hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, spec.GetExposeType(), tutils.RouteTimeout, client)
+	hostAddr, client := tutils.HTTPClientAndHost(&ispn, testKube)
 
 	cacheName := "default"
 	waitForCacheToBeCreated(cacheName, hostAddr, client)
@@ -413,26 +407,15 @@ func testCacheService(testName string, imageName *string) {
 func TestPermanentCache(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	usr := cconsts.DefaultDeveloperUser
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
-		protocol := testKube.GetSchemaForRest(ispn)
-		pass, err := users.UserPassword(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
-		tutils.ExpectNoError(err)
-
-		client := tutils.NewHTTPClient(usr, pass, protocol)
-		hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, ispn.GetExposeType(), tutils.RouteTimeout, client)
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 		createCache(cacheName, hostAddr, "PERMANENT", client)
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		pass, err := users.UserPassword(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
-		tutils.ExpectNoError(err)
-		protocol := testKube.GetSchemaForRest(ispn)
-
-		client := tutils.NewHTTPClient(usr, pass, protocol)
-		hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, ispn.GetExposeType(), tutils.RouteTimeout, client)
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 		key := "test"
 		value := "test-operator"
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
@@ -452,7 +435,6 @@ func TestPermanentCache(t *testing.T) {
 func TestCheckDataSurviveToShutdown(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	usr := cconsts.DefaultDeveloperUser
 	cacheName := "test"
 	template := `<infinispan><cache-container><distributed-cache name ="` + cacheName +
 		`"><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan>`
@@ -461,24 +443,14 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 
 	// Define function for the generic stop/start test procedure
 	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		pass, err := users.UserPassword(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
-		tutils.ExpectNoError(err)
-		protocol := testKube.GetSchemaForRest(ispn)
-
-		client := tutils.NewHTTPClient(usr, pass, protocol)
-		hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, ispn.GetExposeType(), tutils.RouteTimeout, client)
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 		createCacheWithXMLTemplate(cacheName, hostAddr, template, client)
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
 		putViaRoute(keyURL, value, client)
 	}
 
 	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		pass, err := users.UserPassword(usr, ispn.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
-		tutils.ExpectNoError(err)
-
-		schema := testKube.GetSchemaForRest(ispn)
-		client := tutils.NewHTTPClient(usr, pass, schema)
-		hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, ispn.GetExposeType(), tutils.RouteTimeout, client)
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
 		actual := getViaRoute(keyURL, client)
 		if actual != value {
@@ -516,7 +488,6 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 func TestExternalService(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	usr := cconsts.DefaultDeveloperUser
 
 	// Create a resource without passing any config
 	spec := ispnv1.Infinispan{
@@ -541,15 +512,9 @@ func TestExternalService(t *testing.T) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
-	pass, err := users.UserPassword(usr, spec.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
-	tutils.ExpectNoError(err)
-
-	ispn := ispnv1.Infinispan{}
-	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
-	schema := testKube.GetSchemaForRest(&ispn)
-
-	client := tutils.NewHTTPClient(usr, pass, schema)
-	hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, spec.GetExposeType(), tutils.RouteTimeout, client)
+	ispn := &ispnv1.Infinispan{}
+	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, ispn)
+	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 
 	cacheName := "test"
 	createCache(cacheName, hostAddr, "", client)
@@ -709,8 +674,7 @@ func TestAuthenticationDisabled(t *testing.T) {
 
 	// Ensure that rest requests do not require authentication
 	client := tutils.NewHTTPClientNoAuth(testKube.GetSchemaForRest(spec))
-	routeName := fmt.Sprintf("%s-external", name)
-	hostAddr := testKube.WaitForExternalService(routeName, namespace, spec.GetExposeType(), tutils.RouteTimeout, client)
+	hostAddr := testKube.WaitForExternalService(spec.GetServiceExternalName(), namespace, spec.GetExposeType(), tutils.RouteTimeout, client)
 	url := fmt.Sprintf("%v/rest/v2/caches", hostAddr)
 	rsp, err := client.Get(url, nil)
 	tutils.ExpectNoError(err)
