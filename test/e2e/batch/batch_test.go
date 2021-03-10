@@ -39,14 +39,13 @@ func TestBatchInlineConfig(t *testing.T) {
 	name := strcase.ToKebab(t.Name())
 	infinispan := createCluster(name)
 	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
-	testBatchInlineConfig(name, infinispan)
+	testBatchInlineConfig(infinispan)
 }
 
 func TestBatchInlineConfigWithTLS(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
 	infinispan := tutils.DefaultSpec(testKube)
-	infinispan.ObjectMeta.Name = name
+	infinispan.ObjectMeta.Name = strcase.ToKebab(t.Name())
 	infinispan.Spec.Security = v1.InfinispanSecurity{
 		EndpointEncryption: &tutils.EndpointEncryption,
 	}
@@ -58,12 +57,12 @@ func TestBatchInlineConfigWithTLS(t *testing.T) {
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
-	testBatchInlineConfig(name, infinispan)
+	testBatchInlineConfig(infinispan)
 }
 
-func testBatchInlineConfig(name string, infinispan *v1.Infinispan) {
-	batchScript := batchString(`create cache --template=org.infinispan.DIST_SYNC batch-cache
-		create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter`)
+func testBatchInlineConfig(infinispan *v1.Infinispan) {
+	name := infinispan.Name
+	batchScript := batchString()
 	batch := createBatch(name, name, &batchScript, nil)
 
 	waitForValidBatchPhase(name, v2.BatchSucceeded)
@@ -83,8 +82,6 @@ func TestBatchConfigMap(t *testing.T) {
 	infinispan := createCluster(name)
 	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
 
-	batchScript := batchString(`create cache --template=org.infinispan.DIST_SYNC batch-cache
-	create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter`)
 	configMapName := name + "-cm"
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -92,7 +89,7 @@ func TestBatchConfigMap(t *testing.T) {
 			Namespace: infinispan.Namespace,
 		},
 		Data: map[string]string{
-			batchCtrl.BatchFilename: batchScript,
+			batchCtrl.BatchFilename: batchString(),
 		},
 	}
 
@@ -152,8 +149,10 @@ func TestBatchFail(t *testing.T) {
 	waitForK8sResourceCleanup(name)
 }
 
-func batchString(config string) string {
-	return strings.ReplaceAll(config, "\t", "")
+func batchString() string {
+	batchScript := `create cache --template=org.infinispan.DIST_SYNC batch-cache
+	create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter`
+	return strings.ReplaceAll(batchScript, "\t", "")
 }
 
 func httpClient(infinispan *v1.Infinispan) tutils.HTTPClient {
@@ -179,7 +178,7 @@ func hostAddr(client tutils.HTTPClient, infinispan *v1.Infinispan) string {
 
 func createCluster(name string) *v1.Infinispan {
 	infinispan := tutils.DefaultSpec(testKube)
-	infinispan.ObjectMeta.Name = name
+	infinispan.Name = name
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	return infinispan
