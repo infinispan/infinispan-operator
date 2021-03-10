@@ -31,7 +31,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	tutils.RunOperator(m, testKube)
+	testKube.InstallOperator(m)
 }
 
 func TestBatchInlineConfig(t *testing.T) {

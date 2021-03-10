@@ -29,17 +29,6 @@ var (
 	upgradeStateFlow = []v1.ConditionType{v1.ConditionUpgrade, v1.ConditionStopping, v1.ConditionWellFormed}
 )
 
-// TODO remove and replace with DefaultSpec once Batch PR has been merged as it removes this logic from main_test
-var MinimalSpec = v1.Infinispan{
-	TypeMeta: tutils.InfinispanTypeMeta,
-	ObjectMeta: metav1.ObjectMeta{
-		Name: tutils.DefaultClusterName,
-	},
-	Spec: v1.InfinispanSpec{
-		Replicas: 1,
-	},
-}
-
 func TestGracefulShutdown(t *testing.T) {
 	namespace := tutils.Namespace
 	testKube.NewNamespace(namespace)
@@ -47,7 +36,7 @@ func TestGracefulShutdown(t *testing.T) {
 	oldImage := getDockerImageSha()
 	tutils.ExpectNoError(os.Setenv("DEFAULT_IMAGE", oldImage))
 	stopCh := testKube.InstallAndRunOperator(namespace, CrdPath, false)
-	ispn := MinimalSpec.DeepCopy()
+	ispn := tutils.DefaultSpec(testKube)
 	ispn.Name = strcase.ToKebab(t.Name())
 	testKube.CreateInfinispan(ispn, namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, namespace)
