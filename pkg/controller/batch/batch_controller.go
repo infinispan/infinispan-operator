@@ -300,7 +300,7 @@ func connectionUrl(i *v1.Infinispan) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(pass), i.GetAdminServiceName(), consts.InfinispanAdminPort)
+	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(pass), i.GetAdminServiceName(), consts.InfinispanAdminServicePort)
 	return url, nil
 }
 
