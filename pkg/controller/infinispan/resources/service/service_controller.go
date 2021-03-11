@@ -213,14 +213,14 @@ func setupServiceForEncryption(ispn *ispnv1.Infinispan, service *corev1.Service)
 }
 
 func computeAdminService(ispn *ispnv1.Infinispan) *corev1.Service {
-	return computeService(ispn.GetAdminServiceName(), consts.InfinispanAdminPortName, "infinispan-service-admin", consts.InfinispanAdminPort, ispn)
+	return computeService(ispn.GetAdminServiceName(), consts.InfinispanAdminPortName, "infinispan-service-admin", consts.InfinispanAdminServicePort, consts.InfinispanAdminPort, ispn)
 }
 
 func computeUserService(ispn *ispnv1.Infinispan) *corev1.Service {
-	return computeService(ispn.Name, consts.InfinispanUserPortName, "infinispan-service", consts.InfinispanUserPort, ispn)
+	return computeService(ispn.Name, consts.InfinispanUserPortName, "infinispan-service", consts.InfinispanUserPort, consts.InfinispanUserPort, ispn)
 }
 
-func computeService(svcName, portName, serviceType string, port int32, ispn *ispnv1.Infinispan) *corev1.Service {
+func computeService(svcName, portName, serviceType string, port, targetPort int32, ispn *ispnv1.Infinispan) *corev1.Service {
 	service := corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -236,8 +236,9 @@ func computeService(svcName, portName, serviceType string, port int32, ispn *isp
 			Selector: infinispan.ServiceLabels(ispn.Name),
 			Ports: []corev1.ServicePort{
 				{
-					Name: portName,
-					Port: port,
+					Name:       portName,
+					Port:       port,
+					TargetPort: intstr.FromInt(int(targetPort)),
 				},
 			},
 		},

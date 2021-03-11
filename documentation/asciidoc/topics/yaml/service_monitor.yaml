@@ -7,7 +7,7 @@ metadata:
   namespace: infinispan-monitoring <2>
 spec:
   endpoints:
-    - targetPort: 11223 <3>
+    - targetPort: 11222 <3>
       path: /metrics <4>
       honorLabels: true
       basicAuth:

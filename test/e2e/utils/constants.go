@@ -20,8 +20,6 @@ const (
 	// Maximum time to wait for resources
 	MaxWaitTimeout       = 120 * time.Second
 	ConditionWaitTimeout = 120 * time.Second
-	InfinispanAdminPort  = 11223
-	InfinispanUserPort   = 11222
 	DefaultClusterName   = "test-node-startup"
 
 	OperatorUpgradeStageNone = "NONE"
