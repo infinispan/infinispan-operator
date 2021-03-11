@@ -4,8 +4,8 @@ YQ_MAJ_VERSION=${1:-4}
 installYQ() {
     printf "Installing yq ..."
     GO111MODULE=off go get -u github.com/myitcv/gobin
-    gobin github.com/mikefarah/yq/v4@v4.6.1
     PATH=$(go env GOPATH)/bin:$PATH
+    gobin github.com/mikefarah/yq/v4@v4.6.1
     yq --version
 }
 
@@ -21,6 +21,7 @@ printf "Validating yq installation..."
 if ! [ -x "$(command -v yq)" ]; then
   printf "Not found\n"
   installYQ
+  PATH=$(go env GOPATH)/bin:$PATH
 else
   printf "OK\n"
   printf "Validating yq major version..."
@@ -30,6 +31,7 @@ else
   else
     printf "incorrect major version %s\n" "${INSTALLED_YQ_MAJ_VERSION}"
     installYQ
+    PATH=$(go env GOPATH)/bin:$PATH
   fi
 fi
 
