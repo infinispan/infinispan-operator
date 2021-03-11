@@ -4,7 +4,6 @@ YQ_MAJ_VERSION=${1:-4}
 installYQ() {
     printf "Installing yq ..."
     GO111MODULE=off go get -u github.com/myitcv/gobin
-    PATH=$(go env GOPATH)/bin:$PATH
     gobin github.com/mikefarah/yq/v4@v4.6.1
     yq --version
 }
@@ -20,8 +19,8 @@ OPERATOR_CSV_FILE="deploy/olm-catalog/infinispan-operator.clusterserviceversion.
 printf "Validating yq installation..."
 if ! [ -x "$(command -v yq)" ]; then
   printf "Not found\n"
-  installYQ
   PATH=$(go env GOPATH)/bin:$PATH
+  installYQ
 else
   printf "OK\n"
   printf "Validating yq major version..."
@@ -30,8 +29,8 @@ else
     printf "%s\n" "${YQ_MAJ_VERSION}"
   else
     printf "incorrect major version %s\n" "${INSTALLED_YQ_MAJ_VERSION}"
-    installYQ
     PATH=$(go env GOPATH)/bin:$PATH
+    installYQ
   fi
 fi
 
