@@ -387,7 +387,7 @@ func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
 func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 	route := routev1.Route{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
+			APIVersion: "route.openshift.io/v1",
 			Kind:       "Route",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -416,7 +416,7 @@ func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 func computeIngress(ispn *ispnv1.Infinispan) *networkingv1beta1.Ingress {
 	ingress := networkingv1beta1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1beta1",
+			APIVersion: "networking.k8s.io/v1beta1",
 			Kind:       "Ingress",
 		},
 		ObjectMeta: metav1.ObjectMeta{
