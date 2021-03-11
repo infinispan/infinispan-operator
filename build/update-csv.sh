@@ -15,12 +15,11 @@ OPERATOR_ROLES_FILES=(
 
 OPERATOR_CSV_FILE="deploy/olm-catalog/infinispan-operator.clusterserviceversion.yaml"
 
-#Ensure that GOPATH/bin is in the PATH
-printf "Validating yq installation..."
+validateYQ() {
+ printf "Validating yq installation..."
 if ! [ -x "$(command -v yq)" ]; then
   printf "Not found\n"
-  PATH=$(go env GOPATH)/bin:$PATH
-  installYQ
+  return 1
 else
   printf "OK\n"
   printf "Validating yq major version..."
@@ -29,7 +28,19 @@ else
     printf "%s\n" "${YQ_MAJ_VERSION}"
   else
     printf "incorrect major version %s\n" "${INSTALLED_YQ_MAJ_VERSION}"
-    PATH=$(go env GOPATH)/bin:$PATH
+    return 1
+  fi
+fi
+ 
+}
+
+
+#Ensure that GOPATH/bin is in the PATH
+printf "Validating yq installation..."
+if ! validateYQ; then
+  printf "Valid yq not found. Trying adding GOPATH/bin\n"
+  PATH=$(go env GOPATH)/bin:$PATH
+  if ! validateYQ; then
     installYQ
   fi
 fi
