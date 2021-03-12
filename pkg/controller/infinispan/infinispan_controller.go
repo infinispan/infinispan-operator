@@ -372,7 +372,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Here where to reconcile with spec updates that reflect into
 	// changes to statefulset.spec.container.
-	res, err = r.reconcileContainerConf(infinispan, statefulSet, configMap, userSecret, reqLogger)
+	res, err = r.reconcileContainerConf(infinispan, statefulSet, configMap, adminSecret, userSecret, reqLogger)
 	if res != nil {
 		return *res, err
 	}
@@ -782,7 +782,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						Name:  "infinispan",
 						Env: PodEnv(m, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hashString(configMap.Data[consts.ServerConfigFilename])},
-							{Name: "ADMIN_IDENTITIES_HASH", Value: hashString(adminSecret.StringData[consts.ServerIdentitiesFilename])},
+							{Name: "ADMIN_IDENTITIES_HASH", Value: hashString(string(adminSecret.Data[consts.ServerIdentitiesFilename]))},
 						}),
 						LivenessProbe:  PodLivenessProbe(m),
 						Ports:          PodPortsWithXsite(m),
@@ -1226,7 +1226,7 @@ func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan,
 }
 
 // reconcileContainerConf reconcile the .Container struct is changed in .Spec. This needs a cluster restart
-func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet, configMap *corev1.ConfigMap, secret *corev1.Secret, logger logr.Logger) (*reconcile.Result, error) {
+func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet, configMap *corev1.ConfigMap, adminSecret, userSecret *corev1.Secret, logger logr.Logger) (*reconcile.Result, error) {
 	updateNeeded := false
 	rollingUpgrade := true
 	// Ensure the deployment size is the same as the spec
@@ -1280,7 +1280,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 
 	// Validate ConfigMap changes (by the hash of the infinispan.yaml key value)
 	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
-	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hashString(configMap.Data[consts.ServerIdentitiesFilename])) || updateNeeded
+	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hashString(string(adminSecret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
 
 	// Validate identities Secret name changes
 	if secretName, secretIndex := findIdentitiesSecret(&statefulSet.Spec.Template.Spec); secretIndex >= 0 && secretName != ispn.GetSecretName() {
@@ -1293,13 +1293,13 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	if ispn.IsAuthenticationEnabled() {
 		if AddVolumeForUserAuthentication(ispn, spec) {
 			spec.Containers[0].Env = append(spec.Containers[0].Env,
-				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: hashString(string(secret.Data[consts.ServerIdentitiesFilename]))},
+				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: hashString(string(userSecret.Data[consts.ServerIdentitiesFilename]))},
 				corev1.EnvVar{Name: "IDENTITIES_PATH", Value: consts.ServerUserIdentitiesPath},
 			)
 			updateNeeded = true
 		} else {
 			// Validate Secret changes (by the hash of the identities.yaml key value)
-			updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", hashString(string(secret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
+			updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", hashString(string(userSecret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
 		}
 	}
 
