@@ -220,7 +220,7 @@ func waitForValidBackupPhase(name, namespace string, phase v2.BackupPhase) {
 func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) {
 	var restore *v2.Restore
 	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
-		restore := testKube.GetRestore(name, namespace)
+		restore = testKube.GetRestore(name, namespace)
 		if restore.Status.Phase == v2.RestoreFailed {
 			return true, fmt.Errorf("restore failed. Reason: %s", restore.Status.Reason)
 		}
