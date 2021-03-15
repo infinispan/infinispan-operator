@@ -136,6 +136,7 @@ func TestBatchConfigAndConfigMap(t *testing.T) {
 }
 
 func TestBatchFail(t *testing.T) {
+	t.SkipNow()
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
 	infinispan := createCluster(name)
