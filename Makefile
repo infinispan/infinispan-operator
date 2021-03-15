@@ -13,8 +13,30 @@ KUBECONFIG ?= ${HOME}/.kube/config
 dep:
 	go mod tidy
 
-## codegen     Generates CRDs, k8s code for custom resources and install bundle.
-codegen:
+## lint             Invoke linter to promote Go lang best practices.
+##
+lint:
+	golint pkg/...
+	golint test/...
+
+## vet              Inspects the source code for suspicious constructs.
+##
+vet:
+	go vet ./...
+
+## clean            Remove all generated build files.
+##
+clean:
+	rm -rf build/_output
+
+## updatecsv         Update csv with new roles
+##
+update-csv:
+	./build/update-csv.sh
+
+## codegen          Generates CRDs, k8s code for custom resources and install bundle.
+##
+codegen: update-csv
 	./build/crds-gen.sh ${OPERATOR_SDK_VERSION}
 	./build/install-bundle.sh
 
