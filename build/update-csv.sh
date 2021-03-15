@@ -34,11 +34,9 @@ fi
  
 }
 
-
 #Ensure that GOPATH/bin is in the PATH
-printf "Validating yq installation..."
 if ! validateYQ; then
-  printf "Valid yq not found. Trying adding GOPATH/bin\n"
+  printf "Valid yq not found in PATH. Trying adding GOPATH/bin\n"
   PATH=$(go env GOPATH)/bin:$PATH
   if ! validateYQ; then
     installYQ
