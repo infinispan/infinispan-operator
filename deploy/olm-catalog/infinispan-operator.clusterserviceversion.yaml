@@ -108,22 +108,22 @@ spec:
         version: v2alpha1
         displayName: Restore
   description: |
-      Infinispan is a distributed, in-memory data store that increases application performance and delivers open-source capabilities to handle demanding use cases.
-      
-      ### Core Capabilities
-      * **Schemaless data structure:** Store different objects as key-value pairs.
-      * **Grid-based data storage:** Distribute and replicate data across clusters.
-      * **Elastic scaling:** Dynamically adjust the number of nodes to meet demand without service disruption.
-      * **Data interoperability:** Store, retrieve, and query data in the grid from different endpoints.
-      * **High availability:** Always have access to your data.
+    Infinispan is a distributed, in-memory data store that increases application performance and delivers open-source capabilities to handle demanding use cases.
 
-      ### Infinispan Operator Features
-      * Operational intelligence that simplifies Infinispan cluster deployment.
-      * REST and Hot Rod endpoints available at port `11222`.
-      * Cache service for a high-performance, ephemeral data store.
-      * Data Grid service for a fully configurable Infinispan cluster.
-      * Default application user: `developer`. Infinispan Operator generates credentials in an authentication secret at startup.
-      * Infinispan pods request `0.25` (limit `0.50`) CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent storage. Infinispan Operator lets you adjust resource allocation to suit your requirements.
+    ### Core Capabilities
+    * **Schemaless data structure:** Store different objects as key-value pairs.
+    * **Grid-based data storage:** Distribute and replicate data across clusters.
+    * **Elastic scaling:** Dynamically adjust the number of nodes to meet demand without service disruption.
+    * **Data interoperability:** Store, retrieve, and query data in the grid from different endpoints.
+    * **High availability:** Always have access to your data.
+
+    ### Infinispan Operator Features
+    * Operational intelligence that simplifies Infinispan cluster deployment.
+    * REST and Hot Rod endpoints available at port `11222`.
+    * Cache service for a high-performance, ephemeral data store.
+    * Data Grid service for a fully configurable Infinispan cluster.
+    * Default application user: `developer`. Infinispan Operator generates credentials in an authentication secret at startup.
+    * Infinispan pods request `0.25` (limit `0.50`) CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent storage. Infinispan Operator lets you adjust resource allocation to suit your requirements.
   displayName: Infinispan Operator
   install:
     spec:
