@@ -1,0 +1,55 @@
+[id='batching-configmap_{context}']
+= Running Batch Operations with ConfigMaps
+Use a `ConfigMap` to make additional files, such as {brandname} cache configuration, available for batch operations.
+
+.Procedure
+
+. Create a `ConfigMap` for your batch operations.
+.. Create a `batch` file that contains all commands you want to run.
++
+[NOTE]
+====
+The `ConfigMap` is mounted in {brandname} pods at `/etc/batch` so you must prepend all `--file=` directives with that path.
+====
++
+For example, create a cache named "mycache" from a configuration file and add two entries to it:
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/batch.adoc[]
+----
++
+.. Add all configuration artifacts that batch operations require to the same directory as the `batch` file.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ ls /tmp/mybatch
+
+batch
+mycache.xml
+----
++
+.. Create a `ConfigMap` from the directory.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_configmap} mybatch-config-map --from-file=/tmp/mybatch
+----
++
+. Create a `Batch` CR.
+.. Specify the name of the {brandname} cluster where you want the batch operations to run as the value of the `spec.cluster` field.
+.. Set the name of the `ConfigMap` that contains your `batch` file and configuration artifacts with the `spec.configMap` field.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/batch_configmap.yaml[]
+----
++
+. Apply your `Batch` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} mybatch.yaml
+----
++
+. Check the `status.Phase` field in the `Batch` CR to verify the operations completed successfully.

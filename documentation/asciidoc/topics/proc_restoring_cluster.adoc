@@ -4,7 +4,7 @@ Restore {brandname} cluster state from a backup archive.
 
 .Prerequisites
 
-* Create a **Backup** CR on a source cluster.
+* Create a `Backup` CR on a source cluster.
 * Create a {brandname} cluster of {datagridservice} nodes where you want to restore state.
 +
 [IMPORTANT]
@@ -17,7 +17,7 @@ For example, a client does `cache.put(k=2)` before you restore a backup that con
 
 .Procedure
 
-. Create a **Restore** CR.
+. Create a `Restore` CR.
 +
 For example, create `my-restore.yaml` with the following:
 +
@@ -26,9 +26,9 @@ For example, create `my-restore.yaml` with the following:
 include::yaml/cr_restore.yaml[]
 ----
 +
-<1> Specifies a **Restore** CR.
-<2> Provides a unique name for the **Restore** CR.
-<3> Specifies the name of the **Backup** CR.
+<1> Specifies a `Restore` CR.
+<2> Provides a unique name for the `Restore` CR.
+<3> Specifies the name of the `Backup` CR.
 <4> Specifies the name of the `Infinispan` CR.
 +
 . Add the `spec.resources` field to restore specific resources only.
@@ -44,7 +44,7 @@ include::yaml/cr_backup_resources.yaml[]
 <4> Protobuf schemas for querying.
 <5> Custom server tasks.
 +
-. Apply your **Restore** CR.
+. Apply your `Restore` CR.
 +
 [source,options="nowrap",subs=attributes+]
 ----

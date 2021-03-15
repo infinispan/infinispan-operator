@@ -4,8 +4,8 @@ ifdef::context[:parent-context: {context}]
 = Backing Up and Restoring {brandname} Clusters
 {ispn_operator} watches for custom resources (CR) that let you back up and restore {brandname} cluster state for disaster recovery or when migrating between {brandname} versions.
 
-**Backup** CR:: Archives {brandname} cluster content to a persistent volume.
-**Restore** CR:: Restores archived content to a {brandname} cluster.
+`Backup` CR:: Archives {brandname} cluster content to a persistent volume.
+`Restore` CR:: Restores archived content to a {brandname} cluster.
 
 include::{topics}/proc_backing_up_cluster.adoc[leveloffset=+1]
 include::{topics}/proc_restoring_cluster.adoc[leveloffset=+1]

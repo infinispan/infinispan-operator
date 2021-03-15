@@ -1,0 +1,35 @@
+[id='batch-status_{context}']
+= Batch Status Messages
+Verify and troubleshoot batch operations with the `status.Phase` field in the `Batch` CR.
+
+[%header,cols=2*]
+|===
+|Phase
+|Description
+
+|`Succeeded`
+|All batch operations have completed successfully.
+
+|`Initializing`
+|Batch operations are queued and resources are initializing.
+
+|`Initialized` 
+|Batch operations are ready to start.
+
+|`Running`
+|Batch operations are in progress.
+
+|`Failed`
+|One or more batch operations were not successful.
+
+|===
+
+.Failed operations
+
+Batch operations are not atomic.
+If a command in a batch script fails, it does not affect the other operations or cause them to rollback.
+
+[NOTE]
+====
+If your batch operations have any server or syntax errors, you can view log messages in the `Batch` CR in the `status.Reason` field.
+====

@@ -1,0 +1,23 @@
+[id='batching-inline_{context}']
+= Running Inline Batch Operations
+Include your batch operations directly in a `Batch` CR if they do not require separate configuration artifacts.
+
+.Procedure
+
+. Create a `Batch` CR.
+.. Specify the name of the {brandname} cluster where you want the batch operations to run as the value of the `spec.cluster` field.
+.. Add each CLI command to run on a line in the `spec.config` field.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/batch_inline.yaml[]
+----
++
+. Apply your `Batch` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} mybatch.yaml
+----
++
+. Check the `status.Phase` field in the `Batch` CR to verify the operations completed successfully.

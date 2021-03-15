@@ -23,6 +23,7 @@ ifdef::community[]
 :oc_create: kubectl create
 :kubectl_exec: kubectl exec -it {example_crd_name}-0 -- /bin/bash
 :describe_backup: kubectl describe Backup my-backup -n namespace
+:oc_configmap: kubectl create configmap
 endif::community[]
 
 //
@@ -46,4 +47,5 @@ ifdef::downstream[]
 :oc_create: oc create
 :kubectl_exec: oc rsh {example_crd_name}-0
 :describe_backup: oc describe Backup my-backup
+:oc_configmap: oc create configmap
 endif::downstream[]

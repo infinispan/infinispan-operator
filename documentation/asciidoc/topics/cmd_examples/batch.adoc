@@ -1,0 +1,3 @@
+create cache sessions --file=/etc/batch/mycache.xml
+put --cache=mycache hello world
+put --cache=mycache hola mundo

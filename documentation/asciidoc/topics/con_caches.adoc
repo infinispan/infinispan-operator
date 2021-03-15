@@ -1,0 +1,14 @@
+[id='creating-caches_{context}']
+= {brandname} Caches
+
+Cache configuration defines the characteristics and features of the data store and must be valid with the {brandname} schema.
+{brandname} recommends creating standalone files in XML or JSON format that define your cache configuration.
+You should separate {brandname} configuration from application code for easier validation and to avoid the situation where you need to maintain XML snippets in Java or some other client language.
+
+To create caches with {brandname} clusters running on {k8s}, you should:
+
+* Use `Cache` CR as the mechanism for creating caches through the {k8s} front end.
+* Use `Batch` CR to create multiple caches at a time from standalone configuration files.
+* Access {brandname} Console and create caches in XML or JSON format.
+
+You can use Hot Rod or HTTP clients but {brandname} recommends `Cache` CR or `Batch` CR unless your specific use case requires programmatic remote cache creation.

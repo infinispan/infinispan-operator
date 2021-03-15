@@ -60,3 +60,6 @@
 
 //REST
 :rest_docs: https://infinispan.org/docs/stable/titles/rest/rest.html
+
+//CLI
+:cli_docs: https://infinispan.org/docs/stable/titles/cli/cli.html

@@ -1,0 +1,121 @@
+[id='batch-operations_{context}']
+= Example Batch Operations
+
+Use these example batch operations as starting points for creating and modifying {brandname} resources with the `Batch` CR.
+
+[NOTE]
+====
+You can pass configuration files to {ispn_operator} only via a `ConfigMap`.
+
+The `ConfigMap` is mounted in {brandname} pods at `/etc/batch` so you must prepend all `--file=` directives with that path.
+====
+
+== Users
+
+Create several {brandname} users and assign them roles with varying levels of permission to access caches and interact with {brandname} resources.
+
+[source,sh,options="nowrap",subs=attributes+]
+----
+echo "connecting"
+connect --username=admin --password=changeme
+echo "creating users and groups..."
+create user katie -p changeme -g deployer
+user create --groups=developers developers -p changeme
+user roles grant --roles=application developers
+create user john -p changeme -g developers
+create user dave -p changeme -g developers
+create user mark -p changeme -g developers
+create user julia -p changeme -g developers
+create user pedro -p changeme -g developers
+create user rita -p changeme -g observer
+echo "list users"
+user ls
+----
+
+== Caches
+
+* Create multiple caches from configuration files.
+
+[source,sh,options="nowrap",subs=attributes+]
+----
+echo "connecting"
+connect --username=admin --password=changeme
+echo "creating caches..."
+create cache sessions --file=/etc/batch/infinispan-prod-sessions.xml
+create cache tokens --file=/etc/batch/infinispan-prod-tokens.xml
+create cache people --file=/etc/batch/infinispan-prod-people.xml
+create cache books --file=/etc/batch/infinispan-prod-books.xml
+create cache authors --file=/etc/batch/infinispan-prod-authors.xml
+echo "list caches in the cluster"
+ls caches
+----
+
+* Create a template from a file and then create caches from the template.
+
+[source,sh,options="nowrap",subs=attributes+]
+----
+echo "connecting"
+connect --username=admin --password=changeme
+echo "creating caches..."
+create cache mytemplate --file=/etc/batch/mycache.xml
+create cache sessions --template=mytemplate
+create cache tokens --template=mytemplate
+echo "list caches in the cluster"
+ls caches
+----
+
+== Counters
+
+Use the `Batch` CR to create multiple counters that can increment and decrement to record the count of objects.
+
+You can use counters to generate identifiers, act as rate limiters, or track the number of times a resource is accessed.
+
+[source,sh,options="nowrap",subs=attributes+]
+----
+echo "connecting"
+connect --username=admin --password=changeme
+echo "creating counters..."
+create counter --concurrency-level=1 --initial-value=5 --storage=PERSISTENT --type=weak mycounter1
+create counter --initial-value=3 --storage=PERSISTENT --type=strong mycounter2
+create counter --initial-value=13 --storage=PERSISTENT --type=strong --upper-bound=10 mycounter3
+echo "list counters in the cluster"
+ls counters
+----
+
+== Protobuf schema
+
+Register Protobuf schema to query values in caches.
+Protobuf schema (`.proto` files) provide metadata about custom entities and controls field indexing.
+
+[source,sh,options="nowrap",subs=attributes+]
+----
+echo "connecting"
+connect --username=admin --password=changeme
+echo "creating schema..."
+schema --upload=person.proto person.proto
+schema --upload=book.proto book.proto
+schema --upload=author.proto book.proto
+echo "list Protobuf schema"
+ls schemas
+----
+
+== Tasks
+
+Upload tasks that implement `org.infinispan.tasks.ServerTask` or scripts that are compatible with the `javax.script` scripting API.
+
+[source,sh,options="nowrap",subs=attributes+]
+----
+echo "connecting"
+connect --username=admin --password=changeme
+echo "creating tasks..."
+task upload --file=/etc/batch/myfirstscript.js myfirstscript
+task upload --file=/etc/batch/mysecondscript.js mysecondscript
+task upload --file=/etc/batch/mythirdscript.js mythirdscript
+echo "list tasks"
+ls tasks
+----
+
+[role="_additional-resources"]
+.Additional resources
+
+* link:{cli_docs}#batch_operations[CLI batch operations]
