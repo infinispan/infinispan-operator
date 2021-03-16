@@ -45,14 +45,14 @@ func TestBatchInlineConfig(t *testing.T) {
 func TestBatchInlineConfigWithTLS(t *testing.T) {
 	t.Parallel()
 	infinispan := tutils.DefaultSpec(testKube)
-	infinispan.ObjectMeta.Name = strcase.ToKebab(t.Name())
+	infinispan.Name = strcase.ToKebab(t.Name())
 	infinispan.Spec.Security = v1.InfinispanSecurity{
-		EndpointEncryption: &tutils.EndpointEncryption,
+		EndpointEncryption: tutils.EndpointEncryption(infinispan.Name),
 	}
 
 	// Create secret
-	testKube.CreateSecret(&tutils.EncryptionSecret, tutils.Namespace)
-	defer testKube.DeleteSecret(&tutils.EncryptionSecret)
+	testKube.CreateSecret(tutils.EncryptionSecret(infinispan.Name, tutils.Namespace))
+	defer testKube.DeleteSecret(tutils.EncryptionSecret(infinispan.Name, tutils.Namespace))
 
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)

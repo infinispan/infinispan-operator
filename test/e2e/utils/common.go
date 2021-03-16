@@ -16,29 +16,33 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-const EncryptionSecretName = "secret-certs"
+const EncryptionSecretNamePostfix = "secret-certs"
 
-var EndpointEncryption = v1.EndpointEncryption{
-	Type:           "secret",
-	CertSecretName: EncryptionSecretName,
+func EndpointEncryption(name string) *v1.EndpointEncryption {
+	return &v1.EndpointEncryption{
+		Type:           v1.CertificateSourceTypeSecret,
+		CertSecretName: fmt.Sprintf("%s-%s", name, EncryptionSecretNamePostfix),
+	}
 }
 
-var EncryptionSecret = corev1.Secret{
-	TypeMeta: metav1.TypeMeta{
-		APIVersion: "v1",
-		Kind:       "Secret",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      EncryptionSecretName,
-		Namespace: Namespace,
-	},
-	Type: corev1.SecretTypeOpaque,
-	StringData: map[string]string{
-		"tls.key": tlsKey,
-		"tls.crt": tlsCrt},
+func EncryptionSecret(name, namespace string) *corev1.Secret {
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%s", name, EncryptionSecretNamePostfix),
+			Namespace: namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		StringData: map[string]string{
+			"tls.key": tlsKey,
+			"tls.crt": tlsCrt},
+	}
 }
 
-var tlsCrt = `-----BEGIN CERTIFICATE-----
+const tlsCrt = `-----BEGIN CERTIFICATE-----
 MIIDkzCCAnugAwIBAgIUeKgxAiU9pYocbLPcC/q1HgmNQIEwDQYJKoZIhvcNAQEL
 BQAwWTELMAkGA1UEBhMCaXQxCzAJBgNVBAgMAm1pMQswCQYDVQQHDAJtaTETMBEG
 A1UECgwKaW5maW5pc3BhbjEMMAoGA1UECwwDZW5nMQ0wCwYDVQQDDARpc3BuMB4X
@@ -61,7 +65,7 @@ vwooI+AlMd/5zB5opyR527eaT2hOoCK8wR2/EM68v97ZpuUXnrJHsb+rdCHAWUuy
 ONaPRRR3rw==
 -----END CERTIFICATE-----`
 
-var tlsKey = `-----BEGIN PRIVATE KEY-----
+const tlsKey = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDGryN9OjX/NpQ9
 L442EcC8ncB2OBQljg/LzYXMgXN+j1vR51G8lylVQn7+XwTdd6xdXs2kAMnEu5cI
 OGcx7qUNfaYKgkWQU1BezGJddOX6nokVKFMJoTu6erXlm3lnIfRv7rUkOfjxovM/

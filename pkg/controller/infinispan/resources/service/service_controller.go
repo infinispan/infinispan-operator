@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -159,16 +160,30 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 	result, err := controllerutil.CreateOrUpdate(context.TODO(), s.client, findResource, func() error {
 		creationTimestamp := findResource.GetCreationTimestamp()
 		metadata := unstructuredResource["metadata"].(map[string]interface{})
+		spec := unstructuredResource["spec"].(map[string]interface{})
 		if creationTimestamp.IsZero() {
 			controllerutil.SetControllerReference(s.infinispan, findResource, s.scheme)
-			unstructured.SetNestedField(findResource.UnstructuredContent(), unstructuredResource["spec"], "spec")
+			unstructured.SetNestedField(findResource.UnstructuredContent(), spec, "spec")
 			unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["annotations"], "metadata", "annotations")
+			unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
+		} else {
+			findResourceMetadata := findResource.Object["metadata"].(map[string]interface{})
+			findResourceSpec:= findResource.Object["spec"].(map[string]interface{})
+			if !reflect.DeepEqual(findResourceMetadata["annotations"], metadata["annotations"]) && resource.GetObjectKind().GroupVersionKind().Kind == ExternalTypeService {
+				unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["annotations"], "metadata", "annotations")
+			}
+			if !reflect.DeepEqual(findResourceMetadata["labels"], metadata["labels"]) {
+				unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
+			}
+			if resource.GetObjectKind().GroupVersionKind().Kind != ExternalTypeService && !reflect.DeepEqual(findResourceSpec["tls"], spec["tls"]) {
+				unstructured.SetNestedField(findResource.UnstructuredContent(), spec["tls"], "spec", "tls")
+			}
 		}
-		unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
+
 		return nil
 	})
 	if err != nil {
-		s.log.Error(err, fmt.Sprintf("failed to create or update %s", findResource.GetKind()), findResource)
+		s.log.Error(err, fmt.Sprintf("failed to create or update %s", findResource.GetKind()), findResource.GetKind(), findResource)
 		return err
 	}
 	if result != controllerutil.OperationResultNone {
