@@ -186,6 +186,12 @@ spec:
             - apiGroups:
                 - ""
               resources:
+                - pods/log
+              verbs:
+                - get
+            - apiGroups:
+                - ""
+              resources:
                 - pods/exec
               verbs:
                 - create
@@ -196,6 +202,17 @@ spec:
                 - deployments
               verbs:
                 - get
+            - apiGroups:
+                - batch
+              resources:
+                - jobs
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - delete
             - apiGroups:
                 - apps
               resources:
@@ -251,6 +268,9 @@ spec:
                 - restores
                 - restores/status
                 - restores/finalizers
+                - batches
+                - batches/status
+                - batches/finalizers
               verbs:
                 - get
                 - list
