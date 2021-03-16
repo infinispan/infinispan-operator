@@ -883,7 +883,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 // Returns true if the volume has been added
 func AddVolumeForUserAuthentication(i *infinispanv1.Infinispan, spec *corev1.PodSpec) bool {
-	if _, index := findIdentitiesSecret(spec); !i.IsAuthenticationEnabled() || index >= 0 {
+	if _, index := findSecretInVolume(spec, IdentitiesVolumeName); !i.IsAuthenticationEnabled() || index >= 0 {
 		return false
 	}
 
@@ -1029,13 +1029,13 @@ func chmodInitContainer(containerName, volumeName, mountPath string) corev1.Cont
 	}
 }
 
-func AddVolumeForEncryption(i *infinispanv1.Infinispan, pod *corev1.PodSpec) {
+func AddVolumeForEncryption(i *infinispanv1.Infinispan, spec *corev1.PodSpec) bool {
 	secret := i.GetEncryptionSecretName()
-	if secret == "" || i.IsEncryptionDisabled() {
-		return
+	if _, index := findSecretInVolume(spec, EncryptVolumeName); secret == "" || i.IsEncryptionDisabled() || index >= 0 {
+		return false
 	}
 
-	v := &pod.Volumes
+	v := &spec.Volumes
 	*v = append(*v, corev1.Volume{Name: EncryptVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
@@ -1044,11 +1044,12 @@ func AddVolumeForEncryption(i *infinispanv1.Infinispan, pod *corev1.PodSpec) {
 		},
 	})
 
-	vm := &pod.Containers[0].VolumeMounts
+	vm := &spec.Containers[0].VolumeMounts
 	*vm = append(*vm, corev1.VolumeMount{
 		Name:      EncryptVolumeName,
 		MountPath: EncryptMountPath,
 	})
+	return true
 }
 
 func ConfigureServerEncryption(m *infinispanv1.Infinispan, c *config.InfinispanConfiguration, client client.Client) error {
@@ -1291,7 +1292,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hashString(string(adminSecret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
 
 	// Validate identities Secret name changes
-	if secretName, secretIndex := findIdentitiesSecret(&statefulSet.Spec.Template.Spec); secretIndex >= 0 && secretName != ispn.GetSecretName() {
+	if secretName, secretIndex := findSecretInVolume(&statefulSet.Spec.Template.Spec, IdentitiesVolumeName); secretIndex >= 0 && secretName != ispn.GetSecretName() {
 		// Update new Secret name inside StatefulSet.Spec.Template
 		statefulSet.Spec.Template.Spec.Volumes[secretIndex].Secret.SecretName = ispn.GetSecretName()
 		statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
@@ -1310,6 +1311,8 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 			updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", hashString(string(userSecret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
 		}
 	}
+
+	updateNeeded = AddVolumeForEncryption(ispn, spec) || updateNeeded
 
 	// Validate extra Java options changes
 	if updateStatefulSetEnv(statefulSet, "EXTRA_JAVA_OPTIONS", ispnContr.ExtraJvmOpts) {
@@ -1349,9 +1352,9 @@ func updateStatefulSetEnv(statefulSet *appsv1.StatefulSet, envName, newValue str
 	return false
 }
 
-func findIdentitiesSecret(pod *corev1.PodSpec) (string, int) {
+func findSecretInVolume(pod *corev1.PodSpec, volumeName string) (string, int) {
 	for i, volumes := range pod.Volumes {
-		if volumes.Secret != nil && volumes.Name == IdentitiesVolumeName {
+		if volumes.Secret != nil && volumes.Name == volumeName {
 			return volumes.Secret.SecretName, i
 		}
 	}

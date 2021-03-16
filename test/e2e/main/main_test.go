@@ -241,11 +241,11 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	spec.Name = name
 	spec.Spec.Replicas = 2
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
-		EndpointEncryption: &tutils.EndpointEncryption,
+		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
 	}
 	// Create secret
-	testKube.CreateSecret(&tutils.EncryptionSecret, tutils.Namespace)
-	defer testKube.DeleteSecret(&tutils.EncryptionSecret)
+	testKube.CreateSecret(tutils.EncryptionSecret(spec.Name, tutils.Namespace))
+	defer testKube.DeleteSecret(tutils.EncryptionSecret(spec.Name, tutils.Namespace))
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
@@ -321,6 +321,32 @@ func TestEndpointAuthenticationUpdate(t *testing.T) {
 	spec := tutils.DefaultSpec(testKube)
 	spec.Name = strcase.ToKebab(t.Name())
 	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
+func TestEndpointEncryptionUpdate(t *testing.T) {
+	t.Parallel()
+	spec := tutils.DefaultSpec(testKube)
+	spec.Name = strcase.ToKebab(t.Name())
+	spec.Spec.Security = ispnv1.InfinispanSecurity{
+		EndpointEncryption: &ispnv1.EndpointEncryption{
+			Type: ispnv1.CertificateSourceTypeNoneNoEncryption,
+		},
+	}
+
+	// Create secret
+	testKube.CreateSecret(tutils.EncryptionSecret(spec.Name, tutils.Namespace))
+	defer testKube.DeleteSecret(tutils.EncryptionSecret(spec.Name, tutils.Namespace))
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Security = ispnv1.InfinispanSecurity{
+			EndpointEncryption: tutils.EndpointEncryption(spec.Name),
+		}
+	}
+	var verifier = func(ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+	}
+
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -546,11 +572,14 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
-		ObjectMeta: metav1.ObjectMeta{Name: "conn-secret-test"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "conn-secret-test",
+			Namespace: tutils.Namespace,
+		},
 		Type:       "Opaque",
 		StringData: map[string]string{cconsts.ServerIdentitiesFilename: string(identitiesYaml)},
 	}
-	testKube.CreateSecret(&secret, tutils.Namespace)
+	testKube.CreateSecret(&secret)
 	defer testKube.DeleteSecret(&secret)
 
 	name := strcase.ToKebab(t.Name())
@@ -592,11 +621,14 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
-		ObjectMeta: metav1.ObjectMeta{Name: "conn-secret-test-1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "conn-secret-test-1",
+			Namespace: tutils.Namespace,
+		},
 		Type:       "Opaque",
 		StringData: map[string]string{cconsts.ServerIdentitiesFilename: string(identitiesYaml)},
 	}
-	testKube.CreateSecret(&secret1, tutils.Namespace)
+	testKube.CreateSecret(&secret1)
 	defer testKube.DeleteSecret(&secret1)
 
 	// Get the associate statefulset

@@ -481,8 +481,7 @@ func (k TestKubernetes) Nodes() []string {
 }
 
 // CreateSecret creates a secret
-func (k TestKubernetes) CreateSecret(secret *v1.Secret, namespace string) {
-	secret.Namespace = namespace
+func (k TestKubernetes) CreateSecret(secret *v1.Secret) {
 	err := k.Kubernetes.Client.Create(context.TODO(), secret)
 	ExpectNoError(err)
 }

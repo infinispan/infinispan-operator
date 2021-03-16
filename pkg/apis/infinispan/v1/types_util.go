@@ -135,15 +135,15 @@ func (ispn *Infinispan) ApplyDefaults() {
 	}
 }
 
-// ApplyEndpointEncryptionSettings compute the ee object
+// ApplyEndpointEncryptionSettings compute the EndpointEncryption object
 func (ispn *Infinispan) ApplyEndpointEncryptionSettings(servingCertsMode string, reqLogger logr.Logger) {
 	// Populate EndpointEncryption if serving cert service is available
-	if servingCertsMode == "openshift.io" && !ispn.IsEncryptionCertSourceDefined() {
+	if servingCertsMode == "openshift.io" && (!ispn.IsEncryptionCertSourceDefined() || ispn.IsEncryptionCertFromService()) {
 		if ispn.Spec.Security.EndpointEncryption == nil {
 			ispn.Spec.Security.EndpointEncryption = &EndpointEncryption{}
 		}
-		reqLogger.Info("Serving certificate service present. Configuring into Infinispan CR")
-		if ispn.Spec.Security.EndpointEncryption.Type == "" {
+		if ispn.Spec.Security.EndpointEncryption.CertServiceName == "" || ispn.Spec.Security.EndpointEncryption.Type == "" {
+			reqLogger.Info("Serving certificate service present. Configuring into Infinispan CR")
 			ispn.Spec.Security.EndpointEncryption.Type = CertificateSourceTypeService
 			ispn.Spec.Security.EndpointEncryption.CertServiceName = "service.beta.openshift.io"
 		}
@@ -253,7 +253,7 @@ func (ispn *Infinispan) GetSecretName() string {
 	return ispn.Spec.Security.EndpointSecretName
 }
 
-// GetSecretName returns the admin secret name associated with a server
+// GetAdminSecretName returns the admin secret name associated with a server
 func (ispn *Infinispan) GetAdminSecretName() string {
 	return fmt.Sprintf("%v-generated-operator-secret", ispn.GetName())
 }
