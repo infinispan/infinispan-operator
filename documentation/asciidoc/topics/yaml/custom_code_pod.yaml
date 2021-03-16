@@ -7,11 +7,9 @@ spec:
     - name: lib-pv-storage
       persistentVolumeClaim:
         claimName: datagrid-libs
-  securityContext:
-    fsGroup: 1000600000
   containers:
     - name: lib-pv-container
-      image: quay.io/infinispan/server:12.0
+      image: quay.io/infinispan/server:{server_image_version}
       volumeMounts:
         - mountPath: /tmp/libs
           name: lib-pv-storage
