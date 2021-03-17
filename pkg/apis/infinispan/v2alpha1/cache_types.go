@@ -23,7 +23,7 @@ type CacheSpec struct {
 	// Deprecated. This no longer has any effect. The operator's admin credentials are now used to perform cache operations
 	AdminAuth *AdminAuth `json:"adminAuth,omitempty"`
 	// Name of the cluster where to create the cache
-	ClusterName string `json:"clusterName,omitempty"`
+	ClusterName string `json:"clusterName"`
 	// Name of the cache to be created. If empty ObjectMeta.Name will be used
 	Name string `json:"name,optional,omitempty"`
 	// Cache template in XML format
@@ -53,6 +53,7 @@ type CacheStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Cache is the Schema for the caches API
+// +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=caches,scope=Namespaced
 type Cache struct {
