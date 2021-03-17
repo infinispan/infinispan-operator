@@ -11,6 +11,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/apis"
 	"github.com/infinispan/infinispan-operator/pkg/controller"
 	"github.com/infinispan/infinispan-operator/version"
+	grafanav1alpha1 "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
@@ -125,6 +126,12 @@ func Launch(params Parameters) {
 
 	// Setup Scheme for Ingress
 	if err := extv1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Setup scheme for Grafana
+	if err := grafanav1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

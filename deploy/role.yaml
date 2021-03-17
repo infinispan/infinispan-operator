@@ -38,9 +38,16 @@ rules:
   - apps
   resources:
   - replicasets
+  verbs:
+  - get
+- apiGroups:
+  - apps
+  resources:
   - deployments
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - batch
   resources:
@@ -117,3 +124,13 @@ rules:
   - create
   - update
   - patch
+- apiGroups:
+    - integreatly.org
+  resources:
+    - grafanadashboards
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - delete
