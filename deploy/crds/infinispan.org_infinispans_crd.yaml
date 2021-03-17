@@ -823,6 +823,8 @@ spec:
                 - type
                 type: object
               type: array
+            consoleUrl:
+              type: string
             podStatus:
               properties:
                 ready:

@@ -13,11 +13,8 @@ import (
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	restclient "k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ComputeXSite compute the xsite struct for cross site function
@@ -140,7 +137,9 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kuber
 	switch serviceType := service.Spec.Type; serviceType {
 	case corev1.ServiceTypeNodePort:
 		// If configuring NodePort, expect external IPs to be configured
-		return GetNodePortServiceHostPort(service.Spec.Ports[0].NodePort, kubernetes, logger)
+		nodePort := service.Spec.Ports[0].NodePort
+		nodeHost, err := kubernetes.GetNodeHost(logger)
+		return nodeHost, nodePort, err
 	case corev1.ServiceTypeLoadBalancer:
 		return getLoadBalancerServiceHostPort(service, logger)
 	case corev1.ServiceTypeClusterIP:
@@ -148,49 +147,6 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kuber
 	default:
 		return "", 0, fmt.Errorf("unsupported service type '%v'", serviceType)
 	}
-}
-
-func GetNodePortServiceHostPort(nodePort int32, k *kube.Kubernetes, logger logr.Logger) (string, int32, error) {
-	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
-	//So, we get the workers list. It needs some permissions cluster-reader permission
-	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
-	workerList := &corev1.NodeList{}
-
-	//select workers first
-	req, err := labels.NewRequirement("node-role.kubernetes.io/worker", selection.Exists, nil)
-	if err != nil {
-		return "", 0, err
-	}
-	listOps := &client.ListOptions{
-		LabelSelector: labels.NewSelector().Add(*req),
-	}
-	err = k.Client.List(context.TODO(), workerList, listOps)
-
-	if err != nil || len(workerList.Items) == 0 {
-		// Fallback selecting everything
-		err = k.Client.List(context.TODO(), workerList, &client.ListOptions{})
-		if err != nil {
-			return "", 0, err
-		}
-	}
-
-	for _, node := range workerList.Items {
-		//host := k.PublicIP() //returns REST API endpoint. not good.
-		//iterate over the all the nodes and return the first ready.
-		nodeStatus := node.Status
-		for _, nodeCondition := range nodeStatus.Conditions {
-			if nodeCondition.Type == corev1.NodeReady && nodeCondition.Status == corev1.ConditionTrue && len(nodeStatus.Addresses) > 0 {
-				//The port can be found in the service description
-				host := nodeStatus.Addresses[0].Address
-				port := nodePort
-				logger.Info("Found ready worker node.", "Host", host, "Port", port)
-				return host, port, nil
-			}
-		}
-	}
-
-	err = fmt.Errorf("no worker node found")
-	return "", 0, err
 }
 
 func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {

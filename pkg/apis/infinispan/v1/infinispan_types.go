@@ -234,6 +234,7 @@ type InfinispanStatus struct {
 	Security                *InfinispanSecurity   `json:"security,optional,omitempty"`
 	ReplicasWantedAtRestart int32                 `json:"replicasWantedAtRestart,optional,omitempty"`
 	PodStatus               olm.DeploymentStatus  `json:"podStatus,optional,omitempty"`
+	ConsoleUrl              *string               `json:"consoleUrl,optional,omitempty"`
 }
 
 // +genclient

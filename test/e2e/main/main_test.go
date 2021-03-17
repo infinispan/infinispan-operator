@@ -15,7 +15,6 @@ import (
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
-	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources/config"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -186,7 +185,7 @@ func areOperatorLabelsPropagated(namespace, varName string, labels map[string]st
 
 // Run some functions for testing rights not covered by integration tests
 func TestRolesSynthetic(t *testing.T) {
-	_, _, err := config.GetNodePortServiceHostPort(0, serviceAccountKube.Kubernetes, log)
+	_, err := serviceAccountKube.Kubernetes.GetNodeHost(log)
 	tutils.ExpectNoError(err)
 
 	_, err = kube.FindStorageClass("not-present-storage-class", serviceAccountKube.Kubernetes.Client)
