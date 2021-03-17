@@ -1634,13 +1634,12 @@ func getRemoteSiteRESTConfig(namespace string, location *infinispanv1.Infinispan
 
 	// All remote sites locations are accessed via encrypted http
 	copyURL.Scheme = "https"
-	locationNamespace := consts.GetWithDefault(location.Namespace, namespace)
 
 	switch scheme := backupSiteURL.Scheme; scheme {
 	case "minikube":
-		return getKubernetesRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
+		return getKubernetesRESTConfig(copyURL.String(), location.SecretName, namespace, logger)
 	case "openshift":
-		return getOpenShiftRESTConfig(copyURL.String(), location.SecretName, locationNamespace, logger)
+		return getOpenShiftRESTConfig(copyURL.String(), location.SecretName, namespace, logger)
 	default:
 		return nil, fmt.Errorf("backup site URL scheme '%s' not supported", scheme)
 	}
