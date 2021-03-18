@@ -151,6 +151,8 @@ spec:
           - displayName: ConfigMap name
             description: Name if the ConfigMap containing th List of commands to be executed
             path: configMap
+            x-descriptors:
+              - 'urn:alm:descriptor:com.tectonic.ui:selector:core:v1:ConfigMap'
         statusDescriptors:
           - description: Current state of the batch operation
             displayName: Batch Status
