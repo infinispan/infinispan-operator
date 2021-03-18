@@ -1,7 +1,7 @@
 apiVersion: v1
 stringData:
-  username: operator <1>
-  password: dIRs5cAAsHIeeRIL <2>
+  username: operator # The operator user.
+  password: O9R95c56fI4WhGeW # Corresponding password.
 kind: Secret
 metadata:
   name: basic-auth

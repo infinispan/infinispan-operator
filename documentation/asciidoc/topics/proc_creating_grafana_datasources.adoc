@@ -1,0 +1,60 @@
+[id='creating-grafana-dashboards_{context}']
+= Creating Grafana Data Sources
+Create a `GrafanaDatasource` CR so you can visualize {brandname} metrics in Grafana dashboards.
+
+.Prerequisites
+
+* Have `cluster-admin` access to {ocp}.
+* Create a Prometheus `ServiceMonitor` that scrapes {brandname} metrics.
+* Install the Grafana Operator from the **alpha** channel and create a `Grafana` CR.
+
+.Procedure
+
+. Create a `ServiceAccount` that lets Grafana read {brandname} metrics from Prometheus.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/prometheus_service_account.yaml[]
+----
++
+.. Apply the `ServiceAccount`.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc apply -f service-account.yaml
+----
++
+.. Grant `cluster-monitoring-view` permissions to the `ServiceAccount`.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc adm policy add-cluster-role-to-user cluster-monitoring-view -z infinispan-monitoring
+----
++
+. Create a Grafana data source.
+.. Retrieve the token for the `ServiceAccount`.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc serviceaccounts get-token infinispan-monitoring
+
+eyJhbGciOiJSUzI1NiIsImtpZCI6Imc4O...
+----
++
+.. Define a `GrafanaDataSource` that includes the token as follows:
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/grafana_datasource.yaml[]
+----
++
+. Apply the `GrafanaDataSource`.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc apply -f grafana-datasource.yaml
+----
+
+.Next steps
+
+Enable Grafana dashboards with the {ispn_operator} configuration properties.

@@ -1,0 +1,9 @@
+[id='installing-grafana-operator_{context}']
+= Installing the Grafana Operator
+To support various needs, {ispn_operator} integrates with the community version of the Grafana Operator to create dashboards for {brandname} services.
+
+Until Grafana is integrated with {openshiftshort} user workload monitoring, the only option is to rely on the community version.
+You can install the Grafana Operator on {openshiftshort} from the **OperatorHub** and should create a subscription for the **alpha** channel.
+
+However, as is the policy for all Community Operators, Red Hat does not certify the Grafana Operator and does not provide support for it in combination with {brandname}.
+When you install the Grafana Operator you are prompted to acknowledge a warning about the community version before you can continue.
