@@ -1,63 +1,66 @@
-[id='creating_service_monitor-{context}']
+[id='creating-service-monitor_{context}']
 = Creating a Prometheus Service Monitor
-Define a service monitor instances that configures Prometheus to monitor your
-{brandname} cluster.
+Create a Prometheus `ServiceMonitor` that scrapes metrics from a {brandname} cluster.
 
 .Prerequisites
 
-* Set up a Prometheus stack on your {k8s} cluster.
+* Have an `oc` client.
+* Enable monitoring for user-defined projects on {ocp}.
 
 .Procedure
 
-. Retrieve the credentials for {ispn_operator}.
+. Create an authentication secret for the `operator` user.
++
+Prometheus needs credentials to authenticate with {brandname} and must use the `operator` user and corresponding password.
++
+.. Retrieve the `operator` user credentials.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_get_secret_operator_creds.adoc[]
+----
++
+.. Create an authentication secret, for example:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/basic_auth.yaml[]
 ----
 +
-. Create an authentication secret that contains the credentials. +
-This allows Prometheus to authenticate with your {brandname} cluster and retrieve metrics.
+.. Add the authentication secret to your {brandname} cluster namespace.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml/basic_auth.yaml[]
+$ oc apply -f basic-auth.yaml
 ----
 +
-<1> Specifies the **operator** user.
-<2> Specifies the corresponding password.
-+
-. Add the authentication secret to your Prometheus namespace.
+. Create a Prometheus `ServiceMonitor` that scrapes {brandname} metrics.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} basic-auth.yaml
+include::yaml/prometheus_service_monitor.yaml[]
 ----
 +
-. Create a service monitor that configures Prometheus to monitor your {brandname} cluster.
+. Add the `ServiceMonitor`.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml/service_monitor.yaml[]
+$ oc apply -f service-monitor.yaml
 ----
+
+.Verification
+
+You can check that Prometheus is scraping {brandname} metrics as follows:
+
+. In the {osweb}, select the **</> Developer** perspective and then select **Monitoring**.
+. Open the **Dashboard** tab for the namespace where your {brandname} cluster runs.
+. Open the **Metrics** tab and confirm that you can query {brandname} metrics such as:
 +
-<1> Names the service monitor instances.
-<2> Specifies the namespace of your Prometheus stack.
-<3> Sets the port of `11223` for the {brandname} metrics endpoint.
-<4> Sets the path where {brandname} exposes metrics.
-<5> Specifies the authentication secret with {ispn_operator} credentials.
-<6> Specifies the namespace of your {brandname} cluster.
-<7> Specifies the name of your {brandname} cluster.
-+
-. Add the service monitor instance to your Prometheus namespace.
-+
-[source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} service-monitor.yaml
+vendor_cache_manager_default_cluster_size
 ----
 
 [role="_additional-resources"]
 .Additional resources
 
-* {link_prometheus_operator}
-* {link_os_monitoring}
+* link:{link_os_monitoring}
