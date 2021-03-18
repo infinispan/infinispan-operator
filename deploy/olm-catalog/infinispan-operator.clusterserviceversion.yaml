@@ -262,20 +262,21 @@ spec:
             x-descriptors:
               - 'urn:alm:descriptor:org.w3:link'
   description: |
-    Infinispan is a distributed in-memory data store built on open-source technology.
+    Infinispan is an in-memory data store and open-source project.
 
-    ### Core Capabilities
-    * **Schemaless data structure:** Store different objects as key-value pairs.
-    * **Grid-based data storage:** Distribute and replicate data across clusters.
-    * **Elastic scaling:** Dynamically adjust the number of nodes to meet demand without service disruption.
-    * **Data interoperability:** Store, retrieve, and query data in the grid from different endpoints.
-    * **High availability:** Always have access to your data.
+    ### Infinispan
+    * **Schemaless structure:** Store objects in key/value pairs.
+    * **Grid storage:** Distribute and replicate data across clusters.
+    * **Elasticity:** Scale to meet workload demands without service disruption.
+    * **Polyglot access:** Read, write, and query from multiple client languages with different endpoints.
+    * **Continuous availability:** Create a fault-tolerant caching service that guarantees business continuity.
 
-    ### Infinispan Operator Features
-    * Operational intelligence that simplifies Infinispan cluster deployment.
+    ### Operator capabilities
+    * Built-in intelligence to automate Infinispan cluster deployment.
+    * Infinispan CR for service configuration.
+    * Cache CR for fully configurable caches.
+    * Batch CR for scripting bulk resource creation.
     * REST and Hot Rod endpoints available at port `11222`.
-    * Cache service for a high-performance, ephemeral data store.
-    * Data Grid service for a fully configurable Infinispan cluster.
     * Default application user: `developer`. Infinispan Operator generates credentials in an authentication secret at startup.
     * Infinispan pods request `0.25` (limit `0.50`) CPUs, 512MiB of memory and 1Gi of ReadWriteOnce persistent storage. Infinispan Operator lets you adjust resource allocation to suit your requirements.
   displayName: Infinispan Operator
