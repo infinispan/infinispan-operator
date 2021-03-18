@@ -569,6 +569,13 @@ spec:
                     - Cache
                   type: string
               type: object
+            upgrade:
+              description: InfinispanUpgrade represents the upgrade strategy
+              properties:
+                strategy:
+                  description: Policy represent the current upgrade policy for this cluster
+                  type: string
+              type: object
           required:
             - replicas
           type: object
