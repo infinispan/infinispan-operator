@@ -645,6 +645,19 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	// Get Infinispan image that the operator creates
 	desiredImage := consts.DefaultImageName
 
+	switch *infinispan.Spec.Upgrade.Policy {
+	case infinispanv1.UpgradePolicyManual:
+		// In manual mode upgrade is triggered by the user changing infinispan.spec.Image field
+		// if that field is empty the operator default image is used (same as policy latest in this case)
+		if *infinispan.Spec.Image != "" {
+			desiredImage = *infinispan.Spec.Image
+		}
+	case infinispanv1.UpgradePolicyCVE: // All the rest upgrade mode works as usual atm
+		fallthrough
+	case infinispanv1.UpgradePolicyLatest:
+		fallthrough
+	default:
+	}
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
 	if podDefaultImage != desiredImage {
