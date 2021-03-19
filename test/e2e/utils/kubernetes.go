@@ -245,23 +245,30 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 }
 
 func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func()) error {
-	_, err := controllerutil.CreateOrUpdate(context.TODO(), k.Kubernetes.Client, ispn, func() error {
-		if ispn.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(ispnv1.Resource("infinispan.org"), ispn.Name)
-		}
-		// Change the Infinispan spec
-		if update != nil {
-			update()
-		}
-		// Workaround for OpenShift local test (clear GVK on decode in the client)
-		ispn.TypeMeta = InfinispanTypeMeta
+	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+		_, updateErr := controllerutil.CreateOrUpdate(context.TODO(), k.Kubernetes.Client, ispn, func() error {
+			if ispn.CreationTimestamp.IsZero() {
+				return errors.NewNotFound(ispnv1.Resource("infinispan.org"), ispn.Name)
+			}
+			// Change the Infinispan spec
+			if update != nil {
+				update()
+			}
+			// Workaround for OpenShift local test (clear GVK on decode in the client)
+			ispn.TypeMeta = InfinispanTypeMeta
 
-		return nil
+			return nil
+		})
+		if updateErr == nil || errors.IsConflict(updateErr) {
+			return true, nil
+		}
+		return false, updateErr
 	})
+
 	return err
 }
 
-// CreateAndWaitForCRD creates a Custom Resource Definition, waiting it to become ready.
+// CreateOrUpdateAndWaitForCRD creates or updates a Custom Resource Definition (CRD), waiting it to become ready.
 func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition) {
 	fmt.Printf("Create or update CRD %s\n", crd.Name)
 
