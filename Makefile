@@ -3,6 +3,7 @@ TAG ?= latest
 GOOS ?= linux
 PROG  := infinispan-operator
 OPERATOR_SDK_VERSION ?= v0.16.0
+YQ_VERSION ?= 4.6.1
 KUBECONFIG ?= ${HOME}/.kube/config
 
 .PHONY: dep build image push run clean help
@@ -33,12 +34,12 @@ clean:
 ## updatecsv         Update csv with new roles
 ##
 update-csv:
-	./build/update-csv.sh
+	./build/update-csv.sh ${YQ_VERSION}
 
 ## codegen          Generates CRDs, k8s code for custom resources and install bundle.
 ##
 codegen: update-csv
-	./build/crds-gen.sh ${OPERATOR_SDK_VERSION}
+	./build/crds-gen.sh ${OPERATOR_SDK_VERSION} ${YQ_VERSION}
 	./build/install-bundle.sh
 
 ## install-bundle   Combine single operator install bundle from the multiples files.
