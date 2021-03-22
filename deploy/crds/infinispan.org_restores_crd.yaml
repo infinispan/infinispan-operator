@@ -19,14 +19,10 @@ spec:
       description: Restore is the Schema for the restores API
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -38,8 +34,7 @@ spec:
             cluster:
               type: string
             container:
-              description: InfinispanContainerSpec specify resource requirements per
-                container
+              description: InfinispanContainerSpec specify resource requirements per container
               properties:
                 cpu:
                   type: string
@@ -51,8 +46,7 @@ spec:
             resources:
               properties:
                 cacheConfigs:
-                  description: Deprecated and to be removed on subsequent release.
-                    Use .Templates instead.
+                  description: Deprecated and to be removed on subsequent release. Use .Templates instead.
                   items:
                     type: string
                   type: array
@@ -69,8 +63,7 @@ spec:
                     type: string
                   type: array
                 scripts:
-                  description: Deprecated and to be removed on subsequent release.
-                    Use .Tasks instead.
+                  description: Deprecated and to be removed on subsequent release. Use .Tasks instead.
                   items:
                     type: string
                   type: array
@@ -84,8 +77,8 @@ spec:
                   type: array
               type: object
           required:
-          - backup
-          - cluster
+            - backup
+            - cluster
           type: object
         status:
           description: RestoreStatus defines the observed state of Restore
@@ -97,11 +90,11 @@ spec:
               description: Reason indicates the reason for any Restore related failures.
               type: string
           required:
-          - phase
+            - phase
           type: object
       type: object
   version: v2alpha1
   versions:
-  - name: v2alpha1
-    served: true
-    storage: true
+    - name: v2alpha1
+      served: true
+      storage: true
