@@ -20,6 +20,7 @@ public class CleanUpValidator {
       conditions = new ArrayList<>();
       conditions.add(
             () -> openShift.apps().statefulSets().withName(appName).get() == null &&
+                  openShift.secrets().withName(appName + "-generated-operator-secret").get() == null &&
                   openShift.services().withName(appName).get() == null &&
                   openShift.services().withName(appName + "-ping").get() == null &&
                   openShift.configMaps().withName(appName + "-configuration").get() == null &&
