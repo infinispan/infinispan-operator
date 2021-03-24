@@ -15,4 +15,4 @@ spec:
   logging:
     categories:
       org.jgroups.protocols.TCP: error <7>
-      org.jgroups.protocols.relay.RELAY2: fatal <8>
+      org.jgroups.protocols.relay.RELAY2: error <8>
