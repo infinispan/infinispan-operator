@@ -43,7 +43,7 @@ include::yaml/service_monitor.yaml[]
 +
 <1> Names the service monitor instances.
 <2> Specifies the namespace of your Prometheus stack.
-<3> Sets the port of `11222` for the {brandname} metrics endpoint.
+<3> Sets the port of `11223` for the {brandname} metrics endpoint.
 <4> Sets the path where {brandname} exposes metrics.
 <5> Specifies the authentication secret with {ispn_operator} credentials.
 <6> Specifies the namespace of your {brandname} cluster.

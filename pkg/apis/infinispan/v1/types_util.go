@@ -203,8 +203,8 @@ func (ispn *Infinispan) GetServiceExternalName() string {
 	return fmt.Sprintf("%s-external", ispn.Name)
 }
 
-func (ispn *Infinispan) GetAdminServiceName() string {
-	return fmt.Sprintf("%s-admin", ispn.Name)
+func (ispn *Infinispan) GetServiceName() string {
+	return ispn.Name
 }
 
 func (ispn *Infinispan) GetPingServiceName() string {
