@@ -19,4 +19,4 @@ spec:
   logging:
     categories:
       org.jgroups.protocols.TCP: error <10>
-      org.jgroups.protocols.relay.RELAY2: fatal <11>
+      org.jgroups.protocols.relay.RELAY2: error <11>

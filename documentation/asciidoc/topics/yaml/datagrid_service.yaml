@@ -51,7 +51,7 @@ spec:
       org.infinispan: debug
       org.jgroups: debug
       org.jgroups.protocols.TCP: error
-      org.jgroups.protocols.relay.RELAY2: fatal
+      org.jgroups.protocols.relay.RELAY2: error
   # Configures how the cluster is exposed on the network.
   expose:
     type: LoadBalancer
