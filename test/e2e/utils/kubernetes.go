@@ -337,8 +337,8 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 			}
 
 			// then try to get ingress information
-			hostAndPort, err = k.Kubernetes.GetExternalAddress(route)
-			if err != nil {
+			hostAndPort = k.Kubernetes.GetExternalAddress(route)
+			if hostAndPort == "" {
 				return false, nil
 			}
 		case ispnv1.ExposeTypeRoute:
