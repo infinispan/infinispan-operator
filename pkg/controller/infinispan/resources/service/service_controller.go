@@ -97,20 +97,13 @@ func Add(mgr manager.Manager) error {
 }
 
 func (s serviceResource) Process() (reconcile.Result, error) {
-	// Create the admin service
-	service := computeAdminService(s.infinispan)
-	if err := s.reconcileResource(service); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Create the user service(s)
 	if s.infinispan.HasSites() {
 		if err := s.reconcileResource(computeSiteService(s.infinispan)); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
-	service = computeUserService(s.infinispan)
+	service := computeService(s.infinispan)
 	setupServiceForEncryption(s.infinispan, service)
 	if err := s.reconcileResource(service); err != nil {
 		return reconcile.Result{}, err
@@ -212,33 +205,28 @@ func setupServiceForEncryption(ispn *ispnv1.Infinispan, service *corev1.Service)
 	}
 }
 
-func computeAdminService(ispn *ispnv1.Infinispan) *corev1.Service {
-	return computeService(ispn.GetAdminServiceName(), consts.InfinispanAdminPortName, "infinispan-service-admin", consts.InfinispanAdminServicePort, consts.InfinispanAdminPort, ispn)
-}
-
-func computeUserService(ispn *ispnv1.Infinispan) *corev1.Service {
-	return computeService(ispn.Name, consts.InfinispanUserPortName, "infinispan-service", consts.InfinispanUserPort, consts.InfinispanUserPort, ispn)
-}
-
-func computeService(svcName, portName, serviceType string, port, targetPort int32, ispn *ispnv1.Infinispan) *corev1.Service {
+func computeService(ispn *ispnv1.Infinispan) *corev1.Service {
 	service := corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      svcName,
+			Name:      ispn.GetServiceName(),
 			Namespace: ispn.Namespace,
-			Labels:    infinispan.LabelsResource(ispn.Name, serviceType),
+			Labels:    infinispan.LabelsResource(ispn.Name, "infinispan-service"),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Selector: infinispan.ServiceLabels(ispn.Name),
 			Ports: []corev1.ServicePort{
 				{
-					Name:       portName,
-					Port:       port,
-					TargetPort: intstr.FromInt(int(targetPort)),
+					Name: consts.InfinispanUserPortName,
+					Port: consts.InfinispanUserPort,
+				},
+				{
+					Name: consts.InfinispanAdminPortName,
+					Port: consts.InfinispanAdminPort,
 				},
 			},
 		},
@@ -397,6 +385,9 @@ func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 		},
 		Spec: routev1.RouteSpec{
 			Host: ispn.Spec.Expose.Host,
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromInt(consts.InfinispanUserPort),
+			},
 			To: routev1.RouteTargetReference{
 				Kind: "Service",
 				Name: ispn.Name,
