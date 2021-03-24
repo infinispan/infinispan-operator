@@ -3,13 +3,14 @@ TAG ?= latest
 GOOS ?= linux
 PROG  := infinispan-operator
 OPERATOR_SDK_VERSION ?= v0.15.2
+YQ_VERSION ?= 4.6.1
 KUBECONFIG ?= ${HOME}/.kube/config
 
 .PHONY: dep build image push run clean help
 
 .DEFAULT_GOAL := help
 
-## dep         Ensure deps is locally available.
+## dep              Ensure deps is locally available.
 dep:
 	go mod tidy
 
@@ -29,24 +30,20 @@ vet:
 clean:
 	rm -rf build/_output
 
-## updatecsv         Update csv with new roles
+## update-csv       Update csv with new roles
 ##
 update-csv:
-	./build/update-csv.sh
+	./build/update-csv.sh ${YQ_VERSION}
 
 ## codegen          Generates CRDs, k8s code for custom resources and install bundle.
 ##
 codegen: update-csv
-	./build/crds-gen.sh ${OPERATOR_SDK_VERSION}
+	./build/crds-gen.sh ${OPERATOR_SDK_VERSION} ${YQ_VERSION}
 	./build/install-bundle.sh
 
-## Combine single operator install bundle from the multiples files
+## install-bundle   Combine single operator install bundle from the multiples files
 install-bundle:
 	./build/install-bundle.sh
-
-## vet         Inspects the source code for suspicious constructs.
-vet:
-	go vet ./...
 
 ## build       Compile and build the Infinispan operator.
 build:
@@ -74,10 +71,6 @@ push: image
 ## push-okd4   Push docker image to the OCP|OKD4 and deploy operator
 push-okd4: build
 	build/push-okd4.sh
-
-## clean       Remove all generated build files.
-clean:
-	rm -rf build/_output
 
 ## run         Create the Infinispan operator on OKD with the public image.
 ##             - Specify cluster access configuration with KUBECONFIG.
@@ -155,11 +148,6 @@ release:
 ## copy-kubeconfig   Copy admin.kubeconfig for the OKD cluster to the location of KUBECONFIG
 copy-kubeconfig:
 	build/copy-kubeconfig.sh ${KUBECONFIG}
-
-## lint        Invoke linter to promote Go lang best practices
-lint:
-	golint pkg/...
-	golint test/...
 
 # Minikube parameters
 PROFILE ?= operator-minikube
