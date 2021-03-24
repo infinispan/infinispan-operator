@@ -10,24 +10,17 @@ You can pass configuration files to {ispn_operator} only via a `ConfigMap`.
 The `ConfigMap` is mounted in {brandname} pods at `/etc/batch` so you must prepend all `--file=` directives with that path.
 ====
 
-== Users
+== {brandname} Users
 
 Create several {brandname} users and assign them roles with varying levels of permission to access caches and interact with {brandname} resources.
 
 [source,sh,options="nowrap",subs=attributes+]
 ----
-echo "connecting"
-connect --username=admin --password=changeme
-echo "creating users and groups..."
-create user katie -p changeme -g deployer
-user create --groups=developers developers -p changeme
-user roles grant --roles=application developers
-create user john -p changeme -g developers
-create user dave -p changeme -g developers
-create user mark -p changeme -g developers
-create user julia -p changeme -g developers
-create user pedro -p changeme -g developers
-create user rita -p changeme -g observer
+echo "creating users..."
+create user katie -p changeme1
+create user john -p changeme2
+create user mark -p changeme3
+create user julia -p changeme4
 echo "list users"
 user ls
 ----
@@ -38,8 +31,6 @@ user ls
 
 [source,sh,options="nowrap",subs=attributes+]
 ----
-echo "connecting"
-connect --username=admin --password=changeme
 echo "creating caches..."
 create cache sessions --file=/etc/batch/infinispan-prod-sessions.xml
 create cache tokens --file=/etc/batch/infinispan-prod-tokens.xml
@@ -54,8 +45,6 @@ ls caches
 
 [source,sh,options="nowrap",subs=attributes+]
 ----
-echo "connecting"
-connect --username=admin --password=changeme
 echo "creating caches..."
 create cache mytemplate --file=/etc/batch/mycache.xml
 create cache sessions --template=mytemplate
@@ -72,8 +61,6 @@ You can use counters to generate identifiers, act as rate limiters, or track the
 
 [source,sh,options="nowrap",subs=attributes+]
 ----
-echo "connecting"
-connect --username=admin --password=changeme
 echo "creating counters..."
 create counter --concurrency-level=1 --initial-value=5 --storage=PERSISTENT --type=weak mycounter1
 create counter --initial-value=3 --storage=PERSISTENT --type=strong mycounter2
@@ -89,8 +76,6 @@ Protobuf schema (`.proto` files) provide metadata about custom entities and cont
 
 [source,sh,options="nowrap",subs=attributes+]
 ----
-echo "connecting"
-connect --username=admin --password=changeme
 echo "creating schema..."
 schema --upload=person.proto person.proto
 schema --upload=book.proto book.proto
@@ -105,8 +90,6 @@ Upload tasks that implement `org.infinispan.tasks.ServerTask` or scripts that ar
 
 [source,sh,options="nowrap",subs=attributes+]
 ----
-echo "connecting"
-connect --username=admin --password=changeme
 echo "creating tasks..."
 task upload --file=/etc/batch/myfirstscript.js myfirstscript
 task upload --file=/etc/batch/mysecondscript.js mysecondscript
