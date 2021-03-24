@@ -254,71 +254,6 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *result, err
 	}
 
-	if infinispan.IsExposed() {
-		var exposeAddress string
-		switch infinispan.GetExposeType() {
-		case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
-			// Wait for the cluster external Service to be created by service-controller
-			externalService := &corev1.Service{}
-			if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
-				return *result, err
-			}
-			if len(externalService.Spec.Ports) > 0 && infinispan.GetExposeType() == infinispanv1.ExposeTypeNodePort {
-				if exposeHost, err := kubernetes.GetNodeHost(reqLogger); err != nil {
-					return reconcile.Result{}, err
-				} else {
-					exposeAddress = fmt.Sprintf("%s:%d", exposeHost, externalService.Spec.Ports[0].NodePort)
-				}
-			} else if infinispan.GetExposeType() == infinispanv1.ExposeTypeLoadBalancer {
-				// Waiting for LoadBalancer cloud provider to update the configured hostname inside Status field
-				if exposeAddress, err = kubernetes.GetExternalAddress(externalService); err != nil {
-					return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
-				}
-			}
-		case infinispanv1.ExposeTypeRoute:
-			var okIngress = false
-			okRoute, err := kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
-			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Failed to check if %s,%s is supported", routev1.GroupVersion.String(), "Route"))
-				// Log an error and try to check with Ingress
-				okIngress, err = kubernetes.IsGroupVersionSupported(networkingv1beta1.SchemeGroupVersion.String(), "Ingress")
-				if err != nil {
-					reqLogger.Error(err, fmt.Sprintf("Failed to check if %s,%s is supported", networkingv1beta1.SchemeGroupVersion.String(), "Ingress"))
-				}
-			}
-			if okRoute {
-				externalRoute := &routev1.Route{}
-				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
-					return *result, err
-				}
-				exposeAddress = externalRoute.Spec.Host
-			} else if okIngress {
-				externalIngress := &networkingv1beta1.Ingress{}
-				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
-					return *result, err
-				}
-				if len(externalIngress.Spec.Rules) > 0 {
-					exposeAddress = externalIngress.Spec.Rules[0].Host
-				}
-			}
-		}
-		if err := r.update(infinispan, func() {
-			if exposeAddress == "" {
-				infinispan.Status.ConsoleUrl = nil
-			} else {
-				infinispan.Status.ConsoleUrl = pointer.StringPtr(fmt.Sprintf("%s://%s/console", infinispan.GetEndpointScheme(), exposeAddress))
-			}
-		}); err != nil {
-			return reconcile.Result{}, err
-		}
-	} else {
-		if err := r.update(infinispan, func() {
-			infinispan.Status.ConsoleUrl = nil
-		}); err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-
 	if infinispan.IsUpgradeNeeded(reqLogger) {
 		reqLogger.Info("Upgrade needed")
 		err = r.destroyResources(infinispan)
@@ -434,22 +369,85 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Create default cache if it doesn't exists.
 	if infinispan.IsCache() {
-		existsCache, err := cluster.ExistsCache(consts.DefaultCacheName, podList.Items[0].Name)
-		if err != nil {
+		if existsCache, err := cluster.ExistsCache(consts.DefaultCacheName, podList.Items[0].Name); err != nil {
 			reqLogger.Error(err, "failed to validate default cache for cache service")
 			return reconcile.Result{}, err
-		}
-		if !existsCache {
+		} else if !existsCache {
 			reqLogger.Info("createDefaultCache")
-			err = caches.CreateCacheFromDefault(podList.Items[0].Name, infinispan, cluster, reqLogger)
-			if err != nil {
+			if err = caches.CreateCacheFromDefault(podList.Items[0].Name, infinispan, cluster, reqLogger); err != nil {
 				reqLogger.Error(err, "failed to create default cache for cache service")
 				return reconcile.Result{}, err
 			}
 		}
 	}
 
-	return reconcile.Result{}, err
+	if infinispan.IsExposed() {
+		var exposeAddress string
+		switch infinispan.GetExposeType() {
+		case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
+			// Wait for the cluster external Service to be created by service-controller
+			externalService := &corev1.Service{}
+			if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
+				return *result, err
+			}
+			if len(externalService.Spec.Ports) > 0 && infinispan.GetExposeType() == infinispanv1.ExposeTypeNodePort {
+				if exposeHost, err := kubernetes.GetNodeHost(reqLogger); err != nil {
+					return reconcile.Result{}, err
+				} else {
+					exposeAddress = fmt.Sprintf("%s:%d", exposeHost, externalService.Spec.Ports[0].NodePort)
+				}
+			} else if infinispan.GetExposeType() == infinispanv1.ExposeTypeLoadBalancer {
+				// Waiting for LoadBalancer cloud provider to update the configured hostname inside Status field
+				if exposeAddress = kubernetes.GetExternalAddress(externalService); exposeAddress == "" {
+					reqLogger.Info("LoadBalancer address not ready yet. Waiting on value in reconcile loop")
+					return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
+				}
+			}
+		case infinispanv1.ExposeTypeRoute:
+			var okIngress = false
+			okRoute, err := kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
+			if err != nil {
+				reqLogger.Error(err, fmt.Sprintf("Failed to check if %s,%s is supported", routev1.GroupVersion.String(), "Route"))
+				// Log an error and try to check with Ingress
+				okIngress, err = kubernetes.IsGroupVersionSupported(networkingv1beta1.SchemeGroupVersion.String(), "Ingress")
+				if err != nil {
+					reqLogger.Error(err, fmt.Sprintf("Failed to check if %s,%s is supported", networkingv1beta1.SchemeGroupVersion.String(), "Ingress"))
+				}
+			}
+			if okRoute {
+				externalRoute := &routev1.Route{}
+				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
+					return *result, err
+				}
+				exposeAddress = externalRoute.Spec.Host
+			} else if okIngress {
+				externalIngress := &networkingv1beta1.Ingress{}
+				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
+					return *result, err
+				}
+				if len(externalIngress.Spec.Rules) > 0 {
+					exposeAddress = externalIngress.Spec.Rules[0].Host
+				}
+			}
+		}
+		if err := r.update(infinispan, func() {
+			if exposeAddress == "" {
+				infinispan.Status.ConsoleUrl = nil
+			} else {
+				infinispan.Status.ConsoleUrl = pointer.StringPtr(fmt.Sprintf("%s://%s/console", infinispan.GetEndpointScheme(), exposeAddress))
+			}
+		}); err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		if err := r.update(infinispan, func() {
+			infinispan.Status.ConsoleUrl = nil
+		}); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func configureLoggers(pods *corev1.PodList, cluster ispn.ClusterInterface, infinispan *infinispanv1.Infinispan) error {

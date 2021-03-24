@@ -335,18 +335,18 @@ func GetNodeAddress(node corev1.Node, addressType corev1.NodeAddressType) string
 }
 
 // GetExternalAddress extract LoadBalancer Hostname (typically for AWS load-balancers) or IP (typically for GCE or OpenStack load-balancers) address
-func (k Kubernetes) GetExternalAddress(route *corev1.Service) (string, error) {
+func (k Kubernetes) GetExternalAddress(route *corev1.Service) string {
 	// If the cluster exposes external IP then return it
 	if len(route.Status.LoadBalancer.Ingress) > 0 {
 		if route.Status.LoadBalancer.Ingress[0].IP != "" {
-			return fmt.Sprintf("%s:%d", route.Status.LoadBalancer.Ingress[0].IP, route.Spec.Ports[0].Port), nil
+			return fmt.Sprintf("%s:%d", route.Status.LoadBalancer.Ingress[0].IP, route.Spec.Ports[0].Port)
 		}
 		if route.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			return fmt.Sprintf("%s:%d", route.Status.LoadBalancer.Ingress[0].Hostname, route.Spec.Ports[0].Port), nil
+			return fmt.Sprintf("%s:%d", route.Status.LoadBalancer.Ingress[0].Hostname, route.Spec.Ports[0].Port)
 		}
 	}
 	// Return empty address if nothing available
-	return "", fmt.Errorf("external address not found")
+	return ""
 }
 
 // ResourcesList returns a typed list of resource associated with the cluster
