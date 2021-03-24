@@ -255,7 +255,7 @@ func (ispn *Infinispan) GetSecretName() string {
 
 // GetSecretName returns the admin secret name associated with a server
 func (ispn *Infinispan) GetAdminSecretName() string {
-	return fmt.Sprintf("%v-generated-admin-secret", ispn.GetName())
+	return fmt.Sprintf("%v-generated-operator-secret", ispn.GetName())
 }
 
 func (ispn *Infinispan) IsAuthenticationEnabled() bool {
