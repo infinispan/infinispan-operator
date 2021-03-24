@@ -37,8 +37,8 @@ var (
 	RunSaOperator        = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	OperatorUpgradeStage = strings.ToUpper(constants.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
 	CleanupInfinispan    = strings.ToUpper(constants.GetEnvWithDefault("CLEANUP_INFINISPAN_ON_FINISH", "true"))
-	ExpectedImage        = constants.GetEnvWithDefault("EXPECTED_IMAGE", "quay.io/infinispan/server:12.0")
-	NativeImageName      = constants.GetEnvWithDefault("NATIVE_IMAGE", "quay.io/infinispan/server-native:12.0")
+	ExpectedImage        = constants.GetEnvWithDefault("EXPECTED_IMAGE", "quay.io/infinispan/server:12.1")
+	NativeImageName      = constants.GetEnvWithDefault("NATIVE_IMAGE", "quay.io/infinispan/server-native:12.1")
 	ExposeServiceType    = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
 
 	OperatorUpgradeStateFlow = []ispnv1.ConditionType{ispnv1.ConditionUpgrade, ispnv1.ConditionStopping, ispnv1.ConditionWellFormed}
