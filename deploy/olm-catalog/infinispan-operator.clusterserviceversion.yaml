@@ -440,6 +440,7 @@ spec:
                 - create
                 - update
                 - patch
+                - delete
             - apiGroups:
                 - integreatly.org
               resources:
