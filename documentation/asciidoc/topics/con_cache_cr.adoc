@@ -1,8 +1,5 @@
-ifdef::context[:parent-context: {context}]
-[id='create_caches_cr']
-:context: cache-cr
-= Creating Caches with {ispn_operator}
-Use `Cache` CRs to add cache configuration with {ispn_operator} and control how {brandname} stores your data.
+[id='cache-cr_{context}']
+= Cache CRs
 
 //Community
 ifdef::community[]
@@ -44,15 +41,3 @@ In previous versions, you need to add credentials to a secret so that {ispn_oper
 That is no longer necessary.
 {ispn_operator} uses the **operator** user and corresponding password to perform cache operations.
 ====
-
-include::{topics}/proc_creating_caches_xml.adoc[leveloffset=+1]
-include::{topics}/proc_creating_caches_templates.adoc[leveloffset=+1]
-
-//Adding Cache Configuration
-include::{topics}/proc_adding_backup_locations.adoc[leveloffset=+1]
-include::{topics}/con_backups_automatic_offline.adoc[leveloffset=+2]
-include::{topics}/proc_adding_cache_stores.adoc[leveloffset=+1]
-
-// Restore the parent context.
-ifdef::parent-context[:context: {parent-context}]
-ifndef::parent-context[:!context:]

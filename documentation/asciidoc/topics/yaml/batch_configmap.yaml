@@ -1,0 +1,7 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Batch
+metadata:
+  name: mybatch
+spec:
+  cluster: {example_crd_name}
+  configMap: mybatch-config-map

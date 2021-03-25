@@ -1,0 +1,58 @@
+[id='connecting-cli_{context}']
+= Connecting the {brandname} CLI
+Use the command line interface (CLI) to connect to your {brandname} cluster and perform administrative operations.
+
+.Prerequisites
+
+* Download the server distribution so you can run the CLI.
+
+The CLI is available as part of the server distribution, which you can run on your local host to establish remote connections to {brandname} clusters on {openshiftshort}.
+
+//Community
+ifdef::community[]
+Alternatively, you can use the infinispan/cli image at link:https://github.com/infinispan/infinispan-images[https://github.com/infinispan/infinispan-images].
+endif::community[]
+
+[NOTE]
+====
+It is possible to open a remote shell to a {brandname} node and access the CLI.
+
+[source,options="nowrap",subs=attributes+]
+----
+$ {kubectl_exec}
+----
+
+However using the CLI in this way consumes memory allocated to the container, which can lead to out of memory exceptions.
+====
+
+. Create a CLI connection to your {brandname} cluster.
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+$ bin/cli.sh -c https://$SERVICE_HOSTNAME:$PORT --trustall
+----
++
+Replace `$SERVICE_HOSTNAME:$PORT` with the hostname and port where {brandname} is available on the network.
++
+. Enter your {brandname} credentials when prompted.
+. Perform CLI operations as required, for example:
+.. List caches configured on the cluster with the [command]`ls` command.
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+[//containers/default]> ls caches
+mycache
+----
++
+.. View cache configuration with the [command]`describe` command.
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+[//containers/default]> describe caches/mycache
+----
+
+[role="_additional-resources"]
+.Additional resources
+
+* link:{server_docs}#downloading_server_distributions[Downloading Server Distributions]
+* link:{cli_docs}[Using the {brandname} Command Line Interface]

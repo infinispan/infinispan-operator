@@ -17,7 +17,7 @@ To ensure that you archive the exact state of the cluster, make sure there are n
 
 .Procedure
 
-. Create a **Backup** CR.
+. Create a `Backup` CR.
 +
 For example, create `my-backup.yaml` with the following:
 +
@@ -26,7 +26,7 @@ For example, create `my-backup.yaml` with the following:
 include::yaml/cr_backup.yaml[]
 ----
 +
-<1> Specifies a **Backup** CR.
+<1> Specifies a `Backup` CR.
 <2> Names the backup file.
 <3> Specifies the name of the {brandname} cluster you want to backup.
 +
@@ -43,7 +43,7 @@ include::yaml/cr_backup_resources.yaml[]
 <4> Protobuf schemas for querying.
 <5> Custom server tasks.
 +
-. Apply your **Backup** CR.
+. Apply your `Backup` CR.
 +
 [source,options="nowrap",subs=attributes+]
 ----

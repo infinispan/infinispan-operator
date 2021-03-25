@@ -5,12 +5,10 @@ ifdef::context[:parent-context: {context}]
 Connect to {brandname} clusters from the {brandname} Console, Command Line Interface (CLI), and remote clients.
 
 include::{topics}/con_client_connection_details.adoc[leveloffset=+1]
-include::{topics}/con_creating_caches.adoc[leveloffset=+1]
+include::{topics}/con_caches.adoc[leveloffset=+1]
 
 //CLI
-include::{topics}/con_cli_connections.adoc[leveloffset=+1]
-include::{topics}/proc_creating_caches_cli.adoc[leveloffset=+2]
-include::{topics}/proc_creating_caches_batch.adoc[leveloffset=+2]
+include::{topics}/proc_connecting_cli.adoc[leveloffset=+1]
 
 //Console
 include::{topics}/proc_connecting_console.adoc[leveloffset=+1]
