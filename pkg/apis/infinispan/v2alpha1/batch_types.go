@@ -2,6 +2,7 @@ package v2alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // BatchSpec defines the desired state of Batch
@@ -33,6 +34,8 @@ type BatchStatus struct {
 	Phase BatchPhase `json:"phase"`
 	// Reason indicates the reason for any batch related failures.
 	Reason string `json:"reason,omitempty"`
+	// The UUID of the Infinispan instance that the Batch is associated with
+	ClusterUID *types.UID `json:"clusterUID,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
