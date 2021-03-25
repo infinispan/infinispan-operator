@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-batch-config-map
+data:
+  batch: |
+    create cache --file=/etc/batch/mycache.xml mycache
+    put --cache=mycache hello world
+    put --cache=mycache hola mundo
+  mycache.xml: |
+    <infinispan>
+        <cache-container>
+            <distributed-cache name="mycache" mode="SYNC" />
+        </cache-container>
+    </infinispan>
+
+---
+apiVersion: infinispan.org/v2alpha1
+kind: Batch
+metadata:
+  name: example-batch-cm
+spec:
+  cluster: example-infinispan
+  configMap: example-batch-config-map
