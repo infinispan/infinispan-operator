@@ -1,0 +1,71 @@
+[id='copying-code_{context}']
+= Copying Code Artifacts
+Before you can deploy custom code to {brandname} clusters, you need to make it available to pods.
+To do this you create a temporary pod that loads your code artifacts into a persistent volume claim (PVC).
+
+[NOTE]
+====
+The steps in this procedure offer a solution for making code artifacts available to {brandname} clusters.
+However there are several ways you can do this.
+You can adapt these steps as needed or use any alternative methods that you might have in place to copy code into PVCs.
+====
+
+.Procedure
+
+. Create a PVC with `ReadOnlyMany` or `ReadWriteMany` access mode.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/custom_code_pvc.yaml[]
+----
++
+. Change to the namespace for your {brandname} cluster.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {set_namespace}
+----
++
+. Apply your PVC.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} datagrid-libs.yaml
+----
++
+. Create a pod that mounts the PVC, for example:
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/custom_code_pod.yaml[]
+----
++
+. Add the pod to the {brandname} namespace and wait for it to be ready.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} datagrid-libs-pod.yaml
+$ {oc_wait} --for=condition=ready --timeout=2m pod/datagrid-libs-pod
+----
++
+. Copy your code artifacts to the pod so that they are loaded into the PVC.
++
+For example to copy code artifacts from a local `libs` directory, do the following:
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+$ {oc_copy} --no-preserve=true libs datagrid-libs-pod:/tmp/
+----
++
+. Delete the pod.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+$ {oc_delete_pod} datagrid-libs-pod
+----
+
+[role="_additional-resources"]
+.Additional resources
+
+* link:{link_os_storage}
+* link:{link_k8s_storage}

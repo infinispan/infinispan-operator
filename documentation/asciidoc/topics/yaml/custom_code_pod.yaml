@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: datagrid-libs-pod
+spec:
+  volumes:
+    - name: lib-pv-storage
+      persistentVolumeClaim:
+        claimName: datagrid-libs
+  containers:
+    - name: lib-pv-container
+      image: quay.io/infinispan/server:{server_image_version}
+      volumeMounts:
+        - mountPath: /tmp/libs
+          name: lib-pv-storage

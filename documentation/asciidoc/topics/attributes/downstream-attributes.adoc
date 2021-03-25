@@ -16,3 +16,4 @@
 :pv_path: /opt/infinispan/server/data
 :conf_path: /opt/infinispan/server/conf
 :backup_path: /opt/infinispan/backups
+:server_image_version: 12.0
