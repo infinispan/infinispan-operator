@@ -645,7 +645,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	// Get Infinispan image that the operator creates
 	desiredImage := consts.DefaultImageName
 
-	switch *infinispan.Spec.Upgrade.Policy {
+	switch infinispan.Spec.Upgrade.Policy {
 	case infinispanv1.UpgradePolicyManual:
 		// In manual mode upgrade is triggered by the user changing infinispan.spec.Image field
 		// if that field is empty the operator default image is used (same as policy latest in this case)
