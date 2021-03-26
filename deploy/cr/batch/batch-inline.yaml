@@ -1,0 +1,10 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Batch
+metadata:
+  name: example-batch-inline
+spec:
+  cluster: example-infinispan
+  config: |
+    create cache --template=org.infinispan.DIST_SYNC mycache
+    put --cache=mycache hello world
+    put --cache=mycache hola mundo

@@ -180,16 +180,6 @@ func (r *ReconcileCache) Reconcile(request reconcile.Request) (reconcile.Result,
 				}
 			}
 		}
-
-		if !metav1.IsControlledBy(instance, ispnInstance) {
-			reqLogger.Info("Update CR with owner reference info")
-			controllerutil.SetControllerReference(ispnInstance, instance, r.scheme)
-			err = r.client.Update(context.TODO(), instance)
-			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Unable to update Cache: %s", instance.Name))
-				return reconcile.Result{}, err
-			}
-		}
 	} else {
 		reqLogger.Error(err, "Error validating cache exist")
 		return reconcile.Result{}, err

@@ -176,7 +176,7 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 
 		updated, err := r.update(func() error {
 			batch.Spec.ConfigMap = &batch.Name
-			return controllerutil.SetControllerReference(infinispan, batch, r.scheme)
+			return nil
 		})
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("Unable to update Batch .Spec: %w", err)
@@ -187,7 +187,12 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 	}
 
 	// We update the phase separately to the spec as the status update is ignored when in the update mutate function
-	return reconcile.Result{}, r.UpdatePhase(v2.BatchInitialized, nil)
+	_, err := r.update(func() error {
+		batch.Status.ClusterUID = &infinispan.UID
+		batch.Status.Phase = v2.BatchInitialized
+		return nil
+	})
+	return reconcile.Result{}, err
 }
 
 func (r *batchResource) execute() (reconcile.Result, error) {
@@ -195,6 +200,12 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 	infinispan := &v1.Infinispan{}
 	if result, err := kube.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, r.client, log); result != nil {
 		return *result, err
+	}
+
+	expectedUid := *batch.Status.ClusterUID
+	if infinispan.GetUID() != expectedUid {
+		err := fmt.Errorf("Unable to execute Batch. Infinispan CR UUID has changed, expected '%s' observed '%s'", expectedUid, infinispan.GetUID())
+		return reconcile.Result{}, r.UpdatePhase(v2.BatchFailed, err)
 	}
 
 	url, err := connectionUrl(infinispan)

@@ -1231,6 +1231,9 @@ spec:
         status:
           description: BatchStatus defines the observed state of Batch
           properties:
+            clusterUID:
+              description: The UUID of the Infinispan instance that the Batch is associated with
+              type: string
             phase:
               description: State indicates the current state of the batch operation
               type: string
