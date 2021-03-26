@@ -18,7 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -216,6 +215,14 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
+	podList := &corev1.PodList{}
+	podLabels := ispnCtrl.PodLabels(infinispan.Name)
+	if err := z.Kube.ResourcesList(infinispan.Namespace, podLabels, podList); err != nil {
+		z.Log.Error(err, "Failed to list pods")
+		return reconcile.Result{}, err
+	}
+	podSecurityCtx := podList.Items[0].Spec.SecurityContext
+
 	spec, err := instance.Init()
 	if err != nil {
 		return reconcile.Result{}, err
@@ -228,7 +235,7 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 
 	err = z.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &corev1.Pod{})
 	if errors.IsNotFound(err) {
-		pod, err := z.zeroPodSpec(name, namespace, configMap, infinispan, spec)
+		pod, err := z.zeroPodSpec(name, namespace, configMap.Name, podSecurityCtx, infinispan, spec)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("Unable to compute Spec for zero-capacity pod: %w", err)
 		}
@@ -315,7 +322,7 @@ func (z *Controller) isZeroPodReady(request reconcile.Request) bool {
 	return kube.IsPodReady(*pod)
 }
 
-func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.ConfigMap, ispn *v1.Infinispan, zeroSpec *Spec) (*corev1.Pod, error) {
+func (z *Controller) zeroPodSpec(name, namespace, configMap string, podSecurityCtx *corev1.PodSecurityContext, ispn *v1.Infinispan, zeroSpec *Spec) (*corev1.Pod, error) {
 	podResources, err := ispnCtrl.PodResources(zeroSpec.Container)
 	if err != nil {
 		return nil, err
@@ -328,9 +335,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 			Labels:    zeroSpec.PodLabels,
 		},
 		Spec: corev1.PodSpec{
-			SecurityContext: &corev1.PodSecurityContext{
-				FSGroup: pointer.Int64Ptr(1000600000),
-			},
+			SecurityContext: podSecurityCtx,
 			Containers: []corev1.Container{{
 				Image:          ispn.ImageName(),
 				Name:           name,
@@ -366,7 +371,7 @@ func (z *Controller) zeroPodSpec(name, namespace string, configMap *corev1.Confi
 					Name: ispnCtrl.ConfigVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
-							LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
+							LocalObjectReference: corev1.LocalObjectReference{Name: configMap},
 						},
 					}},
 				// Volume for admin credentials
