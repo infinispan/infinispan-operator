@@ -225,7 +225,7 @@ func (k Kubernetes) hasServiceCAsCRDResource() bool {
 	return status >= http.StatusOK && status < http.StatusMultipleChoices
 }
 
-// getServingCertsMode returns a label that identify the kind of serving
+// GetServingCertsMode returns a label that identify the kind of serving
 // certs service is available. Returns 'openshift.io' for service-ca on openshift
 func (k Kubernetes) GetServingCertsMode() string {
 	if k.hasServiceCAsCRDResource() {
@@ -250,6 +250,12 @@ func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace str
 	if err != nil {
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
+	}
+
+	for _, secretKey := range []string{"certificate-authority", "client-certificate", "client-key"} {
+		if value, ok := secret.Data[secretKey]; !ok || len(value) == 0 {
+			return nil, fmt.Errorf("%s required connect to Kubernetes cluster", secretKey)
+		}
 	}
 
 	config.CAData = secret.Data["certificate-authority"]
