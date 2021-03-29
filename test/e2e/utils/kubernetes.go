@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -348,6 +349,9 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 func checkExternalAddress(c HTTPClient, hostAndPort string) bool {
 	httpURL := fmt.Sprintf("%s/%s", hostAndPort, consts.ServerHTTPHealthPath)
 	resp, err := c.Get(httpURL, nil)
+	if net.IsConnectionRefused(err) {
+		return false
+	}
 	ExpectNoError(err)
 	log.Info("Received response for external address", "response code", resp.StatusCode)
 	return resp.StatusCode == http.StatusOK
