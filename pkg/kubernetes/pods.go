@@ -60,7 +60,7 @@ func GetEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
 			return i
 		}
 	}
-	return 0
+	return -1
 }
 
 func GetOperatorPodOwnerRef(ns string, client crclient.Client) (*metav1.OwnerReference, error) {

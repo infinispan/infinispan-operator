@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -104,6 +106,75 @@ func TestUpdateOperatorPassword(t *testing.T) {
 		return pwd == newPassword, nil
 	})
 	tutils.ExpectNoError(err)
+}
+
+func TestUpdateEncryptionSecrets(t *testing.T) {
+	t.Parallel()
+	// Create a resource without passing any config
+	spec := tutils.DefaultSpec(testKube)
+	name := strcase.ToKebab(t.Name())
+	spec.Name = name
+	spec.Spec.Replicas = 1
+	spec.Spec.Security = ispnv1.InfinispanSecurity{
+		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
+	}
+
+	// Create secret
+	keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(false)
+	keystoreSecret := tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+	truststoreSecret := tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+	testKube.CreateSecret(keystoreSecret)
+	defer testKube.DeleteSecret(keystoreSecret)
+	testKube.CreateSecret(truststoreSecret)
+	defer testKube.DeleteSecret(truststoreSecret)
+
+	// Create Cluster
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	// Ensure that we can connect to the endpoint with TLS
+	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
+	checkRestConnection(host, client)
+
+	namespacedName := types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}
+	// Get the cluster's StatefulSet and current generation
+	ss := appsv1.StatefulSet{}
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
+	originalGeneration := ss.Status.ObservedGeneration
+
+	// Update secret to contain new keystore
+	newKeystore, newTruststore, newTlsConfig := tutils.CreateKeyAndTruststore(false)
+	if bytes.Equal(keystore, newKeystore) || bytes.Equal(truststore, newTruststore) {
+		panic("Expected new store")
+	}
+
+	keystoreSecret = testKube.GetSecret(keystoreSecret.Name, keystoreSecret.Namespace)
+	keystoreSecret.Data[ispnctrl.EncryptKeystoreName] = newKeystore
+	testKube.UpdateSecret(keystoreSecret)
+
+	truststoreSecret = testKube.GetSecret(truststoreSecret.Name, truststoreSecret.Namespace)
+	keystoreSecret.Data[cconsts.EncryptTruststoreKey] = newKeystore
+	testKube.UpdateSecret(truststoreSecret)
+
+	// Wait for a new generation to appear
+	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
+		return ss.Status.ObservedGeneration >= originalGeneration+1, nil
+	})
+	tutils.ExpectNoError(err)
+
+	// Wait that current and update revisions match. This ensure that the rolling upgrade completes
+	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
+		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
+	})
+	tutils.ExpectNoError(err)
+
+	// Ensure that we can connect to the endpoint with the new TLS settings
+	host, client = tutils.HTTPSClientAndHost(spec, newTlsConfig, testKube)
+	checkRestConnection(host, client)
 }
 
 // Test if single node working correctly
@@ -279,14 +350,164 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
 		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
 	}
-	// Create secret
-	testKube.CreateSecret(tutils.EncryptionSecret(spec.Name, tutils.Namespace))
-	defer testKube.DeleteSecret(tutils.EncryptionSecret(spec.Name, tutils.Namespace))
+	// Create secret with server certificates
+	cert, privKey, tlsConfig := tutils.CreateServerCertificates()
+	secret := tutils.EncryptionSecret(spec.Name, tutils.Namespace, privKey, cert)
+	testKube.CreateSecret(secret)
+	defer testKube.DeleteSecret(secret)
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	// Ensure that we can connect to the endpoint with TLS
+	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
+	checkRestConnection(host, client)
+}
+
+// Test if the cluster is working correctly
+func TestTLSWithExistingKeystore(t *testing.T) {
+	t.Parallel()
+	// Create a resource without passing any config
+	spec := tutils.DefaultSpec(testKube)
+	name := strcase.ToKebab(t.Name())
+	spec.Name = name
+	spec.Spec.Replicas = 1
+	spec.Spec.Security = ispnv1.InfinispanSecurity{
+		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
+	}
+	// Create secret
+	keystore, tlsConfig := tutils.CreateKeystore()
+	secret := tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+	testKube.CreateSecret(secret)
+	defer testKube.DeleteSecret(secret)
+	// Register it
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	// Ensure that we can connect to the endpoint with TLS
+	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
+	checkRestConnection(host, client)
+}
+
+func checkRestConnection(hostAddr string, client tutils.HTTPClient) {
+	url := fmt.Sprintf("%v/rest/v2/cache-managers/default", hostAddr)
+	rsp, err := client.Get(url, nil)
+	tutils.ExpectNoError(err)
+	if rsp.StatusCode != http.StatusOK {
+		panic(httpError{rsp.StatusCode})
+	}
+}
+
+func TestClientCertValidate(t *testing.T) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = ispnv1.ClientCertValidate
+		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(false)
+		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+		return
+	})
+}
+
+func TestClientCertAuthenticate(t *testing.T) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = ispnv1.ClientCertAuthenticate
+		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(true)
+		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+		return
+	})
+}
+
+// #1098 Test disabled until ISPN-13089 resolved
+// func TestClientCertValidateWithAuthorization(t *testing.T) {
+// 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+// 		spec.Spec.Security.Authorization = &v1.Authorization{
+// 			Enabled: true,
+// 			Roles: []ispnv1.AuthorizationRole{
+// 				{
+// 					Name:        "client",
+// 					Permissions: []string{"ALL"},
+// 				},
+// 			},
+// 		}
+// 		authType = ispnv1.ClientCertValidate
+// 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(false)
+// 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+// 		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+// 		return
+// 	})
+// }
+
+// #1098 Test disabled until ISPN-13089 resolved
+// func TestClientCertAuthenticateWithAuthorization(t *testing.T) {
+// 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+// 		spec.Spec.Security.Authorization = &v1.Authorization{
+// 			Enabled: true,
+// 			Roles: []ispnv1.AuthorizationRole{
+// 				{
+// 					Name:        "client",
+// 					Permissions: []string{"MONITOR"},
+// 				},
+// 			},
+// 		}
+// 		authType = ispnv1.ClientCertAuthenticate
+// 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(true)
+// 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+// 		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+// 		return
+// 	})
+// }
+
+func TestClientCertGeneratedTruststoreAuthenticate(t *testing.T) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = ispnv1.ClientCertAuthenticate
+		keystore, caCert, clientCert, tlsConfig := tutils.CreateKeystoreAndClientCerts()
+		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+		truststoreSecret = tutils.EncryptionSecretClientCert(spec.Name, tutils.Namespace, caCert, clientCert)
+		return
+	})
+}
+
+func TestClientCertGeneratedTruststoreValidate(t *testing.T) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = ispnv1.ClientCertValidate
+		keystore, caCert, _, tlsConfig := tutils.CreateKeystoreAndClientCerts()
+		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+		truststoreSecret = tutils.EncryptionSecretClientCert(spec.Name, tutils.Namespace, caCert, nil)
+		return
+	})
+}
+
+func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCertType, *corev1.Secret, *corev1.Secret, *tls.Config)) {
+	t.Parallel()
+	spec := tutils.DefaultSpec(testKube)
+	name := strcase.ToKebab(t.Name())
+	spec.Name = name
+	spec.Spec.Replicas = 1
+
+	// Create the keystore & truststore for the server with a compatible client tls configuration
+	authType, keystoreSecret, truststoreSecret, tlsConfig := initializer(spec)
+	spec.Spec.Security.EndpointEncryption = tutils.EndpointEncryptionClientCert(spec.Name, authType)
+
+	testKube.CreateSecret(keystoreSecret)
+	defer testKube.DeleteSecret(keystoreSecret)
+
+	testKube.CreateSecret(truststoreSecret)
+	defer testKube.DeleteSecret(truststoreSecret)
+
+	// Register it
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	// Ensure that we can connect to the endpoint with TLS
+	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
+	createCacheAndValidate("test", host, "", client)
 }
 
 // Test if spec.container.cpu update is handled
@@ -370,9 +591,10 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 		},
 	}
 
-	// Create secret
-	testKube.CreateSecret(tutils.EncryptionSecret(spec.Name, tutils.Namespace))
-	defer testKube.DeleteSecret(tutils.EncryptionSecret(spec.Name, tutils.Namespace))
+	// Create secret with server certificates
+	cert, privKey, tlsConfig := tutils.CreateServerCertificates()
+	secret := tutils.EncryptionSecret(spec.Name, tutils.Namespace, privKey, cert)
+	testKube.CreateSecret(secret)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Security = ispnv1.InfinispanSecurity{
@@ -381,6 +603,9 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 	}
 	var verifier = func(ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+		// Ensure that we can connect to the endpoint with TLS
+		host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
+		checkRestConnection(host, client)
 	}
 
 	genericTestForContainerUpdated(*spec, modifier, verifier)

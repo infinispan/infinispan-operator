@@ -1,0 +1,14 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+spec:
+  service:
+    type: DataGrid
+  security:
+    endpointEncryption:
+      # None | Authenticate | Validate
+      # Authenticate requires all client certificates to be in the truststore
+      # Validate requires the signing CA certificate to be in the truststore
+      clientCert: Validate
+      clientCertSecretName: truststore-secret

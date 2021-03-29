@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -216,4 +218,17 @@ func isServiceAccountToken(secret *corev1.Secret, sa *corev1.ServiceAccount) boo
 	}
 
 	return true
+}
+
+func GetOperatorNamespace() (string, error) {
+	operatorNs, err := k8sutil.GetOperatorNamespace()
+	// This makes everything work even running outside the cluster
+	if err == k8sutil.ErrRunLocal {
+		var operatorWatchNs string
+		operatorWatchNs, err = k8sutil.GetWatchNamespace()
+		if operatorWatchNs != "" {
+			operatorNs = strings.Split(operatorWatchNs, ",")[0]
+		}
+	}
+	return operatorNs, err
 }

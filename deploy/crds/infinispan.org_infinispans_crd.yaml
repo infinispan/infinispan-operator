@@ -495,6 +495,15 @@ spec:
                       type: string
                     certServiceName:
                       type: string
+                    clientCert:
+                      description: ClientCertType specifies a client certificate validation mechanism.
+                      enum:
+                        - None
+                        - Authenticate
+                        - Validate
+                      type: string
+                    clientCertSecretName:
+                      type: string
                     type:
                       description: CertificateSourceType specifies all the possible sources for the encryption certificate
                       enum:
@@ -665,6 +674,15 @@ spec:
                     certSecretName:
                       type: string
                     certServiceName:
+                      type: string
+                    clientCert:
+                      description: ClientCertType specifies a client certificate validation mechanism.
+                      enum:
+                        - None
+                        - Authenticate
+                        - Validate
+                      type: string
+                    clientCertSecretName:
                       type: string
                     type:
                       description: CertificateSourceType specifies all the possible sources for the encryption certificate

@@ -2,11 +2,9 @@ package operatorconfig
 
 import (
 	"context"
-	"strings"
 
 	"github.com/go-logr/logr"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -62,7 +60,7 @@ func addOperatorConfig(mgr manager.Manager) error {
 	if err != nil {
 		return err
 	}
-	operatorNS, err := getOperatorNamespace()
+	operatorNS, err := kube.GetOperatorNamespace()
 	if err != nil {
 		return err
 	}
@@ -94,7 +92,7 @@ var currentConfig map[string]string = make(map[string]string)
 // Reconcile reads the operator configuration in the `infinispan-operator-config` ConfigMap and
 // applies the configuration to the cluster.
 func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	operatorNs, err := getOperatorNamespace()
+	operatorNs, err := kube.GetOperatorNamespace()
 	if err != nil {
 		r.Log.Error(err, "Error getting operator runtime namespace")
 		return reconcile.Result{Requeue: true}, nil
@@ -118,20 +116,4 @@ func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcil
 	}
 	res, err := r.reconcileGrafana(config, currentConfig, operatorNs)
 	return *res, err
-}
-
-// getOperatorNamespace returns the operator namespace or the WATCH_NAMESPACE
-// value if the operator is running outside the cluster.
-// "OSDK_FORCE_RUN_MODE"="local" must be set if running locally (not in the cluster)
-func getOperatorNamespace() (string, error) {
-	operatorNs, err := k8sutil.GetOperatorNamespace()
-	// This makes everything works even running outside the cluster
-	if err == k8sutil.ErrRunLocal {
-		var operatorWatchNs string
-		operatorWatchNs, err = k8sutil.GetWatchNamespace()
-		if operatorWatchNs != "" {
-			operatorNs = strings.Split(operatorWatchNs, ",")[0]
-		}
-	}
-	return operatorNs, err
 }

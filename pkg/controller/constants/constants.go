@@ -70,19 +70,23 @@ const (
 	CacheServiceJavaOptions                 = "-Xmx%dM -Xms%dM -XX:MaxRAM=%dM -Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=%d -XX:MaxHeapFreeRatio=%d %s"
 	CacheServiceNativeJavaOptions           = "-Xmx%dM -Xms%dM -Dsun.zip.disableMemoryMapping=true %s"
 
-	NativeImageMarker         = "native"
-	GeneratedSecretSuffix     = "generated-secret"
-	InfinispanFinalizer       = "finalizer.infinispan.org"
-	ServerConfigRoot          = "/etc/config"
-	ServerSecurityRoot        = "/etc/security"
-	ServerConfigFilename      = "infinispan.yaml"
-	ServerConfigPath          = ServerConfigRoot + "/" + ServerConfigFilename
-	ServerIdentitiesFilename  = "identities.yaml"
-	CliPropertiesFilename     = "cli.properties"
-	ServerAdminIdentitiesRoot = ServerSecurityRoot + "/admin"
-	ServerAdminIdentitiesPath = ServerAdminIdentitiesRoot + "/" + ServerIdentitiesFilename
-	ServerUserIdentitiesRoot  = ServerSecurityRoot + "/user"
-	ServerUserIdentitiesPath  = ServerUserIdentitiesRoot + "/" + ServerIdentitiesFilename
+	NativeImageMarker           = "native"
+	GeneratedSecretSuffix       = "generated-secret"
+	InfinispanFinalizer         = "finalizer.infinispan.org"
+	SiteServiceTemplate         = "%v-site"
+	ServerConfigRoot            = "/etc/config"
+	ServerEncryptRoot           = "/etc/encrypt"
+	ServerEncryptTruststoreRoot = ServerEncryptRoot + "/truststore"
+	ServerEncryptKeystoreRoot   = ServerEncryptRoot + "/keystore"
+	ServerSecurityRoot          = "/etc/security"
+	ServerConfigFilename        = "infinispan.yaml"
+	ServerConfigPath            = ServerConfigRoot + "/" + ServerConfigFilename
+	ServerIdentitiesFilename    = "identities.yaml"
+	CliPropertiesFilename       = "cli.properties"
+	ServerAdminIdentitiesRoot   = ServerSecurityRoot + "/admin"
+	ServerAdminIdentitiesPath   = ServerAdminIdentitiesRoot + "/" + ServerIdentitiesFilename
+	ServerUserIdentitiesRoot    = ServerSecurityRoot + "/user"
+	ServerUserIdentitiesPath    = ServerUserIdentitiesRoot + "/" + ServerIdentitiesFilename
 
 	ServerHTTPBasePath         = "rest/v2"
 	ServerHTTPServerStop       = ServerHTTPBasePath + "/server?action=stop"
@@ -91,6 +95,9 @@ const (
 	ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
 	ServerHTTPLoggersPath      = ServerHTTPBasePath + "/logging/loggers"
 	ServerHTTPModifyLoggerPath = ServerHTTPLoggersPath + "/%s?level=%s"
+
+	EncryptTruststoreKey        = "truststore.p12"
+	EncryptTruststorePasswordKey = "truststore-password"
 
 	DefaultCacheTemplate = `<infinispan>
 		<cache-container>

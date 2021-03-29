@@ -20,7 +20,6 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/version"
 	routev1 "github.com/openshift/api/route/v1"
@@ -49,16 +48,17 @@ import (
 )
 
 const (
-	DataMountPath             = "/opt/infinispan/server/data"
-	DataMountVolume           = "data-volume"
-	CustomLibrariesMountPath  = "/opt/infinispan/server/lib/custom-libraries"
-	CustomLibrariesVolumeName = "custom-libraries"
-	EncryptMountPath          = "/etc/encrypt"
-	ConfigVolumeName          = "config-volume"
-	EncryptVolumeName         = "encrypt-volume"
-	IdentitiesVolumeName      = "identities-volume"
-	AdminIdentitiesVolumeName = "admin-identities-volume"
-	ControllerName            = "controller_infinispan"
+	ServerRoot                  = "/opt/infinispan/server"
+	DataMountPath               = ServerRoot + "/data"
+	DataMountVolume             = "data-volume"
+	CustomLibrariesMountPath    = ServerRoot + "/lib/custom-libraries"
+	CustomLibrariesVolumeName   = "custom-libraries"
+	ConfigVolumeName            = "config-volume"
+	EncryptKeystoreVolumeName   = "encrypt-volume"
+	EncryptTruststoreVolumeName = "encrypt-trust-volume"
+	IdentitiesVolumeName        = "identities-volume"
+	AdminIdentitiesVolumeName   = "admin-identities-volume"
+	ControllerName              = "controller_infinispan"
 
 	EventReasonPrelimChecksFailed    = "PrelimChecksFailed"
 	EventReasonLowPersistenceStorage = "LowPersistenceStorage"
@@ -106,11 +106,7 @@ func secondaryResourceTypes() []SecondaryResourceType {
 				return false
 			}},
 		},
-		{&corev1.Secret{}, predicate.Funcs{
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				return false
-			}},
-		},
+		{&corev1.Secret{}, predicate.Funcs{}},
 	}
 }
 
@@ -158,6 +154,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -185,6 +182,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	infinispan := &infinispanv1.Infinispan{}
 	infinispan.Name = request.Name
 	infinispan.Namespace = request.Namespace
+
 	var preliminaryChecksResult *reconcile.Result
 	var preliminaryChecksError error
 	err := r.update(infinispan, func() {
@@ -246,6 +244,25 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *result, err
 	}
 
+	var keystoreSecret *corev1.Secret
+	if infinispan.IsEncryptionEnabled() {
+		if infinispan.Spec.Security.EndpointEncryption.CertSecretName == "" {
+			return reconcile.Result{}, fmt.Errorf("Field 'certSecretName' must be provided for certificateSourceType=%s to be configured", infinispanv1.CertificateSourceTypeSecret)
+		}
+		keystoreSecret = &corev1.Secret{}
+		if result, err := kube.LookupResource(infinispan.GetKeystoreSecretName(), infinispan.Namespace, keystoreSecret, r.client, reqLogger, eventRec); result != nil {
+			return *result, err
+		}
+	}
+
+	var trustSecret *corev1.Secret
+	if infinispan.IsClientCertEnabled() {
+		trustSecret = &corev1.Secret{}
+		if result, err := kube.LookupResource(infinispan.GetTruststoreSecretName(), infinispan.Namespace, trustSecret, r.client, reqLogger, eventRec); result != nil {
+			return *result, err
+		}
+	}
+
 	// Reconcile the StatefulSet
 	// Check if the StatefulSet already exists, if not create a new one
 	statefulSet := &appsv1.StatefulSet{}
@@ -254,7 +271,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Info("Configuring the StatefulSet")
 
 		// Define a new StatefulSet
-		statefulSet, err = r.statefulSetForInfinispan(infinispan, adminSecret, userSecret, configMap)
+		statefulSet, err = r.statefulSetForInfinispan(infinispan, adminSecret, userSecret, keystoreSecret, trustSecret, configMap)
 		if err != nil {
 			reqLogger.Error(err, "failed to configure new StatefulSet")
 			return reconcile.Result{}, err
@@ -348,7 +365,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Here where to reconcile with spec updates that reflect into
 	// changes to statefulset.spec.container.
-	res, err = r.reconcileContainerConf(infinispan, statefulSet, configMap, adminSecret, userSecret, reqLogger)
+	res, err = r.reconcileContainerConf(infinispan, statefulSet, configMap, adminSecret, userSecret, keystoreSecret, trustSecret, reqLogger)
 	if res != nil {
 		return *res, err
 	}
@@ -756,7 +773,8 @@ func (r *ReconcileInfinispan) updatePodsLabels(m *infinispanv1.Infinispan, podLi
 }
 
 // statefulSetForInfinispan returns an infinispan StatefulSet object
-func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, adminSecret, userSecret *corev1.Secret, configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
+func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispan, adminSecret, userSecret, keystoreSecret, trustSecret *corev1.Secret,
+	configMap *corev1.ConfigMap) (*appsv1.StatefulSet, error) {
 	reqLogger := log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.Name)
 	lsPod := PodLabels(m.Name)
 	labelsForPod := PodLabels(m.Name)
@@ -937,7 +955,22 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		reqLogger.Info(errMsg)
 	}
 
-	AddVolumeForEncryption(m, &dep.Spec.Template.Spec)
+	if m.IsEncryptionEnabled() {
+		AddVolumesForEncryption(m, &dep.Spec.Template.Spec)
+		spec.Containers[0].Env = append(spec.Containers[0].Env,
+			corev1.EnvVar{
+				Name:  "KEYSTORE_HASH",
+				Value: HashMap(keystoreSecret.Data),
+			})
+
+		if m.IsClientCertEnabled() {
+			spec.Containers[0].Env = append(spec.Containers[0].Env,
+				corev1.EnvVar{
+					Name:  "TRUSTSTORE_HASH",
+					Value: HashMap(trustSecret.Data),
+				})
+		}
+	}
 
 	// Set Infinispan instance as the owner and controller
 	if err = controllerutil.SetControllerReference(m, dep, r.scheme); err != nil {
@@ -1094,67 +1127,33 @@ func chmodInitContainer(containerName, volumeName, mountPath string) corev1.Cont
 	}
 }
 
-func AddVolumeForEncryption(i *infinispanv1.Infinispan, spec *corev1.PodSpec) bool {
-	secret := i.GetEncryptionSecretName()
-	if _, index := findSecretInVolume(spec, EncryptVolumeName); secret == "" || i.IsEncryptionDisabled() || index >= 0 {
-		return false
-	}
+func AddVolumesForEncryption(i *infinispanv1.Infinispan, spec *corev1.PodSpec) {
+	addSecretVolume := func(secretName, volumeName, mountPath string, spec *corev1.PodSpec) {
+		if _, index := findSecretInVolume(spec, volumeName); index >= 0 {
+			return
+		}
 
-	v := &spec.Volumes
-	*v = append(*v, corev1.Volume{Name: EncryptVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: secret,
+		v := &spec.Volumes
+		*v = append(*v, corev1.Volume{Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: secretName,
+				},
 			},
-		},
-	})
+		})
 
-	vm := &spec.Containers[0].VolumeMounts
-	*vm = append(*vm, corev1.VolumeMount{
-		Name:      EncryptVolumeName,
-		MountPath: EncryptMountPath,
-	})
-	return true
-}
+		vm := &spec.Containers[0].VolumeMounts
+		*vm = append(*vm, corev1.VolumeMount{
+			Name:      volumeName,
+			MountPath: mountPath,
+		})
+	}
 
-func ConfigureServerEncryption(m *infinispanv1.Infinispan, c *config.InfinispanConfiguration, client client.Client) error {
-	if m.IsEncryptionDisabled() {
-		return nil
+	addSecretVolume(i.GetKeystoreSecretName(), EncryptKeystoreVolumeName, consts.ServerEncryptKeystoreRoot, spec)
+
+	if i.IsClientCertEnabled() {
+		addSecretVolume(i.GetTruststoreSecretName(), EncryptTruststoreVolumeName, consts.ServerEncryptTruststoreRoot, spec)
 	}
-	if m.IsEncryptionCertFromService() {
-		if strings.Contains(m.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
-			c.Keystore.CrtPath = "/etc/encrypt"
-			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
-			c.Keystore.Password = "password"
-			c.Keystore.Alias = "server"
-			return nil
-		}
-	}
-	// Fetch the tls secret if name is provided
-	tlsSecretName := m.GetEncryptionSecretName()
-	if tlsSecretName != "" {
-		tlsSecret := &corev1.Secret{}
-		err := client.Get(context.TODO(), types.NamespacedName{Namespace: m.Namespace, Name: tlsSecretName}, tlsSecret)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				return fmt.Errorf("Secret %s for endpoint encryption not found.", tlsSecretName)
-			}
-			return fmt.Errorf("Error in getting secret %s for endpoint encryption: %w", tlsSecretName, err)
-		}
-		if _, ok := tlsSecret.Data["keystore.p12"]; ok {
-			// If user provide a keystore in secret then use it ...
-			c.Keystore.Path = "/etc/encrypt/keystore.p12"
-			c.Keystore.Password = string(tlsSecret.Data["password"])
-			c.Keystore.Alias = string(tlsSecret.Data["alias"])
-		} else {
-			// ... else suppose tls.key and tls.crt are provided
-			c.Keystore.CrtPath = "/etc/encrypt"
-			c.Keystore.Path = "/opt/infinispan/server/conf/keystore"
-			c.Keystore.Password = "password"
-			c.Keystore.Alias = "server"
-		}
-	}
-	return nil
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
@@ -1300,7 +1299,8 @@ func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan,
 }
 
 // reconcileContainerConf reconcile the .Container struct is changed in .Spec. This needs a cluster restart
-func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet, configMap *corev1.ConfigMap, adminSecret, userSecret *corev1.Secret, logger logr.Logger) (*reconcile.Result, error) {
+func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet,
+	configMap *corev1.ConfigMap, adminSecret, userSecret, keystoreSecret, trustSecret *corev1.Secret, logger logr.Logger) (*reconcile.Result, error) {
 	updateNeeded := false
 	rollingUpgrade := true
 	// Ensure the deployment size is the same as the spec
@@ -1377,7 +1377,14 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 		}
 	}
 
-	updateNeeded = AddVolumeForEncryption(ispn, spec) || updateNeeded
+	if ispn.IsEncryptionEnabled() {
+		AddVolumesForEncryption(ispn, spec)
+		updateNeeded = updateStatefulSetEnv(statefulSet, "KEYSTORE_HASH", HashMap(keystoreSecret.Data)) || updateNeeded
+
+		if ispn.IsClientCertEnabled() {
+			updateNeeded = updateStatefulSetEnv(statefulSet, "TRUSTSTORE_HASH", HashMap(trustSecret.Data)) || updateNeeded
+		}
+	}
 
 	// Validate extra Java options changes
 	if updateStatefulSetEnv(statefulSet, "EXTRA_JAVA_OPTIONS", ispnContr.ExtraJvmOpts) {
@@ -1408,6 +1415,15 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 func updateStatefulSetEnv(statefulSet *appsv1.StatefulSet, envName, newValue string) bool {
 	env := &statefulSet.Spec.Template.Spec.Containers[0].Env
 	envIndex := kube.GetEnvVarIndex(envName, env)
+	if envIndex < 0 {
+		// The env variable previously didn't exist, so append newValue to the end of the []EnvVar
+		statefulSet.Spec.Template.Spec.Containers[0].Env = append(*env, corev1.EnvVar{
+			Name:  envName,
+			Value: newValue,
+		})
+		statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
+		return true
+	}
 	prevEnvValue := (*env)[envIndex].Value
 	if prevEnvValue != newValue {
 		(*env)[envIndex].Value = newValue
@@ -1476,6 +1492,23 @@ func hashString(data string) string {
 func HashByte(data []byte) string {
 	hash := sha1.New()
 	hash.Write(data)
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func HashMap(m map[string][]byte) string {
+	hash := sha1.New()
+	// Sort the map keys to ensure that the iteration order is the same on each call
+	// Without this the computed sha will be different if the iteration order of the keys changes
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := m[k]
+		hash.Write([]byte(k))
+		hash.Write(v)
+	}
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
