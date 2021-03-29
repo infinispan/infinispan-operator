@@ -574,6 +574,9 @@ spec:
               properties:
                 strategy:
                   description: Policy represent the current upgrade policy for this cluster
+                  enum:
+                    - Manual
+                    - Latest
                   type: string
               type: object
           required:

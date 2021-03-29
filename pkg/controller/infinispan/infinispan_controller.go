@@ -652,8 +652,6 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 		if *infinispan.Spec.Image != "" {
 			desiredImage = *infinispan.Spec.Image
 		}
-	case infinispanv1.UpgradePolicyCVE: // All the rest upgrade mode works as usual atm
-		fallthrough
 	case infinispanv1.UpgradePolicyLatest:
 		fallthrough
 	default:

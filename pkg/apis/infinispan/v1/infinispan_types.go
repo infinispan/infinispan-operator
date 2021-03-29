@@ -59,13 +59,12 @@ type InfinispanServiceContainerSpec struct {
 }
 
 // UpgradePolicy specifies all the possible policies that rule the ispn cluster upgrade
+// +kubebuilder:validation:Enum=Manual;Latest
 type UpgradePolicy string
 
 const (
 	// UpgradePolicyManual only user can manually trigger a cluster upgrade
 	UpgradePolicyManual UpgradePolicy = "Manual"
-	// UpgradePolicyCVE cluster upgrade is triggered automatically only if a CVE upgrade is available
-	UpgradePolicyCVE UpgradePolicy = "CVE"
 	// UpgradePolicyLatest cluster upgrade is triggered automatically if a new image is available
 	UpgradePolicyLatest UpgradePolicy = "Latest"
 )
