@@ -23,6 +23,14 @@ type HTTPClient interface {
 	Post(path, payload string, headers map[string]string) (*http.Response, error)
 }
 
+type authType int
+
+const (
+	authNone authType = iota
+	authDigest
+	authCert
+)
+
 type authenticationRealm struct {
 	Username, Password, Realm, NONCE, QOP, Opaque, Algorithm string
 }
@@ -32,27 +40,43 @@ type httpClientConfig struct {
 	username *string
 	password *string
 	protocol string
+	auth     authType
 }
 
 // NewHTTPClient return a new HTTPClient
 func NewHTTPClient(username, password, protocol string) HTTPClient {
-	return new(&username, &password, protocol)
+	return newClient(authDigest, &username, &password, protocol, &tls.Config{
+		InsecureSkipVerify: true,
+	})
 }
 
 func NewHTTPClientNoAuth(protocol string) HTTPClient {
-	return new(nil, nil, protocol)
+	return newClient(authNone, nil, nil, protocol, &tls.Config{
+		InsecureSkipVerify: true,
+	})
 }
 
-func new(username, password *string, protocol string) HTTPClient {
+func NewHTTPSClientNoAuth(tlsConfig *tls.Config) HTTPClient {
+	return newClient(authNone, nil, nil, "https", tlsConfig)
+}
+
+func NewHTTPSClientCert(tlsConfig *tls.Config) HTTPClient {
+	return newClient(authCert, nil, nil, "https", tlsConfig)
+}
+
+func NewHTTPSClient(username, password string, tlsConfig *tls.Config) HTTPClient {
+	return newClient(authDigest, &username, &password, "https", tlsConfig)
+}
+
+func newClient(auth authType, username, password *string, protocol string, tlsConfig *tls.Config) HTTPClient {
 	return &httpClientConfig{
 		username: username,
 		password: password,
 		protocol: protocol,
+		auth:     auth,
 		Client: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
+				TLSClientConfig: tlsConfig,
 			},
 		},
 	}
@@ -77,7 +101,7 @@ func (c *httpClientConfig) exec(method, path, payload string, headers map[string
 	rsp, err := c.request(httpURL, method, payload, headers)
 	ExpectNoError(err)
 
-	if c.isAuthRequired() && rsp.StatusCode == http.StatusUnauthorized {
+	if c.auth == authDigest && rsp.StatusCode == http.StatusUnauthorized {
 		ExpectNoError(rsp.Body.Close())
 		h := headers
 		if h == nil {
@@ -115,10 +139,6 @@ func (c *httpClientConfig) request(url *url.URL, method, payload string, headers
 		fmt.Printf("Rsp<<<<<<<<<<<<<<<<\n%s\n\n", string(dump))
 	}
 	return rsp, err
-}
-
-func (c *httpClientConfig) isAuthRequired() bool {
-	return c.username != nil
 }
 
 func getAuthorization(username, password string, resp *http.Response) *authenticationRealm {

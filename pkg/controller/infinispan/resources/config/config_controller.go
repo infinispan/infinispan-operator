@@ -111,12 +111,19 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 
 	lsConfigMap := infinispan.LabelsResource(name, "infinispan-configmap-configuration")
 
+	var roleMapper string
+	if c.infinispan.IsClientCertEnabled() {
+		roleMapper = "commonName"
+	} else {
+		roleMapper = "cluster"
+	}
+
 	jgroupsDiagnostics := consts.JGroupsDiagnosticsFlag == "TRUE"
 	serverConf := config.InfinispanConfiguration{
 		Infinispan: config.Infinispan{
 			Authorization: config.Authorization{
 				Enabled:    c.infinispan.IsAuthorizationEnabled(),
-				RoleMapper: "cluster",
+				RoleMapper: roleMapper,
 			},
 			ClusterName: name,
 		},

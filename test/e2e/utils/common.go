@@ -2,12 +2,14 @@ package utils
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	routev1 "github.com/openshift/api/route/v1"
@@ -16,83 +18,85 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-const EncryptionSecretNamePostfix = "secret-certs"
+const (
+	keystoreSecretSuffix   = "keystore"
+	truststoreSecretSuffix = "truststore"
+)
 
 func EndpointEncryption(name string) *ispnv1.EndpointEncryption {
 	return &ispnv1.EndpointEncryption{
-		Type:           ispnv1.CertificateSourceTypeSecret,
-		CertSecretName: fmt.Sprintf("%s-%s", name, EncryptionSecretNamePostfix),
+		Type:           v1.CertificateSourceTypeSecret,
+		CertSecretName: fmt.Sprintf("%s-%s", name, keystoreSecretSuffix),
 	}
 }
 
-func EncryptionSecret(name, namespace string) *corev1.Secret {
+func EndpointEncryptionClientCert(name string, clientCert v1.ClientCertType) *v1.EndpointEncryption {
+	return &v1.EndpointEncryption{
+		Type:                 v1.CertificateSourceTypeSecret,
+		CertSecretName:       fmt.Sprintf("%s-%s", name, keystoreSecretSuffix),
+		ClientCert:           clientCert,
+		ClientCertSecretName: fmt.Sprintf("%s-%s", name, truststoreSecretSuffix),
+	}
+}
+
+func EncryptionSecret(name, namespace string, privKey, cert []byte) *corev1.Secret {
+	s := keystoreSecret(name, namespace)
+	s.Data = map[string][]byte{
+		corev1.TLSCertKey:       cert,
+		corev1.TLSPrivateKeyKey: privKey,
+	}
+	return s
+}
+
+func EncryptionSecretKeystore(name, namespace string, keystore []byte) *corev1.Secret {
+	s := keystoreSecret(name, namespace)
+	s.StringData["alias"] = "server"
+	s.StringData["password"] = KeystorePassword
+	s.Data["keystore.p12"] = keystore
+	return s
+}
+
+func EncryptionSecretClientCert(name, namespace string, caCert, clientCert []byte) *corev1.Secret {
+	s := truststoreSecret(name, namespace)
+	s.Data["trust.ca"] = caCert
+	if clientCert != nil {
+		s.Data["trust.cert.client"] = clientCert
+	}
+	return s
+}
+
+func EncryptionSecretClientTrustore(name, namespace string, truststore []byte) *corev1.Secret {
+	s := truststoreSecret(name, namespace)
+	s.StringData["truststore-password"] = TruststorePassword
+	s.Data["truststore.p12"] = truststore
+	return s
+}
+
+func keystoreSecret(name, namespace string) *corev1.Secret {
+	secretName := fmt.Sprintf("%s-%s", name, keystoreSecretSuffix)
+	return encryptionSecret(secretName, namespace)
+}
+
+func truststoreSecret(name, namespace string) *corev1.Secret {
+	secretName := fmt.Sprintf("%s-%s", name, truststoreSecretSuffix)
+	return encryptionSecret(secretName, namespace)
+}
+
+func encryptionSecret(name, namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", name, EncryptionSecretNamePostfix),
+			Name:      name,
 			Namespace: namespace,
 		},
-		Type: corev1.SecretTypeOpaque,
-		StringData: map[string]string{
-			"tls.key": tlsKey,
-			"tls.crt": tlsCrt},
+		Type:       corev1.SecretTypeOpaque,
+		Data:       map[string][]byte{},
+		StringData: map[string]string{},
 	}
 }
-
-const tlsCrt = `-----BEGIN CERTIFICATE-----
-MIIDkzCCAnugAwIBAgIUeKgxAiU9pYocbLPcC/q1HgmNQIEwDQYJKoZIhvcNAQEL
-BQAwWTELMAkGA1UEBhMCaXQxCzAJBgNVBAgMAm1pMQswCQYDVQQHDAJtaTETMBEG
-A1UECgwKaW5maW5pc3BhbjEMMAoGA1UECwwDZW5nMQ0wCwYDVQQDDARpc3BuMB4X
-DTE5MDkxMjEyMDEyMVoXDTI5MDkwOTEyMDEyMVowWTELMAkGA1UEBhMCaXQxCzAJ
-BgNVBAgMAm1pMQswCQYDVQQHDAJtaTETMBEGA1UECgwKaW5maW5pc3BhbjEMMAoG
-A1UECwwDZW5nMQ0wCwYDVQQDDARpc3BuMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-MIIBCgKCAQEAxq8jfTo1/zaUPS+ONhHAvJ3AdjgUJY4Py82FzIFzfo9b0edRvJcp
-VUJ+/l8E3XesXV7NpADJxLuXCDhnMe6lDX2mCoJFkFNQXsxiXXTl+p6JFShTCaE7
-unq15Zt5ZyH0b+61JDn48aLzP4y8/8NSap363uU637gh1rxocwoahwGM4ezQAs86
-iLAOuce1SeLNyewjVDW/DRSH1nG7k3RolEmWD9+o1ZOe78qDq2yUhZatOGhLKaMQ
-LMcaD8b0q359jUmU1Q3S8GngRemr9o5SUEPWt2r7b8JYbMw4IvcFQC210/MzvReS
-M98gA2TaSX7TyHSw/IFbymXvKtIvoNKhGQIDAQABo1MwUTAdBgNVHQ4EFgQUwwsw
-M2r671VcGTy/O7ZIeergMEAwHwYDVR0jBBgwFoAUwwswM2r671VcGTy/O7ZIeerg
-MEAwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAhoor1miOXPgU
-f02PDor7YWvXB59epJqO9PTCe+IxrjlT4NXFGoUh97PHUActyrpRrs5QdY6w1mar
-V7QgaHVLhkWXTeoMocXX8DURFoDrhKL+qhlRPh56Ut4KTGBKU2+JyS3lVIPsrx2y
-QvE8qX5hNT7ESbLsyzhshQwRn9PErxoshxhpPI2JtHxSzce9WUo2GzMIXwup12pM
-ILVhZavwLswTWo0XziZUTMildC+4SH1fdSoS9hokvYY8JIsZ+OToa1XFf7/92K+M
-vwooI+AlMd/5zB5opyR527eaT2hOoCK8wR2/EM68v97ZpuUXnrJHsb+rdCHAWUuy
-ONaPRRR3rw==
------END CERTIFICATE-----`
-
-const tlsKey = `-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDGryN9OjX/NpQ9
-L442EcC8ncB2OBQljg/LzYXMgXN+j1vR51G8lylVQn7+XwTdd6xdXs2kAMnEu5cI
-OGcx7qUNfaYKgkWQU1BezGJddOX6nokVKFMJoTu6erXlm3lnIfRv7rUkOfjxovM/
-jLz/w1Jqnfre5TrfuCHWvGhzChqHAYzh7NACzzqIsA65x7VJ4s3J7CNUNb8NFIfW
-cbuTdGiUSZYP36jVk57vyoOrbJSFlq04aEspoxAsxxoPxvSrfn2NSZTVDdLwaeBF
-6av2jlJQQ9a3avtvwlhszDgi9wVALbXT8zO9F5Iz3yADZNpJftPIdLD8gVvKZe8q
-0i+g0qEZAgMBAAECggEAHOdRpGAZht0rx5Lpf1gpz8arPwd9dtEp3x4w/sU+RgUY
-+HpMW8Ep1CtuShcMoCNOwe6Ov/MVZzdbC2kZKhxrioDi7NhywkI8iO32yV2+Ly1t
-B9Tr75SzGbfMSnDJwoUgCECTvYdpfc2U0YPp4tNJZBVDb7WtUOp6kcCq+UFZBpaj
-U5QbaYD1Q5/xgDMuqfK25bmxWab0nNpqDn5fLzphK2sKpSd8X5Jhd4Btempf+mZ5
-c6/24pRB7usOBAiAYnb6sTT7DxSyL9bmaNJFhnbTRRPBBZySqSh2rjho+AEz268/
-Lhz/Rk5VsZsctV94RpuG1ebXBAmDUCm7JCbFsZkVmQKBgQD0BeChgMly/xuggIfg
-a5Myz0lsFmOJ2JfYnGKLaGb1bna8+Ig+5q7xOjcV5lsp26S7biVuWEySl83ua4qg
-Pd3BTdVpTKjIk5eJlZax9iiVyF0pPkjSaI0U0LAG7VmRT766+OghXvORKdCBvYup
-u+Sx2vN+lxKzOxo6du7vjsJpbwKBgQDQb5VrM8SeHfsv3wK/oCPeaulpxC05/VxU
-xHBzvJkeklnNALqrNQIv4ywUK9vPmpLy3BspOMq+J44CQumrnX5xKq4AI7WBrNzp
-Td58iFzh9tKyl4o6fRvQPQcAYff/wbyAzpRaFE9lTbNeg9D7i/FOhCYle+tfiHKN
-Lkcx4hYJ9wKBgQDatRHZbkYfTUoDlm8x0vjBB0v1FjPsbjXaLH+eFtqAiprdT5s9
-VR/ikJyigi2e3H9OhbACsB0hHfGyCKzcZdaE1C+8CrsT2kRtSacgpVFGvafRuUMn
-YhFgYJIEA2LNfD2j8kaK8kE3D9UTE0FDxWV5ipXGFbzq6sPdNo98IeVY/QKBgBEz
-9HAZoLOwI8gqrs5kCDHWPxeEonrzx0gTwng666RTTegWlFGHGXwcUsoDaKv0xQYY
-VoGLd2hEWXskTKbmY8YxUJUgXV2rh7wVujQrCQd5WKB202jKZJ5GOyqz60UHl2hG
-JIZewMLKq/A0Du6D+VGSpJdZZ+7FkzbFyAh88Xa3AoGAB7MNR0PtxzVAOQbxgmCe
-1Pbe7PR5oq93tbvw4eg5xkYnfihnzdzsXlM44gS2cd/Evgsu0Gk8G20id6mbdD6f
-84MsEvv3r/jU9bbYQxWaQvacJ9K7TuCgtXEnBAZg6CGzEPorHiqIGlW+LkhmAGUg
-KbdDDTEAHRXtTh9n1TIOXlE=
------END PRIVATE KEY-----`
 
 var MinimalSpec = ispnv1.Infinispan{
 	TypeMeta: InfinispanTypeMeta,
@@ -183,6 +187,26 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 
 func HTTPClientAndHost(i *ispnv1.Infinispan, kube *TestKubernetes) (string, HTTPClient) {
 	client := clientForCluster(i, kube)
+	hostAddr := kube.WaitForExternalService(i.GetServiceExternalName(), i.Namespace, i.GetExposeType(), RouteTimeout, client)
+	return hostAddr, client
+}
+
+func HTTPSClientAndHost(i *v1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) (string, HTTPClient) {
+	var client HTTPClient
+	clientCert := i.Spec.Security.EndpointEncryption.ClientCert
+	if clientCert != "" && clientCert != ispnv1.ClientCertNone {
+		client = NewHTTPSClientCert(tlsConfig)
+	} else {
+		if i.IsAuthenticationEnabled() {
+			user := constants.DefaultDeveloperUser
+			pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes)
+			ExpectNoError(err)
+			client = NewHTTPSClient(user, pass, tlsConfig)
+		} else {
+			client = NewHTTPSClientNoAuth(tlsConfig)
+		}
+	}
+
 	hostAddr := kube.WaitForExternalService(i.GetServiceExternalName(), i.Namespace, i.GetExposeType(), RouteTimeout, client)
 	return hostAddr, client
 }

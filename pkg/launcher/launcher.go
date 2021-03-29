@@ -32,6 +32,7 @@ import (
 	zaplog "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 )
 
 // Change below variables to serve metrics on different host or port.
@@ -151,7 +152,7 @@ func Launch(params Parameters) {
 	}
 
 	// Add the Metrics Service
-	if operatorNs, err := k8sutil.GetOperatorNamespace(); err == nil {
+	if operatorNs, err := kube.GetOperatorNamespace(); err == nil {
 		addMetrics(ctx, cfg, operatorNs)
 	} else {
 		log.Info("Could not get OperatorNamespace. Not in cluster? Skipping addMetrics")
@@ -218,7 +219,7 @@ func serveCRMetrics(cfg *rest.Config) error {
 		return err
 	}
 	// Get the namespace the operator is currently deployed in.
-	operatorNs, err := k8sutil.GetOperatorNamespace()
+	operatorNs, err := kube.GetOperatorNamespace()
 	if err != nil {
 		return err
 	}

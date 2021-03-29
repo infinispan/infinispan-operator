@@ -9,6 +9,7 @@ type InfinispanConfiguration struct {
 	Infinispan  Infinispan   `yaml:"infinispan"`
 	JGroups     JGroups      `yaml:"jgroups"`
 	Keystore    Keystore     `yaml:"keystore,omitempty"`
+	Truststore  Truststore   `yaml:"truststore,omitempty"`
 	XSite       *XSite       `yaml:"xsite,omitempty"`
 	Logging     Logging      `yaml:"logging,omitempty"`
 	Endpoints   Endpoints    `yaml:"endpoints"`
@@ -40,8 +41,9 @@ type AuthorizationRole struct {
 }
 
 type Endpoints struct {
-	Authenticate   bool `yaml:"auth"`
-	DedicatedAdmin bool `yaml:"dedicatedAdmin"`
+	Authenticate   bool   `yaml:"auth"`
+	DedicatedAdmin bool   `yaml:"dedicatedAdmin"`
+	ClientCert     string `yaml:"clientCert,omitempty"`
 }
 
 type Locks struct {
@@ -49,12 +51,20 @@ type Locks struct {
 	Reliability string `yaml:"reliability,omitempty"`
 }
 
-// Keystore configuration info for connector encryption
+// Keystore configuration info for endpoint encryption
 type Keystore struct {
 	Path     string
 	Password string
 	Alias    string
 	CrtPath  string `yaml:"crtPath,omitempty"`
+}
+
+// Truststore configuration info for endpoint encryption
+type Truststore struct {
+	CaFile   string `yaml:"cafile,omitempty"`
+	Certs    string `yaml:"certs,omitempty"`
+	Path     string `yaml:"path,omitempty"`
+	Password string
 }
 
 // JGroups configures clustering layer
