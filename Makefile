@@ -4,6 +4,7 @@ GOOS ?= linux
 PROG  := infinispan-operator
 OPERATOR_SDK_VERSION ?= v0.16.0
 YQ_VERSION ?= 4.6.1
+GOLANG_CI_LINT_VERSION ?= 1.39.0
 KUBECONFIG ?= ${HOME}/.kube/config
 
 .PHONY: dep build image push run clean help
@@ -18,8 +19,7 @@ dep:
 ## lint             Invoke linter to promote Go lang best practices.
 ##
 lint:
-	golint pkg/...
-	golint test/...
+	./build/run-lint.sh ${GOLANG_CI_LINT_VERSION}
 
 ## vet              Inspects the source code for suspicious constructs.
 ##
