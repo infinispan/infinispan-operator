@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	ispnv2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	backupCtrl "github.com/infinispan/infinispan-operator/pkg/controller/backup"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
@@ -548,4 +549,29 @@ func runOperatorLocally(stopCh chan struct{}, namespace string) {
 	_ = os.Setenv("WATCH_NAMESPACE", namespace)
 	_ = os.Setenv("KUBECONFIG", kubeConfig)
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
+}
+func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {
+	err := k.Kubernetes.Client.Delete(context.TODO(), cache)
+	ExpectMaybeNotFound(err)
+}
+
+func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition v2alpha1.CacheCondition) {
+	cache := &v2alpha1.Cache{}
+	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, cache)
+		if err != nil && errors.IsNotFound(err) {
+			return false, err
+		}
+		if err != nil {
+			return false, nil
+		}
+		for _, c := range cache.Status.Conditions {
+			if strings.EqualFold(c.Type, condition.Type) && (c.Status == condition.Status) {
+				log.Info("Cache condition met", "condition", condition)
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+	ExpectNoError(err)
 }
