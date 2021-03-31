@@ -114,8 +114,12 @@ func handleContent(reader *bufio.Reader) (*http.Response, error, string) {
 
 	// Save response body
 	b := new(bytes.Buffer)
-	io.Copy(b, rsp.Body)
-	rsp.Body.Close()
+	if _, err = io.Copy(b, rsp.Body); err != nil {
+		return nil, err, ""
+	}
+	if err := rsp.Body.Close(); err != nil {
+		return nil, err, ""
+	}
 	rsp.Body = ioutil.NopCloser(b)
 	return rsp, nil, ""
 }

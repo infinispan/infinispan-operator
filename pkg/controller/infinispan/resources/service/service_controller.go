@@ -64,9 +64,9 @@ func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *
 }
 
 var reconcileTypes = []*resources.ReconcileType{
-	{&corev1.Service{}, corev1.SchemeGroupVersion, true},
-	{&routev1.Route{}, routev1.GroupVersion, false},
-	{&networkingv1beta1.Ingress{}, networkingv1beta1.SchemeGroupVersion, false},
+	{ObjectType: &corev1.Service{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true},
+	{ObjectType: &routev1.Route{}, GroupVersion: routev1.GroupVersion, GroupVersionSupported: false},
+	{ObjectType: &networkingv1beta1.Ingress{}, GroupVersion: networkingv1beta1.SchemeGroupVersion, GroupVersionSupported: false},
 }
 
 func (r reconcileService) Types() []*resources.ReconcileType {
@@ -162,21 +162,23 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 		metadata := unstructuredResource["metadata"].(map[string]interface{})
 		spec := unstructuredResource["spec"].(map[string]interface{})
 		if creationTimestamp.IsZero() {
-			controllerutil.SetControllerReference(s.infinispan, findResource, s.scheme)
-			unstructured.SetNestedField(findResource.UnstructuredContent(), spec, "spec")
-			unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["annotations"], "metadata", "annotations")
-			unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
+			if err = controllerutil.SetControllerReference(s.infinispan, findResource, s.scheme); err != nil {
+				return err
+			}
+			_ = unstructured.SetNestedField(findResource.UnstructuredContent(), spec, "spec")
+			_ = unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["annotations"], "metadata", "annotations")
+			_ = unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
 		} else {
 			findResourceMetadata := findResource.Object["metadata"].(map[string]interface{})
-			findResourceSpec:= findResource.Object["spec"].(map[string]interface{})
+			findResourceSpec := findResource.Object["spec"].(map[string]interface{})
 			if !reflect.DeepEqual(findResourceMetadata["annotations"], metadata["annotations"]) && resource.GetObjectKind().GroupVersionKind().Kind == ExternalTypeService {
-				unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["annotations"], "metadata", "annotations")
+				_ = unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["annotations"], "metadata", "annotations")
 			}
 			if !reflect.DeepEqual(findResourceMetadata["labels"], metadata["labels"]) {
-				unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
+				_ = unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
 			}
 			if resource.GetObjectKind().GroupVersionKind().Kind != ExternalTypeService && !reflect.DeepEqual(findResourceSpec["tls"], spec["tls"]) {
-				unstructured.SetNestedField(findResource.UnstructuredContent(), spec["tls"], "spec", "tls")
+				_ = unstructured.SetNestedField(findResource.UnstructuredContent(), spec["tls"], "spec", "tls")
 			}
 		}
 

@@ -11,9 +11,12 @@ import (
 
 // InfinispanSecurity info for the user application connection
 type InfinispanSecurity struct {
-	EndpointAuthentication *bool               `json:"endpointAuthentication,optional,omitempty"`
-	EndpointSecretName     string              `json:"endpointSecretName,optional,omitempty"`
-	EndpointEncryption     *EndpointEncryption `json:"endpointEncryption,optional,omitempty"`
+	// +optional
+	EndpointAuthentication *bool `json:"endpointAuthentication,omitempty"`
+	// +optional
+	EndpointSecretName string `json:"endpointSecretName,omitempty"`
+	// +optional
+	EndpointEncryption *EndpointEncryption `json:"endpointEncryption,omitempty"`
 }
 
 // CertificateSourceType specifies all the possible sources for the encryption certificate
@@ -37,16 +40,22 @@ const (
 
 // EndpointEncryption configuration
 type EndpointEncryption struct {
-	Type            CertificateSourceType `json:"type,optional,omitempty"`
-	CertServiceName string                `json:"certServiceName,optional,omitempty"`
-	CertSecretName  string                `json:"certSecretName,optional,omitempty"`
+	// +optional
+	Type CertificateSourceType `json:"type,omitempty"`
+	// +optional
+	CertServiceName string `json:"certServiceName,omitempty"`
+	// +optional
+	CertSecretName string `json:"certSecretName,omitempty"`
 }
 
 // InfinispanServiceContainerSpec resource requirements specific for service
 type InfinispanServiceContainerSpec struct {
-	Storage          *string `json:"storage,optional,omitempty"`
-	EphemeralStorage bool    `json:"ephemeralStorage,optional,omitempty"`
-	StorageClassName string  `json:"storageClassName,optional,omitempty"`
+	// +optional
+	Storage *string `json:"storage,omitempty"`
+	// +optional
+	EphemeralStorage bool `json:"ephemeralStorage,omitempty"`
+	// +optional
+	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
 type ServiceType string
@@ -68,17 +77,23 @@ const (
 
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
-	Type              ServiceType                     `json:"type"`
-	Container         *InfinispanServiceContainerSpec `json:"container,optional,omitempty"`
-	Sites             *InfinispanSitesSpec            `json:"sites,optional,omitempty"`
-	ReplicationFactor int32                           `json:"replicationFactor,optional,omitempty"`
+	Type ServiceType `json:"type"`
+	// +optional
+	Container *InfinispanServiceContainerSpec `json:"container,omitempty"`
+	// +optional
+	Sites *InfinispanSitesSpec `json:"sites,omitempty"`
+	// +optional
+	ReplicationFactor int32 `json:"replicationFactor,omitempty"`
 }
 
 // InfinispanContainerSpec specify resource requirements per container
 type InfinispanContainerSpec struct {
-	ExtraJvmOpts string `json:"extraJvmOpts,optional,omitempty"`
-	Memory       string `json:"memory,optional,omitempty"`
-	CPU          string `json:"cpu,optional,omitempty"`
+	// +optional
+	ExtraJvmOpts string `json:"extraJvmOpts,omitempty"`
+	// +optional
+	Memory string `json:"memory,omitempty"`
+	// +optional
+	CPU string `json:"cpu,omitempty"`
 }
 
 type InfinispanSitesLocalSpec struct {
@@ -87,16 +102,22 @@ type InfinispanSitesLocalSpec struct {
 }
 
 type InfinispanSiteLocationSpec struct {
-	Name        string `json:"name"`
-	Namespace   string `json:"namespace,optional,omitempty"`
-	ClusterName string `json:"clusterName,optional,omitempty"`
+	Name string `json:"name"`
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+	// +optional
+	ClusterName string `json:"clusterName,omitempty"`
 	// Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
-	Host *string `json:"host,optional,omitempty"`
+	// +optional
+	Host *string `json:"host,omitempty"`
 	// Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
-	Port *int32 `json:"port,optional,omitempty"`
+	// +optional
+	Port *int32 `json:"port,omitempty"`
 	// +kubebuilder:validation:Pattern=`(^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)+$)|(^(infinispan\+xsite):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)*$)`
-	URL        string `json:"url,optional,omitempty"`
-	SecretName string `json:"secretName,optional,omitempty"`
+	// +optional
+	URL string `json:"url,omitempty"`
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
 }
 
 type InfinispanSitesSpec struct {
@@ -161,18 +182,23 @@ const (
 // ExposeSpec describe how Infinispan will be exposed externally
 type ExposeSpec struct {
 	// Type specifies different exposition methods for data grid
-	Type        ExposeType        `json:"type"`
-	NodePort    int32             `json:"nodePort,optional,omitempty"`
-	Host        string            `json:"host,optional,omitempty"`
-	Annotations map[string]string `json:"annotations,optional,omitempty"`
+	Type ExposeType `json:"type"`
+	// +optional
+	NodePort int32 `json:"nodePort,omitempty"`
+	// +optional
+	Host string `json:"host,omitempty"`
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // CrossSiteExposeSpec describe how Infinispan Cross-Site service will be exposed externally
 type CrossSiteExposeSpec struct {
 	// Type specifies different exposition methods for data grid
-	Type        CrossSiteExposeType `json:"type"`
-	NodePort    int32               `json:"nodePort,optional,omitempty"`
-	Annotations map[string]string   `json:"annotations,optional,omitempty"`
+	Type CrossSiteExposeType `json:"type"`
+	// +optional
+	NodePort int32 `json:"nodePort,omitempty"`
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // Autoscale describe autoscaling configuration for the cluster
@@ -181,29 +207,40 @@ type Autoscale struct {
 	MinReplicas        int32 `json:"minReplicas"`
 	MaxMemUsagePercent int   `json:"maxMemUsagePercent"`
 	MinMemUsagePercent int   `json:"minMemUsagePercent"`
-	Disabled           bool  `json:"disabled,optional,omitempty"`
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
 }
 
 // InfinispanExternalDependencies describes all the external dependencies
 // used by the Infinispan cluster: i.e. lib folder with custom jar, maven artifact, images ...
 type InfinispanExternalDependencies struct {
 	// Name of the persistent volume claim with custom libraries
-	VolumeClaimName string `json:"volumeClaimName,optional,omitempty"`
+	// +optional
+	VolumeClaimName string `json:"volumeClaimName,omitempty"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
-	Replicas  int32                   `json:"replicas"`
-	Image     *string                 `json:"image,optional,omitempty"`
-	Security  InfinispanSecurity      `json:"security,optional,omitempty"`
-	Container InfinispanContainerSpec `json:"container,optional,omitempty"`
-	Service   InfinispanServiceSpec   `json:"service,optional,omitempty"`
-	Logging   *InfinispanLoggingSpec  `json:"logging,optional,omitempty"`
-	Expose    *ExposeSpec             `json:"expose,optional,omitempty"`
-	Autoscale *Autoscale              `json:"autoscale,optional,omitempty"`
-	Affinity  *corev1.Affinity        `json:"affinity,optional,omitempty"`
+	Replicas int32 `json:"replicas"`
+	// +optional
+	Image *string `json:"image,omitempty"`
+	// +optional
+	Security InfinispanSecurity `json:"security,omitempty"`
+	// +optional
+	Container InfinispanContainerSpec `json:"container,omitempty"`
+	// +optional
+	Service InfinispanServiceSpec `json:"service,omitempty"`
+	// +optional
+	Logging *InfinispanLoggingSpec `json:"logging,omitempty"`
+	// +optional
+	Expose *ExposeSpec `json:"expose,omitempty"`
+	// +optional
+	Autoscale *Autoscale `json:"autoscale,omitempty"`
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// External dependencies needed by the Infinispan cluster
-	Dependencies *InfinispanExternalDependencies `json:"dependencies,optional,omitempty"`
+	// +optional
+	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`
 }
 
 type ConditionType string
@@ -222,19 +259,25 @@ type InfinispanCondition struct {
 	Type ConditionType `json:"type"`
 	// Status is the status of the condition.
 	Status metav1.ConditionStatus `json:"status"`
-	// Human-readable message indicating details about last transition.
-	Message string `json:"message,optional,omitempty"`
+	// Human-readable message indicating details about last transitio
+	// +optional.
+	Message string `json:"message,omitempty"`
 }
 
 // InfinispanStatus defines the observed state of Infinispan
 type InfinispanStatus struct {
 	// +optional
-	Conditions              []InfinispanCondition `json:"conditions,omitempty"`
-	StatefulSetName         string                `json:"statefulSetName,optional,omitempty"`
-	Security                *InfinispanSecurity   `json:"security,optional,omitempty"`
-	ReplicasWantedAtRestart int32                 `json:"replicasWantedAtRestart,optional,omitempty"`
-	PodStatus               olm.DeploymentStatus  `json:"podStatus,optional,omitempty"`
-	ConsoleUrl              *string               `json:"consoleUrl,optional,omitempty"`
+	Conditions []InfinispanCondition `json:"conditions,omitempty"`
+	// +optional
+	StatefulSetName string `json:"statefulSetName,omitempty"`
+	// +optional
+	Security *InfinispanSecurity `json:"security,omitempty"`
+	// +optional
+	ReplicasWantedAtRestart int32 `json:"replicasWantedAtRestart,omitempty"`
+	// +optional
+	PodStatus olm.DeploymentStatus `json:"podStatus,omitempty"`
+	// +optional
+	ConsoleUrl *string `json:"consoleUrl,omitempty"`
 }
 
 // +genclient

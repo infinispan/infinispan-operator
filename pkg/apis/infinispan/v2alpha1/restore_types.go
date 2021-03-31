@@ -7,29 +7,38 @@ import (
 
 // BackupSpec defines the desired state of Backup
 type RestoreSpec struct {
-	Cluster   string                     `json:"cluster"`
-	Backup    string                     `json:"backup"`
-	Resources *RestoreResources          `json:"resources,optional,omitempty"`
-	Container v1.InfinispanContainerSpec `json:"container,optional,omitempty"`
+	Cluster string `json:"cluster"`
+	Backup  string `json:"backup"`
+	// +optional
+	Resources *RestoreResources `json:"resources,omitempty"`
+	// +optional
+	Container v1.InfinispanContainerSpec `json:"container,omitempty"`
 }
 
 type RestoreResources struct {
-	Caches       []string `json:"caches,optional,omitempty"`
-	Templates    []string `json:"templates,optional,omitempty"`
-	Counters     []string `json:"counters,optional,omitempty"`
-	ProtoSchemas []string `json:"protoSchemas,optional,omitempty"`
-	Tasks        []string `json:"tasks,optional,omitempty"`
+	// +optional
+	Caches []string `json:"caches,omitempty"`
+	// +optional
+	Templates []string `json:"templates,omitempty"`
+	// +optional
+	Counters []string `json:"counters,omitempty"`
+	// +optional
+	ProtoSchemas []string `json:"protoSchemas,omitempty"`
+	// +optional
+	Tasks []string `json:"tasks,omitempty"`
 
 	// Deprecated and to be removed on subsequent release. Use .Templates instead.
-	CacheConfigs []string `json:"cacheConfigs,optional,omitempty"`
+	// +optional
+	CacheConfigs []string `json:"cacheConfigs,omitempty"`
 	// Deprecated and to be removed on subsequent release. Use .Tasks instead.
-	Scripts []string `json:"scripts,optional,omitempty"`
+	// +optional
+	Scripts []string `json:"scripts,omitempty"`
 }
 
 type RestorePhase string
 
 const (
-	// BackupInitializing means the request has been accepted by the system, but the underlying resources are still
+	// RestoreInitializing means the request has been accepted by the system, but the underlying resources are still
 	// being initialized.
 	RestoreInitializing RestorePhase = "Initializing"
 	// RestoreInitialized means that all required resources have been initialized.

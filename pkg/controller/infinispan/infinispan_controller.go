@@ -37,10 +37,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -561,7 +561,9 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 
 		for _, pvc := range pvcs.Items {
 			if !metav1.IsControlledBy(&pvc, infinispan) {
-				controllerutil.SetControllerReference(infinispan, &pvc, r.scheme)
+				if err = controllerutil.SetControllerReference(infinispan, &pvc, r.scheme); err != nil {
+					return err
+				}
 				pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
 				err := r.client.Update(context.TODO(), &pvc)
 				if err != nil {
@@ -840,7 +842,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			},
 		}
 
-		controllerutil.SetControllerReference(m, pvc, r.scheme)
+		if err = controllerutil.SetControllerReference(m, pvc, r.scheme); err != nil {
+			return nil, err
+		}
 		pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
 		// Set a storage class if it specified
 		if storageClassName := m.StorageClassName(); storageClassName != "" {
@@ -867,7 +871,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	AddVolumeForEncryption(m, &dep.Spec.Template.Spec)
 
 	// Set Infinispan instance as the owner and controller
-	controllerutil.SetControllerReference(m, dep, r.scheme)
+	if err = controllerutil.SetControllerReference(m, dep, r.scheme); err != nil {
+		return nil, err
+	}
 	return dep, nil
 }
 

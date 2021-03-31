@@ -131,12 +131,16 @@ func getAuthorization(username, password string, resp *http.Response) *authentic
 func getAuthString(auth *authenticationRealm, url *url.URL, method string, nc int) string {
 	a1 := auth.Username + ":" + auth.Realm + ":" + auth.Password
 	h := md5.New()
-	io.WriteString(h, a1)
+	_, err := io.WriteString(h, a1)
+	ExpectNoError(err)
+
 	ha1 := hex.EncodeToString(h.Sum(nil))
 
 	h = md5.New()
 	a2 := method + ":" + url.Path
-	io.WriteString(h, a2)
+	_, err = io.WriteString(h, a2)
+	ExpectNoError(err)
+
 	ha2 := hex.EncodeToString(h.Sum(nil))
 
 	nc_str := fmt.Sprintf("%08x", nc)
@@ -144,7 +148,9 @@ func getAuthString(auth *authenticationRealm, url *url.URL, method string, nc in
 
 	respdig := fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, auth.NONCE, nc_str, hnc, auth.QOP, ha2)
 	h = md5.New()
-	io.WriteString(h, respdig)
+	_, err = io.WriteString(h, respdig)
+	ExpectNoError(err)
+
 	respdig = hex.EncodeToString(h.Sum(nil))
 
 	base := "username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", response=\"%s\""

@@ -191,7 +191,9 @@ func (r *backupResource) getOrCreatePvc() error {
 			StorageClassName: volumeSpec.StorageClassName,
 		},
 	}
-	controllerutil.SetControllerReference(r.instance, pvc, r.scheme)
+	if err = controllerutil.SetControllerReference(r.instance, pvc, r.scheme); err != nil {
+		return err
+	}
 	if err = r.client.Create(ctx, pvc); err != nil {
 		return fmt.Errorf("Unable to create pvc: %w", err)
 	}

@@ -203,7 +203,7 @@ func (z *Controller) initializeResources(request reconcile.Request, instance Res
 
 	infinispan := &v1.Infinispan{}
 	if err := z.Client.Get(ctx, clusterKey, infinispan); err != nil {
-		z.Log.Info(fmt.Sprintf("Unable to load Infinispan Cluster '%s': %w", clusterName, err))
+		z.Log.Info(fmt.Sprintf("Unable to load Infinispan Cluster '%s': %s", clusterName, err))
 		if errors.IsNotFound(err) {
 			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 		}
@@ -299,7 +299,7 @@ func (z *Controller) cleanupResources(request reconcile.Request) (reconcile.Resu
 	if err := z.Delete(ctx, &corev1.ConfigMap{ObjectMeta: meta}); err != nil && !errors.IsNotFound(err) {
 		allErrors = wrapErr(allErrors, fmt.Errorf("Unable to delete configMap: %w", err))
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, allErrors
 }
 
 func wrapErr(old, new error) error {

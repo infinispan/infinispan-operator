@@ -54,7 +54,7 @@ func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *r
 }
 
 func (r reconcileConfig) Types() []*resources.ReconcileType {
-	return []*resources.ReconcileType{{&corev1.ConfigMap{}, corev1.SchemeGroupVersion, true}}
+	return []*resources.ReconcileType{{ObjectType: &corev1.ConfigMap{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true}}
 }
 
 func (r reconcileConfig) EventsPredicate() predicate.Predicate {
@@ -132,7 +132,9 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 			configMapObject.Data = map[string]string{consts.ServerConfigFilename: configYaml}
 			configMapObject.Labels = lsConfigMap
 			// Set Infinispan instance as the owner and controller
-			controllerutil.SetControllerReference(c.infinispan, configMapObject, c.scheme)
+			if err = controllerutil.SetControllerReference(c.infinispan, configMapObject, c.scheme); err != nil {
+				return err
+			}
 		} else {
 			previousConfig, err := configuration.FromYaml(configMapObject.Data[consts.ServerConfigFilename])
 			if err == nil {

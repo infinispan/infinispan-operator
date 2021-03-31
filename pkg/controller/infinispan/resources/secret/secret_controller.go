@@ -56,7 +56,7 @@ func (r reconcileSecret) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *r
 }
 
 func (r reconcileSecret) Types() []*resources.ReconcileType {
-	return []*resources.ReconcileType{{&corev1.Secret{}, corev1.SchemeGroupVersion, true}}
+	return []*resources.ReconcileType{{ObjectType: &corev1.Secret{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true}}
 }
 
 func (r reconcileSecret) EventsPredicate() predicate.Predicate {

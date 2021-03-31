@@ -37,7 +37,7 @@ type Kubernetes struct {
 // MapperProvider is a function that provides RESTMapper instances
 type MapperProvider func(cfg *rest.Config, opts ...apiutil.DynamicRESTMapperOption) (meta.RESTMapper, error)
 
-// NewKubernetesFromConfig creates a new Kubernetes instance from configuration.
+// NewKubernetesFromLocalConfig creates a new Kubernetes instance from configuration.
 // The configuration is resolved locally from known locations.
 func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperProvider, ctx string) (*Kubernetes, error) {
 	config := resolveConfig(ctx)
@@ -47,6 +47,9 @@ func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperP
 		return nil, err
 	}
 	kubernetes, err := client.New(config, createOptions(scheme, mapper))
+	if err != nil {
+		return nil, err
+	}
 	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
 		return nil, err
@@ -56,7 +59,7 @@ func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperP
 		Client:     kubernetes,
 		RestClient: restClient,
 		RestConfig: config,
-	}, err
+	}, nil
 }
 
 // NewKubernetesFromController creates a new Kubernetes instance from controller runtime Manager
@@ -363,13 +366,19 @@ func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime
 	return err
 }
 
-func (k Kubernetes) Logs(pod, namespace string) (string, error) {
+func (k Kubernetes) Logs(pod, namespace string) (logs string, err error) {
 	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Stream()
 	if err != nil {
 		return "", err
 	}
 
-	defer readCloser.Close()
+	defer func() {
+		cerr := readCloser.Close();
+		if err == nil {
+			err = cerr
+		}
+	}()
+
 	body, err := ioutil.ReadAll(readCloser)
 	if err != nil {
 		return "", err

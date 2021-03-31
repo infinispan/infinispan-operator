@@ -44,7 +44,7 @@ const (
 
 // equals compares two ConditionType's case insensitive
 func (a ConditionType) equals(b ConditionType) bool {
-	return strings.ToLower(string(a)) == strings.ToLower(string(b))
+	return strings.EqualFold(strings.ToLower(string(a)), strings.ToLower(string(b)))
 }
 
 // GetCondition return the Status of the given condition or nil

@@ -13,10 +13,7 @@ import (
 	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
-
-var log = logf.Log.WithName("cluster_util")
 
 // Cluster abstracts interaction with an Infinispan cluster
 type Cluster struct {
@@ -57,11 +54,12 @@ type ClusterInterface interface {
 	SetLogger(podName, loggerName, loggerLevel string) error
 }
 
-// NewCluster creates a new instance of Cluster
+// NewClusterNoAuth creates a new instance of Cluster without authentication
 func NewClusterNoAuth(namespace string, protocol string, kubernetes *kube.Kubernetes) *Cluster {
 	return cluster(namespace, protocol, nil, kubernetes)
 }
 
+// NewCluster creates a new instance of Cluster
 func NewCluster(username, password, namespace string, protocol string, kubernetes *kube.Kubernetes) *Cluster {
 	credentials := &ispnclient.Credentials{
 		Username: username,
@@ -101,13 +99,19 @@ func (c Cluster) GracefulShutdown(podName string) error {
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
-func (c Cluster) GetClusterMembers(podName string) ([]string, error) {
+func (c Cluster) GetClusterMembers(podName string) (members []string, err error) {
 	rsp, err, reason := c.Client.Get(podName, consts.ServerHTTPHealthPath, nil)
-	if err := validateResponse(rsp, reason, err, "getting cluster members", http.StatusOK); err != nil {
-		return nil, err
+	if err = validateResponse(rsp, reason, err, "getting cluster members", http.StatusOK); err != nil {
+		return
 	}
 
-	defer rsp.Body.Close()
+	defer func() {
+		cerr := rsp.Body.Close();
+		if err == nil {
+			err = cerr
+		}
+	}()
+
 	var health Health
 	if err := json.NewDecoder(rsp.Body).Decode(&health); err != nil {
 		return nil, fmt.Errorf("unable to decode: %v", err)
@@ -133,19 +137,24 @@ func (c Cluster) ExistsCache(cacheName, podName string) (bool, error) {
 }
 
 // CacheNames return the names of the cluster caches available on the pod `podName`
-func (c Cluster) CacheNames(podName string) ([]string, error) {
+func (c Cluster) CacheNames(podName string) (caches []string, err error) {
 	path := fmt.Sprintf("%s/caches", consts.ServerHTTPBasePath)
 	rsp, err, reason := c.Client.Get(podName, path, nil)
-	if err := validateResponse(rsp, reason, err, "getting caches", http.StatusOK); err != nil {
-		return nil, err
+	if err = validateResponse(rsp, reason, err, "getting caches", http.StatusOK); err != nil {
+		return
 	}
 
-	defer rsp.Body.Close()
-	var caches []string
+	defer func() {
+		cerr := rsp.Body.Close();
+		if err == nil {
+			err = cerr
+		}
+	}()
+
 	if err := json.NewDecoder(rsp.Body).Decode(&caches); err != nil {
 		return nil, fmt.Errorf("unable to decode: %v", err)
 	}
-	return caches, nil
+	return
 }
 
 // CreateCacheWithTemplate create cluster cache on the pod `podName`
@@ -209,56 +218,75 @@ func (c Cluster) GetMaxMemoryUnboundedBytes(podName string) (uint64, error) {
 }
 
 // GetMetrics return pod metrics
-func (c Cluster) GetMetrics(podName, postfix string) (*bytes.Buffer, error) {
+func (c Cluster) GetMetrics(podName, postfix string) (buf *bytes.Buffer, err error) {
 	headers := make(map[string]string)
 	headers["Accept"] = "application/json"
 
 	path := fmt.Sprintf("metrics/%s", postfix)
 	rsp, err, reason := c.Client.Get(podName, path, headers)
-	if err := validateResponse(rsp, reason, err, "getting metrics", http.StatusOK); err != nil {
-		return nil, err
+	if err = validateResponse(rsp, reason, err, "getting metrics", http.StatusOK); err != nil {
+		return
 	}
 
-	defer rsp.Body.Close()
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(rsp.Body)
-	return buf, nil
+	defer func() {
+		cerr := rsp.Body.Close();
+		if err == nil {
+			err = cerr
+		}
+	}()
+
+	buf = new(bytes.Buffer)
+	if _, err = buf.ReadFrom(rsp.Body); err != nil {
+		return
+	}
+	return
 }
 
 // GetCacheManagerInfo via REST v2 interface
-func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (map[string]interface{}, error) {
+func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (info map[string]interface{}, err error) {
 	path := fmt.Sprintf("%s/cache-managers/%s", consts.ServerHTTPBasePath, cacheManagerName)
 	rsp, err, reason := c.Client.Get(podName, path, nil)
-	if err := validateResponse(rsp, reason, err, "getting cache manager info", http.StatusOK); err != nil {
-		return nil, err
+	if err = validateResponse(rsp, reason, err, "getting cache manager info", http.StatusOK); err != nil {
+		return
 	}
 
-	defer rsp.Body.Close()
-	var info map[string]interface{}
-	if err := json.NewDecoder(rsp.Body).Decode(&info); err != nil {
+	defer func() {
+		cerr := rsp.Body.Close();
+		if err == nil {
+			err = cerr
+		}
+	}()
+
+	if err = json.NewDecoder(rsp.Body).Decode(&info); err != nil {
 		return nil, fmt.Errorf("unable to decode: %v", err)
 	}
-	return info, nil
+	return
 }
 
-func (c Cluster) GetLoggers(podName string) (map[string]string, error) {
+func (c Cluster) GetLoggers(podName string) (lm map[string]string, err error) {
 	rsp, err, reason := c.Client.Get(podName, consts.ServerHTTPLoggersPath, nil)
-	if err := validateResponse(rsp, reason, err, "getting cluster loggers", http.StatusOK); err != nil {
-		return nil, err
+	if err = validateResponse(rsp, reason, err, "getting cluster loggers", http.StatusOK); err != nil {
+		return
 	}
 
-	defer rsp.Body.Close()
+	defer func() {
+		cerr := rsp.Body.Close();
+		if err == nil {
+			err = cerr
+		}
+	}()
+
 	var loggers []Logger
 	if err := json.NewDecoder(rsp.Body).Decode(&loggers); err != nil {
 		return nil, fmt.Errorf("unable to decode: %v", err)
 	}
-	lm := make(map[string]string)
+	lm = make(map[string]string)
 	for _, logger := range loggers {
 		if logger.Name != "" {
 			lm[logger.Name] = logger.Level
 		}
 	}
-	return lm, nil
+	return
 }
 
 func (c Cluster) SetLogger(podName, loggerName, loggerLevel string) error {
@@ -270,25 +298,31 @@ func (c Cluster) SetLogger(podName, loggerName, loggerLevel string) error {
 	return nil
 }
 
-func validateResponse(rsp *http.Response, reason string, err error, entity string, validCodes ...int) error {
-	if err != nil {
-		return fmt.Errorf("unexpected error %s, stderr: %s, err: %v", entity, reason, err)
+func validateResponse(rsp *http.Response, reason string, inperr error, entity string, validCodes ...int) (err error) {
+	if inperr != nil {
+		return fmt.Errorf("unexpected error %s, stderr: %s, err: %v", entity, reason, inperr)
 	}
 
 	if rsp == nil || len(validCodes) == 0 {
-		return nil
+		return
 	}
 
 	for _, code := range validCodes {
 		if code == rsp.StatusCode {
-			return nil
+			return
 		}
 	}
 
-	defer rsp.Body.Close()
+	defer func() {
+		cerr := rsp.Body.Close();
+		if err == nil {
+			err = cerr
+		}
+	}()
+
 	responseBody, responseErr := ioutil.ReadAll(rsp.Body)
 	if responseErr != nil {
-		fmt.Errorf("server side error %s. Unable to read response body, %v", entity, responseErr)
+		return fmt.Errorf("server side error %s. Unable to read response body, %v", entity, responseErr)
 	}
 	return fmt.Errorf("unexpected error %s, response: %v", entity, consts.GetWithDefault(string(responseBody), rsp.Status))
 }

@@ -7,28 +7,40 @@ import (
 
 // BackupSpec defines the desired state of Backup
 type BackupSpec struct {
-	Cluster   string                     `json:"cluster"`
-	Volume    BackupVolumeSpec           `json:"volume,optional,omitempty"`
-	Resources *BackupResources           `json:"resources,optional,omitempty"`
-	Container v1.InfinispanContainerSpec `json:"container,optional,omitempty"`
+	Cluster string `json:"cluster"`
+	// +optional
+	Volume BackupVolumeSpec `json:"volume,omitempty"`
+	// +optional
+	Resources *BackupResources `json:"resources,omitempty"`
+	// +optional
+	Container v1.InfinispanContainerSpec `json:"container,omitempty"`
 }
 
 type BackupVolumeSpec struct {
-	Storage          *string `json:"storage,optional,omitempty"`
-	StorageClassName *string `json:"storageClassName,optional,omitempty"`
+	// +optional
+	Storage *string `json:"storage,omitempty"`
+	// +optional
+	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
 type BackupResources struct {
-	Caches       []string `json:"caches,optional,omitempty"`
-	Templates    []string `json:"templates,optional,omitempty"`
-	Counters     []string `json:"counters,optional,omitempty"`
-	ProtoSchemas []string `json:"protoSchemas,optional,omitempty"`
-	Tasks        []string `json:"tasks,optional,omitempty"`
+	// +optional
+	Caches []string `json:"caches,omitempty"`
+	// +optional
+	Templates []string `json:"templates,omitempty"`
+	// +optional
+	Counters []string `json:"counters,omitempty"`
+	// +optional
+	ProtoSchemas []string `json:"protoSchemas,omitempty"`
+	// +optional
+	Tasks []string `json:"tasks,omitempty"`
 
 	// Deprecated and to be removed on subsequent release. Use .Templates instead.
-	CacheConfigs []string `json:"cacheConfigs,optional,omitempty"`
+	// +optional
+	CacheConfigs []string `json:"cacheConfigs,omitempty"`
 	// Deprecated and to be removed on subsequent release. Use .Tasks instead.
-	Scripts []string `json:"scripts,optional,omitempty"`
+	// +optional
+	Scripts []string `json:"scripts,omitempty"`
 }
 
 type BackupPhase string

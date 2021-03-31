@@ -35,7 +35,7 @@ func addAutoscalingEquipment(clusterNsn types.NamespacedName, r *ReconcileInfini
 
 func autoscalerLoop(clusterNsn types.NamespacedName, r *ReconcileInfinispan) {
 	log.Info(fmt.Sprintf("Starting loop for autoscaling on cluster %v", clusterNsn))
-	for true {
+	for {
 		time.Sleep(constants.DefaultMinimumAutoscalePollPeriod)
 		ispn := infinispanv1.Infinispan{}
 		// Check all the cluster in the namespace for autoscaling
@@ -106,7 +106,7 @@ func getMetricMinPodNum(podName string, cluster *ispnutil.Cluster) (int32, error
 	if err != nil {
 		return 0, err
 	}
-	log.Info(string(res.Bytes()))
+	log.Info(res.String())
 	minNumOfNodes := map[string]int32{}
 	err = json.Unmarshal(res.Bytes(), &minNumOfNodes)
 	if err != nil {
@@ -128,7 +128,7 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster 
 	if err != nil {
 		return err
 	}
-	log.Info(string(res.Bytes()))
+	log.Info(res.String())
 	usedMap := map[string]int{}
 	err = json.Unmarshal(res.Bytes(), &usedMap)
 	if err != nil || len(usedMap) < 1 {
@@ -144,7 +144,7 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster 
 	if err != nil {
 		return err
 	}
-	log.Info(string(res.Bytes()))
+	log.Info(res.String())
 	totalMap := map[string]int{}
 	err = json.Unmarshal(res.Bytes(), &totalMap)
 	if err != nil || len(totalMap) < 1 {
