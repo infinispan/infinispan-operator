@@ -116,6 +116,8 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 		return err
 	}
 
+	infinispan.ConfigureCloudEvent(c.infinispan, &config)
+
 	configMapObject := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.infinispan.GetConfigName(),

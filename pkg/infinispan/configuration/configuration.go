@@ -9,12 +9,19 @@ import (
 
 // InfinispanConfiguration is the top level configuration type
 type InfinispanConfiguration struct {
-	Infinispan Infinispan `yaml:"infinispan"`
-	JGroups    JGroups    `yaml:"jgroups"`
-	Keystore   Keystore   `yaml:"keystore,omitempty"`
-	XSite      *XSite     `yaml:"xsite,omitempty"`
-	Logging    Logging    `yaml:"logging,omitempty"`
-	Endpoints  Endpoints  `yaml:"endpoints"`
+	Infinispan  Infinispan   `yaml:"infinispan"`
+	JGroups     JGroups      `yaml:"jgroups"`
+	Keystore    Keystore     `yaml:"keystore,omitempty"`
+	XSite       *XSite       `yaml:"xsite,omitempty"`
+	Logging     Logging      `yaml:"logging,omitempty"`
+	Endpoints   Endpoints    `yaml:"endpoints"`
+	CloudEvents *CloudEvents `yaml:"cloudEvents,omitempty"`
+}
+
+type CloudEvents struct {
+	BootstrapServers  string `yaml:"bootstrapServers"`
+	Acks              string `yaml:"acks"`
+	CacheEntriesTopic string `yaml:"cacheEntriesTopic"`
 }
 
 type Infinispan struct {

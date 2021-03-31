@@ -219,8 +219,19 @@ type InfinispanExternalDependencies struct {
 	VolumeClaimName string `json:"volumeClaimName,omitempty"`
 }
 
+// InfinispanCloudEvents describes how Infinispan is connected with Cloud Event, see Kafka docs for more info
+type InfinispanCloudEvents struct {
+	// BootstrapServers is comma separated list of boostrap server:port addresses
+	BootstrapServers string `json:"bootstrapServers,optional,omitempty"`
+	// Acks configuration for the producer ack-value
+	Acks string `json:"acks,optional,omitempty"`
+	// CacheEntriesTopic is the name of the topic on which events will be published
+	CacheEntriesTopic string `json:"cacheEntriesTopic,optional,omitempty"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
+<<<<<<< HEAD
 	Replicas int32 `json:"replicas"`
 	// +optional
 	Image *string `json:"image,omitempty"`
@@ -238,6 +249,8 @@ type InfinispanSpec struct {
 	Autoscale *Autoscale `json:"autoscale,omitempty"`
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// +optional
+	CloudEvents *InfinispanCloudEvents  `json:"cloudEvents"`
 	// External dependencies needed by the Infinispan cluster
 	// +optional
 	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`

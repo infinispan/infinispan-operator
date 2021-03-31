@@ -391,6 +391,19 @@ spec:
                 - minMemUsagePercent
                 - minReplicas
               type: object
+            cloudEvents:
+              description: InfinispanCloudEvents describes how Infinispan is connected with Cloud Event, see Kafka docs for more info
+              properties:
+                acks:
+                  description: Acks configuration for the producer ack-value
+                  type: string
+                bootstrapServers:
+                  description: BootstrapServers is comma separated list of boostrap server:port addresses
+                  type: string
+                cacheEntriesTopic:
+                  description: CacheEntriesTopic is the name of the topic on which events will be published
+                  type: string
+              type: object
             container:
               description: InfinispanContainerSpec specify resource requirements per container
               properties:
@@ -554,6 +567,7 @@ spec:
                 - type
               type: object
           required:
+            - cloudEvents
             - replicas
           type: object
         status:
