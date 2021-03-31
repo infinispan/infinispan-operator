@@ -112,9 +112,9 @@ func TestBatchConfigMap(t *testing.T) {
 func TestBatchNoConfigOrConfigMap(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	batch := createBatch(name, "doesn't exist", nil, nil)
+	createBatch(name, "doesn't exist", nil, nil)
 
-	batch = waitForValidBatchPhase(name, v2.BatchFailed)
+	batch := waitForValidBatchPhase(name, v2.BatchFailed)
 	if batch.Status.Reason != "'Spec.config' OR 'spec.ConfigMap' must be configured" {
 		panic(fmt.Errorf("Unexpected 'Status.Reason': %s", batch.Status.Reason))
 	}
@@ -125,9 +125,9 @@ func TestBatchNoConfigOrConfigMap(t *testing.T) {
 func TestBatchConfigAndConfigMap(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	batch := createBatch(name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
+	createBatch(name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
 
-	batch = waitForValidBatchPhase(name, v2.BatchFailed)
+	batch := waitForValidBatchPhase(name, v2.BatchFailed)
 	if batch.Status.Reason != "At most one of ['Spec.config', 'spec.ConfigMap'] must be configured" {
 		panic(fmt.Errorf("Unexpected 'Status.Reason': %s", batch.Status.Reason))
 	}
