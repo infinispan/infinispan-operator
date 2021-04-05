@@ -373,7 +373,7 @@ func (k Kubernetes) Logs(pod, namespace string) (logs string, err error) {
 	}
 
 	defer func() {
-		cerr := readCloser.Close();
+		cerr := readCloser.Close()
 		if err == nil {
 			err = cerr
 		}
