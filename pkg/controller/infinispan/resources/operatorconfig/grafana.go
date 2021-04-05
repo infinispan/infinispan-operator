@@ -1,10 +1,11 @@
 package operatorconfig
 
 import (
+	"fmt"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	grafanav1alpha1 "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
+	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -37,14 +38,15 @@ func (r *ReconcileOperatorConfig) reconcileGrafana(config, currentConfig map[str
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.client, infinispanDashboard, func() error {
 		if infinispanDashboard.CreationTimestamp.IsZero() {
 			if grafanaNs == operatorNs {
-				operatorDeployment := &appsv1.Deployment{}
-				if result, err := kube.LookupResource("infinispan-operator", operatorNs, operatorDeployment, r.client, r.Log); result == nil {
-					// If running in cluster set controller config
-					if err = controllerutil.SetControllerReference(operatorDeployment, infinispanDashboard, r.scheme); err != nil {
+				if ownRef, err := kube.GetOperatorPodOwnerRef(operatorNs, r.client); err != nil {
+					if err == k8sutil.ErrRunLocal {
+						r.Log.Info(fmt.Sprintf("Not setting controller reference for Grafana Dashboard, cause %s.", err.Error()))
+					} else {
 						return err
 					}
 				} else {
-					return err
+					r.Log.Info("Operator Pod owner found", "Kind", ownRef.Kind, "Name", ownRef.Name)
+					infinispanDashboard.SetOwnerReferences([]metav1.OwnerReference{*ownRef})
 				}
 			} else {
 				r.Log.Info("Not setting controller reference, cause Infinispan and Grafana are in different namespaces.")
