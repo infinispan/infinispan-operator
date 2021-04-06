@@ -403,7 +403,7 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps
 	ExpectNoError(err)
 }
 
-func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condition ispnv1.ConditionType) {
+func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condition ispnv1.ConditionType) *ispnv1.Infinispan {
 	ispn := &ispnv1.Infinispan{}
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
@@ -420,6 +420,7 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condi
 		return false, nil
 	})
 	ExpectNoError(err)
+	return ispn
 }
 
 func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
