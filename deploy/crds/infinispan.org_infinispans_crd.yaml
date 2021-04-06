@@ -567,7 +567,6 @@ spec:
                 - type
               type: object
           required:
-            - cloudEvents
             - replicas
           type: object
         status:

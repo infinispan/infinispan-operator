@@ -232,6 +232,7 @@ type InfinispanCloudEvents struct {
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	Replicas int32 `json:"replicas"`
 	// +optional
 	Image *string `json:"image,omitempty"`
@@ -250,7 +251,7 @@ type InfinispanSpec struct {
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// +optional
-	CloudEvents *InfinispanCloudEvents  `json:"cloudEvents"`
+	CloudEvents *InfinispanCloudEvents  `json:"cloudEvents,omitempty"`
 	// External dependencies needed by the Infinispan cluster
 	// +optional
 	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`
