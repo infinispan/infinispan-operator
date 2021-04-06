@@ -32,6 +32,7 @@ type ReconcileType struct {
 	ObjectType            runtime.Object
 	GroupVersion          schema.GroupVersion
 	GroupVersionSupported bool
+	TypeWatchDisable      bool
 }
 
 func (rt ReconcileType) GroupVersionKind() schema.GroupVersionKind {
@@ -48,7 +49,7 @@ func (rt ReconcileType) Kind() string {
 
 type Reconciler interface {
 	// The k8 structs being handled by this controller
-	Types() []*ReconcileType
+	Types() map[string]*ReconcileType
 	// Events for the struct handled by this controller
 	EventsPredicate() predicate.Predicate
 	// Create a new instance of Infinispan wrapping the actual k8s type
@@ -102,7 +103,7 @@ func CreateController(name string, reconciler Reconciler, mgr manager.Manager) e
 				continue
 			}
 			reconciler.Types()[index].GroupVersionSupported = ok
-			if !ok {
+			if !ok || obj.TypeWatchDisable {
 				continue
 			}
 		}

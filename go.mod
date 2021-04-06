@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/RHsyseng/operator-utils v0.0.0-20200506183821-e3b4a2ba9c30
+	github.com/coreos/prometheus-operator v0.35.1
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.6
 	github.com/go-playground/validator/v10 v10.3.0

@@ -122,7 +122,7 @@ func (c Cluster) GetClusterMembers(podName string) (members []string, err error)
 	}
 
 	defer func() {
-		cerr := rsp.Body.Close();
+		cerr := rsp.Body.Close()
 		if err == nil {
 			err = cerr
 		}
@@ -161,7 +161,7 @@ func (c Cluster) CacheNames(podName string) (caches []string, err error) {
 	}
 
 	defer func() {
-		cerr := rsp.Body.Close();
+		cerr := rsp.Body.Close()
 		if err == nil {
 			err = cerr
 		}
@@ -245,7 +245,7 @@ func (c Cluster) GetMetrics(podName, postfix string) (buf *bytes.Buffer, err err
 	}
 
 	defer func() {
-		cerr := rsp.Body.Close();
+		cerr := rsp.Body.Close()
 		if err == nil {
 			err = cerr
 		}
@@ -267,7 +267,7 @@ func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (info *Ca
 	}
 
 	defer func() {
-		cerr := rsp.Body.Close();
+		cerr := rsp.Body.Close()
 		if err == nil {
 			err = cerr
 		}
@@ -286,7 +286,7 @@ func (c Cluster) GetLoggers(podName string) (lm map[string]string, err error) {
 	}
 
 	defer func() {
-		cerr := rsp.Body.Close();
+		cerr := rsp.Body.Close()
 		if err == nil {
 			err = cerr
 		}
@@ -330,7 +330,7 @@ func validateResponse(rsp *http.Response, reason string, inperr error, entity st
 	}
 
 	defer func() {
-		cerr := rsp.Body.Close();
+		cerr := rsp.Body.Close()
 		if err == nil {
 			err = cerr
 		}

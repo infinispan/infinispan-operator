@@ -54,7 +54,7 @@ func CreateIdentitiesFor(usr string, pass string) ([]byte, error) {
 	return data, nil
 }
 
-// GetUserCredentials get identities credentials in yaml format
+// GetAdminCredentials get admin identities credentials in yaml format
 func GetAdminCredentials() ([]byte, error) {
 	return CreateIdentitiesFor(consts.DefaultOperatorUser, getRandomStringForAuth(16))
 }

@@ -53,8 +53,8 @@ func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *r
 	}
 }
 
-func (r reconcileConfig) Types() []*resources.ReconcileType {
-	return []*resources.ReconcileType{{ObjectType: &corev1.ConfigMap{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true}}
+func (r reconcileConfig) Types() map[string]*resources.ReconcileType {
+	return map[string]*resources.ReconcileType{"ConfigMap": {ObjectType: &corev1.ConfigMap{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true}}
 }
 
 func (r reconcileConfig) EventsPredicate() predicate.Predicate {

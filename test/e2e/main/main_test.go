@@ -74,6 +74,39 @@ func TestOperatorUpgrade(t *testing.T) {
 	}
 }
 
+func TestUpdateOperatorPassword(t *testing.T) {
+	t.Parallel()
+	// Create a resource without passing any config
+	spec := tutils.DefaultSpec(testKube)
+	name := strcase.ToKebab(t.Name())
+	spec.Name = name
+	// Register it
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	newPassword := "supersecretoperatorpassword"
+	secret, err := testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace)
+	tutils.ExpectNoError(err)
+	_, err = kube.CreateOrPatch(context.TODO(), testKube.Kubernetes.Client, secret, func() error {
+		secret.Data["password"] = []byte(newPassword)
+		return nil
+	})
+	tutils.ExpectNoError(err)
+
+	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (bool, error) {
+		secret, err = testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace)
+		tutils.ExpectNoError(err)
+		identities := secret.Data[cconsts.ServerIdentitiesFilename]
+		pwd, err := users.FindPassword(cconsts.DefaultOperatorUser, identities)
+		tutils.ExpectNoError(err)
+		fmt.Printf("Pwd=%s, Identities=%s", string(pwd), string(identities))
+		return pwd == newPassword, nil
+	})
+	tutils.ExpectNoError(err)
+}
+
 // Test if single node working correctly
 func TestNodeStartup(t *testing.T) {
 	// Create a resource without passing any config
