@@ -73,7 +73,7 @@ const (
 type InfinispanUpgrade struct {
 	// Policy represent the current upgrade policy for this cluster
 	// +optional
-	Policy *UpgradePolicy `json:"strategy,omitempty"`
+	Policy UpgradePolicy `json:"strategy,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=DataGrid;Cache
