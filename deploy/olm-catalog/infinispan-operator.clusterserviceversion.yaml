@@ -413,7 +413,10 @@ spec:
                 - servicemonitors
               verbs:
                 - get
+                - list
+                - watch
                 - create
+                - delete
             - apiGroups:
                 - infinispan.org
               resources:

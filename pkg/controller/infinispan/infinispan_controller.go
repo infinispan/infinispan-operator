@@ -157,6 +157,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	err := r.update(infinispan, func() {
 		// Apply defaults and endpoint encryption settings if not already set
 		infinispan.ApplyDefaults()
+		if isTypeSupported(consts.ServiceMonitorType) {
+			infinispan.ApplyMonitoringAnnotation()
+		}
 		infinispan.Spec.Affinity = podAffinity(infinispan, PodLabels(infinispan.Name))
 		errLabel := infinispan.ApplyOperatorLabels()
 		if errLabel != nil {
@@ -788,7 +791,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 						Name:  "infinispan",
 						Env: PodEnv(m, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hashString(configMap.Data[consts.ServerConfigFilename])},
-							{Name: "ADMIN_IDENTITIES_HASH", Value: hashString(string(adminSecret.Data[consts.ServerIdentitiesFilename]))},
+							{Name: "ADMIN_IDENTITIES_HASH", Value: HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])},
 						}),
 						LivenessProbe:  PodLivenessProbe(),
 						Ports:          PodPortsWithXsite(m),
@@ -809,7 +812,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		spec.Containers[0].Env = append(spec.Containers[0].Env,
 			corev1.EnvVar{
 				Name:  "IDENTITIES_HASH",
-				Value: hashString(string(userSecret.Data[consts.ServerIdentitiesFilename])),
+				Value: HashByte(userSecret.Data[consts.ServerIdentitiesFilename]),
 			})
 	}
 
@@ -1291,7 +1294,7 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 
 	// Validate ConfigMap changes (by the hash of the infinispan.yaml key value)
 	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
-	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hashString(string(adminSecret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
+	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])) || updateNeeded
 
 	// Validate identities Secret name changes
 	if secretName, secretIndex := findSecretInVolume(&statefulSet.Spec.Template.Spec, IdentitiesVolumeName); secretIndex >= 0 && secretName != ispn.GetSecretName() {
@@ -1304,13 +1307,13 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 	if ispn.IsAuthenticationEnabled() {
 		if AddVolumeForUserAuthentication(ispn, spec) {
 			spec.Containers[0].Env = append(spec.Containers[0].Env,
-				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: hashString(string(userSecret.Data[consts.ServerIdentitiesFilename]))},
+				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: HashByte(userSecret.Data[consts.ServerIdentitiesFilename])},
 				corev1.EnvVar{Name: "IDENTITIES_PATH", Value: consts.ServerUserIdentitiesPath},
 			)
 			updateNeeded = true
 		} else {
 			// Validate Secret changes (by the hash of the identities.yaml key value)
-			updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", hashString(string(userSecret.Data[consts.ServerIdentitiesFilename]))) || updateNeeded
+			updateNeeded = updateStatefulSetEnv(statefulSet, "IDENTITIES_HASH", HashByte(userSecret.Data[consts.ServerIdentitiesFilename])) || updateNeeded
 		}
 	}
 
@@ -1407,6 +1410,12 @@ func ServiceLabels(name string) map[string]string {
 func hashString(data string) string {
 	hash := sha1.New()
 	hash.Write([]byte(data))
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func HashByte(data []byte) string {
+	hash := sha1.New()
+	hash.Write(data)
 	return hex.EncodeToString(hash.Sum(nil))
 }
 

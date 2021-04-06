@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
+	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
@@ -29,11 +32,8 @@ import (
 )
 
 const (
-	ControllerName = "service-controller"
-
-	ExternalTypeService = "Service"
-	ExternalTypeRoute   = "Route"
-	ExternalTypeIngress = "Ingress"
+	ControllerName       = "service-controller"
+	SecretHashAnnotation = "infinispan.org/secret-hash"
 )
 
 var ctx = context.Background()
@@ -63,13 +63,14 @@ func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *
 	}
 }
 
-var reconcileTypes = []*resources.ReconcileType{
-	{ObjectType: &corev1.Service{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true},
-	{ObjectType: &routev1.Route{}, GroupVersion: routev1.GroupVersion, GroupVersionSupported: false},
-	{ObjectType: &networkingv1beta1.Ingress{}, GroupVersion: networkingv1beta1.SchemeGroupVersion, GroupVersionSupported: false},
+var reconcileTypes = map[string]*resources.ReconcileType{
+	consts.ExternalTypeService: {ObjectType: &corev1.Service{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true},
+	consts.ExternalTypeRoute:   {ObjectType: &routev1.Route{}, GroupVersion: routev1.GroupVersion, GroupVersionSupported: false},
+	consts.ExternalTypeIngress: {ObjectType: &networkingv1beta1.Ingress{}, GroupVersion: networkingv1beta1.SchemeGroupVersion, GroupVersionSupported: false},
+	consts.ServiceMonitorType:  {ObjectType: &monitoringv1.ServiceMonitor{}, GroupVersion: monitoringv1.SchemeGroupVersion, GroupVersionSupported: false, TypeWatchDisable: true},
 }
 
-func (r reconcileService) Types() []*resources.ReconcileType {
+func (r reconcileService) Types() map[string]*resources.ReconcileType {
 	return reconcileTypes
 }
 
@@ -85,12 +86,7 @@ func (r reconcileService) EventsPredicate() predicate.Predicate {
 }
 
 func isTypeSupported(kind string) bool {
-	for _, obj := range reconcileTypes {
-		if obj.Kind() == kind {
-			return obj.GroupVersionSupported
-		}
-	}
-	return false
+	return reconcileTypes[kind].GroupVersionSupported
 }
 
 func Add(mgr manager.Manager) error {
@@ -121,25 +117,26 @@ func (s serviceResource) Process() (reconcile.Result, error) {
 			if err := s.reconcileResource(computeServiceExternal(s.infinispan)); err != nil {
 				return reconcile.Result{}, err
 			}
-			externalExposeType = ExternalTypeService
+			externalExposeType = consts.ExternalTypeService
 		case ispnv1.ExposeTypeRoute:
-			if isTypeSupported(ExternalTypeRoute) {
+			if isTypeSupported(consts.ExternalTypeRoute) {
 				if err := s.reconcileResource(computeRoute(s.infinispan)); err != nil {
 					return reconcile.Result{}, err
 				}
-				externalExposeType = ExternalTypeRoute
-			} else if isTypeSupported(ExternalTypeIngress) {
+				externalExposeType = consts.ExternalTypeRoute
+			} else if isTypeSupported(consts.ExternalTypeIngress) {
 				if err := s.reconcileResource(computeIngress(s.infinispan)); err != nil {
 					return reconcile.Result{}, err
 				}
-				externalExposeType = ExternalTypeIngress
+				externalExposeType = consts.ExternalTypeIngress
 			}
 		}
 	}
 	if err := s.cleanupExternalExpose(externalExposeType); err != nil {
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{}, nil
+
+	return s.reconcileServiceMonitor(service)
 }
 
 // reconcileResource creates the resource (Service, Route or Ingress) for Infinispan if needed
@@ -171,13 +168,13 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 		} else {
 			findResourceMetadata := findResource.Object["metadata"].(map[string]interface{})
 			findResourceSpec := findResource.Object["spec"].(map[string]interface{})
-			if !reflect.DeepEqual(findResourceMetadata["annotations"], metadata["annotations"]) && resource.GetObjectKind().GroupVersionKind().Kind == ExternalTypeService {
+			if !reflect.DeepEqual(findResourceMetadata["annotations"], metadata["annotations"]) && resource.GetObjectKind().GroupVersionKind().Kind == consts.ExternalTypeService {
 				_ = unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["annotations"], "metadata", "annotations")
 			}
 			if !reflect.DeepEqual(findResourceMetadata["labels"], metadata["labels"]) {
 				_ = unstructured.SetNestedField(findResource.UnstructuredContent(), metadata["labels"], "metadata", "labels")
 			}
-			if resource.GetObjectKind().GroupVersionKind().Kind != ExternalTypeService && !reflect.DeepEqual(findResourceSpec["tls"], spec["tls"]) {
+			if resource.GetObjectKind().GroupVersionKind().Kind != consts.ExternalTypeService && !reflect.DeepEqual(findResourceSpec["tls"], spec["tls"]) {
 				_ = unstructured.SetNestedField(findResource.UnstructuredContent(), spec["tls"], "spec", "tls")
 			}
 		}
@@ -191,7 +188,7 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 	if result != controllerutil.OperationResultNone {
 		s.log.Info(fmt.Sprintf("%s %s %s", strings.Title(string(result)), findResource.GetKind(), findResource.GetName()))
 	}
-	return nil
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(findResource.UnstructuredContent(), resource)
 }
 
 func (s serviceResource) cleanupExternalExpose(excludeKind string) error {
@@ -207,6 +204,46 @@ func (s serviceResource) cleanupExternalExpose(excludeKind string) error {
 		}
 	}
 	return nil
+}
+
+func (s serviceResource) reconcileServiceMonitor(service *corev1.Service) (reconcile.Result, error) {
+	if !isTypeSupported(consts.ServiceMonitorType) {
+		return reconcile.Result{}, nil
+	}
+
+	if s.infinispan.IsServiceMonitorEnabled() {
+		secret := &corev1.Secret{}
+		if result, err := kube.LookupResource(s.infinispan.GetAdminSecretName(), s.infinispan.Namespace, secret, s.client, s.log); result != nil {
+			return *result, err
+		}
+
+		serviceMonitor := computeServiceMonitor(s.infinispan)
+		if _, err := controllerutil.CreateOrUpdate(ctx, s.client, serviceMonitor, func() error {
+			creationTimestamp := serviceMonitor.GetCreationTimestamp()
+			if creationTimestamp.IsZero() {
+				return controllerutil.SetControllerReference(service, serviceMonitor, s.scheme)
+			}
+			if serviceMonitor.Annotations == nil {
+				serviceMonitor.Annotations = map[string]string{}
+			}
+			// Annotation to force ServiceMonitor update when operator admin password has been changed
+			serviceMonitor.Annotations[SecretHashAnnotation] = ispnctrl.HashByte(secret.Data[consts.AdminPasswordKey])
+			return nil
+		}); err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		if err := s.client.Delete(context.TODO(),
+			&monitoringv1.ServiceMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      s.infinispan.GetServiceMonitorName(),
+					Namespace: s.infinispan.Namespace,
+				},
+			}); err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+	}
+	return reconcile.Result{}, nil
 }
 
 func setupServiceForEncryption(ispn *ispnv1.Infinispan, service *corev1.Service) {
@@ -328,7 +365,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 // computeSiteService compute the XSite service
 func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
 	lsPodSelector := infinispan.PodLabels(ispn.Name)
-	lsPodSelector["coordinator"] = "true"
+	lsPodSelector[consts.CoordinatorPodLabel] = strconv.FormatBool(true)
 
 	exposeSpec := corev1.ServiceSpec{}
 	exposeConf := ispn.Spec.Service.Sites.Local.Expose
@@ -459,6 +496,51 @@ func computeIngress(ispn *ispnv1.Infinispan) *networkingv1beta1.Ingress {
 	ispn.AddOperatorLabelsForServices(ingress.Labels)
 	ispn.AddLabelsForServices(ingress.Labels)
 	return &ingress
+}
+
+func computeServiceMonitor(ispn *ispnv1.Infinispan) *monitoringv1.ServiceMonitor {
+	return &monitoringv1.ServiceMonitor{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "monitoring.coreos.com/v1",
+			Kind:       "ServiceMonitor",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ispn.GetServiceMonitorName(),
+			Namespace: ispn.Namespace,
+		},
+		Spec: monitoringv1.ServiceMonitorSpec{
+			Endpoints: []monitoringv1.Endpoint{
+				{
+					Port:          consts.InfinispanAdminPortName,
+					Path:          "/metrics",
+					Scheme:        "http",
+					Interval:      "30s",
+					ScrapeTimeout: "10s",
+					HonorLabels:   true,
+					BasicAuth: &monitoringv1.BasicAuth{
+						Username: corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: ispn.GetAdminSecretName(),
+							},
+							Key: consts.AdminUsernameKey,
+						},
+						Password: corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: ispn.GetAdminSecretName(),
+							},
+							Key: consts.AdminPasswordKey,
+						},
+					},
+				},
+			},
+			Selector: metav1.LabelSelector{
+				MatchLabels: infinispan.LabelsResource(ispn.Name, "infinispan-service"),
+			},
+			NamespaceSelector: monitoringv1.NamespaceSelector{
+				MatchNames: []string{ispn.Namespace},
+			},
+		},
+	}
 }
 
 func ExternalServiceLabels(name string) map[string]string {

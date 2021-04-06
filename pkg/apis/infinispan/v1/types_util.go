@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -32,6 +33,8 @@ const (
 	PodTargetLabels string = "infinispan.org/podTargetLabels"
 	// TargetLabels labels propagated to services/ingresses/routes
 	TargetLabels string = "infinispan.org/targetLabels"
+	// ServiceMonitoringLabel defines if we need to create ServiceMonitor or not
+	ServiceMonitoringLabel string = "infinispan.org/monitoring"
 	// OperatorPodTargetLabels labels propagated by the operator to pods
 	OperatorPodTargetLabels string = "infinispan.org/operatorPodTargetLabels"
 	// OperatorTargetLabels labels propagated by the operator to services/ingresses/routes
@@ -144,6 +147,16 @@ func (ispn *Infinispan) ApplyDefaults() {
 	}
 	if ispn.Spec.Security.EndpointAuthentication == nil {
 		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
+	}
+}
+
+func (ispn *Infinispan) ApplyMonitoringAnnotation() {
+	if ispn.Annotations == nil {
+		ispn.Annotations = make(map[string]string)
+	}
+	_, ok := ispn.GetAnnotations()[ServiceMonitoringLabel]
+	if !ok {
+		ispn.Annotations[ServiceMonitoringLabel] = strconv.FormatBool(true)
 	}
 }
 
@@ -289,6 +302,11 @@ func (ispn *Infinispan) IsGeneratedSecret() bool {
 // GetConfigName returns the ConfigMap name for the cluster
 func (ispn *Infinispan) GetConfigName() string {
 	return fmt.Sprintf("%v-configuration", ispn.Name)
+}
+
+// GetServiceMonitorName returns the ServiceMonitor name for the cluster
+func (ispn *Infinispan) GetServiceMonitorName() string {
+	return fmt.Sprintf("%v-monitor", ispn.Name)
 }
 
 // GetEncryptionSecretName ...
@@ -510,4 +528,14 @@ func applyLabels(ispn *Infinispan, envvar, annotationName string) error {
 // HasCustomLibraries true if custom libraries are defined
 func (ispn *Infinispan) HasCustomLibraries() bool {
 	return ispn.Spec.Dependencies != nil && ispn.Spec.Dependencies.VolumeClaimName != ""
+}
+
+// IsServiceMonitorEnabled validates that "infinispan.org/monitoring":true annotation defines or not
+func (ispn *Infinispan) IsServiceMonitorEnabled() bool {
+	monitor, ok := ispn.GetAnnotations()[ServiceMonitoringLabel]
+	if ok {
+		isMonitor, err := strconv.ParseBool(monitor)
+		return err == nil && isMonitor
+	}
+	return false
 }

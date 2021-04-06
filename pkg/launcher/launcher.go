@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/infinispan/infinispan-operator/pkg/apis"
 	"github.com/infinispan/infinispan-operator/pkg/controller"
 	"github.com/infinispan/infinispan-operator/version"
@@ -133,6 +134,12 @@ func Launch(params Parameters) {
 
 	// Setup scheme for Grafana
 	if err := grafanav1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Setup scheme for Prometheus
+	if err := monitoringv1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

@@ -47,6 +47,8 @@ const (
 	DefaultDeveloperUser = "developer"
 	// DefaultCacheName default cache name for the CacheService
 	DefaultCacheName         = "default"
+	AdminUsernameKey         = "username"
+	AdminPasswordKey         = "password"
 	InfinispanAdminPort      = 11223
 	InfinispanAdminPortName  = "infinispan-adm"
 	InfinispanUserPortName   = "infinispan"
@@ -115,6 +117,13 @@ const (
 	DefaultLongWaitOnCreateResource = 60 * time.Second
 	//DefaultWaitClusterNotWellFormed wait delay until cluster is not well formed
 	DefaultWaitClusterNotWellFormed = 15 * time.Second
+)
+
+const (
+	ExternalTypeService = "Service"
+	ExternalTypeRoute   = "Route"
+	ExternalTypeIngress = "Ingress"
+	ServiceMonitorType  = "ServiceMonitor"
 )
 
 const DefaultKubeConfig = "~/.kube/config"
