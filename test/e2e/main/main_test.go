@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -27,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
@@ -79,6 +80,7 @@ func TestNodeStartup(t *testing.T) {
 	spec.Annotations[v1.TargetLabels] = "my-svc-label"
 	spec.Labels = make(map[string]string)
 	spec.Labels["my-svc-label"] = "my-svc-value"
+	os.Setenv(v1.OperatorTargetLabelsEnvVarName, "{\"operator-svc-label\":\"operator-svc-value\"}")
 	os.Setenv(v1.OperatorTargetLabelsEnvVarName, "{\"operator-svc-label\":\"operator-svc-value\"}")
 	defer os.Unsetenv(v1.OperatorTargetLabelsEnvVarName)
 	spec.Annotations[v1.PodTargetLabels] = "my-pod-label"
@@ -370,7 +372,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 
 	// Wait for a new generation to appear
 	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
+		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss))
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
 	tutils.ExpectNoError(err)
@@ -378,7 +380,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	// Wait that current and update revisions match
 	// this ensure that the rolling upgrade completes
 	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss)
+		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss))
 		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
 	})
 	tutils.ExpectNoError(err)
@@ -410,7 +412,7 @@ func testCacheService(testName string, imageName *string) {
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	ispn := ispnv1.Infinispan{}
-	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn))
 
 	hostAddr, client := tutils.HTTPClientAndHost(&ispn, testKube)
 
@@ -499,12 +501,12 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	ispn := ispnv1.Infinispan{}
-	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn))
 	// Do something that needs to be permanent
 	modifier(&ispn)
 
 	// Delete the cluster
-	testKube.GracefulShutdownInfinispan(spec, tutils.SinglePodTimeout)
+	testKube.GracefulShutdownInfinispan(spec)
 	testKube.GracefulRestartInfinispan(spec, 1, tutils.SinglePodTimeout)
 
 	// Do something that checks that permanent changes are there again
@@ -539,7 +541,7 @@ func TestExternalService(t *testing.T) {
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	ispn := &ispnv1.Infinispan{}
-	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, ispn)
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, ispn))
 	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 
 	cacheName := "test"
@@ -608,7 +610,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	ispn := ispnv1.Infinispan{}
-	testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn)
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ispn))
 
 	schema := testKube.GetSchemaForRest(&ispn)
 	testAuthentication(schema, ispn.GetServiceExternalName(), ispn.GetExposeType(), usr, pass)
@@ -646,7 +648,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 
 	// Wait for a new generation to appear
 	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss)
+		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss))
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
 	tutils.ExpectNoError(err)
@@ -781,7 +783,10 @@ func deleteCache(cacheName, hostAddr string, client tutils.HTTPClient) {
 
 func getViaRoute(url string, client tutils.HTTPClient) string {
 	resp, err := client.Get(url, nil)
-	defer resp.Body.Close()
+	tutils.ExpectNoError(err)
+	defer func(Body io.ReadCloser) {
+		tutils.ExpectNoError(Body.Close())
+	}(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		throwHTTPError(resp)
 	}

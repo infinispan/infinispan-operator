@@ -11,11 +11,14 @@ import (
 // AdminAuth description of the auth info
 type AdminAuth struct {
 	// name of the secret containing both admin username and password
-	SecretName string `json:"secretName,optional,omitempty"`
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
 	// Secret and key containing the admin username for authentication.
-	Username v1.SecretKeySelector `json:"username,optional,omitempty"`
+	// +optional
+	Username v1.SecretKeySelector `json:"username,omitempty"`
 	// Secret and key containing the admin password for authentication.
-	Password v1.SecretKeySelector `json:"password,optional,omitempty"`
+	// +optional
+	Password v1.SecretKeySelector `json:"password,omitempty"`
 }
 
 // CacheSpec defines the desired state of Cache
@@ -25,11 +28,14 @@ type CacheSpec struct {
 	// Name of the cluster where to create the cache
 	ClusterName string `json:"clusterName"`
 	// Name of the cache to be created. If empty ObjectMeta.Name will be used
-	Name string `json:"name,optional,omitempty"`
+	// +optional
+	Name string `json:"name,omitempty"`
 	// Cache template in XML format
-	Template string `json:"template,optional,omitempty"`
+	// +optional
+	Template string `json:"template,omitempty"`
 	// Name of the template to be used to create this cache
-	TemplateName string `json:"templateName,optional,omitempty"`
+	// +optional
+	TemplateName string `json:"templateName,omitempty"`
 }
 
 // CacheCondition define a condition of the cluster
@@ -39,15 +45,18 @@ type CacheCondition struct {
 	// Status is the status of the condition.
 	Status metav1.ConditionStatus `json:"status"`
 	// Human-readable message indicating details about last transition.
-	Message string `json:"message,optional,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
 }
 
 // CacheStatus defines the observed state of Cache
 type CacheStatus struct {
 	// Conditions list for this cache
-	Conditions []CacheCondition `json:"conditions,optional,omitempty"`
+	// +optional
+	Conditions []CacheCondition `json:"conditions,omitempty"`
 	// Service name that exposes the cache inside the cluster
-	ServiceName string `json:"serviceName,optional,omitempty"`
+	// +optional
+	ServiceName string `json:"serviceName,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

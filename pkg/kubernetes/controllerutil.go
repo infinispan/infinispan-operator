@@ -32,8 +32,6 @@ const (
 // It returns the executed operation and an error.
 //
 // Ported from https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/controller/controllerutil/controllerutil.go
-// TODO: Status.Conditions and Spec fields can't be updated inside single call due to https://github.com/kubernetes-sigs/controller-runtime/issues/1392
-// TODO: Please use separate calls for this case
 func CreateOrPatch(ctx context.Context, c client.Client, obj runtime.Object, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 	key, err := client.ObjectKeyFromObject(obj)
 	if err != nil {
@@ -115,6 +113,20 @@ func CreateOrPatch(ctx context.Context, c client.Client, obj runtime.Object, f c
 	if (hasBeforeStatus || hasAfterStatus) && !reflect.DeepEqual(beforeStatus, afterStatus) {
 		// Only issue a Status Patch if the resource has a status and the beforeStatus
 		// and afterStatus copies differ
+		if result == controllerutil.OperationResultUpdated {
+			// If Status was replaced by Patch before, set it to afterStatus
+			objectAfterPatch, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+			if err != nil {
+				return result, err
+			}
+			if err = unstructured.SetNestedField(objectAfterPatch, afterStatus, "status"); err != nil {
+				return result, err
+			}
+			// If Status was replaced by Patch before, restore patched structure to the obj
+			if err = runtime.DefaultUnstructuredConverter.FromUnstructured(objectAfterPatch, obj); err != nil {
+				return result, err
+			}
+		}
 		if err := c.Status().Patch(ctx, obj, statusPatch); err != nil {
 			return result, err
 		}

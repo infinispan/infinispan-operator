@@ -1,0 +1,37 @@
+[id='configuring-grafana-dashboards_{context}']
+= Configuring {brandname} Dashboards
+{ispn_operator} provides global configuration properties that let you configure Grafana dashboards for {brandname} clusters.
+
+[NOTE]
+====
+You can modify global configuration properties while {ispn_operator} is running.
+====
+
+.Prerequisites
+
+* {ispn_operator} must watch the namespace where the Grafana Operator is running.
+
+.Procedure
+
+. Create a `ConfigMap` named `infinispan-operator-config` in the {ispn_operator} namespace.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/infinispan_operator_config.yaml[]
+----
++
+. Specify a namespace with the `grafana.dashboard.namespace` property.
+. Specify values for other `data.grafana.dashboard` properties as required.
+. Create `infinispan-operator-config` or update the configuration.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc apply -f infinispan-operator-config.yaml
+----
++
+. Open the Grafana UI, which is available at:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc get routes grafana-route -o jsonpath=https://"{.spec.host}"
+----

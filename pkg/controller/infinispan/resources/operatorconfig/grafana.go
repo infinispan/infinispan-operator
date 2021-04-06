@@ -43,6 +43,8 @@ func (r *ReconcileOperatorConfig) reconcileGrafana(config, currentConfig map[str
 					if err = controllerutil.SetControllerReference(operatorDeployment, infinispanDashboard, r.scheme); err != nil {
 						return err
 					}
+				} else {
+					return err
 				}
 			} else {
 				r.Log.Info("Not setting controller reference, cause Infinispan and Grafana are in different namespaces.")

@@ -47,8 +47,8 @@ endif::community[]
 
 :link_os_olm: https://docs.openshift.com/container-platform/4.7/operators/understanding/olm-understanding-operatorhub.html[Understanding OperatorHub]
 
-:link_os_olm_adding: https://docs.openshift.com/container-platform/4.7/operators/olm-adding-operators-to-cluster.html#olm-installing-operators-from-operatorhub_olm-adding-operators-to-a-cluster[Approval Strategy]
+:link_os_monitoring: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.7/html-single/monitoring/index#enabling-monitoring-for-user-defined-projects[Enabling monitoring for user-defined projects]
 
-:link_os_monitoring: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.7/html-single/monitoring/index#configuring-the-monitoring-stack[Configuring the monitoring stack]
+:link_os_olm_adding: https://docs.openshift.com/container-platform/4.7/operators/olm-adding-operators-to-cluster.html#olm-installing-operators-from-operatorhub_olm-adding-operators-to-a-cluster[Approval Strategy]
 
 :link_os_storage: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.7/html-single/storage/index#configuring-persistent-storage[Configuring persistent storage]

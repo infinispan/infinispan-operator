@@ -20,7 +20,7 @@ before_install:
 
 jobs:
   include:
-    - stage: "Unit Test"
+    - stage: "Unit Test and Go linters (golangci-lint) run"
       name: "Unit Test"
       arch: arm64
       virt: lxd
@@ -29,6 +29,7 @@ jobs:
       script:
         - go mod vendor
         - make unit-test
+        - make lint
     - stage: "Test"
       name: "Core and Multi-namespace tests"
       services:

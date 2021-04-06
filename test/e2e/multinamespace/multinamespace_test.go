@@ -9,13 +9,9 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
-var serviceAccountKube = tutils.NewTestKubernetes("")
-
-var log = logf.Log.WithName("main_test")
 
 var MinimalSpec = ispnv1.Infinispan{
 	TypeMeta: tutils.InfinispanTypeMeta,

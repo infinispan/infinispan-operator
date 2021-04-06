@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Runtime scheme
@@ -55,7 +55,7 @@ func init() {
 	addToScheme(&ispnv2.SchemeBuilder.SchemeBuilder, scheme)
 	addToScheme(&appsv1.SchemeBuilder, scheme)
 	addToScheme(&storagev1.SchemeBuilder, scheme)
-	routev1.Install(scheme)
+	ExpectNoError(routev1.Install(scheme))
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
@@ -201,22 +201,12 @@ func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selecto
 
 // GracefulShutdownInfinispan deletes the infinispan resource
 // and waits that all the pods are gone
-func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
-	ns := types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}
-
+func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan) {
 	err := k.UpdateInfinispan(infinispan, func() {
 		infinispan.Spec.Replicas = 0
 	})
 	ExpectNoError(err)
-
-	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-		if !infinispan.IsConditionTrue(ispnv1.ConditionGracefulShutdown) {
-			return false, nil
-		}
-		return true, nil
-	})
-	ExpectNoError(err)
+	k.WaitForInfinispanCondition(infinispan.Name, infinispan.Namespace, ispnv1.ConditionGracefulShutdown)
 }
 
 // GracefulRestartInfinispan restarts the infinispan resource and waits that cluster is WellFormed
@@ -424,7 +414,7 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condi
 			return false, nil
 		}
 		if ispn.IsConditionTrue(condition) {
-			log.Info("infinispan condition met", "condition", condition)
+			log.Info("infinispan condition met", "condition", condition, "status", metav1.ConditionTrue)
 			return true, nil
 		}
 		return false, nil
@@ -436,7 +426,9 @@ func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
 	curr := ispnv1.Infinispan{}
 	// Wait for the operator to populate Infinispan CR data
 	err := wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
-		k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr)
+		if err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr); err != nil {
+			return false, nil
+		}
 		return len(curr.Status.Conditions) > 0, nil
 	})
 	ExpectNoError(err)
@@ -514,7 +506,9 @@ func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
 
 func (k TestKubernetes) installCRD(path string) {
 	yamlReader, err := GetYamlReaderFromFile(path)
-	y, _ := yamlReader.Read()
+	ExpectNoError(err)
+	y, err := yamlReader.Read()
+	ExpectNoError(err)
 	crd := apiextv1beta1.CustomResourceDefinition{}
 	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&crd)
 	ExpectNoError(err)

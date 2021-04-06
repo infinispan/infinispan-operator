@@ -11,21 +11,28 @@ import (
 )
 
 type BackupConfig struct {
-	Directory string    `json:"directory" validate:"required"`
-	Resources Resources `json:"resources,optional,omitempty"`
+	Directory string `json:"directory" validate:"required"`
+	// +optional
+	Resources Resources `json:"resources,omitempty"`
 }
 
 type RestoreConfig struct {
-	Location  string    `json:"location" validate:"required"`
-	Resources Resources `json:"resources,optional,omitempty"`
+	Location string `json:"location" validate:"required"`
+	// +optional
+	Resources Resources `json:"resources,omitempty"`
 }
 
 type Resources struct {
-	Caches       []string `json:"caches,optional,omitempty"`
-	Templates    []string `json:"templates,optional,omitempty"`
-	Counters     []string `json:"counters,optional,omitempty"`
-	ProtoSchemas []string `json:"proto-schemas,optional,omitempty"`
-	Tasks        []string `json:"tasks,optional,omitempty"`
+	// +optional
+	Caches []string `json:"caches,omitempty"`
+	// +optional
+	Templates []string `json:"templates,omitempty"`
+	// +optional
+	Counters []string `json:"counters,omitempty"`
+	// +optional
+	ProtoSchemas []string `json:"proto-schemas,omitempty"`
+	// +optional
+	Tasks []string `json:"tasks,omitempty"`
 }
 
 type Status string
@@ -60,7 +67,7 @@ const (
 	RestoreUrl = baseUrl + "/restores"
 )
 
-// New creates a new instance of BackupManager
+// NewManager creates a new instance of BackupManager
 func NewManager(podName string, http client.HttpClient) *Manager {
 	return &Manager{
 		http:      http,
@@ -70,8 +77,12 @@ func NewManager(podName string, http client.HttpClient) *Manager {
 }
 
 func (manager *Manager) Backup(name string, config *BackupConfig) error {
-	manager.validator.Var(name, "required")
-	manager.validator.Struct(config)
+	if err := manager.validator.Var(name, "required"); err != nil {
+		return err
+	}
+	if err := manager.validator.Struct(config); err != nil {
+		return err
+	}
 	url := fmt.Sprintf("%s/%s", BackupUrl, name)
 	return manager.post(url, "Backup", config)
 }
@@ -82,8 +93,12 @@ func (manager *Manager) BackupStatus(name string) (Status, error) {
 }
 
 func (manager *Manager) Restore(name string, config *RestoreConfig) error {
-	manager.validator.Var(name, "required")
-	manager.validator.Struct(config)
+	if err := manager.validator.Var(name, "required"); err != nil {
+		return err
+	}
+	if err := manager.validator.Struct(config); err != nil {
+		return err
+	}
 	url := fmt.Sprintf("%s/%s", RestoreUrl, name)
 	return manager.post(url, "Restore", config)
 }
@@ -113,7 +128,9 @@ func (manager *Manager) post(url, op string, config interface{}) error {
 }
 
 func (manager *Manager) status(url, name, op string) (Status, error) {
-	manager.validator.Var(name, "required")
+	if err := manager.validator.Var(name, "required"); err != nil {
+		return StatusUnknown, err
+	}
 
 	rsp, err, _ := manager.http.Head(manager.podName, url, nil)
 	if err != nil {
