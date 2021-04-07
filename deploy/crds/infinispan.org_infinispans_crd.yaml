@@ -403,6 +403,8 @@ spec:
                 cacheEntriesTopic:
                   description: CacheEntriesTopic is the name of the topic on which events will be published
                   type: string
+              required:
+                - bootstrapServers
               type: object
             container:
               description: InfinispanContainerSpec specify resource requirements per container

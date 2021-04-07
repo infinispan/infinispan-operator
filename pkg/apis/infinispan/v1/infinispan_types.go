@@ -222,11 +222,13 @@ type InfinispanExternalDependencies struct {
 // InfinispanCloudEvents describes how Infinispan is connected with Cloud Event, see Kafka docs for more info
 type InfinispanCloudEvents struct {
 	// BootstrapServers is comma separated list of boostrap server:port addresses
-	BootstrapServers string `json:"bootstrapServers,optional,omitempty"`
+	BootstrapServers string `json:"bootstrapServers"`
 	// Acks configuration for the producer ack-value
-	Acks string `json:"acks,optional,omitempty"`
+	// +optional
+	Acks string `json:"acks,omitempty"`
 	// CacheEntriesTopic is the name of the topic on which events will be published
-	CacheEntriesTopic string `json:"cacheEntriesTopic,optional,omitempty"`
+	// +optional
+	CacheEntriesTopic string `json:"cacheEntriesTopic,omitempty"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan

@@ -1404,15 +1404,6 @@ func ServiceLabels(name string) map[string]string {
 	}
 }
 
-func ConfigureCloudEvent(m *infinispanv1.Infinispan, c *config.InfinispanConfiguration) {
-	if m.Spec.CloudEvents != nil {
-		c.CloudEvents = &config.CloudEvents{}
-		c.CloudEvents.Acks = m.Spec.CloudEvents.Acks
-		c.CloudEvents.BootstrapServers = m.Spec.CloudEvents.BootstrapServers
-		c.CloudEvents.CacheEntriesTopic = m.Spec.CloudEvents.CacheEntriesTopic
-	}
-}
-
 func hashString(data string) string {
 	hash := sha1.New()
 	hash.Write([]byte(data))

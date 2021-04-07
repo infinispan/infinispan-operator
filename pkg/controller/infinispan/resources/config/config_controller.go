@@ -116,7 +116,7 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 		return err
 	}
 
-	infinispan.ConfigureCloudEvent(c.infinispan, &config)
+	configureCloudEvent(c.infinispan, &config)
 
 	configMapObject := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -155,4 +155,13 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 		c.log.Info(fmt.Sprintf("ConfigMap '%s' %s", name, result))
 	}
 	return err
+}
+
+func configureCloudEvent(m *ispnv1.Infinispan, c *configuration.InfinispanConfiguration) {
+	if m.Spec.CloudEvents != nil {
+		c.CloudEvents = &configuration.CloudEvents{}
+		c.CloudEvents.Acks = m.Spec.CloudEvents.Acks
+		c.CloudEvents.BootstrapServers = m.Spec.CloudEvents.BootstrapServers
+		c.CloudEvents.CacheEntriesTopic = m.Spec.CloudEvents.CacheEntriesTopic
+	}
 }
