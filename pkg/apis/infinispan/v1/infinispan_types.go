@@ -246,11 +246,12 @@ type InfinispanSpec struct {
 type ConditionType string
 
 const (
-	ConditionPrelimChecksPassed ConditionType = "PreliminaryChecksPassed"
-	ConditionGracefulShutdown   ConditionType = "GracefulShutdown"
-	ConditionStopping           ConditionType = "Stopping"
-	ConditionUpgrade            ConditionType = "Upgrade"
-	ConditionWellFormed         ConditionType = "WellFormed"
+	ConditionPrelimChecksPassed  ConditionType = "PreliminaryChecksPassed"
+	ConditionGracefulShutdown    ConditionType = "GracefulShutdown"
+	ConditionStopping            ConditionType = "Stopping"
+	ConditionUpgrade             ConditionType = "Upgrade"
+	ConditionWellFormed          ConditionType = "WellFormed"
+	ConditionCrossSiteViewFormed ConditionType = "CrossSiteViewFormed"
 )
 
 // InfinispanCondition define a condition of the cluster

@@ -17,7 +17,7 @@ include::cmd_examples/oc_logs_clusterview.adoc[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_infinispan} -o yaml
+include::cmd_examples/get_infinispan.adoc[]
 ----
 +
 The response indicates that {brandname} pods have received clustered views:

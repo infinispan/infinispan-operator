@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -100,7 +101,7 @@ func (m mockCluster) GetMetrics(podName, postfix string) (*bytes.Buffer, error) 
 	return s, nil
 }
 
-func (m mockCluster) GetCacheManagerInfo(cacheManagerName, podName string) (map[string]interface{}, error) {
+func (m mockCluster) GetCacheManagerInfo(cacheManagerName, podName string) (*infinispan.CacheManagerInfo, error) {
 	return nil, nil
 }
 

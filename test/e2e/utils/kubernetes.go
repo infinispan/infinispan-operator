@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -211,7 +212,6 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 
 // GracefulRestartInfinispan restarts the infinispan resource and waits that cluster is WellFormed
 func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan, replicas int32, timeout time.Duration) {
-	ns := types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}
 	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		updErr := k.UpdateInfinispan(infinispan, func() {
 			infinispan.Spec.Replicas = replicas
@@ -225,14 +225,7 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 	})
 	ExpectNoError(err)
 
-	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.Get(context.TODO(), ns, infinispan)
-		if err != nil || !infinispan.IsWellFormed() {
-			return false, nil
-		}
-		return true, nil
-	})
-	ExpectNoError(err)
+	k.WaitForInfinispanCondition(infinispan.Name, infinispan.Namespace, ispnv1.ConditionWellFormed)
 }
 
 func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func()) error {
@@ -356,6 +349,9 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 func checkExternalAddress(c HTTPClient, hostAndPort string) bool {
 	httpURL := fmt.Sprintf("%s/%s", hostAndPort, consts.ServerHTTPHealthPath)
 	resp, err := c.Get(httpURL, nil)
+	if net.IsConnectionRefused(err) {
+		return false
+	}
 	ExpectNoError(err)
 	log.Info("Received response for external address", "response code", resp.StatusCode)
 	return resp.StatusCode == http.StatusOK

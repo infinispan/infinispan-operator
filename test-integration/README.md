@@ -9,6 +9,8 @@ Brief description on how to run integration tests.
 ## Running the tests
 * `mvn clean verify` to run all the tests
 * `mvn clean verify -Dit.test=${testName}` to run particular test
+* `mvn clean verify -Dit.test=org.infinispan.operator.*IT` to run functional tests that do not require cluster-admin access. User needs to have rights to manipulate with Infinispan CR objects however.
+* `mvn clean verify -Dit.test=org.infinispan.operator.installation.*IT` to run Operator installation tests that require cluster-admin access
 
 ### Params
 Include following parameters as part of your test execution command to provide target OpenShift instance details, eg.:

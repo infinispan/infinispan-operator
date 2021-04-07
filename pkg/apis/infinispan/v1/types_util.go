@@ -90,6 +90,18 @@ func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
 	return changed
 }
 
+// RemoveCondition remove condition from Status
+func (ispn *Infinispan) RemoveCondition(condition ConditionType) bool {
+	for idx := range ispn.Status.Conditions {
+		c := &ispn.Status.Conditions[idx]
+		if c.Type.equals(condition) {
+			ispn.Status.Conditions = append(ispn.Status.Conditions[:idx], ispn.Status.Conditions[idx+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 func (ispn *Infinispan) ExpectConditionStatus(expected map[ConditionType]metav1.ConditionStatus) error {
 	for key, value := range expected {
 		c := ispn.GetCondition(key)
@@ -217,6 +229,17 @@ func (ispn *Infinispan) IsCache() bool {
 
 func (ispn *Infinispan) HasSites() bool {
 	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil && len(ispn.Spec.Service.Sites.Locations) > 0
+}
+
+// GetSitesLocations returns remote site locations if localSiteName is provided
+// If localSiteName is not provided (empty string), all site locations will be returned
+func (ispn *Infinispan) GetSitesLocations(localSiteName string) (remoteLocations []InfinispanSiteLocationSpec) {
+	for _, location := range ispn.Spec.Service.Sites.Locations {
+		if localSiteName != location.Name {
+			remoteLocations = append(remoteLocations, location)
+		}
+	}
+	return
 }
 
 // IsExposed ...
