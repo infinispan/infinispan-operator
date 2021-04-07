@@ -139,12 +139,12 @@ func (c Cluster) GetClusterMembers(podName string) (members []string, err error)
 func (c Cluster) ExistsCache(cacheName, podName string) (bool, error) {
 	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
 	rsp, err, reason := c.Client.Head(podName, path, nil)
-	if err := validateResponse(rsp, reason, err, "validating cache exists", http.StatusOK, http.StatusNotFound); err != nil {
+	if err := validateResponse(rsp, reason, err, "validating cache exists", http.StatusOK, http.StatusNoContent, http.StatusNotFound); err != nil {
 		return false, err
 	}
 
 	switch rsp.StatusCode {
-	case http.StatusOK:
+	case http.StatusOK, http.StatusNoContent:
 		return true, nil
 	case http.StatusNotFound:
 		return false, nil
