@@ -328,6 +328,9 @@ func (z *Controller) zeroPodSpec(name, namespace, configMap string, podSecurityC
 		return nil, err
 	}
 	dataVolName := name + "-data"
+	// Add Custom labels missing from zero capacity pods
+	labels := zeroSpec.PodLabels
+	ispn.AddLabelsForPods(labels)
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -405,6 +408,7 @@ func (z *Controller) zeroPodSpec(name, namespace, configMap string, podSecurityC
 
 	ispnCtrl.AddVolumeForUserAuthentication(ispn, &pod.Spec)
 	ispnCtrl.AddVolumeForEncryption(ispn, &pod.Spec)
+
 	return pod, nil
 }
 
