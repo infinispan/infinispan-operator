@@ -26,8 +26,7 @@ metadata:
               "cpu": "1000m",
               "extraJvmOpts": "-Djava.property=me",
               "memory": "1Gi"
-            },
-            "path": "asdasd"
+            }
           }
         },
         {
@@ -56,8 +55,7 @@ metadata:
               "cpu": "1000m",
               "extraJvmOpts": "-Djava.property=me",
               "memory": "1Gi"
-            },
-            "path": "asdasd"
+            }
           }
         },
         {
