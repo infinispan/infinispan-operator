@@ -13,9 +13,11 @@ import (
 	"time"
 
 	"github.com/RHsyseng/operator-utils/pkg/olm"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
@@ -101,6 +103,16 @@ func secondaryResourceTypes() []SecondaryResourceType {
 	}
 }
 
+var supportedTypes = map[string]*resources.ReconcileType{
+	consts.ExternalTypeRoute:   {ObjectType: &routev1.Route{}, GroupVersion: routev1.GroupVersion, GroupVersionSupported: false},
+	consts.ExternalTypeIngress: {ObjectType: &networkingv1beta1.Ingress{}, GroupVersion: networkingv1beta1.SchemeGroupVersion, GroupVersionSupported: false},
+	consts.ServiceMonitorType:  {ObjectType: &monitoringv1.ServiceMonitor{}, GroupVersion: monitoringv1.SchemeGroupVersion, GroupVersionSupported: false},
+}
+
+func isTypeSupported(kind string) bool {
+	return supportedTypes[kind].GroupVersionSupported
+}
+
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
@@ -113,6 +125,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	err = c.Watch(&source.Kind{Type: &infinispanv1.Infinispan{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
+	}
+
+	for index, obj := range supportedTypes {
+		// Validate that GroupVersion is supported on runtime platform
+		ok, err := kubernetes.IsGroupVersionSupported(obj.GroupVersion.String(), obj.Kind())
+		if err != nil {
+			log.Error(err, fmt.Sprintf("Failed to check if GVK '%s' is supported", obj.GroupVersionKind()))
+			continue
+		}
+		supportedTypes[index].GroupVersionSupported = ok
 	}
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
@@ -395,23 +417,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				}
 			}
 		case infinispanv1.ExposeTypeRoute:
-			var okIngress = false
-			okRoute, err := kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
-			if err != nil {
-				reqLogger.Error(err, fmt.Sprintf("Failed to check if %s,%s is supported", routev1.GroupVersion.String(), "Route"))
-				// Log an error and try to check with Ingress
-				okIngress, err = kubernetes.IsGroupVersionSupported(networkingv1beta1.SchemeGroupVersion.String(), "Ingress")
-				if err != nil {
-					reqLogger.Error(err, fmt.Sprintf("Failed to check if %s,%s is supported", networkingv1beta1.SchemeGroupVersion.String(), "Ingress"))
-				}
-			}
-			if okRoute {
+			if isTypeSupported(consts.ExternalTypeRoute) {
 				externalRoute := &routev1.Route{}
 				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
 					return *result, err
 				}
 				exposeAddress = externalRoute.Spec.Host
-			} else if okIngress {
+			} else if isTypeSupported(consts.ExternalTypeIngress) {
 				externalIngress := &networkingv1beta1.Ingress{}
 				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
 					return *result, err

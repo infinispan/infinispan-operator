@@ -98,7 +98,6 @@ func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
 	return kubernetes, nil
 }
 
-// TODO: #686 need to be implemented here
 func (k Kubernetes) IsGroupVersionSupported(groupVersion string, kind string) (bool, error) {
 	cli, err := discovery.NewDiscoveryClientForConfig(k.RestConfig)
 	if err != nil {
