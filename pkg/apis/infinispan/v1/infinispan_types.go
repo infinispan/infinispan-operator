@@ -219,6 +219,13 @@ type InfinispanExternalDependencies struct {
 	VolumeClaimName string `json:"volumeClaimName,omitempty"`
 }
 
+// InfinispanServerConfiguration describes how the Infinispan image should be configured before server startup
+type InfinispanServerConfiguration struct {
+	Type string `json:"type"`
+	// +optional
+	CmdArgs []string `json:"cmdArgs,omitempty"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	Replicas int32 `json:"replicas"`
@@ -241,6 +248,9 @@ type InfinispanSpec struct {
 	// External dependencies needed by the Infinispan cluster
 	// +optional
 	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`
+	// Specify how the server should be configured, default is use the ConfigGenerator embedded into the image
+	// +optional
+	ServerConfiguration *InfinispanServerConfiguration `json:"serverConfiguration,omitempty"`
 }
 
 type ConditionType string

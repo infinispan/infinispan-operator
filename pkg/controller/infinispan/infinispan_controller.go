@@ -733,6 +733,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 	}, {
 		Name:      AdminIdentitiesVolumeName,
 		MountPath: consts.ServerAdminIdentitiesRoot,
+	}, {
+		Name:      "my-free-config",
+		MountPath: "/opt/infinispan/server/conf",
 	}}
 	volumes := []corev1.Volume{{
 		Name: ConfigVolumeName,
@@ -748,7 +751,15 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 				SecretName: m.GetAdminSecretName(),
 			},
 		},
-	}}
+	}, {
+		Name: "my-free-config",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "my-free-config"},
+			},
+		},
+	},
+	}
 
 	if m.HasCustomLibraries() {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{Name: CustomLibrariesVolumeName, MountPath: CustomLibrariesMountPath, ReadOnly: true})
@@ -803,8 +814,15 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		},
 	}
 
-	// Only append IDENTITIES_HASH and secret volume if authentication is enabled
 	spec := &dep.Spec.Template.Spec
+	if strings.ToUpper(m.Spec.ServerConfiguration.Type) == "FREE" {
+		spec.Containers[0].Command = []string{"/opt/infinispan/bin/server.sh"}
+		args := []string{"-Djgroups.bind_addr=$(MY_POD_IP)", "-Djgroups.bind.addr=$(MY_POD_IP)", "-Dinfinispan.bind.address=$(MY_POD_IP)"}
+		args = append(args, m.Spec.ServerConfiguration.CmdArgs...)
+		spec.Containers[0].Args = args
+	}
+
+	// Only append IDENTITIES_HASH and secret volume if authentication is enabled
 	if AddVolumeForUserAuthentication(m, spec) {
 		spec.Containers[0].Env = append(spec.Containers[0].Env,
 			corev1.EnvVar{
@@ -983,6 +1001,7 @@ func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.Env
 		{Name: "EXTRA_JAVA_OPTIONS", Value: i.Spec.Container.ExtraJvmOpts},
 		{Name: "DEFAULT_IMAGE", Value: consts.DefaultImageName},
 		{Name: "ADMIN_IDENTITIES_PATH", Value: consts.ServerAdminIdentitiesPath},
+		{Name: "MY_POD_IP", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var

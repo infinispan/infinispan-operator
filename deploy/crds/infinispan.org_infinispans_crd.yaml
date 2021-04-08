@@ -474,6 +474,18 @@ spec:
                 endpointSecretName:
                   type: string
               type: object
+            serverConfiguration:
+              description: Specify how the server should be configured, default is use the ConfigGenerator embedded into the image
+              properties:
+                cmdArgs:
+                  items:
+                    type: string
+                  type: array
+                type:
+                  type: string
+              required:
+                - type
+              type: object
             service:
               description: InfinispanServiceSpec specify configuration for specific service
               properties:
