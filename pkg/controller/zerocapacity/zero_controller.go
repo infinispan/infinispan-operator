@@ -335,7 +335,7 @@ func (z *Controller) zeroPodSpec(name, namespace, configMap string, podSecurityC
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    zeroSpec.PodLabels,
+			Labels:    labels,
 		},
 		Spec: corev1.PodSpec{
 			SecurityContext: podSecurityCtx,
