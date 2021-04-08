@@ -328,11 +328,13 @@ func (z *Controller) zeroPodSpec(name, namespace, configMap string, podSecurityC
 		return nil, err
 	}
 	dataVolName := name + "-data"
+	labels := zeroSpec.PodLabels
+	ispn.AddLabelsForPods(labels)
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    zeroSpec.PodLabels,
+			Labels:    labels,
 		},
 		Spec: corev1.PodSpec{
 			SecurityContext: podSecurityCtx,
