@@ -2,6 +2,8 @@ package operatorconfig
 
 import (
 	"fmt"
+
+	rice "github.com/GeertJohan/go.rice"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	grafanav1alpha1 "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
@@ -52,8 +54,7 @@ func (r *ReconcileOperatorConfig) reconcileGrafana(config, currentConfig map[str
 				r.Log.Info("Not setting controller reference, cause Infinispan and Grafana are in different namespaces.")
 			}
 		}
-		populateDashboard(infinispanDashboard, config)
-		return nil
+		return populateDashboard(infinispanDashboard, config)
 	}); err != nil {
 		return &reconcile.Result{}, err
 	}
@@ -72,13 +73,21 @@ func emptyDashboard(config map[string]string) *grafanav1alpha1.GrafanaDashboard 
 	}
 }
 
-func populateDashboard(dashboard *grafanav1alpha1.GrafanaDashboard, config map[string]string) {
+func populateDashboard(dashboard *grafanav1alpha1.GrafanaDashboard, config map[string]string) error {
+	box, err := rice.FindBox("resources/")
+	if err != nil {
+		return err
+	}
+	dashboardJSONData, err := box.String("grafana_dashboard.json")
+	if err != nil {
+		return err
+	}
 	dashboard.ObjectMeta.Labels = map[string]string{
 		"monitoring-key": config[grafanaDashboardMonitoringKey],
 		"app":            "grafana",
 	}
 	dashboard.Spec = grafanav1alpha1.GrafanaDashboardSpec{
-		Json: dashboardJSON,
+		Json: dashboardJSONData,
 		Name: "infinispan.json",
 		Datasources: []grafanav1alpha1.GrafanaDashboardDatasource{
 			{
@@ -87,6 +96,7 @@ func populateDashboard(dashboard *grafanav1alpha1.GrafanaDashboard, config map[s
 			},
 		},
 	}
+	return nil
 }
 
 func (r *ReconcileOperatorConfig) deleteDashboardOnKeyChanged(newCfg, curCfg map[string]string) error {
