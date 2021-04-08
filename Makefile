@@ -38,7 +38,7 @@ update-csv:
 
 ## codegen          Generates CRDs, k8s code for custom resources and install bundle.
 ##
-codegen: update-csv
+codegen: embed-resources update-csv
 	./build/crds-gen.sh ${OPERATOR_SDK_VERSION} ${YQ_VERSION}
 	./build/install-bundle.sh
 
@@ -47,9 +47,14 @@ codegen: update-csv
 install-bundle:
 	./build/install-bundle.sh
 
+## embed-resources  Embedding static resources into go files with rice tool.
+##
+embed-resources:
+	./build/embed-resources.sh
+
 ## build            Compile and build the Infinispan operator.
 ##
-build:
+build: embed-resources
 	./build/build.sh ${GOOS}
 
 ## image            Build a Docker image for the Infinispan operator.

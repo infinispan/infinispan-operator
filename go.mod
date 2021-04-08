@@ -3,6 +3,7 @@ module github.com/infinispan/infinispan-operator
 go 1.13
 
 require (
+	github.com/GeertJohan/go.rice v1.0.2
 	github.com/RHsyseng/operator-utils v0.0.0-20200506183821-e3b4a2ba9c30
 	github.com/coreos/prometheus-operator v0.35.1
 	github.com/go-logr/logr v0.1.0
