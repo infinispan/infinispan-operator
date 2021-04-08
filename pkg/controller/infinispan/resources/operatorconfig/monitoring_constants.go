@@ -1563,18 +1563,17 @@ const dashboardJSON = `{
 			{
 			  "allValue": null,
 			  "current": {
+				"isNone": true,
 				"selected": false,
-				"text": "infinispan",
-				"value": [
-				  "infinispan"
-				]
+				"text": "None",
+				"value": ""
 			  },
 			  "datasource": "Prometheus",
 			  "definition": "label_values(vendor_cache_manager_default_number_of_cache_configurations,namespace)",
 			  "hide": 0,
-			  "includeAll": true,
+			  "includeAll": false,
 			  "label": "Namespace",
-			  "multi": true,
+			  "multi": false,
 			  "name": "namespace",
 			  "options": [],
 			  "query": "label_values(vendor_cache_manager_default_number_of_cache_configurations,namespace)",
@@ -1591,19 +1590,18 @@ const dashboardJSON = `{
 			{
 			  "allValue": null,
 			  "current": {
+				"isNone": true,
 				"selected": true,
 				"tags": [],
-				"text": "All",
-				"value": [
-				  "$__all"
-				]
+				"text": "None",
+				"value": ""
 			  },
 			  "datasource": "Prometheus",
 			  "definition": "label_values(vendor_cache_manager_default_number_of_cache_configurations{namespace=~\"$namespace\"}, service)",
 			  "hide": 0,
-			  "includeAll": true,
+			  "includeAll": false,
 			  "label": "Cluster",
-			  "multi": true,
+			  "multi": false,
 			  "name": "cluster",
 			  "options": [],
 			  "query": "label_values(vendor_cache_manager_default_number_of_cache_configurations{namespace=~\"$namespace\"}, service)",
