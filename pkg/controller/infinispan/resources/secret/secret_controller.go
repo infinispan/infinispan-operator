@@ -115,7 +115,7 @@ func (s secretResource) createUserIdentitiesSecret() error {
 	if err != nil {
 		return err
 	}
-	return s.createSecret(s.infinispan.GetSecretName(), "infinispan-secret-identities", identities)
+	return s.createSecret(s.infinispan.GetSecretName(), "infinispan-secret-identities", identities, false)
 }
 
 func (s secretResource) createAdminIdentitiesSecret() error {
@@ -123,10 +123,10 @@ func (s secretResource) createAdminIdentitiesSecret() error {
 	if err != nil {
 		return err
 	}
-	return s.createSecret(s.infinispan.GetAdminSecretName(), "infinispan-secret-admin-identities", identities)
+	return s.createSecret(s.infinispan.GetAdminSecretName(), "infinispan-secret-admin-identities", identities, true)
 }
 
-func (s secretResource) createSecret(name, label string, identities []byte) error {
+func (s secretResource) createSecret(name, label string, identities []byte, adminSecret bool) error {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -138,11 +138,13 @@ func (s secretResource) createSecret(name, label string, identities []byte) erro
 			Labels:    infinispan.LabelsResource(s.infinispan.Name, label),
 		},
 		Type:       corev1.SecretTypeOpaque,
-		StringData: map[string]string{consts.ServerIdentitiesFilename: string(identities)},
+		Data: map[string][]byte{consts.ServerIdentitiesFilename: identities},
 	}
 
-	if err := s.addCliProperties(secret); err != nil {
-		return err
+	if adminSecret {
+		if err := s.addCliProperties(secret); err != nil {
+			return err
+		}
 	}
 
 	s.log.Info(fmt.Sprintf("Creating Identities Secret %s", secret.Name))
@@ -158,7 +160,7 @@ func (s secretResource) createSecret(name, label string, identities []byte) erro
 
 func (s secretResource) addCliProperties(secret *corev1.Secret) error {
 	descriptor := secret.Data[consts.ServerIdentitiesFilename]
-	pass, err := users.FindPassword(consts.DefaultOperatorUser, descriptor)
+	pass, err := users.FindPassword(consts.DefaultOperatorUser, []byte(descriptor))
 	if err != nil {
 		return err
 	}
