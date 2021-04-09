@@ -785,9 +785,10 @@ spec:
                     - local
                   type: object
                 type:
+                  enum:
+                    - DataGrid
+                    - Cache
                   type: string
-              required:
-                - type
               type: object
           required:
             - replicas
