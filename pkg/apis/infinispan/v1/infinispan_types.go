@@ -58,6 +58,7 @@ type InfinispanServiceContainerSpec struct {
 	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=DataGrid;Cache
 type ServiceType string
 
 const (
@@ -77,7 +78,7 @@ const (
 
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
-	Type ServiceType `json:"type"`
+	Type ServiceType `json:"type,omitempty"`
 	// +optional
 	Container *InfinispanServiceContainerSpec `json:"container,omitempty"`
 	// +optional
