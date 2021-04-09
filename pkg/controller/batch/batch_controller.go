@@ -3,12 +3,11 @@ package batch
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
+	ispnCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,14 +28,10 @@ import (
 )
 
 const (
-	ControllerName            = "batch-controller"
-	BatchFilename             = "batch"
-	BatchVolumeRoot           = "/etc/batch"
-	BatchConfigVolumeName     = "batch-config-volume"
-	BatchConfigVolumeRoot     = BatchVolumeRoot + "/config"
-	BatchPropertiesVolumeRoot = BatchVolumeRoot + "/properties"
-	BatchPropertiesVolumeName = "batch-properties-volume"
-	BatchPropertiesFilename   = "cli.properties"
+	ControllerName  = "batch-controller"
+	BatchFilename   = "batch"
+	BatchVolumeName = "batch-volume"
+	BatchVolumeRoot = "/etc/batch"
 )
 
 var (
@@ -190,33 +185,8 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 		}
 	}
 
-	url, err := connectionUrl(infinispan)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      batch.PropertiesSecretName(),
-			Namespace: batch.Namespace,
-		},
-		Type:       corev1.SecretTypeOpaque,
-		StringData: map[string]string{BatchPropertiesFilename: fmt.Sprintf("autoconnect-url=%s", url)},
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
-		return controllerutil.SetControllerReference(batch, secret, r.scheme)
-	})
-
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("Unable to create properties secret: %w", err)
-	}
-
 	// We update the phase separately to the spec as the status update is ignored when in the update mutate function
-	_, err = r.update(func() error {
+	_, err := r.update(func() error {
 		batch.Status.ClusterUID = &infinispan.UID
 		batch.Status.Phase = v2.BatchInitialized
 		return nil
@@ -237,7 +207,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 		return reconcile.Result{}, r.UpdatePhase(v2.BatchFailed, err)
 	}
 
-	cliArgs := fmt.Sprintf("--properties '%s/%s' --file '%s/%s'", BatchPropertiesVolumeRoot, BatchPropertiesFilename, BatchConfigVolumeRoot, BatchFilename)
+	cliArgs := fmt.Sprintf("--properties '%s/%s' --file '%s/%s'", consts.ServerAdminIdentitiesRoot, consts.CliPropertiesFilename, BatchVolumeRoot, BatchFilename)
 
 	labels := batchLabels(batch.Name)
 	infinispan.AddLabelsForPods(labels)
@@ -260,12 +230,12 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 						Command: []string{"/opt/infinispan/bin/cli.sh", cliArgs},
 						VolumeMounts: []corev1.VolumeMount{
 							{
-								Name:      BatchConfigVolumeName,
-								MountPath: BatchConfigVolumeRoot,
+								Name:      BatchVolumeName,
+								MountPath: BatchVolumeRoot,
 							},
 							{
-								Name:      BatchPropertiesVolumeName,
-								MountPath: BatchPropertiesVolumeRoot,
+								Name:      ispnCtrl.AdminIdentitiesVolumeName,
+								MountPath: consts.ServerAdminIdentitiesRoot,
 							},
 						},
 					}},
@@ -273,22 +243,23 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 					Volumes: []corev1.Volume{
 						// Volume for Batch ConfigMap
 						{
-							Name: BatchConfigVolumeName,
+							Name: BatchVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
 									LocalObjectReference: corev1.LocalObjectReference{Name: *batch.Spec.ConfigMap},
 								},
 							},
 						},
-						// Volume for Batch properties
+						// Volume for cli.properties
 						{
-							Name: BatchPropertiesVolumeName,
+							Name: ispnCtrl.AdminIdentitiesVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName: batch.PropertiesSecretName(),
+									SecretName: infinispan.GetAdminSecretName(),
 								},
 							},
-						}},
+						},
+					},
 				},
 			},
 		},
@@ -344,15 +315,6 @@ func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 	}
 	// The job has not completed, wait 1 second before retrying
 	return reconcile.Result{}, nil
-}
-
-func connectionUrl(i *v1.Infinispan) (string, error) {
-	pass, err := users.AdminPassword(i.GetAdminSecretName(), i.Namespace, kubernetes)
-	if err != nil {
-		return "", err
-	}
-	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(pass), i.GetServiceName(), consts.InfinispanAdminPort)
-	return url, nil
 }
 
 func (r *batchResource) UpdatePhase(phase v2.BatchPhase, phaseErr error) error {
