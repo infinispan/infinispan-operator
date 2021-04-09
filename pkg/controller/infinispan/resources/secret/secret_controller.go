@@ -137,7 +137,7 @@ func (s secretResource) createSecret(name, label string, identities []byte, admi
 			Namespace: s.infinispan.Namespace,
 			Labels:    infinispan.LabelsResource(s.infinispan.Name, label),
 		},
-		Type:       corev1.SecretTypeOpaque,
+		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{consts.ServerIdentitiesFilename: identities},
 	}
 
@@ -170,7 +170,8 @@ func (s secretResource) addCliProperties(secret *corev1.Secret) error {
 
 	service := s.infinispan.GetServiceName()
 	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(pass), service, consts.InfinispanAdminPort)
-	secret.StringData[consts.CliPropertiesFilename] = fmt.Sprintf("autoconnect-url=%s", url)
+	properties := fmt.Sprintf("autoconnect-url=%s", url)
+	secret.Data[consts.CliPropertiesFilename] = []byte(properties)
 	return nil
 }
 
