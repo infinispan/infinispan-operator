@@ -3,12 +3,11 @@ package batch
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
+	ispnCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -208,11 +207,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 		return reconcile.Result{}, r.UpdatePhase(v2.BatchFailed, err)
 	}
 
-	url, err := connectionUrl(infinispan)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	cliArgs := fmt.Sprintf("--connect '%s' --file '%s/%s'", url, BatchVolumeRoot, BatchFilename)
+	cliArgs := fmt.Sprintf("--properties '%s/%s' --file '%s/%s'", consts.ServerAdminIdentitiesRoot, consts.CliPropertiesFilename, BatchVolumeRoot, BatchFilename)
 
 	labels := batchLabels(batch.Name)
 	infinispan.AddLabelsForPods(labels)
@@ -238,23 +233,39 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 								Name:      BatchVolumeName,
 								MountPath: BatchVolumeRoot,
 							},
-						},
-					}},
-					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes: []corev1.Volume{{
-						Name: BatchVolumeName,
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: *batch.Spec.ConfigMap},
+							{
+								Name:      ispnCtrl.AdminIdentitiesVolumeName,
+								MountPath: consts.ServerAdminIdentitiesRoot,
 							},
 						},
 					}},
+					RestartPolicy: corev1.RestartPolicyNever,
+					Volumes: []corev1.Volume{
+						// Volume for Batch ConfigMap
+						{
+							Name: BatchVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{Name: *batch.Spec.ConfigMap},
+								},
+							},
+						},
+						// Volume for cli.properties
+						{
+							Name: ispnCtrl.AdminIdentitiesVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: infinispan.GetAdminSecretName(),
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, job, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, job, func() error {
 		return controllerutil.SetControllerReference(batch, job, r.scheme)
 	})
 
@@ -304,15 +315,6 @@ func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 	}
 	// The job has not completed, wait 1 second before retrying
 	return reconcile.Result{}, nil
-}
-
-func connectionUrl(i *v1.Infinispan) (string, error) {
-	pass, err := users.AdminPassword(i.GetAdminSecretName(), i.Namespace, kubernetes)
-	if err != nil {
-		return "", err
-	}
-	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(pass), i.GetServiceName(), consts.InfinispanAdminPort)
-	return url, nil
 }
 
 func (r *batchResource) UpdatePhase(phase v2.BatchPhase, phaseErr error) error {

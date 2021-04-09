@@ -3,6 +3,7 @@ package secret
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
@@ -75,14 +76,23 @@ func Add(mgr manager.Manager) error {
 }
 
 func (s *secretResource) Process() (reconcile.Result, error) {
-	secretExists, err := s.secretExists(s.infinispan.GetAdminSecretName())
+	secret, err := s.getSecret(s.infinispan.GetAdminSecretName())
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// If the operator secret does not already exist create it with generated identities
-	if !secretExists {
+	if secret == nil {
 		if err = s.createAdminIdentitiesSecret(); err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		// Patch secret to include any generated fields
+		updated, err := s.update(secret, func() error {
+			return s.addCliProperties(secret)
+		})
+
+		if updated || err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -93,8 +103,8 @@ func (s *secretResource) Process() (reconcile.Result, error) {
 	}
 
 	// Create the user identities secret if it doesn't already exist
-	secretExists, err = s.secretExists(s.infinispan.GetSecretName())
-	if secretExists || err != nil {
+	secret, err = s.getSecret(s.infinispan.GetSecretName())
+	if secret != nil || err != nil {
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, s.createUserIdentitiesSecret()
@@ -105,7 +115,7 @@ func (s secretResource) createUserIdentitiesSecret() error {
 	if err != nil {
 		return err
 	}
-	return s.createSecret(s.infinispan.GetSecretName(), "infinispan-secret-identities", identities)
+	return s.createSecret(s.infinispan.GetSecretName(), "infinispan-secret-identities", identities, false)
 }
 
 func (s secretResource) createAdminIdentitiesSecret() error {
@@ -113,10 +123,10 @@ func (s secretResource) createAdminIdentitiesSecret() error {
 	if err != nil {
 		return err
 	}
-	return s.createSecret(s.infinispan.GetAdminSecretName(), "infinispan-secret-admin-identities", identities)
+	return s.createSecret(s.infinispan.GetAdminSecretName(), "infinispan-secret-admin-identities", identities, true)
 }
 
-func (s secretResource) createSecret(name, label string, identities []byte) error {
+func (s secretResource) createSecret(name, label string, identities []byte, adminSecret bool) error {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -127,8 +137,14 @@ func (s secretResource) createSecret(name, label string, identities []byte) erro
 			Namespace: s.infinispan.Namespace,
 			Labels:    infinispan.LabelsResource(s.infinispan.Name, label),
 		},
-		Type:       corev1.SecretTypeOpaque,
-		StringData: map[string]string{consts.ServerIdentitiesFilename: string(identities)},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{consts.ServerIdentitiesFilename: identities},
+	}
+
+	if adminSecret {
+		if err := s.addCliProperties(secret); err != nil {
+			return err
+		}
 	}
 
 	s.log.Info(fmt.Sprintf("Creating Identities Secret %s", secret.Name))
@@ -142,13 +158,41 @@ func (s secretResource) createSecret(name, label string, identities []byte) erro
 	return nil
 }
 
-func (s secretResource) secretExists(name string) (bool, error) {
-	err := s.client.Get(ctx, types.NamespacedName{Namespace: s.infinispan.Namespace, Name: name}, &corev1.Secret{})
+func (s secretResource) addCliProperties(secret *corev1.Secret) error {
+	descriptor := secret.Data[consts.ServerIdentitiesFilename]
+	pass, err := users.FindPassword(consts.DefaultOperatorUser, []byte(descriptor))
+	if err != nil {
+		return err
+	}
+	if secret.StringData == nil {
+		secret.StringData = map[string]string{}
+	}
+
+	service := s.infinispan.GetServiceName()
+	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(pass), service, consts.InfinispanAdminPort)
+	properties := fmt.Sprintf("autoconnect-url=%s", url)
+	secret.Data[consts.CliPropertiesFilename] = []byte(properties)
+	return nil
+}
+
+func (s secretResource) getSecret(name string) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	err := s.client.Get(ctx, types.NamespacedName{Namespace: s.infinispan.Namespace, Name: name}, secret)
 	if err == nil {
-		return true, nil
+		return secret, nil
 	}
 	if errors.IsNotFound(err) {
-		return false, nil
+		return nil, nil
 	}
-	return false, err
+	return nil, err
+}
+
+func (s secretResource) update(secret *corev1.Secret, mutate func() error) (bool, error) {
+	res, err := kube.CreateOrPatch(ctx, s.client, secret, func() error {
+		if secret.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(corev1.Resource("secret"), secret.Name)
+		}
+		return mutate()
+	})
+	return res != controllerutil.OperationResultNone, err
 }

@@ -77,6 +77,7 @@ const (
 	ServerConfigFilename      = "infinispan.yaml"
 	ServerConfigPath          = ServerConfigRoot + "/" + ServerConfigFilename
 	ServerIdentitiesFilename  = "identities.yaml"
+	CliPropertiesFilename     = "cli.properties"
 	ServerAdminIdentitiesRoot = ServerSecurityRoot + "/admin"
 	ServerAdminIdentitiesPath = ServerAdminIdentitiesRoot + "/" + ServerIdentitiesFilename
 	ServerUserIdentitiesRoot  = ServerSecurityRoot + "/user"
