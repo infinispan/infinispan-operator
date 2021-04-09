@@ -257,15 +257,11 @@ func (ispn *Infinispan) GetSiteServiceName() string {
 
 // GetEndpointScheme returns the protocol scheme used by the Infinispan cluster
 func (ispn *Infinispan) GetEndpointScheme() string {
-	return strings.ToLower(string(ispn.GetEndpointURIScheme()))
-}
-
-// GetEndpointURIScheme returns the protocol URI scheme used by the Infinispan cluster
-func (ispn *Infinispan) GetEndpointURIScheme() corev1.URIScheme {
+	endPointSchema := corev1.URISchemeHTTP
 	if ispn.IsEncryptionCertSourceDefined() && !ispn.IsEncryptionDisabled() {
-		return corev1.URISchemeHTTPS
+		endPointSchema = corev1.URISchemeHTTPS
 	}
-	return corev1.URISchemeHTTP
+	return strings.ToLower(string(endPointSchema))
 }
 
 // GetSecretName returns the secret name associated with a server
