@@ -29,10 +29,14 @@ import (
 )
 
 const (
-	ControllerName  = "batch-controller"
-	BatchFilename   = "batch"
-	BatchVolumeName = "batch-volume"
-	BatchVolumeRoot = "/etc/batch"
+	ControllerName            = "batch-controller"
+	BatchFilename             = "batch"
+	BatchVolumeRoot           = "/etc/batch"
+	BatchConfigVolumeName     = "batch-config-volume"
+	BatchConfigVolumeRoot     = BatchVolumeRoot + "/config"
+	BatchPropertiesVolumeRoot = BatchVolumeRoot + "/properties"
+	BatchPropertiesVolumeName = "batch-properties-volume"
+	BatchPropertiesFilename   = "cli.properties"
 )
 
 var (
@@ -186,8 +190,33 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 		}
 	}
 
+	url, err := connectionUrl(infinispan)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      batch.PropertiesSecretName(),
+			Namespace: batch.Namespace,
+		},
+		Type:       corev1.SecretTypeOpaque,
+		StringData: map[string]string{BatchPropertiesFilename: fmt.Sprintf("autoconnect-url=%s", url)},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, secret, func() error {
+		return controllerutil.SetControllerReference(batch, secret, r.scheme)
+	})
+
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("Unable to create properties secret: %w", err)
+	}
+
 	// We update the phase separately to the spec as the status update is ignored when in the update mutate function
-	_, err := r.update(func() error {
+	_, err = r.update(func() error {
 		batch.Status.ClusterUID = &infinispan.UID
 		batch.Status.Phase = v2.BatchInitialized
 		return nil
@@ -208,11 +237,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 		return reconcile.Result{}, r.UpdatePhase(v2.BatchFailed, err)
 	}
 
-	url, err := connectionUrl(infinispan)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	cliArgs := fmt.Sprintf("--connect '%s' --file '%s/%s'", url, BatchVolumeRoot, BatchFilename)
+	cliArgs := fmt.Sprintf("--properties '%s/%s' --file '%s/%s'", BatchPropertiesVolumeRoot, BatchPropertiesFilename, BatchConfigVolumeRoot, BatchFilename)
 
 	labels := batchLabels(batch.Name)
 	infinispan.AddLabelsForPods(labels)
@@ -235,26 +260,41 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 						Command: []string{"/opt/infinispan/bin/cli.sh", cliArgs},
 						VolumeMounts: []corev1.VolumeMount{
 							{
-								Name:      BatchVolumeName,
-								MountPath: BatchVolumeRoot,
+								Name:      BatchConfigVolumeName,
+								MountPath: BatchConfigVolumeRoot,
+							},
+							{
+								Name:      BatchPropertiesVolumeName,
+								MountPath: BatchPropertiesVolumeRoot,
 							},
 						},
 					}},
 					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes: []corev1.Volume{{
-						Name: BatchVolumeName,
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: *batch.Spec.ConfigMap},
+					Volumes: []corev1.Volume{
+						// Volume for Batch ConfigMap
+						{
+							Name: BatchConfigVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{Name: *batch.Spec.ConfigMap},
+								},
 							},
 						},
-					}},
+						// Volume for Batch properties
+						{
+							Name: BatchPropertiesVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: batch.PropertiesSecretName(),
+								},
+							},
+						}},
 				},
 			},
 		},
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, r.client, job, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, job, func() error {
 		return controllerutil.SetControllerReference(batch, job, r.scheme)
 	})
 
