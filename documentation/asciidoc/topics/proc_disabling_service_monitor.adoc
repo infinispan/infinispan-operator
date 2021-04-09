@@ -1,0 +1,14 @@
+[id='disabling-service-monitor_{context}']
+= Disabling the Prometheus Service Monitor
+You can disable the `ServiceMonitor` if you do not want Prometheus to scrape metrics for your {brandname} cluster.
+
+.Procedure
+
+. Set `'false'` as the value for the `infinispan.org/monitoring` annotation in your `Infinispan` CR.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/infinispan-monitoring-false.yaml[]
+----
++
+. Apply the changes.

@@ -3,6 +3,9 @@ kind: Infinispan
 metadata:
   # Names the cluster.
   name: {example_crd_name}
+  annotations:
+    # Automatically creates a ServiceMonitor for the cluster.
+    infinispan.org/monitoring: 'true'
 spec:
   # Specifies the number of nodes in the cluster.
   replicas: 6

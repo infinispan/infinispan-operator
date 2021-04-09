@@ -1,52 +1,25 @@
 [id='creating-service-monitor_{context}']
 = Creating a Prometheus Service Monitor
-Create a Prometheus `ServiceMonitor` that scrapes metrics from a {brandname} cluster.
-
-.Prerequisites
-
-* Have an `oc` client.
-* Enable monitoring for user-defined projects on {ocp}.
+{ispn_operator} automatically creates a Prometheus `ServiceMonitor` that scrapes metrics from your {brandname} cluster.
 
 .Procedure
 
-. Create an authentication secret for the `operator` user.
+Enable monitoring for user-defined projects on {ocp}.
+
+When the `ServiceMonitor` resource is detected, {ispn_operator} does the following:
+
+* Creates a `ServiceMonitor` named `<cluster_name>-monitor`.
+* Adds the `infinispan.org/monitoring: 'true'` annotation to your `Infinispan` CR:
 +
-Prometheus needs credentials to authenticate with {brandname} and must use the `operator` user and corresponding password.
-+
-.. Retrieve the `operator` user credentials.
-+
-[source,options="nowrap",subs=attributes+]
+[source,yaml,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/oc_get_secret_operator_creds.adoc[]
+include::yaml/infinispan-monitoring-true.yaml[]
 ----
-+
-.. Create an authentication secret, for example:
-+
-[source,options="nowrap",subs=attributes+]
-----
-include::yaml/basic_auth.yaml[]
-----
-+
-.. Add the authentication secret to your {brandname} cluster namespace.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ oc apply -f basic-auth.yaml
-----
-+
-. Create a Prometheus `ServiceMonitor` that scrapes {brandname} metrics.
-+
-[source,options="nowrap",subs=attributes+]
-----
-include::yaml/prometheus_service_monitor.yaml[]
-----
-+
-. Add the `ServiceMonitor`.
-+
-[source,options="nowrap",subs=attributes+]
-----
-$ oc apply -f service-monitor.yaml
-----
+
+[NOTE]
+====
+To authenticate with {brandname}, Prometheus uses the `operator` credentials.
+====
 
 .Verification
 
