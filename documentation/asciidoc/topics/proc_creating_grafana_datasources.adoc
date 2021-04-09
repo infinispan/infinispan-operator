@@ -4,6 +4,7 @@ Create a `GrafanaDatasource` CR so you can visualize {brandname} metrics in Graf
 
 .Prerequisites
 
+* Have an `oc` client.
 * Have `cluster-admin` access to {ocp}.
 * Create a Prometheus `ServiceMonitor` that scrapes {brandname} metrics.
 * Install the Grafana Operator from the **alpha** channel and create a `Grafana` CR.

@@ -8,6 +8,7 @@
 // Community
 //
 ifdef::community[]
+:oc: kubectl
 :oc_get_pods: kubectl get pods
 :oc_get_pods_w: kubectl get pods -w
 :oc_get_secret: kubectl get secret
@@ -33,6 +34,7 @@ endif::community[]
 // Downstream
 //
 ifdef::downstream[]
+:oc: oc
 :oc_get_pods: oc get pods
 :oc_get_pods_w: oc get pods -w
 :oc_get_secret: oc get secret
