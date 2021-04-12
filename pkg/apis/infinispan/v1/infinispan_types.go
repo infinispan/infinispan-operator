@@ -272,7 +272,7 @@ type InfinispanSpec struct {
 	// +optional
 	CloudEvents *InfinispanCloudEvents `json:"cloudEvents,omitempty"`
 	// +optional
-	Upgrade *InfinispanUpgrade `json:"upgrade,omitempy"`
+	Upgrade *InfinispanUpgrade `json:"upgrade,omitempty"`
 	// External dependencies needed by the Infinispan cluster
 	// +optional
 	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`
