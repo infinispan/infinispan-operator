@@ -1,6 +1,6 @@
 spec:
   cloudEvents:
-    # Configures the number of acks.
+    # Configures the number of acknowledgements. Values are "0", "1", or "all".
     acks: "1"
     # Lists Kafka servers to which {brandname} sends events.
     bootstrapServers: 127.0.0.1:9092,192.168.1.14:9092
