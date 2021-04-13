@@ -1,0 +1,8 @@
+spec:
+  cloudEvents:
+    # Configures the number of acks.
+    acks: "1"
+    # Lists Kafka servers to which {brandname} sends events.
+    bootstrapServers: 127.0.0.1:9092,192.168.1.14:9092
+    # Specifies the Kafka topic for {brandname} events.
+    cacheEntriesTopic: target-topic

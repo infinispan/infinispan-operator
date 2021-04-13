@@ -1,0 +1,33 @@
+[id='cloud-events_{context}']
+= Cloud Events
+
+You can send `CloudEvents` from {brandname} clusters when the following occurs:
+
+* Entries in caches are created, updated, removed, or expired
+* {brandname} users log in or are denied access (security audits)
+
+{brandname} sends structured events to Apache Kafka in JSON format, as in the following example:
+
+[source,json,options="nowrap",subs=attributes+]
+----
+include::json/cloud_events.json[]
+----
+
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`type`
+|Prefixes events for {brandname} cache entries with `org.infinispan.entry`.
+
+|`data`
+|Entry value.
+
+|`subject`
+|Entry key, converted to string.
+
+|`id`
+|Generated identifier for the event.
+
+|===

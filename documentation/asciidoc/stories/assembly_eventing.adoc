@@ -1,0 +1,19 @@
+ifdef::context[:parent-context: {context}]
+[id='eventing']
+:context: eventing
+= Sending Cloud Events from {brandname} Clusters
+Configure {brandname} as a Knative source by sending `CloudEvents` to Apache Kafka topics.
+
+//Downstream content
+ifdef::downstream[]
+Sending cloud events with {openshift} Serverless is available as a technology preview.
+
+include::{topics}/ref_tech_preview.adoc[leveloffset=+1]
+endif::downstream[]
+
+include::{topics}/con_cloud_events.adoc[leveloffset=+1]
+include::{topics}/proc_enabling_cloud_events.adoc[leveloffset=+1]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

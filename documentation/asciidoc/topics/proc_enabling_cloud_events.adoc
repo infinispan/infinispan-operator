@@ -1,0 +1,18 @@
+[id='enabling-cloud-events_{context}']
+= Enabling Cloud Events
+Configure {brandname} to send `CloudEvents`.
+
+.Prerequisites
+
+Before you can send `CloudEvents`, you need to set up an Apache Kafka cluster that listens for {brandname} topics.
+
+.Procedure
+
+. Add `spec.cloudEvents` to your `Infinispan` CR.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/cloud_events.yaml[]
+----
++
+. Apply your changes.
