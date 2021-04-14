@@ -116,6 +116,7 @@ rules:
   - list
   - watch
   - create
+  - update
   - delete
 - apiGroups:
   - infinispan.org
@@ -151,6 +152,7 @@ rules:
     - list
     - watch
     - create
+    - update
     - delete
 
 ---
