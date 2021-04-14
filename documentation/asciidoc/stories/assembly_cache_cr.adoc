@@ -4,8 +4,26 @@ ifdef::context[:parent-context: {context}]
 = Creating Caches with {ispn_operator}
 Use `Cache` CRs to add cache configuration with {ispn_operator} and control how {brandname} stores your data.
 
-include::{topics}/con_caches.adoc[leveloffset=+1]
+//Community
+ifdef::community[]
+[IMPORTANT]
+====
+The `Cache` CR is not yet functionally complete.
+The capability to create caches with {ispn_operator} is still under development and not recommended for production environments or critical workloads.
+====
+endif::community[]
 
+//Downstream
+ifdef::downstream[]
+[IMPORTANT]
+====
+Creating caches with {ispn_operator} is available as a technology preview.
+
+include::{topics}/ref_tech_preview.adoc[leveloffset=+1]
+====
+endif::downstream[]
+
+include::{topics}/con_caches.adoc[leveloffset=+1]
 include::{topics}/con_cache_cr.adoc[leveloffset=+1]
 include::{topics}/proc_creating_caches_xml.adoc[leveloffset=+1]
 include::{topics}/proc_creating_caches_templates.adoc[leveloffset=+1]

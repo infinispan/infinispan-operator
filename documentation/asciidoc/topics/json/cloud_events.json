@@ -1,0 +1,11 @@
+{
+    "specversion": "1.0",
+    "source": "/infinispan/<cluster-name>/<cache-name>",
+    "type": "org.infinispan.entry.created",
+    "time": "<timestamp>",
+    "subject": "<key-name>",
+    "id": "key-name:CommandInvocation:node-name:0",
+    "data": {
+       "property": "value"
+    }
+}

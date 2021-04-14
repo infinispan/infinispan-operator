@@ -1,31 +1,6 @@
 [id='cache-cr_{context}']
 = Cache CRs
 
-//Community
-ifdef::community[]
-[IMPORTANT]
-====
-The `Cache` CR is not yet functionally complete.
-The capability to create caches with {ispn_operator} is still under development and not recommended for production environments or critical workloads.
-====
-endif::community[]
-
-//Downstream
-ifdef::downstream[]
-[IMPORTANT]
-====
-Creating caches with {ispn_operator} is available as a technology preview.
-
-Technology Preview features or capabilities are not supported with Red Hat
-production service-level agreements (SLAs) and might not be functionally
-complete. Red Hat does not recommend using them for production. These features
-provide early access to upcoming product features, enabling customers to test
-functionality and provide feedback during the development process.
-
-link:{link_tech_preview}
-====
-endif::downstream[]
-
 When using `Cache` CRs, the following rules apply:
 
 * `Cache` CRs apply to {datagridservice} nodes only.
