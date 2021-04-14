@@ -12,7 +12,7 @@ do
 	    kubectl get pods -o yaml >> debug.log
 	    kubectl get infinispan -o yaml >> debug.log
 	    kubectl get statefulsets -o yaml >> debug.log
-	    kubectl logs -f "${SS}" -n "${TESTING_NAMESPACE}" >> debug.log
+	    kubectl logs -f -l app=infinispan-pod -n "${TESTING_NAMESPACE}" >> debug.log
 	  fi
 	done
 	sleep 5
