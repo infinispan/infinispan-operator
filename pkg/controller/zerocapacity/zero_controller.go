@@ -3,6 +3,7 @@ package zerocapacity
 import (
 	"context"
 	"fmt"
+	goHttp "net/http"
 	"reflect"
 	"time"
 
@@ -151,7 +152,6 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 
 	phase := instance.Phase()
-
 	switch phase {
 	case "":
 		// Perform any transformations required on the CR for backwards-compatibility. Returning if a tranformation or error occurs
@@ -161,8 +161,6 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, instance.UpdatePhase(ZeroInitializing, nil)
 	case ZeroInitializing:
 		return z.initializeResources(request, instance)
-	case ZeroSucceeded, ZeroFailed:
-		return z.cleanupResources(request)
 	}
 
 	infinispan := &v1.Infinispan{}
@@ -173,6 +171,10 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 	}
 	if err := z.Get(context.Background(), clusterObjKey, infinispan); err != nil {
 		if errors.IsNotFound(err) {
+			if phase == ZeroSucceeded || phase == ZeroFailed {
+				// If the cluster no longer exists and the operation has failed or succeeded already, no need todo anything
+				return reconcile.Result{}, nil
+			}
 			return reconcile.Result{}, fmt.Errorf("CR '%s' not found", clusterName)
 		}
 		// Error reading the object - requeue the request.
@@ -184,11 +186,15 @@ func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
-	if phase == ZeroInitialized {
+	switch phase {
+	case ZeroInitialized:
 		return z.execute(httpClient, request, instance)
+	case ZeroSucceeded, ZeroFailed:
+		return z.cleanupResources(httpClient, request)
+	default:
+		// Phase must be ZeroRunning, so wait for execution to complete
+		return z.waitForExecutionToComplete(httpClient, request, instance)
 	}
-	// Phase must be ZeroRunning, so wait for execution to complete
-	return z.waitForExecutionToComplete(httpClient, request, instance)
 }
 
 func (z *Controller) initializeResources(request reconcile.Request, instance Resource) (reconcile.Result, error) {
@@ -282,7 +288,7 @@ func (z *Controller) waitForExecutionToComplete(httpClient http.HttpClient, requ
 	return reconcile.Result{RequeueAfter: 1 * time.Second}, nil
 }
 
-func (z *Controller) cleanupResources(request reconcile.Request) (reconcile.Result, error) {
+func (z *Controller) cleanupResources(httpClient http.HttpClient, request reconcile.Request) (reconcile.Result, error) {
 	ctx := context.Background()
 	meta := metav1.ObjectMeta{
 		Namespace: request.Namespace,
@@ -290,9 +296,12 @@ func (z *Controller) cleanupResources(request reconcile.Request) (reconcile.Resu
 	}
 	var allErrors error
 
-	// Delete the zero-capacity pod so that it leaves the Infinispan cluster
-	if err := z.Delete(ctx, &corev1.Pod{ObjectMeta: meta}); err != nil && !errors.IsNotFound(err) {
-		allErrors = fmt.Errorf("Unable to delete zero-capacity pod: %w", err)
+	// Stop the zero-capacity server so that it leaves the Infinispan cluster
+	rsp, err, reason := httpClient.Post(meta.Name, consts.ServerHTTPServerStop, "", nil)
+	if err != nil {
+		allErrors = fmt.Errorf("Unable to stop zero-capacity server: '%s': %w", reason, err)
+	} else if rsp.StatusCode != goHttp.StatusNoContent {
+		allErrors = fmt.Errorf("Unexpected response code '%d' when attempting to stop zero-capacity server", rsp.StatusCode)
 	}
 
 	// Delete the configmap as it's no longer required
@@ -367,6 +376,7 @@ func (z *Controller) zeroPodSpec(name, namespace, configMap string, podSecurityC
 					},
 				},
 			}},
+			RestartPolicy: corev1.RestartPolicyNever,
 			Volumes: []corev1.Volume{
 				// Volume for mounting zero-capacity yaml configmap
 				{
