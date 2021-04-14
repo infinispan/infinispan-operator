@@ -416,6 +416,7 @@ spec:
                 - list
                 - watch
                 - create
+                - update
                 - delete
             - apiGroups:
                 - infinispan.org
@@ -451,6 +452,7 @@ spec:
                 - list
                 - watch
                 - create
+                - update
                 - delete
           serviceAccountName: infinispan-operator
       clusterPermissions:
