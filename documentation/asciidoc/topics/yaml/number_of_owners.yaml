@@ -1,0 +1,6 @@
+spec:
+  ...
+  service:
+    type: Cache
+    # Configures three replicas for each cache entry.
+    replicationFactor: 3

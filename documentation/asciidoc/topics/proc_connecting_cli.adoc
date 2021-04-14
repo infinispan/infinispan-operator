@@ -53,6 +53,5 @@ mycache
 
 [role="_additional-resources"]
 .Additional resources
-
-* link:{server_docs}#downloading_server_distributions[Downloading Server Distributions]
+* link:{server_docs}[Downloading Server Distributions]
 * link:{cli_docs}[Using the {brandname} Command Line Interface]

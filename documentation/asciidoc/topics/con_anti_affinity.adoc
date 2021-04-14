@@ -1,5 +1,5 @@
-[id='anti_affinity-{context}']
-= Anti-Affinity Strategies
+[id='anti-affinity_{context}']
+= Anti-affinity strategies
 Each {brandname} node in a cluster runs in a pod that runs on an {k8s} node in a cluster.
 Each {openshift} node runs on a physical host system.
 Anti-affinity works by distributing {brandname} nodes across {k8s} nodes, ensuring that your {brandname} clusters remain available even if hardware failures occur.

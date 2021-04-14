@@ -1,29 +1,21 @@
-[id='cache_xml-{context}']
-= Creating {brandname} Caches from XML
-Complete the following steps to create caches on {datagridservice} clusters
-using valid `infinispan.xml` cache definitions.
+[id='creating-caches-xml_{context}']
+= Creating caches from XML
+Complete the following steps to create caches on {datagridservice} clusters using valid `infinispan.xml` configuration.
 
 .Procedure
 
-. Create a `Cache` CR that contains the XML cache definition you want to
-create.
+. Create a `Cache` CR that contains an XML cache configuration.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-apiVersion: infinispan.org/v2alpha1
-kind: Cache
-metadata:
-  name: mycachedefinition <1>
-spec:
-  clusterName: {example_crd_name} <2>
-  name: mycache <3>
-  template: <infinispan><cache-container><distributed-cache name="mycache" mode="SYNC"><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan> <4>
+include::yaml/cache_xml.yaml[]
 ----
 +
-<1> Names the `Cache` CR.
-<2> Specifies the name of the target {brandname} cluster where you want {ispn_operator} to create the cache.
-<3> Names the cache on the {brandname} cluster.
-<4> Specifies the XML cache definition to create the cache. Note that the `name` attribute is ignored. Only `spec.name` applies to the resulting cache.
+[NOTE]
+====
+The `name` attribute in the XML configuration is ignored.
+Only the `spec.name` field applies to the resulting cache.
+====
 +
 . Apply the `Cache` CR, for example:
 +

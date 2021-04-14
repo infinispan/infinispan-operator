@@ -1,0 +1,8 @@
+<replicated-cache name="customers">
+  <encoding media-type="application/x-protostream"/>
+  <backups>
+    <backup site="NYC" strategy="ASYNC" >
+      <take-offline min-wait="120000"/>
+    </backup>
+  </backups>
+</replicated-cache>

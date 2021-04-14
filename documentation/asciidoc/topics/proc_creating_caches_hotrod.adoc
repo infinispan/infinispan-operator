@@ -1,5 +1,5 @@
-[id='creating_caches_hotrod-{context}']
-= Creating Caches with Hot Rod Clients
+[id='creating-caches-hotrod_{context}']
+= Creating caches from Hot Rod clients
 You can remotely create caches on {brandname} clusters running on {k8s} with Hot Rod clients.
 However, {brandname} recommends that you create caches using {brandname} Console, the CLI, or with `Cache` CRs instead of with Hot Rod clients.
 
@@ -10,49 +10,14 @@ The following example shows how to add cache configurations to the `Configuratio
 
 [source,java,options="nowrap",subs=attributes+]
 ----
-import org.infinispan.client.hotrod.DefaultTemplate;
-import org.infinispan.client.hotrod.RemoteCache;
-import org.infinispan.client.hotrod.RemoteCacheManager;
-...
-
-      builder.remoteCache("my-cache")
-             .templateName(DefaultTemplate.DIST_SYNC);
-      builder.remoteCache("another-cache")
-             .configuration("<infinispan><cache-container><distributed-cache name=\"another-cache\"><encoding media-type=\"application/x-protostream\"/></distributed-cache></cache-container></infinispan>");
-      try (RemoteCacheManager cacheManager = new RemoteCacheManager(builder.build())) {
-      // Get a remote cache that does not exist.
-      // Rather than return null, create the cache from a template.
-      RemoteCache<String, String> cache = cacheManager.getCache("my-cache");
-      // Store a value.
-      cache.put("hello", "world");
-      // Retrieve the value and print it.
-      System.out.printf("key = %s\n", cache.get("hello"));
+include::java/RemoteCacheConfigurationBuilder.java[]
 ----
 
 This example shows how to create a cache named CacheWithXMLConfiguration using the `XMLStringConfiguration()` method to pass the cache configuration as XML:
 
 [source,java,options="nowrap",subs=attributes+]
 ----
-import org.infinispan.client.hotrod.RemoteCacheManager;
-import org.infinispan.commons.configuration.XMLStringConfiguration;
-...
-
-private void createCacheWithXMLConfiguration() {
-    String cacheName = "CacheWithXMLConfiguration";
-    String xml = String.format("<infinispan>" +
-                                  "<cache-container>" +
-                                  "<distributed-cache name=\"%s\" mode=\"SYNC\">" +
-                                    "<encoding media-type=\"application/x-protostream\"/>" +
-                                    "<locking isolation=\"READ_COMMITTED\"/>" +
-                                    "<transaction mode=\"NON_XA\"/>" +
-                                    "<expiration lifespan=\"60000\" interval=\"20000\"/>" +
-                                  "</distributed-cache>" +
-                                  "</cache-container>" +
-                                "</infinispan>"
-                                , cacheName);
-    manager.administration().getOrCreateCache(cacheName, new XMLStringConfiguration(xml));
-    System.out.println("Cache with configuration exists or is created.");
-}
+include::java/RemoteCacheWithXml.java[]
 ----
 
 [discrete]
@@ -60,7 +25,7 @@ private void createCacheWithXMLConfiguration() {
 
 When you invoke `cacheManager.getCache()` calls for named caches that do not exist, {brandname} creates them from the Hot Rod client properties instead of returning null.
 
-Add cache configuration to Hot Rod client properties as in the following example:
+Add cache configuration to `hotrod-client.properties` as in the following example:
 
 [source,options="nowrap",subs=attributes+]
 ----

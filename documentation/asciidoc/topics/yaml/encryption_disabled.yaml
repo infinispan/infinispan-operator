@@ -1,0 +1,6 @@
+spec:
+  ...
+  security:
+    endpointEncryption:
+      #Disables encryption for {brandname} endpoints.
+      type: None

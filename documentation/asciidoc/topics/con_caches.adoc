@@ -1,5 +1,5 @@
-[id='creating-caches_{context}']
-= {brandname} Caches
+[id='caches_{context}']
+= {brandname} caches
 
 Cache configuration defines the characteristics and features of the data store and must be valid with the {brandname} schema.
 {brandname} recommends creating standalone files in XML or JSON format that define your cache configuration.

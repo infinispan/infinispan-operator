@@ -1,5 +1,5 @@
 [id='batch-operations_{context}']
-= Example Batch Operations
+= Example batch operations
 
 Use these example batch operations as starting points for creating and modifying {brandname} resources with the `Batch` CR.
 
@@ -9,21 +9,6 @@ You can pass configuration files to {ispn_operator} only via a `ConfigMap`.
 
 The `ConfigMap` is mounted in {brandname} pods at `/etc/batch` so you must prepend all `--file=` directives with that path.
 ====
-
-== {brandname} Users
-
-Create several {brandname} users and assign them roles with varying levels of permission to access caches and interact with {brandname} resources.
-
-[source,sh,options="nowrap",subs=attributes+]
-----
-echo "creating users..."
-create user katie -p changeme1
-create user john -p changeme2
-create user mark -p changeme3
-create user julia -p changeme4
-echo "list users"
-user ls
-----
 
 == Caches
 
@@ -100,5 +85,4 @@ ls tasks
 
 [role="_additional-resources"]
 .Additional resources
-
-* link:{cli_docs}#batch_operations[CLI batch operations]
+* link:{cli_docs}[{brandname} CLI Guide]

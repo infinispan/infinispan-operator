@@ -1,0 +1,26 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  replicas: 3
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: LON
+        expose:
+          type: LoadBalancer
+      locations:
+        - name: LON
+          url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
+          secretName: lon-token
+        - name: NYC
+          clusterName: nyc-cluster
+          namespace: nyc-cluster-namespace
+          url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
+          secretName: nyc-token
+    logging:
+      categories:
+        org.jgroups.protocols.TCP: error
+        org.jgroups.protocols.relay.RELAY2: error

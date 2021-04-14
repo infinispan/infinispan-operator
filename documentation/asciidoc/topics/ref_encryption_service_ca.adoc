@@ -1,25 +1,15 @@
-[id='encryption_with_service_ca-{context}']
-= Encryption with {openshift} Service Certificates
+[id='encryption-service-ca_{context}']
+= Encryption with {openshift} service certificates
 {ispn_operator} automatically generates TLS certificates that are signed by the
 {openshift} service CA. {ispn_operator} then stores the certificates and keys
 in a secret so you can retrieve them and use with remote clients.
 
-If the {openshift} service CA is available, {ispn_operator} adds the following
-`spec.security.endpointEncryption` configuration to the `Infinispan` CR:
+If the {openshift} service CA is available, {ispn_operator} adds the following `spec.security.endpointEncryption` configuration to the `Infinispan` CR:
 
 [source,options="nowrap",subs=attributes+]
 ----
-spec:
-  ...
-  security:
-    endpointEncryption:
-      type: Service
-      certServiceName: service.beta.openshift.io <1>
-      certSecretName: {example_crd_name}-cert-secret <2>
+include::yaml/encryption_service_ca.yaml[]
 ----
-
-<1> Specifies the {openshift} Service.
-<2> Names the secret that contains a service certificate, `tls.crt`, and key, `tls.key`, in PEM format. If you do not specify a name, {ispn_operator} uses `<cluster_name>-cert-secret`.
 
 [NOTE]
 ====

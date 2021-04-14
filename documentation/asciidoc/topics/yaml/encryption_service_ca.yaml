@@ -1,0 +1,9 @@
+spec:
+  ...
+  security:
+    endpointEncryption:
+      type: Service
+      certServiceName: service.beta.openshift.io
+      # Names a secret with a service certificate and key in PEM format.
+      # Defaults to `<cluster_name>-cert-secret`.
+      certSecretName: {example_crd_name}-cert-secret

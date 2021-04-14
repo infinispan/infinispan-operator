@@ -1,40 +1,14 @@
-[id='adding_cache_stores-{context}']
-= Adding Persistent Cache Stores
-You can add Single File cache stores to {datagridservice} nodes to save data to
-the persistent volume.
+[id='adding-cache-stores_{context}']
+= Adding persistent cache stores
+You can add persistent cache stores to {datagridservice} nodes to save data to the persistent volume.
 
-You configure cache stores as part of your {brandname} cache definition with
-the `persistence` element as follows:
-
-[source,xml,options="nowrap",subs=attributes+]
-----
-<persistence>
-   <file-store/>
-</persistence>
-----
-
-{brandname} then creates a Single File cache store, `.dat` file, in the
-`{pv_path}` directory.
+{brandname} creates a Single File cache store, `.dat` file, in the `{pv_path}` directory.
 
 .Procedure
 
-* Add a cache store to your cache configurations as follows:
+* Add the `<file-store/>` element to the `persistence` configuration in your {brandname} cache, as in the following example:
 +
 [source,xml,options="nowrap",subs=attributes+]
 ----
-<infinispan>
-  <cache-container>
-    <distributed-cache name="customers" mode="SYNC">
-      <encoding media-type="application/x-protostream"/>
-      <persistence>
-        <file-store/>
-      </persistence>
-    </distributed-cache>
-  </cache-container>
-</infinispan>
+include::xml/file-store-cache.xml[]
 ----
-
-[role="_additional-resources"]
-.Additional resources
-
-* link:#storage_resources-resources[Storage Resources]

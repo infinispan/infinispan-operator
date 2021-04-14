@@ -1,0 +1,5 @@
+credentials:
+- username: myfirstusername
+  password: changeme-one
+- username: mysecondusername
+  password: changeme-two

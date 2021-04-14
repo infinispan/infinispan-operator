@@ -1,0 +1,5 @@
+spec:
+  ...
+  security:
+    # Disables user authentication.
+    endpointAuthentication: false

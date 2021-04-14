@@ -1,9 +1,11 @@
-[id='getting_certs-{context}']
-= Retrieving TLS Certificates
+[id='retrieving-tls-certificates_{context}']
+= Retrieving TLS certificates
 Get TLS certificates from encryption secrets to create client trust stores.
 
-* Retrieve `tls.crt` from encryption secrets as follows:
+.Procedure
 
+* Retrieve `tls.crt` from encryption secrets as follows:
++
 [source,options="nowrap",subs=attributes+]
 ----
 include::cmd_examples/oc_get_secret_tls.adoc[]

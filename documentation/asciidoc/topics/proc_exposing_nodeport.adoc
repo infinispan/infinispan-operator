@@ -1,5 +1,5 @@
-[id='exposing_nodeport-{context}']
-= Exposing {brandname} Through Node Ports
+[id='exposing-nodeport_{context}']
+= Exposing {brandname} through node ports
 Use a node port service to expose {brandname} clusters on the network.
 
 .Procedure
@@ -9,16 +9,8 @@ Use a node port service to expose {brandname} clusters on the network.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-spec:
-  ...
-  expose:
-    type: NodePort <1>
-    nodePort: 30000 <2>
+include::yaml/expose_type_node_port.yaml[]
 ----
-+
-<1> Exposes {brandname} on the network through a node port service.
-<2> Defines the port where {brandname} is exposed. If you do not define a port,
-the platform selects one.
 +
 . Apply the changes.
 . Verify that the `-external` service is available.

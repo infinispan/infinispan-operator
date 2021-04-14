@@ -1,0 +1,67 @@
+[id='cross-site-resources-automatic_{context}']
+= Resources for automatic cross-site connections
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/xsite_automatic.yaml[]
+----
+
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`service.type: DataGrid`
+|{brandname} supports cross-site replication with {datagridservice} clusters only.
+
+|`service.sites.local.name`
+|Names the local site where a {brandname} cluster runs.
+
+//Community
+ifdef::community[]
+|`service.sites.local.expose.type`
+|Specifies the externally exposed service type. Use `NodePort` for local clusters on the same network. Use `LoadBalancer` for independent {openshiftshort} clusters.
+endif::community[]
+
+//Downstream
+ifdef::downstream[]
+|`service.sites.local.expose.type`
+|Specifies `LoadBalancer` as the service that handles communication between backup locations.
+endif::downstream[]
+
+|`service.sites.locations`
+|Provides connection information for all backup locations.
+
+|`service.sites.locations.name`
+|Specifies a backup location that matches `.spec.service.sites.local.name`.
+
+//Community
+ifdef::community[]
+|`service.sites.locations.url`
+|Specifies a backup location.
+
+Use `kubernetes://` if the backup location is a Kubernetes instance.
+
+Use `openshift://` if the backup location is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API.
+
+Use `infinispan+xsite://` if the backup location has a static hostname and port.
+
+|`service.sites.locations.secretName`
+|Specifies the access secret for a site. This secret contains different authentication objects, depending on your Kubernetes environment.
+endif::community[]
+
+//Downstream
+ifdef::downstream[]
+|`service.sites.locations.url`
+|Specifies the URL of the {openshiftshort} API for the backup location.
+
+|`service.sites.locations.secretName`
+|Specifies the secret that contains the service account token for the backup site.
+endif::downstream[]
+
+|`service.sites.locations.clusterName`
+|Specifies the cluster name at the backup location if it is different to the cluster name at the local site.
+
+|`service.sites.locations.namespace`
+|Specifies the namespace of the {brandname} cluster at the backup location if it does not match the namespace at the local site.
+|===

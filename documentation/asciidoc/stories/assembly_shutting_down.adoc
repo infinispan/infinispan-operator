@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
-[id='shutdown']
-:context: nodes
-= Stopping and Starting {brandname} Clusters
+[id='shutting-down']
+:context: stop-start
+= Stopping and starting {brandname} clusters
 Stop and start {brandname} clusters with {ispn_operator}.
 
 .Cache definitions
@@ -12,8 +12,8 @@ persistent volumes so they are still available after cluster restarts.
 {datagridservice} nodes can write all cache entries to persistent storage during
 cluster shutdown if you add a file-based cache store.
 
-include::{topics}/proc_shut_down_gracefully.adoc[leveloffset=+1]
-include::{topics}/proc_restart.adoc[leveloffset=+1]
+include::{topics}/proc_shutting_down.adoc[leveloffset=+1]
+include::{topics}/proc_restarting_clusters.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

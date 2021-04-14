@@ -1,11 +1,21 @@
-[id='services-{context}']
-= Service Types
-Services are stateful applications, based on the {brandname} server image, that
-provide flexible and robust in-memory data storage.
+[id='services_{context}']
+= Service types
+Services are stateful applications, based on the {brandname} Server image, that provide flexible and robust in-memory data storage.
 
-.{cacheservice}
+== {datagridservice}
 
-Use {cacheservice} if you want a volatile, low-latency data store with minimal configuration. {cacheservice} nodes:
+Use {datagridservice} if you want to:
+
+* Back up data across global clusters with cross-site replication.
+* Create caches with any valid configuration.
+* Add file-based cache stores to save data in a persistent volume.
+* Query values across caches using the {brandname} Query API.
+* Use advanced {brandname} features and capabilities.
+
+== {cacheservice}
+
+Use {cacheservice} if you want a volatile, low-latency data store with minimal configuration.
+{cacheservice} nodes:
 
 * Automatically scale to meet capacity when data storage demands go up or down.
 * Synchronously distribute data to ensure consistency.
@@ -15,16 +25,5 @@ Use {cacheservice} if you want a volatile, low-latency data store with minimal c
 
 [IMPORTANT]
 ====
-Because {cacheservice} nodes are volatile you lose all data when you apply
-changes to the cluster with the `Infinispan` CR or update the {brandname}
-version.
+Because {cacheservice} nodes are volatile you lose all data when you apply changes to the cluster with the `Infinispan` CR or update the {brandname} version.
 ====
-
-.{datagridservice}
-
-Use {datagridservice} if you want to:
-
-* Back up data across global clusters with cross-site replication.
-* Create caches with any valid configuration.
-* Add file-based cache stores to save data in the persistent volume.
-* Use {brandname} search and other advanced capabilities.

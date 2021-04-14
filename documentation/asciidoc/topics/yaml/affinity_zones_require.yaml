@@ -1,7 +1,8 @@
 spec:
   affinity:
     podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution: <1>
+      # Uses the zone strategy only when scheduling {brandname} replica pods.
+      requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
           matchLabels:
             app: infinispan-pod

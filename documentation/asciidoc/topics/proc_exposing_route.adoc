@@ -1,5 +1,5 @@
-[id='exposing_routes-{context}']
-= Exposing {brandname} Through Routes
+[id='exposing-routes_{context}']
+= Exposing {brandname} through routes
 //Community
 ifdef::community[]
 Use a {k8s} Ingress or an {openshiftshort} Route with passthrough encryption to
@@ -19,22 +19,15 @@ endif::downstream[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-spec:
-  ...
-  expose:
-    type: Route <1>
-    host: www.example.org <2>
-----
-+
 //Community
 ifdef::community[]
-<1> Exposes {brandname} on the network through a {k8s} Ingress or {openshiftshort} Route.
+include::yaml/expose_type_ingress.yaml[]
 endif::community[]
 //Downstream
 ifdef::downstream[]
-<1> Exposes {brandname} on the network through an {openshiftshort} Route.
+include::yaml/expose_type_route.yaml[]
 endif::downstream[]
-<2> Optionally specifies the hostname where {brandname} is exposed.
+----
 +
 . Apply the changes.
 . Verify that the route is available.

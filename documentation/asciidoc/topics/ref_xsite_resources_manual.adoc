@@ -1,0 +1,41 @@
+[id='cross-site-resources-manual_{context}']
+= Resources for manual cross-site connections
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/xsite_manual.yaml[]
+----
+
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`service.type: DataGrid`
+|{brandname} supports cross-site replication with {datagridservice} clusters only.
+
+|`service.sites.local.name`
+|Names the local site where a {brandname} cluster runs.
+
+//Community
+ifdef::community[]
+|`service.sites.local.expose.type`
+|Specifies the externally exposed service type. Use `NodePort` for local clusters on the same network. Use `LoadBalancer` for independent {openshiftshort} clusters.
+endif::community[]
+
+//Downstream
+ifdef::downstream[]
+|`service.sites.local.expose.type`
+|Specifies `LoadBalancer` as the service that handles communication between backup locations.
+endif::downstream[]
+
+|`service.sites.locations`
+|Provides connection information for all backup locations.
+
+|`service.sites.locations.name`
+|Specifies a backup location that matches `.spec.service.sites.local.name`.
+
+|`service.sites.locations.url`
+|Specifies the static URL for the backup location in the format of `infinispan+xsite://<hostname>:<port>`. The default port is `7900`.
+
+|===

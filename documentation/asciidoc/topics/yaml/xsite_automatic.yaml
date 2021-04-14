@@ -1,0 +1,18 @@
+spec:
+  ...
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: LON
+        expose:
+          type: LoadBalancer
+      locations:
+      - name: LON
+        url: openshift://api.site-a.devcluster.openshift.com:6443
+        secretName: lon-token
+      - name: NYC
+        clusterName: nyc-cluster-name
+        namespace: nyc-cluster-namespace
+        url: openshift://api.site-b.devcluster.openshift.com:6443
+        secretName: nyc-token

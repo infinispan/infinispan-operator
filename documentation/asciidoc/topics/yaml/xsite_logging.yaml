@@ -1,6 +1,8 @@
 spec:
   ...
   logging:
+    # Decrease log levels for JGroups TCP and RELAY2 protocols.
+    # This prevents a large number of log files from uses container storage.
     categories:
       org.jgroups.protocols.TCP: error
       org.jgroups.protocols.relay.RELAY2: error

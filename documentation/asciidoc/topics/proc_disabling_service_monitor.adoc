@@ -1,5 +1,5 @@
 [id='disabling-service-monitor_{context}']
-= Disabling the Prometheus Service Monitor
+= Disabling the Prometheus service monitor
 You can disable the `ServiceMonitor` if you do not want Prometheus to scrape metrics for your {brandname} cluster.
 
 .Procedure

@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
-[id='backing_restoring']
-:context: backup_restore
-= Backing Up and Restoring {brandname} Clusters
+[id='backing-up-restoring']
+:context: backup-restore
+= Backing up and restoring {brandname} clusters
 {ispn_operator} watches for custom resources (CR) that let you back up and restore {brandname} cluster state for disaster recovery or when migrating between {brandname} versions.
 
 `Backup` CR:: Archives {brandname} cluster content to a persistent volume.

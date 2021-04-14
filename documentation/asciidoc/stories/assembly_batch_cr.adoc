@@ -1,11 +1,12 @@
 ifdef::context[:parent-context: {context}]
-[id='batch_operations']
+[id='batch-cr']
 :context: batch
-= Running Batch Operations
+= Running batch operations
 {ispn_operator} provides a `Batch` CR that lets you create {brandname} resources in bulk.
 `Batch` CR uses the {brandname} command line interface (CLI) in batch mode to carry out sequences of operations.
 
 include::{topics}/proc_batching_inline.adoc[leveloffset=+1]
+include::{topics}/proc_batching_create_configmap.adoc[leveloffset=+1]
 include::{topics}/proc_batching_configmap.adoc[leveloffset=+1]
 include::{topics}/ref_batch_status.adoc[leveloffset=+1]
 include::{topics}/ref_batch_operations.adoc[leveloffset=+1]

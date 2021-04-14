@@ -1,0 +1,14 @@
+[id='creating-datagrid-service_{context}']
+= Creating {datagridservice} nodes
+To use custom cache definitions along with {brandname} capabilities such as cross-site replication, create clusters of {datagridservice} nodes.
+
+.Procedure
+
+. Create an `Infinispan` CR that sets `spec.service.type: DataGrid` and configures any other {datagridservice} resources.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/service_type_datagrid.yaml[]
+----
++
+. Apply your `Infinispan` CR to create the cluster.

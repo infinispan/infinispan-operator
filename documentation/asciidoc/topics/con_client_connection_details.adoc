@@ -1,5 +1,5 @@
-[id='client_connection_details-{context}']
-= Client Connection Details
+[id='client-connection-details_{context}']
+= Client connection details
 Before you can connect to {brandname}, you need to retrieve the following pieces of information:
 
 * Service hostname

@@ -1,15 +1,14 @@
 ifdef::context[:parent-context: {context}]
-[id='operator_reference']
-:context: ref
+[id='reference']
+:context: reference
 = Reference
-Find information about {brandname} services and clusters that you create with
-{ispn_operator}.
+Find information about {brandname} services and clusters that you create with {ispn_operator}.
 
-//Community includes image
+//Community only
 ifdef::community[]
 include::{topics}/ref_image_resource.adoc[leveloffset=+1]
 endif::community[]
-include::{topics}/ref_services.adoc[leveloffset=+1]
+include::{topics}/ref_network_services.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

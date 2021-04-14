@@ -1,5 +1,5 @@
-[id='exchanging_sa_tokens-{context}']
-= Exchanging Service Account Tokens
+[id='exchanging-sa-tokens_{context}']
+= Exchanging service account tokens
 After you create service account tokens on your {openshiftshort} clusters, you
 add them to secrets on each backup location. For example, at **LON** you add
 the service account token for **NYC**. At **NYC** you add the service account

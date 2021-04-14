@@ -1,5 +1,5 @@
 [id='deploying-code_{context}']
-= Deploying Custom Code
+= Deploying custom code
 Make your custom code available to {brandname} clusters.
 
 .Prerequisites

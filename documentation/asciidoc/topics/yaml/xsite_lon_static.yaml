@@ -1,0 +1,22 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  replicas: 3
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: LON
+        expose:
+          type: LoadBalancer
+      locations:
+        - name: LON
+          url: infinispan+xsite://infinispan-lon.myhost.com:7900
+        - name: NYC
+          url: infinispan+xsite://infinispan-nyc.myhost.com:7900
+    logging:
+      categories:
+        org.jgroups.protocols.TCP: error
+        org.jgroups.protocols.relay.RELAY2: error

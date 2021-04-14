@@ -1,16 +1,15 @@
 ifdef::context[:parent-context: {context}]
-[id='encrypting_connections']
+[id='configuring-encryption']
 :context: tls
-= Configuring Encryption
+= Configuring encryption
 Encrypt connections between clients and {brandname} nodes with {openshift}
 service certificates or custom TLS certificates.
 
 include::{topics}/ref_encryption_service_ca.adoc[leveloffset=+1]
 include::{topics}/proc_retrieving_tls_certificates.adoc[leveloffset=+1]
 include::{topics}/proc_disabling_encryption.adoc[leveloffset=+1]
-include::{topics}/proc_encrypting_endpoints_tls_secret.adoc[leveloffset=+1]
-include::{topics}/ref_secret_tls_certificate.adoc[leveloffset=+2]
-include::{topics}/ref_secret_tls_keystore.adoc[leveloffset=+2]
+include::{topics}/proc_using_custom_encryption_secrets.adoc[leveloffset=+1]
+include::{topics}/ref_custom_encryption_secrets.adoc[leveloffset=+2]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

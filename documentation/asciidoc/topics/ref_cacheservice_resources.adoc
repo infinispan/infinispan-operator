@@ -1,7 +1,0 @@
-[id='ref_cache_service_crd-{context}']
-= Cache Service Resources
-
-[source,options="nowrap",subs=attributes+]
-----
-include::yaml/cache_service.yaml[]
-----

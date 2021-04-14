@@ -1,29 +1,30 @@
 [id='copying-code_{context}']
-= Copying Code Artifacts
+= Copying code artifacts
 Before you can deploy custom code to {brandname} clusters, you need to make it available to pods.
-To do this you create a temporary pod that loads your code artifacts into a persistent volume claim (PVC).
+To do this you create a temporary pod that loads your code artifacts into a persistent volume (PV).
 
 [NOTE]
 ====
-The steps in this procedure offer a solution for making code artifacts available to {brandname} clusters.
-However there are several ways you can do this.
-You can adapt these steps as needed or use any alternative methods that you might have in place to copy code into PVCs.
+This procedure explains how to create persistent volume claims (PVCs) that use `ReadOnlyMany` or `ReadWriteMany` access modes.
+
+Depending on your platform these access modes might not be supported.
+Using `ReadWriteOnce` access mode can also lead to undesired behavior such as all {brandname} nodes in a cluster being scheduled on the same {k8s} node.
 ====
 
 .Procedure
 
-. Create a PVC with `ReadOnlyMany` or `ReadWriteMany` access mode.
-+
-[source,yaml,options="nowrap",subs=attributes+]
-----
-include::yaml/custom_code_pvc.yaml[]
-----
-+
 . Change to the namespace for your {brandname} cluster.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {set_namespace}
+----
++
+. Create a PVC with `ReadOnlyMany` or `ReadWriteMany` access mode.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/custom_code_pvc.yaml[]
 ----
 +
 . Apply your PVC.
@@ -52,14 +53,14 @@ $ {oc_wait} --for=condition=ready --timeout=2m pod/datagrid-libs-pod
 +
 For example to copy code artifacts from a local `libs` directory, do the following:
 +
-[source,yaml,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
 $ {oc_copy} --no-preserve=true libs datagrid-libs-pod:/tmp/
 ----
 +
 . Delete the pod.
 +
-[source,yaml,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
 $ {oc_delete_pod} datagrid-libs-pod
 ----
@@ -69,3 +70,4 @@ $ {oc_delete_pod} datagrid-libs-pod
 
 * link:{link_os_storage}
 * link:{link_k8s_storage}
+* link:{link_k8s_access_modes}

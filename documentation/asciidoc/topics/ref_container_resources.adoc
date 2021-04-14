@@ -1,14 +1,10 @@
-[id='memory_resources-{context}']
-= JVM, CPU, and Memory Resources
+[id='container-resources_{context}']
+= JVM, CPU, and memory resources
 
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml/cr_container_resources.yaml[]
+include::yaml/container_resources.yaml[]
 ----
-
-<1> Specifies JVM options.
-<2> Allocates host CPU resources to node, measured in CPU units.
-<3> Allocates host memory resources to nodes, measured in bytes.
 
 When {ispn_operator} creates {brandname} clusters, it uses `spec.container.cpu`
 and `spec.container.memory` to:

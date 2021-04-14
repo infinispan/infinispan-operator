@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
-[id='connecting_clients']
+[id='connecting-clients']
 :context: clients
-= Establishing Remote Client Connections
+= Establishing remote client connections
 Connect to {brandname} clusters from the {brandname} Console, Command Line Interface (CLI), and remote clients.
 
 include::{topics}/con_client_connection_details.adoc[leveloffset=+1]

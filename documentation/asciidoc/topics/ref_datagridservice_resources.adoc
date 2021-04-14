@@ -1,7 +1,0 @@
-[id='ref_datagrid_service_crd-{context}']
-= {datagridservice} Resources
-
-[source,yaml,options="nowrap",subs=attributes+]
-----
-include::yaml/datagrid_service.yaml[]
-----

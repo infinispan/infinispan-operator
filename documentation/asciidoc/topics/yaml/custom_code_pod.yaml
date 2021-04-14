@@ -3,13 +3,19 @@ kind: Pod
 metadata:
   name: datagrid-libs-pod
 spec:
+  # Uncomment the securityContext.fsGroup field if required.
+  #securityContext:
+    #fsGroup: 1000710000
   volumes:
     - name: lib-pv-storage
       persistentVolumeClaim:
         claimName: datagrid-libs
   containers:
     - name: lib-pv-container
-      image: quay.io/infinispan/server:{server_image_version}
+      image: {server_image}:{server_image_version}
       volumeMounts:
         - mountPath: /tmp/libs
           name: lib-pv-storage
+      # Uncomment the securityContext.runAsUser field if required.
+      #securityContext:
+        #runAsUser: 1000710000

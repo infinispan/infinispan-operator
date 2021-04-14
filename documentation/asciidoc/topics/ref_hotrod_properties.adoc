@@ -1,5 +1,5 @@
-[id='hotrod_properties-{context}']
-= Hot Rod Client Properties
+[id='hotrod-properties_{context}']
+= Hot Rod client properties
 You can configure Hot Rod client connections with the `hotrod-client.properties` file on the application classpath.
 
 [NOTE]

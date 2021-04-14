@@ -1,21 +1,20 @@
-[id='disabling_authentication-{context}']
-= Disabling Authentication
-Allow users to access {brandname} clusters and data without providing credentials.
+[id='disabling-authentication_{context}']
+= Disabling user authentication
+Allow users to access {brandname} clusters and manipulate data without providing credentials.
 
 [IMPORTANT]
 ====
 Do not disable authentication if endpoints are accessible from outside the {k8s} cluster via `spec.expose.type`.
+You should disable authentication for development environments only.
 ====
 
 .Procedure
 
-* Set `false` as the value for the `spec.security.endpointAuthentication` field in your `Infinispan` CR and then apply the changes.
+. Set `false` as the value for the `spec.security.endpointAuthentication` field in your `Infinispan` CR.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-spec:
-  ...
-  security:
-    endpointAuthentication: false <1>
+include::yaml/authentication_disabled.yaml[]
 ----
-<1> Disables user authentication.
++
+. Apply the changes.

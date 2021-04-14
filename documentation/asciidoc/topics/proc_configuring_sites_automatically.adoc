@@ -1,5 +1,5 @@
-[id='configuring_sites-{context}']
-= Configuring {ispn_operator} to Handle Cross-Site Connections
+[id='configuring-sites-automatically_{context}']
+= Configuring {ispn_operator} to handle cross-site connections
 Configure {ispn_operator} to establish cross-site views with {brandname} clusters.
 
 .Prerequisites
@@ -19,69 +19,27 @@ The following are example `Infinispan` CR definitions for **LON** and **NYC**:
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: {example_crd_name}
-spec:
-  replicas: 3
-  service:
-    type: DataGrid
-    sites:
-      local:
-        name: LON
-        expose:
-          type: LoadBalancer
-      locations:
-        - name: LON
-          url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
-          secretName: lon-token
-        - name: NYC
-          clusterName: nyc-cluster
-          namespace: nyc-cluster-namespace
-          url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
-          secretName: nyc-token
+include::yaml/xsite_lon.yaml[]
 ----
 +
 * **NYC**
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: nyc-cluster
-spec:
-  replicas: 2
-  service:
-    type: DataGrid
-    sites:
-      local:
-        name: NYC
-        expose:
-          type: LoadBalancer
-      locations:
-        - name: NYC
-          url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
-          secretName: nyc-token
-        - name: LON
-          clusterName: {example_crd_name}
-          namespace: {example_namespace}
-          url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
-          secretName: lon-token
+include::yaml/xsite_nyc.yaml[]
 ----
 +
-. Adjust logging levels for cross-site replication as follows:
-+
+[IMPORTANT]
+====
+Be sure to adjust logging categories in your `Infinispan` CR as follows:
+
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/xsite_logging.yaml[]
 ----
+====
 +
-The preceding configuration decreases logging for JGroups TCP and RELAY2 protocols to reduce excessive messages about cluster backup operations, which can result in a large number of log files that use container storage.
-+
-. Configure nodes with any other {datagridservice} resources.
-. Apply the `Infinispan` CRs.
+. Configure your `Infinispan` CRs with any other {datagridservice} resources and then apply the changes.
 . Verify that {brandname} clusters form a cross-site view.
 .. Retrieve the `Infinispan` CR.
 +
@@ -96,10 +54,3 @@ include::cmd_examples/get_infinispan.adoc[]
 
 If your clusters have formed a cross-site view, you can start adding backup
 locations to caches.
-
-[role="_additional-resources"]
-.Additional resources
-
-* link:#ref_xsite_crd_automatic-xsite_operator[Cross-Site Replication Resources]
-* link:#adding_backup_locations-cache-cr[Adding Backup Locations to Caches]
-* link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]

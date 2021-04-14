@@ -1,5 +1,5 @@
 [id='creating-service-monitor_{context}']
-= Creating a Prometheus Service Monitor
+= Creating a Prometheus service monitor
 {ispn_operator} automatically creates a Prometheus `ServiceMonitor` that scrapes metrics from your {brandname} cluster.
 
 .Procedure
@@ -35,5 +35,4 @@ vendor_cache_manager_default_cluster_size
 
 [role="_additional-resources"]
 .Additional resources
-
 * link:{link_os_monitoring}

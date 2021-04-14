@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
-[id='backup_sites']
-:context: xsite
-= Setting Up Cross-Site Replication
+[id='setting-up-xsite']
+:context: cross-site
+= Setting up cross-site replication
 Cross-site replication allows you to back up data from one {brandname} cluster to another.
 
 To set up cross-site replication, you configure {ispn_operator} to automatically discover and manage connections between {brandname} clusters or manually specify the network locations for backup locations.

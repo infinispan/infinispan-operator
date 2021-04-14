@@ -1,8 +1,12 @@
-[id='get_clusterip-{context}']
-= Retrieving Cluster IP Addresses
+[id='retrieving-cluster-ip_{context}']
+= Retrieving cluster IP addresses
 Services that provide access to {brandname} have cluster IP addresses that you
 can use with client connections.
 
+.Procedure
+
+* Get {brandname} cluster IP address as follows:
++
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_get_service} {example_crd_name} -o jsonpath={.spec.clusterIP}

@@ -1,0 +1,14 @@
+[id='applying-cluster-roles-xsite_{context}']
+= Applying cluster roles for cross-site replication
+During OLM installation, {ispn_operator} sets up cluster roles required for cross-site replication.
+If you install {ispn_operator} manually, you must complete this procedure to set up those cluster roles.
+
+.Procedure
+
+* Install `clusterrole.yaml` and `clusterrole_binding.yaml` as follows:
+
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} deploy/clusterrole.yaml
+$ {oc_apply_cr} deploy/clusterrole_binding.yaml
+----

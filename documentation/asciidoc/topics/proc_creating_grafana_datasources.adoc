@@ -1,5 +1,5 @@
 [id='creating-grafana-dashboards_{context}']
-= Creating Grafana Data Sources
+= Creating Grafana data sources
 Create a `GrafanaDatasource` CR so you can visualize {brandname} metrics in Grafana dashboards.
 
 .Prerequisites

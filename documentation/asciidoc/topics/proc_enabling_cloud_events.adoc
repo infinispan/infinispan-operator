@@ -1,5 +1,5 @@
 [id='enabling-cloud-events_{context}']
-= Enabling Cloud Events
+= Enabling cloud events
 Configure {brandname} to send `CloudEvents`.
 
 .Prerequisites

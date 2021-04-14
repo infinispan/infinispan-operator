@@ -1,0 +1,15 @@
+spec:
+  ...
+  service:
+    type: Cache
+  autoscale:
+    # A value of `true` disables automatic scaling. The default is `false`.
+    #disabled: true
+    # Sets a maximum threshold, as a percentage, for memory usage on each node.
+    maxMemUsagePercent: 70
+    # Defines the maximum number of number of nodes for the cluster.
+    maxReplicas: 5
+    # Sets a minimum threshold, as a percentage, for cluster memory usage.
+    minMemUsagePercent: 30
+    # Defines the minimum number of number of nodes for the cluster.
+    minReplicas: 2
