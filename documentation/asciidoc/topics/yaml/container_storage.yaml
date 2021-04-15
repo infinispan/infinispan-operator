@@ -1,11 +1,7 @@
 spec:
-  ...
   service:
     type: DataGrid
     container:
-      # Configures the storage size for {datagridservice} nodes.
       storage: 2Gi
-      # Defines whether storage is ephemeral or permanent.
       ephemeralStorage: false
-      # Specifies the name of a StorageClass object.
       storageClassName: my-storage-class

@@ -1,7 +1,5 @@
 spec:
-  ...
   logging:
-    # Specifies levels for logging categories.
     categories:
       org.infinispan: debug
       org.jgroups: debug

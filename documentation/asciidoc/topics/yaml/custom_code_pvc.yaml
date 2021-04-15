@@ -4,7 +4,7 @@ metadata:
   name: datagrid-libs
 spec:
   accessModes:
-    - ReadOnlyMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 100Mi

@@ -1,7 +1,6 @@
 spec:
   affinity:
     podAntiAffinity:
-      # {k8s} does not schedule {brandname} pods if different nodes are not available.
       requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
           matchLabels:

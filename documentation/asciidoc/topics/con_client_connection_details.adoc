@@ -26,7 +26,6 @@ Routes use either port `80` (unencrypted) or `443` (encrypted).
 
 [role="_additional-resources"]
 .Additional resources
-
-* link:#network_services[Configuring Network Access to {brandname}]
-* link:#getting_credentials-authn[Retrieving Credentials]
-* link:#getting_certs-tls[Retrieving TLS Certificates]
+* link:#creating-network[Configuring Network Access to {brandname}]
+* link:#retrieving-credentials_authn[Retrieving Credentials]
+* link:#retrieving-tls-certificates_tls[Retrieving TLS Certificates]

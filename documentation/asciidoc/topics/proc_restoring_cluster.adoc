@@ -18,8 +18,9 @@ For example, a client does `cache.put(k=2)` before you restore a backup that con
 .Procedure
 
 . Create a `Restore` CR.
-+
-For example, create `my-restore.yaml` with the following:
+.. Name the `Restore` CR with the `metadata.name` field.
+.. Specify a `Backup` CR to use with the `spec.backup` field.
+.. Specify the {brandname} cluster to restore with the `spec.cluster` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----

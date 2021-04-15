@@ -1,7 +1,4 @@
 spec:
-  ...
   expose:
-    # Exposes {brandname} through a load balancer service on port `11222`.
     type: LoadBalancer
-    # Optionally forwards traffic to a node port.
     nodePort: 30000

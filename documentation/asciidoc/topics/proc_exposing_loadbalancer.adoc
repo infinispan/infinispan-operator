@@ -11,7 +11,8 @@ a load balancer service.
 .Procedure
 
 . Include `spec.expose` in your `Infinispan` CR.
-. Specify `LoadBalancer` as the service type with `spec.expose.type`.
+. Specify `LoadBalancer` as the service type with the `spec.expose.type` field.
+. Optionally specify a node port to which the load balancer forwards traffic with the `spec.expose.nodePort` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----

@@ -16,6 +16,9 @@ endif::downstream[]
 . Open your `Infinispan` CR for editing.
 . Add any labels that you want {ispn_operator} to attach to resources with `metadata.annotations`.
 . Add values for your labels with `metadata.labels`.
+.. Specify labels that you want to attach to services with the `metadata.annotations.infinispan.org/targetLabels` field.
+.. Specify labels that you want to attach to pods with the `metadata.annotations.infinispan.org/podTargetLabels` field.
+.. Define values for your labels with the `metadata.labels` fields.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----

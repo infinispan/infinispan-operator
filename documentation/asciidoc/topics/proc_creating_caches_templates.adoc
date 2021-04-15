@@ -10,6 +10,10 @@ You can find a list of available templates in {brandname} Console.
 .Procedure
 
 . Create a `Cache` CR that specifies the name of a template to use.
+.. Specify a name for the `Cache` CR with the `metadata.name` field.
+.. Specify the target {brandname} cluster with the `spec.clusterName` field.
+.. Name your cache with the `spec.name` field.
+.. Specify a cache template with the `spec.template` field.
 +
 The following example creates a cache named "mycache" from the `org.infinispan.DIST_SYNC` cache template:
 +

@@ -1,5 +1,0 @@
-$ {oc_get_pods}
-
-NAME                   READY     STATUS    RESTARTS   AGE
-{example_crd_name}-0        1/1       Running   0          1m
-{example_crd_name}-1        1/1       Running   0          49s

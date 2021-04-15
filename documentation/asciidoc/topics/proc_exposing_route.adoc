@@ -14,19 +14,12 @@ endif::downstream[]
 .Procedure
 
 . Include `spec.expose` in your `Infinispan` CR.
-. Specify `Route` as the service type with `spec.expose.type`.
-. Optionally add a hostname with `spec.expose.host`.
+. Specify `Route` as the service type with the `spec.expose.type` field.
+. Optionally add a hostname with the `spec.expose.host` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-//Community
-ifdef::community[]
-include::yaml/expose_type_ingress.yaml[]
-endif::community[]
-//Downstream
-ifdef::downstream[]
 include::yaml/expose_type_route.yaml[]
-endif::downstream[]
 ----
 +
 . Apply the changes.

@@ -6,8 +6,25 @@
 include::yaml/container_resources.yaml[]
 ----
 
-When {ispn_operator} creates {brandname} clusters, it uses `spec.container.cpu`
-and `spec.container.memory` to:
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`spec.container.extraJvmOpts`
+|Specifies JVM options.
+
+|`spec.container.cpu`
+|Allocates host CPU resources to {brandname} nodes, measured in CPU units.
+
+|`spec.container.memory`
+|Allocates host memory to {brandname} nodes, measured in bytes.
+
+|===
+
+== Resource usage
+
+When {ispn_operator} creates {brandname} clusters, it uses `spec.container.cpu` and `spec.container.memory` to:
 
 * Ensure that {k8s} has sufficient capacity to run the {brandname} node. By
 default {ispn_operator} requests **512Mi** of `memory` and **0.5** `cpu` from
@@ -15,7 +32,8 @@ the {k8s} scheduler.
 * Constrain node resource usage. {ispn_operator} sets the values of `cpu` and
 `memory` as resource limits.
 
-.Garbage collection logging
+== Garbage collection logging
+
 By default, {ispn_operator} does not log garbage collection (GC) messages.
 You can optionally add the following JVM options to direct GC messages to
 stdout:

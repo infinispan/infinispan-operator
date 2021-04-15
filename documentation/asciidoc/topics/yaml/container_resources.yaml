@@ -1,9 +1,5 @@
 spec:
-  ...
   container:
-    # Specifies JVM options.
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
-    # Allocates host CPU resources to node, measured in CPU units.
     cpu: "1000m"
-    # Allocates host memory resources to nodes, measured in bytes.
     memory: 1Gi

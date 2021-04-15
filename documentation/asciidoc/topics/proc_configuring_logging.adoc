@@ -4,7 +4,7 @@ Change levels for different {brandname} logging categories.
 
 .Procedure
 
-. Configure {brandname} logging with the `spec.logging` field in your `Infinispan` CR.
+. Configure {brandname} logging with the `spec.logging.categories` field in your `Infinispan` CR.
 +
 [source,options="nowrap",subs=attributes+]
 ----

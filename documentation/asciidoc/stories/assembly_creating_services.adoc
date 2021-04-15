@@ -6,6 +6,8 @@ Use {ispn_operator} to create clusters of either {cacheservice} or {datagridserv
 
 [IMPORTANT]
 ====
+If you do not specify a value for the `spec.service.type` field, {ispn_operator} creates {cacheservice} nodes by default.
+
 You cannot change the `spec.service.type` field after you create nodes.
 To change the service type, you must delete the existing nodes and create new ones.
 ====
@@ -14,29 +16,16 @@ include::{topics}/con_services.adoc[leveloffset=+1]
 
 //Data Grid Service
 include::{topics}/proc_creating_datagrid_service.adoc[leveloffset=+1]
-
-[id='datagrid-custom-resources_{context}']
-=== {datagridservice} resources
-
-[source,yaml,options="nowrap",subs=attributes+]
-----
-include::{topics}/yaml/datagrid_service.yaml[]
-----
+include::{topics}/ref_datagrid_service_resources.adoc[leveloffset=+2]
 
 //Cache Service
 include::{topics}/proc_creating_cache_service.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
 include::{topics}/proc_configuring_owners.adoc[leveloffset=+2]
+include::{topics}/ref_cache_service_resources.adoc[leveloffset=+2]
 
-[id='cacheservice-custom-resources_{context}']
-=== {cacheservice} resources
 
-[source,options="nowrap",subs=attributes+]
-----
-include::{topics}/yaml/cache_service.yaml[]
-----
-
-//Labelling
+//Labeling
 include::{topics}/proc_adding_custom_labels.adoc[leveloffset=+1]
 //Community content
 ifdef::community[]

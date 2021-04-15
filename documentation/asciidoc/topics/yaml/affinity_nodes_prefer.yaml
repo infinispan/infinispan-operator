@@ -2,7 +2,6 @@ spec:
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
-      # Sets the hostname strategy as most preferred.
       - weight: 100
         podAffinityTerm:
           labelSelector:
@@ -10,5 +9,4 @@ spec:
               app: infinispan-pod
               clusterName: <cluster_name>
               infinispan_cr: <cluster_name>
-          #Schedules {brandname} replica pods on different {k8s} nodes.
           topologyKey: "kubernetes.io/hostname"

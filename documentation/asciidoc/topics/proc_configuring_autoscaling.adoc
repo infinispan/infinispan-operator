@@ -25,7 +25,16 @@ When {ispn_operator} detects that memory usage falls below the minimum, it shuts
 .Procedure
 
 . Add the `spec.autoscale` resource to your `Infinispan` CR to enable automatic scaling.
-. Configure memory usage thresholds and number of nodes for your cluster with the `autoscale` field.
++
+[NOTE]
+====
+Set a value of `true` for the `autoscale.disabled` field to disable automatic scaling.
+====
++
+. Specify a maximum threshold, as a percentage, for memory usage on each node with the `spec.autoscale.maxMemUsagePercent` field.
+. Set the maximum number of number of nodes for the cluster with the `spec.autoscale.maxReplicas` field.
+. Specify a minimum threshold, as a percentage, for cluster memory usage with the `spec.autoscale.minMemUsagePercent` field.
+. Set the minimum number of number of nodes for the cluster with the `spec.autoscale.minReplicas` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----

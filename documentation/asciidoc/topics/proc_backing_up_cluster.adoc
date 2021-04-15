@@ -18,15 +18,15 @@ To ensure that you archive the exact state of the cluster, make sure there are n
 .Procedure
 
 . Create a `Backup` CR.
-+
-For example, create `my-backup.yaml` with the following:
+.. Name the `Backup` CR with the `metadata.name` field.
+.. Specify the {brandname} cluster to backup with the `spec.cluster` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/backup.yaml[]
 ----
 +
-. Add the `spec.resources` field to back up certain resources only.
+. Add the `spec.resources` field if you only want to back up certain resources.
 +
 [source,options="nowrap",subs=attributes+]
 ----

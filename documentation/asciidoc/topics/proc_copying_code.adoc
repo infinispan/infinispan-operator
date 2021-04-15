@@ -3,13 +3,20 @@
 Before you can deploy custom code to {brandname} clusters, you need to make it available to pods.
 To do this you create a temporary pod that loads your code artifacts into a persistent volume (PV).
 
+This procedure explains how to create two persistent volume claims (PVCs) that use `ReadWriteOnce` and `ReadOnlyMany` access modes.
+If the `ReadWriteMany` access mode is available, you can create a single PVC instead.
+
 [NOTE]
 ====
-This procedure explains how to create persistent volume claims (PVCs) that use `ReadOnlyMany` or `ReadWriteMany` access modes.
-
-Depending on your platform these access modes might not be supported.
-Using `ReadWriteOnce` access mode can also lead to undesired behavior such as all {brandname} nodes in a cluster being scheduled on the same {k8s} node.
+Support for PVC access modes is platform dependent.
+In some cases `ReadOnlyMany` or `ReadWriteMany` access modes are not available.
+You should be aware that using `ReadWriteOnce` access mode only can lead to undesired behavior such as all {brandname} nodes in a cluster being scheduled on the same {k8s} node.
 ====
+
+Adding code artifacts to a pods is a two-step process:
+
+. Write code artifacts to the PV, which requires `ReadWriteOnce` access.
+. Read code artifacts from the {brandname} pods, which requires `ReadOnlyMany` access.
 
 .Procedure
 
@@ -20,20 +27,26 @@ Using `ReadWriteOnce` access mode can also lead to undesired behavior such as al
 $ {set_namespace}
 ----
 +
-. Create a PVC with `ReadOnlyMany` or `ReadWriteMany` access mode.
+. Create PVCs for your custom code artifacts.
+.. Create a PVC with the `ReadWriteOnce` access mode so you can add your code artifacts to the PV.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/custom_code_pvc.yaml[]
 ----
 +
-. Apply your PVC.
+.. Apply your PVC.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_apply_cr} datagrid-libs.yaml
 ----
 +
+.. Add your code artifacts to the PV.
+.. Note the value of the `spec.volumeName` field for the PVC.
+.. Delete the PVC.
+
+
 . Create a pod that mounts the PVC, for example:
 +
 [source,yaml,options="nowrap",subs=attributes+]

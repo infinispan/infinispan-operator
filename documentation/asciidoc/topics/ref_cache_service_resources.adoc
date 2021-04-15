@@ -1,0 +1,50 @@
+[id='cache-service-resources_{context}']
+= {cacheservice} resources
+
+[source,options="nowrap",subs=attributes+]
+----
+include::{topics}/yaml/cache_service.yaml[]
+----
+
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`metadata.name`
+|Names your {brandname} cluster.
+
+|`metadata.annotations.infinispan.org/monitoring`
+|Automatically creates a `ServiceMonitor` for your cluster.
+
+|`spec.replicas`
+|Specifies the number of nodes in your cluster.
+
+|`spec.service.type`
+|Configures the type {brandname} service. A value of `Cache` creates a cluster with {cacheservice} nodes.
+
+|`spec.service.replicationFactor`
+|Sets the number of copies for each entry across the cluster.
+
+|`spec.autoscale`
+|Enables and configures automatic scaling.
+
+|`spec.security.endpointSecretName`
+|Specifies an authentication secret that contains {brandname} user credentials.
+
+|`spec.security.endpointEncryption`
+|Specifies TLS certificates and keystores to encrypt client connections.
+
+|`spec.container`
+|Specifies JVM, CPU, and memory resources for {brandname} nodes.
+
+|`spec.logging`
+|Configures {brandname} logging categories.
+
+|`spec.expose`
+|Controls how {brandname} endpoints are exposed on the network.
+
+|`spec.affinity`
+|Configures anti-affinity strategies that guarantee {brandname} availability.
+
+|===

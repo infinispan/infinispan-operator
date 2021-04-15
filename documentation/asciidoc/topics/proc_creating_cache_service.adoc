@@ -1,6 +1,6 @@
 [id='creating-cache-service_{context}']
 = Creating {cacheservice} nodes
-By default, {ispn_operator} creates {brandname} clusters with {cacheservice} nodes.
+Create {brandname} clusters with {cacheservice} nodes for a volatile, low-latency data store with minimal configuration.
 
 .Procedure
 

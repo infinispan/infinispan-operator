@@ -1,12 +1,8 @@
 apiVersion: infinispan.org/v2alpha1
 kind: Cache
 metadata:
-  # Names the Cache CR.
   name: mycachedefinition
 spec:
-  # Specifies the target {brandname} cluster.
   clusterName: {example_crd_name}
-  # Names the {brandname} cache.
   name: mycache
-  # Specifies a `infinispan.org` cache template.
   templateName: org.infinispan.DIST_SYNC

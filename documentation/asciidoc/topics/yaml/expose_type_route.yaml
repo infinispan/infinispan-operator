@@ -1,7 +1,4 @@
 spec:
-  ...
   expose:
-    # Exposes {brandname} on the network through an {openshiftshort} Route.
     type: Route
-    # Optionally specifies a hostname.
     host: www.example.org

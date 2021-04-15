@@ -2,7 +2,6 @@ spec:
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
-      # Sets the zone strategy as most preferred.
       - weight: 100
         podAffinityTerm:
           labelSelector:
@@ -10,9 +9,7 @@ spec:
               app: infinispan-pod
               clusterName: <cluster_name>
               infinispan_cr: <cluster_name>
-          #Schedules {brandname} replica pods across multiple zones.
           topologyKey: "topology.kubernetes.io/zone"
-      # Sets the hostname strategy as next preferred.
       - weight: 90
         podAffinityTerm:
           labelSelector:
@@ -20,5 +17,4 @@ spec:
               app: infinispan-pod
               clusterName: <cluster_name>
               infinispan_cr: <cluster_name>
-          # Schedules {brandname} replica pods on different {k8s} nodes if it is not possible to schedule across zones.
           topologyKey: "kubernetes.io/hostname"

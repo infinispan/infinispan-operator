@@ -11,13 +11,16 @@ include::yaml/container_storage.yaml[]
 [%header,cols=2*]
 |===
 |Field
-|Additional information
+|Description
 
-|`ephemeralStorage`
-|Set the value to `true` to use ephemeral storage, which means all data in storage is deleted when clusters shut down or restart. The default value is `false`, which means storage is permanent.
+|`spec.service.container.storage`
+|Specifies the amount of storage for {datagridservice} nodes.
 
-|`storageClassName`
-|Specify the name of a `StorageClass` object to use for the persistent volume claim. If you include this field, you must specify an existing storage class as the value. If you do not include this field, the persistent volume claim uses the storage class that has the `storageclass.kubernetes.io/is-default-class` annotation set to `true`.
+|`spec.service.container.ephemeralStorage`
+|Defines whether storage is ephemeral or permanent. Set the value to `true` to use ephemeral storage, which means all data in storage is deleted when clusters shut down or restart. The default value is `false`, which means storage is permanent.
+
+|`spec.service.container.storageClassName`
+|Specifies the name of a `StorageClass` object to use for the persistent volume claim (PVC). If you include this field, you must specify an existing storage class as the value. If you do not include this field, the persistent volume claim uses the storage class that has the `storageclass.kubernetes.io/is-default-class` annotation set to `true`.
 
 |===
 

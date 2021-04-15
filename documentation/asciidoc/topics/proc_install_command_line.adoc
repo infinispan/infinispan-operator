@@ -47,7 +47,10 @@ include::yaml/operator_subscription.yaml[]
 EOF
 ----
 +
-<1> Specify `Manual` if you want to manually approve updates from the {operator_channel} channel.
+[NOTE]
+====
+If you want to manually approve updates from the {operator_channel} channel, change the value of the `spec.installPlanApproval` field to `Manual`.
+====
 +
 . Verify the installation.
 +

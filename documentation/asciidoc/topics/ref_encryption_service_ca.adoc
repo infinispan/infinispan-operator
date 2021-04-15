@@ -11,6 +11,19 @@ If the {openshift} service CA is available, {ispn_operator} adds the following `
 include::yaml/encryption_service_ca.yaml[]
 ----
 
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`spec.security.endpointEncryption.certServiceName`
+|Specifies the service that provides TLS certificates.
+
+|`spec.security.endpointEncryption.certSecretName`
+|Specifies a secret with a service certificate and key in PEM format. Defaults to `<cluster_name>-cert-secret`.
+
+|===
+
 [NOTE]
 ====
 Service certificates use the internal DNS name of the {brandname} cluster as the common name (CN), for example:

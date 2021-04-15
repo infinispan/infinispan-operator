@@ -9,6 +9,9 @@ Before you can send `CloudEvents`, you need to set up an Apache Kafka cluster th
 .Procedure
 
 . Add `spec.cloudEvents` to your `Infinispan` CR.
+.. Configure the number of acknowledgements with the `spec.cloudEvents.acks` field. Values are "0", "1", or "all".
+.. List Kafka servers to which {brandname} sends events with the `spec.cloudEvents.bootstrapServers` field.
+.. Specify the Kafka topic for {brandname} events with the `spec.cloudEvents.cacheEntriesTopic` field.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----

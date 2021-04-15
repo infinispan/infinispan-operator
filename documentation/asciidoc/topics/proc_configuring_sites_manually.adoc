@@ -28,7 +28,8 @@ include::yaml/xsite_nyc_static.yaml[]
 +
 [IMPORTANT]
 ====
-Be sure to adjust logging categories in your `Infinispan` CR as follows:
+Be sure to adjust logging categories in your `Infinispan` CR to decrease log levels for JGroups TCP and RELAY2 protocols.
+This prevents a large number of log files from uses container storage.
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----

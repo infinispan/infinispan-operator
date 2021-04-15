@@ -20,8 +20,16 @@ You can modify global configuration properties while {ispn_operator} is running.
 include::yaml/infinispan_operator_config.yaml[]
 ----
 +
-. Specify a namespace with the `grafana.dashboard.namespace` property.
-. Specify values for other `data.grafana.dashboard` properties as required.
+. Specify the namespace of your {brandname} cluster with the `data.grafana.dashboard.namespace` property.
++
+[NOTE]
+====
+Deleting the value for this property removes the dashboard.
+Changing the value moves the dashboard to that namespace.
+====
++
+. Specify a name for the dashboard with the `data.grafana.dashboard.name` property.
+. If necessary, specify a monitoring key with the `data.grafana.dashboard.monitoring.key` property.
 . Create `infinispan-operator-config` or update the configuration.
 +
 [source,options="nowrap",subs=attributes+]

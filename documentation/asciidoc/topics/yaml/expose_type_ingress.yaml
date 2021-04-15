@@ -1,7 +1,0 @@
-spec:
-  ...
-  expose:
-    # Exposes {brandname} on the network through an Ingress or Route.
-    type: Route
-    # Optionally specifies a hostname.
-    host: www.example.org

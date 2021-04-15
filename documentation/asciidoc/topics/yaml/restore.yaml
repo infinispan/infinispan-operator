@@ -1,10 +1,7 @@
 apiVersion: infinispan.org/v2alpha1
 kind: Restore
 metadata:
-  # Names the `Restore` CR.
   name: my-restore
 spec:
-  # Specifies the name of a `Backup` CR.
   backup: my-backup
-  # Specifies the name of the {brandname} cluster to restore.
   cluster: target-cluster

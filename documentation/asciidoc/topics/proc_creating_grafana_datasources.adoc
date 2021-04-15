@@ -6,7 +6,7 @@ Create a `GrafanaDatasource` CR so you can visualize {brandname} metrics in Graf
 
 * Have an `oc` client.
 * Have `cluster-admin` access to {ocp}.
-* Create a Prometheus `ServiceMonitor` that scrapes {brandname} metrics.
+* Enable monitoring for user-defined projects on {ocp}.
 * Install the Grafana Operator from the **alpha** channel and create a `Grafana` CR.
 
 .Procedure
@@ -42,7 +42,7 @@ $ oc serviceaccounts get-token infinispan-monitoring
 eyJhbGciOiJSUzI1NiIsImtpZCI6Imc4O...
 ----
 +
-.. Define a `GrafanaDataSource` that includes the token as follows:
+.. Define a `GrafanaDataSource` that includes the token in the `spec.datasources.secureJsonData.httpHeaderValue1` field, as in the following example:
 +
 [source,options="nowrap",subs=attributes+]
 ----

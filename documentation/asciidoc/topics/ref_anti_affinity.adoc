@@ -2,6 +2,19 @@
 = Anti-affinity strategy configurations
 Configure anti-affinity strategies in your `Infinispan` CR to control where {k8s} schedules {brandname} replica pods.
 
+[%header,cols=2*]
+|===
+|Topology keys
+|Description
+
+|`topologyKey: "topology.kubernetes.io/zone"`
+|Schedules {brandname} replica pods across multiple zones.
+
+|`topologyKey: "kubernetes.io/hostname"`
+|Schedules {brandname} replica pods on different {k8s} nodes.
+
+|===
+
 [discrete]
 == Schedule pods on different {k8s} nodes
 
@@ -12,7 +25,10 @@ The following is the anti-affinity strategy that {ispn_operator} uses if you do 
 include::yaml/affinity_nodes_prefer.yaml[]
 ----
 
-.Requiring different nodes
+[discrete]
+=== Requiring different nodes
+
+In the following example, {k8s} does not schedule {brandname} pods if different nodes are not available:
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
@@ -27,14 +43,17 @@ To ensure that you can schedule {brandname} replica pods on different {k8s} node
 [discrete]
 == Schedule pods across multiple {k8s} zones
 
-The following example prefers multiple zones when scheduling pods:
+The following example prefers multiple zones when scheduling pods but schedules {brandname} replica pods on different {k8s} nodes if it is not possible to schedule across zones:
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/affinity_zones_prefer.yaml[]
 ----
 
-.Requiring multiple zones
+[discrete]
+=== Requiring multiple zones
+
+The following example uses the zone strategy only when scheduling {brandname} replica pods:
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----

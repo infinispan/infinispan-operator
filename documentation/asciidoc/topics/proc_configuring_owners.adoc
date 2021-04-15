@@ -6,7 +6,7 @@ nodes is two, which duplicates each entry to prevent data loss.
 
 .Procedure
 
-. Specify the number of owners with the `spec.service.replicationFactor` resource in your `Infinispan` CR as follows:
+. Specify the number of copies for each cache entry with the `spec.service.replicationFactor` field in your `Infinispan` CR.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----

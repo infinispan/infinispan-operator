@@ -1,8 +1,4 @@
 spec:
-  ...
   expose:
-    # Exposes {brandname} through a node port service.
     type: NodePort
-    # Defines the port where {brandname} is exposed.
-    # If you do not specify a port, the platform selects one.
     nodePort: 30000
