@@ -1,22 +1,25 @@
 [id='copying-code_{context}']
 = Copying code artifacts
-Before you can deploy custom code to {brandname} clusters, you need to make it available to pods.
-To do this you create a temporary pod that loads your code artifacts into a persistent volume (PV).
+Before you can deploy custom code to {brandname} clusters, you need to add it to a persistent volume (PV).
 
-This procedure explains how to create two persistent volume claims (PVCs) that use `ReadWriteOnce` and `ReadOnlyMany` access modes.
-If the `ReadWriteMany` access mode is available, you can create a single PVC instead.
+This procedure explains how to use a temporary pod that mounts a persistent volume claim (PVC) that:
+
+* Lets you add code artifacts to the PV (perform a write operation).
+* Allows {brandname} pods to load code artifacts from the PV (perform a read operation).
+
+To perform these read and write operations, you need certain PV access modes.
+However, support for different PVC access modes is platform dependent.
+
+It is beyond the scope of this document to provide instructions for creating PVCs with different platforms.
+For simplicity, the following procedure shows a PVC with the `ReadWriteMany` access mode.
+
+In some cases only the `ReadOnlyMany` or `ReadWriteOnce` access modes are available.
+You can use a combination of those access modes by reclaiming and reusing PVCs with the same `spec.volumeName`.
 
 [NOTE]
 ====
-Support for PVC access modes is platform dependent.
-In some cases `ReadOnlyMany` or `ReadWriteMany` access modes are not available.
-You should be aware that using `ReadWriteOnce` access mode only can lead to undesired behavior such as all {brandname} nodes in a cluster being scheduled on the same {k8s} node.
+Using `ReadWriteOnce` access mode results in all {brandname} nodes in a cluster being scheduled on the same {k8s} node.
 ====
-
-Adding code artifacts to a pods is a two-step process:
-
-. Write code artifacts to the PV, which requires `ReadWriteOnce` access.
-. Read code artifacts from the {brandname} pods, which requires `ReadOnlyMany` access.
 
 .Procedure
 
@@ -27,26 +30,20 @@ Adding code artifacts to a pods is a two-step process:
 $ {set_namespace}
 ----
 +
-. Create PVCs for your custom code artifacts.
-.. Create a PVC with the `ReadWriteOnce` access mode so you can add your code artifacts to the PV.
+. Create a PVC for your custom code artifacts, for example:
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/custom_code_pvc.yaml[]
 ----
 +
-.. Apply your PVC.
+. Apply your PVC.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_apply_cr} datagrid-libs.yaml
 ----
 +
-.. Add your code artifacts to the PV.
-.. Note the value of the `spec.volumeName` field for the PVC.
-.. Delete the PVC.
-
-
 . Create a pod that mounts the PVC, for example:
 +
 [source,yaml,options="nowrap",subs=attributes+]
@@ -84,3 +81,6 @@ $ {oc_delete_pod} datagrid-libs-pod
 * link:{link_os_storage}
 * link:{link_k8s_storage}
 * link:{link_k8s_access_modes}
+ifdef::downstream[]
+* link:https://access.redhat.com/solutions/4651451[How to manually reclaim and reuse OpenShift Persistent volumes that are "Released"] (Red Hat Knowledgebase)
+endif::downstream[]

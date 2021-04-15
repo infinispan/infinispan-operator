@@ -3,9 +3,8 @@ kind: Pod
 metadata:
   name: datagrid-libs-pod
 spec:
-  # Uncomment the securityContext.fsGroup field if required.
-  #securityContext:
-    #fsGroup: 1000710000
+  securityContext:
+    fsGroup: <groupID>
   volumes:
     - name: lib-pv-storage
       persistentVolumeClaim:
@@ -16,6 +15,3 @@ spec:
       volumeMounts:
         - mountPath: /tmp/libs
           name: lib-pv-storage
-      # Uncomment the securityContext.runAsUser field if required.
-      #securityContext:
-        #runAsUser: 1000710000
