@@ -11,7 +11,7 @@ spec:
         url: openshift://api.site-a.devcluster.openshift.com:6443
         secretName: lon-token
       - name: NYC
-        clusterName: nyc-cluster-name
-        namespace: nyc-cluster-namespace
+        clusterName: <nyc_cluster_name>
+        namespace: <nyc_cluster_namespace>
         url: openshift://api.site-b.devcluster.openshift.com:6443
         secretName: nyc-token

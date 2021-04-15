@@ -16,8 +16,8 @@ spec:
           url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
           secretName: lon-token
         - name: NYC
-          clusterName: nyc-cluster
-          namespace: nyc-cluster-namespace
+          clusterName: <nyc_cluster_name>
+          namespace: <nyc_cluster_namespace>
           url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
           secretName: nyc-token
     logging:
