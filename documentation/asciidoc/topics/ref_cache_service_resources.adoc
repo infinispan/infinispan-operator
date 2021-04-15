@@ -3,7 +3,7 @@
 
 [source,options="nowrap",subs=attributes+]
 ----
-include::{topics}/yaml/cache_service.yaml[]
+include::yaml/cache_service.yaml[]
 ----
 
 [%header,cols=2*]

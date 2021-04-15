@@ -3,7 +3,7 @@
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-include::{topics}/yaml/datagrid_service.yaml[]
+include::yaml/datagrid_service.yaml[]
 ----
 
 [%header,cols=2*]
