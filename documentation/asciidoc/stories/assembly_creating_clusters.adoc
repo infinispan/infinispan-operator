@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
-[id='start_operator']
+[id='creating-clusters']
 :context: start
-= Getting Started with {ispn_operator}
+= Getting started with {ispn_operator}
 {ispn_operator} lets you create, configure, and manage {brandname} clusters.
 
 .Prerequisites
@@ -16,9 +16,9 @@ ifdef::downstream[]
 * Have an `oc` client.
 endif::downstream[]
 
-include::{topics}/ref_crd.adoc[leveloffset=+1]
-include::{topics}/proc_create_cluster_minimal.adoc[leveloffset=+1]
-include::{topics}/proc_verify_cluster.adoc[leveloffset=+1]
+include::{topics}/con_infinispan_cr.adoc[leveloffset=+1]
+include::{topics}/proc_creating_minimal_clusters.adoc[leveloffset=+1]
+include::{topics}/proc_verifying_clusters.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

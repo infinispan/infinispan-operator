@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
-[id='securing_endpoints']
+[id='securing-connections']
 :context: security
-= Securing {brandname} Connections
+= Securing {brandname} connections
 Secure client connections with authentication and encryption to prevent network intrusion and protect your data.
 
 include::assembly_configuring_authentication.adoc[leveloffset=+1]

@@ -1,14 +1,8 @@
-[id='configuring_autoscale-{context}']
-= Configuring Automatic Scaling
+[id='configuring-autoscaling_{context}']
+= Configuring automatic scaling
 If you create clusters with {cacheservice} nodes, {ispn_operator}
 can automatically scale nodes up or down based on memory usage for the default
 cache.
-
-{ispn_operator} monitors default caches on {cacheservice} nodes. As you add
-data to the cache, memory usage increases. When it detects that the cluster
-needs additional capacity, {ispn_operator} creates new nodes rather than
-eviciting entries. Likewise, if it detects that memory usage is below a certain
-threshold, {ispn_operator} shuts down nodes.
 
 [IMPORTANT]
 ====
@@ -18,29 +12,33 @@ caches to your cluster, you should not include the `autoscale` field in your
 the data container on each node.
 ====
 
+To configure automatic scaling you set:
+
+* A maximum threshold for memory usage on each {brandname} node in your cluster.
++
+When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
+
+* A minimum threshold for memory usage across your {brandname} cluster.
++
+When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes
+
 .Procedure
 
 . Add the `spec.autoscale` resource to your `Infinispan` CR to enable automatic scaling.
-. Configure memory usage thresholds and number of nodes for your cluster with the `autoscale` field.
++
+[NOTE]
+====
+Set a value of `true` for the `autoscale.disabled` field to disable automatic scaling.
+====
++
+. Specify a maximum threshold, as a percentage, for memory usage on each node with the `spec.autoscale.maxMemUsagePercent` field.
+. Set the maximum number of number of nodes for the cluster with the `spec.autoscale.maxReplicas` field.
+. Specify a minimum threshold, as a percentage, for cluster memory usage with the `spec.autoscale.minMemUsagePercent` field.
+. Set the minimum number of number of nodes for the cluster with the `spec.autoscale.minReplicas` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-spec:
-  ...
-  service:
-    type: Cache
-  autoscale:
-    disabled: true <1>
-    maxMemUsagePercent: 70 <2>
-    maxReplicas: 5 <3>
-    minMemUsagePercent: 30 <4>
-    minReplicas: 2 <5>
+include::yaml/autoscale.yaml[]
 ----
-+
-<1> Turns automatic scaling on or off. Set a value of `true` to disable automatic scaling. The default value is `false`.
-<2> Configures the maximum threshold, as a percentage, for memory usage on each node. When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
-<3> Defines the maximum number of number of nodes for the cluster.
-<4> Configures the minimum threshold, as a percentage, for memory usage across the cluster. When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes.
-<5> Defines the minimum number of number of nodes for the cluster.
 +
 . Apply the changes.

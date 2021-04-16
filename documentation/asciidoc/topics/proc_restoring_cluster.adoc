@@ -1,5 +1,5 @@
 [id='restoring_clusters-{context}']
-= Restoring {brandname} Clusters
+= Restoring {brandname} clusters
 Restore {brandname} cluster state from a backup archive.
 
 .Prerequisites
@@ -18,31 +18,21 @@ For example, a client does `cache.put(k=2)` before you restore a backup that con
 .Procedure
 
 . Create a `Restore` CR.
-+
-For example, create `my-restore.yaml` with the following:
+.. Name the `Restore` CR with the `metadata.name` field.
+.. Specify a `Backup` CR to use with the `spec.backup` field.
+.. Specify the {brandname} cluster to restore with the `spec.cluster` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml/cr_restore.yaml[]
+include::yaml/restore.yaml[]
 ----
-+
-<1> Specifies a `Restore` CR.
-<2> Provides a unique name for the `Restore` CR.
-<3> Specifies the name of the `Backup` CR.
-<4> Specifies the name of the `Infinispan` CR.
 +
 . Add the `spec.resources` field to restore specific resources only.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml/cr_backup_resources.yaml[]
+include::yaml/backup_resources.yaml[]
 ----
-+
-<1> Cache templates.
-<2> Caches by name.
-<3> Counters by name.
-<4> Protobuf schemas for querying.
-<5> Custom server tasks.
 +
 . Apply your `Restore` CR.
 +

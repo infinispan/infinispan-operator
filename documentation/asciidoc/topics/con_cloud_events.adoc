@@ -1,5 +1,5 @@
 [id='cloud-events_{context}']
-= Cloud Events
+= Cloud events
 
 You can send `CloudEvents` from {brandname} clusters when the following occurs:
 

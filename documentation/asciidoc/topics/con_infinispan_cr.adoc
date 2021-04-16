@@ -1,0 +1,35 @@
+[id='infinispan-cr_{context}']
+= Infinispan custom resource (CR)
+{ispn_operator} adds a new Custom Resource (CR) of type `Infinispan` that lets
+you handle {brandname} clusters as complex units on {k8s}.
+
+{ispn_operator} watches for `Infinispan` Custom Resources (CR) that you use to
+instantiate and configure {brandname} clusters and manage {k8s} resources, such
+as StatefulSets and Services. In this way, the `Infinispan` CR is your
+primary interface to {brandname} on {k8s}.
+
+The minimal `Infinispan` CR is as follows:
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/infinispan_cr.yaml[]
+----
+
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`apiVersion`
+|Declares the version of the `Infinispan` API.
+
+|`kind`
+|Declares the `Infinispan` CR.
+
+|`metadata.name`
+|Specifies a name for your {brandname} cluster.
+
+|`spec.replicas`
+|Specifies the number of nodes in your {brandname} cluster.
+
+|===

@@ -1,4 +1,0 @@
-spec:
-  ...
-  security:
-    endpointSecretName: connect-secret <1>

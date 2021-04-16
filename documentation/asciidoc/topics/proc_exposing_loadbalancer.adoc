@@ -1,5 +1,5 @@
-[id='exposing_loadbalancer-{context}']
-= Exposing {brandname} Through Load Balancers
+[id='exposing-loadbalancer_{context}']
+= Exposing {brandname} through load balancers
 Use a load balancer service to make {brandname} clusters available to clients running outside {k8s}.
 
 [NOTE]
@@ -11,19 +11,13 @@ a load balancer service.
 .Procedure
 
 . Include `spec.expose` in your `Infinispan` CR.
-. Specify `LoadBalancer` as the service type with `spec.expose.type`.
+. Specify `LoadBalancer` as the service type with the `spec.expose.type` field.
+. Optionally specify a node port to which the load balancer forwards traffic with the `spec.expose.nodePort` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-spec:
-  ...
-  expose:
-    type: LoadBalancer <1>
-    nodePort: 30000 <2>
+include::yaml/expose_type_load_balancer.yaml[]
 ----
-+
-<1> Exposes {brandname} on the network through a load balancer service on port `11222`.
-<2> Optionally defines a node port to which the load balancer service forwards traffic.
 +
 . Apply the changes.
 . Verify that the `-external` service is available.

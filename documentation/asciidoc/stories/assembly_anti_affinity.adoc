@@ -1,12 +1,12 @@
 ifdef::context[:parent-context: {context}]
-[id='anti_affinity']
+[id='anti-affinity']
 :context: availability
-= Guaranteeing Availability with Anti-Affinity
+= Guaranteeing availability with anti-affinity
 Kubernetes includes anti-affinity capabilities that protect workloads from single points of failure.
 
 include::{topics}/con_anti_affinity.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_anti_affinity.adoc[leveloffset=+1]
-include::{topics}/ref_anti_affinity.adoc[leveloffset=+1]
+include::{topics}/ref_anti_affinity.adoc[leveloffset=+2]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

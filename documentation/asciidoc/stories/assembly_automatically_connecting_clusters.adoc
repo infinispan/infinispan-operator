@@ -1,12 +1,12 @@
 ifdef::context[:parent-context: {context}]
-[id='automatically_connecting_clusters']
+[id='automatically-connecting-clusters']
 :context: xsite_operator
-= Automatically Connecting {brandname} Clusters
-Configure {ispn_operator} to discover and manage connections for {brandname} clusters performing cross-site replication.
+= Automatically forming cross-site views with {ispn_operator}
+{ispn_operator} can discover other {ispn_operator} installations in different data centers and automatically form cross-site views between your {brandname} clusters.
 
 [IMPORTANT]
 ====
-To automatically connect {brandname} clusters, {ispn_operator} in each {openshiftshort} cluster must have network access to the Kubernetes API.
+{ispn_operator} in each {openshiftshort} cluster must have network access to the Kubernetes API.
 ====
 
 include::{topics}/con_xsite_replication.adoc[leveloffset=+1]
@@ -16,7 +16,7 @@ ifdef::community[]
 == {k8s} clusters
 Apply cluster roles and then create site access secrets if you run {ispn_operator} on vanilla {k8s} or minikube.
 
-include::{topics}/proc_xsite_manual_clusterrole.adoc[leveloffset=+2]
+include::{topics}/proc_applying_cluster_roles_xsite.adoc[leveloffset=+2]
 include::{topics}/proc_creating_kubernetes_site_secrets.adoc[leveloffset=+2]
 
 == {openshiftshort} clusters
@@ -33,7 +33,7 @@ include::{topics}/proc_exchanging_sa_tokens.adoc[leveloffset=+1]
 endif::downstream[]
 
 include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+1]
-include::{topics}/ref_xsite_crd_automatic.adoc[leveloffset=+1]
+include::{topics}/ref_xsite_resources_automatic.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

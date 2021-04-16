@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
-[id='container_spec']
+[id='adjusting-container-specifications']
 :context: resources
-= Adjusting Container Specifications
+= Adjusting container specifications
 You can allocate CPU and memory resources, specify JVM options, and configure
 storage for {brandname} nodes.
 

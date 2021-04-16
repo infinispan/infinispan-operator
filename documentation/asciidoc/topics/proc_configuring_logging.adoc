@@ -1,25 +1,22 @@
-[id='configure_logging-{context}']
-= Configuring {brandname} Logging
+[id='configuring-logging_{context}']
+= Changing log levels
+Change levels for different {brandname} logging categories.
 
 .Procedure
 
-. Specify logging configuration with `spec.logging` in your `Infinispan` CR
-and then apply the changes.
+. Configure {brandname} logging with the `spec.logging.categories` field in your `Infinispan` CR.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml/cr_logging.yaml[]
+include::yaml/logging_categories.yaml[]
 ----
-+
-<1> Configures {brandname} logging.
-<2> Adds logging categories.
-<3> Names logging categories and levels.
 +
 [NOTE]
 ====
 The root logging category is `org.infinispan` and is `INFO` by default.
 ====
 +
+. Apply the changes.
 . Retrieve logs from {brandname} nodes as required.
 +
 [source,options="nowrap",subs=attributes+]

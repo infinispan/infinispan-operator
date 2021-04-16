@@ -1,5 +1,5 @@
-[id='adding_backup_locations-{context}']
-= Adding Backup Locations to Caches
+[id='adding-backup-locations_{context}']
+= Adding backup locations to caches
 When you configure {brandname} clusters to perform cross-site replication, you
 can add backup locations to your cache configurations.
 
@@ -24,40 +24,16 @@ The following configuration examples show backup locations for caches:
 +
 [source,xml,options="nowrap",subs=attributes+]
 ----
-<infinispan>
-  <cache-container>
-    <distributed-cache name="customers">
-      <encoding media-type="application/x-protostream"/>
-      <backups>
-        <backup site="LON" strategy="SYNC">
-          <take-offline min-wait="120000"/>
-        </backup>
-      </backups>
-    </distributed-cache>
-  </cache-container>
-</infinispan>
+include::xml/nyc-dist-cache.xml[]
 ----
 
 * **LON**
 +
 [source,xml,options="nowrap",subs=attributes+]
 ----
-<infinispan>
-  <cache-container>
-    <replicated-cache name="customers">
-      <encoding media-type="application/x-protostream"/>
-      <backups>
-        <backup site="NYC" strategy="ASYNC" >
-            <take-offline min-wait="120000"/>
-          </backup>
-      </backups>
-    </replicated-cache>
-  </cache-container>
-</infinispan>
+include::xml/lon-repl-cache.xml[]
 ----
 
 [role="_additional-resources"]
 .Additional resources
-
-* link:#backup_sites[Setting Up Cross-Site Replication]
 * link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]

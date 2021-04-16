@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
 [id='monitoring-services']
 :context: monitor
-= Monitoring {brandname} Services
+= Monitoring {brandname} services
 {brandname} exposes metrics that can be used by Prometheus and Grafana for monitoring and visualizing the cluster state.
 
 [NOTE]

@@ -1,5 +1,5 @@
-[id='adding_custom_labels-{context}']
-= Adding Labels to {brandname} Resources
+[id='adding-custom-labels_{context}']
+= Adding labels to {brandname} resources
 Attach key/value labels to pods and services that {ispn_operator} creates and manages.
 These labels help you identify relationships between objects to better organize and monitor {brandname} resources.
 
@@ -16,6 +16,9 @@ endif::downstream[]
 . Open your `Infinispan` CR for editing.
 . Add any labels that you want {ispn_operator} to attach to resources with `metadata.annotations`.
 . Add values for your labels with `metadata.labels`.
+.. Specify labels that you want to attach to services with the `metadata.annotations.infinispan.org/targetLabels` field.
+.. Specify labels that you want to attach to pods with the `metadata.annotations.infinispan.org/podTargetLabels` field.
+.. Define values for your labels with the `metadata.labels` fields.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
@@ -26,6 +29,5 @@ include::yaml/custom_labels.yaml[]
 
 [role="_additional-resources"]
 .Additional resources
-
 * link:{link_k8s_labels}
 * link:{link_k8s_labels_guide}

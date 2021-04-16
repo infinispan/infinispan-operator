@@ -1,5 +1,5 @@
 [id='batch-status_{context}']
-= Batch Status Messages
+= Batch status messages
 Verify and troubleshoot batch operations with the `status.Phase` field in the `Batch` CR.
 
 [%header,cols=2*]
@@ -13,7 +13,7 @@ Verify and troubleshoot batch operations with the `status.Phase` field in the `B
 |`Initializing`
 |Batch operations are queued and resources are initializing.
 
-|`Initialized` 
+|`Initialized`
 |Batch operations are ready to start.
 
 |`Running`

@@ -1,0 +1,57 @@
+[id='batching-create-configmap_{context}']
+= Creating ConfigMaps for batch operations
+Create a `ConfigMap` so that additional files, such as {brandname} cache configuration, are available for batch operations.
+
+.Prerequisites
+
+For demonstration purposes, you should add some configuration artifacts to your host filesystem before you start the procedure:
+
+* Create a `/tmp/mybatch` directory where you can add some files.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ mkdir -p /tmp/mybatch
+----
+
+* Create a {brandname} cache configuration.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ cat > /tmp/mybatch/mycache.xml<<EOF
+include::xml/dist-sync-cache.xml[]
+EOF
+----
+
+.Procedure
+
+. Create a `batch` file that contains all commands you want to run.
++
+For example, the following `batch` file creates a cache named "mycache" and adds two entries to it:
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/batch.adoc[]
+----
++
+[IMPORTANT]
+====
+The `ConfigMap` is mounted in {brandname} pods at `/etc/batch`.
+You must prepend all `--file=` directives in your batch operations with that path.
+====
++
+. Ensure all configuration artifacts that your batch operations require are in the same directory as the `batch` file.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ ls /tmp/mybatch
+
+batch
+mycache.xml
+----
++
+. Create a `ConfigMap` from the directory.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_configmap} mybatch-config-map --from-file=/tmp/mybatch
+----

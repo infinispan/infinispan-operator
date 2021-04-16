@@ -1,0 +1,36 @@
+[id='verifying-clusters_{context}']
+= Verifying {brandname} clusters
+Check that {brandname} nodes have successfully formed clusters.
+
+.Procedure
+
+* Retrieve the `Infinispan` CR for {ispn_operator}.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/get_infinispan.adoc[]
+----
++
+The response indicates that {brandname} nodes have received clustered views, as in the following example:
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/verify_cluster_view.yaml[]
+----
+
+[TIP]
+====
+Do the following for automated scripts:
+
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_well_formed}
+----
+====
+
+Alternatively, you can retrieve cluster view from logs as follows:
+
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_logs_clusterview.adoc[]
+----

@@ -1,0 +1,15 @@
+spec:
+  resources:
+    templates:
+      - distributed-sync-prod
+      - distributed-sync-dev
+    caches:
+      - cache-one
+      - cache-two
+    counters:
+      - counter-name
+    protoSchemas:
+      - authors.proto
+      - books.proto
+    tasks:
+      - wordStream.js

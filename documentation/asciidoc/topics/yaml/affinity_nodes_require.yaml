@@ -1,7 +1,7 @@
 spec:
   affinity:
     podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution: <1>
+      requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
           matchLabels:
             app: infinispan-pod

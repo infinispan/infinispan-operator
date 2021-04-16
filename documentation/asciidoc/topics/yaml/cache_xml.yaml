@@ -1,0 +1,8 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Cache
+metadata:
+  name: mycachedefinition
+spec:
+  clusterName: {example_crd_name}
+  name: mycache
+  template: <distributed-cache name="mycache" mode="SYNC"><persistence><file-store/></persistence></distributed-cache>

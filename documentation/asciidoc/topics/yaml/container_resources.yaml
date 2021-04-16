@@ -1,0 +1,5 @@
+spec:
+  container:
+    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
+    cpu: "1000m"
+    memory: 1Gi

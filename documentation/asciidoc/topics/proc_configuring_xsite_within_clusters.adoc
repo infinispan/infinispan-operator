@@ -1,5 +1,5 @@
-[id='configuring_sites_in_clusters']
-= Configuring Sites in the Same {k8s} Cluster
+[id='configuring-sites-in-clusters_{context}']
+= Configuring sites in the same {k8s} cluster
 For evaluation and demonstration purposes, you can configure {brandname} to back up between nodes in the same {k8s} cluster.
 
 .Procedure
@@ -9,35 +9,19 @@ For evaluation and demonstration purposes, you can configure {brandname} to back
 . Set `ClusterIP` as the value of the `spec.service.sites.local.expose.type` field.
 . Provide the {brandname} cluster hostname as the URL for each backup location with `spec.service.sites.locations`.
 +
-The following is an example `Infinispan` CR definition:
+The following is an example `Infinispan` CR:
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: example-clustera
-spec:
-  replicas: 1
-  expose:
-    type: LoadBalancer
-  service:
-    type: DataGrid
-    sites:
-      local:
-        name: SiteA
-        expose:
-          type: ClusterIP
-      locations:
-        - name: SiteA
-          url: infinispan+xsite://example-clustera-site <1>
-        - name: SiteB
-          url: infinispan+xsite://example-clusterb-site
+include::yaml/xsite_cluster_ip.yaml[]
 ----
-<1> The value of the `url` field is the {k8s} service name that resolves to an internal IP address.
 +
-. Configure nodes with any other {datagridservice} resources.
-. Apply the `Infinispan` CRs.
+[NOTE]
+====
+In the `spec.service.sites.locations.url` field, "example-cluster*-site" is the {k8s} service name that resolves to an internal IP address.
+====
++
+. Configure your `Infinispan` CRs with any other {datagridservice} resources and then apply the changes.
 . Verify that {brandname} clusters form a cross-site view.
 .. Retrieve the `Infinispan` CR.
 +

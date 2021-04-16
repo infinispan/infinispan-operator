@@ -3,11 +3,6 @@ kind: ConfigMap
 metadata:
   name: infinispan-operator-config
 data:
-  # Specifies the namespace of a {brandname} cluster for which {ispn_operator} creates a Grafana dashboard.
-  # Deleting the value removes the dashboard.
-  # Changing the value moves the dashboard to that namespace.
   grafana.dashboard.namespace: {example_crd_name}
-  # Names the dashboard.
   grafana.dashboard.name: infinispan
-  # Lables the Dashboard CR resource.
   grafana.dashboard.monitoring.key: middleware

@@ -1,64 +1,48 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  # Names the cluster.
   name: {example_crd_name}
   annotations:
-    # Automatically creates a ServiceMonitor for the cluster.
     infinispan.org/monitoring: 'true'
 spec:
-  # Specifies the number of nodes in the cluster.
   replicas: 6
   service:
-    # Configures the service type as Data Grid.
     type: DataGrid
-    # Configures storage resources.
     container:
       storage: 2Gi
       ephemeralStorage: false
       storageClassName: my-storage-class
-    # Configures cross-site replication.
     sites:
       local:
       name: azure
       expose:
         type: LoadBalancer
-      # Configures backup locations.
       locations:
       - name: azure
         url: openshift://api.azure.host:6443
         secretName: azure-token
       - name: aws
-        # Specifies the cluster name at the backup location.
         clusterName: {example_crd_name}
-        # Specifies the namespace for the cluster at the backup location.
         namespace: {example_namespace}
         url: openshift://api.aws.host:6443
         secretName: aws-token
-  # Configures authentication and encryption.
   security:
-    # Defines a secret with custom credentials.
     endpointSecretName: endpoint-identities
-    # Adds a custom TLS certificate to encrypt client connections.
     endpointEncryption:
         type: Secret
         certSecretName: tls-secret
-  # Sets container resources.
   container:
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
     cpu: "1000m"
     memory: 1Gi
-  # Configures logging levels.
   logging:
     categories:
       org.infinispan: debug
       org.jgroups: debug
       org.jgroups.protocols.TCP: error
       org.jgroups.protocols.relay.RELAY2: error
-  # Configures how the cluster is exposed on the network.
   expose:
     type: LoadBalancer
-  # Configures affinity and anti-affinity strategies.
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:

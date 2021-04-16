@@ -1,5 +1,5 @@
-[id='backups_automatic_offline-{context}']
-= Performance Considerations with Taking Backup Locations Offline
+[id='backups-automatic-offline_{context}']
+= Performance considerations with taking backup locations offline
 Backup locations can automatically go offline when remote sites become
 unavailable. This prevents nodes from attempting to replicate data to offline
 backup locations, which can have a performance impact on your cluster because it

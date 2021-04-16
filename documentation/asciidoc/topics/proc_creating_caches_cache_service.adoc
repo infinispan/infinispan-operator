@@ -1,5 +1,5 @@
-[id='creating_caches_cacheservice-{context}']
-= Adding Caches to {cacheservice} Nodes
+[id='creating-caches-cacheservice_{context}']
+= Adding caches to {cacheservice} nodes
 {cacheservice} nodes include a default cache configuration with recommended
 settings. This default cache lets you start using {brandname} without the need
 to create caches.

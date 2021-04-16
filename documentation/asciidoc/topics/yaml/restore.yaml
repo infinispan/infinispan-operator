@@ -1,0 +1,7 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Restore
+metadata:
+  name: my-restore
+spec:
+  backup: my-backup
+  cluster: target-cluster

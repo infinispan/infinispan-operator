@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
-[id='authentication']
+[id='configuring-authentication']
 :context: authn
-= Configuring Authentication
+= Configuring authentication
 Application users need credentials to access {brandname} clusters.
 You can use default, generated credentials or add your own.
 

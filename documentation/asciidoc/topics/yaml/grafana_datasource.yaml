@@ -14,7 +14,6 @@ spec:
         tlsSkipVerify: true
       name: Prometheus
       secureJsonData:
-        # Specifies the token for the Grafana ServiceAccount.
         httpHeaderValue1: >-
           Bearer
           eyJhbGciOiJSUzI1NiIsImtpZCI6Imc4O...

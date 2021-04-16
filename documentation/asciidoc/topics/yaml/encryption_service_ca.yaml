@@ -1,0 +1,6 @@
+spec:
+  security:
+    endpointEncryption:
+      type: Service
+      certServiceName: service.beta.openshift.io
+      certSecretName: {example_crd_name}-cert-secret

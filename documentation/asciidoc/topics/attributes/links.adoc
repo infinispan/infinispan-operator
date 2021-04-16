@@ -31,6 +31,8 @@ endif::community[]
 
 :link_k8s_storage: https://kubernetes.io/docs/concepts/storage/persistent-volumes/[Persistent Volumes]
 
+:link_k8s_access_modes: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes[Access Modes]
+
 :link_k8s_cluster_api: https://kubernetes.io/docs/tasks/administer-cluster/access-cluster-api/[Access Clusters Using the Kubernetes API]
 
 //

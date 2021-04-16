@@ -1,0 +1,4 @@
+spec:
+  expose:
+    type: Route
+    host: www.example.org

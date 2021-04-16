@@ -1,5 +1,5 @@
-[id='internal_service-{context}']
-= Getting the Service for Internal Connections
+[id='getting-internal-service_{context}']
+= Getting the service for internal connections
 By default, {ispn_operator} creates a service that provides access to {brandname} clusters from clients running on {k8s}.
 
 This internal service has the same name as your {brandname} cluster, for example:
@@ -21,8 +21,3 @@ $ {oc_get_services}
 NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)
 {example_crd_name} ClusterIP   192.0.2.0        <none>        11222/TCP
 ----
-
-[role="_additional-resources"]
-.Additional resources
-
-* link:#ref_services-ref[Network Services]

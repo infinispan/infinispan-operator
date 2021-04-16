@@ -1,5 +1,5 @@
-[id='label_environment_variables-{context}']
-= Global Labels for {ispn_operator}
+[id='label-environment-variables_{context}']
+= Global labels for {ispn_operator}
 Global labels are automatically propagated to all {brandname} pods and services.
 
 You can add and modify global labels for {ispn_operator} with the `env` field in the operator yaml.

@@ -1,8 +1,7 @@
-[id='creating_sa_tokens-{context}']
-= Creating Service Account Tokens
-Generate service account tokens on each {openshiftshort} cluster that acts as a
-backup location. Clusters use these tokens to authenticate with each other so
-{ispn_operator} can create a cross-site replication service.
+[id='creating-sa-tokens_{context}']
+= Creating service account tokens
+Generate service account tokens on each {openshiftshort} cluster that acts as a backup location.
+Clusters use these tokens to authenticate with each other so {ispn_operator} can create a cross-site replication service.
 
 .Procedure
 
@@ -28,5 +27,4 @@ $ oc policy add-role-to-user view system:serviceaccount:<namespace>:lon
 
 [role="_additional-resources"]
 .Additional resources
-
-link:{link_os_sa_tokens}
+* link:{link_os_sa_tokens}

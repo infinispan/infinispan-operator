@@ -2,19 +2,19 @@ spec:
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100 <1>
+      - weight: 100
         podAffinityTerm:
           labelSelector:
             matchLabels:
               app: infinispan-pod
               clusterName: <cluster_name>
               infinispan_cr: <cluster_name>
-          topologyKey: "topology.kubernetes.io/zone" <2>
-      - weight: 90 <3>
+          topologyKey: "topology.kubernetes.io/zone"
+      - weight: 90
         podAffinityTerm:
           labelSelector:
             matchLabels:
               app: infinispan-pod
               clusterName: <cluster_name>
               infinispan_cr: <cluster_name>
-          topologyKey: "kubernetes.io/hostname" <4>
+          topologyKey: "kubernetes.io/hostname"

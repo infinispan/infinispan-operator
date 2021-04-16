@@ -1,0 +1,4 @@
+spec:
+  expose:
+    type: NodePort
+    nodePort: 30000

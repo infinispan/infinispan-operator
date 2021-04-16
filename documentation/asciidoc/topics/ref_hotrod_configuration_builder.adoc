@@ -1,5 +1,5 @@
-[id='hotrod_configuration-{context}']
-= Hot Rod Configuration API
+[id='hotrod-configuration-builder_{context}']
+= Hot Rod client configuration API
 You can programmatically configure Hot Rod client connections with the `ConfigurationBuilder` interface.
 
 [NOTE]
@@ -15,24 +15,7 @@ Hot Rod clients running on {k8s} can use the following configuration:
 
 [source,java,options="nowrap",subs=attributes+]
 ----
-import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
-import org.infinispan.client.hotrod.configuration.SaslQop;
-import org.infinispan.client.hotrod.impl.ConfigurationProperties;
-...
-
-ConfigurationBuilder builder = new ConfigurationBuilder();
-      builder.addServer()
-               .host("$SERVICE_HOSTNAME")
-               .port(ConfigurationProperties.DEFAULT_HOTROD_PORT)
-             .security().authentication()
-               .username("username")
-               .password("password")
-               .realm("default")
-               .saslQop(SaslQop.AUTH)
-               .saslMechanism("SCRAM-SHA-512")
-             .ssl()
-               .sniHostName("$SERVICE_HOSTNAME")
-               .trustStorePath("/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt");
+include::java/ConfigurationBuilderOn.java[]
 ----
 
 [discrete]
@@ -42,23 +25,5 @@ Hot Rod clients running outside {k8s} can use the following configuration:
 
 [source,java,options="nowrap",subs=attributes+]
 ----
-import org.infinispan.client.hotrod.configuration.ClientIntelligence;
-import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
-import org.infinispan.client.hotrod.configuration.SaslQop;
-...
-
-ConfigurationBuilder builder = new ConfigurationBuilder();
-      builder.addServer()
-               .host("$SERVICE_HOSTNAME")
-               .port("$PORT")
-             .security().authentication()
-               .username("username")
-               .password("password")
-               .realm("default")
-               .saslQop(SaslQop.AUTH)
-               .saslMechanism("SCRAM-SHA-512")
-             .ssl()
-               .sniHostName("$SERVICE_HOSTNAME")
-               .trustStorePath("/path/to/tls.crt");
-      builder.clientIntelligence(ClientIntelligence.BASIC);
+include::java/ConfigurationBuilderOutside.java[]
 ----

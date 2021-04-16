@@ -1,10 +1,10 @@
-[id='ref_image_crd-{context}']
-= Image Resource
+[id='image-resource_{context}']
+= Image resource
 
-[source,options="nowrap",subs=attributes+]
+Use the `spec.image` field to specify a {brandname} Server image.
+
+[source,yaml,options="nowrap",subs=attributes+]
 ----
 spec:
-  image: quay.io/infinispan/server:latest <1>
+  image: {server_image}:latest
 ----
-
-<1> Lets you specify a {brandname} image to use.

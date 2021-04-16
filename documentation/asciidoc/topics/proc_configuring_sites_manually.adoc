@@ -1,5 +1,5 @@
-[id='configuring_sites-{context}']
-= Specifying Static Hosts and Ports for {brandname} Clusters
+[id='configuring-sites-manually_{context}']
+= Specifying static hosts and ports for {brandname} clusters
 Specify static hosts and ports for {brandname} clusters so they can establish connections and form cross-site views.
 
 .Prerequisites
@@ -16,63 +16,28 @@ Specify static hosts and ports for {brandname} clusters so they can establish co
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: {example_crd_name}
-spec:
-  replicas: 3
-  service:
-    type: DataGrid
-    sites:
-      local:
-        name: LON
-        expose:
-          type: LoadBalancer
-      locations:
-        - name: LON
-          url: infinispan+xsite://infinispan-lon.myhost.com:7900
-        - name: NYC
-          url: infinispan+xsite://infinispan-nyc.myhost.com:7900
+include::yaml/xsite_lon_static.yaml[]
 ----
 +
 * **NYC**
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-apiVersion: infinispan.org/v1
-kind: Infinispan
-metadata:
-  name: {example_crd_name}
-spec:
-  replicas: 2
-  service:
-    type: DataGrid
-    sites:
-      local:
-        name: NYC
-        expose:
-          type: LoadBalancer
-      locations:
-        - name: NYC
-          url: infinispan+xsite://infinispan-nyc.myhost.com:7900
-        - name: LON
-          url: infinispan+xsite://infinispan-lon.myhost.com
+include::yaml/xsite_nyc_static.yaml[]
 ----
 +
-. Adjust logging levels for cross-site replication as follows:
-+
+[IMPORTANT]
+====
+Be sure to adjust logging categories in your `Infinispan` CR to decrease log levels for JGroups TCP and RELAY2 protocols.
+This prevents a large number of log files from uses container storage.
+
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/xsite_logging.yaml[]
 ----
+====
 +
-The preceding configuration decreases logging for JGroups TCP and RELAY2
-protocols to reduce excessive messages about cluster backup operations, which
-can result in a large number of log files that use container storage.
-+
-. Configure nodes with any other {datagridservice} resources.
-. Apply the `Infinispan` CRs.
+. Configure your `Infinispan` CRs with any other {datagridservice} resources and then apply the changes.
 . Verify that {brandname} clusters form a cross-site view.
 .. Retrieve the `Infinispan` CR.
 +
@@ -87,10 +52,3 @@ include::cmd_examples/get_infinispan.adoc[]
 
 If your clusters have formed a cross-site view, you can start adding backup
 locations to caches.
-
-[role="_additional-resources"]
-.Additional resources
-
-* link:#ref_xsite_crd_manual-xsite_manual[Cross-Site Replication Resources]
-* link:#adding_backup_locations-cache-cr[Adding Backup Locations to Caches]
-* link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]

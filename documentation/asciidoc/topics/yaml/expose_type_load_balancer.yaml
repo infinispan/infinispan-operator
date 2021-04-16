@@ -1,0 +1,4 @@
+spec:
+  expose:
+    type: LoadBalancer
+    nodePort: 30000

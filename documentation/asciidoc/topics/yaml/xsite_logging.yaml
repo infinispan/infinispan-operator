@@ -1,5 +1,4 @@
 spec:
-  ...
   logging:
     categories:
       org.jgroups.protocols.TCP: error

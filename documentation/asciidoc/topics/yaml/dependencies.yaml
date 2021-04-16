@@ -5,7 +5,6 @@ metadata:
 spec:
   replicas: 2
   dependencies:
-    # Names the persistent volume claim that contains custom code.
     volumeClaimName: datagrid-libs
   service:
     type: DataGrid

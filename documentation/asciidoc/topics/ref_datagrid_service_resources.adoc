@@ -1,0 +1,50 @@
+[id='datagrid-service-resources_{context}']
+= {datagridservice} resources
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/datagrid_service.yaml[]
+----
+
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`metadata.name`
+|Names your {brandname} cluster.
+
+|`metadata.annotations.infinispan.org/monitoring`
+|Automatically creates a `ServiceMonitor` for your cluster.
+
+|`spec.replicas`
+|Specifies the number of nodes in your cluster.
+
+|`spec.service.type`
+|Configures the type {brandname} service. A value of `DataGrid` creates a cluster with {datagridservice} nodes.
+
+|`spec.service.container`
+|Configures the storage resources for {datagridservice} nodes.
+
+|`spec.service.sites`
+|Configures cross-site replication.
+
+|`spec.security.endpointSecretName`
+|Specifies an authentication secret that contains {brandname} user credentials.
+
+|`spec.security.endpointEncryption`
+|Specifies TLS certificates and keystores to encrypt client connections.
+
+|`spec.container`
+|Specifies JVM, CPU, and memory resources for {brandname} nodes.
+
+|`spec.logging`
+|Configures {brandname} logging categories.
+
+|`spec.expose`
+|Controls how {brandname} endpoints are exposed on the network.
+
+|`spec.affinity`
+|Configures anti-affinity strategies that guarantee {brandname} availability.
+
+|===

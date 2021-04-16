@@ -1,5 +1,5 @@
-[id='exposing_routes-{context}']
-= Exposing {brandname} Through Routes
+[id='exposing-routes_{context}']
+= Exposing {brandname} through routes
 //Community
 ifdef::community[]
 Use a {k8s} Ingress or an {openshiftshort} Route with passthrough encryption to
@@ -14,27 +14,13 @@ endif::downstream[]
 .Procedure
 
 . Include `spec.expose` in your `Infinispan` CR.
-. Specify `Route` as the service type with `spec.expose.type`.
-. Optionally add a hostname with `spec.expose.host`.
+. Specify `Route` as the service type with the `spec.expose.type` field.
+. Optionally add a hostname with the `spec.expose.host` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-spec:
-  ...
-  expose:
-    type: Route <1>
-    host: www.example.org <2>
+include::yaml/expose_type_route.yaml[]
 ----
-+
-//Community
-ifdef::community[]
-<1> Exposes {brandname} on the network through a {k8s} Ingress or {openshiftshort} Route.
-endif::community[]
-//Downstream
-ifdef::downstream[]
-<1> Exposes {brandname} on the network through an {openshiftshort} Route.
-endif::downstream[]
-<2> Optionally specifies the hostname where {brandname} is exposed.
 +
 . Apply the changes.
 . Verify that the route is available.

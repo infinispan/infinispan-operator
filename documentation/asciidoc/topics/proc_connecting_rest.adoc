@@ -1,4 +1,4 @@
-[id='connecting_rest-{context}']
+[id='connecting-rest_{context}']
 = Accessing the REST API
 {brandname} provides a RESTful interface that you can interact with using HTTP clients.
 
@@ -15,5 +15,4 @@ Replace `$SERVICE_HOSTNAME:$PORT` with the hostname and port where {brandname} i
 
 [role="_additional-resources"]
 .Additional resources
-
 * link:{rest_docs}[{brandname} REST API]

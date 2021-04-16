@@ -1,0 +1,6 @@
+<distributed-cache name="persistent-cache" mode="SYNC">
+  <encoding media-type="application/x-protostream"/>
+  <persistence>
+    <file-store/>
+  </persistence>
+</distributed-cache>

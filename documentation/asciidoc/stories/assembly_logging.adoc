@@ -1,9 +1,8 @@
 ifdef::context[:parent-context: {context}]
 [id='logging']
-:context: monitor
-= Monitoring {brandname} Logs
-Set logging categories to different message levels to monitor, debug, and
-troubleshoot {brandname} clusters.
+:context: logs
+= Configuring {brandname} logging
+Set logging categories to different message levels to monitor, debug, and troubleshoot {brandname} clusters.
 
 include::{topics}/proc_configuring_logging.adoc[leveloffset=+1]
 include::{topics}/ref_logging_levels.adoc[leveloffset=+1]

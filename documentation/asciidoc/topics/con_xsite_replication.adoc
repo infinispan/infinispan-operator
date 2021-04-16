@@ -1,5 +1,5 @@
-[id='automatic_site_connections-{context}']
-= Cross-Site Replication with {ispn_operator}
+[id='cross-site-replication_{context}']
+= Cross-site replication with {ispn_operator}
 The following illustration provides an example in which {ispn_operator} manages a {brandname} cluster at a data center in New York City, **NYC**.
 At another data center in London, **LON**, {ispn_operator} also manages a {brandname} cluster.
 

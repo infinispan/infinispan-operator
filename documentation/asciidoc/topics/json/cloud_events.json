@@ -1,6 +1,6 @@
 {
     "specversion": "1.0",
-    "source": "/infinispan/<cluster-name>/<cache-name>",
+    "source": "/infinispan/<cluster_name>/<cache_name>",
     "type": "org.infinispan.entry.created",
     "time": "<timestamp>",
     "subject": "<key-name>",

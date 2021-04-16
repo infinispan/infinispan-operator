@@ -1,21 +1,31 @@
 ifdef::context[:parent-context: {context}]
-[id='creating_services']
-:context: nodes
-= Setting Up {brandname} Services
-Use {ispn_operator} to create clusters of either {cacheservice} or
-{datagridservice} nodes.
+[id='creating-services']
+:context: services
+= Setting up {brandname} services
+Use {ispn_operator} to create clusters of either {cacheservice} or {datagridservice} nodes.
+
+[IMPORTANT]
+====
+If you do not specify a value for the `spec.service.type` field, {ispn_operator} creates {cacheservice} nodes by default.
+
+You cannot change the `spec.service.type` field after you create nodes.
+To change the service type, you must delete the existing nodes and create new ones.
+====
 
 include::{topics}/con_services.adoc[leveloffset=+1]
+
+//Data Grid Service
+include::{topics}/proc_creating_datagrid_service.adoc[leveloffset=+1]
+include::{topics}/ref_datagrid_service_resources.adoc[leveloffset=+2]
+
 //Cache Service
 include::{topics}/proc_creating_cache_service.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
 include::{topics}/proc_configuring_owners.adoc[leveloffset=+2]
-include::{topics}/ref_cacheservice_resources.adoc[leveloffset=+2]
-//Data Grid Service
-include::{topics}/proc_creating_dg_service.adoc[leveloffset=+1]
-include::{topics}/ref_datagridservice_resources.adoc[leveloffset=+2]
+include::{topics}/ref_cache_service_resources.adoc[leveloffset=+2]
 
-//Labelling
+
+//Labeling
 include::{topics}/proc_adding_custom_labels.adoc[leveloffset=+1]
 //Community content
 ifdef::community[]

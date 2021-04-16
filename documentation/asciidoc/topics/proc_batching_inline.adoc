@@ -1,5 +1,5 @@
 [id='batching-inline_{context}']
-= Running Inline Batch Operations
+= Running inline batch operations
 Include your batch operations directly in a `Batch` CR if they do not require separate configuration artifacts.
 
 .Procedure

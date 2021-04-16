@@ -1,4 +1,4 @@
-[id='connecting_console-{context}']
+[id='connecting-console_{context}']
 = Accessing {brandname} Console
 Access the console to create caches, perform adminstrative operations, and monitor your {brandname} clusters.
 

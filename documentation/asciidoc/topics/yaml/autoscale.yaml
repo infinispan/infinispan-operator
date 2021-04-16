@@ -1,0 +1,9 @@
+spec:
+  service:
+    type: Cache
+  autoscale:
+    disabled: false
+    maxMemUsagePercent: 70
+    maxReplicas: 5
+    minMemUsagePercent: 30
+    minReplicas: 2
