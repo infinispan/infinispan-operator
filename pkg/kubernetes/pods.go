@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	corev1 "k8s.io/api/core/v1"
@@ -57,6 +58,41 @@ func IsPodReady(pod corev1.Pod) bool {
 func GetEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
 	for i, value := range *env {
 		if value.Name == envVarName {
+			return i
+		}
+	}
+	return -1
+}
+
+func IsInitContainersEqual(srcContainer, destContainer []corev1.Container) bool {
+	if len(srcContainer) != len(destContainer) {
+		return false
+	}
+	for _, srcInitContainer := range srcContainer {
+		if dstInitContainerIdx := ContainerIndex(destContainer, srcInitContainer.Name); dstInitContainerIdx < 0 {
+			return false
+		} else {
+			if !reflect.DeepEqual(srcInitContainer.Command, destContainer[dstInitContainerIdx].Command) ||
+				!reflect.DeepEqual(srcInitContainer.Args, destContainer[dstInitContainerIdx].Args) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func InitContainerFailed(containerStatuses []corev1.ContainerStatus) bool {
+	for _, containerStatus := range containerStatuses {
+		if containerStatus.LastTerminationState.Terminated != nil && containerStatus.LastTerminationState.Terminated.ExitCode != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func ContainerIndex(containers []corev1.Container, name string) int {
+	for i, container := range containers {
+		if container.Name == name {
 			return i
 		}
 	}

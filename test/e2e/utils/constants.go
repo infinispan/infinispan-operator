@@ -33,14 +33,20 @@ var (
 	Namespace            = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
 	MultiNamespace       = strings.ToLower(constants.GetEnvWithDefault("TESTING_MULTINAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
 	OperatorNamespace    = strings.ToLower(constants.GetEnvWithDefault("TESTING_OPERATOR_NAMESPACE", ""))
+	OperatorName         = "infinispan-operator"
 	RunLocalOperator     = strings.ToUpper(constants.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
 	RunSaOperator        = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	OperatorUpgradeStage = strings.ToUpper(constants.GetEnvWithDefault("OPERATOR_UPGRADE_STAGE", OperatorUpgradeStageNone))
 	CleanupInfinispan    = strings.ToUpper(constants.GetEnvWithDefault("CLEANUP_INFINISPAN_ON_FINISH", "true"))
 	ExpectedImage        = constants.GetEnvWithDefault("EXPECTED_IMAGE", "quay.io/infinispan/server:12.1")
-	ExposeServiceType    = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", "NodePort")
+	ExposeServiceType    = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", string(ispnv1.ExposeTypeNodePort))
 
 	OperatorUpgradeStateFlow = []ispnv1.ConditionType{ispnv1.ConditionUpgrade, ispnv1.ConditionStopping, ispnv1.ConditionWellFormed}
+
+	WebServerName       = "external-libs-web-server"
+	WebServerImageName  = "quay.io/openshift-scale/nginx"
+	WebServerRootFolder = "/usr/share/nginx/html"
+	WebServerPortNumber = 8080
 )
 
 // Options used when deleting resources
