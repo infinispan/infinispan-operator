@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/controller/eventlog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -152,12 +152,22 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj runtime.Object)
 	return nil
 }
 
-// LookupResource lookup for resource to be created by separate resource controller
-func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger) (*reconcile.Result, error) {
-	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
+// LookupResourceForController lookup for resource to be created by separate resource controller
+func LookupResource(name, namespace string, resource runtime.Object, cwe eventlog.ControllerWithEvents, skipSendEvent ...bool) (*reconcile.Result, error) {
+	err := (*cwe.Client()).Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logger.Info(fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name))
+			// Default is send event
+			skip := false
+			if len(skipSendEvent) > 0 {
+				skip = skipSendEvent[0]
+			}
+			msg := fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name)
+			if !skip {
+				eventlog.LogAndSendEvent(cwe, resource, msg, EventReasonResourceNotReady)
+			} else {
+				(*cwe.Logger()).Info(msg, EventReasonResourceNotReady)
+			}
 			return &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 		}
 		return &reconcile.Result{}, err

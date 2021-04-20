@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/controller/eventlog"
 	ispnCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	batchv1 "k8s.io/api/batch/v1"
@@ -16,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -77,17 +80,44 @@ var _ reconcile.Reconciler = &reconcileBatch{}
 type reconcileBatch struct {
 	client.Client
 	scheme *runtime.Scheme
+	logger logr.Logger
 }
 
 type batchResource struct {
-	instance    *v2.Batch
-	client      client.Client
-	scheme      *runtime.Scheme
-	requestName types.NamespacedName
+	instance      *v2.Batch
+	client        client.Client
+	scheme        *runtime.Scheme
+	requestName   types.NamespacedName
+	logger        logr.Logger
+	eventRecorder record.EventRecorder
+}
+
+func (rec *reconcileBatch) Logger() *logr.Logger {
+	return &rec.logger
+}
+
+func (rec *reconcileBatch) Name() string {
+	return ControllerName
+}
+
+func (bat *batchResource) Logger() *logr.Logger {
+	return &bat.logger
+}
+
+func (bat *batchResource) EventRecorder() *record.EventRecorder {
+	return &bat.eventRecorder
+}
+
+func (bat *batchResource) Client() *client.Client {
+	return &bat.client
+}
+
+func (bat *batchResource) Name() string {
+	return ControllerName
 }
 
 func (r *reconcileBatch) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := eventlog.ValuedLogger(r, "Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Batch")
 
 	// Fetch the Batch instance
@@ -109,6 +139,7 @@ func (r *reconcileBatch) Reconcile(request reconcile.Request) (reconcile.Result,
 		client:      r.Client,
 		scheme:      r.scheme,
 		requestName: request.NamespacedName,
+		logger:      r.logger,
 	}
 
 	phase := instance.Status.Phase
@@ -147,7 +178,7 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 	spec := batch.Spec
 	// Ensure the Infinispan cluster exists
 	infinispan := &v1.Infinispan{}
-	if result, err := kube.LookupResource(spec.Cluster, batch.Namespace, infinispan, r.client, log); result != nil {
+	if result, err := kube.LookupResource(spec.Cluster, batch.Namespace, infinispan, r); result != nil {
 		return *result, err
 	}
 
@@ -197,7 +228,7 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 func (r *batchResource) execute() (reconcile.Result, error) {
 	batch := r.instance
 	infinispan := &v1.Infinispan{}
-	if result, err := kube.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, r.client, log); result != nil {
+	if result, err := kube.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, r); result != nil {
 		return *result, err
 	}
 
@@ -278,7 +309,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 	batch := r.instance
 	job := &batchv1.Job{}
-	if result, err := kube.LookupResource(batch.Name, batch.Namespace, job, r.client, log); result != nil {
+	if result, err := kube.LookupResource(batch.Name, batch.Namespace, job, r); result != nil {
 		return *result, err
 	}
 

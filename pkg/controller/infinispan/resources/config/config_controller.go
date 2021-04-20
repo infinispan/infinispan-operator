@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -36,11 +37,28 @@ type reconcileConfig struct {
 }
 
 type configResource struct {
-	infinispan *ispnv1.Infinispan
-	client     client.Client
-	scheme     *runtime.Scheme
-	kube       *kube.Kubernetes
-	log        logr.Logger
+	infinispan    *ispnv1.Infinispan
+	client        client.Client
+	scheme        *runtime.Scheme
+	kube          *kube.Kubernetes
+	log           logr.Logger
+	eventRecorder record.EventRecorder
+}
+
+func (config *configResource) Logger() *logr.Logger {
+	return &config.log
+}
+
+func (config *configResource) EventRecorder() *record.EventRecorder {
+	return &config.eventRecorder
+}
+
+func (config *configResource) Client() *client.Client {
+	return &config.client
+}
+
+func (config *configResource) Name() string {
+	return ControllerName
 }
 
 func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
@@ -79,7 +97,7 @@ func (c *configResource) Process() (reconcile.Result, error) {
 		// For cross site, reconcile must come before compute, because
 		// we need xsite service details to compute xsite struct
 		siteService := &corev1.Service{}
-		if result, err := kube.LookupResource(c.infinispan.GetSiteServiceName(), c.infinispan.Namespace, siteService, c.client, c.log); result != nil {
+		if result, err := kube.LookupResource(c.infinispan.GetSiteServiceName(), c.infinispan.Namespace, siteService, c); result != nil {
 			return *result, err
 		}
 

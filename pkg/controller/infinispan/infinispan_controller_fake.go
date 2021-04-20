@@ -10,7 +10,7 @@ import (
 // NewFakeReconciler creates a new fake Reconciler for unit testing
 func NewFakeReconciler(client client.Client, scheme *runtime.Scheme, fakeKubernetes *kube.Kubernetes, fakeCluster ispn.ClusterInterface) ReconcileInfinispan {
 	kubernetes = fakeKubernetes
-	return ReconcileInfinispan{client, scheme}
+	return ReconcileInfinispan{client: client, scheme: scheme}
 }
 
 // GetClient returns Kubernetes client for unit testing

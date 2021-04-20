@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -46,11 +47,28 @@ type reconcileService struct {
 }
 
 type serviceResource struct {
-	infinispan *ispnv1.Infinispan
-	client     client.Client
-	scheme     *runtime.Scheme
-	kube       *kube.Kubernetes
-	log        logr.Logger
+	infinispan    *ispnv1.Infinispan
+	client        client.Client
+	scheme        *runtime.Scheme
+	kube          *kube.Kubernetes
+	log           logr.Logger
+	eventRecorder record.EventRecorder
+}
+
+func (service *serviceResource) Logger() *logr.Logger {
+	return &service.log
+}
+
+func (service *serviceResource) EventRecorder() *record.EventRecorder {
+	return &service.eventRecorder
+}
+
+func (service *serviceResource) Client() *client.Client {
+	return &service.client
+}
+
+func (service *serviceResource) Name() string {
+	return ControllerName
 }
 
 func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
@@ -226,7 +244,7 @@ func (s serviceResource) reconcileServiceMonitor(service *corev1.Service) (recon
 
 	if s.infinispan.IsServiceMonitorEnabled() {
 		secret := &corev1.Secret{}
-		if result, err := kube.LookupResource(s.infinispan.GetAdminSecretName(), s.infinispan.Namespace, secret, s.client, s.log); result != nil {
+		if result, err := kube.LookupResource(s.infinispan.GetAdminSecretName(), s.infinispan.Namespace, secret, &s); result != nil {
 			return *result, err
 		}
 

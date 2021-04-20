@@ -27,6 +27,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+const (
+	EventReasonResourceNotReady = "ResourceNotReady"
+)
+
 // Kubernetes abstracts interaction with a Kubernetes cluster
 type Kubernetes struct {
 	Client     client.Client
