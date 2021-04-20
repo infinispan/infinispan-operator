@@ -253,6 +253,31 @@ type InfinispanExternalDependencies struct {
 	// Name of the persistent volume claim with custom libraries
 	// +optional
 	VolumeClaimName string `json:"volumeClaimName,omitempty"`
+	// +optional
+	Artifacts []InfinispanExternalArtifacts `json:"artifacts,omitempty"`
+}
+
+// ExternalArtifactType defines external artifact file type
+// +kubebuilder:validation:Enum=file;zip;tgz
+type ExternalArtifactType string
+
+const (
+	ExternalArtifactTypeFile  ExternalArtifactType = "file"
+	ExternalArtifactTypeZip   ExternalArtifactType = "zip"
+	ExternalArtifactTypeTarGz ExternalArtifactType = "tgz"
+)
+
+type InfinispanExternalArtifacts struct {
+	// +kubebuilder:validation:Pattern=`^(https?|ftp)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`
+	// URL of the file you want to download.
+	Url string `json:"url"`
+	// +optional
+	// Specifies the type of file you want to download. If not specified, the file type is automatically determined from the extension.
+	Type ExternalArtifactType `json:"type,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Pattern=`^(sha1|sha224|sha256|sha384|sha512|md5):[a-z0-9]+`
+	// Checksum that you can use to verify downloaded files.
+	Hash string `json:"hash,omitempty"`
 }
 
 // InfinispanCloudEvents describes how Infinispan is connected with Cloud Event, see Kafka docs for more info
