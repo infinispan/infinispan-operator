@@ -52,6 +52,8 @@ const (
 	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
 )
 
+type ExternalDependencyType string
+
 // equals compares two ConditionType's case insensitive
 func (a ConditionType) equals(b ConditionType) bool {
 	return strings.EqualFold(strings.ToLower(string(a)), strings.ToLower(string(b)))
@@ -616,9 +618,14 @@ func applyLabels(ispn *Infinispan, envvar, annotationName string) error {
 	return err
 }
 
-// HasCustomLibraries true if custom libraries are defined
-func (ispn *Infinispan) HasCustomLibraries() bool {
+// HasDependenciesVolume true if custom dependencies are defined via PersistenceVolumeClaim
+func (ispn *Infinispan) HasDependenciesVolume() bool {
 	return ispn.Spec.Dependencies != nil && ispn.Spec.Dependencies.VolumeClaimName != ""
+}
+
+// HasExternalArtifacts true if external artifacts are defined
+func (ispn *Infinispan) HasExternalArtifacts() bool {
+	return ispn.Spec.Dependencies != nil && len(ispn.Spec.Dependencies.Artifacts) > 0
 }
 
 // IsServiceMonitorEnabled validates that "infinispan.org/monitoring":true annotation defines or not

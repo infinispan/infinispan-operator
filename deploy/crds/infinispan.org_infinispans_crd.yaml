@@ -419,6 +419,28 @@ spec:
             dependencies:
               description: External dependencies needed by the Infinispan cluster
               properties:
+                artifacts:
+                  items:
+                    properties:
+                      hash:
+                        description: Checksum that you can use to verify downloaded files.
+                        pattern: ^(sha1|sha224|sha256|sha384|sha512|md5):[a-z0-9]+
+                        type: string
+                      type:
+                        description: Specifies the type of file you want to download. If not specified, the file type is automatically determined from the extension.
+                        enum:
+                          - file
+                          - zip
+                          - tgz
+                        type: string
+                      url:
+                        description: URL of the file you want to download.
+                        pattern: ^(https?|ftp)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]
+                        type: string
+                    required:
+                      - url
+                    type: object
+                  type: array
                 volumeClaimName:
                   description: Name of the persistent volume claim with custom libraries
                   type: string
