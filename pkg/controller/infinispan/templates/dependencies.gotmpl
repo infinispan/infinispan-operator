@@ -1,0 +1,38 @@
+{{/* Dependencies download script for init container */}}
+set -e
+function retry {
+    local n=1
+    local max=5
+    local delay=1
+    while true; do
+        $@ && break || {
+            if [[ $n -lt $max ]]; then
+                ((n++))
+                echo "Download failed. Attempt $n/$max:"
+                sleep $delay
+            else
+                echo "Artifact download has failed after $n attempts."
+                exit 1
+            fi
+        }
+    done
+}
+function unpack {
+    if [[ ${2} == "" && ${1} =~ ".zip" || ${2} == "zip" ]]; then
+        unzip -oq ${1} && rm ${1}
+    fi
+    if [[ ${2} == "" && ${1} =~ ".tar.gz" || ${2} == "tgz" ]]; then
+        tar xf ${1} && rm ${1}
+    fi
+}
+cd {{ .MountPath }}
+{{- range $i, $artifact := .Artifacts }}
+    mkdir -p ./tmp
+    cd ./tmp
+    retry "curl --insecure -LO {{ $artifact.Url }}"
+    FILENAME=$(ls -1 . | head -n1)
+    {{ hashCmd $artifact "$FILENAME" }}
+    cd .. && mv ./tmp/$FILENAME .
+    unpack {{ $artifact.Type }} $FILENAME
+    rm -rf ./tmp
+{{- end }}
