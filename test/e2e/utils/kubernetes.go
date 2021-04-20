@@ -49,7 +49,7 @@ import (
 )
 
 // Runtime scheme
-var scheme = runtime.NewScheme()
+var Scheme = runtime.NewScheme()
 
 var log = logf.Log.WithName("kubernetes_test")
 
@@ -62,14 +62,14 @@ type TestKubernetes struct {
 type MapperProvider func(cfg *rest.Config, opts ...apiutil.DynamicRESTMapperOption) (meta.RESTMapper, error)
 
 func init() {
-	addToScheme(&v1.SchemeBuilder, scheme)
-	addToScheme(&rbacv1.SchemeBuilder, scheme)
-	addToScheme(&apiextv1beta1.SchemeBuilder, scheme)
-	addToScheme(&ispnv1.SchemeBuilder.SchemeBuilder, scheme)
-	addToScheme(&ispnv2.SchemeBuilder.SchemeBuilder, scheme)
-	addToScheme(&appsv1.SchemeBuilder, scheme)
-	addToScheme(&storagev1.SchemeBuilder, scheme)
-	ExpectNoError(routev1.Install(scheme))
+	addToScheme(&v1.SchemeBuilder, Scheme)
+	addToScheme(&rbacv1.SchemeBuilder, Scheme)
+	addToScheme(&apiextv1beta1.SchemeBuilder, Scheme)
+	addToScheme(&ispnv1.SchemeBuilder.SchemeBuilder, Scheme)
+	addToScheme(&ispnv2.SchemeBuilder.SchemeBuilder, Scheme)
+	addToScheme(&appsv1.SchemeBuilder, Scheme)
+	addToScheme(&storagev1.SchemeBuilder, Scheme)
+	ExpectNoError(routev1.Install(Scheme))
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
@@ -129,7 +129,7 @@ func resolveConfig(ctx string) *rest.Config {
 // NewTestKubernetes creates a new instance of TestKubernetes
 func NewTestKubernetes(ctx string) *TestKubernetes {
 	mapperProvider := apiutil.NewDynamicRESTMapper
-	kubernetes, err := NewKubernetesFromLocalConfig(scheme, mapperProvider, ctx)
+	kubernetes, err := NewKubernetesFromLocalConfig(Scheme, mapperProvider, ctx)
 	ExpectNoError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
 }
@@ -176,7 +176,7 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
-		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
+		k.WaitForPods(0, 5*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
 	}
 
@@ -646,14 +646,17 @@ func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
 }
 
 func (k TestKubernetes) installCRD(path string) {
+	crd := &apiextv1beta1.CustomResourceDefinition{}
+	k.LoadResourceFromYaml(path, crd)
+	k.CreateOrUpdateAndWaitForCRD(crd)
+}
+
+func (k TestKubernetes) LoadResourceFromYaml(path string, obj runtime.Object) {
 	yamlReader, err := GetYamlReaderFromFile(path)
 	ExpectNoError(err)
 	y, err := yamlReader.Read()
 	ExpectNoError(err)
-	crd := apiextv1beta1.CustomResourceDefinition{}
-	err = k8syaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&crd)
-	ExpectNoError(err)
-	k.CreateOrUpdateAndWaitForCRD(&crd)
+	ExpectNoError(k8syaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&obj))
 }
 
 func RunOperator(m *testing.M, k *TestKubernetes) {
@@ -680,10 +683,10 @@ func RunOperator(m *testing.M, k *TestKubernetes) {
 
 // Run the operator locally
 func runOperatorLocally(stopCh chan struct{}, namespace string) {
-	kubeConfig := kube.FindKubeConfig()
 	_ = os.Setenv("WATCH_NAMESPACE", namespace)
-	_ = os.Setenv("KUBECONFIG", kubeConfig)
+	_ = os.Setenv("KUBECONFIG", kube.FindKubeConfig())
 	_ = os.Setenv("OSDK_FORCE_RUN_MODE", "local")
+	_ = os.Setenv("OPERATOR_NAME", OperatorName)
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
 }
 func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {

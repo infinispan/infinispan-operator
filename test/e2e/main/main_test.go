@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,9 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -266,7 +270,7 @@ func TestNodeStartup(t *testing.T) {
 // and match them with the labels map provided by the caller
 func areOperatorLabelsPropagated(namespace, varName string, labels map[string]string) bool {
 	podList := &corev1.PodList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(namespace, map[string]string{"name": "infinispan-operator"}, podList))
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(namespace, map[string]string{"name": tutils.OperatorName}, podList))
 	if len(podList.Items) == 0 {
 		panic("Cannot get the Infinispan operator pod")
 	}
@@ -525,7 +529,7 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.CPU = "550m"
 	}
-	var verifier = func(ss *appsv1.StatefulSet) {
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		limit := resource.MustParse("550m")
 		request := resource.MustParse("275m")
 		if limit.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"]) != 0 ||
@@ -544,7 +548,7 @@ func TestContainerMemoryUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.Memory = "256Mi"
 	}
-	var verifier = func(ss *appsv1.StatefulSet) {
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		if resource.MustParse("256Mi") != ss.Spec.Template.Spec.Containers[0].Resources.Requests["memory"] {
 			panic("Memory field not updated")
 		}
@@ -559,7 +563,7 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.ExtraJvmOpts = "-XX:NativeMemoryTracking=summary"
 	}
-	var verifier = func(ss *appsv1.StatefulSet) {
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		env := ss.Spec.Template.Spec.Containers[0].Env
 		for _, value := range env {
 			if value.Name == "JAVA_OPTIONS" {
@@ -582,7 +586,7 @@ func TestEndpointAuthenticationUpdate(t *testing.T) {
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
 	}
-	var verifier = func(ss *appsv1.StatefulSet) {
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 	}
 	spec := tutils.DefaultSpec(testKube)
@@ -612,8 +616,8 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 			EndpointEncryption: tutils.EndpointEncryption(spec.Name),
 		}
 	}
-	var verifier = func(ss *appsv1.StatefulSet) {
-		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 		// Ensure that we can connect to the endpoint with TLS
 		host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
 		checkRestConnection(host, client)
@@ -623,14 +627,18 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 }
 
 // Test if single node working correctly
-func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*appsv1.StatefulSet)) {
+func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan, *appsv1.StatefulSet)) {
 	testKube.CreateInfinispan(&ispn, tutils.Namespace)
 	defer testKube.DeleteInfinispan(&ispn, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+
+	verifyStatefulSetUpdate(ispn, modifier, verifier)
+}
+
+func verifyStatefulSetUpdate(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan, *appsv1.StatefulSet)) {
 	// Get the associate StatefulSet
 	ss := appsv1.StatefulSet{}
-
 	// Get the current generation
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss))
 	generation := ss.Status.ObservedGeneration
@@ -655,7 +663,7 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 	tutils.ExpectNoError(err)
 
 	// Check that the update has been propagated
-	verifier(&ss)
+	verifier(&ispn, &ss)
 }
 
 func TestCacheService(t *testing.T) {
@@ -1077,6 +1085,134 @@ func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identi
 
 	// Verify authorization works as expected
 	verify(hostAddr, client)
+}
+
+func TestExternalDependenciesHttp(t *testing.T) {
+	webServerConfig := prepareWebServer()
+	defer testKube.DeleteResource(tutils.Namespace, labels.SelectorFromSet(map[string]string{"app": tutils.WebServerName}), webServerConfig, tutils.SinglePodTimeout)
+
+	namespace := tutils.Namespace
+	spec := tutils.DefaultSpec(testKube)
+	name := strcase.ToKebab(t.Name())
+	spec.Name = name
+	spec.Spec.Dependencies = &ispnv1.InfinispanExternalDependencies{
+		Artifacts: []ispnv1.InfinispanExternalArtifacts{
+			{Url: fmt.Sprintf("http://%s:%d/task01-1.0.0.jar", tutils.WebServerName, tutils.WebServerPortNumber)},
+			{Url: fmt.Sprintf("http://%s:%d/task02-1.0.0.zip", tutils.WebServerName, tutils.WebServerPortNumber)},
+		},
+	}
+
+	// Create the cluster
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, name, namespace)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+
+	validateTaskExecution := func(task, param string, status int, result string) {
+		url := fmt.Sprintf("%s/rest/v2/tasks/%s?action=exec&param.name=%s", hostAddr, task, param)
+		resp, err := client.Post(url, "", nil)
+		tutils.ExpectNoError(err)
+		defer func(Body io.ReadCloser) {
+			tutils.ExpectNoError(Body.Close())
+		}(resp.Body)
+		if resp.StatusCode != status {
+			panic(fmt.Sprintf("Unexpected response code %d for the Server Task execution", resp.StatusCode))
+		}
+		if resp.StatusCode == http.StatusOK {
+			body, err := ioutil.ReadAll(resp.Body)
+			tutils.ExpectNoError(err)
+			if string(body) != result {
+				panic(fmt.Sprintf("Unexpected task %s response '%s' from the Server Task", task, string(body)))
+			}
+		}
+	}
+
+	for _, task := range []string{"01", "02"} {
+		validateTaskExecution("task-"+task, "World", http.StatusOK, "Hello World")
+	}
+
+	var externalLibraryAddModify = func(ispn *ispnv1.Infinispan) {
+		libs := &ispn.Spec.Dependencies.Artifacts
+		*libs = append(*libs, ispnv1.InfinispanExternalArtifacts{Url: fmt.Sprintf("http://%s:%d/task03-1.0.0.tar.gz", tutils.WebServerName, tutils.WebServerPortNumber)})
+	}
+	var externalLibraryAddVerify = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+		validateTaskExecution("task-03", "World", http.StatusOK, "Hello World")
+	}
+	verifyStatefulSetUpdate(*ispn, externalLibraryAddModify, externalLibraryAddVerify)
+
+	var externalLibraryHashModify = func(ispn *ispnv1.Infinispan) {
+		for taskName, taskData := range webServerConfig.BinaryData {
+			for artifactIndex, artifact := range ispn.Spec.Dependencies.Artifacts {
+				if strings.Contains(artifact.Url, taskName) {
+					ispn.Spec.Dependencies.Artifacts[artifactIndex].Hash = fmt.Sprintf("sha1:%s", ispnctrl.HashByte(taskData))
+				}
+			}
+		}
+	}
+
+	var externalLibraryHashVerify = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+		for _, task := range []string{"01", "02", "03"} {
+			validateTaskExecution("task-"+task, "World", http.StatusOK, "Hello World")
+		}
+	}
+
+	verifyStatefulSetUpdate(*ispn, externalLibraryHashModify, externalLibraryHashVerify)
+
+	var externalLibraryFailHashModify = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Dependencies.Artifacts[1].Hash = fmt.Sprintf("sha1:%s", "failhash")
+	}
+
+	tutils.ExpectNoError(testKube.UpdateInfinispan(ispn, func() {
+		externalLibraryFailHashModify(ispn)
+	}))
+
+	podList := &corev1.PodList{}
+	tutils.ExpectNoError(wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+		err = testKube.Kubernetes.ResourcesList(ispn.Namespace, ispnctrl.PodLabels(ispn.Name), podList)
+		if err != nil {
+			return false, nil
+		}
+		for _, pod := range podList.Items {
+			if kube.InitContainerFailed(pod.Status.InitContainerStatuses) {
+				return true, nil
+			}
+
+		}
+		return false, nil
+	}))
+
+	var externalLibraryRemoveModify = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Dependencies = nil
+	}
+	var externalLibraryRemoveVerify = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+		for _, task := range []string{"01", "02", "03"} {
+			validateTaskExecution("task-"+task, "", http.StatusBadRequest, "")
+		}
+	}
+	verifyStatefulSetUpdate(*ispn, externalLibraryRemoveModify, externalLibraryRemoveVerify)
+}
+
+func prepareWebServer() *corev1.ConfigMap {
+	webServerConfig := &corev1.ConfigMap{}
+	testKube.LoadResourceFromYaml("../utils/data/external-libs-config.yaml", webServerConfig)
+	webServerConfig.Namespace = tutils.Namespace
+	testKube.Create(webServerConfig)
+
+	webServerPodConfig := tutils.WebServerPod(tutils.WebServerName, tutils.Namespace, webServerConfig.Name, tutils.WebServerRootFolder, tutils.WebServerImageName)
+	tutils.ExpectNoError(controllerutil.SetControllerReference(webServerConfig, webServerPodConfig, tutils.Scheme))
+	testKube.Create(webServerPodConfig)
+
+	webServerService := tutils.WebServerService(tutils.WebServerName, tutils.Namespace)
+	tutils.ExpectNoError(controllerutil.SetControllerReference(webServerConfig, webServerService, tutils.Scheme))
+	testKube.Create(webServerService)
+
+	testKube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{Namespace: tutils.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": tutils.WebServerName})}, nil)
+	return webServerConfig
 }
 
 func cacheURL(cacheName, hostAddr string) string {
