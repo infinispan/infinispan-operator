@@ -2,14 +2,6 @@ package org.infinispan;
 
 public class Infinispans {
 
-   public static Infinispan defaultAuth() {
-      return new Infinispan("src/test/resources/infinispans/cr_minimal.yaml");
-   }
-
-   public static Infinispan customAuth() {
-      return new Infinispan("src/test/resources/infinispans/cr_minimal_with_auth.yaml");
-   }
-
    public static Infinispan advancedSetupA() {
       return new Infinispan("src/test/resources/infinispans/advanced_setup_a.yaml");
    }

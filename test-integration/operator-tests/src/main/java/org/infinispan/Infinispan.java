@@ -3,16 +3,11 @@ package org.infinispan;
 import java.io.File;
 import java.io.IOException;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
-import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.openshift.api.model.monitoring.v1.*;
 import org.infinispan.cr.InfinispanObject;
 import org.infinispan.cr.status.Condition;
 import org.infinispan.crd.InfinispanContextProvider;
@@ -101,60 +96,5 @@ public class Infinispan {
       String identitiesYaml = new String(Base64.getDecoder().decode(creds.get("identities.yaml")));
       Identities identities = new ObjectMapper(new YAMLFactory()).readValue(identitiesYaml, Identities.class);
       return identities.getCredentials(username);
-   }
-
-   public void createServiceMonitor() throws IOException {
-      Secret accessSecret = buildAccessSecret();
-      ServiceMonitor serviceMonitor = buildServiceMonitor();
-
-      openShift.createSecret(accessSecret);
-      openShift.monitoring().serviceMonitors().create(serviceMonitor);
-   }
-
-   private Secret buildAccessSecret() throws IOException {
-      Credentials credentials = getOperatorCredentials();
-
-      SecretBuilder sb = new SecretBuilder();
-      sb.withNewMetadata().withName(clusterName + "-access").endMetadata();
-      sb.addToStringData("username", credentials.getUsername());
-      sb.addToStringData("password", credentials.getPassword());
-
-      return sb.build();
-   }
-
-   private ServiceMonitor buildServiceMonitor() {
-      ServiceMonitorBuilder smb = new ServiceMonitorBuilder();
-      smb.withNewMetadata().withName(clusterName + "-monitor").endMetadata();
-
-      BasicAuthBuilder bab = new BasicAuthBuilder();
-      bab.withNewUsername("username", clusterName + "-access", false);
-      bab.withNewPassword("password", clusterName + "-access", false);
-
-      EndpointBuilder eb = new EndpointBuilder();
-      eb.withNewPort("infinispan-adm");
-      eb.withPath("/metrics");
-      eb.withHonorLabels(true);
-      eb.withBasicAuth(bab.build());
-      eb.withInterval("30s");
-      eb.withScrapeTimeout("10s");
-      eb.withScheme("http");
-
-      Map<String, String> matchLabels = new HashMap<>();
-      matchLabels.put("app", "infinispan-service");
-      matchLabels.put("clusterName", clusterName);
-
-      LabelSelectorBuilder lsb = new LabelSelectorBuilder();
-      lsb.withMatchLabels(matchLabels);
-
-      NamespaceSelectorBuilder nsb = new NamespaceSelectorBuilder();
-      nsb.withMatchNames(openShift.getNamespace());
-
-      smb.withNewSpec()
-              .withEndpoints(eb.build())
-              .withNamespaceSelector(nsb.build())
-              .withSelector(lsb.build())
-              .endSpec();
-
-      return smb.build();
    }
 }

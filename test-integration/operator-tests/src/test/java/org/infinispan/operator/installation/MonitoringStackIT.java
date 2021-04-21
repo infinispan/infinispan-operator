@@ -60,7 +60,6 @@ public class MonitoringStackIT {
         // Create Infinispan with ServiceMonitor
         infinispan.deploy();
         infinispan.waitFor();
-        infinispan.createServiceMonitor();
 
         // Install Grafana Operator
         String grafanaSubscriptionPath = "src/test/resources/monitoring/grafana_sub.yaml";
