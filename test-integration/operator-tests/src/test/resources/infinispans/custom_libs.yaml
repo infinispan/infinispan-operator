@@ -1,0 +1,10 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: custom-libs
+spec:
+  replicas: 1
+  service:
+    type: DataGrid
+  dependencies:
+    volumeClaimName: infinispan-libs
