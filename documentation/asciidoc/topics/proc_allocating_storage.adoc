@@ -1,12 +1,26 @@
-[id='container-storage_{context}']
-= Storage resources
-By default, {ispn_operator} allocates `1Gi` for storage for both {cacheservice} and {datagridservice} nodes.
-You can configure storage resources for {datagridservice} nodes but not {cacheservice} nodes.
+[id='allocating-storage_{context}']
+= Allocating storage resources
+You can allocate storage for {datagridservice} nodes but not {cacheservice} nodes.
 
+By default, {ispn_operator} allocates `1Gi` for the persistent volume claim.
+However you should adjust the amount of storage available to {datagridservice} nodes so that {brandname} can preserve cluster state during shutdown.
+
+[IMPORTANT]
+====
+If available container storage is less than the amount of available memory, data loss can occur.
+====
+
+.Procedure
+
+. Allocate storage resources with the `spec.service.container.storage` field.
+. Optionally configure the `ephemeralStorage` and `storageClassName` fields as required.
++
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/container_storage.yaml[]
 ----
++
+. Apply the changes.
 
 [%header,cols=2*]
 |===
@@ -23,13 +37,3 @@ include::yaml/container_storage.yaml[]
 |Specifies the name of a `StorageClass` object to use for the persistent volume claim (PVC). If you include this field, you must specify an existing storage class as the value. If you do not include this field, the persistent volume claim uses the storage class that has the `storageclass.kubernetes.io/is-default-class` annotation set to `true`.
 
 |===
-
-== Persistent volume claims
-
-{ispn_operator} mounts container storage at: +
-`{pv_path}`
-
-[NOTE]
-====
-Persistent volume claims use the `ReadWriteOnce (RWO)` access mode.
-====

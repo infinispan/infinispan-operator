@@ -2,6 +2,18 @@
 = Creating {brandname} clusters
 Use {ispn_operator} to create clusters of two or more {brandname} nodes.
 
+.Prerequisites
+
+* Install {ispn_operator}.
+//Community
+ifdef::community[]
+* Have an `oc` or a `kubectl` client.
+endif::community[]
+//Downstream
+ifdef::downstream[]
+* Have an `oc` client.
+endif::downstream[]
+
 .Procedure
 
 . Specify the number of {brandname} nodes in the cluster with `spec.replicas`

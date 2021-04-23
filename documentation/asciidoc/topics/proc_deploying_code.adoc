@@ -14,3 +14,8 @@ Make your custom code available to {brandname} clusters.
 ----
 include::yaml/dependencies.yaml[]
 ----
+
+[NOTE]
+====
+If you update your custom code on the persistent volume, you must restart the {brandname} cluster so it can load the changes.
+====

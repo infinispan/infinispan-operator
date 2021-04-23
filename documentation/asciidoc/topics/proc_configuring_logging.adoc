@@ -1,6 +1,7 @@
 [id='configuring-logging_{context}']
-= Changing log levels
-Change levels for different {brandname} logging categories.
+= Adjusting log levels
+Change levels for different {brandname} logging categories when you need to debug issues.
+You can also adjust log levels to reduce the number of messages for certain categories to minimize the use of container resources.
 
 .Procedure
 
@@ -10,11 +11,6 @@ Change levels for different {brandname} logging categories.
 ----
 include::yaml/logging_categories.yaml[]
 ----
-+
-[NOTE]
-====
-The root logging category is `org.infinispan` and is `INFO` by default.
-====
 +
 . Apply the changes.
 . Retrieve logs from {brandname} nodes as required.

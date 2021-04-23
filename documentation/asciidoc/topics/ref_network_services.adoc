@@ -1,6 +1,8 @@
 [id='network-services_{context}']
 = Network services
 
+Reference information for network services that {ispn_operator} creates and manages.
+
 == Internal service
 
 * Allow {brandname} nodes to discover each other and form clusters.

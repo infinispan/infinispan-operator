@@ -1,7 +1,25 @@
 [id='logging-levels_{context}']
-= Logging levels
-Log levels indicate the nature and severity of messages.
+= Logging reference
+Find information about log categories and levels.
 
+.Log categories
+[%header,cols=3*]
+|===
+|Root category
+|Description
+|Default level
+
+|`org.infinispan`
+|{brandname} messages
+|`info`
+
+|`org.jgroups`
+|Cluster transport messages
+|`info`
+
+|===
+
+.Log levels
 [%header,cols=2*]
 |===
 |Log level
@@ -22,3 +40,13 @@ Log levels indicate the nature and severity of messages.
 |`error`
 |Indicates error conditions that might prevent operations or activities from being successful but do not prevent applications from running.
 |===
+
+.Garbage collection (GC) messages
+
+{ispn_operator} does not log GC messages by default.
+You can direct GC messages to `stdout` with the following JVM options:
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
+extraJvmOpts: "-Xlog:gc*:stdout:time,level,tags"
+----

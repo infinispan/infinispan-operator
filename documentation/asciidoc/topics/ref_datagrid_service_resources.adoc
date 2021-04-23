@@ -1,5 +1,7 @@
-[id='datagrid-service-resources_{context}']
-= {datagridservice} resources
+[id='datagrid-cr_{context}']
+= {datagridservice} CR
+
+The following are the `Infinispan` CR fields for {datagridservice} nodes:
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
