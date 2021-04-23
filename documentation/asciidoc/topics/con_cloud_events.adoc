@@ -1,10 +1,7 @@
 [id='cloud-events_{context}']
 = Cloud events
 
-You can send `CloudEvents` from {brandname} clusters when the following occurs:
-
-* Entries in caches are created, updated, removed, or expired
-* {brandname} users log in or are denied access (security audits)
+You can send `CloudEvents` from {brandname} clusters when entries in caches are created, updated, removed, or expired.
 
 {brandname} sends structured events to Apache Kafka in JSON format, as in the following example:
 

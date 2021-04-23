@@ -4,7 +4,7 @@ metadata:
   name: datagrid-libs-pod
 spec:
   securityContext:
-    fsGroup: <groupID>
+    fsGroup: 2000
   volumes:
     - name: lib-pv-storage
       persistentVolumeClaim:

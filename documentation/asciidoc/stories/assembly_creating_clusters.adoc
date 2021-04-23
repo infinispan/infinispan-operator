@@ -1,24 +1,13 @@
 ifdef::context[:parent-context: {context}]
 [id='creating-clusters']
-:context: start
-= Getting started with {ispn_operator}
-{ispn_operator} lets you create, configure, and manage {brandname} clusters.
-
-.Prerequisites
-
-* Install {ispn_operator}.
-//Community
-ifdef::community[]
-* Have an `oc` or a `kubectl` client.
-endif::community[]
-//Downstream
-ifdef::downstream[]
-* Have an `oc` client.
-endif::downstream[]
+:context: infinispan-cr
+= Getting started with Infinispan CR
+After you install {ispn_operator}, learn how to create {brandname} clusters on {k8s}.
 
 include::{topics}/con_infinispan_cr.adoc[leveloffset=+1]
 include::{topics}/proc_creating_minimal_clusters.adoc[leveloffset=+1]
 include::{topics}/proc_verifying_clusters.adoc[leveloffset=+1]
+include::{topics}/proc_stopping_starting.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

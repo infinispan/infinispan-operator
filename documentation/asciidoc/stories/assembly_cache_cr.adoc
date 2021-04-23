@@ -18,9 +18,9 @@ ifdef::downstream[]
 [IMPORTANT]
 ====
 Creating caches with {ispn_operator} is available as a technology preview.
+====
 
 include::{topics}/ref_tech_preview.adoc[leveloffset=+1]
-====
 endif::downstream[]
 
 include::{topics}/con_caches.adoc[leveloffset=+1]
