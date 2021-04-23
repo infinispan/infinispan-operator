@@ -81,7 +81,7 @@ push: image
 ## push-okd4        Push docker image to the OCP|OKD4 internal registry and deploy the operator.
 ##
 push-okd4: build
-	build/push-okd4.sh
+	build/push-okd4.sh ${YQ_VERSION}
 
 ## run              Create the Infinispan operator on OKD with the public image.
 ##                  - Specify cluster access configuration with KUBECONFIG.
