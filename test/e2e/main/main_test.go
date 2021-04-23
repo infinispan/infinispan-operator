@@ -804,6 +804,7 @@ func createCache(cacheName, hostAddr string, flags string, client tutils.HTTPCli
 		headers["Flags"] = flags
 	}
 	resp, err := client.Post(httpURL, "", headers)
+	defer tutils.CloseHttpResponse(resp)
 	tutils.ExpectNoError(err)
 	if resp.StatusCode != http.StatusOK {
 		panic(httpError{resp.StatusCode})
@@ -831,6 +832,7 @@ func createCacheWithXMLTemplate(cacheName, hostAddr, template string, client tut
 		"Content-Type": "application/xml;charset=UTF-8",
 	}
 	resp, err := client.Post(httpURL, template, headers)
+	defer tutils.CloseHttpResponse(resp)
 	tutils.ExpectNoError(err)
 	// Accept all the 2xx success codes
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
@@ -867,6 +869,7 @@ func putViaRoute(url, value string, client tutils.HTTPClient) {
 		"Content-Type": "text/plain",
 	}
 	resp, err := client.Post(url, value, headers)
+	defer tutils.CloseHttpResponse(resp)
 	tutils.ExpectNoError(err)
 	if resp.StatusCode != http.StatusNoContent {
 		throwHTTPError(resp)

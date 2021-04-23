@@ -310,7 +310,7 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 			host, err := k.Kubernetes.GetNodeHost(log)
 			ExpectNoError(err)
 			hostAndPort = fmt.Sprintf("%s:%d", host, k.Kubernetes.GetNodePort(route))
-			result := checkExternalAddress(client, hostAndPort)
+			result := CheckExternalAddress(client, hostAndPort)
 			if result {
 				return result, nil
 			}
@@ -321,7 +321,7 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 			if strings.Contains(hostAndPort, "127.0.0.1") {
 				log.Info("Running on kind (kubernetes-inside-docker), try accessing via node port forward")
 				hostAndPort = fmt.Sprintf("127.0.0.1:%d", consts.InfinispanUserPort)
-				result := checkExternalAddress(client, hostAndPort)
+				result := CheckExternalAddress(client, hostAndPort)
 				if result {
 					return result, nil
 				}
@@ -340,15 +340,16 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 				hostAndPort = route.Spec.Host
 			}
 		}
-		return checkExternalAddress(client, hostAndPort), nil
+		return CheckExternalAddress(client, hostAndPort), nil
 	})
 	ExpectNoError(err)
 	return hostAndPort
 }
 
-func checkExternalAddress(c HTTPClient, hostAndPort string) bool {
+func CheckExternalAddress(c HTTPClient, hostAndPort string) bool {
 	httpURL := fmt.Sprintf("%s/%s", hostAndPort, consts.ServerHTTPHealthPath)
 	resp, err := c.Get(httpURL, nil)
+	defer LogError(resp.Body.Close())
 	if net.IsConnectionRefused(err) {
 		return false
 	}

@@ -133,7 +133,7 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		hostAddr, client := utils.HTTPClientAndHost(infinispan, testKube)
 		cacheName := "someCache"
 		populateCache(cacheName, hostAddr, numEntries, infinispan, client)
-		assertNumEntries(cacheName, hostAddr, numEntries, infinispan, client)
+		assertNumEntries(cacheName, hostAddr, numEntries, client)
 
 		// 3. Backup the cluster's content
 		backupName := "backup"
@@ -201,7 +201,7 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 7. Ensure that all data is in the target cluster
-		assertNumEntries(cacheName, hostAddr, numEntries, infinispan, client)
+		assertNumEntries(cacheName, hostAddr, numEntries, client)
 	}
 }
 
@@ -267,6 +267,7 @@ func cacheService(name, namespace string, replicas int) *v1.Infinispan {
 func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infinispan, client tutils.HTTPClient) {
 	post := func(url, payload string, status int, headers map[string]string) {
 		rsp, err := client.Post(url, payload, headers)
+		tutils.ExpectNoError(rsp.Body.Close())
 		tutils.ExpectNoError(err)
 		if rsp.StatusCode != status {
 			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
@@ -290,16 +291,16 @@ func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infini
 	}
 }
 
-func assertNumEntries(cacheName, host string, numEntries int, infinispan *v1.Infinispan, client tutils.HTTPClient) {
+func assertNumEntries(cacheName, host string, numEntries int, client tutils.HTTPClient) {
 	url := fmt.Sprintf("%s/rest/v2/caches/%s?action=size", host, cacheName)
 	rsp, err := client.Get(url, nil)
-
 	tutils.ExpectNoError(err)
 	if rsp.StatusCode != http.StatusOK {
 		panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
 	}
 
 	body, err := ioutil.ReadAll(rsp.Body)
+	tutils.ExpectNoError(rsp.Body.Close())
 	tutils.ExpectNoError(err)
 	numRead, err := strconv.ParseInt(string(body), 10, 64)
 	tutils.ExpectNoError(err)

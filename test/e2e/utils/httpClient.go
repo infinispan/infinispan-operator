@@ -3,14 +3,18 @@ package utils
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 )
+
+const DEBUG = false
 
 // HTTPClient can perform HTTP operations
 type HTTPClient interface {
@@ -25,11 +29,9 @@ type authenticationRealm struct {
 
 type httpClientConfig struct {
 	*http.Client
-	username       *string
-	password       *string
-	protocol       string
-	authRealm      *authenticationRealm
-	requestCounter int
+	username *string
+	password *string
+	protocol string
 }
 
 // NewHTTPClient return a new HTTPClient
@@ -43,11 +45,9 @@ func NewHTTPClientNoAuth(protocol string) HTTPClient {
 
 func new(username, password *string, protocol string) HTTPClient {
 	return &httpClientConfig{
-		username:       username,
-		password:       password,
-		protocol:       protocol,
-		authRealm:      nil,
-		requestCounter: 0,
+		username: username,
+		password: password,
+		protocol: protocol,
 		Client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
@@ -59,48 +59,60 @@ func new(username, password *string, protocol string) HTTPClient {
 }
 
 func (c *httpClientConfig) Delete(path string, headers map[string]string) (*http.Response, error) {
-	httpURL := fmt.Sprintf("%s://%s", c.protocol, path)
-	fmt.Println("DELETE ", httpURL)
-	req, err := http.NewRequest("DELETE", httpURL, nil)
-	ExpectNoError(err)
-	return c.exec(req, headers)
+	return c.exec("DELETE", path, "", nil)
 }
 
 func (c *httpClientConfig) Get(path string, headers map[string]string) (*http.Response, error) {
-	httpURL := fmt.Sprintf("%s://%s", c.protocol, path)
-	fmt.Println("GET ", httpURL)
-	req, err := http.NewRequest("GET", httpURL, nil)
-	ExpectNoError(err)
-	return c.exec(req, headers)
+	return c.exec("GET", path, "", nil)
 }
 
 func (c *httpClientConfig) Post(path, payload string, headers map[string]string) (*http.Response, error) {
-	httpURL := fmt.Sprintf("%s://%s", c.protocol, path)
-	body := bytes.NewBuffer([]byte(payload))
-	fmt.Println("POST ", httpURL)
-	req, err := http.NewRequest("POST", httpURL, body)
-	ExpectNoError(err)
-	return c.exec(req, headers)
+	return c.exec("POST", path, payload, headers)
 }
 
-func (c *httpClientConfig) exec(req *http.Request, headers map[string]string) (*http.Response, error) {
-	if c.isAuthRequired() {
-		if c.authRealm == nil {
-			rsp, err := c.Do(req)
-			ExpectNoError(err)
-			if rsp.StatusCode != http.StatusUnauthorized {
-				return rsp, fmt.Errorf("Expected 401 DIGEST response before content: %v", rsp)
-			}
-			c.authRealm = getAuthorization(*c.username, *c.password, rsp)
+func (c *httpClientConfig) exec(method, path, payload string, headers map[string]string) (*http.Response, error) {
+	httpURL, err := url.Parse(fmt.Sprintf("%s://%s", c.protocol, path))
+	ExpectNoError(err)
+	fmt.Printf("%s: %s\n", method, httpURL)
+	rsp, err := c.request(httpURL, method, payload, headers)
+
+	if c.isAuthRequired() && rsp.StatusCode == http.StatusUnauthorized {
+		ExpectNoError(rsp.Body.Close())
+		h := headers
+		if h == nil {
+			h = map[string]string{}
 		}
-		c.requestCounter++
-		authStr := getAuthString(c.authRealm, req.URL, req.Method, c.requestCounter)
-		for header, value := range headers {
-			req.Header.Add(header, value)
-		}
-		req.Header.Add("Authorization", authStr)
+		authRealm := getAuthorization(*c.username, *c.password, rsp)
+		authStr := getAuthString(authRealm, httpURL.Path, method, 0)
+		h["Authorization"] = authStr
+		rsp, err = c.request(httpURL, method, payload, h)
 	}
+	return rsp, err
+}
+
+func (c *httpClientConfig) request(url *url.URL, method, payload string, headers map[string]string) (*http.Response, error) {
+	var body io.Reader
+	if payload != "" {
+		body = bytes.NewBuffer([]byte(payload))
+	}
+	req, err := http.NewRequest(method, url.String(), body)
+	ExpectNoError(err)
+	for header, value := range headers {
+		req.Header.Add(header, value)
+	}
+
+	if DEBUG {
+		dump, err := httputil.DumpRequestOut(req, true)
+		ExpectNoError(err)
+		fmt.Printf("Req>>>>>>>>>>>>>>>>\n%s\n\n", string(dump))
+	}
+
 	rsp, err := c.Do(req)
+	if DEBUG {
+		dump, err := httputil.DumpResponse(rsp, true)
+		ExpectNoError(err)
+		fmt.Printf("Rsp<<<<<<<<<<<<<<<<\n%s\n\n", string(dump))
+	}
 	return rsp, err
 }
 
@@ -128,7 +140,7 @@ func getAuthorization(username, password string, resp *http.Response) *authentic
 	return &auth
 }
 
-func getAuthString(auth *authenticationRealm, url *url.URL, method string, nc int) string {
+func getAuthString(auth *authenticationRealm, path, method string, nc int) string {
 	a1 := auth.Username + ":" + auth.Realm + ":" + auth.Password
 	h := md5.New()
 	_, err := io.WriteString(h, a1)
@@ -137,14 +149,14 @@ func getAuthString(auth *authenticationRealm, url *url.URL, method string, nc in
 	ha1 := hex.EncodeToString(h.Sum(nil))
 
 	h = md5.New()
-	a2 := method + ":" + url.Path
+	a2 := method + ":" + path
 	_, err = io.WriteString(h, a2)
 	ExpectNoError(err)
 
 	ha2 := hex.EncodeToString(h.Sum(nil))
 
 	nc_str := fmt.Sprintf("%08x", nc)
-	hnc := "MTM3MDgw"
+	hnc := getCnonce()
 
 	respdig := fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, auth.NONCE, nc_str, hnc, auth.QOP, ha2)
 	h = md5.New()
@@ -154,7 +166,7 @@ func getAuthString(auth *authenticationRealm, url *url.URL, method string, nc in
 	respdig = hex.EncodeToString(h.Sum(nil))
 
 	base := "username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", response=\"%s\""
-	base = fmt.Sprintf(base, auth.Username, auth.Realm, auth.NONCE, url.Path, respdig)
+	base = fmt.Sprintf(base, auth.Username, auth.Realm, auth.NONCE, path, respdig)
 	if auth.Opaque != "" {
 		base += fmt.Sprintf(", opaque=\"%s\"", auth.Opaque)
 	}
@@ -166,4 +178,11 @@ func getAuthString(auth *authenticationRealm, url *url.URL, method string, nc in
 	}
 
 	return "Digest " + base
+}
+
+func getCnonce() string {
+	b := make([]byte, 8)
+	_, err := io.ReadFull(rand.Reader, b)
+	ExpectNoError(err)
+	return fmt.Sprintf("%x", b)[:16]
 }
