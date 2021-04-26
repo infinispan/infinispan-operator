@@ -648,7 +648,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	if infinispan.Spec.Upgrade != nil && infinispan.Spec.Upgrade.Policy == infinispanv1.UpgradePolicyManual {
 		// In Manual mode upgrade is triggered by the user changing infinispan.spec.Image field
 		// if that field is empty the operator default image is used (same as policy latest in this case)
-		if *infinispan.Spec.Image != "" {
+		if infinispan.Spec.Image != nil && *infinispan.Spec.Image != "" {
 			desiredImage = *infinispan.Spec.Image
 		}
 	}
