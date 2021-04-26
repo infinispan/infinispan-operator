@@ -58,22 +58,22 @@ type InfinispanServiceContainerSpec struct {
 	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
-// UpgradePolicy specifies all the possible policies that rule the ispn cluster upgrade
+// UpgradeStrategy specifies all the possible policies that rule the ispn cluster upgrade
 // +kubebuilder:validation:Enum=Manual;Latest
-type UpgradePolicy string
+type UpgradeStrategy string
 
 const (
-	// UpgradePolicyManual only user can manually trigger a cluster upgrade
-	UpgradePolicyManual UpgradePolicy = "Manual"
-	// UpgradePolicyLatest cluster upgrade is triggered automatically if a new image is available
-	UpgradePolicyLatest UpgradePolicy = "Latest"
+	// UpgradeStrategyManual only user can manually trigger a cluster upgrade
+	UpgradeStrategyManual UpgradeStrategy = "Manual"
+	// UpgradeStrategyLatest cluster upgrade is triggered automatically if a new image is available
+	UpgradeStrategyLatest UpgradeStrategy = "Latest"
 )
 
 // InfinispanUpgrade represents the upgrade strategy
 type InfinispanUpgrade struct {
-	// Policy represent the current upgrade policy for this cluster
+	// Strategy represent the current upgrade policy for this cluster
 	// +optional
-	Policy UpgradePolicy `json:"strategy,omitempty"`
+	Strategy UpgradeStrategy `json:"strategy,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=DataGrid;Cache

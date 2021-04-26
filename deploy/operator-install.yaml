@@ -797,7 +797,7 @@ spec:
               description: InfinispanUpgrade represents the upgrade strategy
               properties:
                 strategy:
-                  description: Policy represent the current upgrade policy for this cluster
+                  description: Strategy represent the current upgrade policy for this cluster
                   enum:
                     - Manual
                     - Latest
