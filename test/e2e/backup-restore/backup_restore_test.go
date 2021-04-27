@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestBackupRestore(t *testing.T) {
-	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService, 1))
+	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService, 2))
 	t.Run(string(v1.ServiceTypeDataGrid)+"NoAuth", testBackupRestore(datagridServiceNoAuth, 1))
 	// t.Run(string(v1.ServiceTypeCache), testBackupRestore(cacheService, 2))
 }
