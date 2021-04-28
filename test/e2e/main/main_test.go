@@ -425,18 +425,12 @@ func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv
 
 func TestCacheService(t *testing.T) {
 	t.Parallel()
-	testCacheService(t.Name(), nil)
+	testCacheService(t.Name())
 }
 
-func TestCacheServiceNativeImage(t *testing.T) {
-	t.Parallel()
-	testCacheService(t.Name(), pointer.StringPtr(tutils.NativeImageName))
-}
-
-func testCacheService(testName string, imageName *string) {
+func testCacheService(testName string) {
 	spec := tutils.DefaultSpec(testKube)
 	spec.Name = strcase.ToKebab(testName)
-	spec.Spec.Image = imageName
 	spec.Spec.Service.Type = ispnv1.ServiceTypeCache
 	spec.Spec.Expose = tutils.ExposeServiceSpec(testKube)
 
