@@ -29,12 +29,17 @@ public class HotRodServlet extends HttpServlet {
          String serviceName = request.getParameter("servicename");
          String username = request.getParameter("username");
          String password = request.getParameter("password");
+         String encrypted = request.getParameter("encrypted");
 
          ConfigurationBuilder builder = new ConfigurationBuilder();
          builder.addServer().host(serviceName).port(11222);
 
          if(username != null || password != null) {
             builder.security().authentication().realm("default").serverName("infinispan").username(username).password(password).enable();
+         }
+
+         if(encrypted != null) {
+            builder.security().ssl().trustStorePath("/etc/" + serviceName + "-cert-secret/tls.crt");
          }
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());

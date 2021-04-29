@@ -1,7 +1,7 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: advanced-setup-b
+  name: cache-service
 spec:
   autoscale:
     maxMemUsagePercent: 40

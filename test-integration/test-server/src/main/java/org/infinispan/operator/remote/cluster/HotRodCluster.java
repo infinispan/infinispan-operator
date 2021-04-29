@@ -26,12 +26,9 @@ public class HotRodCluster extends HttpServlet {
 
       try {
          String serviceName = request.getParameter("servicename");
-         String username = request.getParameter("username");
-         String password = request.getParameter("password");
 
          ConfigurationBuilder builder = new ConfigurationBuilder();
          builder.addServer().host(serviceName).port(11222);
-         builder.security().authentication().realm("default").serverName("infinispan").username(username).password(password).enable();
          builder.clientIntelligence(ClientIntelligence.BASIC);
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());

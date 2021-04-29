@@ -1,11 +1,14 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: minimal-setup
+  name: dev-setup
+  annotations:
+    infinispan.org/monitoring: 'false'
 spec:
   expose:
     type: Route
   replicas: 2
   security:
+    endpointAuthentication: false
     endpointEncryption:
       type: None

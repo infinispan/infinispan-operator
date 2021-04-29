@@ -51,7 +51,7 @@ public class MonitoringStackIT {
     private static final OpenShift operatorShift = OpenShifts.master(operatorNamespace);
     private static final OpenShift monitoringShift = OpenShifts.master(monitoringNamespace);
 
-    private static final Infinispan infinispan = Infinispans.minimalSetup();
+    private static final Infinispan infinispan = Infinispans.cacheService();
 
     @BeforeAll
     static void prepare() throws IOException {

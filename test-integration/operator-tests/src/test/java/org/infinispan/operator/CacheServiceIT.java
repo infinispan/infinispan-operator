@@ -15,6 +15,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.entity.ContentType;
 import org.assertj.core.api.Assertions;
+import org.infinispan.Caches;
 import org.infinispan.Infinispan;
 import org.infinispan.Infinispans;
 import org.infinispan.TestServer;
@@ -25,36 +26,23 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import cz.xtf.client.Http;
-import cz.xtf.client.HttpResponseParser;
 import cz.xtf.core.http.Https;
 import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
 import cz.xtf.core.waiting.Waiters;
 import cz.xtf.junit5.annotations.CleanBeforeAll;
-import io.fabric8.kubernetes.api.model.Service;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * AdvancedSetupB compared to AdvancedSetupA tests endpoint encrypted by OpenShift.
+ * CacheServiceIT tests default security configurations and Cache Service specific features.
  *
- * spec:
- *   autoscale:
- *     maxMemUsagePercent: 40
- *     maxReplicas: 5
- *     minMemUsagePercent: 20
- *     minReplicas: 3
- *   expose:
- *     type: Route
- *   service:
- *     type: Cache
- *     replicationFactor: 3
- *   replicas: 3
+ * Check cache_service.yaml Infinispan CR in test resources for input configuration.
  */
 @Slf4j
 @CleanBeforeAll
-class AdvancedSetupBIT {
+class CacheServiceIT {
    private static final OpenShift openShift = OpenShifts.master();
-   private static final Infinispan infinispan = Infinispans.advancedSetupB();
+   private static final Infinispan infinispan = Infinispans.cacheService();
    private static final TestServer testServer = TestServer.get();
 
    private static String appName;
@@ -92,7 +80,7 @@ class AdvancedSetupBIT {
    static void undeploy() throws IOException {
       infinispan.delete();
 
-      new CleanUpValidator(openShift, appName).withExposedRoute().withDefaultCredentials().withOpenShiftCerts().validate();
+      new CleanUpValidator(openShift, appName).withExposedRoute().withDefaultCredentials().withOpenShiftCerts().withServiceMonitor().validate();
    }
 
    /**
@@ -111,17 +99,38 @@ class AdvancedSetupBIT {
    }
 
    /**
-    * Executes HotRod client from within Tomcat container running on OpenShift with usage of service-ca.crt file.
+    * Verifies valid default authentication configuration for rest protocol.
     */
    @Test
-   void hotrodInternalAccessTest() throws Exception {
+   void restAuthTest() throws Exception {
+      String cacheUrl = "https://" + hostName + "/rest/v2/caches/rest-auth-test/";
+      String keyUrl = cacheUrl + "authorized-rest-key";
+
+      Http authorizedCachePut = Http.post(cacheUrl).basicAuth(user, pass).data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML).trustAll();
+      Http authorizedKeyPut = Http.put(keyUrl).basicAuth(user, pass).data("credentials", ContentType.TEXT_PLAIN).trustAll();
+      Http unauthorizedPut = Http.post(cacheUrl).basicAuth(user, "DenitelyNotAPass").data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML).trustAll();
+      Http noAuthPut = Http.post(cacheUrl).data(Caches.fragile("rest-auth-test"), ContentType.APPLICATION_XML).trustAll();
+
+      Assertions.assertThat(authorizedCachePut.execute().code()).isEqualTo(200);
+      Assertions.assertThat(authorizedKeyPut.execute().code()).isEqualTo(204);
+      Assertions.assertThat(unauthorizedPut.execute().code()).isEqualTo(401);
+      Assertions.assertThat(noAuthPut.execute().code()).isEqualTo(401);
+   }
+
+   /**
+    * Verifies valid default authentication configuration for hotrod protocol.
+    */
+   @Test
+   void hotrodAuthTest() throws Exception {
       String encodedPass = URLEncoder.encode(pass, StandardCharsets.UTF_8.toString());
-      String url = "http://" + testServer.host() + "/hotrod/encryption-provided?username=%s&password=%s&servicename=%s";
-      String get = String.format(url, user, encodedPass, appName);
 
-      HttpResponseParser response = Http.get(get).execute();
+      String authorizedGet = String.format("http://" + testServer.host() + "/hotrod/auth?username=%s&password=%s&servicename=%s&encrypted=%s", user, encodedPass, appName, "true");
+      String unauthorizedGet = String.format("http://" + testServer.host() + "/hotrod/auth?username=%s&password=%s&servicename=%s&encrypted=%s", user, "invalid", appName, "true");
+      String noAuthGet = String.format("http://" + testServer.host() + "/hotrod/auth?servicename=%s&encrypted=%s", appName, "true");
 
-      Assertions.assertThat(response.code()).as(response.response()).isEqualTo(200);
+      Assertions.assertThat(Http.get(authorizedGet).execute().code()).isEqualTo(200);
+      Assertions.assertThat(Http.get(unauthorizedGet).execute().code()).isEqualTo(401);
+      Assertions.assertThat(Http.get(noAuthGet).execute().code()).isEqualTo(401);
    }
 
    /**
