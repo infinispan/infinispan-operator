@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -28,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/pointer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -733,56 +731,6 @@ func TestAuthenticationDisabled(t *testing.T) {
 	if rsp.StatusCode != http.StatusOK {
 		panic(httpError{rsp.StatusCode})
 	}
-}
-
-func TestCrossSiteViewForm(t *testing.T) {
-	testCrossSiteView(t.Name(), false)
-}
-
-func TestCrossSiteViewBetweenClusters(t *testing.T) {
-	// Cross-Site between clusters will need to setup two instances of the Kind for Travis CI
-	// Not be able to test on the separate OCP/OKD instance (probably with AWS/Azure LoadBalancer support only)
-	t.SkipNow()
-	testCrossSiteView(t.Name(), true)
-}
-
-func testCrossSiteView(name string, isMultiCluster bool) {
-	specA := tutils.CrossSiteSpec(name, 2, "A", "B")
-	specB := tutils.CrossSiteSpec(name, 1, "B", "A")
-
-	if isMultiCluster {
-		// This solution will emulate cross-clustering behaviour when connecting to internal services from outside the cluster using the KUBECONFIG file
-		clientConfig := clientcmd.GetConfigFromFileOrDie(os.Getenv("KUBECONFIG"))
-		testKube.CreateSecret(tutils.CrossSiteSecret("A", tutils.Namespace, clientConfig))
-		testKube.CreateSecret(tutils.CrossSiteSecret("B", tutils.Namespace, clientConfig))
-
-		defer testKube.DeleteSecret(tutils.CrossSiteSecret("A", tutils.Namespace, clientConfig))
-		defer testKube.DeleteSecret(tutils.CrossSiteSecret("B", tutils.Namespace, clientConfig))
-
-		serverUrl, err := url.Parse(clientConfig.Clusters[clientConfig.Contexts[clientConfig.CurrentContext].Cluster].Server)
-		tutils.ExpectNoError(err)
-
-		specA.Spec.Service.Sites.Locations[0].URL = "kubernetes://" + serverUrl.Host
-		specB.Spec.Service.Sites.Locations[0].URL = "kubernetes://" + serverUrl.Host
-	} else {
-		specA.Spec.Service.Sites.Locations[0].URL = "infinispan+xsite://" + specB.GetSiteServiceName()
-		specB.Spec.Service.Sites.Locations[0].URL = "infinispan+xsite://" + specA.GetSiteServiceName()
-	}
-
-	testKube.CreateInfinispan(specA, tutils.Namespace)
-	testKube.CreateInfinispan(specB, tutils.Namespace)
-
-	defer testKube.DeleteInfinispan(specA, tutils.SinglePodTimeout)
-	defer testKube.DeleteInfinispan(specB, tutils.SinglePodTimeout)
-
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, specB.Name, tutils.Namespace)
-	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, specA.Name, tutils.Namespace)
-
-	testKube.WaitForInfinispanCondition(specB.Name, specB.Namespace, ispnv1.ConditionWellFormed)
-	testKube.WaitForInfinispanCondition(specA.Name, specA.Namespace, ispnv1.ConditionWellFormed)
-
-	testKube.WaitForInfinispanCondition(specA.Name, specA.Namespace, ispnv1.ConditionCrossSiteViewFormed)
-	testKube.WaitForInfinispanCondition(specB.Name, specB.Namespace, ispnv1.ConditionCrossSiteViewFormed)
 }
 
 func cacheURL(cacheName, hostAddr string) string {

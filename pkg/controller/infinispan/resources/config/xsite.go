@@ -17,6 +17,12 @@ import (
 	restclient "k8s.io/client-go/rest"
 )
 
+const (
+	SchemeTypeKubernetes = "kubernetes"
+	SchemeTypeMinikube   = "minikube"
+	SchemeTypeOpenShift  = "openshift"
+)
+
 // ComputeXSite compute the xsite struct for cross site function
 func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger logr.Logger) (*config.XSite, error) {
 	siteServiceName := infinispan.GetSiteServiceName()
@@ -186,9 +192,9 @@ func getRemoteSiteRESTConfig(namespace string, location *ispnv1.InfinispanSiteLo
 	copyURL.Scheme = "https"
 
 	switch scheme := backupSiteURL.Scheme; scheme {
-	case "kubernetes", "minikube":
+	case SchemeTypeKubernetes, SchemeTypeMinikube:
 		return kubernetes.GetKubernetesRESTConfig(copyURL.String(), location.SecretName, namespace, logger)
-	case "openshift":
+	case SchemeTypeOpenShift:
 		return kubernetes.GetOpenShiftRESTConfig(copyURL.String(), location.SecretName, namespace, logger)
 	default:
 		return nil, fmt.Errorf("backup site URL scheme '%s' not supported for remote connection", scheme)

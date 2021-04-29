@@ -1,0 +1,192 @@
+package xsite
+
+import (
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/iancoleman/strcase"
+	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources/config"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+)
+
+var log = logf.Log.WithName("xsite_test")
+
+type crossSiteKubernetes struct {
+	kube      *tutils.TestKubernetes
+	crossSite ispnv1.Infinispan
+	namespace string
+	context   string
+	hostName  string
+}
+
+func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNamespace string, exposeType ispnv1.CrossSiteExposeType) *ispnv1.Infinispan {
+	return &ispnv1.Infinispan{
+		TypeMeta: tutils.InfinispanTypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", name, primarySite),
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Replicas: replicas,
+			Service: ispnv1.InfinispanServiceSpec{
+				Type: ispnv1.ServiceTypeDataGrid,
+				Sites: &ispnv1.InfinispanSitesSpec{
+					Local: ispnv1.InfinispanSitesLocalSpec{
+						Name: primarySite,
+						Expose: ispnv1.CrossSiteExposeSpec{
+							Type: exposeType,
+						},
+					},
+					Locations: []ispnv1.InfinispanSiteLocationSpec{
+						{
+							Name:        backupSite,
+							Namespace:   siteNamespace,
+							SecretName:  secretSiteName(backupSite),
+							ClusterName: fmt.Sprintf("%s-%s", name, backupSite),
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func crossSiteCertificateSecret(siteName, namespace string, clientConfig *api.Config, ctx string) *corev1.Secret {
+	clusterKey := clientConfig.Contexts[ctx].Cluster
+	authInfoKey := clientConfig.Contexts[ctx].AuthInfo
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretSiteName(siteName),
+			Namespace: namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"certificate-authority": clientConfig.Clusters[clusterKey].CertificateAuthorityData,
+			"client-certificate":    clientConfig.AuthInfos[authInfoKey].ClientCertificateData,
+			"client-key":            clientConfig.AuthInfos[authInfoKey].ClientKeyData,
+		},
+	}
+}
+
+func crossSiteTokenSecret(siteName, namespace string, token []byte) *corev1.Secret {
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretSiteName(siteName),
+			Namespace: namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"token": token,
+		},
+	}
+}
+
+func secretSiteName(siteName string) string {
+	return fmt.Sprintf("secret-%s", siteName)
+}
+
+func TestCrossSiteViewInternal(t *testing.T) {
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP)
+}
+
+func TestCrossSiteViewKubernetesNodePort(t *testing.T) {
+	// Cross-Site between clusters will need to setup two instances of the Kind for Travis CI
+	// Not be able to test on the separate OCP/OKD instance (probably with AWS/Azure LoadBalancer support only)
+	testCrossSiteView(t, true, config.SchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort)
+}
+
+func TestCrossSiteViewOpenshiftNodePort(t *testing.T) {
+	testCrossSiteView(t, true, config.SchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort)
+}
+
+func TestCrossSiteViewKubernetesLoadBalancer(t *testing.T) {
+	testCrossSiteView(t, true, config.SchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer)
+}
+
+func TestCrossSiteViewOpenshiftLoadBalancer(t *testing.T) {
+	testCrossSiteView(t, true, config.SchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer)
+}
+
+func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType string, exposeType ispnv1.CrossSiteExposeType) {
+	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
+	clientConfig := clientcmd.GetConfigFromFileOrDie(os.Getenv("KUBECONFIG"))
+
+	if isMultiCluster {
+		for instance, testKube := range tesKubes {
+			testKube.context = fmt.Sprintf("kind-%s", instance)
+			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, instance)
+			testKube.kube = tutils.NewTestKubernetes(testKube.context)
+
+			hostName, err := testKube.kube.Kubernetes.GetNodeHost(log)
+			tutils.ExpectNoError(err)
+			testKube.hostName = hostName
+		}
+		if schemeType == config.SchemeTypeKubernetes {
+			tesKubes["xsite1"].kube.CreateSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
+			tesKubes["xsite2"].kube.CreateSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
+
+			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
+			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
+		} else if schemeType == config.SchemeTypeOpenShift {
+			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret("xsite1", tesKubes["xsite1"].namespace, tesKubes["xsite1"].kube.Kubernetes.Client)
+			tutils.ExpectNoError(err)
+			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret("xsite2", tesKubes["xsite2"].namespace, tesKubes["xsite2"].kube.Kubernetes.Client)
+			tutils.ExpectNoError(err)
+
+			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, tokenSecretXsite2.Data["token"]))
+			tesKubes["xsite2"].kube.CreateSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, tokenSecretXsite1.Data["token"]))
+
+			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, []byte("")))
+			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, []byte("")))
+		}
+		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 2, "xsite1", "xsite2", tesKubes["xsite2"].namespace, exposeType)
+		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 1, "xsite2", "xsite1", tesKubes["xsite1"].namespace, exposeType)
+
+		tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s:%d", schemeType, tesKubes["xsite2"].hostName, tutils.KubernetesDefaultPort)
+		tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s:%d", schemeType, tesKubes["xsite1"].hostName, tutils.KubernetesDefaultPort)
+	} else {
+		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 2, "xsite1", "xsite2", "", exposeType)
+		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 1, "xsite2", "xsite1", "", exposeType)
+		for _, testKube := range tesKubes {
+			testKube.context = clientConfig.CurrentContext
+			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, "xsite2")
+			testKube.kube = tutils.NewTestKubernetes(testKube.context)
+		}
+		tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("infinispan+xsite://%s", tesKubes["xsite2"].crossSite.GetSiteServiceName())
+		tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("infinispan+xsite://%s", tesKubes["xsite1"].crossSite.GetSiteServiceName())
+	}
+
+	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
+	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
+
+	defer tesKubes["xsite1"].kube.DeleteInfinispan(&tesKubes["xsite1"].crossSite, tutils.SinglePodTimeout)
+	defer tesKubes["xsite2"].kube.DeleteInfinispan(&tesKubes["xsite2"].crossSite, tutils.SinglePodTimeout)
+
+	tesKubes["xsite1"].kube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
+	tesKubes["xsite2"].kube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)
+
+	tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
+	tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionWellFormed)
+
+	ispnXSite1 := tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+	ispnXSite2 := tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+
+	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+	assert.Contains(t, ispnXSite2.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -162,4 +163,41 @@ func LookupResource(name, namespace string, resource runtime.Object, client clie
 		return &reconcile.Result{}, err
 	}
 	return nil, nil
+}
+
+func LookupServiceAccountTokenSecret(name, namespace string, client client.Client) (*corev1.Secret, error) {
+	serviceAccount := &corev1.ServiceAccount{}
+	if err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, serviceAccount); err != nil {
+		return nil, err
+	}
+	for _, secretReference := range serviceAccount.Secrets {
+		secret := &corev1.Secret{}
+		if err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretReference.Name}, secret); err != nil {
+			continue
+		}
+		if isServiceAccountToken(secret, serviceAccount) {
+			return secret, nil
+		}
+	}
+	return nil, fmt.Errorf("could not find a service account token secret for service account %q", serviceAccount.Name)
+}
+
+// isServiceAccountToken returns true if the secret is a valid api token for the service account
+func isServiceAccountToken(secret *corev1.Secret, sa *corev1.ServiceAccount) bool {
+	if secret.Type != corev1.SecretTypeServiceAccountToken {
+		return false
+	}
+
+	name := secret.Annotations[corev1.ServiceAccountNameKey]
+	uid := secret.Annotations[corev1.ServiceAccountUIDKey]
+	if name != sa.Name {
+		// Name must match
+		return false
+	}
+	if len(uid) > 0 && uid != string(sa.UID) {
+		// If UID is specified, it must match
+		return false
+	}
+
+	return true
 }

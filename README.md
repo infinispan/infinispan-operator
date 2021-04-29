@@ -187,6 +187,19 @@ Alternatively, pass `KUBECONFIG` to specify cluster access:
 $ make test KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/admin.kubeconfig
 ```
 
+### Testing the Infinispan Operator for Cross-Site (xsite)
+Cross-Site tests required to create two k8s Kind clusters or utilize already prepared two OKD clusters:
+```
+$ source build/travis/configure-travis-ci-xsite.sh $KIND_VERSION $METALLB_VERSION
+```
+
+Actual `$KIND_VERSION` and `$METALLB_VERSION` values can be explored inside the `.travis.yml` file 
+
+To test locally in running Kind clusters, run:
+```
+$ go test -v ./test/e2e/xsite/ -timeout 30m
+```
+
 ### Infinispan on OperatorHub.io
 There are two categories for submissions to [operatorhub.io](https://operatorhub.io/), upstream and community.
 

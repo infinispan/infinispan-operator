@@ -38,6 +38,14 @@ rules:
   - delete
   - patch
 - apiGroups:
+    - ""
+  resources:
+    - serviceaccounts
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
   - ""
   resources:
     - pods/log

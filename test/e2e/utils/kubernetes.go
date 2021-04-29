@@ -22,6 +22,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -369,7 +370,7 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 			// Try node port first
 			host, err := k.Kubernetes.GetNodeHost(log)
 			ExpectNoError(err)
-			hostAndPort = fmt.Sprintf("%s:%d", host, k.Kubernetes.GetNodePort(route))
+			hostAndPort = fmt.Sprintf("%s:%d", host, getNodePort(route))
 			result := CheckExternalAddress(client, hostAndPort)
 			if result {
 				return result, nil
@@ -404,6 +405,10 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 	})
 	ExpectNoError(err)
 	return hostAndPort
+}
+
+func getNodePort(service *corev1.Service) int32 {
+	return service.Spec.Ports[0].NodePort
 }
 
 func CheckExternalAddress(c HTTPClient, hostAndPort string) bool {
