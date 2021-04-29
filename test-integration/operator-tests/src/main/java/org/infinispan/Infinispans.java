@@ -2,19 +2,19 @@ package org.infinispan;
 
 public class Infinispans {
 
-   public static Infinispan advancedSetupA() {
-      return new Infinispan("src/test/resources/infinispans/advanced_setup_a.yaml");
-   }
-
-   public static Infinispan advancedSetupB() {
-      return new Infinispan("src/test/resources/infinispans/advanced_setup_b.yaml");
+   public static Infinispan cacheService() {
+      return new Infinispan("src/test/resources/infinispans/cache_service.yaml");
    }
 
    public static Infinispan customLibs() {
       return new Infinispan("src/test/resources/infinispans/custom_libs.yaml");
    }
 
-   public static Infinispan minimalSetup() {
-      return new Infinispan("src/test/resources/infinispans/minimal_setup.yaml");
+   public static Infinispan dataGridService() {
+      return new Infinispan("src/test/resources/infinispans/datagrid_service.yaml");
+   }
+
+   public static Infinispan devSetup() {
+      return new Infinispan("src/test/resources/infinispans/dev_setup.yaml");
    }
 }

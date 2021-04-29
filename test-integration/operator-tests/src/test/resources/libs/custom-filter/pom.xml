@@ -10,7 +10,7 @@
     <name>Client Authentication Mapper</name>
 
     <properties>
-        <version.org.infinispan>12.1.0.Final</version.org.infinispan>
+        <version.org.infinispan>12.1.1.Final</version.org.infinispan>
         <version.org.slf4j>1.7.12</version.org.slf4j>
     </properties>
 

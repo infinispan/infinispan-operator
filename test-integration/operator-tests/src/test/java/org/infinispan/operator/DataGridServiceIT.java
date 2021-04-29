@@ -37,13 +37,13 @@ import lombok.extern.slf4j.Slf4j;
  * Compared to MinimalSetupIT this set of tests are running
  * against features that need to be configured.
  *
- * Check advanced_setup_a.yaml Infinispan CR in test resources for input configuration.
+ * Check datagrid_service.yaml Infinispan CR in test resources for input configuration.
  */
 @Slf4j
 @CleanBeforeAll
-class AdvancedSetupAIT {
+class DataGridServiceIT {
    private static final OpenShift openShift = OpenShifts.master();
-   private static final Infinispan infinispan = Infinispans.advancedSetupA();
+   private static final Infinispan infinispan = Infinispans.dataGridService();
 
    private static KeystoreGenerator.CertPaths certs;
    private static String appName;
@@ -86,7 +86,7 @@ class AdvancedSetupAIT {
    static void undeploy() throws IOException {
       infinispan.delete();
 
-      new CleanUpValidator(openShift, appName).withExposedRoute().validate();
+      new CleanUpValidator(openShift, appName).withExposedRoute().withServiceMonitor().validate();
    }
 
    /**

@@ -49,6 +49,11 @@ public class CleanUpValidator {
       return this;
    }
 
+   public CleanUpValidator withServiceMonitor() {
+      conditions.add(() -> openShift.monitoring().serviceMonitors().withName(appName + "monitor").get() == null);
+      return this;
+   }
+
    public void validate() {
       new SimpleWaiter(() -> conditions.stream().allMatch(BooleanSupplier::getAsBoolean), "Waiting for resource deletion").waitFor();
    }
