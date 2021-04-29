@@ -149,12 +149,12 @@ type ExposeType string
 const (
 	// ExposeTypeNodePort means a service will be exposed on one port of
 	// every node, in addition to 'ClusterIP' type.
-	ExposeTypeNodePort ExposeType = ExposeType(corev1.ServiceTypeNodePort)
+	ExposeTypeNodePort = ExposeType(corev1.ServiceTypeNodePort)
 
 	// ExposeTypeLoadBalancer means a service will be exposed via an
 	// external load balancer (if the cloud provider supports it), in addition
 	// to 'NodePort' type.
-	ExposeTypeLoadBalancer ExposeType = ExposeType(corev1.ServiceTypeLoadBalancer)
+	ExposeTypeLoadBalancer = ExposeType(corev1.ServiceTypeLoadBalancer)
 
 	// ExposeTypeRoute means the service will be exposed via
 	// `Route` on Openshift or via `Ingress` on Kubernetes
@@ -166,18 +166,18 @@ const (
 type CrossSiteExposeType string
 
 const (
-	// CrossSiteExposeNodePort means a service will be exposed on one port of
+	// CrossSiteExposeTypeNodePort means a service will be exposed on one port of
 	// every node, in addition to 'ClusterIP' type.
-	CrossSiteExposeTypeNodePort CrossSiteExposeType = CrossSiteExposeType(corev1.ServiceTypeNodePort)
+	CrossSiteExposeTypeNodePort = CrossSiteExposeType(corev1.ServiceTypeNodePort)
 
 	// CrossSiteExposeTypeLoadBalancer means a service will be exposed via an
 	// external load balancer (if the cloud provider supports it), in addition
 	// to 'NodePort' type.
-	CrossSiteExposeTypeLoadBalancer CrossSiteExposeType = CrossSiteExposeType(corev1.ServiceTypeLoadBalancer)
+	CrossSiteExposeTypeLoadBalancer = CrossSiteExposeType(corev1.ServiceTypeLoadBalancer)
 
 	// CrossSiteExposeTypeClusterIP means an internal 'ClusterIP'
 	// service will be created without external exposition
-	CrossSiteExposeTypeClusterIP CrossSiteExposeType = CrossSiteExposeType(corev1.ServiceTypeClusterIP)
+	CrossSiteExposeTypeClusterIP = CrossSiteExposeType(corev1.ServiceTypeClusterIP)
 )
 
 // ExposeSpec describe how Infinispan will be exposed externally

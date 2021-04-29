@@ -190,10 +190,6 @@ func resolveConfig(ctx string) *rest.Config {
 	return internal
 }
 
-func (k Kubernetes) GetNodePort(service *corev1.Service) int32 {
-	return service.Spec.Ports[0].NodePort
-}
-
 // FindKubeConfig returns local Kubernetes configuration
 func FindKubeConfig() string {
 	return consts.GetEnvWithDefault("KUBECONFIG", consts.DefaultKubeConfig)

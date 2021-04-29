@@ -71,3 +71,21 @@ jobs:
         - df -h
         - docker ps -a
         - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
+    - # stage name not required, will continue to use `Test`
+      name: "Cross-Site multiple clusters test"
+      services:
+        - docker
+      env:
+        - KIND_VERSION=v0.9.0
+        - METALLB_VERSION=v0.9.6
+      before_script:
+        - sudo snap install yq
+        - source build/travis/configure-travis-ci-xsite.sh
+      script:
+        - go test -v ./test/e2e/xsite/ -timeout 30m
+      after_failure:
+        - kubectl logs deployment/infinispan-operator -n namespace-for-testing-xsite1 --context kind-xsite1
+        - kubectl logs deployment/infinispan-operator -n namespace-for-testing-xsite2 --context kind-xsite2
+        - df -h
+        - docker ps -a
+        - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done

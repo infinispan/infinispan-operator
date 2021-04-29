@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
@@ -15,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/tools/clientcmd/api"
 )
 
 const EncryptionSecretNamePostfix = "secret-certs"
@@ -125,61 +123,6 @@ func DefaultSpec(testKube *TestKubernetes) *ispnv1.Infinispan {
 			Expose:   ExposeServiceSpec(testKube),
 		},
 	}
-}
-
-func CrossSiteSpec(name string, replicas int32, primarySite, backupSite string) *ispnv1.Infinispan {
-	return &ispnv1.Infinispan{
-		TypeMeta: InfinispanTypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: strcase.ToKebab(name + primarySite),
-		},
-		Spec: ispnv1.InfinispanSpec{
-			Replicas: replicas,
-			Service: ispnv1.InfinispanServiceSpec{
-				Type: ispnv1.ServiceTypeDataGrid,
-				Sites: &ispnv1.InfinispanSitesSpec{
-					Local: ispnv1.InfinispanSitesLocalSpec{
-						Name: "Site" + primarySite,
-						Expose: ispnv1.CrossSiteExposeSpec{
-							Type: ispnv1.CrossSiteExposeTypeClusterIP,
-						},
-					},
-					Locations: []ispnv1.InfinispanSiteLocationSpec{
-						{
-							Name:       "Site" + backupSite,
-							SecretName: secretSiteName(backupSite),
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func CrossSiteSecret(siteName, namespace string, clientConfig *api.Config) *corev1.Secret {
-	currentContext := clientConfig.CurrentContext
-	clusterKey := clientConfig.Contexts[currentContext].Cluster
-	authInfoKey := clientConfig.Contexts[currentContext].AuthInfo
-	return &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretSiteName(siteName),
-			Namespace: namespace,
-		},
-		Type: corev1.SecretTypeOpaque,
-		Data: map[string][]byte{
-			"certificate-authority": clientConfig.Clusters[clusterKey].CertificateAuthorityData,
-			"client-certificate":    clientConfig.AuthInfos[authInfoKey].ClientCertificateData,
-			"client-key":            clientConfig.AuthInfos[authInfoKey].ClientKeyData,
-		},
-	}
-}
-
-func secretSiteName(siteName string) string {
-	return "secret-site-" + strings.ToLower(siteName)
 }
 
 func ExposeServiceSpec(testKube *TestKubernetes) *ispnv1.ExposeSpec {
