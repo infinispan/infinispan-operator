@@ -1200,7 +1200,7 @@ const dashboardJSON = `{
 			},
 			"targets": [
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_number_of_entries\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_number_of_entries\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1208,7 +1208,7 @@ const dashboardJSON = `{
 				"refId": "A"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_number_of_entries_in_memory\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_current_number_of_entries_in_memory\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1216,7 +1216,7 @@ const dashboardJSON = `{
 				"refId": "B"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_hits\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_hits\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1224,7 +1224,7 @@ const dashboardJSON = `{
 				"refId": "C"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_misses\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_misses\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1232,7 +1232,7 @@ const dashboardJSON = `{
 				"refId": "D"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_remove_hits\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_remove_hits\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1240,7 +1240,7 @@ const dashboardJSON = `{
 				"refId": "E"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_remove_misses\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_remove_misses\"})",
 				"format": "time_series",
 				"intervalFactor": 1,
 				"legendFormat": "Remove Misses",
@@ -1316,21 +1316,21 @@ const dashboardJSON = `{
 			},
 			"targets": [
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_write_time\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_write_time\"})",
 				"format": "time_series",
 				"intervalFactor": 1,
 				"legendFormat": "Writes",
 				"refId": "A"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_read_time\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_read_time\"})",
 				"format": "time_series",
 				"intervalFactor": 1,
 				"legendFormat": "Reads",
 				"refId": "B"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_remove_time\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_remove_time\"})",
 				"format": "time_series",
 				"intervalFactor": 1,
 				"legendFormat": "Remove",
@@ -1409,7 +1409,7 @@ const dashboardJSON = `{
 			},
 			"targets": [
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_number_of_entries\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_number_of_entries\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1417,7 +1417,7 @@ const dashboardJSON = `{
 				"refId": "A"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_number_of_entries_in_memory\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_current_number_of_entries_in_memory\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1425,7 +1425,7 @@ const dashboardJSON = `{
 				"refId": "B"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_hits\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_hits\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1433,7 +1433,7 @@ const dashboardJSON = `{
 				"refId": "C"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_misses\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_misses\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1441,7 +1441,7 @@ const dashboardJSON = `{
 				"refId": "D"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_remove_hits\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_remove_hits\"})",
 				"format": "time_series",
 				"instant": false,
 				"intervalFactor": 1,
@@ -1449,7 +1449,7 @@ const dashboardJSON = `{
 				"refId": "E"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_remove_misses\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_remove_misses\"})",
 				"format": "time_series",
 				"intervalFactor": 1,
 				"legendFormat": "Remove Misses",
@@ -1527,21 +1527,21 @@ const dashboardJSON = `{
 			},
 			"targets": [
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_write_time\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_write_time\"})",
 				"format": "time_series",
 				"intervalFactor": 1,
 				"legendFormat": "Writes",
 				"refId": "A"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_read_time\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_read_time\"})",
 				"format": "time_series",
 				"intervalFactor": 1,
 				"legendFormat": "Reads",
 				"refId": "B"
 			  },
 			  {
-				"expr": "max({__name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_remove_time\"})",
+				"expr": "max({namespace=~\"$namespace\", job=~\"$cluster\", __name__=~\"vendor_cache_manager_default_cache_($caches)_cluster_cache_stats_average_remove_time\"})",
 				"format": "time_series",
 				"intervalFactor": 1,
 				"legendFormat": "Remove",
