@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestBackupRestore(t *testing.T) {
-	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService, 1))
+	t.Run(string(v1.ServiceTypeDataGrid), testBackupRestore(datagridService, 2))
 	t.Run(string(v1.ServiceTypeDataGrid)+"NoAuth", testBackupRestore(datagridServiceNoAuth, 1))
 	// t.Run(string(v1.ServiceTypeCache), testBackupRestore(cacheService, 2))
 }
@@ -47,6 +47,7 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	testKube.Create(infinispan)
 	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(infinispan.Name, namespace, v1.ConditionWellFormed)
 
 	backupName := "backup"
 	backupSpec := &v2.Backup{
@@ -126,12 +127,13 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.Create(infinispan)
 		defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
+		testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
 
 		// 2. Populate the cluster with some data to backup
 		hostAddr, client := utils.HTTPClientAndHost(infinispan, testKube)
 		cacheName := "someCache"
 		populateCache(cacheName, hostAddr, numEntries, infinispan, client)
-		assertNumEntries(cacheName, hostAddr, numEntries, infinispan, client)
+		assertNumEntries(cacheName, hostAddr, numEntries, client)
 
 		// 3. Backup the cluster's content
 		backupName := "backup"
@@ -167,6 +169,7 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.Create(infinispan)
 		defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
+		testKube.WaitForInfinispanCondition(targetCluster, namespace, v1.ConditionWellFormed)
 
 		// Recreate the cluster instance to use the credentials of the new cluster
 		hostAddr, client = utils.HTTPClientAndHost(infinispan, testKube)
@@ -198,7 +201,7 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 		// 7. Ensure that all data is in the target cluster
-		assertNumEntries(cacheName, hostAddr, numEntries, infinispan, client)
+		assertNumEntries(cacheName, hostAddr, numEntries, client)
 	}
 }
 
@@ -265,6 +268,7 @@ func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infini
 	post := func(url, payload string, status int, headers map[string]string) {
 		rsp, err := client.Post(url, payload, headers)
 		tutils.ExpectNoError(err)
+		tutils.CloseHttpResponse(rsp)
 		if rsp.StatusCode != status {
 			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
 		}
@@ -287,22 +291,22 @@ func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infini
 	}
 }
 
-func assertNumEntries(cacheName, host string, numEntries int, infinispan *v1.Infinispan, client tutils.HTTPClient) {
+func assertNumEntries(cacheName, host string, numEntries int, client tutils.HTTPClient) {
 	url := fmt.Sprintf("%s/rest/v2/caches/%s?action=size", host, cacheName)
-	rsp, err := client.Get(url, nil)
+	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+		rsp, err := client.Get(url, nil)
+		tutils.ExpectNoError(err)
+		if rsp.StatusCode != http.StatusOK {
+			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
+		}
 
+		body, err := ioutil.ReadAll(rsp.Body)
+		tutils.ExpectNoError(rsp.Body.Close())
+		tutils.ExpectNoError(err)
+		numRead, err := strconv.ParseInt(string(body), 10, 64)
+		return int(numRead) == numEntries, err
+	})
 	tutils.ExpectNoError(err)
-	if rsp.StatusCode != http.StatusOK {
-		panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-	}
-
-	body, err := ioutil.ReadAll(rsp.Body)
-	tutils.ExpectNoError(err)
-	numRead, err := strconv.ParseInt(string(body), 10, 64)
-	tutils.ExpectNoError(err)
-	if int(numRead) != numEntries {
-		panic(fmt.Sprintf("Expected %d cache entries but received %d", numEntries, numRead))
-	}
 }
 
 func waitForNoCluster(name string) {

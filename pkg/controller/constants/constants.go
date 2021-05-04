@@ -86,6 +86,7 @@ const (
 	ServerUserIdentitiesPath  = ServerUserIdentitiesRoot + "/" + ServerIdentitiesFilename
 
 	ServerHTTPBasePath         = "rest/v2"
+	ServerHTTPServerStop       = ServerHTTPBasePath + "/server?action=stop"
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
 	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/" + DefaultCacheManagerName + "/health"
 	ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
