@@ -6,7 +6,7 @@ Configure {brandname} to send `CloudEvents`.
 
 .Prerequisites
 
-Before you can send `CloudEvents`, you need to set up an Apache Kafka cluster that listens for {brandname} topics.
+* Set up an Apache Kafka cluster that listens for {brandname} topics.
 
 .Procedure
 
