@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='creating-network']
 :context: network-services
 = Configuring network access to {brandname}
+
+[role="_abstract"]
 Expose {brandname} clusters so you can access {brandname} Console, the
 {brandname} command line interface (CLI), REST API, and Hot Rod endpoint.
 

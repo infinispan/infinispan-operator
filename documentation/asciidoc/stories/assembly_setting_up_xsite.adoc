@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='setting-up-xsite']
 :context: cross-site
 = Setting up cross-site replication
+
+[role="_abstract"]
 Ensure service availability with {ispn_operator} by configuring cross-site replication to back up data between {brandname} clusters.
 
 //Automatically forming cross-site views

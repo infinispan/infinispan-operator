@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='eventing']
 :context: cloud-events
 = Sending cloud events from {brandname} clusters
+
+[role="_abstract"]
 Configure {brandname} as a Knative source by sending `CloudEvents` to Apache Kafka topics.
 
 //Downstream content

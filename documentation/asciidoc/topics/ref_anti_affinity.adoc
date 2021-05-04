@@ -1,5 +1,7 @@
 [id='anti-affinity-strategies_{context}']
 = Anti-affinity strategy configurations
+
+[role="_abstract"]
 Configure anti-affinity strategies in your `Infinispan` CR to control where {k8s} schedules {brandname} replica pods.
 
 [%header,cols=2*]

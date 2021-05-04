@@ -1,5 +1,7 @@
 [id='connecting-cli_{context}']
 = Connecting the {brandname} CLI
+
+[role="_abstract"]
 Use the command line interface (CLI) to connect to your {brandname} cluster and perform administrative operations.
 
 .Prerequisites

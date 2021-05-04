@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='batch-cr']
 :context: batch
 = Running batch operations
+
+[role="_abstract"]
 {ispn_operator} provides a `Batch` CR that lets you create {brandname} resources in bulk.
 `Batch` CR uses the {brandname} command line interface (CLI) in batch mode to carry out sequences of operations.
 

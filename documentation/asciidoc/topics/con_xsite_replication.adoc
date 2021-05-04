@@ -1,5 +1,7 @@
 [id='cross-site-replication_{context}']
 = Using {ispn_operator} to manage cross-site connections
+
+[role="_abstract"]
 An {ispn_operator} in one data center can discover an {ispn_operator} in another data center and automatically form cross-site views to create global {brandname} clusters.
 
 The following illustration provides an example in which {ispn_operator} manages a {brandname} cluster at a data center in New York City, **NYC**.

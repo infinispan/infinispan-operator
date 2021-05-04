@@ -1,5 +1,7 @@
 [id='copying-code_{context}']
 = Copying code artifacts
+
+[role="_abstract"]
 Before you can deploy custom code to {brandname} clusters, you need to add it to a persistent volume (PV).
 
 This procedure explains how to use a temporary pod that mounts a persistent volume claim (PVC) that:

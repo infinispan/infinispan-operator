@@ -1,5 +1,7 @@
 [id='connecting-console_{context}']
 = Accessing {brandname} Console
+
+[role="_abstract"]
 Access the console to create caches, perform adminstrative operations, and monitor your {brandname} clusters.
 
 .Prerequisites

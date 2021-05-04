@@ -1,5 +1,7 @@
 [id='retrieving-cluster-ip_{context}']
 = Retrieving cluster IP addresses
+
+[role="_abstract"]
 Services that provide access to {brandname} have cluster IP addresses that you
 can use with client connections.
 

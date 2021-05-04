@@ -1,7 +1,8 @@
 [id='datagrid-cr_{context}']
 = {datagridservice} CR
 
-The following are the `Infinispan` CR fields for {datagridservice} nodes:
+[role="_abstract"]
+This topic describes the `Infinispan` CR for {datagridservice} nodes.
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----

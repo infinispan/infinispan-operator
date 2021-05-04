@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='cache-cr']
 :context: cache-cr
 = Creating caches with {ispn_operator}
+
+[role="_abstract"]
 Use `Cache` CRs to add cache configuration with {ispn_operator} and control how {brandname} stores your data.
 
 //Community

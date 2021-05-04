@@ -1,5 +1,7 @@
 [id='verifying-clusters_{context}']
 = Verifying {brandname} clusters
+
+[role="_abstract"]
 Check that {brandname} nodes have successfully formed clusters.
 
 .Procedure

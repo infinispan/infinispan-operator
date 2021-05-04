@@ -1,5 +1,7 @@
 [id='install-olm_{context}']
 = Installing {ispn_operator} on {openshift}
+
+[role="_abstract"]
 Create subscriptions to {ispn_operator} on {openshiftshort} so you can install different {brandname} versions and receive automatic updates.
 
 Automatic updates apply to {ispn_operator} first and then for each {brandname} node.

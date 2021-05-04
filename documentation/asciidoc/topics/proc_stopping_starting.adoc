@@ -1,5 +1,7 @@
 [id='graceful-shutdown_{context}']
 = Stopping and starting {brandname} clusters
+
+[role="_abstract"]
 Stop and start {brandname} nodes in a graceful, ordered fashion to correctly preserve cluster state.
 
 Clusters of {datagridservice} nodes must restart with the same number of nodes that existed before shutdown.

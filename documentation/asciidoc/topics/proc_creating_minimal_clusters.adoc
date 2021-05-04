@@ -1,5 +1,7 @@
 [id='creating-minimal-clusters_{context}']
 = Creating {brandname} clusters
+
+[role="_abstract"]
 Use {ispn_operator} to create clusters of two or more {brandname} nodes.
 
 .Prerequisites

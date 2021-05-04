@@ -1,5 +1,7 @@
 [id='hotrod-clients_{context}']
 = Hot Rod clients
+
+[role="_abstract"]
 Hot Rod is a binary TCP protocol that {brandname} provides for high-performance data transfer capabilities with remote clients.
 
 .Client intelligence

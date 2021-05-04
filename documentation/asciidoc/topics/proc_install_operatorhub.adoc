@@ -1,5 +1,7 @@
 [id='install-operatorhub_{context}']
 = Installing {ispn_operator} from OperatorHub.io
+
+[role="_abstract"]
 Use the command line to install {ispn_operator} from https://operatorhub.io/operator/infinispan[OperatorHub.io].
 
 .Prerequisites

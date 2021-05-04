@@ -1,7 +1,8 @@
 [id='cache-service-resources_{context}']
 = {cacheservice} CR
 
-The following are the `Infinispan` CR fields for {cacheservice} nodes:
+[role="_abstract"]
+This topic describes the `Infinispan` CR for {cacheservice} nodes.
 
 [source,options="nowrap",subs=attributes+]
 ----

@@ -1,5 +1,7 @@
 [id='retrieving-tls-certificates_{context}']
 = Retrieving TLS certificates
+
+[role="_abstract"]
 Get TLS certificates from encryption secrets to create client trust stores.
 
 .Procedure

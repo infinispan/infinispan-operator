@@ -1,5 +1,7 @@
 [id='infinispan-cr_{context}']
 = Infinispan custom resource (CR)
+
+[role="_abstract"]
 {ispn_operator} adds a new Custom Resource (CR) of type `Infinispan` that lets
 you handle {brandname} clusters as complex units on {k8s}.
 

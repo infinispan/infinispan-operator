@@ -1,5 +1,7 @@
 [id='getting-internal-service_{context}']
 = Getting the service for internal connections
+
+[role="_abstract"]
 By default, {ispn_operator} creates a service that provides access to {brandname} clusters from clients running on {k8s}.
 
 This internal service has the same name as your {brandname} cluster, for example:

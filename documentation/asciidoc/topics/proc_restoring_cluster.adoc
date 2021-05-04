@@ -1,5 +1,7 @@
 [id='restoring_clusters-{context}']
 = Restoring {brandname} clusters
+
+[role="_abstract"]
 Restore {brandname} cluster state from a backup archive.
 
 .Prerequisites

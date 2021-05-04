@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='installation']
 :context: install
 = Installing {ispn_operator}
+
+[role="_abstract"]
 Install {ispn_operator} into a {k8s} namespace to create and manage {brandname}
 clusters.
 

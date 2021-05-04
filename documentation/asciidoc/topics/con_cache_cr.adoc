@@ -1,6 +1,9 @@
 [id='cache-cr_{context}']
 = Cache CRs
 
+[role="_abstract"]
+Find out details for configuring {brandname} caches with `Cache` CR.
+
 When using `Cache` CRs, the following rules apply:
 
 * `Cache` CRs apply to {datagridservice} nodes only.

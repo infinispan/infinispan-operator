@@ -1,5 +1,7 @@
 [id='allocating-storage_{context}']
 = Allocating storage resources
+
+[role="_abstract"]
 You can allocate storage for {datagridservice} nodes but not {cacheservice} nodes.
 
 By default, {ispn_operator} allocates `1Gi` for the persistent volume claim.

@@ -1,5 +1,7 @@
 [id='disabling-authentication_{context}']
 = Disabling user authentication
+
+[role="_abstract"]
 Allow users to access {brandname} clusters and manipulate data without providing credentials.
 
 [IMPORTANT]

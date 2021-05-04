@@ -1,5 +1,7 @@
 [id='creating-caches-xml_{context}']
 = Creating caches from XML
+
+[role="_abstract"]
 Complete the following steps to create caches on {datagridservice} clusters using valid `infinispan.xml` configuration.
 
 .Procedure

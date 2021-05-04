@@ -1,5 +1,7 @@
 [id='creating-sa-tokens_{context}']
 = Creating service account tokens
+
+[role="_abstract"]
 Generate service account tokens on each {openshiftshort} cluster that acts as a backup location.
 Clusters use these tokens to authenticate with each other so {ispn_operator} can create a cross-site replication service.
 

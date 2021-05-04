@@ -1,5 +1,7 @@
 [id='deploying-code_{context}']
 = Deploying custom code
+
+[role="_abstract"]
 Make your custom code available to {brandname} clusters.
 
 .Prerequisites

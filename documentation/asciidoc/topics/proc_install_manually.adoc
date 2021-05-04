@@ -1,5 +1,7 @@
 [id='install-manually_{context}']
 = Building and installing {ispn_operator} manually
+
+[role="_abstract"]
 Manually build and install {ispn_operator} from the GitHub repository.
 
 .Procedure

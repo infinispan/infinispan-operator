@@ -1,5 +1,7 @@
 [id='installing-grafana-operator_{context}']
 = Installing the Grafana Operator
+
+[role="_abstract"]
 To support various needs, {ispn_operator} integrates with the community version of the Grafana Operator to create dashboards for {brandname} services.
 
 Until Grafana is integrated with {openshiftshort} user workload monitoring, the only option is to rely on the community version.

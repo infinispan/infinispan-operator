@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='deploying-code']
 :context: custom-code
 = Deploying custom code to {brandname}
+
+[role="_abstract"]
 Add custom code, such as scripts and event listeners, to your {brandname} clusters.
 
 include::{topics}/proc_copying_code.adoc[leveloffset=+1]
