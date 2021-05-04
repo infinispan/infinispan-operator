@@ -1,5 +1,7 @@
 [id='configuring-owners_{context}']
 = Configuring the number of owners
+
+[role="_abstract"]
 The number of owners controls how many copies of each cache entry are
 replicated across your {brandname} cluster. The default for {cacheservice}
 nodes is two, which duplicates each entry to prevent data loss.

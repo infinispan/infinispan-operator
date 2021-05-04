@@ -1,5 +1,7 @@
 [id='encryption-service-ca_{context}']
 = Encryption with {openshift} service certificates
+
+[role="_abstract"]
 {ispn_operator} automatically generates TLS certificates that are signed by the
 {openshift} service CA. {ispn_operator} then stores the certificates and keys
 in a secret so you can retrieve them and use with remote clients.

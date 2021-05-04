@@ -1,5 +1,7 @@
 [id='batching-create-configmap_{context}']
 = Creating ConfigMaps for batch operations
+
+[role="_abstract"]
 Create a `ConfigMap` so that additional files, such as {brandname} cache configuration, are available for batch operations.
 
 .Prerequisites

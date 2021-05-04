@@ -1,5 +1,7 @@
 [id='persistent-volume-claims_{context}']
 = Persistent volume claims
+
+[role="_abstract"]
 {ispn_operator} creates a persistent volume claim (PVC) and mounts container storage at: +
 `{pv_path}`
 

@@ -1,5 +1,7 @@
 [id='creating-caches-cacheservice_{context}']
 = Adding caches to {cacheservice} nodes
+
+[role="_abstract"]
 {cacheservice} nodes include a default cache configuration with recommended
 settings. This default cache lets you start using {brandname} without the need
 to create caches.

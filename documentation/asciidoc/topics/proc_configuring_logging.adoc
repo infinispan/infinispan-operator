@@ -1,5 +1,7 @@
 [id='configuring-logging_{context}']
 = Adjusting log levels
+
+[role="_abstract"]
 Change levels for different {brandname} logging categories when you need to debug issues.
 You can also adjust log levels to reduce the number of messages for certain categories to minimize the use of container resources.
 

@@ -1,5 +1,7 @@
 [id='exposing-nodeport_{context}']
 = Exposing {brandname} through node ports
+
+[role="_abstract"]
 Use a node port service to expose {brandname} clusters on the network.
 
 .Procedure

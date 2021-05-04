@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='creating-services']
 :context: services
 = Setting up {brandname} services
+
+[role="_abstract"]
 Use {ispn_operator} to create clusters of either {cacheservice} or {datagridservice} nodes.
 
 [IMPORTANT]

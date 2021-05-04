@@ -1,5 +1,7 @@
 [id='adding-backup-locations_{context}']
 = Adding backup locations to caches
+
+[role="_abstract"]
 When you configure {brandname} clusters to perform cross-site replication, you
 can add backup locations to your cache configurations.
 

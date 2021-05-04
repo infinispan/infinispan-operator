@@ -1,6 +1,9 @@
 [id='cross-site-resources-manual_{context}']
 = Resources for manual cross-site connections
 
+[role="_abstract"]
+This topic describes resources for cross-site connections that you maintain manually.
+
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/xsite_manual.yaml[]

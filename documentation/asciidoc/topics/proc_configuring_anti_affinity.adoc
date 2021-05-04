@@ -1,5 +1,7 @@
 [id='configuring_anti_affinity-{context}']
 = Configuring anti-affinity
+
+[role="_abstract"]
 Specify where {k8s} schedules pods for your {brandname} clusters to ensure availability.
 
 .Procedure

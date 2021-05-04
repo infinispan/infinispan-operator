@@ -1,5 +1,7 @@
 [id='hotrod-configuration-builder_{context}']
 = Hot Rod client configuration API
+
+[role="_abstract"]
 You can programmatically configure Hot Rod client connections with the `ConfigurationBuilder` interface.
 
 [NOTE]

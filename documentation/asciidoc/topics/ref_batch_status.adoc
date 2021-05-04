@@ -1,5 +1,7 @@
 [id='batch-status_{context}']
 = Batch status messages
+
+[role="_abstract"]
 Verify and troubleshoot batch operations with the `status.Phase` field in the `Batch` CR.
 
 [%header,cols=2*]

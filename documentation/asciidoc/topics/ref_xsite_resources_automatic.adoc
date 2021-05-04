@@ -1,5 +1,8 @@
 [id='cross-site-resources-automatic_{context}']
-= Resources for automatic cross-site connections
+= Resources for managed cross-site connections
+
+[role="_abstract"]
+This topic describes resources for cross-site connections that {ispn_operator} manages.
 
 [source,options="nowrap",subs=attributes+]
 ----

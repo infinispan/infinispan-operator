@@ -1,6 +1,7 @@
 [id='network-services_{context}']
 = Network services
 
+[role="_abstract"]
 Reference information for network services that {ispn_operator} creates and manages.
 
 == Internal service

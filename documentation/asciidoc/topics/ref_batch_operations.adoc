@@ -1,6 +1,7 @@
 [id='batch-operations_{context}']
 = Example batch operations
 
+[role="_abstract"]
 Use these example batch operations as starting points for creating and modifying {brandname} resources with the `Batch` CR.
 
 [NOTE]

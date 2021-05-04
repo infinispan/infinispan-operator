@@ -1,12 +1,15 @@
 [id='exposing-routes_{context}']
 = Exposing {brandname} through routes
+
 //Community
 ifdef::community[]
+[role="_abstract"]
 Use a {k8s} Ingress or an {openshiftshort} Route with passthrough encryption to
 make {brandname} clusters available on the network.
 endif::community[]
 //Downstream
 ifdef::downstream[]
+[role="_abstract"]
 Use an {openshiftshort} Route with passthrough encryption to make {brandname}
 clusters available on the network.
 endif::downstream[]

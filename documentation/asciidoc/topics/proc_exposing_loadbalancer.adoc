@@ -1,5 +1,7 @@
 [id='exposing-loadbalancer_{context}']
 = Exposing {brandname} through load balancers
+
+[role="_abstract"]
 Use a load balancer service to make {brandname} clusters available to clients running outside {k8s}.
 
 [NOTE]

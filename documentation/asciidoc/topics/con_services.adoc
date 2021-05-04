@@ -1,5 +1,7 @@
 [id='services_{context}']
 = Service types
+
+[role="_abstract"]
 Services are stateful applications, based on the {brandname} Server image, that provide flexible and robust in-memory data storage.
 
 == {datagridservice}

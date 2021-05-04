@@ -1,5 +1,7 @@
 [id='backing-up-clusters_{context}']
 = Backing up {brandname} clusters
+
+[role="_abstract"]
 Create a backup file that stores {brandname} cluster state to a persistent volume.
 
 .Prerequisites

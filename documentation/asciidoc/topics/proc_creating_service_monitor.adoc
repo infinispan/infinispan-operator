@@ -1,5 +1,7 @@
 [id='creating-service-monitor_{context}']
 = Creating a Prometheus service monitor
+
+[role="_abstract"]
 {ispn_operator} automatically creates a Prometheus `ServiceMonitor` that scrapes metrics from your {brandname} cluster.
 
 .Procedure

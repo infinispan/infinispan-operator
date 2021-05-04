@@ -1,5 +1,7 @@
 [id='creating-cache-service_{context}']
 = Creating {cacheservice} nodes
+
+[role="_abstract"]
 Create {brandname} clusters with {cacheservice} nodes for a volatile, low-latency data store with minimal configuration.
 
 .Procedure

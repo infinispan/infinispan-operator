@@ -1,5 +1,7 @@
 [id='creating-caches-templates_{context}']
 = Creating caches from templates
+
+[role="_abstract"]
 Complete the following steps to create caches on {datagridservice} clusters using cache templates.
 
 .Prerequisites

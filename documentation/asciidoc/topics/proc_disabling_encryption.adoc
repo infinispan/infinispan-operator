@@ -1,5 +1,7 @@
 [id='disabling-encryption_{context}']
 = Disabling encryption
+
+[role="_abstract"]
 You can disable encryption so clients do not need TLS certificates to establish connections with {brandname}.
 
 [IMPORTANT]

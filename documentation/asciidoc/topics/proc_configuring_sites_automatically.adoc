@@ -1,5 +1,7 @@
 [id='configuring-sites-automatically_{context}']
 = Configuring {ispn_operator} to handle cross-site connections
+
+[role="_abstract"]
 Configure {ispn_operator} to establish cross-site views with {brandname} clusters.
 
 .Prerequisites

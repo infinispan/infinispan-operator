@@ -1,5 +1,7 @@
 [id='configuring-sites-manually_{context}']
 = Specifying static hosts and ports for {brandname} clusters
+
+[role="_abstract"]
 Specify static hosts and ports for {brandname} clusters so they can establish connections and form cross-site views.
 
 .Prerequisites

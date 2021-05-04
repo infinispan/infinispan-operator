@@ -1,6 +1,8 @@
 [id='default-cache-service-config_{context}']
 = Default cache configuration
-The default cache configuration for {cacheservice} nodes is as follows:
+
+[role="_abstract"]
+This topic describes default cache configuration for {cacheservice} nodes.
 
 [source,xml,options="nowrap",subs=attributes+]
 ----

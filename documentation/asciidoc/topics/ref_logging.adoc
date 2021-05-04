@@ -1,5 +1,7 @@
 [id='logging-levels_{context}']
 = Logging reference
+
+[role="_abstract"]
 Find information about log categories and levels.
 
 .Log categories

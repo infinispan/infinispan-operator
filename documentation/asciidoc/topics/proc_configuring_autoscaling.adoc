@@ -1,5 +1,7 @@
 [id='configuring-autoscaling_{context}']
 = Configuring automatic scaling
+
+[role="_abstract"]
 If you create clusters with {cacheservice} nodes, {ispn_operator}
 can automatically scale nodes up or down based on memory usage for the default
 cache.

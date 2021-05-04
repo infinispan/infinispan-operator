@@ -1,5 +1,7 @@
 [id='creating-caches-hotrod_{context}']
 = Creating caches from Hot Rod clients
+
+[role="_abstract"]
 You can remotely create caches on {brandname} clusters running on {k8s} with Hot Rod clients.
 However, {brandname} recommends that you create caches using {brandname} Console, the CLI, or with `Cache` CRs instead of with Hot Rod clients.
 

@@ -1,5 +1,7 @@
 [id='batching-configmap_{context}']
 = Running batch operations with ConfigMaps
+
+[role="_abstract"]
 Run batch operations that include configuration artifacts.
 
 .Prerequisites

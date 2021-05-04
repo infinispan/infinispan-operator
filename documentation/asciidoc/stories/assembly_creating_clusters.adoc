@@ -2,6 +2,8 @@ ifdef::context[:parent-context: {context}]
 [id='creating-clusters']
 :context: infinispan-cr
 = Getting started with Infinispan CR
+
+[role="_abstract"]
 After you install {ispn_operator}, learn how to create {brandname} clusters on {k8s}.
 
 include::{topics}/con_infinispan_cr.adoc[leveloffset=+1]

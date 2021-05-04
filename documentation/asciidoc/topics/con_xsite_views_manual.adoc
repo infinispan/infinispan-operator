@@ -1,5 +1,7 @@
 [id='manual-xsite-views_{context}']
 = Manually connecting {brandname} clusters
+
+[role="_abstract"]
 You can specify static network connection details to perform cross-site replication with {brandname} clusters running outside {k8s}.
 
 Manual cross-site connections are necessary in any scenario where access to the Kubernetes API is not available outside the {k8s} cluster where {brandname} runs.

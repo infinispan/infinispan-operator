@@ -1,6 +1,7 @@
 [id='specifying-server-image_{context}']
 = Specifying {brandname} Server images
 
+[role="_abstract"]
 Specify which {brandname} Server image {ispn_operator} should use to create nodes with the `spec.image` field.
 
 [source,yaml,options="nowrap",subs=attributes+]

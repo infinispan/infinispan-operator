@@ -1,5 +1,7 @@
 [id='configuring-grafana-dashboards_{context}']
 = Configuring {brandname} dashboards
+
+[role="_abstract"]
 {ispn_operator} provides global configuration properties that let you configure Grafana dashboards for {brandname} clusters.
 
 [NOTE]

@@ -1,5 +1,7 @@
 [id='connecting-rest_{context}']
 = Accessing the REST API
+
+[role="_abstract"]
 {brandname} provides a RESTful interface that you can interact with using HTTP clients.
 
 .Prerequisites
