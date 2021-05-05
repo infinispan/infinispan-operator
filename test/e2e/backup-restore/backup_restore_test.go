@@ -127,7 +127,7 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.Create(infinispan)
 		defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
-		testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
+		infinispan = testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
 
 		// 2. Populate the cluster with some data to backup
 		hostAddr, client := utils.HTTPClientAndHost(infinispan, testKube)
@@ -169,7 +169,7 @@ func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T
 		testKube.Create(infinispan)
 		defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
 		testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
-		testKube.WaitForInfinispanCondition(targetCluster, namespace, v1.ConditionWellFormed)
+		infinispan = testKube.WaitForInfinispanCondition(targetCluster, namespace, v1.ConditionWellFormed)
 
 		// Recreate the cluster instance to use the credentials of the new cluster
 		hostAddr, client = utils.HTTPClientAndHost(infinispan, testKube)
