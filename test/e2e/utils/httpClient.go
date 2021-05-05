@@ -83,7 +83,7 @@ func (c *httpClientConfig) exec(method, path, payload string, headers map[string
 			h = map[string]string{}
 		}
 		authRealm := getAuthorization(*c.username, *c.password, rsp)
-		authStr := getAuthString(authRealm, httpURL.Path, method, 0)
+		authStr := getAuthString(authRealm, httpURL.RequestURI(), method, 0)
 		h["Authorization"] = authStr
 		rsp, err = c.request(httpURL, method, payload, h)
 	}
