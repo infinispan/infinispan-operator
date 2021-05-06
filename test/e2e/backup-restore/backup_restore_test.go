@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -117,7 +118,8 @@ func TestBackupRestoreTransformations(t *testing.T) {
 func testBackupRestore(clusterSpec clusterSpec, clusterSize int) func(*testing.T) {
 	return func(t *testing.T) {
 		// Create a resource without passing any config
-		name := strcase.ToKebab(strings.Replace(t.Name(), "/", "", 1))
+		m := regexp.MustCompile(`.*/`)
+		name := strcase.ToKebab(m.ReplaceAllString(t.Name(), ""))
 		namespace := tutils.Namespace
 		numEntries := 100
 
