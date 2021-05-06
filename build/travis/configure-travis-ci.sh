@@ -12,4 +12,3 @@ kind create cluster --config kind-config.yaml
 kind get kubeconfig > "${KUBECONFIG}"
 export TESTING_CONTEXT=$(kubectl --insecure-skip-tls-verify config current-context)
 ./build/travis/prepare-sa-test.sh
-./build/travis/debug-pods.sh &

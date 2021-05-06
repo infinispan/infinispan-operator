@@ -46,7 +46,7 @@ func TestBackupRestoreTransformations(t *testing.T) {
 
 	infinispan := datagridService(clusterName, namespace, 1)
 	testKube.Create(infinispan)
-	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+	defer testKube.CleanNamespaceAndLogOnPanic(namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(infinispan.Name, namespace, v1.ConditionWellFormed)
 
@@ -70,7 +70,6 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	}
 
 	testKube.Create(backupSpec)
-	defer testKube.DeleteBackup(backupSpec)
 
 	tutils.ExpectNoError(wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
 		backup := testKube.GetBackup(backupName, namespace)
@@ -103,7 +102,6 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	}
 
 	testKube.Create(restoreSpec)
-	defer testKube.DeleteRestore(restoreSpec)
 	tutils.ExpectNoError(wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
 		restore := testKube.GetRestore(restoreName, namespace)
 
@@ -125,7 +123,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	sourceCluster := name + "-source"
 	infinispan := clusterSpec(sourceCluster, namespace, clusterSize)
 	testKube.Create(infinispan)
-	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+	defer testKube.CleanNamespaceAndLogOnPanic(namespace)
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
 
@@ -151,7 +149,6 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 		},
 	}
 	testKube.Create(backupSpec)
-	defer testKube.DeleteBackup(backupSpec)
 
 	// Ensure the backup pod has joined the cluster
 	waitForValidBackupPhase(backupName, namespace, v2.BackupSucceeded)
@@ -167,7 +164,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	targetCluster := name + "-target"
 	infinispan = clusterSpec(targetCluster, namespace, clusterSize)
 	testKube.Create(infinispan)
-	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(targetCluster, namespace, v1.ConditionWellFormed)
 
@@ -192,7 +189,6 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	}
 
 	testKube.Create(restoreSpec)
-	defer testKube.DeleteRestore(restoreSpec)
 
 	// Ensure the restore pod hased joined the cluster
 	waitForValidRestorePhase(restoreName, namespace, v2.RestoreSucceeded)
