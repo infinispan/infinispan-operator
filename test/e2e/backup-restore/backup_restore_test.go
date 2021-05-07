@@ -118,7 +118,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	// Create a resource without passing any config
 	name := strcase.ToKebab(t.Name())
 	namespace := tutils.Namespace
-	numEntries := 100
+	numEntries := 10000
 
 	// 1. Create initial source cluster
 	sourceCluster := name + "-source"
