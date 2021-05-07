@@ -16,6 +16,7 @@ import (
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -155,6 +156,53 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 
 	// Ensure that the backup pod has left the cluster, by checking a cluster pod's size
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
+
+	// Validate the number of entries stored in the someCache backup file
+	cmd := fmt.Sprintf("ls -l /etc/backups/backup; cd /tmp; unzip /etc/backups/backup/backup.zip; LINES=$(cat containers/default/caches/someCache/someCache.dat | wc -l); echo $LINES; [[ $LINES -eq \"%d\" ]]", numEntries)
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "verify-backup-pod",
+			Namespace: namespace,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:    "verify",
+				Image:   infinispan.ImageName(),
+				Command: []string{"/bin/bash"},
+				Args:    []string{"-c", cmd},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "backup-volume",
+						MountPath: "/etc/backups",
+					},
+				},
+			}},
+			RestartPolicy: corev1.RestartPolicyNever,
+			Volumes: []corev1.Volume{
+				{
+					Name: "backup-volume",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: backupName,
+						},
+					},
+				},
+			},
+		},
+	}
+	testKube.Create(pod)
+	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+		err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, pod)
+		utils.ExpectMaybeNotFound(err)
+		if pod.Status.Phase == corev1.PodFailed {
+			return false, fmt.Errorf("Expected %d entries to be backed up for 'someCache'", numEntries)
+		}
+		return pod.Status.Phase == corev1.PodSucceeded, err
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+	tutils.LogError(testKube.Kubernetes.Client.Delete(context.TODO(), pod))
 
 	// 4. Delete the original cluster
 	testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
