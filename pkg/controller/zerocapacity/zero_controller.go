@@ -425,6 +425,9 @@ func (z *Controller) configureServer(name, namespace string, infinispan *v1.Infi
 	}
 
 	config.Infinispan.ZeroCapacityNode = true
+	config.Logging.Categories = map[string]string{
+		"org.infinispan.server.core.backup": "debug",
+	}
 
 	if err := ispnCtrl.ConfigureServerEncryption(infinispan, config, z.Client); err != nil {
 		return nil, fmt.Errorf("Unable to configure zero-capacity encryption: %w", err)
