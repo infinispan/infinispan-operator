@@ -51,7 +51,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 		Port:    localSitePort,
 	}
 
-	for _, remoteLocation := range infinispan.GetSitesLocations(xsite.Name) {
+	for _, remoteLocation := range infinispan.GetRemoteSiteLocations() {
 		backupSiteURL, err := url.Parse(remoteLocation.URL)
 		if err != nil {
 			return nil, err

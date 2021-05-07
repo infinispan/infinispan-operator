@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *ReconcileInfinispan) applyLabelsToCoordinatorsPod(podList *corev1.PodList, siteLocations []ispnv1.InfinispanSiteLocationSpec, cluster ispn.ClusterInterface) (*ispnv1.InfinispanCondition, error) {
+func (r *ReconcileInfinispan) applyLabelsToCoordinatorsPod(podList *corev1.PodList, siteLocations []string, cluster ispn.ClusterInterface) (*ispnv1.InfinispanCondition, error) {
 	for _, item := range podList.Items {
 		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultCacheManagerName, item.Name)
 		if err == nil {
@@ -29,17 +29,15 @@ func (r *ReconcileInfinispan) applyLabelsToCoordinatorsPod(podList *corev1.PodLi
 				crossSiteViewFormed := &ispnv1.InfinispanCondition{Type: ispnv1.ConditionCrossSiteViewFormed, Status: metav1.ConditionTrue}
 				sitesView, err := cacheManagerInfo.GetSitesView()
 				if err == nil {
-					sites := make([]string, len(siteLocations))
-					for i, location := range siteLocations {
-						sites[i] = location.Name
-						if !sitesView[location.Name] {
+					for _, location := range siteLocations {
+						if !sitesView[location] {
 							crossSiteViewFormed.Status = metav1.ConditionFalse
-							crossSiteViewFormed.Message = fmt.Sprintf("Site '%s' not ready", location.Name)
+							crossSiteViewFormed.Message = fmt.Sprintf("Site '%s' not ready", location)
 							break
 						}
 					}
 					if crossSiteViewFormed.Status == metav1.ConditionTrue {
-						crossSiteViewFormed.Message = fmt.Sprintf("Cross-Site view: %s", strings.Join(sites, ","))
+						crossSiteViewFormed.Message = fmt.Sprintf("Cross-Site view: %s", strings.Join(siteLocations, ","))
 					}
 				} else {
 					crossSiteViewFormed.Status = metav1.ConditionUnknown
