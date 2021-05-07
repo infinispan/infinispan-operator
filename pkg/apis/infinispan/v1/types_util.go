@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -244,14 +245,29 @@ func (ispn *Infinispan) HasSites() bool {
 	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil && len(ispn.Spec.Service.Sites.Locations) > 0
 }
 
-// GetSitesLocations returns remote site locations if localSiteName is provided
-// If localSiteName is not provided (empty string), all site locations will be returned
-func (ispn *Infinispan) GetSitesLocations(localSiteName string) (remoteLocations []InfinispanSiteLocationSpec) {
+// GetRemoteSiteLocations returns remote site locations
+func (ispn *Infinispan) GetRemoteSiteLocations() (remoteLocations []InfinispanSiteLocationSpec) {
 	for _, location := range ispn.Spec.Service.Sites.Locations {
-		if localSiteName != location.Name {
+		if ispn.Spec.Service.Sites.Local.Name != location.Name {
 			remoteLocations = append(remoteLocations, location)
 		}
 	}
+	sort.SliceStable(remoteLocations, func(p, q int) bool {
+		return remoteLocations[p].Name < remoteLocations[q].Name
+	})
+	return
+}
+
+// GetSiteLocationsName returns all site locations (remote and local) name
+func (ispn *Infinispan) GetSiteLocationsName() (locations []string) {
+	for _, location := range ispn.Spec.Service.Sites.Locations {
+		if ispn.Spec.Service.Sites.Local.Name == location.Name {
+			continue
+		}
+		locations = append(locations, location.Name)
+	}
+	locations = append(locations, ispn.Spec.Service.Sites.Local.Name)
+	sort.Strings(locations)
 	return
 }
 

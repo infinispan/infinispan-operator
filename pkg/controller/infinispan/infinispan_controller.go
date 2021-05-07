@@ -452,7 +452,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// If x-site enable configure the coordinator pods to be selected by the x-site service
 	if infinispan.HasSites() {
-		crossSiteViewCondition, err := r.applyLabelsToCoordinatorsPod(podList, infinispan.GetSitesLocations(""), cluster)
+		crossSiteViewCondition, err := r.applyLabelsToCoordinatorsPod(podList, infinispan.GetSiteLocationsName(), cluster)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
