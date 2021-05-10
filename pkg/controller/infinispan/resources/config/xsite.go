@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	restclient "k8s.io/client-go/rest"
+	"k8s.io/cloud-provider/service/helpers"
 )
 
 // ComputeXSite compute the xsite struct for cross site function
@@ -93,7 +94,7 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 	siteService := &corev1.Service{}
 	err := remoteKubernetes.Client.Get(context.TODO(), namespacedName, siteService)
 	if err != nil {
-		logger.Error(err, "could not find x-site service in remote cluster", "site service name", siteServiceName)
+		logger.Error(err, "could not get x-site service in remote cluster", "site service name", siteServiceName, "site namespace", namespace)
 		return err
 	}
 
@@ -165,6 +166,9 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 			// so it might take time for the status to be updated.
 			return ip, port, err
 		}
+	}
+	if !helpers.HasLBFinalizer(service) {
+		return "", port, fmt.Errorf("LoadBalancer expose type is not supported on the target platform for x-site")
 	}
 
 	return "", port, nil

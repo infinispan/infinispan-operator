@@ -1027,6 +1027,7 @@ k8s.io/autoscaler v0.0.0-20190607113959-1b4f1855cb8e/go.mod h1:QEXezc9uKPT91dwqh
 k8s.io/cli-runtime v0.0.0-20191016114015-74ad18325ed5/go.mod h1:sDl6WKSQkDM6zS1u9F49a0VooQ3ycYFBFLqd2jf2Xfo=
 k8s.io/client-go v0.0.0-20191016111102-bec269661e48 h1:C2XVy2z0dV94q9hSSoCuTPp1KOG7IegvbdXuz9VGxoU=
 k8s.io/client-go v0.0.0-20191016111102-bec269661e48/go.mod h1:hrwktSwYGI4JK+TJA3dMaFyyvHVi/aLarVHpbs8bgCU=
+k8s.io/cloud-provider v0.0.0-20191016115326-20453efc2458 h1:rP/89rnWN2l+2b7Jckg4VXi2dhgu7xs3S+1bKWKrqGE=
 k8s.io/cloud-provider v0.0.0-20191016115326-20453efc2458/go.mod h1:O5SO5xcgxrjJV9EC9R/47RuBpbk5YX9URDBlg++FA5o=
 k8s.io/cluster-bootstrap v0.0.0-20191016115129-c07a134afb42/go.mod h1:MzCL6kLExQuHruGaqibd8cugC8nw8QRxm3+lzR5l8SI=
 k8s.io/code-generator v0.0.0-20191004115455-8e001e5d1894/go.mod h1:mJUgkl06XV4kstAnLHAIzJPVCOzVR+ZcfPIv4fUsFCY=
