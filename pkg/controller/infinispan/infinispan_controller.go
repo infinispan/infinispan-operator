@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/cloud-provider/service/helpers"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -412,6 +413,10 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 			} else if infinispan.GetExposeType() == infinispanv1.ExposeTypeLoadBalancer {
 				// Waiting for LoadBalancer cloud provider to update the configured hostname inside Status field
 				if exposeAddress = kubernetes.GetExternalAddress(externalService); exposeAddress == "" {
+					if !helpers.HasLBFinalizer(externalService) {
+						reqLogger.Info("LoadBalancer expose type is not supported on the target platform")
+						return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
+					}
 					reqLogger.Info("LoadBalancer address not ready yet. Waiting on value in reconcile loop")
 					return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 				}
