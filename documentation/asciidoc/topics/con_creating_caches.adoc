@@ -1,8 +1,8 @@
 [id='creating_caches-{context}']
 = Creating {brandname} Caches
-To create caches when running {brandname} on {k8s}, you should:
+To create caches when running {brandname} on {k8s}, you can:
 
-* Use `Cache` CR as the primary mechanism for creating caches.
+* Use `Cache` CR.
 * Create multiple caches at a time with {brandname} CLI if you do not use `Cache` CR.
 * Access {brandname} Console and create caches in XML or JSON format as an alternative to `Cache` CR or {brandname} CLI.
 * Use Hot Rod clients to create caches either programmatically or through per cache properties only if required.
