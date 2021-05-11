@@ -1,5 +1,5 @@
 spec:
   cloudEvents:
     acks: "1"
-    bootstrapServers: 127.0.0.1:9092,192.168.1.14:9092
+    bootstrapServers: my-cluster-kafka-bootstrap_1.<namespace_1>.svc:9092,my-cluster-kafka-bootstrap_2.<namespace_2>.svc:9092
     cacheEntriesTopic: target-topic

@@ -12,9 +12,6 @@ spec:
         expose:
           type: LoadBalancer
       locations:
-        - name: LON
-          url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
-          secretName: lon-token
         - name: NYC
           clusterName: <nyc_cluster_name>
           namespace: <nyc_cluster_namespace>

@@ -7,7 +7,5 @@ spec:
         expose:
           type: LoadBalancer
       locations:
-      - name: LON
-        url: infinispan+xsite://infinispan-lon.myhost.com:7900
       - name: NYC
         url: infinispan+xsite://infinispan-nyc.myhost.com:7900
