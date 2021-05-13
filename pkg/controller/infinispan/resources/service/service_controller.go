@@ -177,6 +177,19 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 			if resource.GetObjectKind().GroupVersionKind().Kind != consts.ExternalTypeService && !reflect.DeepEqual(findResourceSpec["tls"], spec["tls"]) {
 				_ = unstructured.SetNestedField(findResource.UnstructuredContent(), spec["tls"], "spec", "tls")
 			}
+			if resource.GetObjectKind().GroupVersionKind().Kind == consts.ExternalTypeService {
+				if !reflect.DeepEqual(findResourceSpec["type"], spec["type"]) {
+					_ = unstructured.SetNestedField(findResource.UnstructuredContent(), spec["type"], "spec", "type")
+				}
+				if spec["type"] == string(corev1.ServiceTypeNodePort) {
+					specPort := spec["ports"].([]interface{})[0].(map[string]interface{})
+					findResourceSpecPort := findResourceSpec["ports"].([]interface{})[0].(map[string]interface{})
+					if specPort["nodePort"] != nil && specPort["nodePort"] != findResourceSpecPort["nodePort"] {
+						_ = unstructured.SetNestedField(findResourceSpecPort, specPort["nodePort"], "nodePort")
+						_ = unstructured.SetNestedSlice(findResource.UnstructuredContent(), []interface{}{findResourceSpecPort}, "spec", "ports")
+					}
+				}
+			}
 		}
 
 		return nil
