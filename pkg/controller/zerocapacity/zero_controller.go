@@ -289,43 +289,26 @@ func (z *Controller) waitForExecutionToComplete(httpClient http.HttpClient, requ
 }
 
 func (z *Controller) cleanupResources(httpClient http.HttpClient, request reconcile.Request) (reconcile.Result, error) {
-	ctx := context.Background()
-	meta := metav1.ObjectMeta{
-		Namespace: request.Namespace,
-		Name:      request.Name,
-	}
-	var allErrors error
-
 	// Stop the zero-capacity server so that it leaves the Infinispan cluster
-	rsp, err, reason := httpClient.Post(meta.Name, consts.ServerHTTPServerStop, "", nil)
-	if err != nil {
-		allErrors = fmt.Errorf("Unable to stop zero-capacity server: '%s': %w", reason, err)
-	} else if rsp.StatusCode != goHttp.StatusNoContent {
-		allErrors = fmt.Errorf("Unexpected response code '%d' when attempting to stop zero-capacity server", rsp.StatusCode)
-	}
+	if z.isZeroPodReady(request) {
+		rsp, err, reason := httpClient.Post(request.Name, consts.ServerHTTPServerStop, "", nil)
+		var logErr error
+		if err != nil {
+			logErr = fmt.Errorf("Unable to stop zero-capacity server: '%s': %w", reason, err)
+		} else if rsp.StatusCode != goHttp.StatusNoContent {
+			logErr = fmt.Errorf("Unexpected response code '%d'", rsp.StatusCode)
+		}
 
-	// Delete the configmap as it's no longer required
-	if err := z.Delete(ctx, &corev1.ConfigMap{ObjectMeta: meta}); err != nil && !errors.IsNotFound(err) {
-		allErrors = wrapErr(allErrors, fmt.Errorf("Unable to delete configMap: %w", err))
+		if logErr != nil {
+			z.Log.Error(logErr, "Error encountered when cleaning up zero-capacity pod")
+		}
 	}
-	return reconcile.Result{}, allErrors
-}
-
-func wrapErr(old, new error) error {
-	if old != nil {
-		return fmt.Errorf("%w; %s", old, new.Error())
-	}
-	return new
+	return reconcile.Result{}, nil
 }
 
 func (z *Controller) isZeroPodReady(request reconcile.Request) bool {
 	pod := &corev1.Pod{}
-	key := types.NamespacedName{
-		Name:      request.Name,
-		Namespace: request.Namespace,
-	}
-
-	if err := z.Get(context.Background(), key, pod); err != nil {
+	if err := z.Get(context.Background(), request.NamespacedName, pod); err != nil {
 		return false
 	}
 	return kube.IsPodReady(*pod)
@@ -442,6 +425,9 @@ func (z *Controller) configureServer(name, namespace string, infinispan *v1.Infi
 	}
 
 	config.Infinispan.ZeroCapacityNode = true
+	config.Logging.Categories = map[string]string{
+		"org.infinispan.server.core.backup": "debug",
+	}
 
 	if err := ispnCtrl.ConfigureServerEncryption(infinispan, config, z.Client); err != nil {
 		return nil, fmt.Errorf("Unable to configure zero-capacity encryption: %w", err)

@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
@@ -31,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/util/yaml"
+	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -88,6 +91,69 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 		return
 	}
 	ExpectNoError(err)
+}
+
+func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
+	panicVal := recover()
+	// Print pod output if a panic has occurred
+	if panicVal != nil {
+		podList := &v1.PodList{}
+		podLabels := map[string]string{"app": "infinispan-pod"}
+		if err := k.Kubernetes.ResourcesList(namespace, podLabels, podList); err != nil {
+			LogError(err)
+		}
+		for _, pod := range podList.Items {
+			yaml, err := yaml.Marshal(pod)
+			LogError(err)
+
+			fmt.Println(strings.Repeat("-", 30))
+			fmt.Printf("Pod=%s, Phase=%s\n%s", pod.Name, pod.Status.Phase, yaml)
+			log, err := k.Kubernetes.Logs(pod.Name, namespace)
+			LogError(err)
+			fmt.Printf("%s", log)
+		}
+
+		k.PrintAllResources(namespace, &appsv1.StatefulSetList{})
+		k.PrintAllResources(namespace, &ispnv1.InfinispanList{})
+		k.PrintAllResources(namespace, &ispnv2.BackupList{})
+		k.PrintAllResources(namespace, &ispnv2.RestoreList{})
+		k.PrintAllResources(namespace, &ispnv2.BatchList{})
+		k.PrintAllResources(namespace, &ispnv2.CacheList{})
+	}
+	opts := []client.DeleteAllOfOption{
+		client.InNamespace(namespace),
+	}
+
+	if CleanupInfinispan == "TRUE" {
+		ctx := context.TODO()
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
+	}
+
+	if panicVal != nil {
+		// Throw the recovered panic values so the tests fail as expected
+		panic(panicVal)
+	}
+}
+
+func (k TestKubernetes) PrintAllResources(namespace string, list runtime.Object) {
+	if err := k.Kubernetes.ResourcesList(namespace, map[string]string{}, list); err != nil {
+		LogError(err)
+	}
+
+	r := reflect.ValueOf(list)
+	items := reflect.Indirect(r).FieldByName("Items")
+	for i := 0; i < items.Len(); i++ {
+		item := items.Index(i).Interface()
+		yaml, err := yaml.Marshal(item)
+		LogError(err)
+
+		fmt.Println(strings.Repeat("-", 30))
+		fmt.Println(string(yaml))
+	}
 }
 
 // DeleteNamespace deletes a namespace
@@ -508,7 +574,7 @@ func (k TestKubernetes) installCRD(path string) {
 	y, err := yamlReader.Read()
 	ExpectNoError(err)
 	crd := apiextv1beta1.CustomResourceDefinition{}
-	err = yaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&crd)
+	err = k8syaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&crd)
 	ExpectNoError(err)
 	k.CreateOrUpdateAndWaitForCRD(&crd)
 }
