@@ -124,13 +124,14 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 		client.InNamespace(namespace),
 	}
 
-	if CleanupInfinispan == "TRUE" {
+	if CleanupInfinispan == "TRUE" || panicVal == nil {
 		ctx := context.TODO()
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
+		k.WaitForPods(0, SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
 	}
 
 	if panicVal != nil {
