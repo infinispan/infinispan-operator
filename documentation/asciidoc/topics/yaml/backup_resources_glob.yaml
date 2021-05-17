@@ -1,0 +1,6 @@
+spec:
+  resources:
+    caches:
+      - "*"
+    protoSchemas:
+      - "*"

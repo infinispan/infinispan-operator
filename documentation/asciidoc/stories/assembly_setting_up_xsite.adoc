@@ -37,8 +37,7 @@ include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+2]
 include::{topics}/ref_xsite_resources_automatic.adoc[leveloffset=+2]
 
 //Manually forming cross-site views
-include::{topics}/con_xsite_views_manual.adoc[leveloffset=+1]
-include::{topics}/proc_configuring_sites_manually.adoc[leveloffset=+2]
+include::{topics}/proc_configuring_sites_manually.adoc[leveloffset=+1]
 include::{topics}/ref_xsite_resources_manual.adoc[leveloffset=+2]
 
 //Configuring xsite within the same cluster

@@ -14,7 +14,7 @@ spec:
       locations:
         - name: NYC
           url: infinispan+xsite://infinispan-nyc.myhost.com:7900
-    logging:
-      categories:
-        org.jgroups.protocols.TCP: error
-        org.jgroups.protocols.relay.RELAY2: error
+  logging:
+    categories:
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: error

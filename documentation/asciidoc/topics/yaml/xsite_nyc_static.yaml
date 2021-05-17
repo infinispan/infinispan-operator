@@ -14,7 +14,7 @@ spec:
       locations:
         - name: LON
           url: infinispan+xsite://infinispan-lon.myhost.com
-    logging:
-      categories:
-        org.jgroups.protocols.TCP: error
-        org.jgroups.protocols.relay.RELAY2: error
+  logging:
+    categories:
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: error

@@ -1,12 +1,22 @@
-[id='configuring-sites-manually_{context}']
-= Specifying static hosts and ports for {brandname} clusters
+[id='manual-xsite-views_{context}']
+= Manually connecting {brandname} clusters
 
 [role="_abstract"]
-Specify static hosts and ports for {brandname} clusters so they can establish connections and form cross-site views.
+You can specify static network connection details to perform cross-site replication with {brandname} clusters running outside {k8s}.
+Manual cross-site connections are necessary in any scenario where access to the Kubernetes API is not available outside the {k8s} cluster where {brandname} runs.
+
+You can use both automatic and manual connections for {brandname} clusters in the same `Infinispan` CR.
+However, you must ensure that {brandname} clusters establish connections in the same way at each site.
 
 .Prerequisites
 
+Manually connecting {brandname} clusters to form cross-site views requires predictable network locations for {brandname} services.
+
+You need to know the network locations before they are created, which requires you to:
+
 * Have the host names and ports for each {brandname} cluster that you plan to configure as a backup location.
+* Have the host name of the `<cluster-name>-site` service for any remote {brandname} cluster that is running on {k8s}. +
+You must use the `<cluster-name>-site` service to form a cross-site view between a cluster that {ispn_operator} manages and any other cluster.
 
 .Procedure
 

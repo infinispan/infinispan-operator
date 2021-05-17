@@ -35,6 +35,13 @@ include::yaml/backup.yaml[]
 include::yaml/backup_resources.yaml[]
 ----
 +
+You can also use the `*` wildcard character to back up all resources.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/backup_resources_glob.yaml[]
+----
++
 . Apply your `Backup` CR.
 +
 [source,options="nowrap",subs=attributes+]
