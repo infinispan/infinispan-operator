@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	ispnv2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
@@ -22,6 +20,7 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	routev1 "github.com/openshift/api/route/v1"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -29,6 +28,7 @@ import (
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -97,28 +97,13 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 	panicVal := recover()
 	// Print pod output if a panic has occurred
 	if panicVal != nil {
-		podList := &v1.PodList{}
-		podLabels := map[string]string{"app": "infinispan-pod"}
-		if err := k.Kubernetes.ResourcesList(namespace, podLabels, podList); err != nil {
-			LogError(err)
-		}
-		for _, pod := range podList.Items {
-			yaml, err := yaml.Marshal(pod)
-			LogError(err)
-
-			fmt.Println(strings.Repeat("-", 30))
-			fmt.Printf("Pod=%s, Phase=%s\n%s", pod.Name, pod.Status.Phase, yaml)
-			log, err := k.Kubernetes.Logs(pod.Name, namespace)
-			LogError(err)
-			fmt.Printf("%s", log)
-		}
-
-		k.PrintAllResources(namespace, &appsv1.StatefulSetList{})
-		k.PrintAllResources(namespace, &ispnv1.InfinispanList{})
-		k.PrintAllResources(namespace, &ispnv2.BackupList{})
-		k.PrintAllResources(namespace, &ispnv2.RestoreList{})
-		k.PrintAllResources(namespace, &ispnv2.BatchList{})
-		k.PrintAllResources(namespace, &ispnv2.CacheList{})
+		k.PrintAllResources(namespace, &v1.PodList{}, map[string]string{"app": "infinispan-pod"})
+		k.PrintAllResources(namespace, &appsv1.StatefulSetList{}, map[string]string{})
+		k.PrintAllResources(namespace, &ispnv1.InfinispanList{}, map[string]string{})
+		k.PrintAllResources(namespace, &ispnv2.BackupList{}, map[string]string{})
+		k.PrintAllResources(namespace, &ispnv2.RestoreList{}, map[string]string{})
+		k.PrintAllResources(namespace, &ispnv2.BatchList{}, map[string]string{})
+		k.PrintAllResources(namespace, &ispnv2.CacheList{}, map[string]string{})
 	}
 	opts := []client.DeleteAllOfOption{
 		client.InNamespace(namespace),
@@ -126,12 +111,12 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
 		ctx := context.TODO()
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
-		k.WaitForPods(0, SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
+		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
 	}
 
 	if panicVal != nil {
@@ -140,17 +125,25 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 	}
 }
 
-func (k TestKubernetes) PrintAllResources(namespace string, list runtime.Object) {
-	if err := k.Kubernetes.ResourcesList(namespace, map[string]string{}, list); err != nil {
+func (k TestKubernetes) PrintAllResources(namespace string, list runtime.Object, set labels.Set) {
+	if err := k.Kubernetes.ResourcesList(namespace, set, list); err != nil {
 		LogError(err)
 	}
 
-	r := reflect.ValueOf(list)
-	items := reflect.Indirect(r).FieldByName("Items")
-	for i := 0; i < items.Len(); i++ {
-		item := items.Index(i).Interface()
+	unstructuredResource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(list)
+	LogError(err)
+	unstructuredResourceList := unstructured.UnstructuredList{}
+	unstructuredResourceList.SetUnstructuredContent(unstructuredResource)
+
+	for _, item := range unstructuredResourceList.Items {
 		yaml, err := yaml.Marshal(item)
 		LogError(err)
+		if strings.Contains(reflect.TypeOf(list).String(), "PodList") {
+			fmt.Println(strings.Repeat("-", 30))
+			log, err := k.Kubernetes.Logs(item.GetName(), namespace)
+			LogError(err)
+			fmt.Printf("%s", log)
+		}
 
 		fmt.Println(strings.Repeat("-", 30))
 		fmt.Println(string(yaml))
