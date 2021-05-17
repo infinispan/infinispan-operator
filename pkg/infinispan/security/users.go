@@ -1,8 +1,9 @@
 package security
 
 import (
+	"crypto/rand"
 	"errors"
-	"math/rand"
+	"math/big"
 
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -27,16 +28,30 @@ var alphaChars = acceptedChars[8:]
 
 // getRandomStringForAuth generate a random string that can be used as a
 // user or pass for Infinispan
-func getRandomStringForAuth(size int) string {
+func getRandomStringForAuth(size int) (string, error) {
 	b := make([]byte, size)
-	for i := range b {
-		if i == 0 {
-			b[0] = alphaChars[rand.Intn(len(alphaChars))]
-		} else {
-			b[i] = acceptedChars[rand.Intn(len(acceptedChars))]
-		}
+	char, err := getRandomChar(alphaChars)
+	if err != nil {
+		return "", err
 	}
-	return string(b)
+	b[0] = char
+	for i := 1; i < len(b); i++ {
+		char, err := getRandomChar(alphaChars)
+		if err != nil {
+			return "", err
+		}
+		b[i] = char
+	}
+	return string(b), nil
+}
+
+func getRandomChar(availableChars []byte) (byte, error) {
+	max := big.NewInt(int64(len(alphaChars)))
+	r, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return 0, err
+	}
+	return availableChars[r.Int64()], nil
 }
 
 // CreateIdentitiesFor creates identities for a given username/password combination
@@ -56,12 +71,20 @@ func CreateIdentitiesFor(usr string, pass string) ([]byte, error) {
 
 // GetAdminCredentials get admin identities credentials in yaml format
 func GetAdminCredentials() ([]byte, error) {
-	return CreateIdentitiesFor(consts.DefaultOperatorUser, getRandomStringForAuth(16))
+	pass, err := getRandomStringForAuth(16)
+	if err != nil {
+		return nil, err
+	}
+	return CreateIdentitiesFor(consts.DefaultOperatorUser, pass)
 }
 
 // GetUserCredentials get identities credentials in yaml format
 func GetUserCredentials() ([]byte, error) {
-	return CreateIdentitiesFor(consts.DefaultDeveloperUser, getRandomStringForAuth(16))
+	pass, err := getRandomStringForAuth(16)
+	if err != nil {
+		return nil, err
+	}
+	return CreateIdentitiesFor(consts.DefaultDeveloperUser, pass)
 }
 
 // FindPassword finds a user's password
