@@ -17,7 +17,7 @@ spec:
           namespace: <nyc_cluster_namespace>
           url: openshift://api.rhdg-nyc.openshift-aws.myhost.com:6443
           secretName: nyc-token
-    logging:
-      categories:
-        org.jgroups.protocols.TCP: error
-        org.jgroups.protocols.relay.RELAY2: error
+  logging:
+    categories:
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: error

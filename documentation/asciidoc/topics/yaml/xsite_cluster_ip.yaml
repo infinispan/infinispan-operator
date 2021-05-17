@@ -14,7 +14,5 @@ spec:
         expose:
           type: ClusterIP
       locations:
-        - name: SiteA
-          url: infinispan+xsite://example-clustera-site
         - name: SiteB
-          url: infinispan+xsite://example-clusterb-site
+          url: infinispan+xsite://example-clusterb-site.<namespace>.svc:7900

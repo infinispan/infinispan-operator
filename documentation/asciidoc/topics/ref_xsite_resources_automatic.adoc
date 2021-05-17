@@ -56,7 +56,7 @@ endif::community[]
 //Downstream
 ifdef::downstream[]
 |`service.sites.locations.url`
-|Specifies the URL of the {openshiftshort} API for the backup location.
+|Specifies the URL of the Kubernetes API for the backup location.
 
 |`service.sites.locations.secretName`
 |Specifies the secret that contains the service account token for the backup site.

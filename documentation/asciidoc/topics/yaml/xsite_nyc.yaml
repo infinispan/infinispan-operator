@@ -17,7 +17,7 @@ spec:
           namespace: {example_namespace}
           url: openshift://api.rhdg-lon.openshift-aws.myhost.com:6443
           secretName: lon-token
-    logging:
-      categories:
-        org.jgroups.protocols.TCP: error
-        org.jgroups.protocols.relay.RELAY2: error
+  logging:
+    categories:
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: error
