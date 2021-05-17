@@ -6,14 +6,21 @@ Use the command line interface (CLI) to connect to your {brandname} cluster and 
 
 .Prerequisites
 
-* Download the server distribution so you can run the CLI.
+* Download a CLI distribution so you can connect to {brandname} clusters on {openshiftshort}.
 
-The CLI is available as part of the server distribution, which you can run on your local host to establish remote connections to {brandname} clusters on {openshiftshort}.
-
-//Community
+//Community content
 ifdef::community[]
-Alternatively, you can use the infinispan/cli image at link:https://github.com/infinispan/infinispan-images[https://github.com/infinispan/infinispan-images].
+The CLI is available as part of the server distribution.
+Alternatively, you can use the CLI container image available from link:https://infinispan.org/download/stable/cli-image.html[infinispan.org/download].
 endif::community[]
+
+//Downstream content
+ifdef::downstream[]
+The {brandname} CLI is available with the server distribution or as a native executable.
+
+Follow the instructions in _Getting Started with {brandname} Server_ for information on downloading and installing the CLI as part of the server distribution.
+For the native CLI, you should follow the installation instructions in the _README_ file that is included in the ZIP download.
+endif::downstream[]
 
 [NOTE]
 ====
@@ -27,12 +34,25 @@ $ {kubectl_exec}
 However using the CLI in this way consumes memory allocated to the container, which can lead to out of memory exceptions.
 ====
 
+.Procedure
+
 . Create a CLI connection to your {brandname} cluster.
 +
+ifdef::downstream[]
+.Using the server distribution
+endif::downstream[]
 [source,bash,options="nowrap",subs=attributes+]
 ----
 $ bin/cli.sh -c https://$SERVICE_HOSTNAME:$PORT --trustall
 ----
+ifdef::downstream[]
++
+.Using the native CLI
+[source,bash,options="nowrap",subs=attributes+]
+----
+$ ./redhat-datagrid-cli -c https://$SERVICE_HOSTNAME:$PORT --trustall
+----
+endif::downstream[]
 +
 Replace `$SERVICE_HOSTNAME:$PORT` with the hostname and port where {brandname} is available on the network.
 +
@@ -55,5 +75,9 @@ mycache
 
 [role="_additional-resources"]
 .Additional resources
-* link:{server_docs}[Downloading Server Distributions]
+* link:{server_docs}#start_server[Getting Started with {brandname} Server]
+//Downstream content
+ifdef::downstream[]
+* link:{download_url}[{ProductName} Software Downloads]
+endif::downstream[]
 * link:{cli_docs}[Using the {brandname} Command Line Interface]
