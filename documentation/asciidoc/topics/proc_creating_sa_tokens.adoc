@@ -14,7 +14,7 @@ For example, create a service account at **LON**:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_create} sa lon
+$ oc create sa lon
 serviceaccount/lon created
 ----
 +
@@ -23,6 +23,13 @@ serviceaccount/lon created
 [source,options="nowrap",subs=attributes+]
 ----
 $ oc policy add-role-to-user view system:serviceaccount:<namespace>:lon
+----
++
+. If you use a node port service to expose {brandname} clusters on the network, you must also add the `cluster-reader` role to the service account:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ oc adm policy add-cluster-role-to-user cluster-reader -z <service-account-name> -n <namespace>
 ----
 +
 . Repeat the preceding steps on your other {openshiftshort} clusters.
