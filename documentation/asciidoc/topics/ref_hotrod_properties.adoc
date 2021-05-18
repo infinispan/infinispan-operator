@@ -30,9 +30,8 @@ infinispan.client.hotrod.sasl_mechanism=SCRAM-SHA-512
 
 # Encryption
 infinispan.client.hotrod.sni_host_name=$SERVICE_HOSTNAME
-# Path to the TLS certificate.
-# Clients automatically generate trust stores from certificates.
-infinispan.client.hotrod.trust_store_path=/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+infinispan.client.hotrod.trust_store_file_name=/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+infinispan.client.hotrod.trust_store_type=pem
 ----
 
 [discrete]
@@ -58,7 +57,8 @@ infinispan.client.hotrod.sasl_mechanism=SCRAM-SHA-512
 
 # Encryption
 infinispan.client.hotrod.sni_host_name=$SERVICE_HOSTNAME
-# Path to the TLS certificate.
-# Clients automatically generate trust stores from certificates.
-infinispan.client.hotrod.trust_store_path=tls.crt
+# Create a client trust store with tls.crt from your project.
+infinispan.client.hotrod.trust_store_file_name=/path/to/truststore.pkcs12
+infinispan.client.hotrod.trust_store_password=trust_store_password
+infinispan.client.hotrod.trust_store_type=PCKS12
 ----
