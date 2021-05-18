@@ -74,11 +74,11 @@ metadata:
     categories: Database
     repository: https://github.com/infinispan/infinispan-operator
     description: Create and manage Infinispan clusters.
-    containerImage: quay.io/infinispan/operator:2.1.2.Final
+    containerImage: quay.io/infinispan/operator:2.1.3.Final
     createdAt: 2021-01-26T09:00:00Z
     support: Infinispan
     certified: "false"
-  name: infinispan-operator.v2.1.3
+  name: infinispan-operator.v2.1.4
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -308,8 +308,8 @@ spec:
                       - name: OPERATOR_NAME
                         value: infinispan-operator
                       - name: RELATED_IMAGE_OPENJDK
-                        value: quay.io/infinispan/server:12.0.2.Final
-                    image: quay.io/infinispan/operator:2.1.2.Final
+                        value: quay.io/infinispan/server:12.1.3.Final
+                    image: quay.io/infinispan/operator:2.1.3.Final
                     imagePullPolicy: Always
                     name: infinispan-operator
                     ports:
@@ -493,8 +493,8 @@ spec:
       type: AllNamespaces
   maturity: alpha
   provider: {name: Infinispan}
-  replaces: infinispan-operator.v2.1.2
-  version: 2.1.3
+  replaces: infinispan-operator.v2.1.3
+  version: 2.1.4
   keywords:
     - infinispan
     - key value
@@ -507,7 +507,7 @@ spec:
       email: infinispan-dev@lists.jboss.org
   relatedImages:
     - name: infinispan-server
-      image: quay.io/infinispan/server:12.0.2.Final
+      image: quay.io/infinispan/server:12.1.3.Final
   labels:
     operated-by: infinispan-operator
   selector:
