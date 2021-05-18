@@ -409,11 +409,11 @@ func (k TestKubernetes) WaitForExternalService(routeName, namespace string, expo
 func CheckExternalAddress(c HTTPClient, hostAndPort string) bool {
 	httpURL := fmt.Sprintf("%s/%s", hostAndPort, consts.ServerHTTPHealthPath)
 	resp, err := c.Get(httpURL, nil)
-	defer LogError(resp.Body.Close())
 	if net.IsConnectionRefused(err) {
 		return false
 	}
 	ExpectNoError(err)
+	defer LogError(resp.Body.Close())
 	log.Info("Received response for external address", "response code", resp.StatusCode)
 	return resp.StatusCode == http.StatusOK
 }
