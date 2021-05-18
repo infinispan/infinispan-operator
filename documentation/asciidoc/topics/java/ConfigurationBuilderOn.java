@@ -15,4 +15,5 @@ ConfigurationBuilder builder = new ConfigurationBuilder();
                .saslMechanism("SCRAM-SHA-512")
              .ssl()
                .sniHostName("$SERVICE_HOSTNAME")
-               .trustStorePath("/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt");
+               .trustStoreFileName("/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt")
+               .trustStoreType("pem");

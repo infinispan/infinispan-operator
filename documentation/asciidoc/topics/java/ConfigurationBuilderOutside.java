@@ -15,5 +15,8 @@ ConfigurationBuilder builder = new ConfigurationBuilder();
                .saslMechanism("SCRAM-SHA-512")
              .ssl()
                .sniHostName("$SERVICE_HOSTNAME")
-               .trustStorePath("/path/to/tls.crt");
+               //Create a client trust store with tls.crt from your project.
+               .trustStoreFileName("/path/to/truststore.pkcs12")
+               .trustStorePassword("trust_store_password")
+               .trustStoreType("PCKS12");
       builder.clientIntelligence(ClientIntelligence.BASIC);
