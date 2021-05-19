@@ -562,6 +562,30 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		return err
 	}
 
+	if isTypeSupported(consts.ExternalTypeRoute) {
+		err = r.client.Delete(context.TODO(),
+			&routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      infinispan.GetServiceExternalName(),
+					Namespace: infinispan.Namespace,
+				},
+			})
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	} else if isTypeSupported(consts.ExternalTypeIngress) {
+		err = r.client.Delete(context.TODO(),
+			&networkingv1beta1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      infinispan.GetServiceExternalName(),
+					Namespace: infinispan.Namespace,
+				},
+			})
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
 	err = r.client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
