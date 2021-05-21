@@ -35,7 +35,11 @@ kind delete clusters xsite2
 # Common part for both nodes
 ./build/build.sh
 docker build -t infinispan-operator . -f ./build/Dockerfile.single
+
+echo "prepare kind config for node version ${KIND_NODE_VERSION}"
+sed -i "s|##KIND_NODE_VERSION##|${KIND_NODE_VERSION}|" kind-config.yaml
 yq ea -e 'del(.nodes[0].extraPortMappings)' kind-config.yaml > kind-config-xsite.yaml
+cat kind-config.yaml
 
 for INSTANCE in "xsite1" "xsite2"; do
   kind create cluster --config kind-config-xsite.yaml --name "${INSTANCE}"
