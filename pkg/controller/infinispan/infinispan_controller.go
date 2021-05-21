@@ -63,6 +63,7 @@ const (
 	EventReasonLowPersistenceStorage = "LowPersistenceStorage"
 	EventReasonEphemeralStorage      = "EphemeralStorageEnables"
 	EventReasonParseValueProblem     = "ParseValueProblem"
+	EventLoadBalancerUnsupported     = "LoadBalancerUnsupported"
 	ControllerName                   = "infinispan-controller"
 )
 
@@ -440,7 +441,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				// Waiting for LoadBalancer cloud provider to update the configured hostname inside Status field
 				if exposeAddress = kubernetes.GetExternalAddress(externalService); exposeAddress == "" {
 					if !helpers.HasLBFinalizer(externalService) {
-						reqLogger.Info("LoadBalancer expose type is not supported on the target platform")
+						eventlog.LogAndSendEvent(r, externalService, "LoadBalancer expose type is not supported on the target platform", EventLoadBalancerUnsupported)
 						return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 					}
 					reqLogger.Info("LoadBalancer address not ready yet. Waiting on value in reconcile loop")
