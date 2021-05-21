@@ -9,6 +9,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/controller/eventlog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -164,7 +165,16 @@ func LookupResource(name, namespace string, resource runtime.Object, cwe eventlo
 			}
 			msg := fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name)
 			if !skip {
-				eventlog.LogAndSendEvent(cwe, resource, msg, EventReasonResourceNotReady)
+				objMeta, err1 := meta.Accessor(resource)
+				if err1 == nil {
+					if objMeta.GetName() == "" {
+						objMeta.SetName(name)
+					}
+					if objMeta.GetName() == "" {
+						objMeta.SetNamespace(namespace)
+					}
+					eventlog.LogAndSendEvent(cwe, resource, msg, EventReasonResourceNotReady)
+				}
 			} else {
 				(*cwe.Logger()).Info(msg, EventReasonResourceNotReady)
 			}
