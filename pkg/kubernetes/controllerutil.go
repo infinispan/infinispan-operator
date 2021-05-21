@@ -170,7 +170,7 @@ func LookupResource(name, namespace string, resource runtime.Object, cwe eventlo
 					if objMeta.GetName() == "" {
 						objMeta.SetName(name)
 					}
-					if objMeta.GetName() == "" {
+					if objMeta.GetNamespace() == "" {
 						objMeta.SetNamespace(namespace)
 					}
 					eventlog.LogAndSendEvent(cwe, resource, msg, EventReasonResourceNotReady)
