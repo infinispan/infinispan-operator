@@ -106,7 +106,7 @@ func (c *configResource) Process() (reconcile.Result, error) {
 		xsite, err = ComputeXSite(c.infinispan, c.kube, siteService, c.log)
 		if err != nil {
 			if errEv, ok := err.(*eventlog.ErrorEvent); ok {
-				eventlog.LogAndSendEvent(c, siteService, errEv.Error(), errEv.Reason)
+				eventlog.LogAndSendEvent(c, siteService, errEv.Reason, errEv.Error())
 			} else {
 				c.log.Error(err, "Error in computeXSite configuration")
 			}

@@ -219,7 +219,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		// Perform all the possible preliminary checks before go on
 		preliminaryChecksResult, preliminaryChecksError = infinispan.PreliminaryChecks()
 		if preliminaryChecksError != nil {
-			eventlog.LogAndSendEvent(r, infinispan, preliminaryChecksError.Error(), EventReasonPrelimChecksFailed)
+			eventlog.LogAndSendEvent(r, infinispan, EventReasonPrelimChecksFailed, preliminaryChecksError.Error())
 			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, preliminaryChecksError.Error())
 		} else {
 			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
@@ -441,7 +441,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				// Waiting for LoadBalancer cloud provider to update the configured hostname inside Status field
 				if exposeAddress = kubernetes.GetExternalAddress(externalService); exposeAddress == "" {
 					if !helpers.HasLBFinalizer(externalService) {
-						eventlog.LogAndSendEvent(r, externalService, "LoadBalancer expose type is not supported on the target platform", EventLoadBalancerUnsupported)
+						eventlog.LogAndSendEvent(r, externalService, EventLoadBalancerUnsupported, "LoadBalancer expose type is not supported on the target platform")
 						return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 					}
 					reqLogger.Info("LoadBalancer address not ready yet. Waiting on value in reconcile loop")
@@ -792,7 +792,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 	memory, err := resource.ParseQuantity(m.Spec.Container.Memory)
 	if err != nil {
-		eventlog.LogAndSendEvent(r, m, err.Error(), EventReasonParseValueProblem)
+		eventlog.LogAndSendEvent(r, m, EventReasonParseValueProblem, err.Error())
 		return nil, err
 	}
 	replicas := m.Spec.Replicas
@@ -829,7 +829,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 	podResources, err := PodResources(m.Spec.Container)
 	if err != nil {
-		eventlog.LogAndSendEvent(r, m, err.Error(), EventReasonParseValueProblem)
+		eventlog.LogAndSendEvent(r, m, EventReasonParseValueProblem, err.Error())
 		return nil, err
 	}
 	dep := &appsv1.StatefulSet{
@@ -897,11 +897,11 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		if m.IsDataGrid() && m.StorageSize() != "" {
 			pvSize, pvErr := resource.ParseQuantity(m.StorageSize())
 			if pvErr != nil {
-				eventlog.LogAndSendEvent(r, m, err.Error(), EventReasonParseValueProblem)
+				eventlog.LogAndSendEvent(r, m, EventReasonParseValueProblem, err.Error())
 				return nil, pvErr
 			}
 			if pvSize.Cmp(memory) < 0 {
-				eventlog.LogAndSendEvent(r, m, err.Error(), EventReasonLowPersistenceStorage)
+				eventlog.LogAndSendEvent(r, m, EventReasonLowPersistenceStorage, err.Error())
 				reqLogger.Info("WARNING: persistent volume size is less than memory size. Graceful shutdown may not work.", "Volume Size", pvSize, "Memory", memory)
 			}
 		}
@@ -945,7 +945,7 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			},
 		}
 		*volumes = append(*volumes, ephemeralVolume)
-		eventlog.LogAndSendEvent(r, m, "WARNING: Ephemeral storage configured. All data will be lost on cluster shutdown and restart.", EventReasonEphemeralStorage)
+		eventlog.LogAndSendEvent(r, m, EventReasonEphemeralStorage, "WARNING: Ephemeral storage configured. All data will be lost on cluster shutdown and restart.")
 	}
 
 	AddVolumeForEncryption(m, &dep.Spec.Template.Spec)

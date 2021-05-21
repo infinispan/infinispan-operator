@@ -44,7 +44,7 @@ func Logger(cwl ControllerWithLogger) logr.Logger {
 	return *cwl.Logger()
 }
 
-func LogAndSendEvent(cwe ControllerWithEvents, owner runtime.Object, message, reason string) {
+func LogAndSendEvent(cwe ControllerWithEvents, owner runtime.Object, reason, message string) {
 	(*cwe.Logger()).Info(message)
 	if *cwe.EventRecorder() != nil && owner != nil {
 		(*cwe.EventRecorder()).Event(owner, corev1.EventTypeWarning, reason, message)
