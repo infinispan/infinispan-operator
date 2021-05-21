@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/controller/eventlog"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
@@ -104,7 +105,11 @@ func (c *configResource) Process() (reconcile.Result, error) {
 		var err error
 		xsite, err = ComputeXSite(c.infinispan, c.kube, siteService, c.log)
 		if err != nil {
-			c.log.Error(err, "Error in computeXSite configuration")
+			if errEv, ok := err.(*eventlog.ErrorEvent); ok {
+				eventlog.LogAndSendEvent(c, siteService, errEv.Error(), errEv.Reason)
+			} else {
+				c.log.Error(err, "Error in computeXSite configuration")
+			}
 			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 		}
 	}

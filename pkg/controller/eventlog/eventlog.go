@@ -20,6 +20,16 @@ type ControllerWithLogger interface {
 	Logger() *logr.Logger
 }
 
+type ErrorEvent struct {
+	E      error
+	Reason string
+	Owner  *runtime.Object
+}
+
+func (eev *ErrorEvent) Error() string {
+	return eev.E.Error()
+}
+
 func ValuedLogger(cwl ControllerWithLogger, keysAndValues ...interface{}) logr.Logger {
 	log := Logger(cwl)
 	logger := log.WithValues(keysAndValues...)

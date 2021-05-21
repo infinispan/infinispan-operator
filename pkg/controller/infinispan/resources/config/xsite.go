@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	"github.com/infinispan/infinispan-operator/pkg/controller/eventlog"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
@@ -19,9 +20,11 @@ import (
 )
 
 const (
-	SchemeTypeKubernetes = "kubernetes"
-	SchemeTypeMinikube   = "minikube"
-	SchemeTypeOpenShift  = "openshift"
+	SchemeTypeKubernetes              = "kubernetes"
+	SchemeTypeMinikube                = "minikube"
+	SchemeTypeOpenShift               = "openshift"
+	XSiteLocalServiceTypeUnsupported  = "XSiteLocalServiceUnsupported"
+	XSiteRemoteServiceTypeUnsupported = "XSiteRemoteServiceUnsupported"
 )
 
 // ComputeXSite compute the xsite struct for cross site function
@@ -30,7 +33,8 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 	localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger)
 	if err != nil {
 		logger.Error(err, "error retrieving local x-site service information")
-		return nil, err
+		eev := eventlog.ErrorEvent{Reason: XSiteLocalServiceTypeUnsupported, E: err}
+		return nil, &eev
 	}
 
 	if localSiteHost == "" {
@@ -107,7 +111,8 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger)
 	if err != nil {
 		logger.Error(err, "error retrieving remote x-site service information")
-		return err
+		eev := eventlog.ErrorEvent{Reason: XSiteRemoteServiceTypeUnsupported, E: err}
+		return &eev
 	}
 
 	if host == "" {
