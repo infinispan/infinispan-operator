@@ -5,14 +5,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+type ReasonType string
 
 type ControllerWithEvents interface {
 	EventRecorder() *record.EventRecorder
 	Logger() *logr.Logger
-	Client() *client.Client
 }
 
 type ControllerWithLogger interface {
@@ -22,7 +22,7 @@ type ControllerWithLogger interface {
 
 type ErrorEvent struct {
 	E      error
-	Reason string
+	Reason ReasonType
 	Owner  *runtime.Object
 }
 
@@ -44,9 +44,9 @@ func Logger(cwl ControllerWithLogger) logr.Logger {
 	return *cwl.Logger()
 }
 
-func LogAndSendEvent(cwe ControllerWithEvents, owner runtime.Object, reason, message string) {
+func LogAndSendEvent(cwe ControllerWithEvents, owner runtime.Object, reason ReasonType, message string) {
 	(*cwe.Logger()).Info(message)
 	if *cwe.EventRecorder() != nil && owner != nil {
-		(*cwe.EventRecorder()).Event(owner, corev1.EventTypeWarning, reason, message)
+		(*cwe.EventRecorder()).Event(owner, corev1.EventTypeWarning, string(reason), message)
 	}
 }

@@ -59,11 +59,11 @@ const (
 	EncryptVolumeName                = "encrypt-volume"
 	IdentitiesVolumeName             = "identities-volume"
 	AdminIdentitiesVolumeName        = "admin-identities-volume"
-	EventReasonPrelimChecksFailed    = "PrelimChecksFailed"
-	EventReasonLowPersistenceStorage = "LowPersistenceStorage"
-	EventReasonEphemeralStorage      = "EphemeralStorageEnables"
-	EventReasonParseValueProblem     = "ParseValueProblem"
-	EventLoadBalancerUnsupported     = "LoadBalancerUnsupported"
+	EventReasonPrelimChecksFailed    = eventlog.ReasonType("PrelimChecksFailed")
+	EventReasonLowPersistenceStorage = eventlog.ReasonType("LowPersistenceStorage")
+	EventReasonEphemeralStorage      = eventlog.ReasonType("EphemeralStorageEnables")
+	EventReasonParseValueProblem     = eventlog.ReasonType("ParseValueProblem")
+	EventLoadBalancerUnsupported     = eventlog.ReasonType("LoadBalancerUnsupported")
 	ControllerName                   = "infinispan-controller"
 )
 
@@ -244,7 +244,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Wait for the ConfigMap to be created by config-controller
 	configMap := &corev1.ConfigMap{}
-	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r, &r.client); result != nil {
 		return *result, err
 	}
 
@@ -252,13 +252,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	var userSecret *corev1.Secret
 	if infinispan.IsAuthenticationEnabled() {
 		userSecret = &corev1.Secret{}
-		if result, err := kube.LookupResource(infinispan.GetSecretName(), infinispan.Namespace, userSecret, r); result != nil {
+		if result, err := kube.LookupResource(infinispan.GetSecretName(), infinispan.Namespace, userSecret, r, &r.client); result != nil {
 			return *result, err
 		}
 	}
 
 	adminSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(infinispan.GetAdminSecretName(), infinispan.Namespace, adminSecret, r); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetAdminSecretName(), infinispan.Namespace, adminSecret, r, &r.client); result != nil {
 		return *result, err
 	}
 
@@ -298,12 +298,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Wait for the cluster Service to be created by service-controller
-	if result, err := kube.LookupResource(infinispan.Name, infinispan.Namespace, &corev1.Service{}, r); result != nil {
+	if result, err := kube.LookupResource(infinispan.Name, infinispan.Namespace, &corev1.Service{}, r, &r.client); result != nil {
 		return *result, err
 	}
 
 	// Wait for the cluster ping Service to be created by service-controller
-	if result, err := kube.LookupResource(infinispan.GetPingServiceName(), infinispan.Namespace, &corev1.Service{}, r); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetPingServiceName(), infinispan.Namespace, &corev1.Service{}, r, &r.client); result != nil {
 		return *result, err
 	}
 
@@ -428,7 +428,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
 			// Wait for the cluster external Service to be created by service-controller
 			externalService := &corev1.Service{}
-			if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r); result != nil {
+			if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r, &r.client); result != nil {
 				return *result, err
 			}
 			if len(externalService.Spec.Ports) > 0 && infinispan.GetExposeType() == infinispanv1.ExposeTypeNodePort {
@@ -451,13 +451,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		case infinispanv1.ExposeTypeRoute:
 			if isTypeSupported(consts.ExternalTypeRoute) {
 				externalRoute := &routev1.Route{}
-				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r); result != nil {
+				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r, &r.client); result != nil {
 					return *result, err
 				}
 				exposeAddress = externalRoute.Spec.Host
 			} else if isTypeSupported(consts.ExternalTypeIngress) {
 				externalIngress := &networkingv1beta1.Ingress{}
-				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r); result != nil {
+				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r, &r.client); result != nil {
 					return *result, err
 				}
 				if len(externalIngress.Spec.Rules) > 0 {

@@ -154,8 +154,8 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj runtime.Object)
 }
 
 // LookupResourceForController lookup for resource to be created by separate resource controller
-func LookupResource(name, namespace string, resource runtime.Object, cwe eventlog.ControllerWithEvents, skipSendEvent ...bool) (*reconcile.Result, error) {
-	err := (*cwe.Client()).Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
+func LookupResource(name, namespace string, resource runtime.Object, cwe eventlog.ControllerWithEvents, c *client.Client, skipSendEvent ...bool) (*reconcile.Result, error) {
+	err := (*c).Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Default is send event
