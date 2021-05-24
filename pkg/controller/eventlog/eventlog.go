@@ -10,13 +10,9 @@ import (
 
 type ReasonType string
 
-type ControllerWithEvents interface {
-	EventRecorder() *record.EventRecorder
-	Logger() *logr.Logger
-}
-
-type ControllerWithLogger interface {
+type EventLogger interface {
 	Name() string
+	EventRecorder() *record.EventRecorder
 	Logger() *logr.Logger
 }
 
@@ -30,23 +26,23 @@ func (eev *ErrorEvent) Error() string {
 	return eev.E.Error()
 }
 
-func ValuedLogger(cwl ControllerWithLogger, keysAndValues ...interface{}) logr.Logger {
-	log := Logger(cwl)
+func ValuedLogger(cwe EventLogger, keysAndValues ...interface{}) logr.Logger {
+	log := Logger(cwe)
 	logger := log.WithValues(keysAndValues...)
 	return logger
 }
 
-func Logger(cwl ControllerWithLogger) logr.Logger {
-	if *cwl.Logger() != nil {
-		return *cwl.Logger()
+func Logger(el EventLogger) logr.Logger {
+	if *el.Logger() != nil {
+		return *el.Logger()
 	}
-	*cwl.Logger() = logf.Log.WithName(cwl.Name())
-	return *cwl.Logger()
+	*el.Logger() = logf.Log.WithName(el.Name())
+	return *el.Logger()
 }
 
-func LogAndSendEvent(cwe ControllerWithEvents, owner runtime.Object, reason ReasonType, message string) {
-	(*cwe.Logger()).Info(message)
-	if *cwe.EventRecorder() != nil && owner != nil {
-		(*cwe.EventRecorder()).Event(owner, corev1.EventTypeWarning, string(reason), message)
+func LogAndSendEvent(el EventLogger, owner runtime.Object, reason ReasonType, message string) {
+	(*el.Logger()).Info(message)
+	if *el.EventRecorder() != nil && owner != nil {
+		(*el.EventRecorder()).Event(owner, corev1.EventTypeWarning, string(reason), message)
 	}
 }

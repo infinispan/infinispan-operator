@@ -49,7 +49,7 @@ func Add(mgr manager.Manager) error {
 
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	kubernetes = kube.NewKubernetesFromController(mgr)
-	return &reconcileBatch{Client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &reconcileBatch{Client: mgr.GetClient(), scheme: mgr.GetScheme(), eventRecorder: mgr.GetEventRecorderFor(ControllerName)}
 }
 
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
@@ -79,8 +79,9 @@ var _ reconcile.Reconciler = &reconcileBatch{}
 // reconcileBatch reconciles a Batch object
 type reconcileBatch struct {
 	client.Client
-	scheme *runtime.Scheme
-	logger logr.Logger
+	scheme        *runtime.Scheme
+	logger        logr.Logger
+	eventRecorder record.EventRecorder
 }
 
 type batchResource struct {
@@ -98,6 +99,10 @@ func (rec *reconcileBatch) Logger() *logr.Logger {
 
 func (rec *reconcileBatch) Name() string {
 	return ControllerName
+}
+
+func (rec *reconcileBatch) EventRecorder() *record.EventRecorder {
+	return &rec.eventRecorder
 }
 
 func (bat *batchResource) Logger() *logr.Logger {
@@ -135,11 +140,12 @@ func (r *reconcileBatch) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	batch := &batchResource{
-		instance:    instance,
-		client:      r.Client,
-		scheme:      r.scheme,
-		requestName: request.NamespacedName,
-		logger:      r.logger,
+		instance:      instance,
+		client:        r.Client,
+		scheme:        r.scheme,
+		requestName:   request.NamespacedName,
+		logger:        r.logger,
+		eventRecorder: r.eventRecorder,
 	}
 
 	phase := instance.Status.Phase
