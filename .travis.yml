@@ -85,7 +85,11 @@ jobs:
         - go test -v ./test/e2e/xsite/ -timeout 30m
       after_failure:
         - kubectl logs deployment/infinispan-operator -n namespace-for-testing-xsite1 --context kind-xsite1
+        - kubectl logs daemonset/speaker -n metallb-system --context kind-xsite1
+        - kubectl logs deployment/controller -n metallb-system --context kind-xsite1
         - kubectl logs deployment/infinispan-operator -n namespace-for-testing-xsite2 --context kind-xsite2
+        - kubectl logs daemonset/speaker -n metallb-system --context kind-xsite2
+        - kubectl logs deployment/controller -n metallb-system --context kind-xsite2
         - df -h
         - docker ps -a
         - for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done
