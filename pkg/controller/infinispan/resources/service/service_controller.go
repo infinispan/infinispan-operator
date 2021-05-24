@@ -67,10 +67,6 @@ func (service *serviceResource) Client() *client.Client {
 	return &service.client
 }
 
-func (service *serviceResource) Name() string {
-	return ControllerName
-}
-
 func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
 	return &serviceResource{
 		infinispan: infinispan,

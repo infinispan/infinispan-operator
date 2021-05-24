@@ -58,10 +58,6 @@ func (config *configResource) Client() *client.Client {
 	return &config.client
 }
 
-func (config *configResource) Name() string {
-	return ControllerName
-}
-
 func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
 	return &configResource{
 		infinispan: infinispan,

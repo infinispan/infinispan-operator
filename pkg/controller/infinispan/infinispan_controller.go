@@ -179,10 +179,6 @@ func (ri *ReconcileInfinispan) EventRecorder() *record.EventRecorder {
 	return &ri.eventRecorder
 }
 
-func (ri *ReconcileInfinispan) Name() string {
-	return ControllerName
-}
-
 func (ri *ReconcileInfinispan) Client() *client.Client {
 	return &ri.client
 }
@@ -193,7 +189,7 @@ func (ri *ReconcileInfinispan) Client() *client.Client {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := eventlog.ValuedLogger(r, "Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := eventlog.ValuedLogger(r, ControllerName, "Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info(fmt.Sprintf("+++++ Reconciling Infinispan. Operator Version: %s", version.Version))
 	defer reqLogger.Info("----- End Reconciling Infinispan.")
 

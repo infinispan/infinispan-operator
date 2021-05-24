@@ -97,10 +97,6 @@ func (rec *reconcileBatch) Logger() *logr.Logger {
 	return &rec.logger
 }
 
-func (rec *reconcileBatch) Name() string {
-	return ControllerName
-}
-
 func (rec *reconcileBatch) EventRecorder() *record.EventRecorder {
 	return &rec.eventRecorder
 }
@@ -117,12 +113,8 @@ func (bat *batchResource) Client() *client.Client {
 	return &bat.client
 }
 
-func (bat *batchResource) Name() string {
-	return ControllerName
-}
-
 func (r *reconcileBatch) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := eventlog.ValuedLogger(r, "Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := eventlog.ValuedLogger(r, ControllerName, "Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Batch")
 
 	// Fetch the Batch instance

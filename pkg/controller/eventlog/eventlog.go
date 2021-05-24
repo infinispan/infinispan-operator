@@ -11,7 +11,6 @@ import (
 type ReasonType string
 
 type EventLogger interface {
-	Name() string
 	EventRecorder() *record.EventRecorder
 	Logger() *logr.Logger
 }
@@ -26,17 +25,17 @@ func (eev *ErrorEvent) Error() string {
 	return eev.E.Error()
 }
 
-func ValuedLogger(cwe EventLogger, keysAndValues ...interface{}) logr.Logger {
-	log := Logger(cwe)
+func ValuedLogger(el EventLogger, name string, keysAndValues ...interface{}) logr.Logger {
+	log := Logger(el, name)
 	logger := log.WithValues(keysAndValues...)
 	return logger
 }
 
-func Logger(el EventLogger) logr.Logger {
+func Logger(el EventLogger, name string) logr.Logger {
 	if *el.Logger() != nil {
 		return *el.Logger()
 	}
-	*el.Logger() = logf.Log.WithName(el.Name())
+	*el.Logger() = logf.Log.WithName(name)
 	return *el.Logger()
 }
 
