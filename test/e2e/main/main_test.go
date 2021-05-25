@@ -20,6 +20,7 @@ import (
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -462,7 +463,7 @@ func TestPermanentCache(t *testing.T) {
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
 		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		createCache(cacheName, hostAddr, "PERMANENT", client)
+		createCacheAndValidate(cacheName, hostAddr, "PERMANENT", client)
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
@@ -564,7 +565,7 @@ func TestExternalService(t *testing.T) {
 	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 
 	cacheName := "test"
-	createCache(cacheName, hostAddr, "", client)
+	createCacheAndValidate(cacheName, hostAddr, "", client)
 	defer deleteCache(cacheName, hostAddr, client)
 
 	key := "test"
@@ -685,7 +686,7 @@ func testAuthentication(schema, routeName string, exposeType ispnv1.ExposeType, 
 
 	cacheName := "test"
 	createCacheBadCreds(cacheName, hostAddr, badClient)
-	createCache(cacheName, hostAddr, "", client)
+	createCacheAndValidate(cacheName, hostAddr, "", client)
 	defer deleteCache(cacheName, hostAddr, client)
 
 	key := "test"
@@ -733,6 +734,115 @@ func TestAuthenticationDisabled(t *testing.T) {
 	}
 }
 
+func TestAuthorizationDisabledByDefault(t *testing.T) {
+	t.Parallel()
+	name := strcase.ToKebab(t.Name())
+	ispn := tutils.DefaultSpec(testKube)
+	ispn.Name = name
+
+	identities := func() users.Identities {
+		return users.Identities{
+			Credentials: []users.Credentials{{
+				Username: "usr",
+				Password: "pass",
+				Roles:    []string{"monitor"},
+			}},
+		}
+	}
+
+	verify := func(hostAddr string, client tutils.HTTPClient) {
+		url := fmt.Sprintf("%v/rest/v2/caches", hostAddr)
+		rsp, err := client.Get(url, nil)
+		tutils.ExpectNoError(err)
+		if rsp.StatusCode != http.StatusOK {
+			panic(httpError{rsp.StatusCode})
+		}
+	}
+	testAuthorization(ispn, identities, verify)
+}
+
+func TestAuthorizationWithCustomRoles(t *testing.T) {
+	t.Parallel()
+	name := strcase.ToKebab(t.Name())
+	ispn := tutils.DefaultSpec(testKube)
+
+	customRoleName := "custom-role"
+	ispn.Name = name
+	ispn.Spec.Security.Authorization = &v1.Authorization{
+		Enabled: true,
+		Roles: []ispnv1.AuthorizationRole{{
+			Name:        customRoleName,
+			Permissions: []string{"ALL"},
+		}},
+	}
+
+	identities := func() users.Identities {
+		return users.Identities{
+			Credentials: []users.Credentials{
+				{
+					Username: "usr",
+					Password: "pass",
+					Roles:    []string{customRoleName},
+				}, {
+					Username: "monitor-user",
+					Password: "pass",
+					Roles:    []string{"monitor"},
+				}},
+		}
+	}
+
+	verify := func(hostAddr string, client tutils.HTTPClient) {
+		createCacheAndValidate("succeed-cache", hostAddr, "", client)
+		schema := testKube.GetSchemaForRest(ispn)
+		rsp := createCache("fail-cache", hostAddr, "", tutils.NewHTTPClient("monitor-user", "pass", schema))
+		if rsp.StatusCode != http.StatusForbidden {
+			panic(httpError{rsp.StatusCode})
+		}
+	}
+	testAuthorization(ispn, identities, verify)
+}
+
+func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identities, verify func(string, tutils.HTTPClient)) {
+	namespace := tutils.Namespace
+	secretName := ispn.Name + "-id-secret"
+	ispn.Spec.Security.EndpointSecretName = secretName
+
+	identities := createIdentities()
+	identitiesYaml, err := yaml.Marshal(identities)
+	tutils.ExpectNoError(err)
+
+	// Create secret with application credentials
+	secret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+		},
+		Type:       corev1.SecretTypeOpaque,
+		StringData: map[string]string{cconsts.ServerIdentitiesFilename: string(identitiesYaml)},
+	}
+	testKube.CreateSecret(&secret)
+	defer testKube.DeleteSecret(&secret)
+
+	// Create the cluster
+	testKube.CreateInfinispan(ispn, namespace)
+	defer testKube.DeleteInfinispan(ispn, tutils.SinglePodTimeout)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+
+	schema := testKube.GetSchemaForRest(ispn)
+	user := identities.Credentials[0].Username
+	pass := identities.Credentials[0].Password
+	client := tutils.NewHTTPClient(user, pass, schema)
+	hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, ispn.GetExposeType(), tutils.RouteTimeout, client)
+
+	// Verify authorization works as expected
+	verify(hostAddr, client)
+}
+
 func cacheURL(cacheName, hostAddr string) string {
 	return fmt.Sprintf("%v/rest/v2/caches/%s", hostAddr, cacheName)
 }
@@ -745,15 +855,20 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected response %v", e.status)
 }
 
-func createCache(cacheName, hostAddr string, flags string, client tutils.HTTPClient) {
+func createCache(cacheName, hostAddr string, flags string, client tutils.HTTPClient) *http.Response {
 	httpURL := cacheURL(cacheName, hostAddr)
 	headers := map[string]string{}
 	if flags != "" {
 		headers["Flags"] = flags
 	}
 	resp, err := client.Post(httpURL, "", headers)
-	defer tutils.CloseHttpResponse(resp)
 	tutils.ExpectNoError(err)
+	return resp
+}
+
+func createCacheAndValidate(cacheName, hostAddr string, flags string, client tutils.HTTPClient) {
+	resp := createCache(cacheName, hostAddr, flags, client)
+	defer tutils.CloseHttpResponse(resp)
 	if resp.StatusCode != http.StatusOK {
 		panic(httpError{resp.StatusCode})
 	}
@@ -770,7 +885,7 @@ func createCacheBadCreds(cacheName, hostAddr string, client tutils.HTTPClient) {
 			panic(err)
 		}
 	}()
-	createCache(cacheName, hostAddr, "", client)
+	createCacheAndValidate(cacheName, hostAddr, "", client)
 }
 
 func createCacheWithXMLTemplate(cacheName, hostAddr, template string, client tutils.HTTPClient) {

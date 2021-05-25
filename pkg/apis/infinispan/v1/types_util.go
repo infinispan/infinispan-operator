@@ -306,6 +306,17 @@ func (ispn *Infinispan) GetAdminSecretName() string {
 	return fmt.Sprintf("%v-generated-operator-secret", ispn.GetName())
 }
 
+func (ispn *Infinispan) GetAuthorizationRoles() []AuthorizationRole {
+	if !ispn.IsAuthorizationEnabled() {
+		return make([]AuthorizationRole, 0)
+	}
+	return ispn.Spec.Security.Authorization.Roles
+}
+
+func (ispn *Infinispan) IsAuthorizationEnabled() bool {
+	return ispn.Spec.Security.Authorization != nil && ispn.Spec.Security.Authorization.Enabled
+}
+
 func (ispn *Infinispan) IsAuthenticationEnabled() bool {
 	return ispn.Spec.Security.EndpointAuthentication == nil || *ispn.Spec.Security.EndpointAuthentication
 }

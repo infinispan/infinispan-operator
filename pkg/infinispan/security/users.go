@@ -19,6 +19,7 @@ type Identities struct {
 type Credentials struct {
 	Username string
 	Password string
+	Roles    []string
 }
 
 // TODO certain characters having issues, so reduce sample for now
@@ -60,6 +61,7 @@ func CreateIdentitiesFor(usr string, pass string) ([]byte, error) {
 		Credentials: []Credentials{{
 			Username: usr,
 			Password: pass,
+			Roles:    []string{"admin"},
 		}},
 	}
 	data, err := yaml.Marshal(identities)

@@ -467,6 +467,25 @@ spec:
             security:
               description: InfinispanSecurity info for the user application connection
               properties:
+                authorization:
+                  properties:
+                    enabled:
+                      type: boolean
+                    roles:
+                      items:
+                        properties:
+                          name:
+                            type: string
+                          permissions:
+                            items:
+                              type: string
+                            type: array
+                        required:
+                          - name
+                          - permissions
+                        type: object
+                      type: array
+                  type: object
                 endpointAuthentication:
                   type: boolean
                 endpointEncryption:
@@ -619,6 +638,25 @@ spec:
             security:
               description: InfinispanSecurity info for the user application connection
               properties:
+                authorization:
+                  properties:
+                    enabled:
+                      type: boolean
+                    roles:
+                      items:
+                        properties:
+                          name:
+                            type: string
+                          permissions:
+                            items:
+                              type: string
+                            type: array
+                        required:
+                          - name
+                          - permissions
+                        type: object
+                      type: array
+                  type: object
                 endpointAuthentication:
                   type: boolean
                 endpointEncryption:
