@@ -2,7 +2,7 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
-    image: kindest/node:v.1.17.17@sha256:596ab0698618c429a57be66e712deac68c819a872fa8816d0195cfd691717c70
+    image: quay.io/nmajorov/kindest-node:v1.17.17
     extraPortMappings:
       - containerPort: 30222
         hostPort: 11222
