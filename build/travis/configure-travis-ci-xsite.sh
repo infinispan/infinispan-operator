@@ -58,7 +58,7 @@ for INSTANCE in "xsite1" "xsite2"; do
   # Configuring MetalLB (https://metallb.universe.tf/) for real LoadBalancer setup on the Kind
   kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/"${METALLB_VERSION}"/manifests/namespace.yaml
   kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-  kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/"${METALLB_VERSION}"/manifests/metallb.yaml
+  wget -q -O - https://raw.githubusercontent.com/metallb/metallb/"${METALLB_VERSION}"/manifests/metallb.yaml | sed "s|image: metallb/|image: quay.io/metallb/|" | kubectl apply -f -
   docker network inspect -f '{{.IPAM.Config}}' kind
   kubectl apply -f build/travis/test-configuration/metallb-config-"${INSTANCE}".yaml
 done
