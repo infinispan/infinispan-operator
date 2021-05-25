@@ -12,11 +12,25 @@ import (
 // InfinispanSecurity info for the user application connection
 type InfinispanSecurity struct {
 	// +optional
+	Authorization *Authorization `json:"authorization,omitempty"`
+	// +optional
 	EndpointAuthentication *bool `json:"endpointAuthentication,omitempty"`
 	// +optional
 	EndpointSecretName string `json:"endpointSecretName,omitempty"`
 	// +optional
 	EndpointEncryption *EndpointEncryption `json:"endpointEncryption,omitempty"`
+}
+
+type Authorization struct {
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+	// +optional
+	Roles []AuthorizationRole `json:"roles,omitempty"`
+}
+
+type AuthorizationRole struct {
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
 }
 
 // CertificateSourceType specifies all the possible sources for the encryption certificate

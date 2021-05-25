@@ -1,9 +1,6 @@
 package configuration
 
 import (
-	"fmt"
-
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"gopkg.in/yaml.v2"
 )
 
@@ -25,9 +22,21 @@ type CloudEvents struct {
 }
 
 type Infinispan struct {
-	ClusterName      string `yaml:"clusterName"`
-	ZeroCapacityNode bool   `yaml:"zeroCapacityNode"`
-	Locks            Locks  `yaml:"locks"`
+	Authorization    Authorization `yaml:"authorization,omitempty"`
+	ClusterName      string        `yaml:"clusterName"`
+	ZeroCapacityNode bool          `yaml:"zeroCapacityNode"`
+	Locks            Locks         `yaml:"locks"`
+}
+
+type Authorization struct {
+	Enabled    bool                `yaml:"enabled"`
+	RoleMapper string              `yaml:"roleMapper,omitempty"`
+	Roles      []AuthorizationRole `yaml:"roles,omitempty"`
+}
+
+type AuthorizationRole struct {
+	Name        string   `yaml:"name"`
+	Permissions []string `yaml:"permissions"`
 }
 
 type Endpoints struct {
@@ -74,7 +83,7 @@ type BackupSite struct {
 }
 
 type Logging struct {
-	Categories map[string]string `yaml:"categories"`
+	Categories map[string]string `yaml:"categories,omitempty"`
 }
 
 func (c *InfinispanConfiguration) Yaml() (string, error) {
@@ -91,37 +100,4 @@ func FromYaml(src string) (*InfinispanConfiguration, error) {
 		return nil, err
 	}
 	return config, nil
-}
-
-// CreateInfinispanConfiguration generates a server configuration
-func CreateInfinispanConfiguration(name, namespace string, auth bool, loggingCategories map[string]string, xsite *XSite) InfinispanConfiguration {
-	config := InfinispanConfiguration{
-		Infinispan: Infinispan{
-			ClusterName: name,
-		},
-		JGroups: JGroups{
-			Transport: "tcp",
-			DNSPing: DNSPing{
-				Query: fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
-			},
-		},
-		Endpoints: Endpoints{
-			Authenticate:   auth,
-			DedicatedAdmin: true,
-		},
-	}
-	if consts.JGroupsDiagnosticsFlag == "TRUE" {
-		config.JGroups.Diagnostics = true
-	}
-	if len(loggingCategories) > 0 {
-		config.Logging = Logging{
-			Categories: loggingCategories,
-		}
-	}
-
-	if xsite != nil {
-		config.XSite = xsite
-	}
-
-	return config
 }

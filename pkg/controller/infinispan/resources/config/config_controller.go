@@ -10,6 +10,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -106,17 +107,51 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 	namespace := c.infinispan.Namespace
 
 	lsConfigMap := infinispan.LabelsResource(name, "infinispan-configmap-configuration")
-	loggingCategories := c.infinispan.GetLogCategoriesForConfig()
 
-	authenticate := c.infinispan.IsAuthenticationEnabled()
-	config := configuration.CreateInfinispanConfiguration(name, namespace, authenticate, loggingCategories, xsite)
+	jgroupsDiagnostics := consts.JGroupsDiagnosticsFlag == "TRUE"
+	serverConf := config.InfinispanConfiguration{
+		Infinispan: config.Infinispan{
+			Authorization: config.Authorization{
+				Enabled:    c.infinispan.IsAuthorizationEnabled(),
+				RoleMapper: "cluster",
+			},
+			ClusterName: name,
+		},
+		JGroups: config.JGroups{
+			Transport: "tcp",
+			DNSPing: config.DNSPing{
+				Query: fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
+			},
+			Diagnostics: jgroupsDiagnostics,
+		},
+		Endpoints: config.Endpoints{
+			Authenticate:   c.infinispan.IsAuthenticationEnabled(),
+			DedicatedAdmin: true,
+		},
+		Logging: config.Logging{
+			Categories: c.infinispan.GetLogCategoriesForConfig(),
+		},
+	}
 
-	err := infinispan.ConfigureServerEncryption(c.infinispan, &config, c.client)
+	specRoles := c.infinispan.GetAuthorizationRoles()
+	if len(specRoles) > 0 {
+		confRoles := make([]config.AuthorizationRole, len(specRoles))
+		for i, role := range specRoles {
+			confRoles[i] = config.AuthorizationRole(role)
+		}
+		serverConf.Infinispan.Authorization.Roles = confRoles
+	}
+
+	if xsite != nil {
+		serverConf.XSite = xsite
+	}
+
+	err := infinispan.ConfigureServerEncryption(c.infinispan, &serverConf, c.client)
 	if err != nil {
 		return err
 	}
 
-	configureCloudEvent(c.infinispan, &config)
+	configureCloudEvent(c.infinispan, &serverConf)
 
 	configMapObject := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -127,7 +162,7 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.client, configMapObject, func() error {
 		if configMapObject.CreationTimestamp.IsZero() {
-			configYaml, err := config.Yaml()
+			configYaml, err := serverConf.Yaml()
 			if err != nil {
 				return err
 			}
@@ -141,9 +176,9 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 			previousConfig, err := configuration.FromYaml(configMapObject.Data[consts.ServerConfigFilename])
 			if err == nil {
 				// Protecting Logging configuration from changes
-				config.Logging = previousConfig.Logging
+				serverConf.Logging = previousConfig.Logging
 			}
-			configYaml, err := config.Yaml()
+			configYaml, err := serverConf.Yaml()
 			if err != nil {
 				return err
 			}
