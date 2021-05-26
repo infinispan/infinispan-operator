@@ -13,16 +13,6 @@ type EventLogger interface {
 	Logger() *logr.Logger
 }
 
-type ErrorEvent struct {
-	E      error
-	Reason string
-	Owner  *runtime.Object
-}
-
-func (eev *ErrorEvent) Error() string {
-	return eev.E.Error()
-}
-
 func ValuedLogger(el EventLogger, name string, keysAndValues ...interface{}) logr.Logger {
 	log := Logger(el, name)
 	logger := log.WithValues(keysAndValues...)

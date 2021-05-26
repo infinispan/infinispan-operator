@@ -3,6 +3,7 @@ package config
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
@@ -10,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -95,10 +97,22 @@ var staticSiteService = &corev1.Service{
 	},
 }
 
+type FakeEventLogger struct {
+	logger logr.Logger
+}
+
+func (_ *FakeEventLogger) EventRecorder() *record.EventRecorder {
+	return nil
+}
+
+func (fel *FakeEventLogger) Logger() *logr.Logger {
+	return &fel.logger
+}
+
 var logger = logf.Log.WithName("xiste-test")
 
 func TestComputeXSiteStatic(t *testing.T) {
-	xsite, err := ComputeXSite(staticXSiteInfinispan, nil, staticSiteService, logger)
+	xsite, err := ComputeXSite(staticXSiteInfinispan, nil, staticSiteService, &FakeEventLogger{logger: logger})
 	assert.Nil(t, err)
 
 	assert.Equal(t, staticXSiteInfinispan.Spec.Service.Sites.Local.Name, xsite.Name, "Local site name")

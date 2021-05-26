@@ -28,22 +28,21 @@ const (
 )
 
 // ComputeXSite compute the xsite struct for cross site function
-func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger logr.Logger) (*config.XSite, error) {
+func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger eventlog.EventLogger) (*config.XSite, error) {
 	siteServiceName := infinispan.GetSiteServiceName()
-	localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger)
+	localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger, XSiteLocalServiceTypeUnsupported)
 	if err != nil {
-		logger.Error(err, "error retrieving local x-site service information")
-		eev := eventlog.ErrorEvent{Reason: XSiteLocalServiceTypeUnsupported, E: err}
-		return nil, &eev
+		(*logger.Logger()).Error(err, "error retrieving local x-site service information")
+		return nil, err
 	}
 
 	if localSiteHost == "" {
 		msg := "local x-site service host not yet available"
-		logger.Info(msg)
+		(*logger.Logger()).Info(msg)
 		return nil, fmt.Errorf(msg)
 	}
 
-	logger.Info("local site service",
+	(*logger.Logger()).Info("local site service",
 		"service name", siteServiceName,
 		"host", localSiteHost,
 		"port", localSitePort,
@@ -71,20 +70,20 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 		}
 	}
 
-	logger.Info("x-site configured", "configuration", xsite)
+	(*logger.Logger()).Info("x-site configured", "configuration", xsite)
 	return xsite, nil
 }
 
 func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes,
-	logger logr.Logger, xsite *config.XSite) error {
-	restConfig, err := getRemoteSiteRESTConfig(infinispan.Namespace, remoteLocation, kubernetes, logger)
+	logger eventlog.EventLogger, xsite *config.XSite) error {
+	restConfig, err := getRemoteSiteRESTConfig(infinispan.Namespace, remoteLocation, kubernetes, *logger.Logger())
 	if err != nil {
 		return err
 	}
 
 	remoteKubernetes, err := kube.NewKubernetesFromConfig(restConfig)
 	if err != nil {
-		logger.Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
+		(*logger.Logger()).Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
 		return err
 	}
 
@@ -95,7 +94,7 @@ func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.
 	return nil
 }
 
-func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, remoteKubernetes *kube.Kubernetes, logger logr.Logger, xsite *config.XSite) error {
+func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, remoteKubernetes *kube.Kubernetes, logger eventlog.EventLogger, xsite *config.XSite) error {
 	name := consts.GetWithDefault(remoteLocation.ClusterName, infinispan.Name)
 	namespace := consts.GetWithDefault(remoteLocation.Namespace, infinispan.Namespace)
 	siteServiceName := fmt.Sprintf(consts.SiteServiceTemplate, name)
@@ -104,24 +103,23 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 	siteService := &corev1.Service{}
 	err := remoteKubernetes.Client.Get(context.TODO(), namespacedName, siteService)
 	if err != nil {
-		logger.Error(err, "could not get x-site service in remote cluster", "site service name", siteServiceName, "site namespace", namespace)
+		(*logger.Logger()).Error(err, "could not get x-site service in remote cluster", "site service name", siteServiceName, "site namespace", namespace)
 		return err
 	}
 
-	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger)
+	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger, XSiteRemoteServiceTypeUnsupported)
 	if err != nil {
-		logger.Error(err, "error retrieving remote x-site service information")
-		eev := eventlog.ErrorEvent{Reason: XSiteRemoteServiceTypeUnsupported, E: err}
-		return &eev
+		(*logger.Logger()).Error(err, "error retrieving remote x-site service information")
+		return err
 	}
 
 	if host == "" {
 		msg := "remote x-site service host not yet available"
-		logger.Info(msg)
+		(*logger.Logger()).Info(msg)
 		return fmt.Errorf(msg)
 	}
 
-	logger.Info("remote site service",
+	(*logger.Logger()).Info("remote site service",
 		"service name", siteServiceName,
 		"host", host,
 		"port", port,
@@ -144,15 +142,15 @@ func appendBackupSite(name, host string, port int32, xsite *config.XSite) {
 	xsite.Backups = append(xsite.Backups, backupSite)
 }
 
-func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kubernetes, logger logr.Logger) (string, int32, error) {
+func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kubernetes, logger eventlog.EventLogger, reason string) (string, int32, error) {
 	switch serviceType := service.Spec.Type; serviceType {
 	case corev1.ServiceTypeNodePort:
 		// If configuring NodePort, expect external IPs to be configured
 		nodePort := service.Spec.Ports[0].NodePort
-		nodeHost, err := kubernetes.GetNodeHost(logger)
+		nodeHost, err := kubernetes.GetNodeHost(*logger.Logger())
 		return nodeHost, nodePort, err
 	case corev1.ServiceTypeLoadBalancer:
-		return getLoadBalancerServiceHostPort(service, logger)
+		return getLoadBalancerServiceHostPort(service, logger, reason)
 	case corev1.ServiceTypeClusterIP:
 		return service.Name, service.Spec.Ports[0].Port, nil
 	default:
@@ -160,7 +158,7 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kuber
 	}
 }
 
-func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
+func getLoadBalancerServiceHostPort(service *corev1.Service, logger eventlog.EventLogger, reason string) (string, int32, error) {
 	port := service.Spec.Ports[0].Port
 
 	// If configuring load balancer, look for external ingress
@@ -171,7 +169,7 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 		}
 		if ingress.Hostname != "" {
 			// Resolve load balancer host
-			ip, err := lookupHost(ingress.Hostname, logger)
+			ip, err := lookupHost(ingress.Hostname, *logger.Logger())
 
 			// Load balancer gets created asynchronously,
 			// so it might take time for the status to be updated.
@@ -179,7 +177,9 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 		}
 	}
 	if !helpers.HasLBFinalizer(service) {
-		return "", port, fmt.Errorf("LoadBalancer expose type is not supported on the target platform for x-site")
+		errMsg := "LoadBalancer expose type is not supported on the target platform for x-site"
+		eventlog.LogAndSendEvent(logger, service, reason, errMsg)
+		return "", port, fmt.Errorf(errMsg)
 	}
 
 	return "", port, nil
