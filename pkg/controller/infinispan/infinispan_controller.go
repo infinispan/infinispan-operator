@@ -59,11 +59,11 @@ const (
 	EncryptVolumeName                = "encrypt-volume"
 	IdentitiesVolumeName             = "identities-volume"
 	AdminIdentitiesVolumeName        = "admin-identities-volume"
-	EventReasonPrelimChecksFailed    = eventlog.ReasonType("PrelimChecksFailed")
-	EventReasonLowPersistenceStorage = eventlog.ReasonType("LowPersistenceStorage")
-	EventReasonEphemeralStorage      = eventlog.ReasonType("EphemeralStorageEnables")
-	EventReasonParseValueProblem     = eventlog.ReasonType("ParseValueProblem")
-	EventLoadBalancerUnsupported     = eventlog.ReasonType("LoadBalancerUnsupported")
+	EventReasonPrelimChecksFailed    = "PrelimChecksFailed"
+	EventReasonLowPersistenceStorage = "LowPersistenceStorage"
+	EventReasonEphemeralStorage      = "EphemeralStorageEnables"
+	EventReasonParseValueProblem     = "ParseValueProblem"
+	EventLoadBalancerUnsupported     = "LoadBalancerUnsupported"
 	ControllerName                   = "infinispan-controller"
 )
 

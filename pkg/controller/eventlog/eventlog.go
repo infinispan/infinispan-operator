@@ -8,8 +8,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type ReasonType string
-
 type EventLogger interface {
 	EventRecorder() *record.EventRecorder
 	Logger() *logr.Logger
@@ -17,7 +15,7 @@ type EventLogger interface {
 
 type ErrorEvent struct {
 	E      error
-	Reason ReasonType
+	Reason string
 	Owner  *runtime.Object
 }
 
@@ -39,7 +37,7 @@ func Logger(el EventLogger, name string) logr.Logger {
 	return *el.Logger()
 }
 
-func LogAndSendEvent(el EventLogger, owner runtime.Object, reason ReasonType, message string) {
+func LogAndSendEvent(el EventLogger, owner runtime.Object, reason, message string) {
 	(*el.Logger()).Info(message)
 	if *el.EventRecorder() != nil && owner != nil {
 		(*el.EventRecorder()).Event(owner, corev1.EventTypeWarning, string(reason), message)
