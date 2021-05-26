@@ -24,7 +24,7 @@ validateYQ() {
     printf "OK\n"
     printf "Validating yq major version..."
     INSTALLED_YQ_MAJ_VERSION=$(yq --version | grep -oE 'yq version [0-9]+' | grep -oE '[0-9]+')
-    if [ "${INSTALLED_YQ_MAJ_VERSION}" == "${YQ_MAJOR_VERSION}" ]; then
+    if [ "${INSTALLED_YQ_MAJ_VERSION}" -eq "${YQ_MAJOR_VERSION}" ]; then
       printf "%s\n" "${YQ_MAJOR_VERSION}"
     else
       printf "incorrect major version %s\n" "${INSTALLED_YQ_MAJ_VERSION}"
