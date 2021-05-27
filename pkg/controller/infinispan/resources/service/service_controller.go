@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -51,6 +52,7 @@ type serviceResource struct {
 	scheme     *runtime.Scheme
 	kube       *kube.Kubernetes
 	log        logr.Logger
+	eventRec   record.EventRecorder
 }
 
 func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
@@ -60,6 +62,7 @@ func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *
 		scheme:     ctrl.Scheme,
 		kube:       kube,
 		log:        log,
+		eventRec:   ctrl.EventRec,
 	}
 }
 
@@ -226,7 +229,7 @@ func (s serviceResource) reconcileServiceMonitor(service *corev1.Service) (recon
 
 	if s.infinispan.IsServiceMonitorEnabled() {
 		secret := &corev1.Secret{}
-		if result, err := kube.LookupResource(s.infinispan.GetAdminSecretName(), s.infinispan.Namespace, secret, s.client, s.log); result != nil {
+		if result, err := kube.LookupResource(s.infinispan.GetAdminSecretName(), s.infinispan.Namespace, secret, s.client, s.log, s.eventRec); result != nil {
 			return *result, err
 		}
 

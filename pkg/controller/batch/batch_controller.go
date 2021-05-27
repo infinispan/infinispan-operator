@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -37,6 +38,7 @@ const (
 var (
 	kubernetes *kube.Kubernetes
 	log        = logf.Log.WithName(ControllerName)
+	eventRec   record.EventRecorder
 	ctx        = context.Background()
 )
 
@@ -46,6 +48,7 @@ func Add(mgr manager.Manager) error {
 
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	kubernetes = kube.NewKubernetesFromController(mgr)
+	eventRec = mgr.GetEventRecorderFor(ControllerName)
 	return &reconcileBatch{Client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
@@ -147,7 +150,7 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 	spec := batch.Spec
 	// Ensure the Infinispan cluster exists
 	infinispan := &v1.Infinispan{}
-	if result, err := kube.LookupResource(spec.Cluster, batch.Namespace, infinispan, r.client, log); result != nil {
+	if result, err := kube.LookupResource(spec.Cluster, batch.Namespace, infinispan, r.client, log, eventRec); result != nil {
 		return *result, err
 	}
 
@@ -197,7 +200,7 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 func (r *batchResource) execute() (reconcile.Result, error) {
 	batch := r.instance
 	infinispan := &v1.Infinispan{}
-	if result, err := kube.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, r.client, log); result != nil {
+	if result, err := kube.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, r.client, log, eventRec); result != nil {
 		return *result, err
 	}
 
@@ -278,7 +281,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 	batch := r.instance
 	job := &batchv1.Job{}
-	if result, err := kube.LookupResource(batch.Name, batch.Namespace, job, r.client, log); result != nil {
+	if result, err := kube.LookupResource(batch.Name, batch.Namespace, job, r.client, log, eventRec); result != nil {
 		return *result, err
 	}
 

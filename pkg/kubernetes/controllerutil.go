@@ -9,9 +9,11 @@ import (
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -22,6 +24,8 @@ const (
 	OperationResultUpdatedStatus controllerutil.OperationResult = "updatedStatus"
 	// OperationResultUpdatedStatusOnly means that only an existing status is updated
 	OperationResultUpdatedStatusOnly controllerutil.OperationResult = "updatedStatusOnly"
+
+	EventReasonResourceNotReady = "ResourceNotReady"
 )
 
 // CreateOrPatch creates or patches the given object in the Kubernetes
@@ -153,10 +157,22 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj runtime.Object)
 }
 
 // LookupResource lookup for resource to be created by separate resource controller
-func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger) (*reconcile.Result, error) {
+func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger, eventRec record.EventRecorder) (*reconcile.Result, error) {
 	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			if eventRec != nil {
+				objMeta, err1 := meta.Accessor(resource)
+				if err1 == nil {
+					if objMeta.GetName() == "" {
+						objMeta.SetName(name)
+					}
+					if objMeta.GetNamespace() == "" {
+						objMeta.SetNamespace(namespace)
+					}
+					eventRec.Event(resource, corev1.EventTypeWarning, fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name), EventReasonResourceNotReady)
+				}
+			}
 			logger.Info(fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name))
 			return &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 		}

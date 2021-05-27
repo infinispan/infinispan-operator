@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -42,6 +43,7 @@ type configResource struct {
 	scheme     *runtime.Scheme
 	kube       *kube.Kubernetes
 	log        logr.Logger
+	eventRec   record.EventRecorder
 }
 
 func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
@@ -51,6 +53,7 @@ func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *r
 		scheme:     ctrl.Scheme,
 		kube:       kube,
 		log:        log,
+		eventRec:   ctrl.EventRec,
 	}
 }
 
@@ -80,12 +83,12 @@ func (c *configResource) Process() (reconcile.Result, error) {
 		// For cross site, reconcile must come before compute, because
 		// we need xsite service details to compute xsite struct
 		siteService := &corev1.Service{}
-		if result, err := kube.LookupResource(c.infinispan.GetSiteServiceName(), c.infinispan.Namespace, siteService, c.client, c.log); result != nil {
+		if result, err := kube.LookupResource(c.infinispan.GetSiteServiceName(), c.infinispan.Namespace, siteService, c.client, c.log, c.eventRec); result != nil {
 			return *result, err
 		}
 
 		var err error
-		xsite, err = ComputeXSite(c.infinispan, c.kube, siteService, c.log)
+		xsite, err = ComputeXSite(c.infinispan, c.kube, siteService, c.log, c.eventRec)
 		if err != nil {
 			c.log.Error(err, "Error in computeXSite configuration")
 			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil

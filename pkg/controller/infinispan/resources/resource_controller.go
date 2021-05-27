@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -62,6 +63,7 @@ type Controller struct {
 	Reconciler Reconciler
 	Kube       *kube.Kubernetes
 	Log        logr.Logger
+	EventRec   record.EventRecorder
 	Scheme     *runtime.Scheme
 }
 
@@ -72,6 +74,7 @@ func CreateController(name string, reconciler Reconciler, mgr manager.Manager) e
 		Reconciler: reconciler,
 		Kube:       kube.NewKubernetesFromController(mgr),
 		Log:        logf.Log.WithName(name),
+		EventRec:   mgr.GetEventRecorderFor(name),
 		Scheme:     mgr.GetScheme(),
 	}
 

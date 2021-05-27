@@ -150,7 +150,7 @@ var staticSiteService = &corev1.Service{
 var logger = logf.Log.WithName("xiste-test")
 
 func TestComputeXSiteStatic(t *testing.T) {
-	xsite, err := ComputeXSite(staticXSiteInfinispan, nil, staticSiteService, logger)
+	xsite, err := ComputeXSite(staticXSiteInfinispan, nil, staticSiteService, logger, nil)
 	assert.Nil(t, err)
 
 	assert.Equal(t, staticXSiteInfinispan.Spec.Service.Sites.Local.Name, xsite.Name, "Local site name")
@@ -159,11 +159,11 @@ func TestComputeXSiteStatic(t *testing.T) {
 
 	assert.Equal(t, 2, len(xsite.Backups), "Backup sites number")
 	assert.Contains(t, xsite.Backups, configuration.BackupSite{Address: "example-clusterb-site", Name: "SiteB", Port: int32(consts.CrossSitePort)}, "Backup SiteB contains")
-	assert.Contains(t, xsite.Backups, configuration.BackupSite{Address: "example-clusterc-site", Name: "SiteC", Port: int32(consts.CrossSitePort+1)}, "Backup SiteC contains")
+	assert.Contains(t, xsite.Backups, configuration.BackupSite{Address: "example-clusterc-site", Name: "SiteC", Port: int32(consts.CrossSitePort + 1)}, "Backup SiteC contains")
 }
 
 func TestComputeXSiteSelfStatic(t *testing.T) {
-	xsite, err := ComputeXSite(selfStaticXSiteInfinispan, nil, staticSiteService, logger)
+	xsite, err := ComputeXSite(selfStaticXSiteInfinispan, nil, staticSiteService, logger, nil)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 1, len(xsite.Backups), "Backup sites number")
@@ -172,9 +172,9 @@ func TestComputeXSiteSelfStatic(t *testing.T) {
 }
 
 func TestComputeXSiteSelfStaticError(t *testing.T) {
-	_, err := ComputeXSite(selfStaticXSiteErrorInfinispan, nil, staticSiteService, logger)
+	_, err := ComputeXSite(selfStaticXSiteErrorInfinispan, nil, staticSiteService, logger, nil)
 	assert.Error(t, err)
-	assert.Contains(t,  err.Error(), "unable to link the cross-site service with itself")
+	assert.Contains(t, err.Error(), "unable to link the cross-site service with itself")
 
 }
 
