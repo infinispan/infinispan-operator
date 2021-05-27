@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/cloud-provider/service/helpers"
 )
 
@@ -22,12 +23,15 @@ const (
 	SchemeTypeKubernetes = "kubernetes"
 	SchemeTypeMinikube   = "minikube"
 	SchemeTypeOpenShift  = "openshift"
+
+	XSiteLocalServiceTypeUnsupported  = "XSiteLocalServiceUnsupported"
+	XSiteRemoteServiceTypeUnsupported = "XSiteRemoteServiceUnsupported"
 )
 
 // ComputeXSite compute the xsite struct for cross site function
-func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger logr.Logger) (*config.XSite, error) {
+func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger logr.Logger, eventRec record.EventRecorder) (*config.XSite, error) {
 	siteServiceName := infinispan.GetSiteServiceName()
-	localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger)
+	localSiteHost, localSitePort, err := getCrossSiteServiceHostPort(service, kubernetes, logger, eventRec, XSiteLocalServiceTypeUnsupported)
 	if err != nil {
 		logger.Error(err, "error retrieving local x-site service information")
 		return nil, err
@@ -65,7 +69,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 			appendBackupSite(remoteLocation.Name, backupSiteURL.Hostname(), int32(port), xsite)
 		} else {
 			// lookup remote service via kubernetes API
-			if err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, xsite); err != nil {
+			if err = appendRemoteLocation(infinispan, &remoteLocation, kubernetes, logger, eventRec, xsite); err != nil {
 				return nil, err
 			}
 		}
@@ -76,7 +80,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 }
 
 func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes,
-	logger logr.Logger, xsite *config.XSite) error {
+	logger logr.Logger, eventRec record.EventRecorder, xsite *config.XSite) error {
 	restConfig, err := getRemoteSiteRESTConfig(infinispan.Namespace, remoteLocation, kubernetes, logger)
 	if err != nil {
 		return err
@@ -88,13 +92,13 @@ func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.
 		return err
 	}
 
-	if err = appendKubernetesRemoteLocation(infinispan, remoteLocation.Name, remoteKubernetes, logger, xsite); err != nil {
+	if err = appendKubernetesRemoteLocation(infinispan, remoteLocation.Name, remoteKubernetes, logger, eventRec, xsite); err != nil {
 		return err
 	}
 	return nil
 }
 
-func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocationName string, remoteKubernetes *kube.Kubernetes, logger logr.Logger, xsite *config.XSite) error {
+func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocationName string, remoteKubernetes *kube.Kubernetes, logger logr.Logger, eventRec record.EventRecorder, xsite *config.XSite) error {
 	remoteNamespace := infinispan.GetRemoteSiteNamespace(remoteLocationName)
 	remoteServiceName := infinispan.GetRemoteSiteServiceName(remoteLocationName)
 
@@ -105,7 +109,7 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 		return err
 	}
 
-	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger)
+	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger, eventRec, XSiteRemoteServiceTypeUnsupported)
 	if err != nil {
 		logger.Error(err, "error retrieving remote x-site service information")
 		return err
@@ -136,7 +140,7 @@ func appendBackupSite(name, host string, port int32, xsite *config.XSite) {
 	xsite.Backups = append(xsite.Backups, backupSite)
 }
 
-func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kubernetes, logger logr.Logger) (string, int32, error) {
+func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kubernetes, logger logr.Logger, eventRec record.EventRecorder, reason string) (string, int32, error) {
 	switch serviceType := service.Spec.Type; serviceType {
 	case corev1.ServiceTypeNodePort:
 		// If configuring NodePort, expect external IPs to be configured
@@ -144,7 +148,7 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kuber
 		nodeHost, err := kubernetes.GetNodeHost(logger)
 		return nodeHost, nodePort, err
 	case corev1.ServiceTypeLoadBalancer:
-		return getLoadBalancerServiceHostPort(service, logger)
+		return getLoadBalancerServiceHostPort(service, logger, eventRec, reason)
 	case corev1.ServiceTypeClusterIP:
 		return service.Name, service.Spec.Ports[0].Port, nil
 	default:
@@ -152,7 +156,7 @@ func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kuber
 	}
 }
 
-func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger) (string, int32, error) {
+func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger, eventRec record.EventRecorder, reason string) (string, int32, error) {
 	port := service.Spec.Ports[0].Port
 
 	// If configuring load balancer, look for external ingress
@@ -171,7 +175,11 @@ func getLoadBalancerServiceHostPort(service *corev1.Service, logger logr.Logger)
 		}
 	}
 	if !helpers.HasLBFinalizer(service) {
-		return "", port, fmt.Errorf("LoadBalancer expose type is not supported on the target platform for x-site")
+		errMsg := "LoadBalancer expose type is not supported on the target platform for x-site"
+		if eventRec != nil {
+			eventRec.Event(service, corev1.EventTypeWarning, reason, errMsg)
+		}
+		return "", port, fmt.Errorf(errMsg)
 	}
 
 	return "", port, nil

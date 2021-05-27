@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/cloud-provider/service/helpers"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,9 +58,17 @@ const (
 	EncryptVolumeName         = "encrypt-volume"
 	IdentitiesVolumeName      = "identities-volume"
 	AdminIdentitiesVolumeName = "admin-identities-volume"
+	ControllerName            = "controller_infinispan"
+
+	EventReasonPrelimChecksFailed    = "PrelimChecksFailed"
+	EventReasonLowPersistenceStorage = "LowPersistenceStorage"
+	EventReasonEphemeralStorage      = "EphemeralStorageEnables"
+	EventReasonParseValueProblem     = "ParseValueProblem"
+	EventLoadBalancerUnsupported     = "LoadBalancerUnsupported"
 )
 
-var log = logf.Log.WithName("controller_infinispan")
+var log = logf.Log.WithName(ControllerName)
+var eventRec record.EventRecorder
 
 // Kubernetes object
 var kubernetes *kube.Kubernetes
@@ -73,6 +82,7 @@ func Add(mgr manager.Manager) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	kubernetes = kube.NewKubernetesFromController(mgr)
+	eventRec = mgr.GetEventRecorderFor(ControllerName)
 	return &ReconcileInfinispan{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
@@ -193,6 +203,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		// Perform all the possible preliminary checks before go on
 		preliminaryChecksResult, preliminaryChecksError = infinispan.PreliminaryChecks()
 		if preliminaryChecksError != nil {
+			eventRec.Event(infinispan, corev1.EventTypeWarning, EventReasonPrelimChecksFailed, preliminaryChecksError.Error())
 			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, preliminaryChecksError.Error())
 		} else {
 			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
@@ -217,7 +228,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// Wait for the ConfigMap to be created by config-controller
 	configMap := &corev1.ConfigMap{}
-	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r.client, reqLogger); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r.client, reqLogger, eventRec); result != nil {
 		return *result, err
 	}
 
@@ -225,13 +236,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	var userSecret *corev1.Secret
 	if infinispan.IsAuthenticationEnabled() {
 		userSecret = &corev1.Secret{}
-		if result, err := kube.LookupResource(infinispan.GetSecretName(), infinispan.Namespace, userSecret, r.client, reqLogger); result != nil {
+		if result, err := kube.LookupResource(infinispan.GetSecretName(), infinispan.Namespace, userSecret, r.client, reqLogger, eventRec); result != nil {
 			return *result, err
 		}
 	}
 
 	adminSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(infinispan.GetAdminSecretName(), infinispan.Namespace, adminSecret, r.client, reqLogger); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetAdminSecretName(), infinispan.Namespace, adminSecret, r.client, reqLogger, eventRec); result != nil {
 		return *result, err
 	}
 
@@ -271,12 +282,12 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Wait for the cluster Service to be created by service-controller
-	if result, err := kube.LookupResource(infinispan.Name, infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
+	if result, err := kube.LookupResource(infinispan.Name, infinispan.Namespace, &corev1.Service{}, r.client, reqLogger, eventRec); result != nil {
 		return *result, err
 	}
 
 	// Wait for the cluster ping Service to be created by service-controller
-	if result, err := kube.LookupResource(infinispan.GetPingServiceName(), infinispan.Namespace, &corev1.Service{}, r.client, reqLogger); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetPingServiceName(), infinispan.Namespace, &corev1.Service{}, r.client, reqLogger, eventRec); result != nil {
 		return *result, err
 	}
 
@@ -401,7 +412,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		case infinispanv1.ExposeTypeLoadBalancer, infinispanv1.ExposeTypeNodePort:
 			// Wait for the cluster external Service to be created by service-controller
 			externalService := &corev1.Service{}
-			if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger); result != nil {
+			if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalService, r.client, reqLogger, eventRec); result != nil {
 				return *result, err
 			}
 			if len(externalService.Spec.Ports) > 0 && infinispan.GetExposeType() == infinispanv1.ExposeTypeNodePort {
@@ -414,7 +425,9 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				// Waiting for LoadBalancer cloud provider to update the configured hostname inside Status field
 				if exposeAddress = kubernetes.GetExternalAddress(externalService); exposeAddress == "" {
 					if !helpers.HasLBFinalizer(externalService) {
-						reqLogger.Info("LoadBalancer expose type is not supported on the target platform")
+						errMsg := "LoadBalancer expose type is not supported on the target platform"
+						eventRec.Event(externalService, corev1.EventTypeWarning, EventLoadBalancerUnsupported, errMsg)
+						reqLogger.Info(errMsg)
 						return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 					}
 					reqLogger.Info("LoadBalancer address not ready yet. Waiting on value in reconcile loop")
@@ -424,13 +437,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		case infinispanv1.ExposeTypeRoute:
 			if isTypeSupported(consts.ExternalTypeRoute) {
 				externalRoute := &routev1.Route{}
-				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger); result != nil {
+				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalRoute, r.client, reqLogger, eventRec); result != nil {
 					return *result, err
 				}
 				exposeAddress = externalRoute.Spec.Host
 			} else if isTypeSupported(consts.ExternalTypeIngress) {
 				externalIngress := &networkingv1beta1.Ingress{}
-				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger); result != nil {
+				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger, eventRec); result != nil {
 					return *result, err
 				}
 				if len(externalIngress.Spec.Rules) > 0 {
@@ -765,6 +778,8 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 
 	memory, err := resource.ParseQuantity(m.Spec.Container.Memory)
 	if err != nil {
+		eventRec.Event(m, corev1.EventTypeWarning, EventReasonParseValueProblem, err.Error())
+		reqLogger.Info(err.Error())
 		return nil, err
 	}
 	replicas := m.Spec.Replicas
@@ -872,7 +887,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 				return nil, pvErr
 			}
 			if pvSize.Cmp(memory) < 0 {
-				reqLogger.Info("WARNING: persistent volume size is less than memory size. Graceful shutdown may not work.", "Volume Size", pvSize, "Memory", memory)
+				errMsg := "Persistent volume size is less than memory size. Graceful shutdown may not work."
+				eventRec.Event(m, corev1.EventTypeWarning, EventReasonLowPersistenceStorage, errMsg)
+				reqLogger.Info(errMsg, "Volume Size", pvSize, "Memory", memory)
 			}
 		}
 
@@ -915,7 +932,9 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 			},
 		}
 		*volumes = append(*volumes, ephemeralVolume)
-		reqLogger.Info("WARNING: Ephemeral storage configured. All data will be lost on cluster shutdown and restart.")
+		errMsg := "Ephemeral storage configured. All data will be lost on cluster shutdown and restart."
+		eventRec.Event(m, corev1.EventTypeWarning, EventReasonEphemeralStorage, errMsg)
+		reqLogger.Info(errMsg)
 	}
 
 	AddVolumeForEncryption(m, &dep.Spec.Template.Spec)
