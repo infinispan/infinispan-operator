@@ -13,12 +13,6 @@ type EventLogger interface {
 	Logger() *logr.Logger
 }
 
-func ValuedLogger(el EventLogger, name string, keysAndValues ...interface{}) logr.Logger {
-	log := Logger(el, name)
-	logger := log.WithValues(keysAndValues...)
-	return logger
-}
-
 func Logger(el EventLogger, name string) logr.Logger {
 	if *el.Logger() != nil {
 		return *el.Logger()
@@ -27,7 +21,7 @@ func Logger(el EventLogger, name string) logr.Logger {
 	return *el.Logger()
 }
 
-func LogAndSendEvent(el EventLogger, owner runtime.Object, reason, message string) {
+func LogAndSendEvent(el EventLogger, owner runtime.Object, reason, message string, keysAndValues ...interface{}) {
 	(*el.Logger()).Info(message)
 	if *el.EventRecorder() != nil && owner != nil {
 		(*el.EventRecorder()).Event(owner, corev1.EventTypeWarning, string(reason), message)

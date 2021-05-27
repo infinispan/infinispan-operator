@@ -893,12 +893,11 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		if m.IsDataGrid() && m.StorageSize() != "" {
 			pvSize, pvErr := resource.ParseQuantity(m.StorageSize())
 			if pvErr != nil {
-				eventlog.LogAndSendEvent(r, m, EventReasonParseValueProblem, err.Error())
+				eventlog.LogAndSendEvent(r, m, EventReasonParseValueProblem, pvErr.Error())
 				return nil, pvErr
 			}
 			if pvSize.Cmp(memory) < 0 {
-				eventlog.LogAndSendEvent(r, m, EventReasonLowPersistenceStorage, err.Error())
-				reqLogger.Info("WARNING: persistent volume size is less than memory size. Graceful shutdown may not work.", "Volume Size", pvSize, "Memory", memory)
+				eventlog.LogAndSendEvent(r, m, EventReasonLowPersistenceStorage, "WARNING: persistent volume size is less than memory size. Graceful shutdown may not work.", "Volume Size", pvSize, "Memory", memory)
 			}
 		}
 
