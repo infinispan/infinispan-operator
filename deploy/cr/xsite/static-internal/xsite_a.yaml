@@ -5,7 +5,7 @@ metadata:
 spec:
   replicas: 1
   expose:
-    type: LoadBalancer
+    type: NodePort
   service:
     type: DataGrid
     sites:
@@ -14,7 +14,5 @@ spec:
         expose:
           type: ClusterIP
       locations:
-      - name: SiteA
-        url: infinispan+xsite://example-clustera-site
       - name: SiteB
-        url: infinispan+xsite://example-clusterb-site
+        clusterName: example-clusterb

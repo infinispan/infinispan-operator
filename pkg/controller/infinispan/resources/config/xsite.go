@@ -39,11 +39,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 		return nil, fmt.Errorf(msg)
 	}
 
-	logger.Info("local site service",
-		"service name", siteServiceName,
-		"host", localSiteHost,
-		"port", localSitePort,
-	)
+	logger.Info("local site service", "service name", siteServiceName, "host", localSiteHost, "port", localSitePort)
 
 	xsite := &config.XSite{
 		Address: localSiteHost,
@@ -56,7 +52,15 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 		if err != nil {
 			return nil, err
 		}
-		if backupSiteURL.Scheme == consts.StaticCrossSiteUriSchema {
+		if backupSiteURL.Scheme == "" || (backupSiteURL.Scheme == consts.StaticCrossSiteUriSchema && backupSiteURL.Hostname() == "") {
+			// No static location provided. Try to resolve internal cluster service
+			if infinispan.GetRemoteSiteClusterName(remoteLocation.Name) == infinispan.Name && infinispan.GetRemoteSiteNamespace(remoteLocation.Name) == infinispan.Namespace {
+				return nil, fmt.Errorf("unable to link the cross-site service with itself. clusterName '%s' or namespace '%s' for remote location '%s' should be different from the original cluster name or namespace",
+					infinispan.GetRemoteSiteClusterName(remoteLocation.Name), infinispan.GetRemoteSiteNamespace(remoteLocation.Name), remoteLocation.Name)
+			}
+			// Add cross-site FQN service name inside the same k8s cluster
+			appendBackupSite(remoteLocation.Name, infinispan.GetRemoteSiteServiceFQN(remoteLocation.Name), 0, xsite)
+		} else if backupSiteURL.Scheme == consts.StaticCrossSiteUriSchema {
 			port, _ := strconv.ParseInt(backupSiteURL.Port(), 10, 32)
 			appendBackupSite(remoteLocation.Name, backupSiteURL.Hostname(), int32(port), xsite)
 		} else {
@@ -84,23 +88,20 @@ func appendRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.
 		return err
 	}
 
-	err = appendKubernetesRemoteLocation(infinispan, remoteLocation, remoteKubernetes, logger, xsite)
-	if err != nil {
+	if err = appendKubernetesRemoteLocation(infinispan, remoteLocation.Name, remoteKubernetes, logger, xsite); err != nil {
 		return err
 	}
 	return nil
 }
 
-func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, remoteKubernetes *kube.Kubernetes, logger logr.Logger, xsite *config.XSite) error {
-	name := consts.GetWithDefault(remoteLocation.ClusterName, infinispan.Name)
-	namespace := consts.GetWithDefault(remoteLocation.Namespace, infinispan.Namespace)
-	siteServiceName := fmt.Sprintf(consts.SiteServiceTemplate, name)
-	namespacedName := types.NamespacedName{Name: siteServiceName, Namespace: namespace}
+func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocationName string, remoteKubernetes *kube.Kubernetes, logger logr.Logger, xsite *config.XSite) error {
+	remoteNamespace := infinispan.GetRemoteSiteNamespace(remoteLocationName)
+	remoteServiceName := infinispan.GetRemoteSiteServiceName(remoteLocationName)
 
 	siteService := &corev1.Service{}
-	err := remoteKubernetes.Client.Get(context.TODO(), namespacedName, siteService)
+	err := remoteKubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: remoteServiceName, Namespace: remoteNamespace}, siteService)
 	if err != nil {
-		logger.Error(err, "could not get x-site service in remote cluster", "site service name", siteServiceName, "site namespace", namespace)
+		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
 		return err
 	}
 
@@ -116,12 +117,8 @@ func appendKubernetesRemoteLocation(infinispan *ispnv1.Infinispan, remoteLocatio
 		return fmt.Errorf(msg)
 	}
 
-	logger.Info("remote site service",
-		"service name", siteServiceName,
-		"host", host,
-		"port", port,
-	)
-	appendBackupSite(remoteLocation.Name, host, port, xsite)
+	logger.Info("remote site service", "service name", remoteServiceName, "host", host, "port", port)
+	appendBackupSite(remoteLocationName, host, port, xsite)
 	return nil
 }
 
