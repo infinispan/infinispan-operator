@@ -19,10 +19,12 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -46,6 +48,11 @@ func testBatchInlineConfig(infinispan *v1.Infinispan) {
 	name := infinispan.Name
 	batchScript := batchString()
 	batch := createBatch(name, name, &batchScript, nil)
+
+	testKube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{
+		Namespace:     tutils.Namespace,
+		LabelSelector: labels.SelectorFromSet(batchCtrl.BatchLabels(name)),
+	}, nil)
 
 	waitForValidBatchPhase(name, v2.BatchSucceeded)
 
@@ -80,6 +87,11 @@ func TestBatchConfigMap(t *testing.T) {
 	}
 
 	batch := createBatch(name, name, nil, &configMapName)
+
+	testKube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{
+		Namespace:     tutils.Namespace,
+		LabelSelector: labels.SelectorFromSet(batchCtrl.BatchLabels(name)),
+	}, nil)
 
 	waitForValidBatchPhase(name, v2.BatchSucceeded)
 	testKube.DeleteBatch(batch)

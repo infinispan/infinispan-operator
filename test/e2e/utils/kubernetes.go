@@ -154,6 +154,7 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 	// Print pod output if a panic has occurred
 	if panicVal != nil {
 		k.PrintAllResources(namespace, &v1.PodList{}, map[string]string{"app": "infinispan-pod"})
+		k.PrintAllResources(namespace, &v1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
 		k.PrintAllResources(namespace, &appsv1.StatefulSetList{}, map[string]string{})
 		k.PrintAllResources(namespace, &ispnv1.InfinispanList{}, map[string]string{})
 		k.PrintAllResources(namespace, &ispnv2.BackupList{}, map[string]string{})
@@ -173,6 +174,7 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
+		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
 	}
 
 	if panicVal != nil {
