@@ -71,7 +71,7 @@ func Add(mgr manager.Manager) error {
 }
 
 func (c *configResource) Process() (reconcile.Result, error) {
-	xsite := &configuration.XSite{}
+	var xsite *configuration.XSite
 	if c.infinispan.HasSites() {
 		// Check x-site configuration first.
 		// Must be done before creating any Infinispan resources,
