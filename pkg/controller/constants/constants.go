@@ -73,7 +73,6 @@ const (
 	NativeImageMarker         = "native"
 	GeneratedSecretSuffix     = "generated-secret"
 	InfinispanFinalizer       = "finalizer.infinispan.org"
-	SiteServiceTemplate       = "%v-site"
 	ServerConfigRoot          = "/etc/config"
 	ServerSecurityRoot        = "/etc/security"
 	ServerConfigFilename      = "infinispan.yaml"

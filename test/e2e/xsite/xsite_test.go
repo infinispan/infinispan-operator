@@ -168,8 +168,6 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType string, exp
 			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, "xsite2")
 			testKube.kube = tutils.NewTestKubernetes(testKube.context)
 		}
-		tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("infinispan+xsite://%s", tesKubes["xsite2"].crossSite.GetSiteServiceName())
-		tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("infinispan+xsite://%s", tesKubes["xsite1"].crossSite.GetSiteServiceName())
 	}
 
 	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)

@@ -1,11 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +43,56 @@ var staticXSiteInfinispan = &ispnv1.Infinispan{
 					{
 						Name: "SiteC",
 						URL:  "infinispan+xsite://example-clusterc-site:7901",
+					},
+				},
+			},
+		},
+	},
+}
+
+var selfStaticXSiteInfinispan = &ispnv1.Infinispan{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "example-clustera",
+		Namespace: namespace,
+	},
+	Spec: ispnv1.InfinispanSpec{
+		Service: ispnv1.InfinispanServiceSpec{
+			Sites: &ispnv1.InfinispanSitesSpec{
+				Local: ispnv1.InfinispanSitesLocalSpec{
+					Name: "SiteA",
+					Expose: ispnv1.CrossSiteExposeSpec{
+						Type: ispnv1.CrossSiteExposeTypeClusterIP,
+					},
+				},
+				Locations: []ispnv1.InfinispanSiteLocationSpec{
+					{
+						Name:        "SiteB",
+						ClusterName: "example-clusterb",
+					},
+				},
+			},
+		},
+	},
+}
+
+var selfStaticXSiteErrorInfinispan = &ispnv1.Infinispan{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "example-clustera",
+		Namespace: namespace,
+	},
+	Spec: ispnv1.InfinispanSpec{
+		Service: ispnv1.InfinispanServiceSpec{
+			Sites: &ispnv1.InfinispanSitesSpec{
+				Local: ispnv1.InfinispanSitesLocalSpec{
+					Name: "SiteA",
+					Expose: ispnv1.CrossSiteExposeSpec{
+						Type: ispnv1.CrossSiteExposeTypeClusterIP,
+					},
+				},
+				Locations: []ispnv1.InfinispanSiteLocationSpec{
+					{
+						Name:        "SiteB",
+						ClusterName: "example-clustera",
 					},
 				},
 			},
@@ -106,13 +158,23 @@ func TestComputeXSiteStatic(t *testing.T) {
 	assert.Equal(t, int32(consts.CrossSitePort), xsite.Port, "Local site port")
 
 	assert.Equal(t, 2, len(xsite.Backups), "Backup sites number")
-	assert.Equal(t, "SiteB", xsite.Backups[0].Name, "Backup site name")
-	assert.Equal(t, "example-clusterb-site", xsite.Backups[0].Address, "Backup site address")
-	assert.Equal(t, int32(consts.CrossSitePort), xsite.Backups[0].Port, "Backup site port")
+	assert.Contains(t, xsite.Backups, configuration.BackupSite{Address: "example-clusterb-site", Name: "SiteB", Port: int32(consts.CrossSitePort)}, "Backup SiteB contains")
+	assert.Contains(t, xsite.Backups, configuration.BackupSite{Address: "example-clusterc-site", Name: "SiteC", Port: int32(consts.CrossSitePort+1)}, "Backup SiteC contains")
+}
 
-	assert.Equal(t, "SiteC", xsite.Backups[1].Name, "Backup site name")
-	assert.Equal(t, "example-clusterc-site", xsite.Backups[1].Address, "Backup site address")
-	assert.Equal(t, int32(consts.CrossSitePort+1), xsite.Backups[1].Port, "Backup site port")
+func TestComputeXSiteSelfStatic(t *testing.T) {
+	xsite, err := ComputeXSite(selfStaticXSiteInfinispan, nil, staticSiteService, logger)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, len(xsite.Backups), "Backup sites number")
+	assert.Equal(t, fmt.Sprintf("%s.%s.svc.cluster.local", "example-clusterb-site", namespace), xsite.Backups[0].Address, "Backup site address")
+	assert.Equal(t, int32(consts.CrossSitePort), xsite.Backups[0].Port, "Backup site port")
+}
+
+func TestComputeXSiteSelfStaticError(t *testing.T) {
+	_, err := ComputeXSite(selfStaticXSiteErrorInfinispan, nil, staticSiteService, logger)
+	assert.Error(t, err)
+	assert.Contains(t,  err.Error(), "unable to link the cross-site service with itself")
 
 }
 
@@ -121,10 +183,10 @@ func TestGetSiteLocationsName(t *testing.T) {
 	assert.ElementsMatch(t, []string{"SiteA", "SiteB", "SiteC"}, staticXSiteRemoteLocations.GetSiteLocationsName(), "Only remote site locations")
 
 	assert.Equal(t, 2, len(staticXSiteInfinispan.GetRemoteSiteLocations()), "Remote site locations count")
-	assert.Equal(t, "SiteB", staticXSiteInfinispan.GetRemoteSiteLocations()[0].Name, "Remote site locations (SiteB)")
-	assert.Equal(t, "SiteC", staticXSiteInfinispan.GetRemoteSiteLocations()[1].Name, "Remote site locations (SiteC)")
+	assert.Equal(t, "SiteB", staticXSiteInfinispan.GetRemoteSiteLocations()["SiteB"].Name, "Remote site locations (SiteB)")
+	assert.Equal(t, "SiteC", staticXSiteInfinispan.GetRemoteSiteLocations()["SiteC"].Name, "Remote site locations (SiteC)")
 
 	assert.Equal(t, 2, len(staticXSiteRemoteLocations.GetRemoteSiteLocations()), "Remote site locations count")
-	assert.Equal(t, "SiteB", staticXSiteRemoteLocations.GetRemoteSiteLocations()[0].Name, "Remote site locations (SiteB)")
-	assert.Equal(t, "SiteC", staticXSiteRemoteLocations.GetRemoteSiteLocations()[1].Name, "Remote site locations (SiteC)")
+	assert.Equal(t, "SiteB", staticXSiteRemoteLocations.GetRemoteSiteLocations()["SiteB"].Name, "Remote site locations (SiteB)")
+	assert.Equal(t, "SiteC", staticXSiteRemoteLocations.GetRemoteSiteLocations()["SiteC"].Name, "Remote site locations (SiteC)")
 }

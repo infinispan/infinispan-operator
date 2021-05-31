@@ -34,8 +34,6 @@ const (
 	PodTargetLabels string = "infinispan.org/podTargetLabels"
 	// TargetLabels labels propagated to services/ingresses/routes
 	TargetLabels string = "infinispan.org/targetLabels"
-	// ServiceMonitoringLabel defines if we need to create ServiceMonitor or not
-	ServiceMonitoringLabel string = "infinispan.org/monitoring"
 	// OperatorPodTargetLabels labels propagated by the operator to pods
 	OperatorPodTargetLabels string = "infinispan.org/operatorPodTargetLabels"
 	// OperatorTargetLabels labels propagated by the operator to services/ingresses/routes
@@ -44,6 +42,12 @@ const (
 	OperatorTargetLabelsEnvVarName string = "INFINISPAN_OPERATOR_TARGET_LABELS"
 	// OperatorPodTargetLabelsEnvVarName is the name of the envvar containg operator label/value map for pods
 	OperatorPodTargetLabelsEnvVarName string = "INFINISPAN_OPERATOR_POD_TARGET_LABELS"
+
+	// ServiceMonitoringAnnotation defines if we need to create ServiceMonitor or not
+	ServiceMonitoringAnnotation string = "infinispan.org/monitoring"
+
+	SiteServiceNameTemplate = "%v-site"
+	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
 )
 
 // equals compares two ConditionType's case insensitive
@@ -155,9 +159,9 @@ func (ispn *Infinispan) ApplyMonitoringAnnotation() {
 	if ispn.Annotations == nil {
 		ispn.Annotations = make(map[string]string)
 	}
-	_, ok := ispn.GetAnnotations()[ServiceMonitoringLabel]
+	_, ok := ispn.GetAnnotations()[ServiceMonitoringAnnotation]
 	if !ok {
-		ispn.Annotations[ServiceMonitoringLabel] = strconv.FormatBool(true)
+		ispn.Annotations[ServiceMonitoringAnnotation] = strconv.FormatBool(true)
 	}
 }
 
@@ -246,15 +250,13 @@ func (ispn *Infinispan) HasSites() bool {
 }
 
 // GetRemoteSiteLocations returns remote site locations
-func (ispn *Infinispan) GetRemoteSiteLocations() (remoteLocations []InfinispanSiteLocationSpec) {
+func (ispn *Infinispan) GetRemoteSiteLocations() (remoteLocations map[string]InfinispanSiteLocationSpec) {
+	remoteLocations = make(map[string]InfinispanSiteLocationSpec)
 	for _, location := range ispn.Spec.Service.Sites.Locations {
 		if ispn.Spec.Service.Sites.Local.Name != location.Name {
-			remoteLocations = append(remoteLocations, location)
+			remoteLocations[location.Name] = location
 		}
 	}
-	sort.SliceStable(remoteLocations, func(p, q int) bool {
-		return remoteLocations[p].Name < remoteLocations[q].Name
-	})
 	return
 }
 
@@ -281,7 +283,25 @@ func (ispn *Infinispan) GetExposeType() ExposeType {
 }
 
 func (ispn *Infinispan) GetSiteServiceName() string {
-	return fmt.Sprintf(constants.SiteServiceTemplate, ispn.Name)
+	return fmt.Sprintf(SiteServiceNameTemplate, ispn.Name)
+}
+
+func (ispn *Infinispan) GetRemoteSiteServiceName(locationName string) string {
+	return fmt.Sprintf(SiteServiceNameTemplate, ispn.GetRemoteSiteClusterName(locationName))
+}
+
+func (ispn *Infinispan) GetRemoteSiteServiceFQN(locationName string) string {
+	return fmt.Sprintf(SiteServiceFQNTemplate, ispn.GetRemoteSiteServiceName(locationName), ispn.GetRemoteSiteNamespace(locationName))
+}
+
+func (ispn *Infinispan) GetRemoteSiteNamespace(locationName string) string {
+	remoteLocation := ispn.GetRemoteSiteLocations()[locationName]
+	return consts.GetWithDefault(remoteLocation.Namespace, ispn.Namespace)
+}
+
+func (ispn *Infinispan) GetRemoteSiteClusterName(locationName string) string {
+	remoteLocation := ispn.GetRemoteSiteLocations()[locationName]
+	return consts.GetWithDefault(remoteLocation.ClusterName, ispn.Name)
 }
 
 // GetEndpointScheme returns the protocol scheme used by the Infinispan cluster
@@ -559,7 +579,7 @@ func (ispn *Infinispan) HasCustomLibraries() bool {
 
 // IsServiceMonitorEnabled validates that "infinispan.org/monitoring":true annotation defines or not
 func (ispn *Infinispan) IsServiceMonitorEnabled() bool {
-	monitor, ok := ispn.GetAnnotations()[ServiceMonitoringLabel]
+	monitor, ok := ispn.GetAnnotations()[ServiceMonitoringAnnotation]
 	if ok {
 		isMonitor, err := strconv.ParseBool(monitor)
 		return err == nil && isMonitor
