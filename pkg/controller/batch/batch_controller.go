@@ -209,7 +209,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 
 	cliArgs := fmt.Sprintf("--properties '%s/%s' --file '%s/%s'", consts.ServerAdminIdentitiesRoot, consts.CliPropertiesFilename, BatchVolumeRoot, BatchFilename)
 
-	labels := batchLabels(batch.Name)
+	labels := BatchLabels(batch.Name)
 	infinispan.AddLabelsForPods(labels)
 
 	job := &batchv1.Job{
@@ -342,14 +342,15 @@ func (r *batchResource) update(mutate func() error) (bool, error) {
 	return res != controllerutil.OperationResultNone, err
 }
 
-func batchLabels(name string) map[string]string {
+func BatchLabels(name string) map[string]string {
 	return map[string]string{
 		"infinispan_batch": name,
+		"app":              "infinispan-batch-pod",
 	}
 }
 
 func GetJobPodName(name, namespace string, c client.Client) (string, error) {
-	labelSelector := labels.SelectorFromSet(batchLabels(name))
+	labelSelector := labels.SelectorFromSet(BatchLabels(name))
 	podList := &corev1.PodList{}
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	if err := c.List(ctx, podList, listOps); err != nil {
