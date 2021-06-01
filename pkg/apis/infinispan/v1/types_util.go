@@ -43,6 +43,8 @@ const (
 	// OperatorPodTargetLabelsEnvVarName is the name of the envvar containg operator label/value map for pods
 	OperatorPodTargetLabelsEnvVarName string = "INFINISPAN_OPERATOR_POD_TARGET_LABELS"
 
+	MaxRouteObjectNameLength = 63
+
 	// ServiceMonitoringAnnotation defines if we need to create ServiceMonitor or not
 	ServiceMonitoringAnnotation string = "infinispan.org/monitoring"
 
@@ -242,7 +244,11 @@ func (ispn *Infinispan) IsUpgradeCondition() bool {
 }
 
 func (ispn *Infinispan) GetServiceExternalName() string {
-	return fmt.Sprintf("%s-external", ispn.Name)
+	externalServiceName := fmt.Sprintf("%s-external", ispn.Name)
+	if ispn.IsExposed() && ispn.GetExposeType() == ExposeTypeRoute && len(externalServiceName) + len(ispn.Namespace) >= MaxRouteObjectNameLength {
+		return externalServiceName[0:MaxRouteObjectNameLength-len(ispn.Namespace)-2]+"a"
+	}
+	return externalServiceName
 }
 
 func (ispn *Infinispan) GetServiceName() string {
