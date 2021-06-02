@@ -21,7 +21,6 @@ const (
 	MaxWaitTimeout        = 120 * time.Second
 	ConditionWaitTimeout  = 120 * time.Second
 	DefaultClusterName    = "test-node-startup"
-	KubernetesDefaultPort = 6443
 
 	OperatorUpgradeStageNone = "NONE"
 	OperatorUpgradeStageFrom = "FROM"

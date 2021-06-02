@@ -83,11 +83,12 @@ jobs:
         - source build/travis/configure-travis-ci-xsite.sh
       script:
         - go test -v ./test/e2e/xsite/ -timeout 30m
-      after_failure:
+      after_script:
         - kubectl logs deployment/infinispan-operator -n namespace-for-testing-xsite1 --context kind-xsite1
+        - kubectl logs deployment/infinispan-operator -n namespace-for-testing-xsite2 --context kind-xsite2
+      after_failure:
         - kubectl logs daemonset/speaker -n metallb-system --context kind-xsite1
         - kubectl logs deployment/controller -n metallb-system --context kind-xsite1
-        - kubectl logs deployment/infinispan-operator -n namespace-for-testing-xsite2 --context kind-xsite2
         - kubectl logs daemonset/speaker -n metallb-system --context kind-xsite2
         - kubectl logs deployment/controller -n metallb-system --context kind-xsite2
         - df -h

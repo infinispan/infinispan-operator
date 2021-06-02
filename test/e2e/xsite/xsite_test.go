@@ -2,6 +2,7 @@ package xsite
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 
@@ -15,17 +16,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-var log = logf.Log.WithName("xsite_test")
 
 type crossSiteKubernetes struct {
 	kube      *tutils.TestKubernetes
 	crossSite ispnv1.Infinispan
 	namespace string
 	context   string
-	hostName  string
+	apiServer string
 }
 
 func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNamespace string, exposeType ispnv1.CrossSiteExposeType) *ispnv1.Infinispan {
@@ -132,10 +130,9 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType string, exp
 			testKube.context = fmt.Sprintf("kind-%s", instance)
 			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, instance)
 			testKube.kube = tutils.NewTestKubernetes(testKube.context)
-
-			hostName, err := testKube.kube.Kubernetes.GetNodeHost(log)
+			apiServerUrl, err := url.Parse(clientConfig.Clusters[testKube.context].Server)
 			tutils.ExpectNoError(err)
-			testKube.hostName = hostName
+			testKube.apiServer = apiServerUrl.Host
 		}
 		if schemeType == config.SchemeTypeKubernetes {
 			tesKubes["xsite1"].kube.CreateSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
@@ -158,8 +155,8 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType string, exp
 		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 2, "xsite1", "xsite2", tesKubes["xsite2"].namespace, exposeType)
 		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 1, "xsite2", "xsite1", tesKubes["xsite1"].namespace, exposeType)
 
-		tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s:%d", schemeType, tesKubes["xsite2"].hostName, tutils.KubernetesDefaultPort)
-		tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s:%d", schemeType, tesKubes["xsite1"].hostName, tutils.KubernetesDefaultPort)
+		tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, tesKubes["xsite2"].apiServer)
+		tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, tesKubes["xsite1"].apiServer)
 	} else {
 		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 2, "xsite1", "xsite2", "", exposeType)
 		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 1, "xsite2", "xsite1", "", exposeType)
