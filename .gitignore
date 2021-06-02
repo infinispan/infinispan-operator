@@ -96,4 +96,3 @@ vendor/
 *.backup
 /cmd/manager/debug
 tls.crt
-/kind-config-xsite.yaml
