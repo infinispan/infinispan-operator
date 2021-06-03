@@ -9,7 +9,7 @@ ifdef::context[:parent-context: {context}]
 +
 [NOTE]
 ====
-Applying a `Batch` CR does not update the `.spec` fields for the CR. 
+Modifying a `Batch` CR instance has no effect.
 Batch operations are "one-time" events that modify {brandname} resources.
 To update `.spec` fields for the CR, or when a batch operation fails, you must create a new instance of the `Batch` CR.
 ====

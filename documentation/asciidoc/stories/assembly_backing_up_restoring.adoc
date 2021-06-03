@@ -11,7 +11,7 @@ ifdef::context[:parent-context: {context}]
 +
 [NOTE]
 ====
-Applying a `Backup` or `Restore` CR does not update the `.spec` fields for the CR. 
+Modifying existing `Backup` or `Restore` CR instances has no effect.
 Backup and restore operations are "one-time" events that modify {brandname} resources.
 To update `.spec` fields for the CR, or when a backup or restore operation fails, you must create a new instance of the `Backup` or `Restore` CR.
 ====
