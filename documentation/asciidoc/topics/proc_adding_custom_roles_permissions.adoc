@@ -1,0 +1,17 @@
+[id='adding-custom-roles-permissions_{context}']
+= Adding custom roles and permissions
+
+[role="_abstract"]
+You can define custom roles with different combinations of permissions.
+
+.Procedure
+
+. Open your `Infinispan` CR for editing.
+. Specify custom roles and their associated permissions with the `spec.security.authorization.roles` field.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/authz_custom_roles.yaml[]
+----
++
+. Apply the changes.

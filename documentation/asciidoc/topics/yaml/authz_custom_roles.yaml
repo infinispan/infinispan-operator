@@ -1,0 +1,12 @@
+spec:
+  security:
+    authorization:
+      enabled: true
+      roles:
+        - name: my-role-1
+          permissions:
+            - ALL
+        - name: my-role-2
+          permissions:
+            - READ
+            - WRITE

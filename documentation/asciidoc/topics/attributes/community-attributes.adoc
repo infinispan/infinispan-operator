@@ -66,3 +66,6 @@
 
 //CLI
 :cli_docs: https://infinispan.org/docs/stable/titles/cli/cli.html
+
+//Security Guide
+:security_docs: https://infinispan.org/docs/stable/titles/security/security.html

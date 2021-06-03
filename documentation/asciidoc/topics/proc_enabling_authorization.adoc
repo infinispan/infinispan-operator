@@ -1,0 +1,17 @@
+[id='allocating-storage_{context}']
+= Enabling security authorization
+
+[role="_abstract"]
+By default authorization is disabled to ensure backwards compatibility with `Infinispan` CR instances.
+Complete the following procedure to enable authorization and use role-based access control (RBAC) for {brandname} users.
+
+.Procedure
+
+. Set `true` as the value for the `spec.security.authorization.enabled` field in your `Infinispan` CR.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/authz_enable.yaml[]
+----
++
+. Apply the changes.

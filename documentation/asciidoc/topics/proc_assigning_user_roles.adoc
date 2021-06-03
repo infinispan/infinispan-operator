@@ -1,0 +1,36 @@
+[id='assigning-user-roles_{context}']
+= Assigning roles and permissions to users
+
+[role="_abstract"]
+Assign users with roles that control whether users are authorized to access {brandname} cluster resources.
+Roles can have different permission levels, from read-only to unrestricted access.
+
+[IMPORTANT]
+====
+A user named "admin" is assigned the `admin` role automatically.
+A user named "deployer" is assigned the `deployer` role automatically, and so on.
+====
+
+.Procedure
+
+. Create an `identities.yaml` file that assigns roles to users.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/identities_authz.yaml[]
+----
++
+. Delete your existing authentication secret, if necessary, and then create one from `identities.yaml`.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_create} delete secret connect-secret --ignore-not-found
+$ {oc_create} secret generic --from-file=identities.yaml connect-secret
+----
++
+. If you have not already done so, specify the authentication secret with `spec.security.endpointSecretName` in your `Infinispan` CR and then apply the changes.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/authentication_secret.yaml[]
+----
