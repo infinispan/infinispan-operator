@@ -22,6 +22,7 @@ ifdef::community[]
 :oc_wait: kubectl wait
 :oc_well_formed: kubectl wait --for condition=wellFormed --timeout=240s infinispan/{example_crd_name}
 :oc_create: kubectl create
+:oc_delete: kubectl delete
 :kubectl_exec: kubectl exec -it {example_crd_name}-0 -- /bin/bash
 :describe_backup: kubectl describe Backup my-backup -n namespace
 :set_namespace: kubectl config set-context --current --namespace={example_namespace}
@@ -51,6 +52,7 @@ ifdef::downstream[]
 :oc_wait: oc wait
 :oc_well_formed: oc wait --for condition=wellFormed --timeout=240s infinispan/{example_crd_name}
 :oc_create: oc create
+:oc_delete: oc delete
 :kubectl_exec: oc rsh {example_crd_name}-0
 :describe_backup: oc describe Backup my-backup
 :oc_delete_pod: oc delete pod

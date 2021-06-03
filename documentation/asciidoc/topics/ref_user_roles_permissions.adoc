@@ -1,0 +1,41 @@
+[id='user-roles-permissions_{context}']
+= User roles and permissions
+
+[role="_abstract"]
+{ispn_operator} provides a set of default roles that are associated with different permissions.
+
+.Default roles and permissions
+[cols="1,1,1"]
+|===
+|Role |Permissions |Description
+
+|`admin`
+|ALL
+|Superuser with all permissions including control of the Cache Manager lifecycle.
+
+|`deployer`
+|ALL_READ, ALL_WRITE, LISTEN, EXEC, MONITOR, CREATE
+|Can create and delete {brandname} resources in addition to `application` permissions.
+
+|`application`
+|ALL_READ, ALL_WRITE, LISTEN, EXEC, MONITOR
+|Has read and write access to {brandname} resources in addition to `observer` permissions. Can also listen to events and execute server tasks and scripts.
+
+|`observer`
+|ALL_READ, MONITOR
+|Has read access to {brandname} resources in addition to `monitor` permissions.
+
+|`monitor`
+|MONITOR
+|Can view statistics for {brandname} clusters.
+
+|===
+
+.{ispn_operator} credentials
+
+{ispn_operator} generates credentials that it uses to authenticate with {brandname} clusters to perform internal operations.
+By default {ispn_operator} credentials are automatically assigned the `admin` role when you enable security authorization.
+
+[role="_additional-resources"]
+.Additional resources
+* link:{security_docs}#con_authz-authz[How security authorization works] (_{brandname} Security Guide_).
