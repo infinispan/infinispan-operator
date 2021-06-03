@@ -9,7 +9,7 @@ ifdef::context[:parent-context: {context}]
 `Backup` CR:: Archives {brandname} cluster content to a persistent volume.
 `Restore` CR:: Restores archived content to a {brandname} cluster.
 +
-[IMPORTANT]
+[NOTE]
 ====
 The `Backup` and `Restore` CRs are one-time events that do not reconcile updates to the `.spec` fields.
 If the `.spec` needs updating or the execution of the backup/restore operation fails, then it's necessary for a new `Backup` or 'Restore' CR instance to be created.
