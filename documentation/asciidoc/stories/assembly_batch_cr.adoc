@@ -7,7 +7,7 @@ ifdef::context[:parent-context: {context}]
 {ispn_operator} provides a `Batch` CR that lets you create {brandname} resources in bulk.
 `Batch` CR uses the {brandname} command line interface (CLI) in batch mode to carry out sequences of operations.
 +
-[IMPORTANT]
+[NOTE]
 ====
 Applying a `Batch` CR does not update the `.spec` fields for the CR. 
 Batch operations are "one-time" events that modify {brandname} resources.
