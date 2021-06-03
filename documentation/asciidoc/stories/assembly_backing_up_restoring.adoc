@@ -11,8 +11,9 @@ ifdef::context[:parent-context: {context}]
 +
 [NOTE]
 ====
-The `Backup` and `Restore` CRs are one-time events that do not reconcile updates to the `.spec` fields.
-If the `.spec` needs updating or the execution of the backup/restore operation fails, then it's necessary for a new `Backup` or 'Restore' CR instance to be created.
+Applying a `Backup` or `Restore` CR does not update the `.spec` fields for the CR. 
+Backup and restore operations are "one-time" events that modify {brandname} resources.
+To update `.spec` fields for the CR, or when a backup or restore operation fails, you must create a new instance of the `Backup` or `Restore` CR.
 ====
 +
 include::{topics}/proc_backing_up_cluster.adoc[leveloffset=+1]
