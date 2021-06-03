@@ -11,7 +11,7 @@
 
     <properties>
         <!-- Dependencies versions -->
-        <version.infinispan>12.1.1.Final</version.infinispan>
+        <version.infinispan>12.1.4.Final</version.infinispan>
         <version.fabric8>4.13.0</version.fabric8>
         <version.junit>5.7.0</version.junit>
         <version.lombok>1.16.22</version.lombok>
@@ -102,19 +102,4 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <repositories>
-        <repository>
-            <id>bintray-xtf-cz-xtf</id>
-            <name>Bintray XTF</name>
-            <url>https://dl.bintray.com/xtf-cz/xtf</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>always</updatePolicy>
-            </releases>
-        </repository>
-    </repositories>
 </project>
