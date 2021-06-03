@@ -15,4 +15,5 @@ spec:
           type: ClusterIP
       locations:
         - name: SiteB
-          url: infinispan+xsite://example-clusterb-site.<namespace>.svc:7900
+          clusterName: example-clusterb
+          namespace: cluster-namespace
