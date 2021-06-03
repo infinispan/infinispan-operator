@@ -9,8 +9,9 @@ ifdef::context[:parent-context: {context}]
 +
 [IMPORTANT]
 ====
-A `Batch` CR is a one-time event that does not reconcile updates to it's `.spec` fields.
-If the `.spec` needs updating, the execution of the CLI Batch fails or the batch file content changes, then it's necessary for a new `Batch` CR instance to be created.
+Applying a `Batch` CR does not update the `.spec` fields for the CR. 
+Batch operations are "one-time" events that modify {brandname} resources.
+To update `.spec` fields for the CR, or when a batch operation fails, you must create a new instance of the `Batch` CR.
 ====
 +
 include::{topics}/proc_batching_inline.adoc[leveloffset=+1]
