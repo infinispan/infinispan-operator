@@ -1,0 +1,39 @@
+[id='downloading-code_{context}']
+= Downloading code artifacts
+
+[role="_abstract"]
+Add your artifacts to an HTTP or FTP server so that {ispn_operator} downloads them to the `{lib_path}` directory on each {brandname} node.
+
+When downloading files, {ispn_operator} can automatically detect the file type.
+{ispn_operator} also extracts archived files, such as `zip` or `tgz`, to the filesystem after the download completes.
+
+[NOTE]
+====
+Each time {ispn_operator} creates a {brandname} node it downloads the artifacts to the node.
+The download also occurs when {ispn_operator} recreates nodes after terminating them.
+====
+
+.Prerequisites
+
+* Host your code artifacts on an HTTP or FTP server.
+
+.Procedure
+
+. Add the `spec.dependencies.artifacts` field to your `Infinispan` CR.
+.. Specify the location of the file to download via `HTTP` or `FTP` as the value of the `spec.dependencies.artifacts.url` field.
+.. Optionally specify a checksum value to verify the integrity of the download.
+.. Set the file type, if necessary, with the `spec.dependencies.artifacts.type` field.
++
+You should explicitly set the file type if it is not included in the URL or if the file type is actually different to the extension in the URL.
++
+[NOTE]
+====
+If you set `type: file`, {ispn_operator} downloads the file as-is without extracting it to the filesystem.
+====
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/dependencies_download.yaml[]
+----
++
+. Apply the changes.

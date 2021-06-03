@@ -1,8 +1,8 @@
 [id='copying-code_{context}']
-= Copying code artifacts
+= Copying code artifacts to {brandname} clusters
 
 [role="_abstract"]
-Before you can deploy custom code to {brandname} clusters, you need to add it to a persistent volume (PV).
+Adding your artifacts to a persistent volume (PV) and then copy them to {brandname} nodes.
 
 This procedure explains how to use a temporary pod that mounts a persistent volume claim (PVC) that:
 
@@ -76,6 +76,18 @@ $ {oc_copy} --no-preserve=true libs datagrid-libs-pod:/tmp/
 ----
 $ {oc_delete_pod} datagrid-libs-pod
 ----
++
+Specify the persistent volume with `spec.dependencies.volumeClaimName` in your `Infinispan` CR and then apply the changes.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/dependencies_pvc.yaml[]
+----
+
+[NOTE]
+====
+If you update your custom code on the persistent volume, you must restart the {brandname} cluster so it can load the changes.
+====
 
 [role="_additional-resources"]
 .Additional resources
