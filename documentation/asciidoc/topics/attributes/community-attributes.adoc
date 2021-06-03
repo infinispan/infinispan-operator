@@ -19,6 +19,7 @@
 :example_namespace: ispn-namespace
 :pv_path: /opt/infinispan/server/data
 :conf_path: /opt/infinispan/server/conf
+:lib_path: /opt/infinispan/server/lib
 :backup_path: /opt/infinispan/backups
 :server_image: quay.io/infinispan/server
 :server_image_version: 13.0

@@ -6,8 +6,11 @@ ifdef::context[:parent-context: {context}]
 [role="_abstract"]
 Add custom code, such as scripts and event listeners, to your {brandname} clusters.
 
+Before you can deploy custom code to {brandname} clusters, you need to make it available.
+To do this you can copy artifacts from a persistent volume (PV), download artifacts from an HTTP or FTP server, or use both methods.
+
 include::{topics}/proc_copying_code.adoc[leveloffset=+1]
-include::{topics}/proc_deploying_code.adoc[leveloffset=+1]
+include::{topics}/proc_downloading_code.adoc[leveloffset=+1]
 
 ifdef::parent-context[:context: {parent-context}]
 ifndef::parent-context[:!context:]
