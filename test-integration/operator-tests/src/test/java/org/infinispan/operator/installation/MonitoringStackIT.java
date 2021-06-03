@@ -51,6 +51,8 @@ public class MonitoringStackIT {
     private static final OpenShift operatorShift = OpenShifts.master(operatorNamespace);
     private static final OpenShift monitoringShift = OpenShifts.master(monitoringNamespace);
 
+    private static final OpenShiftWaiters grafanaWaiter = OpenShiftWaiters.get(grafanaShift, () -> false);
+
     private static final Infinispan infinispan = Infinispans.cacheService();
 
     @BeforeAll
@@ -69,15 +71,15 @@ public class MonitoringStackIT {
         grafanaShift.recreateProject();
         grafanaShift.operatorHub().operatorGroups().create(operatorGroup);
         grafanaShift.operatorHub().subscriptions().create(grafanaSubscription);
+        grafanaWaiter.areExactlyNPodsRunning(1, "name", "grafana-operator").waitFor();
 
         // Deploy Grafana server and Datasource
         String grafanaPath = "src/test/resources/monitoring/grafana.yaml";
         Map<String, Object> grafana = new ObjectMapper(new YAMLFactory()).readValue(new File(grafanaPath), Map.class);
 
         grafanaShift.customResource(gcp).create(grafanaNamespace, grafana);
-        grafanaShift.addRoleToServiceAccount("cluster-monitoring-view", "grafana-serviceaccount");
-
-        OpenShiftWaiters.get(grafanaShift, () -> false).areExactlyNPodsRunning(1, "app", "grafana").waitFor();
+        grafanaShift.addRoleToServiceAccount("cluster-monitoring-view", "ClusterRole","grafana-serviceaccount", grafanaNamespace);
+        grafanaWaiter.areExactlyNPodsRunning(1, "app", "grafana").waitFor();
 
         ServiceAccount grafanaSA = grafanaShift.getServiceAccount("grafana-serviceaccount");
         String tokenSecretName = grafanaSA.getSecrets().stream().filter(s -> s.getName().contains("token")).findFirst().orElseThrow(() -> new IllegalStateException("Unable to retrieve service accounts token")).getName();
@@ -113,7 +115,7 @@ public class MonitoringStackIT {
         List<String> targetIPs = actualList.stream().map(t -> t.get("discoveredLabels").get("__meta_kubernetes_pod_ip").asText()).collect(Collectors.toList());
         List<String> targetHealths = actualList.stream().map(t -> t.get("health").asText()).collect(Collectors.toList());
 
-        List<Pod> clusterPods = clusterShift.getLabeledPods("clusterName", "minimal-setup");
+        List<Pod> clusterPods = clusterShift.getLabeledPods("clusterName", infinispan.getClusterName());
         List<String> podIPs = clusterPods.stream().map(p -> p.getStatus().getPodIP()).collect(Collectors.toList());
 
         // Assert that all the targets are up and that infinispan cluster pods are between the targets
