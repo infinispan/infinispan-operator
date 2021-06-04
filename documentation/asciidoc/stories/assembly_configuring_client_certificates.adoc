@@ -1,0 +1,16 @@
+ifdef::context[:parent-context: {context}]
+[id='client-certificates']
+:context: client-certificates
+= Configuring client certificate authentication
+
+[role="_abstract"]
+Configure certificate authentication so that {brandname} allows connections only for clients that present valid certificates.
+
+include::{topics}/proc_enabling_client_cert_authn.adoc[leveloffset=+1]
+include::{topics}/proc_providing_client_truststores.adoc[leveloffset=+1]
+include::{topics}/proc_providing_client_certificates.adoc[leveloffset=+1]
+include::{topics}/proc_configuring_client_certs.adoc[leveloffset=+1]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

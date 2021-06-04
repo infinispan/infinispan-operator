@@ -1,0 +1,29 @@
+[id='providing-client-truststores_{context}']
+= Providing client truststores
+
+[role="_abstract"]
+If you have a trust store that contains the required certificates you can make it available to {ispn_operator}.
+
+{brandname} supports trust stores in `PKCS12` format only.
+
+The trust store that you provide must contain the signing certificate, or CA certificate bundle.
+If you use the `Authenticate` method to verify client identities, the trust store must contain the certificate for each client that can connect to {brandname} endpoints.
+
+.Procedure
+
+. Specify the name of the secret that contains the client trust store as the value of the `metadata.name` field.
++
+[NOTE]
+====
+The name should match the value of the `spec.security.endpointEncryption.clientCertSecretName` field.
+====
++
+. Provide the password for the trust store with the `stringData.truststore-password` field.
+. Specify the trust store with the `data.truststore.p12` field.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/cert_auth_certificates.yaml[]
+----
++
+. Apply the changes.

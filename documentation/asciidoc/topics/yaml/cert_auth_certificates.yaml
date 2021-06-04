@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-truststore-secret
+type: Opaque
+stringData:
+    truststore-password: changme
+data:
+    trust.ca: "<base64_encoded_CA_certificate>"
+    trust.cert.client1: "<base64_encoded_client_certificate>"
+    trust.cert.client2: "<base64_encoded_client_certificate>"

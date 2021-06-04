@@ -1,0 +1,44 @@
+[id='enabling-client-certificate-authentication_{context}']
+= Enabling client certificate authentication
+
+[role="_abstract"]
+{brandname} clusters do not use client certificate authentication by default.
+Complete the following procedure to enable it.
+
+You can configure {brandname} to verify client identities from certificates in a trust store in two ways:
+
+`Validate`:: Requires a trust store that contains only the signing certificate, which is typically a Certificate Authority (CA). Any client that presents a certificate signed by the CA can connect to {brandname}.
+`Authenticate`:: Requires a trust store that contains all client certificates in addition to the signing certificate. Only clients that present a signed certificate that is present in the trust store can connect to {brandname}.
+
+.Procedure
+
+. Set either `Validate` or `Authenticate` as the value for the `spec.security.endpointEncryption.clientCert` field in your `Infinispan` CR.
++
+[NOTE]
+====
+The default value is `None`.
+====
++
+. Optionally specify the secret that contains the client trust store with the `spec.security.endpointEncryption.clientCertSecretName` field.
++
+By default {ispn_operator} uses a trust store secret named `{example_crd_name}-client-cert-secret`.
+If you want to use this secret you do not need to specify the `clientCertSecretName` field.
+However, you must create the secret if it does not already exist.
++
+[NOTE]
+====
+The secret must be unique to each `Infinispan` CR instance in the {k8s} cluster.
+When you delete the `Infinispan` CR, {k8s} also automatically deletes the associated secret.
+====
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/cert_auth_enabled.yaml[]
+----
++
+. Apply the changes.
+
+.Next steps
+
+Provide {ispn_operator} with a trust store that contains all client certificates.
+Alternatively you can provide certificates in PEM format and let {brandname} generate a client trust store.

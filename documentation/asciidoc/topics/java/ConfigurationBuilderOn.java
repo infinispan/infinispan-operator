@@ -9,7 +9,7 @@ ConfigurationBuilder builder = new ConfigurationBuilder();
                .port(ConfigurationProperties.DEFAULT_HOTROD_PORT)
              .security().authentication()
                .username("username")
-               .password("password")
+               .password("changeme")
                .realm("default")
                .saslQop(SaslQop.AUTH)
                .saslMechanism("SCRAM-SHA-512")

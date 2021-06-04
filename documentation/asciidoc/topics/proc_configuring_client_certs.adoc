@@ -1,0 +1,22 @@
+[id='configuring-clients-present-certificates_{context}']
+= Configuring clients to present certificates
+
+[role="_abstract"]
+If you enable client certificate authentication, Hot Rod and REST clients must present valid certificates so they can connect to {brandname} endpoints.
+
+[NOTE]
+====
+Enabling client certificate authentication means you do not need to specify {brandname} user credentials in client configuration.
+You need to provide clients with keystores that contain the appropriate certificates that they can present to {brandname} when negotiating a connection.
+
+If you enable security authorization, you should assign the Common Name (`CN`) from the client certificate a role with the appropriate permissions.
+====
+
+Hot Rod clients must use the `EXTERNAL` authentication mechanism and specify the keystore that contains the client certificate as follows:
+
+[source,java,options="nowrap",subs=attributes+]
+----
+include::java/ConfigurationBuilderClientCertificates.java[]
+----
+
+REST clients must include the client certificate for each request as appropriate.
