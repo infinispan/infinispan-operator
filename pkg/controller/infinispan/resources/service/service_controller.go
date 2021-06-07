@@ -210,8 +210,9 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 func (s serviceResource) cleanupExternalExpose(excludeKind string) error {
 	for _, obj := range reconcileTypes {
 		if obj.GroupVersionSupported && obj.Kind() != excludeKind {
-			//TODO DeleteAllOf for Service objects not yet implemented. See https://github.com/kubernetes/kubernetes/issues/68468#issuecomment-419981870
-			if obj.Kind() == consts.ExternalTypeService {
+			switch obj.Kind() {
+			case consts.ExternalTypeService:
+				//TODO DeleteAllOf for Service objects not yet implemented. See https://github.com/kubernetes/kubernetes/issues/68468#issuecomment-419981870
 				serviceList := &corev1.ServiceList{}
 				if err := s.kube.ResourcesList(s.infinispan.Namespace, ExternalServiceLabels(s.infinispan.Name), serviceList); err != nil {
 					return nil
@@ -221,7 +222,7 @@ func (s serviceResource) cleanupExternalExpose(excludeKind string) error {
 						return nil
 					}
 				}
-			} else if obj.Kind() == consts.ExternalTypeIngress || obj.Kind() == consts.ExternalTypeRoute {
+			case consts.ExternalTypeIngress, consts.ExternalTypeRoute:
 				deleteOptions := []client.DeleteAllOfOption{client.MatchingLabels(ExternalServiceLabels(s.infinispan.Name)), client.InNamespace(s.infinispan.Namespace)}
 				if err := s.client.DeleteAllOf(ctx, obj.ObjectType, deleteOptions...); err != nil && !errors.IsNotFound(err) {
 					return err
