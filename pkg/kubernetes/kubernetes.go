@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sort"
 
 	"github.com/go-logr/logr"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
@@ -311,7 +312,12 @@ func (k Kubernetes) GetNodeHost(logger logr.Logger) (string, error) {
 		}
 	}
 
-	for _, node := range workerList.Items {
+	nodes := workerList.Items
+	sort.SliceStable(nodes, func(i, j int) bool {
+		return nodes[i].Name < nodes[j].Name
+	})
+
+	for _, node := range nodes {
 		//host := k.PublicIP() //returns REST API endpoint. not good.
 		//iterate over the all the nodes and return the first ready
 		nodeStatus := node.Status
