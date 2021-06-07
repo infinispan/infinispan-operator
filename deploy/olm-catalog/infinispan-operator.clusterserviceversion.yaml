@@ -413,6 +413,7 @@ spec:
                 - watch
                 - create
                 - delete
+                - deletecollection
             - apiGroups:
                 - networking.k8s.io
               resources:
@@ -423,6 +424,7 @@ spec:
                 - watch
                 - create
                 - delete
+                - deletecollection
             - apiGroups:
                 - monitoring.coreos.com
               resources:

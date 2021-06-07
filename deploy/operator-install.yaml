@@ -113,6 +113,7 @@ rules:
   - watch
   - create
   - delete
+  - deletecollection
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -123,6 +124,7 @@ rules:
   - watch
   - create
   - delete
+  - deletecollection
 - apiGroups:
   - monitoring.coreos.com
   resources:
