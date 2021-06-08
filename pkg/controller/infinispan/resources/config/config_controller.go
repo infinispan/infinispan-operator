@@ -95,17 +95,16 @@ func (c *configResource) Process() (reconcile.Result, error) {
 		}
 	}
 
-	err := c.computeAndReconcileConfigMap(xsite)
-	if err != nil {
+	if result, err := c.computeAndReconcileConfigMap(xsite); result != nil {
 		c.log.Error(err, "Error while computing and reconciling ConfigMap")
-		return reconcile.Result{Requeue: true}, nil
+		return *result, nil
 	}
 
 	return reconcile.Result{}, nil
 }
 
 // computeAndReconcileConfigMap computes, creates or updates the ConfigMap for the Infinispan
-func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite) error {
+func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite) (*reconcile.Result, error) {
 	name := c.infinispan.Name
 	namespace := c.infinispan.Namespace
 
@@ -156,9 +155,8 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 		serverConf.XSite = xsite
 	}
 
-	err := infinispan.ConfigureServerEncryption(c.infinispan, &serverConf, c.client)
-	if err != nil {
-		return err
+	if result, err := infinispan.ConfigureServerEncryption(c.infinispan, &serverConf, c.client); result != nil {
+		return result, err
 	}
 
 	configureCloudEvent(c.infinispan, &serverConf)
@@ -171,11 +169,12 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 	}
 
 	result, err := controllerutil.CreateOrUpdate(ctx, c.client, configMapObject, func() error {
+		configYaml, err := serverConf.Yaml()
+		if err != nil {
+			return err
+		}
+
 		if configMapObject.CreationTimestamp.IsZero() {
-			configYaml, err := serverConf.Yaml()
-			if err != nil {
-				return err
-			}
 			configMapObject.Data = map[string]string{consts.ServerConfigFilename: configYaml}
 			configMapObject.Labels = lsConfigMap
 			// Set Infinispan instance as the owner and controller
@@ -188,18 +187,17 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 				// Protecting Logging configuration from changes
 				serverConf.Logging = previousConfig.Logging
 			}
-			configYaml, err := serverConf.Yaml()
-			if err != nil {
-				return err
-			}
 			configMapObject.Data[consts.ServerConfigFilename] = configYaml
 		}
 		return nil
 	})
-	if err == nil && result != controllerutil.OperationResultNone {
+	if err != nil {
+		return &reconcile.Result{}, err
+	}
+	if result != controllerutil.OperationResultNone {
 		c.log.Info(fmt.Sprintf("ConfigMap '%s' %s", name, result))
 	}
-	return err
+	return nil, err
 }
 
 func configureCloudEvent(m *ispnv1.Infinispan, c *configuration.InfinispanConfiguration) {

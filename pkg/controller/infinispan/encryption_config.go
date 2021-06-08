@@ -10,6 +10,7 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -17,9 +18,9 @@ const (
 	EncryptKeystorePath = ServerRoot + "/conf/keystore"
 )
 
-func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfiguration, client client.Client) error {
+func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfiguration, client client.Client) (*reconcile.Result, error) {
 	if !i.IsEncryptionEnabled() {
-		return nil
+		return nil, nil
 	}
 
 	secretContains := func(secret *corev1.Secret, keys ...string) bool {
@@ -41,7 +42,7 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 	// Configure Keystore
 	keystoreSecret := &corev1.Secret{}
 	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, client, log, eventRec); result != nil {
-		return err
+		return result, err
 	}
 
 	if i.IsEncryptionCertFromService() {
@@ -63,12 +64,17 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 	if i.IsClientCertEnabled() {
 		trustSecret := &corev1.Secret{}
 		if result, err := kube.LookupResource(i.GetTruststoreSecretName(), i.Namespace, trustSecret, client, log, eventRec); result != nil {
-			return err
+			return result, err
 		}
 
 		c.Endpoints.ClientCert = string(i.Spec.Security.EndpointEncryption.ClientCert)
 		c.Truststore.Path = fmt.Sprintf("%s/%s", consts.ServerEncryptTruststoreRoot, consts.EncryptTruststoreKey)
-		c.Truststore.Password = string(trustSecret.Data[consts.EncryptTruststorePasswordKey])
+
+		if userPass, ok := trustSecret.Data[consts.EncryptTruststorePasswordKey]; ok {
+			c.Truststore.Password = string(userPass)
+		} else {
+			c.Truststore.Password = "password"
+		}
 	}
-	return nil
+	return nil, nil
 }
