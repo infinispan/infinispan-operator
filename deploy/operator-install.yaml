@@ -114,6 +114,7 @@ rules:
   - create
   - delete
   - deletecollection
+  - update
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -125,6 +126,7 @@ rules:
   - create
   - delete
   - deletecollection
+  - update
 - apiGroups:
   - monitoring.coreos.com
   resources:

@@ -414,6 +414,7 @@ spec:
                 - create
                 - delete
                 - deletecollection
+                - update
             - apiGroups:
                 - networking.k8s.io
               resources:
@@ -425,6 +426,7 @@ spec:
                 - create
                 - delete
                 - deletecollection
+                - update
             - apiGroups:
                 - monitoring.coreos.com
               resources:
