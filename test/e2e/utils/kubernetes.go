@@ -28,6 +28,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -36,6 +37,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -51,6 +54,9 @@ var log = logf.Log.WithName("kubernetes_test")
 type TestKubernetes struct {
 	Kubernetes *kube.Kubernetes
 }
+
+// MapperProvider is a function that provides RESTMapper instances
+type MapperProvider func(cfg *rest.Config, opts ...apiutil.DynamicRESTMapperOption) (meta.RESTMapper, error)
 
 func init() {
 	addToScheme(&v1.SchemeBuilder, scheme)
@@ -68,10 +74,59 @@ func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 	ExpectNoError(err)
 }
 
+// NewKubernetesFromLocalConfig creates a new Kubernetes instance from configuration.
+// The configuration is resolved locally from known locations.
+func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperProvider, ctx string) (*kube.Kubernetes, error) {
+	config := resolveConfig(ctx)
+	config = kube.SetConfigDefaults(config)
+	mapper, err := mapperProvider(config)
+	if err != nil {
+		return nil, err
+	}
+	kubernetes, err := client.New(config, createOptions(scheme, mapper))
+	if err != nil {
+		return nil, err
+	}
+	restClient, err := rest.RESTClientFor(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kube.Kubernetes{
+		Client:     kubernetes,
+		RestClient: restClient,
+		RestConfig: config,
+	}, nil
+}
+
+func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Options {
+	return client.Options{
+		Scheme: scheme,
+		Mapper: mapper,
+	}
+}
+
+func resolveConfig(ctx string) *rest.Config {
+	internal, _ := rest.InClusterConfig()
+	if internal == nil {
+		kubeConfig := kube.FindKubeConfig()
+		configOvr := clientcmd.ConfigOverrides{}
+		if ctx != "" {
+			configOvr.CurrentContext = ctx
+		}
+		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
+			&configOvr)
+		external, _ := clientConfig.ClientConfig()
+		return external
+	}
+	return internal
+}
+
 // NewTestKubernetes creates a new instance of TestKubernetes
 func NewTestKubernetes(ctx string) *TestKubernetes {
 	mapperProvider := apiutil.NewDynamicRESTMapper
-	kubernetes, err := kube.NewKubernetesFromLocalConfig(scheme, mapperProvider, ctx)
+	kubernetes, err := NewKubernetesFromLocalConfig(scheme, mapperProvider, ctx)
 	ExpectNoError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
 }

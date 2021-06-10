@@ -12,7 +12,6 @@ import (
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
@@ -24,7 +23,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -35,38 +33,10 @@ type Kubernetes struct {
 	RestConfig *rest.Config
 }
 
-// MapperProvider is a function that provides RESTMapper instances
-type MapperProvider func(cfg *rest.Config, opts ...apiutil.DynamicRESTMapperOption) (meta.RESTMapper, error)
-
-// NewKubernetesFromLocalConfig creates a new Kubernetes instance from configuration.
-// The configuration is resolved locally from known locations.
-func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperProvider, ctx string) (*Kubernetes, error) {
-	config := resolveConfig(ctx)
-	config = setConfigDefaults(config)
-	mapper, err := mapperProvider(config)
-	if err != nil {
-		return nil, err
-	}
-	kubernetes, err := client.New(config, createOptions(scheme, mapper))
-	if err != nil {
-		return nil, err
-	}
-	restClient, err := rest.RESTClientFor(config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Kubernetes{
-		Client:     kubernetes,
-		RestClient: restClient,
-		RestConfig: config,
-	}, nil
-}
-
 // NewKubernetesFromController creates a new Kubernetes instance from controller runtime Manager
 func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 	config := mgr.GetConfig()
-	config = setConfigDefaults(config)
+	config = SetConfigDefaults(config)
 	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
 		panic(err.Error())
@@ -77,7 +47,6 @@ func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 		RestClient: restClient,
 		RestConfig: config,
 	}
-
 }
 
 // NewKubernetesFromConfig creates a new Kubernetes from the Kubernetes master URL to connect to
@@ -86,7 +55,7 @@ func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
 	if err != nil {
 		return nil, err
 	}
-	config = setConfigDefaults(config)
+	config = SetConfigDefaults(config)
 	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
 		panic(err.Error())
@@ -174,42 +143,18 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 	return execOut, "", err
 }
 
-func resolveConfig(ctx string) *rest.Config {
-	internal, _ := rest.InClusterConfig()
-	if internal == nil {
-		kubeConfig := FindKubeConfig()
-		configOvr := clientcmd.ConfigOverrides{}
-		if ctx != "" {
-			configOvr.CurrentContext = ctx
-		}
-		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
-			&configOvr)
-		external, _ := clientConfig.ClientConfig()
-		return external
-	}
-	return internal
-}
-
 // FindKubeConfig returns local Kubernetes configuration
 func FindKubeConfig() string {
 	return consts.GetEnvWithDefault("KUBECONFIG", consts.DefaultKubeConfig)
 }
 
-func setConfigDefaults(config *rest.Config) *rest.Config {
+func SetConfigDefaults(config *rest.Config) *rest.Config {
 	gv := corev1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/api"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 	return config
-}
-
-func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Options {
-	return client.Options{
-		Scheme: scheme,
-		Mapper: mapper,
-	}
 }
 
 // ServiceCAsCRDResourceExists returns true if the platform
@@ -324,7 +269,7 @@ func (k Kubernetes) GetNodeHost(logger logr.Logger) (string, error) {
 		for _, nodeCondition := range nodeStatus.Conditions {
 			if nodeCondition.Type == corev1.NodeReady && nodeCondition.Status == corev1.ConditionTrue && len(nodeStatus.Addresses) > 0 {
 				for _, addressType := range []corev1.NodeAddressType{corev1.NodeExternalIP, corev1.NodeInternalIP} {
-					if host := GetNodeAddress(node, addressType); host != "" {
+					if host := getNodeAddress(node, addressType); host != "" {
 						logger.Info("Found ready worker node.", "Host", host)
 						return host, nil
 					}
@@ -335,7 +280,7 @@ func (k Kubernetes) GetNodeHost(logger logr.Logger) (string, error) {
 	return "", fmt.Errorf("no worker node found")
 }
 
-func GetNodeAddress(node corev1.Node, addressType corev1.NodeAddressType) string {
+func getNodeAddress(node corev1.Node, addressType corev1.NodeAddressType) string {
 	for _, a := range node.Status.Addresses {
 		if a.Type == addressType && a.Address != "" {
 			return a.Address

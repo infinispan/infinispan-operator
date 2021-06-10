@@ -96,8 +96,10 @@ func (c *configResource) Process() (reconcile.Result, error) {
 	}
 
 	if result, err := c.computeAndReconcileConfigMap(xsite); result != nil {
-		c.log.Error(err, "Error while computing and reconciling ConfigMap")
-		return *result, nil
+		if err != nil {
+			c.log.Error(err, "Error while computing and reconciling ConfigMap")
+		}
+		return *result, err
 	}
 
 	return reconcile.Result{}, nil

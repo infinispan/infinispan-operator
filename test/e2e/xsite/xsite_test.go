@@ -3,7 +3,6 @@ package xsite
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"testing"
 
 	"github.com/iancoleman/strcase"
@@ -123,7 +122,7 @@ func TestCrossSiteViewOpenshiftLoadBalancer(t *testing.T) {
 
 func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType string, exposeType ispnv1.CrossSiteExposeType) {
 	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
-	clientConfig := clientcmd.GetConfigFromFileOrDie(os.Getenv("KUBECONFIG"))
+	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
 
 	if isMultiCluster {
 		for instance, testKube := range tesKubes {
