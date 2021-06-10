@@ -36,7 +36,6 @@ jobs:
         - docker
       env:
         - KIND_VERSION=v0.11.0
-        - OSDK_FORCE_RUN_MODE=local
       before_script:
         - source ./build/travis/configure-travis-ci.sh
         - go mod vendor
@@ -57,7 +56,6 @@ jobs:
         - docker
       env:
         - KIND_VERSION=v0.11.0
-        - OSDK_FORCE_RUN_MODE=local
       before_script:
         - source ./build/travis/configure-travis-ci.sh
         - go mod vendor
