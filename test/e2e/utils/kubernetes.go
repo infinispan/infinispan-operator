@@ -641,6 +641,7 @@ func runOperatorLocally(stopCh chan struct{}, namespace string) {
 	kubeConfig := kube.FindKubeConfig()
 	_ = os.Setenv("WATCH_NAMESPACE", namespace)
 	_ = os.Setenv("KUBECONFIG", kubeConfig)
+	_ = os.Setenv("OSDK_FORCE_RUN_MODE", "local")
 	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
 }
 func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {
