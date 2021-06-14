@@ -245,8 +245,8 @@ func (ispn *Infinispan) IsUpgradeCondition() bool {
 
 func (ispn *Infinispan) GetServiceExternalName() string {
 	externalServiceName := fmt.Sprintf("%s-external", ispn.Name)
-	if ispn.IsExposed() && ispn.GetExposeType() == ExposeTypeRoute && len(externalServiceName) + len(ispn.Namespace) >= MaxRouteObjectNameLength {
-		return externalServiceName[0:MaxRouteObjectNameLength-len(ispn.Namespace)-2]+"a"
+	if ispn.IsExposed() && ispn.GetExposeType() == ExposeTypeRoute && len(externalServiceName)+len(ispn.Namespace) >= MaxRouteObjectNameLength {
+		return externalServiceName[0:MaxRouteObjectNameLength-len(ispn.Namespace)-2] + "a"
 	}
 	return externalServiceName
 }

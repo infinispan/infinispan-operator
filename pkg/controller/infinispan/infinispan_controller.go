@@ -332,7 +332,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// List the pods for this infinispan's deployment
 	podList := &corev1.PodList{}
 	if err := kubernetes.ResourcesList(infinispan.Namespace, PodLabels(infinispan.Name), podList); err != nil {
-		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace")
+		reqLogger.Error(err, "failed to list pods")
 		return reconcile.Result{}, err
 	}
 
