@@ -187,7 +187,7 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 
 func HTTPClientAndHost(i *ispnv1.Infinispan, kube *TestKubernetes) (string, HTTPClient) {
 	client := clientForCluster(i, kube)
-	hostAddr := kube.WaitForExternalService(i.GetServiceExternalName(), i.Namespace, i.GetExposeType(), RouteTimeout, client)
+	hostAddr := kube.WaitForExternalService(i, RouteTimeout, client)
 	return hostAddr, client
 }
 
@@ -218,6 +218,6 @@ func HTTPSClientAndHost(i *v1.Infinispan, tlsConfig *tls.Config, kube *TestKuber
 		}
 	}
 
-	hostAddr := kube.WaitForExternalService(i.GetServiceExternalName(), i.Namespace, i.GetExposeType(), RouteTimeout, client)
+	hostAddr := kube.WaitForExternalService(i, RouteTimeout, client)
 	return hostAddr, client
 }
