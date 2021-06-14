@@ -230,7 +230,7 @@ func TestNodeStartup(t *testing.T) {
 	}
 
 	svcList := &corev1.ServiceList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(ispn.ObjectMeta.Namespace, map[string]string{"infinispan_cr": "test-node-startup"}, svcList))
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(ispn.Namespace, map[string]string{"infinispan_cr": "test-node-startup"}, svcList))
 	if len(svcList.Items) == 0 {
 		panic("No services found for cluster")
 	}
@@ -877,7 +877,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	schema := testKube.GetSchemaForRest(ispn)
-	testAuthentication(schema, ispn.GetServiceExternalName(), ispn.GetExposeType(), usr, pass)
+	testAuthentication(ispn, schema, usr, pass)
 	// Update the auth credentials.
 	identitiesYaml, err = users.CreateIdentitiesFor(usr, newpass)
 	tutils.ExpectNoError(err)
@@ -923,13 +923,13 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	time.Sleep(10 * time.Second)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-	testAuthentication(schema, ispn.GetServiceExternalName(), spec.GetExposeType(), usr, newpass)
+	testAuthentication(ispn, schema, usr, newpass)
 }
 
-func testAuthentication(schema, routeName string, exposeType ispnv1.ExposeType, usr, pass string) {
+func testAuthentication(ispn *ispnv1.Infinispan, schema, usr, pass string) {
 	badClient := tutils.NewHTTPClient("badUser", "badPass", schema)
 	client := tutils.NewHTTPClient(usr, pass, schema)
-	hostAddr := testKube.WaitForExternalService(routeName, tutils.Namespace, exposeType, tutils.RouteTimeout, client)
+	hostAddr := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, client)
 
 	cacheName := "test"
 	createCacheBadCreds(cacheName, hostAddr, badClient)
@@ -972,7 +972,7 @@ func TestAuthenticationDisabled(t *testing.T) {
 
 	// Ensure that rest requests do not require authentication
 	client := tutils.NewHTTPClientNoAuth(testKube.GetSchemaForRest(spec))
-	hostAddr := testKube.WaitForExternalService(spec.GetServiceExternalName(), namespace, spec.GetExposeType(), tutils.RouteTimeout, client)
+	hostAddr := testKube.WaitForExternalService(spec, tutils.RouteTimeout, client)
 	url := fmt.Sprintf("%v/rest/v2/caches", hostAddr)
 	rsp, err := client.Get(url, nil)
 	tutils.ExpectNoError(err)
@@ -1084,7 +1084,7 @@ func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identi
 	user := identities.Credentials[0].Username
 	pass := identities.Credentials[0].Password
 	client := tutils.NewHTTPClient(user, pass, schema)
-	hostAddr := testKube.WaitForExternalService(ispn.GetServiceExternalName(), tutils.Namespace, ispn.GetExposeType(), tutils.RouteTimeout, client)
+	hostAddr := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, client)
 
 	// Verify authorization works as expected
 	verify(hostAddr, client)
@@ -1236,7 +1236,7 @@ func testCacheWithCR(ispn *ispnv1.Infinispan, cache *v2alpha1.Cache) {
 		Type:   "Ready",
 		Status: "True",
 	}
-	testKube.WaitForCacheCondition(cache.Spec.Name, cache.ObjectMeta.Namespace, condition)
+	testKube.WaitForCacheCondition(cache.Spec.Name, cache.Namespace, condition)
 	waitForCacheToBeCreated(cache.Spec.Name, hostAddr, client)
 	keyURL := fmt.Sprintf("%v/%v", cacheURL(cache.Spec.Name, hostAddr), key)
 	putViaRoute(keyURL, value, client)

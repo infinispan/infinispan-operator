@@ -154,8 +154,7 @@ func countersURL(counterName, hostAddr string) string {
 }
 
 func hostAddr(client tutils.HTTPClient, infinispan *v1.Infinispan) string {
-	routeName := fmt.Sprintf("%s-external", infinispan.Name)
-	return testKube.WaitForExternalService(routeName, tutils.Namespace, infinispan.GetExposeType(), tutils.RouteTimeout, client)
+	return testKube.WaitForExternalService(infinispan, tutils.RouteTimeout, client)
 }
 
 func createCluster(name string) *v1.Infinispan {

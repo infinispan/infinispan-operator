@@ -332,7 +332,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	// List the pods for this infinispan's deployment
 	podList, err := PodList(infinispan)
 	if err != nil {
-		reqLogger.Error(err, "failed to list pods", "Infinispan.Namespace")
+		reqLogger.Error(err, "failed to list pods")
 		return reconcile.Result{}, err
 	}
 
