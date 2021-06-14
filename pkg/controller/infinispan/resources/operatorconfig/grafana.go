@@ -82,7 +82,7 @@ func populateDashboard(dashboard *grafanav1alpha1.GrafanaDashboard, config map[s
 	if err != nil {
 		return err
 	}
-	dashboard.ObjectMeta.Labels = map[string]string{
+	dashboard.Labels = map[string]string{
 		"monitoring-key": config[grafanaDashboardMonitoringKey],
 		"app":            "grafana",
 	}
