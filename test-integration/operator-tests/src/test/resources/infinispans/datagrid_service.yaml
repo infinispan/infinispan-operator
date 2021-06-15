@@ -9,15 +9,15 @@ spec:
       - labelSelector:
           matchLabels:
             app: infinispan-pod
-            clusterName: advanced-setup-a
-            infinispan_cr: advanced-setup-a
+            clusterName: datagrid-service
+            infinispan_cr: datagrid-service
         topologyKey: "topology.kubernetes.io/zone"
   expose:
     type: Route
   container:
     cpu: 1500m
     memory: 1Gi
-    extra-jvm-opts: "-XX:NativeMemoryTracking=summary"
+    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
   logging:
     categories:
       org.infinispan: warn
