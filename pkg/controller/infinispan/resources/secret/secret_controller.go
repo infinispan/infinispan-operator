@@ -95,7 +95,7 @@ func (s *secretResource) Process() (reconcile.Result, error) {
 	}
 
 	// If the user has provided their own secret or authentication is disabled, do nothing
-	if !s.infinispan.IsGeneratedSecret() {
+	if !s.infinispan.IsAuthenticationEnabled() || !s.infinispan.IsGeneratedSecret() {
 		return reconcile.Result{}, nil
 	}
 
