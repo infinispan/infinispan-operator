@@ -27,4 +27,4 @@
     user: "1001"
   artifacts:
     - name: operator.tar.gz
-      url: https://github.com/infinispan/infinispan-operator/tarball/master
+      url: https://github.com/infinispan/infinispan-operator/tarball/2.1.x
