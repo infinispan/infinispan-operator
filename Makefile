@@ -158,7 +158,7 @@ batch-test: build
 ##                      - Override from source code build flag.
 ##                      Example: "make upgrade-test FROM_SOURCE_BUILD_FLAG=true"
 ##                      - Specify target migration git branch or tag name. If it's not defined the current branch will be used as target.
-##                      Example: "make upgrade-test TO_UPGRADE_VERSION=master"
+##                      Example: "make upgrade-test TO_UPGRADE_VERSION=main"
 ##                      - Override to source code build flag.
 ##                      Example: "make upgrade-test TO_SOURCE_BUILD_FLAG=true"
 ##
@@ -171,7 +171,7 @@ upgrade-test:
 ##                      Example: "make upgrade-test-local KUBECONFIG=/path/to/admin.kubeconfig"
 ##                      Example: "make upgrade-test-local FROM_UPGRADE_VERSION=2.0.x"
 ##                      - Specify target migration git branch or tag name. If it's not defined the current branch will be used as target.
-##                      Example: "make upgrade-test-local TO_UPGRADE_VERSION=master"
+##                      Example: "make upgrade-test-local TO_UPGRADE_VERSION=main"
 
 ##
 upgrade-test-local:
@@ -184,11 +184,6 @@ upgrade-test-local:
 ##
 release:
 	build/release.sh
-
-## copy-kubeconfig  Copy admin.kubeconfig for the OKD cluster to the location of KUBECONFIG.
-##
-copy-kubeconfig:
-	build/copy-kubeconfig.sh ${KUBECONFIG}
 
 # Minikube parameters
 PROFILE ?= operator-minikube
