@@ -17,7 +17,7 @@ spec:
       serviceAccountName: infinispan-operator
       containers:
         - name: infinispan-operator
-          image: quay.io/infinispan/operator:latest
+          image: quay.io/infinispan/operator:2.1.x
           ports:
           - containerPort: 60000
             name: metrics
