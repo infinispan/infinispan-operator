@@ -6,4 +6,4 @@ Manually build and install {ispn_operator} from the GitHub repository.
 
 .Procedure
 
-* Follow the appropriate instructions in the link:https://github.com/infinispan/infinispan-operator/blob/master/README.md[{ispn_operator} README].
+* Follow the appropriate instructions in the link:https://github.com/infinispan/infinispan-operator/blob/2.1.x/README.md[{ispn_operator} README].

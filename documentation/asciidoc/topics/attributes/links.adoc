@@ -2,7 +2,7 @@
 ifdef::community[]
 :github_root: https://github.com/infinispan/infinispan-operator/
 :github_raw: https://raw.githubusercontent.com/infinispan/infinispan-operator/
-:github_tag: master
+:github_tag: 2.1.x
 endif::community[]
 
 :link_operator_hub: https://www.operatorhub.io/[OperatorHub.io]
