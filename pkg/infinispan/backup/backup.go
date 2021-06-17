@@ -108,11 +108,11 @@ func (manager *Manager) RestoreStatus(name string) (Status, error) {
 	return manager.status(url, name, "Restore")
 }
 
-func (manager *Manager) post(url, op string, config interface{}) error {
+func (manager *Manager) post(url, op string, config interface{}) (err error) {
 	headers := map[string]string{"Content-Type": "application/json"}
 	json, err := json.Marshal(config)
 	if err != nil {
-		return err
+		return
 	}
 
 	payload := string(json)
@@ -121,8 +121,15 @@ func (manager *Manager) post(url, op string, config interface{}) error {
 		return err
 	}
 
+	defer func() {
+		cerr := rsp.Body.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+
 	if rsp.StatusCode == http.StatusAccepted {
-		return nil
+		return
 	}
 	return fmt.Errorf("%s failed. Unexpected response %d: '%s'", op, rsp.StatusCode, rsp.Body)
 }

@@ -130,7 +130,7 @@ func (c Cluster) GetClusterMembers(podName string) (members []string, err error)
 
 	var health Health
 	if err := json.NewDecoder(rsp.Body).Decode(&health); err != nil {
-		return nil, fmt.Errorf("unable to decode: %v", err)
+		return nil, fmt.Errorf("unable to decode: %w", err)
 	}
 	return health.ClusterHealth.Nodes, nil
 }
@@ -168,7 +168,7 @@ func (c Cluster) CacheNames(podName string) (caches []string, err error) {
 	}()
 
 	if err := json.NewDecoder(rsp.Body).Decode(&caches); err != nil {
-		return nil, fmt.Errorf("unable to decode: %v", err)
+		return nil, fmt.Errorf("unable to decode: %w", err)
 	}
 	return
 }
@@ -196,7 +196,7 @@ func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
-		return 0, fmt.Errorf("unexpected error getting memory limit bytes, stderr: %v, err: %v", execErr, err)
+		return 0, fmt.Errorf("unexpected error getting memory limit bytes, stderr: %v, err: %w", execErr, err)
 	}
 
 	result := strings.TrimSuffix(execOut.String(), "\n")
@@ -214,7 +214,7 @@ func (c Cluster) GetMaxMemoryUnboundedBytes(podName string) (uint64, error) {
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
-		return 0, fmt.Errorf("unexpected error getting max unbounded memory, stderr: %v, err: %v", execErr, err)
+		return 0, fmt.Errorf("unexpected error getting max unbounded memory, stderr: %v, err: %w", execErr, err)
 	}
 
 	result := execOut.String()
@@ -274,7 +274,7 @@ func (c Cluster) GetCacheManagerInfo(cacheManagerName, podName string) (info *Ca
 	}()
 
 	if err = json.NewDecoder(rsp.Body).Decode(&info); err != nil {
-		return nil, fmt.Errorf("unable to decode: %v", err)
+		return nil, fmt.Errorf("unable to decode: %w", err)
 	}
 	return
 }
@@ -294,7 +294,7 @@ func (c Cluster) GetLoggers(podName string) (lm map[string]string, err error) {
 
 	var loggers []Logger
 	if err := json.NewDecoder(rsp.Body).Decode(&loggers); err != nil {
-		return nil, fmt.Errorf("unable to decode: %v", err)
+		return nil, fmt.Errorf("unable to decode: %w", err)
 	}
 	lm = make(map[string]string)
 	for _, logger := range loggers {
@@ -316,7 +316,7 @@ func (c Cluster) SetLogger(podName, loggerName, loggerLevel string) error {
 
 func validateResponse(rsp *http.Response, reason string, inperr error, entity string, validCodes ...int) (err error) {
 	if inperr != nil {
-		return fmt.Errorf("unexpected error %s, stderr: %s, err: %v", entity, reason, inperr)
+		return fmt.Errorf("unexpected error %s, stderr: %s, err: %w", entity, reason, inperr)
 	}
 
 	if rsp == nil || len(validCodes) == 0 {
@@ -338,7 +338,7 @@ func validateResponse(rsp *http.Response, reason string, inperr error, entity st
 
 	responseBody, responseErr := ioutil.ReadAll(rsp.Body)
 	if responseErr != nil {
-		return fmt.Errorf("server side error %s. Unable to read response body, %v", entity, responseErr)
+		return fmt.Errorf("server side error %s. Unable to read response body, %w", entity, responseErr)
 	}
 	return fmt.Errorf("unexpected error %s, response: %v", entity, consts.GetWithDefault(string(responseBody), rsp.Status))
 }

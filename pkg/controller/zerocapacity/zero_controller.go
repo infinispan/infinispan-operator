@@ -290,9 +290,10 @@ func (z *Controller) waitForExecutionToComplete(httpClient http.HttpClient, requ
 
 func (z *Controller) cleanupResources(httpClient http.HttpClient, request reconcile.Request) (reconcile.Result, error) {
 	// Stop the zero-capacity server so that it leaves the Infinispan cluster
+	var logErr error
 	if z.isZeroPodReady(request) {
 		rsp, err, reason := httpClient.Post(request.Name, consts.ServerHTTPServerStop, "", nil)
-		var logErr error
+
 		if err != nil {
 			logErr = fmt.Errorf("Unable to stop zero-capacity server: '%s': %w", reason, err)
 		} else if rsp.StatusCode != goHttp.StatusNoContent {
@@ -302,8 +303,14 @@ func (z *Controller) cleanupResources(httpClient http.HttpClient, request reconc
 		if logErr != nil {
 			z.Log.Error(logErr, "Error encountered when cleaning up zero-capacity pod")
 		}
+		defer func() {
+			cerr := rsp.Body.Close()
+			if logErr == nil {
+				logErr = cerr
+			}
+		}()
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, logErr
 }
 
 func (z *Controller) isZeroPodReady(request reconcile.Request) bool {

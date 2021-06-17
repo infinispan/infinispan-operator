@@ -240,6 +240,7 @@ func assertK8ResourceExists(name string, obj runtime.Object) bool {
 func assertRestOk(url string, client tutils.HTTPClient) {
 	rsp, err := client.Get(url, nil)
 	tutils.ExpectNoError(err)
+	defer tutils.CloseHttpResponse(rsp)
 	if rsp.StatusCode != http.StatusOK {
 		panic(fmt.Sprintf("Expected Status Code 200, received %d", rsp.StatusCode))
 	}

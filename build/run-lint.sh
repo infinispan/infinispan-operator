@@ -35,4 +35,5 @@ if ! validateGolangCILint; then
   installGolangCILint
 fi
 
-golangci-lint run
+golangci-lint run --enable errorlint
+golangci-lint run --disable-all --enable bodyclose --skip-dirs test
