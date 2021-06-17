@@ -311,7 +311,7 @@ func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infini
 	post := func(url, payload string, status int, headers map[string]string) {
 		rsp, err := client.Post(url, payload, headers)
 		tutils.ExpectNoError(err)
-		tutils.CloseHttpResponse(rsp)
+		defer tutils.CloseHttpResponse(rsp)
 		if rsp.StatusCode != status {
 			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
 		}

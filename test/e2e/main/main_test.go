@@ -412,6 +412,7 @@ func checkRestConnection(hostAddr string, client tutils.HTTPClient) {
 	url := fmt.Sprintf("%v/rest/v2/cache-managers/default", hostAddr)
 	rsp, err := client.Get(url, nil)
 	tutils.ExpectNoError(err)
+	defer tutils.CloseHttpResponse(rsp)
 	if rsp.StatusCode != http.StatusOK {
 		panic(httpError{rsp.StatusCode})
 	}

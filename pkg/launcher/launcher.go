@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -176,7 +177,7 @@ func Launch(params Parameters) {
 // the Prometheus operator
 func addMetrics(ctx context.Context, cfg *rest.Config, namespace string) {
 	if err := serveCRMetrics(cfg); err != nil {
-		if err == k8sutil.ErrRunLocal {
+		if errors.Is(err, k8sutil.ErrRunLocal) {
 			log.Info("Skipping CR metrics server creation; not running in a cluster.")
 			return
 		}
@@ -203,7 +204,7 @@ func addMetrics(ctx context.Context, cfg *rest.Config, namespace string) {
 		log.Info("Could not create ServiceMonitor object", "error", err.Error())
 		// If this operator is deployed to a cluster without the prometheus-operator running, it will return
 		// ErrServiceMonitorNotPresent, which can be used to safely skip ServiceMonitor creation.
-		if err == metrics.ErrServiceMonitorNotPresent {
+		if errors.Is(err, metrics.ErrServiceMonitorNotPresent) {
 			log.Info("Install prometheus-operator in your cluster to create ServiceMonitor objects", "error", err.Error())
 		}
 	}
