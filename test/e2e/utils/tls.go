@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	ServerName         = "server"
 	KeystorePassword   = "secret"
 	TruststorePassword = "secret"
 	keyBits            = 2048
@@ -38,9 +37,9 @@ type certHolder struct {
 }
 
 // Returns the public and private keys o
-func CreateServerCertificates() (publicKey, privateKey []byte, clientTLSConf *tls.Config) {
+func CreateServerCertificates(serverName string) (publicKey, privateKey []byte, clientTLSConf *tls.Config) {
 	ca := ca()
-	server := cert(ServerName, ca)
+	server := serverCert(serverName, ca)
 	publicKey = server.getCertPEM()
 	privateKey = server.getPrivateKeyPEM()
 
@@ -48,31 +47,31 @@ func CreateServerCertificates() (publicKey, privateKey []byte, clientTLSConf *tl
 	certpool.AddCert(ca.cert)
 	clientTLSConf = &tls.Config{
 		RootCAs:    certpool,
-		ServerName: ServerName,
+		ServerName: serverName,
 	}
 	return
 }
 
 // Returns a keystore using a self-signed certificate, and the corresponding tls.Config required by clients to connect to the server
-func CreateKeystore() (keystore []byte, clientTLSConf *tls.Config) {
+func CreateKeystore(serverName string) (keystore []byte, clientTLSConf *tls.Config) {
 	ca := ca()
-	server := cert(ServerName, ca)
+	server := serverCert(serverName, ca)
 	keystore = createKeystore(ca, server)
 
 	certpool := x509.NewCertPool()
 	certpool.AddCert(ca.cert)
 	clientTLSConf = &tls.Config{
 		RootCAs:    certpool,
-		ServerName: ServerName,
+		ServerName: serverName,
 	}
 	return
 }
 
-func CreateKeystoreAndClientCerts() (keystore []byte, caPem []byte, clientPem []byte, clientTLSConf *tls.Config) {
+func CreateKeystoreAndClientCerts(serverName string) (keystore []byte, caPem []byte, clientPem []byte, clientTLSConf *tls.Config) {
 	ca := ca()
-	server := cert("server", ca)
+	server := serverCert(serverName, ca)
 	keystore = createKeystore(ca, server)
-	client := cert("client", ca)
+	client := clientCert("client", ca)
 
 	certpool := x509.NewCertPool()
 	certpool.AddCert(ca.cert)
@@ -85,19 +84,20 @@ func CreateKeystoreAndClientCerts() (keystore []byte, caPem []byte, clientPem []
 			return &certificate, err
 		},
 		RootCAs:    certpool,
-		ServerName: ServerName,
+		ServerName: serverName,
 	}
 	return
 }
 
 // Returns a keystore & truststore using a self-signed certificate, and the corresponding tls.Config required by clients to connect to the server
 // If authenticate is true, then the returned truststore contains all client certificates, otherwise it simply contains the CA for validation
-func CreateKeyAndTruststore(authenticate bool) (keystore []byte, truststore []byte, clientTLSConf *tls.Config) {
+func CreateKeyAndTruststore(serverName string, authenticate bool) (keystore []byte, truststore []byte, clientTLSConf *tls.Config) {
+	ExpectNoError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
-	server := cert("server", ca)
+	server := serverCert(serverName, ca)
 	keystore = createKeystore(ca, server)
 
-	client := cert("client", ca)
+	client := clientCert("client", ca)
 	truststore = createTruststore(ca, client, authenticate)
 
 	certpool := x509.NewCertPool()
@@ -109,7 +109,7 @@ func CreateKeyAndTruststore(authenticate bool) (keystore []byte, truststore []by
 			return &certificate, err
 		},
 		RootCAs:    certpool,
-		ServerName: ServerName,
+		ServerName: serverName,
 	}
 	return
 }
@@ -148,13 +148,38 @@ func ca() *certHolder {
 	}
 }
 
-func cert(name string, ca *certHolder) *certHolder {
+func serverCert(dnsName string, ca *certHolder) *certHolder {
 	// create our private and public key
 	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
 	ExpectNoError(err)
 
 	// set up our server certificate
 	server := &x509.Certificate{
+		SerialNumber: big.NewInt(serialNumber),
+		Subject: pkix.Name{
+			CommonName:         "server",
+			Organization:       []string{"JBoss"},
+			OrganizationalUnit: []string{"Infinispan"},
+			Locality:           []string{"Red Hat"},
+		},
+		DNSNames:           []string{dnsName},
+		Issuer:             ca.cert.Subject,
+		NotBefore:          time.Now(),
+		NotAfter:           time.Now().AddDate(10, 0, 0),
+		PublicKeyAlgorithm: x509.RSA,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+	}
+	serialNumber++
+	return createAndParseCert(server, privateKey, ca)
+}
+
+func clientCert(name string, ca *certHolder) *certHolder {
+	// create our private and public key
+	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
+	ExpectNoError(err)
+
+	// set up our certificate
+	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(serialNumber),
 		Subject: pkix.Name{
 			CommonName:         name,
@@ -169,8 +194,11 @@ func cert(name string, ca *certHolder) *certHolder {
 		SignatureAlgorithm: x509.SHA256WithRSA,
 	}
 	serialNumber++
+	return createAndParseCert(cert, privateKey, ca)
+}
 
-	certBytes, err := x509.CreateCertificate(rand.Reader, server, ca.cert, &privateKey.PublicKey, ca.privateKey)
+func createAndParseCert(c *x509.Certificate, privateKey *rsa.PrivateKey, ca *certHolder) *certHolder {
+	certBytes, err := x509.CreateCertificate(rand.Reader, c, ca.cert, &privateKey.PublicKey, ca.privateKey)
 	ExpectNoError(err)
 
 	cert, err := x509.ParseCertificate(certBytes)
