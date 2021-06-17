@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,7 +46,7 @@ func CreateOrPatch(ctx context.Context, c client.Client, obj runtime.Object, f c
 		return controllerutil.OperationResultNone, err
 	}
 	if err := c.Get(ctx, key, obj); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return controllerutil.OperationResultNone, err
 		}
 		if f != nil {
@@ -162,7 +163,7 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj runtime.Object)
 func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger, eventRec record.EventRecorder) (*reconcile.Result, error) {
 	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			if eventRec != nil {
 				objMeta, err1 := meta.Accessor(resource)
 				if err1 == nil {
@@ -223,7 +224,7 @@ func isServiceAccountToken(secret *corev1.Secret, sa *corev1.ServiceAccount) boo
 func GetOperatorNamespace() (string, error) {
 	operatorNs, err := k8sutil.GetOperatorNamespace()
 	// This makes everything work even running outside the cluster
-	if err == k8sutil.ErrRunLocal {
+	if errors.Is(err, k8sutil.ErrRunLocal) {
 		var operatorWatchNs string
 		operatorWatchNs, err = k8sutil.GetWatchNamespace()
 		if operatorWatchNs != "" {

@@ -1,6 +1,7 @@
 package operatorconfig
 
 import (
+	"errors"
 	"fmt"
 
 	rice "github.com/GeertJohan/go.rice"
@@ -8,7 +9,7 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	grafanav1alpha1 "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -41,7 +42,7 @@ func (r *ReconcileOperatorConfig) reconcileGrafana(config, currentConfig map[str
 		if infinispanDashboard.CreationTimestamp.IsZero() {
 			if grafanaNs == operatorNs {
 				if ownRef, err := kube.GetOperatorPodOwnerRef(operatorNs, r.client); err != nil {
-					if err == k8sutil.ErrRunLocal {
+					if errors.Is(err, k8sutil.ErrRunLocal) {
 						r.Log.Info(fmt.Sprintf("Not setting controller reference for Grafana Dashboard, cause %s.", err.Error()))
 					} else {
 						return err
@@ -111,7 +112,7 @@ func (r *ReconcileOperatorConfig) deleteDashboardOnKeyChanged(newCfg, curCfg map
 				Namespace: curCfg[grafanaDashboardNamespaceKey],
 			},
 		}
-		if err := r.Kube.Client.Delete(ctx, currGrafana); err != nil && !errors.IsNotFound(err) {
+		if err := r.Kube.Client.Delete(ctx, currGrafana); err != nil && !k8serrors.IsNotFound(err) {
 			return err
 		}
 		currentConfig[grafanaDashboardNamespaceKey] = ""

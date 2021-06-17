@@ -390,7 +390,7 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomRes
 	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 		if err != nil {
-			return false, fmt.Errorf("unable to get CRD: %v", err)
+			return false, fmt.Errorf("unable to get CRD: %w", err)
 		}
 
 		for _, cond := range crd.Status.Conditions {
