@@ -2,8 +2,11 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -28,14 +31,13 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/rest"
@@ -142,7 +144,7 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 	}
 
 	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: namespace}, obj)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && k8serrors.IsNotFound(err) {
 		err = k.Kubernetes.Client.Create(context.TODO(), obj)
 		ExpectNoError(err)
 		return
@@ -230,7 +232,7 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 	fmt.Println("Waiting for the namespace to be removed")
 	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: namespace}, obj)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, nil
@@ -358,7 +360,7 @@ func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func())
 	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		_, updateErr := controllerutil.CreateOrUpdate(context.TODO(), k.Kubernetes.Client, ispn, func() error {
 			if ispn.CreationTimestamp.IsZero() {
-				return errors.NewNotFound(ispnv1.Resource("infinispan.org"), ispn.Name)
+				return k8serrors.NewNotFound(ispnv1.Resource("infinispan.org"), ispn.Name)
 			}
 			// Change the Infinispan spec
 			if update != nil {
@@ -369,7 +371,7 @@ func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func())
 
 			return nil
 		})
-		if updateErr == nil || errors.IsConflict(updateErr) {
+		if updateErr == nil || k8serrors.IsConflict(updateErr) {
 			return true, nil
 		}
 		return false, updateErr
@@ -464,13 +466,29 @@ func getNodePort(service *corev1.Service) int32 {
 func CheckExternalAddress(c HTTPClient, hostAndPort string) bool {
 	httpURL := fmt.Sprintf("%s/%s", hostAndPort, consts.ServerHTTPHealthPath)
 	resp, err := c.Get(httpURL, nil)
-	if net.IsConnectionRefused(err) {
+	if isTemporary(err) {
 		return false
 	}
 	ExpectNoError(err)
 	defer LogError(resp.Body.Close())
 	log.Info("Received response for external address", "response code", resp.StatusCode)
 	return resp.StatusCode == http.StatusOK
+}
+
+func isTemporary(err error) bool {
+	if errors.Is(err, io.EOF) {
+		// Connection closures may be resolved upon retry, and are thus treated as temporary.
+		return true
+	}
+
+	var temporary interface {
+		Temporary() bool
+	}
+
+	var timeout interface {
+		Timeout() bool
+	}
+	return errors.As(err, &temporary) || errors.As(err, &timeout)
 }
 
 func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) {
@@ -519,7 +537,7 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condi
 	ispn := &ispnv1.Infinispan{}
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			return false, err
 		}
 		if err != nil {
@@ -568,7 +586,7 @@ func (k TestKubernetes) DeleteCRD(name string) {
 	fmt.Println("Waiting for the CRD to be removed")
 	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: name}, crd)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, nil
@@ -684,7 +702,7 @@ func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition 
 	cache := &v2alpha1.Cache{}
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, cache)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			return false, err
 		}
 		if err != nil {
@@ -699,4 +717,17 @@ func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition 
 		return false, nil
 	})
 	ExpectNoError(err)
+}
+
+func GetServerName(i *ispnv1.Infinispan) string {
+	if i.GetExposeType() != ispnv1.ExposeTypeRoute {
+		return "server"
+	}
+	c := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	clusterName := c.Contexts[c.CurrentContext].Cluster
+	cluster := c.Clusters[clusterName]
+	url, err := url.Parse(cluster.Server)
+	ExpectNoError(err)
+	hostname := strings.Split(strings.Replace(url.Host, "api.", "apps.", 1), ":")[0]
+	return fmt.Sprintf("%s-%s.%s", i.GetServiceExternalName(), i.GetNamespace(), hostname)
 }

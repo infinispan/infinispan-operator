@@ -123,7 +123,8 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	}
 
 	// Create secret
-	keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(false)
+	serverName := tutils.GetServerName(spec)
+	keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
 	keystoreSecret := tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
 	truststoreSecret := tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
 	testKube.CreateSecret(keystoreSecret)
@@ -150,7 +151,7 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	originalGeneration := ss.Status.ObservedGeneration
 
 	// Update secret to contain new keystore
-	newKeystore, newTruststore, newTlsConfig := tutils.CreateKeyAndTruststore(false)
+	newKeystore, newTruststore, newTlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
 	if bytes.Equal(keystore, newKeystore) || bytes.Equal(truststore, newTruststore) {
 		panic("Expected new store")
 	}
@@ -353,6 +354,7 @@ func TestClusterFormation(t *testing.T) {
 // Test if the cluster is working correctly
 func TestClusterFormationWithTLS(t *testing.T) {
 	t.Parallel()
+
 	// Create a resource without passing any config
 	spec := tutils.DefaultSpec(testKube)
 	name := strcase.ToKebab(t.Name())
@@ -361,8 +363,10 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
 		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
 	}
+
 	// Create secret with server certificates
-	cert, privKey, tlsConfig := tutils.CreateServerCertificates()
+	serverName := tutils.GetServerName(spec)
+	cert, privKey, tlsConfig := tutils.CreateServerCertificates(serverName)
 	secret := tutils.EncryptionSecret(spec.Name, tutils.Namespace, privKey, cert)
 	testKube.CreateSecret(secret)
 	defer testKube.DeleteSecret(secret)
@@ -391,7 +395,8 @@ func TestTLSWithExistingKeystore(t *testing.T) {
 		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
 	}
 	// Create secret
-	keystore, tlsConfig := tutils.CreateKeystore()
+	serverName := tutils.GetServerName(spec)
+	keystore, tlsConfig := tutils.CreateKeystore(serverName)
 	secret := tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
 	testKube.CreateSecret(secret)
 	defer testKube.DeleteSecret(secret)
@@ -421,7 +426,8 @@ func checkRestConnection(hostAddr string, client tutils.HTTPClient) {
 func TestClientCertValidate(t *testing.T) {
 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertValidate
-		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(false)
+		serverName := tutils.GetServerName(spec)
+		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
 		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
 		return
@@ -431,7 +437,8 @@ func TestClientCertValidate(t *testing.T) {
 func TestClientCertAuthenticate(t *testing.T) {
 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertAuthenticate
-		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(true)
+		serverName := tutils.GetServerName(spec)
+		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, true)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
 		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
 		return
@@ -481,7 +488,8 @@ func TestClientCertAuthenticate(t *testing.T) {
 func TestClientCertGeneratedTruststoreAuthenticate(t *testing.T) {
 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertAuthenticate
-		keystore, caCert, clientCert, tlsConfig := tutils.CreateKeystoreAndClientCerts()
+		serverName := tutils.GetServerName(spec)
+		keystore, caCert, clientCert, tlsConfig := tutils.CreateKeystoreAndClientCerts(serverName)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
 		truststoreSecret = tutils.EncryptionSecretClientCert(spec.Name, tutils.Namespace, caCert, clientCert)
 		return
@@ -491,7 +499,8 @@ func TestClientCertGeneratedTruststoreAuthenticate(t *testing.T) {
 func TestClientCertGeneratedTruststoreValidate(t *testing.T) {
 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertValidate
-		keystore, caCert, _, tlsConfig := tutils.CreateKeystoreAndClientCerts()
+		serverName := tutils.GetServerName(spec)
+		keystore, caCert, _, tlsConfig := tutils.CreateKeystoreAndClientCerts(serverName)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
 		truststoreSecret = tutils.EncryptionSecretClientCert(spec.Name, tutils.Namespace, caCert, nil)
 		return
@@ -611,7 +620,8 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 	}
 
 	// Create secret with server certificates
-	cert, privKey, tlsConfig := tutils.CreateServerCertificates()
+	serverName := tutils.GetServerName(spec)
+	cert, privKey, tlsConfig := tutils.CreateServerCertificates(serverName)
 	secret := tutils.EncryptionSecret(spec.Name, tutils.Namespace, privKey, cert)
 	testKube.CreateSecret(secret)
 
