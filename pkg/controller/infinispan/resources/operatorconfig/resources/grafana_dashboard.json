@@ -137,7 +137,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(kube_pod_status_ready{namespace=~\"$namespace\",pod !~ \"infinispan-operator.*\"}) by (namespace) # kube specific, need OS?",
+          "expr": "sum(kube_pod_status_ready{namespace=~\"$namespace\",pod=~\"$cluster-[0-9]+\"}) by (namespace) # kube specific, need OS?",
           "format": "time_series",
           "instant": true,
           "interval": "",
