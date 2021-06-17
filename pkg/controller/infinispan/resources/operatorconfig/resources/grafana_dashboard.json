@@ -139,6 +139,7 @@
         {
           "expr": "sum(kube_pod_status_ready{namespace=~\"$namespace\",pod !~ \"infinispan-operator.*\"}) by (namespace) # kube specific, need OS?",
           "format": "time_series",
+          "instant": true,
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "Replicas",
