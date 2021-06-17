@@ -99,7 +99,9 @@ func (c *httpClientConfig) exec(method, path, payload string, headers map[string
 	ExpectNoError(err)
 	fmt.Printf("%s: %s\n", method, httpURL)
 	rsp, err := c.request(httpURL, method, payload, headers)
-	ExpectNoError(err)
+	if err != nil {
+		return nil, err
+	}
 
 	if c.auth == authDigest && rsp.StatusCode == http.StatusUnauthorized {
 		ExpectNoError(rsp.Body.Close())
