@@ -70,7 +70,7 @@ metadata:
           }
         }
       ]
-    capabilities: Full Lifecycle
+    capabilities: Deep Insights
     categories: Database
     repository: https://github.com/infinispan/infinispan-operator
     description: Create and manage Infinispan clusters.
@@ -272,6 +272,8 @@ spec:
     ### Operator capabilities
     * Built-in intelligence to automate Infinispan cluster deployment.
     * Infinispan CR for service configuration.
+    * Cross site configuration and management.
+    * Deployment of Grafana and Prometheus resources.
     * Cache CR for fully configurable caches.
     * Batch CR for scripting bulk resource creation.
     * REST and Hot Rod endpoints available at port `11222`.
