@@ -8,6 +8,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
+	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
@@ -74,6 +75,11 @@ func Add(mgr manager.Manager) error {
 }
 
 func (c *configResource) Process() (reconcile.Result, error) {
+	// Don't update the ConfigMap if an update is required
+	if req, err := ispnctrl.IsUpgradeRequired(c.infinispan); req || err != nil {
+		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
+	}
+
 	var xsite *configuration.XSite
 	if c.infinispan.HasSites() {
 		// Check x-site configuration first.
