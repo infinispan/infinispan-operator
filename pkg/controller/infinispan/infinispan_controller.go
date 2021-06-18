@@ -330,8 +330,8 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// List the pods for this infinispan's deployment
-	podList := &corev1.PodList{}
-	if err := kubernetes.ResourcesList(infinispan.Namespace, PodLabels(infinispan.Name), podList); err != nil {
+	podList, err := PodList(infinispan)
+	if err != nil {
 		reqLogger.Error(err, "failed to list pods")
 		return reconcile.Result{}, err
 	}
@@ -683,11 +683,25 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 }
 
 func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) (*reconcile.Result, error) {
+	if upgrade, err := upgradeRequired(infinispan, podList); upgrade || err != nil {
+		if err := r.update(infinispan, func() {
+			podDefaultImage := kube.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
+			logger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", consts.DefaultImageName)
+			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
+			infinispan.Spec.Replicas = 0
+		}); err != nil {
+			return &reconcile.Result{}, err
+		}
+	}
+	return nil, nil
+}
+
+func upgradeRequired(infinispan *infinispanv1.Infinispan, podList *corev1.PodList) (bool, error) {
 	if len(podList.Items) == 0 {
-		return nil, nil
+		return false, nil
 	}
 	if infinispan.IsUpgradeCondition() {
-		return nil, nil
+		return false, nil
 	}
 
 	// All pods need to be ready for the upgrade to be scheduled
@@ -695,7 +709,7 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 	//and old ones terminating while new ones are being created.
 	// We don't want yet another upgrade to be scheduled then.
 	if !kube.AreAllPodsReady(podList) {
-		return nil, nil
+		return false, nil
 	}
 
 	// Get default Infinispan image for a running Infinispan pod
@@ -706,16 +720,20 @@ func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.I
 
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
-	if podDefaultImage != desiredImage {
-		if err := r.update(infinispan, func() {
-			logger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", desiredImage)
-			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
-			infinispan.Spec.Replicas = 0
-		}); err != nil {
-			return &reconcile.Result{}, err
-		}
+	return podDefaultImage != desiredImage, nil
+}
+
+func IsUpgradeRequired(infinispan *infinispanv1.Infinispan) (bool, error) {
+	podList, err := PodList(infinispan)
+	if err != nil {
+		return false, err
 	}
-	return nil, nil
+	return upgradeRequired(infinispan, podList)
+}
+
+func PodList(infinispan *infinispanv1.Infinispan) (*corev1.PodList, error) {
+	podList := &corev1.PodList{}
+	return podList, kubernetes.ResourcesList(infinispan.Namespace, PodLabels(infinispan.Name), podList)
 }
 
 func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *corev1.Affinity {
