@@ -492,7 +492,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "min(kube_pod_container_resource_requests{namespace=~\"$namespace\", resource=\"memory\", container=\"infinispan\"})\n",
+          "expr": "min(kube_pod_container_resource_requests{namespace=~\"$namespace\", resource=\"memory\", pod=~\"$cluster-[0-9]+\"})\n",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -502,7 +502,7 @@
           "refId": "A"
         },
         {
-          "expr": "min(kube_pod_container_resource_limits{namespace=~\"$namespace\", resource=\"memory\", container=\"infinispan\"})",
+          "expr": "min(kube_pod_container_resource_limits{namespace=~\"$namespace\", resource=\"memory\", pod=~\"$cluster-[0-9]+\"})",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -511,7 +511,7 @@
           "refId": "C"
         },
         {
-          "expr": "container_memory_rss{namespace=~\"$namespace\", container=\"infinispan\"}",
+          "expr": "container_memory_rss{namespace=~\"$namespace\", container=\"infinispan\", pod=~\"$cluster-[0-9]+\"}",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -934,22 +934,6 @@
       "stack": false,
       "steppedLine": false,
       "targets": [
-        {
-          "expr": "kube_pod_container_resource_requests{namespace=\"$namespace\", resource=\"memory\"}",
-          "format": "time_series",
-          "hide": false,
-          "instant": false,
-          "intervalFactor": 1,
-          "legendFormat": "Requests",
-          "refId": "A"
-        },
-        {
-          "expr": "kube_pod_container_resource_limits{namespace=\"$namespace\", resource=\"memory\"}",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "Limits",
-          "refId": "C"
-        },
         {
           "expr": "sum(base_memory_usedHeap_bytes{namespace=\"$namespace\"}) by (pod)",
           "format": "time_series",
