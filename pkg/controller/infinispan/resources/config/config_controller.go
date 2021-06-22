@@ -75,8 +75,13 @@ func Add(mgr manager.Manager) error {
 }
 
 func (c *configResource) Process() (reconcile.Result, error) {
-	// Don't update the ConfigMap if an update is required
+	// Don't update the ConfigMap if an update is about to be scheduled
 	if req, err := ispnctrl.IsUpgradeRequired(c.infinispan); req || err != nil {
+		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
+	}
+
+	// Don't update the configMap if an update is in progress
+	if c.infinispan.IsConditionTrue(ispnv1.ConditionUpgrade) {
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 	}
 
