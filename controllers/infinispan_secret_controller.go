@@ -182,7 +182,7 @@ func (s *secretRequest) reconcileTruststoreSecret() (*reconcile.Result, error) {
 			ispnv1.ClientCertAuthenticate, ispnv1.ClientCertValidate)
 	}
 
-	if result, err := kube.LookupResource(trustSecret.Name, i.Namespace, trustSecret, s.Client, s.reqLogger, s.eventRec, s.ctx); result != nil {
+	if result, err := kube.LookupResource(trustSecret.Name, i.Namespace, trustSecret, i, s.Client, s.reqLogger, s.eventRec, s.ctx); result != nil {
 		return result, err
 	}
 
