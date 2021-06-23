@@ -113,7 +113,7 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		// For cross site, reconcile must come before compute, because
 		// we need xsite service details to compute xsite struct
 		siteService := &corev1.Service{}
-		if result, err := kube.LookupResource(infinispan.GetSiteServiceName(), infinispan.Namespace, siteService, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+		if result, err := kube.LookupResource(infinispan.GetSiteServiceName(), infinispan.Namespace, siteService, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 			return *result, err
 		}
 
@@ -266,7 +266,7 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 
 	// Configure Keystore
 	keystoreSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, client, log, eventRec, ctx); result != nil {
+	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, i, client, log, eventRec, ctx); result != nil {
 		return result, err
 	}
 
@@ -288,7 +288,7 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 	// Configure Truststore
 	if i.IsClientCertEnabled() {
 		trustSecret := &corev1.Secret{}
-		if result, err := kube.LookupResource(i.GetTruststoreSecretName(), i.Namespace, trustSecret, client, log, eventRec, ctx); result != nil {
+		if result, err := kube.LookupResource(i.GetTruststoreSecretName(), i.Namespace, trustSecret, i, client, log, eventRec, ctx); result != nil {
 			return result, err
 		}
 

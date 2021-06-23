@@ -288,7 +288,7 @@ func (s serviceRequest) reconcileServiceMonitor(service *corev1.Service) (reconc
 
 	if s.infinispan.IsServiceMonitorEnabled() {
 		secret := &corev1.Secret{}
-		if result, err := kube.LookupResource(s.infinispan.GetAdminSecretName(), s.infinispan.Namespace, secret, s.Client, s.log, s.eventRec, s.ctx); result != nil {
+		if result, err := kube.LookupResource(s.infinispan.GetAdminSecretName(), s.infinispan.Namespace, secret, s.infinispan, s.Client, s.log, s.eventRec, s.ctx); result != nil {
 			return *result, err
 		}
 
