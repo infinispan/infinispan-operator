@@ -41,7 +41,7 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 
 	// Configure Keystore
 	keystoreSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, client, log, eventRec); result != nil {
+	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, i, client, log, eventRec); result != nil {
 		return result, err
 	}
 
@@ -63,7 +63,7 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 	// Configure Truststore
 	if i.IsClientCertEnabled() {
 		trustSecret := &corev1.Secret{}
-		if result, err := kube.LookupResource(i.GetTruststoreSecretName(), i.Namespace, trustSecret, client, log, eventRec); result != nil {
+		if result, err := kube.LookupResource(i.GetTruststoreSecretName(), i.Namespace, trustSecret, i, client, log, eventRec); result != nil {
 			return result, err
 		}
 

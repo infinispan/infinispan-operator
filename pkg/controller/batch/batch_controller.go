@@ -150,7 +150,7 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 	spec := batch.Spec
 	// Ensure the Infinispan cluster exists
 	infinispan := &v1.Infinispan{}
-	if result, err := kube.LookupResource(spec.Cluster, batch.Namespace, infinispan, r.client, log, eventRec); result != nil {
+	if result, err := kube.LookupResource(spec.Cluster, batch.Namespace, infinispan, batch, r.client, log, eventRec); result != nil {
 		return *result, err
 	}
 
@@ -200,7 +200,7 @@ func (r *batchResource) initializeResources() (reconcile.Result, error) {
 func (r *batchResource) execute() (reconcile.Result, error) {
 	batch := r.instance
 	infinispan := &v1.Infinispan{}
-	if result, err := kube.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, r.client, log, eventRec); result != nil {
+	if result, err := kube.LookupResource(batch.Spec.Cluster, batch.Namespace, infinispan, batch, r.client, log, eventRec); result != nil {
 		return *result, err
 	}
 
@@ -281,7 +281,7 @@ func (r *batchResource) execute() (reconcile.Result, error) {
 func (r *batchResource) waitToComplete() (reconcile.Result, error) {
 	batch := r.instance
 	job := &batchv1.Job{}
-	if result, err := kube.LookupResource(batch.Name, batch.Namespace, job, r.client, log, eventRec); result != nil {
+	if result, err := kube.LookupResource(batch.Name, batch.Namespace, job, batch, r.client, log, eventRec); result != nil {
 		return *result, err
 	}
 
