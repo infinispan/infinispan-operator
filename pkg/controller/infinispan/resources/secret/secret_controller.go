@@ -148,7 +148,7 @@ func (s secretResource) reconcileKeystoreSecret() (*reconcile.Result, error) {
 	}
 
 	keystoreSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, s.client, s.log, s.eventRec); result != nil {
+	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, i, s.client, s.log, s.eventRec); result != nil {
 		return result, err
 	}
 
@@ -182,7 +182,7 @@ func (s secretResource) reconcileTruststoreSecret() (*reconcile.Result, error) {
 			ispnv1.ClientCertAuthenticate, ispnv1.ClientCertValidate)
 	}
 
-	if result, err := kube.LookupResource(trustSecret.Name, i.Namespace, trustSecret, s.client, s.log, s.eventRec); result != nil {
+	if result, err := kube.LookupResource(trustSecret.Name, i.Namespace, trustSecret, i, s.client, s.log, s.eventRec); result != nil {
 		return result, err
 	}
 

@@ -159,7 +159,7 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj runtime.Object)
 }
 
 // LookupResource lookup for resource to be created by separate resource controller
-func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger, eventRec record.EventRecorder) (*reconcile.Result, error) {
+func LookupResource(name, namespace string, resource, caller runtime.Object, client client.Client, logger logr.Logger, eventRec record.EventRecorder) (*reconcile.Result, error) {
 	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -172,7 +172,7 @@ func LookupResource(name, namespace string, resource runtime.Object, client clie
 					if objMeta.GetNamespace() == "" {
 						objMeta.SetNamespace(namespace)
 					}
-					eventRec.Event(resource, corev1.EventTypeWarning, fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name), EventReasonResourceNotReady)
+					eventRec.Event(caller, corev1.EventTypeWarning, EventReasonResourceNotReady, fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name))
 				}
 			}
 			logger.Info(fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name))
