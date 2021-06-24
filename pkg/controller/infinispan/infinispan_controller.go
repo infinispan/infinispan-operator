@@ -949,9 +949,17 @@ func (r *ReconcileInfinispan) computeXSite(infinispan *infinispanv1.Infinispan, 
 
 		remoteLocations := findRemoteLocations(xsite.Name, infinispan)
 		for _, remoteLocation := range remoteLocations {
-			err := appendRemoteLocation(xsite, infinispan, &remoteLocation, logger)
+			backupSiteURL, err := url.Parse(remoteLocation.URL)
 			if err != nil {
 				return nil, err
+			}
+			if backupSiteURL.Scheme == "infinispan+xsite" {
+				port, _ := strconv.ParseInt(backupSiteURL.Port(), 10, 32)
+				appendBackupSite(remoteLocation.Name, backupSiteURL.Hostname(), int32(port), xsite)
+			} else {
+				if err = appendRemoteLocation(xsite, infinispan, &remoteLocation, logger); err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -1092,10 +1100,7 @@ func (r *ReconcileInfinispan) deploymentForInfinispan(m *infinispanv1.Infinispan
 							PeriodSeconds:       60,
 							SuccessThreshold:    1,
 							TimeoutSeconds:      80},
-						Ports: []corev1.ContainerPort{
-							{ContainerPort: 8888, Name: "ping", Protocol: corev1.ProtocolTCP},
-							{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
-						},
+						Ports: PodPortsWithXsite(m),
 						ReadinessProbe: &corev1.Probe{
 							Handler:             ispnutil.ClusterStatusHandler(protocolScheme),
 							FailureThreshold:    5,
@@ -1721,15 +1726,22 @@ func appendKubernetesRemoteLocation(xsite *ispnutil.XSite, infinispan *infinispa
 		"host", host,
 		"port", port,
 	)
+	appendBackupSite(remoteLocation.Name, host, port, xsite)
+	return nil
+}
+
+func appendBackupSite(name, host string, port int32, xsite *ispnutil.XSite) {
+	if port == 0 {
+		port = 7900
+	}
 
 	backupSite := ispnutil.BackupSite{
 		Address: host,
-		Name:    remoteLocation.Name,
+		Name:    name,
 		Port:    port,
 	}
 
 	xsite.Backups = append(xsite.Backups, backupSite)
-	return nil
 }
 
 func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *ispnutil.Kubernetes, logger logr.Logger) (string, int32, error) {
@@ -1863,4 +1875,20 @@ func (r *ReconcileInfinispan) update(ispn *infinispanv1.Infinispan, update Updat
 		return nil
 	}
 	return err
+}
+
+func PodPorts() []corev1.ContainerPort {
+	ports := []corev1.ContainerPort{
+		{ContainerPort: 8888, Name: "ping", Protocol: corev1.ProtocolTCP},
+		{ContainerPort: 11222, Name: "hotrod", Protocol: corev1.ProtocolTCP},
+	}
+	return ports
+}
+
+func PodPortsWithXsite(ispn *infinispanv1.Infinispan) []corev1.ContainerPort {
+	ports := PodPorts()
+	if ispn.HasSites() {
+		ports = append(ports, corev1.ContainerPort{ContainerPort: 7900, Name: "xsite", Protocol: corev1.ProtocolTCP})
+	}
+	return ports
 }

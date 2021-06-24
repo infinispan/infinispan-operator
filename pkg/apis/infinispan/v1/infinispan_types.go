@@ -84,9 +84,9 @@ type InfinispanSiteLocationSpec struct {
 	Name        string `json:"name"`
 	Namespace   string `json:"namespace,optional,omitempty"`
 	ClusterName string `json:"clusterName,optional,omitempty"`
-	// +kubebuilder:validation:Pattern=`^(minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+)?$`
+	// +kubebuilder:validation:Pattern=`(^(minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+)?$)|(^(infinispan\+xsite):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])(:[0-9]+)?$)`
 	URL         string `json:"url"`
-	SecretName  string `json:"secretName"`
+	SecretName  string `json:"secretName,optional,omitempty"`
 }
 
 type InfinispanSitesSpec struct {

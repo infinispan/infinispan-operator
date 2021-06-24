@@ -1,9 +1,9 @@
-[id='ref_xsite_crd-{context}']
+[id='ref_xsite_crd_manually-{context}']
 = Cross-Site Replication Resources
 
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml/cr_backup_site.yaml[]
+include::yaml/cr_backup_site_manually.yaml[]
 ----
 
 //Community
@@ -15,21 +15,9 @@ ifdef::community[]
 * Use `LoadBalancer` for independent {openshiftshort} clusters.
 <4> Provides connection information for all backup locations.
 <5> Specifies a backup location that matches `spec.service.sites.local.name`.
-<6> Specifies a backup location.
-//* Use `xsite://` if the backup location has a static hostname and port.
-* Use `minikube://` if the backup location is a Minikube instance.
-* Use `openshift://` if the backup location is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API.
-* Use `infinispan+xsite//` if the backup location has a static hostname and port.
-<7> Specifies the access secret for a site.
-+
-[NOTE]
-====
-This secret contains different authentication objects, depending on your
-Kubernetes environment.
-====
-+
-<8> Logs error messages for the JGroups TCP protocol.
-<9> Logs fatal messages for the JGroups RELAY2 protocol.
+<6> Specifies the static URL for the backup location in the format of `infinispan+xsite://<hostname>:<port>`. The default port is `7900`.
+<7> Logs error messages for the JGroups TCP protocol.
+<8> Logs fatal messages for the JGroups RELAY2 protocol.
 endif::community[]
 
 //Downstream
@@ -39,8 +27,7 @@ ifdef::downstream[]
 <3> Specifies `LoadBalancer` as the service that handles communication between backup locations.
 <4> Provides connection information for all backup locations.
 <5> Specifies a backup location that matches `spec.service.sites.local.name`.
-<6> Specifies the URL of the {openshiftshort} API for the backup location.
-<7> Specifies the secret that contains the service account token for the backup site.
-<8> Logs error messages for the JGroups TCP protocol.
-<9> Logs fatal messages for the JGroups RELAY2 protocol.
+<6> Specifies the static URL for the backup location in the format of `infinispan+xsite://<hostname>:<port>`. The default port is `7900`.
+<7> Logs error messages for the JGroups TCP protocol.
+<8> Logs fatal messages for the JGroups RELAY2 protocol.
 endif::downstream[]

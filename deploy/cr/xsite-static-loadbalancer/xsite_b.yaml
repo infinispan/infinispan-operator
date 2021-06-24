@@ -1,0 +1,20 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+spec:
+  replicas: 1
+  expose:
+    type: LoadBalancer
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: SiteB
+        expose:
+          type: LoadBalancer
+      locations:
+      - name: SiteA
+        url: infinispan+xsite://infinispan-sitea.myhost.com:7900
+      - name: SiteB
+        url: infinispan+xsite://infinispan-siteb.myhost.com:7900

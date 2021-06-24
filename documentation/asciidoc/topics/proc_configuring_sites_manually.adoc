@@ -1,0 +1,106 @@
+[id='manual-xsite-views_{context}']
+= Manually connecting {brandname} clusters
+You can specify static network connection details to perform cross-site replication with {brandname} clusters running outside {k8s}.
+Manual cross-site connections are necessary in any scenario where access to the Kubernetes API is not available outside the {k8s} cluster where {brandname} runs.
+
+You can use both automatic and manual connections for {brandname} clusters in the same `Infinispan` CR.
+However, you must ensure that {brandname} clusters establish connections in the same way at each site.
+
+.Prerequisites
+
+Manually connecting {brandname} clusters to form cross-site views requires predictable network locations for {brandname} services.
+
+You need to know the network locations before they are created, which requires you to:
+
+* Have the host names and ports for each {brandname} cluster that you plan to configure as a backup location.
+* Have the host name of the `<cluster-name>-site` service for any remote {brandname} cluster that is running on {k8s}. +
+You must use the `<cluster-name>-site` service to form a cross-site view between a cluster that {ispn_operator} manages and any other cluster.
+
+.Procedure
+
+. Create an `Infinispan` CR for each {brandname} cluster.
+. Specify the name of the local site with `spec.service.sites.local.name`.
+. Provide the name and static URL for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`, for example:
++
+* **LON**
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  replicas: 3
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: LON
+        expose:
+          type: LoadBalancer
+      locations:
+        - name: NYC
+          url: infinispan+xsite://infinispan-nyc.myhost.com:7900
+----
++
+* **NYC**
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  replicas: 3
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: NYC
+        expose:
+          type: LoadBalancer
+      locations:
+        - name: LON
+          url: infinispan+xsite://infinispan-lon.myhost.com:7900
+----
++
+. Adjust logging levels for cross-site replication as follows:
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+...
+  logging:
+    categories:
+      org.jgroups.protocols.TCP: error
+      org.jgroups.protocols.relay.RELAY2: fatal
+----
++
+The preceding configuration decreases logging for JGroups TCP and RELAY2
+protocols to reduce excessive messages about cluster backup operations, which
+can result in a large number of log files that use container storage.
++
+. Configure nodes with any other {datagridservice} resources.
+. Apply the `Infinispan` CRs.
+. Check node logs to verify that {brandname} clusters form a cross-site view, for example:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_logs} {example_crd_name}-0 | grep x-site
+
+INFO  [org.infinispan.XSITE] (jgroups-5,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC]
+INFO  [org.infinispan.XSITE] (jgroups-7,{example_crd_name}-0-<id>) ISPN000439: Received new x-site view: [NYC, LON]
+----
+
+.Next steps
+
+If your clusters have formed a cross-site view, you can start adding backup
+locations to caches.
+
+[role="_additional-resources"]
+.Additional resources
+
+* link:#ref_xsite_crd_manually-xsite[Cross-Site Replication Resources]
+* link:#adding_backup_locations-cache-cr[Adding Backup Locations to Caches]
+* link:{xsite_docs}[{brandname} Guide to Cross-Site Replication]
