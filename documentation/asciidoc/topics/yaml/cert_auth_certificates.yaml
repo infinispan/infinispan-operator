@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: my-truststore-secret
+  name: {example_crd_name}-client-cert-secret
 type: Opaque
 stringData:
     truststore-password: changme

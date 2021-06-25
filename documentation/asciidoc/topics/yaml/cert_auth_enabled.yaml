@@ -4,4 +4,4 @@ spec:
         type: Service
         certSecretName: tls-secret
         clientCert: Validate
-        clientCertSecretName: my-truststore-secret
+        clientCertSecretName: {example_crd_name}-client-cert-secret

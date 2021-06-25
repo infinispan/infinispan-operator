@@ -15,7 +15,7 @@ If you use the `Authenticate` method to verify client identities, the trust stor
 +
 [NOTE]
 ====
-The name should match the value of the `spec.security.endpointEncryption.clientCertSecretName` field.
+The name must match the value of the `spec.security.endpointEncryption.clientCertSecretName` field.
 ====
 +
 . Provide the password for the trust store with the `stringData.truststore-password` field.
@@ -23,7 +23,7 @@ The name should match the value of the `spec.security.endpointEncryption.clientC
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-include::yaml/cert_auth_certificates.yaml[]
+include::yaml/cert_auth_truststores.yaml[]
 ----
 +
 . Apply the changes.
