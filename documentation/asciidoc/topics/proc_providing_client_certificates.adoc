@@ -10,7 +10,7 @@
 +
 [NOTE]
 ====
-The name should match the value of the `spec.security.endpointEncryption.clientCertSecretName` field.
+The name must match the value of the `spec.security.endpointEncryption.clientCertSecretName` field.
 ====
 +
 . Specify the signing certificate, or CA certificate bundle, as the value of the `data.trust.ca` field.

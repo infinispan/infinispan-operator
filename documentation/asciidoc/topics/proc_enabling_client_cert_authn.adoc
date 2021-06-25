@@ -19,11 +19,9 @@ You can configure {brandname} to verify client identities from certificates in a
 The default value is `None`.
 ====
 +
-. Optionally specify the secret that contains the client trust store with the `spec.security.endpointEncryption.clientCertSecretName` field.
+. Specify the secret that contains the client trust store with the `spec.security.endpointEncryption.clientCertSecretName` field.
 +
-By default {ispn_operator} uses a trust store secret named `{example_crd_name}-client-cert-secret`.
-If you want to use this secret you do not need to specify the `clientCertSecretName` field.
-However, you must create the secret if it does not already exist.
+By default {ispn_operator} expects a trust store secret named `<cluster-name>-client-cert-secret`.
 +
 [NOTE]
 ====
