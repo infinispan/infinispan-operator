@@ -31,7 +31,8 @@
 
 |===
 
-.{ispn_operator} credentials
+[discrete]
+== {ispn_operator} credentials
 
 {ispn_operator} generates credentials that it uses to authenticate with {brandname} clusters to perform internal operations.
 By default {ispn_operator} credentials are automatically assigned the `admin` role when you enable security authorization.
