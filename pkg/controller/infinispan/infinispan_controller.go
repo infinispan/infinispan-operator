@@ -711,6 +711,13 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		}
 	}
 
+
+       // Below the code for a wellFormed cluster
+	err = configureLoggers(podList, cluster, infinispan)
+	if err != nil {
+                reqLogger.Info("wellFormed")
+		return reconcile.Result{}, err
+	}
 	// Check if pods container runs the right image
 	for _, item := range podList.Items {
 		if len(item.Spec.Containers) == 1 {
@@ -724,6 +731,28 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 
 	return reconcile.Result{}, nil
 }
+
+func configureLoggers(pods *corev1.PodList, cluster ispn.ClusterInterface, infinispan *infinispanv1.Infinispan) error {
+	if infinispan.Spec.Logging == nil || len(infinispan.Spec.Logging.Categories) == 0 {
+		return nil
+	}
+	for _, pod := range pods.Items {
+		serverLoggers, err := cluster.GetLoggers(pod.Name)
+		if err != nil {
+			return err
+		}
+		for category, level := range infinispan.Spec.Logging.Categories {
+			serverLevel, ok := serverLoggers[category]
+			if !(ok && string(level) == serverLevel) {
+				if err := cluster.SetLogger(pod.Name, category, string(level)); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 
 func updateSecurity(infinispan *infinispanv1.Infinispan, client client.Client, reqLogger logr.Logger) error {
 	err := client.Update(context.TODO(), infinispan)
