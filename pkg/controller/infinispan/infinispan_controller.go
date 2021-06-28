@@ -1451,6 +1451,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, prot
 		wellformed.Message = "Errors: " + strings.Join(errors, ",") + " Views: " + strings.Join(views, ",")
 	}
 	status = append(status, wellformed)
+        reqLogger.Info("wellFormed")
 	return status
 }
 
