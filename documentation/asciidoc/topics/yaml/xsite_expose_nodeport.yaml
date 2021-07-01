@@ -1,0 +1,9 @@
+spec:
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: LON
+        expose:
+          type: NodePort
+          nodePort: 30000
