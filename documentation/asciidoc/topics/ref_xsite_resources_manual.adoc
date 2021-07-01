@@ -20,17 +20,10 @@ include::yaml/xsite_manual.yaml[]
 |`service.sites.local.name`
 |Names the local site where a {brandname} cluster runs.
 
-//Community
-ifdef::community[]
 |`service.sites.local.expose.type`
-|Specifies the externally exposed service type. Use `NodePort` for local clusters on the same network. Use `LoadBalancer` for independent {openshiftshort} clusters.
-endif::community[]
+|Specifies the network service for cross-site replication. {brandname} clusters use this service to communicate and perform backup operations. You can set the value to `NodePort` or `LoadBalancer`.
 
-//Downstream
-ifdef::downstream[]
-|`service.sites.local.expose.type`
-|Specifies `LoadBalancer` as the service that handles communication between backup locations.
-endif::downstream[]
+If you use `NodePort` you can also configure the port with the `service.site.local.expose.nodePort` field.
 
 |`service.sites.locations`
 |Provides connection information for all backup locations.
