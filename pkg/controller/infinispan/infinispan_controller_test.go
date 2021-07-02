@@ -66,6 +66,10 @@ func (m mockCluster) GracefulShutdown(podName string) error {
 	return nil
 }
 
+func (m mockCluster) GracefulShutdownTask(podName string) error {
+	return nil
+}
+
 func (m mockCluster) GetClusterSize(podName string) (int, error) {
 	return 0, nil
 }
@@ -110,6 +114,10 @@ func (m mockCluster) GetLoggers(podName string) (map[string]string, error) {
 }
 
 func (m mockCluster) SetLogger(podName, loggerName, loggerLevel string) error {
+	return nil
+}
+
+func (m mockCluster) XsitePushAllState(podName string) error {
 	return nil
 }
 

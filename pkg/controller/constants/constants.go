@@ -89,12 +89,14 @@ const (
 	ServerUserIdentitiesPath    = ServerUserIdentitiesRoot + "/" + ServerIdentitiesFilename
 
 	ServerHTTPBasePath         = "rest/v2"
+	ServerHTTPCacheManagerPath = ServerHTTPBasePath + "/cache-managers/" + DefaultCacheManagerName
+	ServerHTTPHealthPath       = ServerHTTPCacheManagerPath + "/health"
 	ServerHTTPServerStop       = ServerHTTPBasePath + "/server?action=stop"
 	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
-	ServerHTTPHealthPath       = ServerHTTPBasePath + "/cache-managers/" + DefaultCacheManagerName + "/health"
 	ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
 	ServerHTTPLoggersPath      = ServerHTTPBasePath + "/logging/loggers"
 	ServerHTTPModifyLoggerPath = ServerHTTPLoggersPath + "/%s?level=%s"
+	ServerHTTPXSitePath        = ServerHTTPCacheManagerPath + "/x-site/backups"
 
 	EncryptTruststoreKey         = "truststore.p12"
 	EncryptTruststorePasswordKey = "truststore-password"
