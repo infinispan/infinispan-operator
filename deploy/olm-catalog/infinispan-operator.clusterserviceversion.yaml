@@ -78,6 +78,7 @@ metadata:
     createdAt: 2021-01-26T09:00:00Z
     support: Infinispan
     certified: "false"
+    olm.skipRange: ">=2.1.0 <2.1.5"
   name: infinispan-operator.v2.1.4
   namespace: placeholder
 spec:
