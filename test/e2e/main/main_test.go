@@ -524,7 +524,6 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
-	//defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -1091,7 +1090,6 @@ func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identi
 	// Create the cluster
 	testKube.CreateInfinispan(ispn, namespace)
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, ispn.Labels)
-	//defer testKube.DeleteInfinispan(ispn, tutils.SinglePodTimeout)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 
