@@ -407,7 +407,7 @@ func (spec *InfinispanContainerSpec) GetCpuResources() (*resource.Quantity, *res
 	if err != nil {
 		return nil, nil, err
 	}
-	cpuRequestsMillis := cpuLimits.MilliValue() / 2
+	cpuRequestsMillis := cpuLimits.MilliValue()
 	cpuRequests := toMilliDecimalQuantity(cpuRequestsMillis)
 	return &cpuRequests, &cpuLimits, nil
 }
