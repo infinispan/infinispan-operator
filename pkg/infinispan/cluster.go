@@ -57,6 +57,7 @@ func (i CacheManagerInfo) GetSitesView() (map[string]bool, error) {
 type ClusterInterface interface {
 	GetClusterSize(podName string) (int, error)
 	GracefulShutdown(podName string) error
+	GracefulShutdownTask(podName string) error
 	GetClusterMembers(podName string) ([]string, error)
 	ExistsCache(cacheName, podName string) (bool, error)
 	CreateCacheWithTemplate(cacheName, cacheXML, podName string) error
@@ -68,6 +69,7 @@ type ClusterInterface interface {
 	GetCacheManagerInfo(cacheManagerName, podName string) (*CacheManagerInfo, error)
 	GetLoggers(podName string) (map[string]string, error)
 	SetLogger(podName, loggerName, loggerLevel string) error
+	XsitePushAllState(podName string) error
 }
 
 // NewClusterNoAuth creates a new instance of Cluster without authentication
@@ -112,6 +114,55 @@ func (c Cluster) GetClusterSize(podName string) (int, error) {
 func (c Cluster) GracefulShutdown(podName string) error {
 	rsp, err, reason := c.Client.Post(podName, consts.ServerHTTPClusterStop, "", nil)
 	return validateResponse(rsp, reason, err, "during graceful shutdown", http.StatusNoContent)
+}
+
+// ISPN-13141 Upload custom task to perform graceful shutdown that does not fail on cache errors
+// This task calls Cache#shutdown which disables rebalancing on the cache before stopping it
+func (c Cluster) GracefulShutdownTask(podName string) error {
+	scriptName := "___org.infinispan.operator.gracefulshutdown.js"
+	url := fmt.Sprintf("%s/tasks/%s", consts.ServerHTTPBasePath, scriptName)
+	headers := map[string]string{"Content-Type": "text/plain"}
+	task := `
+	/* mode=local,language=javascript */
+	print("Executing operator shutdown task");
+	var System = Java.type("java.lang.System");
+	var HashSet = Java.type("java.util.HashSet");
+	var InternalCacheRegistry = Java.type("org.infinispan.registry.InternalCacheRegistry");
+
+	var stdErr = System.err;
+	var icr = cacheManager.getGlobalComponentRegistry().getComponent(InternalCacheRegistry.class);
+
+	var cacheNames = cacheManager.getCacheNames();
+	shutdown(cacheNames);
+
+	var internalCaches = new HashSet(icr.getInternalCacheNames());
+	/* The ___script_cache is included in both getCacheNames() and getInternalCacheNames so prevent repeated shutdown calls */
+	internalCaches.removeAll(cacheNames);
+	shutdown(internalCaches);
+
+	function shutdown(cacheNames) {
+	   var it = cacheNames.iterator();
+	   while (it.hasNext()) {
+			 name = it.next();
+			 print("Shutting down cache " + name);
+			 try {
+				cacheManager.getCache(name).shutdown();
+			 } catch (err) {
+				stdErr.println("Encountered error trying to shutdown cache " + name + ": " + err);
+			 }
+	   }
+	}
+	`
+	// Remove all new lines to prevent a "100 continue" response
+	task = strings.ReplaceAll(task, "\n", "")
+
+	rsp, err, reason := c.Client.Post(podName, url, task, headers)
+	if err := validateResponse(rsp, reason, err, "Uploading GracefulShutdownTask", http.StatusOK); err != nil {
+		return err
+	}
+
+	rsp, err, reason = c.Client.Post(podName, url+"?action=exec", "", nil)
+	return validateResponse(rsp, reason, err, "Executing GracefulShutdownTask", http.StatusOK)
 }
 
 // GetClusterMembers get the cluster members as seen by a given pod
@@ -312,6 +363,40 @@ func (c Cluster) SetLogger(podName, loggerName, loggerLevel string) error {
 		return err
 	}
 	return nil
+}
+
+func (c Cluster) XsitePushAllState(podName string) (err error) {
+	rsp, err, reason := c.Client.Get(podName, consts.ServerHTTPXSitePath, nil)
+	if err = validateResponse(rsp, reason, err, "Retrieving xsite status", http.StatusOK); err != nil {
+		return
+	}
+
+	defer func() {
+		cerr := rsp.Body.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+
+	type xsiteStatus struct {
+		Status string `json:"status"`
+	}
+	var statuses map[string]xsiteStatus
+	if err := json.NewDecoder(rsp.Body).Decode(&statuses); err != nil {
+		return fmt.Errorf("unable to decode: %w", err)
+	}
+
+	// Statuses will be empty if no xsite caches are configured
+	for k, v := range statuses {
+		if v.Status == "online" {
+			url := fmt.Sprintf("%s/%s?action=start-push-state", consts.ServerHTTPXSitePath, k)
+			rsp, err, reason = c.Client.Post(podName, url, "", nil)
+			if err = validateResponse(rsp, reason, err, "Pushing xsite state", http.StatusOK); err != nil {
+				return
+			}
+		}
+	}
+	return
 }
 
 func validateResponse(rsp *http.Response, reason string, inperr error, entity string, validCodes ...int) (err error) {
