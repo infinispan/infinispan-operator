@@ -13,6 +13,5 @@ You can also perform upgrades manually if you prefer to control when they occur.
 [discrete]
 == Upgrade notes
 
-If you upgrade {brandname} clusters manually, you should upgrade to the latest {brandname} 12.x version if you have already upgraded {ispn_operator} from 2.0.x to 2.1.x, which corresponds to {brandname} Server 11.x to 12.x.
-
-You should perform this upgrade as soon as possible to avoid potential data loss that can occur after upgrading to {brandname} 12.1.0 through to 12.1.4 from an earlier {brandname} version.
+If you upgrade {brandname} clusters manually and have upgraded the channel for your {ispn_operator} subscription from **2.0.x** to **2.1.x** you should apply the upgrade for the latest {brandname} 12.x version as soon as possible.
+This upgrade avoids potential data loss that can occur in earlier versions with link:https://issues.redhat.com/browse/ISPN-13116[ISPN-13116].
