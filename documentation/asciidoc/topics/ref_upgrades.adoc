@@ -1,0 +1,18 @@
+[id='upgrades_{context}']
+= {brandname} cluster upgrades
+
+[role="_abstract"]
+{ispn_operator} can automatically upgrade {brandname} clusters when new versions become available.
+You can also perform upgrades manually if you prefer to control when they occur.
+
+[NOTE]
+====
+{ispn_operator} requires the Operator Lifecycle Manager to perform cluster upgrades.
+====
+
+[discrete]
+== Upgrade notes
+
+If you upgrade {brandname} clusters manually, you should upgrade to the latest {brandname} 12.x version if you have already upgraded {ispn_operator} from 2.0.x to 2.1.x, which corresponds to {brandname} Server 11.x to 12.x.
+
+You should perform this upgrade as soon as possible to avoid potential data loss that can occur after upgrading to {brandname} 12.1.0 through to 12.1.4 from an earlier {brandname} version.
