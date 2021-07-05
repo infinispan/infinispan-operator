@@ -15,6 +15,7 @@ endif::downstream[]
 ifdef::community[]
 include::{topics}/proc_install_operatorhub.adoc[leveloffset=+1]
 include::{topics}/proc_install_manually.adoc[leveloffset=+1]
+include::{topics}/ref_upgrades.adoc[leveloffset=+1]
 endif::community[]
 
 // Restore the parent context.
