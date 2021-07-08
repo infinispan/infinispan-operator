@@ -1288,7 +1288,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 			}
 		}
 
-		return &reconcile.Result{}, r.update(ispn, func() {
+		return &reconcile.Result{Requeue: true}, r.update(ispn, func() {
 			if statefulSet.Status.CurrentReplicas == 0 {
 				ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")
 				ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "")
