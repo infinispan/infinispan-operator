@@ -48,7 +48,7 @@ func ArePodIPsReady(pods *corev1.PodList) bool {
 
 func IsPodReady(pod corev1.Pod) bool {
 	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.ContainersReady && cond.Status == corev1.ConditionTrue {
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
 			return true
 		}
 	}

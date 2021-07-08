@@ -13,7 +13,7 @@ import (
 )
 
 // Inputs and expected outputs for getInfinispanCondition func
-var podsReadyStatus = corev1.PodStatus{Conditions: []corev1.PodCondition{{Type: corev1.ContainersReady, Status: "True"}}}
+var podsReadyStatus = corev1.PodStatus{Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: "True"}}}
 
 var podsSameView = []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "pod1-View1"}, Status: podsReadyStatus},
 	{ObjectMeta: metav1.ObjectMeta{Name: "pod2-View1"}, Status: podsReadyStatus},
