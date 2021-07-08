@@ -1327,8 +1327,7 @@ func (r *ReconcileInfinispan) reconcileGracefulShutdown(ispn *infinispanv1.Infin
 func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan, podList *corev1.PodList,
 	logger logr.Logger, cluster ispn.ClusterInterface) (*reconcile.Result, error) {
 	logger.Info("Sending graceful shutdown request")
-	// Send a graceful shutdown to the first ready pod, if there's no ready pod then terminate any pending pods
-	forceShutdown := true
+	// Send a graceful shutdown to the first ready pod. If no pods are ready, then there's nothing to shutdown
 	for _, pod := range podList.Items {
 		if kube.IsPodReady(pod) {
 			if err := cluster.GracefulShutdown(pod.GetName()); err != nil {
@@ -1342,17 +1341,15 @@ func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan,
 				}
 			} else {
 				logger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
-				forceShutdown = false
+				continue
 			}
 		}
 	}
 
-	if forceShutdown {
-		logger.Info("Forcing GracefulShutdown by deleting all pods")
-		deleteOptions := []client.DeleteAllOfOption{client.MatchingLabels(PodLabels(ispn.Name)), client.InNamespace(ispn.Namespace)}
-		if err := r.client.DeleteAllOf(context.TODO(), &corev1.Pod{}, deleteOptions...); err != nil && !errors.IsNotFound(err) {
-			logger.Error(err, "Error encountered deleting all Pods on GracefulShutdown")
-		}
+	logger.Info("GracefulShutdown executed. Deleting all pods")
+	deleteOptions := []client.DeleteAllOfOption{client.MatchingLabels(PodLabels(ispn.Name)), client.InNamespace(ispn.Namespace)}
+	if err := r.client.DeleteAllOf(context.TODO(), &corev1.Pod{}, deleteOptions...); err != nil && !errors.IsNotFound(err) {
+		logger.Error(err, "Error encountered deleting all Pods on GracefulShutdown")
 	}
 
 	if err := r.update(ispn, func() {
