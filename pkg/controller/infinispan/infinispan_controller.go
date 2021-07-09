@@ -999,6 +999,41 @@ func (r *ReconcileInfinispan) statefulSetForInfinispan(m *infinispanv1.Infinispa
 		reqLogger.Info(errMsg)
 	}
 
+	// ISPN-12667 ISPN-13121 If upgrading the cluster ensure that cache .state required properties are added
+	if m.IsConditionTrue(infinispanv1.ConditionGracefulShutdown) {
+		script := fmt.Sprintf(`
+		if ls -l %[1]s/*.state; then
+			for f in %[1]s/*.state; do
+				if grep -q 'capacityFactors' $f; then
+					continue;
+				fi
+
+				if grep -q 'ReplicatedConsistentHash' $f; then
+					members=$(grep 'members' $f | cut -d '=' -f2)
+					echo "capacityFactors=$members" >> $f;
+					for (( i=0; i < $members; i++ )); do
+						echo "capacityFactor.$i=1.0" >> $f
+					done
+					echo "$f Missing 'capacityFactors' property initialized"
+				fi
+			done
+		fi
+		exit 0
+		`, DataMountPath)
+		c := &spec.InitContainers
+		*c = append(*c, corev1.Container{
+			// We must use the default image as we require grep to be present
+			Image:   consts.DefaultImageName,
+			Name:    "cache-state-repair",
+			Command: []string{"sh", "-c"},
+			Args:    []string{script},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      dataVolumeName,
+				MountPath: DataMountPath,
+			}},
+		})
+	}
+
 	if m.IsEncryptionEnabled() {
 		AddVolumesForEncryption(m, &dep.Spec.Template.Spec)
 		spec.Containers[0].Env = append(spec.Containers[0].Env,
