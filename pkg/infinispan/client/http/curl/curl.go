@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	client "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 )
@@ -53,7 +52,7 @@ func (c *CurlClient) Put(podName, path, payload string, headers map[string]strin
 }
 
 func (c *CurlClient) executeCurlCommand(podName string, path string, headers map[string]string, args ...string) (*http.Response, error, string) {
-	httpURL := fmt.Sprintf("%s://%s:%d/%s", c.config.Protocol, podName, consts.InfinispanAdminPort, path)
+	httpURL := fmt.Sprintf("%s://%s:%d/%s", c.config.Protocol, podName, c.config.Port, path)
 
 	headerStr := headerString(headers)
 	argStr := strings.Join(args, " ")

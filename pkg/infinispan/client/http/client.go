@@ -13,6 +13,7 @@ type HttpConfig struct {
 	Credentials *Credentials
 	Namespace   string
 	Protocol    string
+	Port        int
 }
 
 type HttpClient interface {
