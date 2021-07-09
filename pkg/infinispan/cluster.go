@@ -72,25 +72,21 @@ type ClusterInterface interface {
 	XsitePushAllState(podName string) error
 }
 
-// NewClusterNoAuth creates a new instance of Cluster without authentication
-func NewClusterNoAuth(namespace string, protocol string, kubernetes *kube.Kubernetes) *Cluster {
-	return cluster(namespace, protocol, nil, kubernetes)
-}
-
 // NewCluster creates a new instance of Cluster
-func NewCluster(username, password, namespace string, protocol string, kubernetes *kube.Kubernetes) *Cluster {
+func NewCluster(username, password, namespace string, protocol string, port int, kubernetes *kube.Kubernetes) *Cluster {
 	credentials := &ispnclient.Credentials{
 		Username: username,
 		Password: password,
 	}
-	return cluster(namespace, protocol, credentials, kubernetes)
+	return cluster(namespace, protocol, port, credentials, kubernetes)
 }
 
-func cluster(namespace, protocol string, credentials *ispnclient.Credentials, kubernetes *kube.Kubernetes) *Cluster {
+func cluster(namespace, protocol string, port int, credentials *ispnclient.Credentials, kubernetes *kube.Kubernetes) *Cluster {
 	client := curl.New(ispnclient.HttpConfig{
 		Credentials: credentials,
 		Namespace:   namespace,
 		Protocol:    protocol,
+		Port:        port,
 	}, kubernetes)
 
 	return &Cluster{

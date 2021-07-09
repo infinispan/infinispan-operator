@@ -345,7 +345,20 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *result, err
 	}
 
-	cluster, err := NewCluster(infinispan, kubernetes)
+	// Determine which port to use for admin operations. If InfinispanAdminPort is not available, then we know we're upgrading from the 2.0.x channel
+	legacyCluster := true
+	for _, port := range statefulSet.Spec.Template.Spec.Containers[0].Ports {
+		if port.ContainerPort == consts.InfinispanAdminPort {
+			legacyCluster = false
+			break
+		}
+	}
+	var cluster ispn.ClusterInterface
+	if legacyCluster {
+		cluster, err = NewLegacyCluster(infinispan, kubernetes)
+	} else {
+		cluster, err = NewCluster(infinispan, kubernetes)
+	}
 	if err != nil {
 		return reconcile.Result{}, err
 	}
