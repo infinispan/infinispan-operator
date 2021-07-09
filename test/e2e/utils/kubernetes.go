@@ -171,11 +171,27 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, spacLabel 
 
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
 		ctx := context.TODO()
+<<<<<<< HEAD
 		if spacLabel != nil {
 			opts = []client.DeleteAllOfOption{
 				client.InNamespace(namespace),
 				client.MatchingLabels(spacLabel),
 			}
+=======
+		if spacLabel == nil {
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
+		} else {
+			opts := []client.DeleteAllOfOption{
+				client.InNamespace(namespace),
+				client.MatchingLabels(spacLabel),
+			}
+
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
+>>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 		}
 
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
