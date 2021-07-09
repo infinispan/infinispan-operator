@@ -173,18 +173,14 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, spacLabel 
 			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
 			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
 		} else {
-			ispnBatch := &ispnv2.Batch{}
-			ispnBatch.Labels = spacLabel
+			opts := []client.DeleteAllOfOption{
+				client.InNamespace(namespace),
+				client.MatchingLabels(spacLabel),
+			}
 
-			ispnCache := &ispnv2.Cache{}
-			ispnCache.Labels = spacLabel
-
-			ispn := &ispnv1.Infinispan{}
-			ispn.Labels = spacLabel
-
-			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, ispnBatch, opts...))
-			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, ispnCache, opts...))
-			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, ispn, opts...))
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+			ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
 		}
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
