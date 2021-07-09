@@ -339,6 +339,7 @@ spec:
                 - update
                 - delete
                 - patch
+                - deletecollection
             - apiGroups:
                 - ""
               resources:
