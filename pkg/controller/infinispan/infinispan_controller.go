@@ -1345,7 +1345,7 @@ func (r *ReconcileInfinispan) gracefulShutdownReq(ispn *infinispanv1.Infinispan,
 				}
 			} else {
 				logger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
-				continue
+				break
 			}
 		}
 	}
