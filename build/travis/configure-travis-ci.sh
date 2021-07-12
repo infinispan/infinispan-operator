@@ -3,7 +3,7 @@
 export MAKE_DATADIR_WRITABLE=true
 export GO111MODULE=on
 export RUN_SA_OPERATOR=TRUE
-export INITCONTAINER_IMAGE=quay.io/quay/busybox:latest
+export INITCONTAINER_IMAGE=registry.access.redhat.com/ubi8-micro
 export KUBECONFIG=~/kind-kube-config.yaml
 
 curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
