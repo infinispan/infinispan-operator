@@ -435,6 +435,9 @@ spec:
                 nodePort:
                   format: int32
                   type: integer
+                port:
+                  format: int32
+                  type: integer
                 type:
                   description: Type specifies different exposition methods for data grid
                   enum:
@@ -545,6 +548,9 @@ spec:
                                 type: string
                               type: object
                             nodePort:
+                              format: int32
+                              type: integer
+                            port:
                               format: int32
                               type: integer
                             type:
