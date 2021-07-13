@@ -218,6 +218,8 @@ type ExposeSpec struct {
 	// +optional
 	NodePort int32 `json:"nodePort,omitempty"`
 	// +optional
+	Port int32 `json:"port,omitempty"`
+	// +optional
 	Host string `json:"host,omitempty"`
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
@@ -229,6 +231,8 @@ type CrossSiteExposeSpec struct {
 	Type CrossSiteExposeType `json:"type"`
 	// +optional
 	NodePort int32 `json:"nodePort,omitempty"`
+	// +optional
+	Port int32 `json:"port,omitempty"`
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
