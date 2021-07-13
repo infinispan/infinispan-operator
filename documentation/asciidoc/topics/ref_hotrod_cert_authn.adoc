@@ -1,0 +1,27 @@
+[id='configuring-clients-present-certificates_{context}']
+= Configuring Hot Rod clients for certificate authentication
+
+[role="_abstract"]
+If you enable client certificate authentication, clients must present valid certificates when negotiating connections with {brandname}.
+
+.Validate strategy
+
+If you use the `Validate` strategy, you must configure clients with a keystore so they can present signed certificates.
+You must also configure clients with {brandname} credentials and any suitable authentication mechanism.
+
+.Authenticate strategy
+
+If you use the `Authenticate` strategy, you must configure clients with a keystore that contains signed certificates and valid {brandname} credentials as part of the distinguished name (DN).
+Hot Rod clients must also use the `EXTERNAL` authentication mechanism.
+
+[NOTE]
+====
+If you enable security authorization, you should assign the Common Name (CN) from the client certificate a role with the appropriate permissions.
+====
+
+The following example shows a Hot Rod client configuration for client certificate authentication with the `Authenticate` strategy:
+
+[source,java,options="nowrap",subs=attributes+]
+----
+include::java/ConfigurationBuilderClientCertificates.java[]
+----
