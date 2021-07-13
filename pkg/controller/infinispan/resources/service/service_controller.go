@@ -191,7 +191,15 @@ func (s serviceResource) reconcileResource(resource runtime.Object) error {
 						_ = unstructured.SetNestedField(findResourceSpecPort, specPort["nodePort"], "nodePort")
 						_ = unstructured.SetNestedSlice(findResource.UnstructuredContent(), []interface{}{findResourceSpecPort}, "spec", "ports")
 					}
+				} else if spec["type"] == string(corev1.ServiceTypeLoadBalancer) {
+					specPort := spec["ports"].([]interface{})[0].(map[string]interface{})
+					findResourceSpecPort := findResourceSpec["ports"].([]interface{})[0].(map[string]interface{})
+					if specPort["port"] != findResourceSpecPort["port"] {
+						_ = unstructured.SetNestedField(findResourceSpecPort, specPort["port"], "port")
+						_ = unstructured.SetNestedSlice(findResource.UnstructuredContent(), []interface{}{findResourceSpecPort}, "spec", "ports")
+					}
 				}
+
 			}
 		}
 
@@ -374,6 +382,9 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 	if exposeConf.NodePort > 0 && exposeConf.Type == ispnv1.ExposeTypeNodePort {
 		exposeSpec.Ports[0].NodePort = exposeConf.NodePort
 	}
+	if exposeConf.Port > 0 && exposeConf.Type == ispnv1.ExposeTypeLoadBalancer {
+		exposeSpec.Ports[0].Port = exposeConf.Port
+	}
 
 	externalService := corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -415,6 +426,9 @@ func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
 				Port:       consts.CrossSitePort,
 				TargetPort: intstr.IntOrString{IntVal: consts.CrossSitePort},
 			},
+		}
+		if exposeConf.Port > 0 {
+			exposeSpec.Ports[0].Port = exposeConf.Port
 		}
 	case ispnv1.CrossSiteExposeTypeClusterIP:
 		exposeSpec.Type = corev1.ServiceTypeClusterIP
