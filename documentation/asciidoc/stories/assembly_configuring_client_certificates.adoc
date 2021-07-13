@@ -4,12 +4,13 @@ ifdef::context[:parent-context: {context}]
 = Configuring client certificate authentication
 
 [role="_abstract"]
-Configure certificate authentication so that {brandname} allows connections only for clients that present valid certificates.
+Add client trust stores to your project and configure {brandname} to allow connections only from clients that present valid certificates.
+This increases security of your deployment by ensuring that clients are trusted by a public certificate authority (CA).
 
+include::{topics}/con_client_cert_authn.adoc[leveloffset=+1]
 include::{topics}/proc_enabling_client_cert_authn.adoc[leveloffset=+1]
 include::{topics}/proc_providing_client_truststores.adoc[leveloffset=+1]
 include::{topics}/proc_providing_client_certificates.adoc[leveloffset=+1]
-include::{topics}/proc_configuring_client_certs.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]
