@@ -14,7 +14,7 @@ The name must match the value of the `spec.security.endpointEncryption.clientCer
 ====
 +
 . Specify the signing certificate, or CA certificate bundle, as the value of the `data.trust.ca` field.
-. If you use the `Authenticate` method to verify client identities, add the certificate for each client that can connect to {brandname} endpoints with the `data.trust.cert.<name>` field.
+. If you use the `Authenticate` strategy to verify client identities, add the certificate for each client that can connect to {brandname} endpoints with the `data.trust.cert.<name>` field.
 +
 [NOTE]
 ====

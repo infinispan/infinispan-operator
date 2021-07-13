@@ -1,0 +1,19 @@
+[id='client-certificate-authentication_{context}']
+= Client certificate authentication
+
+[role="_abstract"]
+Client certificate authentication restricts in-bound connections based on the certificates that clients present.
+
+You can configure {brandname} to use trust stores with either of the following strategies:
+
+.Validate
+To validate client certificates, {brandname} requires a trust store that contains any part of the certificate chain for the signing authority, typically the root CA certificate.
+Any client that presents a certificate signed by the CA can connect to {brandname}.
+
+If you use the `Validate` strategy for verifying client certificates, you must also configure clients to provide valid {brandname} credentials if you enable authentication.
+
+.Authenticate
+Requires a trust store that contains all public client certificates in addition to the root CA certificate.
+Only clients that present a signed certificate can connect to {brandname}.
+
+If you use the `Authenticate` strategy for verifying client certificates, you must ensure that certificates contain valid {brandname} credentials as part of the distinguished name (DN).
