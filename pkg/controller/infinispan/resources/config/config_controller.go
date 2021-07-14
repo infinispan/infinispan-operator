@@ -124,7 +124,7 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 	lsConfigMap := infinispan.LabelsResource(name, "infinispan-configmap-configuration")
 
 	var roleMapper string
-	if c.infinispan.IsClientCertEnabled() {
+	if c.infinispan.IsClientCertEnabled() && c.infinispan.Spec.Security.EndpointEncryption.ClientCert == ispnv1.ClientCertAuthenticate {
 		roleMapper = "commonName"
 	} else {
 		roleMapper = "cluster"
