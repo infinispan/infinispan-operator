@@ -418,6 +418,18 @@ func TestClientCertValidate(t *testing.T) {
 	})
 }
 
+func TestClientCertValidateNoAuth(t *testing.T) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		authType = ispnv1.ClientCertValidate
+		serverName := tutils.GetServerName(spec)
+		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
+		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+		return
+	})
+}
+
 func TestClientCertAuthenticate(t *testing.T) {
 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertAuthenticate
@@ -429,45 +441,45 @@ func TestClientCertAuthenticate(t *testing.T) {
 	})
 }
 
-// #1098 Test disabled until ISPN-13089 resolved
-// func TestClientCertValidateWithAuthorization(t *testing.T) {
-// 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
-// 		spec.Spec.Security.Authorization = &v1.Authorization{
-// 			Enabled: true,
-// 			Roles: []ispnv1.AuthorizationRole{
-// 				{
-// 					Name:        "client",
-// 					Permissions: []string{"ALL"},
-// 				},
-// 			},
-// 		}
-// 		authType = ispnv1.ClientCertValidate
-// 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(false)
-// 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
-// 		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
-// 		return
-// 	})
-// }
+func TestClientCertValidateWithAuthorization(t *testing.T) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		spec.Spec.Security.Authorization = &v1.Authorization{
+			Enabled: true,
+			Roles: []ispnv1.AuthorizationRole{
+				{
+					Name:        "client",
+					Permissions: []string{"ALL"},
+				},
+			},
+		}
+		authType = ispnv1.ClientCertValidate
+		serverName := tutils.GetServerName(spec)
+		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
+		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+		return
+	})
+}
 
-// #1098 Test disabled until ISPN-13089 resolved
-// func TestClientCertAuthenticateWithAuthorization(t *testing.T) {
-// 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
-// 		spec.Spec.Security.Authorization = &v1.Authorization{
-// 			Enabled: true,
-// 			Roles: []ispnv1.AuthorizationRole{
-// 				{
-// 					Name:        "client",
-// 					Permissions: []string{"MONITOR"},
-// 				},
-// 			},
-// 		}
-// 		authType = ispnv1.ClientCertAuthenticate
-// 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(true)
-// 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
-// 		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
-// 		return
-// 	})
-// }
+func TestClientCertAuthenticateWithAuthorization(t *testing.T) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		spec.Spec.Security.Authorization = &v1.Authorization{
+			Enabled: true,
+			Roles: []ispnv1.AuthorizationRole{
+				{
+					Name:        "client",
+					Permissions: []string{"ALL"},
+				},
+			},
+		}
+		authType = ispnv1.ClientCertAuthenticate
+		serverName := tutils.GetServerName(spec)
+		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, true)
+		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+		return
+	})
+}
 
 func TestClientCertGeneratedTruststoreAuthenticate(t *testing.T) {
 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {

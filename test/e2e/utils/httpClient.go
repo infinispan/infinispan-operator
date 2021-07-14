@@ -64,6 +64,10 @@ func NewHTTPSClientCert(tlsConfig *tls.Config) HTTPClient {
 	return newClient(authCert, nil, nil, "https", tlsConfig)
 }
 
+func NewHTTPSClientCertWithDigestAuth(username, password string, tlsConfig *tls.Config) HTTPClient {
+	return newClient(authDigest, &username, &password, "https", tlsConfig)
+}
+
 func NewHTTPSClient(username, password string, tlsConfig *tls.Config) HTTPClient {
 	return newClient(authDigest, &username, &password, "https", tlsConfig)
 }
