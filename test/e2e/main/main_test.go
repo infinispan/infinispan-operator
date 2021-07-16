@@ -88,10 +88,6 @@ func TestUpdateOperatorPassword(t *testing.T) {
 	// Register it
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -141,10 +137,6 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	// Create Cluster
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -211,10 +203,6 @@ func TestNodeStartup(t *testing.T) {
 	// Register it
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -332,10 +320,6 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 	// Register it
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -360,10 +344,6 @@ func TestClusterFormation(t *testing.T) {
 	// Register it
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -391,10 +371,6 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	// Register it
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -424,10 +400,6 @@ func TestTLSWithExistingKeystore(t *testing.T) {
 	// Register it
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -551,10 +523,6 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	// Register it
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -720,10 +688,6 @@ func testCacheService(testName string) {
 
 	spec.Labels = map[string]string{"test-name": testName}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": testName}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -811,11 +775,6 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 	spec.Name = clusterName
 	spec.Labels = map[string]string{"test-name": clusterName}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-
-=======
-	spec.Labels = map[string]string{"test-name": clusterName}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -854,10 +813,6 @@ func TestExternalService(t *testing.T) {
 	// Register it
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(&spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
@@ -926,10 +881,6 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	}
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(&spec, tutils.Namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
@@ -1018,10 +969,6 @@ func TestAuthenticationDisabled(t *testing.T) {
 	// Create the cluster
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, namespace)
-<<<<<<< HEAD
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, name, namespace)
@@ -1404,11 +1351,6 @@ func TestCacheCR(t *testing.T) {
 	spec.Name = name
 	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-<<<<<<< HEAD
-
-=======
-	spec.Labels = map[string]string{"test-name": t.Name()}
->>>>>>> 0227575... issue-1070: Use testKube.CleanNamespaceAndLogOnPanic in all tests
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
