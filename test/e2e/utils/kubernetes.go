@@ -152,7 +152,7 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 	ExpectNoError(err)
 }
 
-func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
+func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, specLabel map[string]string) {
 	panicVal := recover()
 	// Print pod output if a panic has occurred
 	if panicVal != nil {
@@ -171,12 +171,19 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
 		ctx := context.TODO()
+		if specLabel != nil {
+			opts = []client.DeleteAllOfOption{
+				client.InNamespace(namespace),
+				client.MatchingLabels(specLabel),
+			}
+		}
+
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
-		k.WaitForPods(0, 5*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
+		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
 	}
 

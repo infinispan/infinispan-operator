@@ -40,7 +40,7 @@ func TestBatchInlineConfig(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
 	infinispan := createCluster(name)
-	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, infinispan.Labels)
 	testBatchInlineConfig(infinispan)
 }
 
@@ -60,7 +60,6 @@ func testBatchInlineConfig(infinispan *v1.Infinispan) {
 	hostAddr := hostAddr(client, infinispan)
 	assertRestOk(cachesURL("batch-cache", hostAddr), client)
 	assertRestOk(countersURL("batch-counter", hostAddr), client)
-
 	testKube.DeleteBatch(batch)
 	waitForK8sResourceCleanup(name)
 }
@@ -69,7 +68,7 @@ func TestBatchConfigMap(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
 	infinispan := createCluster(name)
-	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, infinispan.Labels)
 
 	configMapName := name + "-cm"
 	configMap := &corev1.ConfigMap{
@@ -133,7 +132,7 @@ func TestBatchFail(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
 	infinispan := createCluster(name)
-	defer testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, infinispan.Labels)
 
 	batchScript := "SOME INVALID BATCH CMD!"
 	batch := createBatch(name, name, &batchScript, nil)
@@ -172,6 +171,7 @@ func hostAddr(client tutils.HTTPClient, infinispan *v1.Infinispan) string {
 func createCluster(name string) *v1.Infinispan {
 	infinispan := tutils.DefaultSpec(testKube)
 	infinispan.Name = name
+	infinispan.Labels = map[string]string{"test-name": name}
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	return infinispan
@@ -193,6 +193,7 @@ func createBatch(name, cluster string, config, configMap *string) *v2.Batch {
 			ConfigMap: configMap,
 		},
 	}
+	batch.Labels = map[string]string{"test-name": name}
 	testKube.Create(batch)
 	return batch
 }
