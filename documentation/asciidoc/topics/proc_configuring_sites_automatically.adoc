@@ -12,14 +12,11 @@ Configure {ispn_operator} to establish cross-site views with {brandname} cluster
 
 . Create an `Infinispan` CR for each {brandname} cluster.
 . Specify the name of the local site with `spec.service.sites.local.name`.
-. Set the value of the `service.sites.local.expose.type` field to either `NodePort` or `LoadBalancer`.
+. Set the value of the `spec.service.sites.local.expose.type` field to either `NodePort` or `LoadBalancer`.
+. Optionally configure ports with the following fields:
 +
-If you use a `NodePort` service for cross-site replication, you can configure a static port within the default range of `30000` to `32767` as follows:
-+
-[source,options="nowrap",subs=attributes+]
-----
-include::yaml/xsite_expose_nodeport.yaml[]
-----
+* `spec.service.sites.local.expose.nodePort` if you use `NodePort`.
+* `spec.service.sites.local.expose.port` if you use `LoadBalancer`.
 +
 . Provide the name, URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 . If {brandname} cluster names or namespaces at the remote site do not match the local site, specify those values with the `clusterName` and `namespace` fields.

@@ -23,7 +23,11 @@ include::yaml/xsite_automatic.yaml[]
 |`service.sites.local.expose.type`
 |Specifies the network service for cross-site replication. {brandname} clusters use this service to communicate and perform backup operations. You can set the value to `NodePort` or `LoadBalancer`.
 
-If you use `NodePort` you can also configure the port with the `service.site.local.expose.nodePort` field.
+|`service.sites.local.expose.nodePort`
+|Specifies a static port within the default range of `30000` to `32767` if you expose {brandname} through a `NodePort` service. If you do not specify a port, the platform selects an available one.
+
+|`service.sites.local.expose.port`
+|Specifies the network port for the service if you expose {brandname} through a `LoadBalancer`. The default port is `7900`.
 
 |`service.sites.locations`
 |Provides connection information for all backup locations.

@@ -1,4 +1,4 @@
 spec:
   expose:
     type: LoadBalancer
-    nodePort: 30000
+    port: 65535
