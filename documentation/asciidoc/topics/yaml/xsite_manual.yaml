@@ -6,6 +6,7 @@ spec:
         name: LON
         expose:
           type: LoadBalancer
+          port: 65535
       locations:
       - name: NYC
         url: infinispan+xsite://infinispan-nyc.myhost.com:7900
