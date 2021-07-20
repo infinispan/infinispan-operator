@@ -171,11 +171,14 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType string, exp
 		}
 	}
 
+	tesKubes["xsite1"].crossSite.Labels = map[string]string{"test-name": t.Name()}
+	tesKubes["xsite2"].crossSite.Labels = map[string]string{"test-name": t.Name()}
+
 	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
 	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
 
-	defer tesKubes["xsite1"].kube.DeleteInfinispan(&tesKubes["xsite1"].crossSite, tutils.SinglePodTimeout)
-	defer tesKubes["xsite2"].kube.DeleteInfinispan(&tesKubes["xsite2"].crossSite, tutils.SinglePodTimeout)
+	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(tutils.Namespace, tesKubes["xsite1"].crossSite.Labels)
+	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(tutils.Namespace, tesKubes["xsite2"].crossSite.Labels)
 
 	tesKubes["xsite1"].kube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
 	tesKubes["xsite2"].kube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)

@@ -47,7 +47,7 @@ func TestBackupRestoreTransformations(t *testing.T) {
 
 	infinispan := datagridService(clusterName, namespace, 1)
 	testKube.Create(infinispan)
-	defer testKube.CleanNamespaceAndLogOnPanic(namespace)
+	defer testKube.CleanNamespaceAndLogOnPanic(namespace, nil)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(infinispan.Name, namespace, v1.ConditionWellFormed)
 
@@ -124,7 +124,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	sourceCluster := name + "-source"
 	infinispan := clusterSpec(sourceCluster, namespace, clusterSize)
 	testKube.Create(infinispan)
-	defer testKube.CleanNamespaceAndLogOnPanic(namespace)
+	defer testKube.CleanNamespaceAndLogOnPanic(namespace, nil)
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
 
