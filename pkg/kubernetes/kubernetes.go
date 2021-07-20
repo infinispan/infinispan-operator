@@ -26,6 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+const containerName = "infinispan"
+
 // Kubernetes abstracts interaction with a Kubernetes cluster
 type Kubernetes struct {
 	Client     client.Client
@@ -117,11 +119,12 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 		Namespace(options.Namespace).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
-			Command: options.Command,
-			Stdin:   false,
-			Stdout:  true,
-			Stderr:  true,
-			TTY:     false,
+			Command:   options.Command,
+			Container: containerName,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
 		}, scheme.ParameterCodec)
 	var execOut, execErr bytes.Buffer
 	// Create an executor
@@ -313,7 +316,7 @@ func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime
 }
 
 func (k Kubernetes) Logs(pod, namespace string) (logs string, err error) {
-	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Stream()
+	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Param("container", containerName).Stream()
 	if err != nil {
 		return "", err
 	}
