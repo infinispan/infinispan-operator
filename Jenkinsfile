@@ -38,9 +38,12 @@ pipeline {
         }
 
         stage('E2E') {
+            environment {
+                CHANGE_TARGET = "${env.CHANGE_TARGET}"
+            }
             when {
                 expression {
-                    return !env.BRANCH_NAME.startsWith('PR-') || !pullRequest.labels.contains('documentation')
+                    return !env.BRANCH_NAME.startsWith('PR-') || sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr/|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/\'', returnStatus: true) == 0
                 }
             }
             stages {
