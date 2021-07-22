@@ -14,7 +14,7 @@ var (
 	DefaultImageName = GetDefaultInfinispanJavaImage()
 
 	// InitContainerImageName allows a custom initContainer image to be used
-	InitContainerImageName = GetEnvWithDefault("INITCONTAINER_IMAGE", "busybox")
+	InitContainerImageName = GetEnvWithDefault("INITCONTAINER_IMAGE", "registry.access.redhat.com/ubi8-micro")
 
 	// JGroupsDiagnosticsFlag is used to enable traces for JGroups
 	JGroupsDiagnosticsFlag = strings.ToUpper(GetEnvWithDefault("JGROUPS_DIAGNOSTICS", "FALSE"))
