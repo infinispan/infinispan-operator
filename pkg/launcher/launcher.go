@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 
+	ingressv1 "github.com/infinispan/infinispan-operator/pkg/apis/networking/v1"
+
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/infinispan/infinispan-operator/pkg/apis"
 	"github.com/infinispan/infinispan-operator/pkg/controller"
@@ -23,7 +25,6 @@ import (
 	sdkv "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
-	extv1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // blank import (?)
 	"k8s.io/client-go/rest"
@@ -128,7 +129,7 @@ func Launch(params Parameters) {
 	}
 
 	// Setup Scheme for Ingress
-	if err := extv1.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := ingressv1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
