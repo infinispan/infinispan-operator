@@ -1,7 +1,5 @@
 ## Infinispan Operator
 
-[![Build Status](https://api.travis-ci.com/infinispan/infinispan-operator.svg?branch=2.1.x)](https://travis-ci.com/infinispan/infinispan-operator)
-
 This is an OpenShift operator to run and rule Infinispan.
 
 ### System Requirements
@@ -190,10 +188,10 @@ $ make test KUBECONFIG=/path/to/openshift.local.clusterup/openshift-apiserver/ad
 ### Testing the Infinispan Operator for Cross-Site (xsite)
 Cross-Site tests required to create two k8s Kind clusters or utilize already prepared two OKD clusters:
 ```
-$ source build/travis/configure-travis-ci-xsite.sh $KIND_VERSION $METALLB_VERSION
+$ source build/ci/configure-xsite.sh $KIND_VERSION $METALLB_VERSION
 ```
 
-Actual `$KIND_VERSION` and `$METALLB_VERSION` values can be explored inside the `.travis.yml` file 
+Actual `$KIND_VERSION` and `$METALLB_VERSION` values can be explored inside the `Jenkinsfile` file 
 
 To test locally in running Kind clusters, run:
 ```
