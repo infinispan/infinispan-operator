@@ -6,7 +6,7 @@ METALLB_ADDRESS_SHIFT=25
 METALLB_ADDRESS_START=200
 export MAKE_DATADIR_WRITABLE=true
 export GO111MODULE=on
-export INITCONTAINER_IMAGE=quay.io/quay/busybox:latest
+export INITCONTAINER_IMAGE=registry.access.redhat.com/ubi8-micro
 export TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 export KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}
 KIND_KUBEAPI_PORT=6443
@@ -70,7 +70,7 @@ for INSTANCE_IDX in 1 2; do
   kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/"${METALLB_VERSION}"/manifests/namespace.yaml
   kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
   wget -q -O - https://raw.githubusercontent.com/metallb/metallb/"${METALLB_VERSION}"/manifests/metallb.yaml | sed "s|image: metallb/|image: quay.io/metallb/|" | kubectl apply -f -
-  sed -e "s/METALLB_ADDRESSES_RANGE/${METALLB_ADDRESSES_RANGE}/g" build/travis/test-configuration/metallb-config-xsite.yaml | kubectl apply -f -
+  sed -e "s/METALLB_ADDRESSES_RANGE/${METALLB_ADDRESSES_RANGE}/g" build/ci/metallb-config-xsite.yaml | kubectl apply -f -
 
   # Validating MetalLB provisioning
   kubectl wait --for condition=available deployment controller -n metallb-system --timeout 150s
