@@ -10,6 +10,7 @@ import (
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ingressv1 "github.com/infinispan/infinispan-operator/pkg/apis/networking/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
@@ -17,11 +18,11 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -69,7 +70,7 @@ func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *
 var reconcileTypes = map[string]*resources.ReconcileType{
 	consts.ExternalTypeService: {ObjectType: &corev1.Service{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true},
 	consts.ExternalTypeRoute:   {ObjectType: &routev1.Route{}, GroupVersion: routev1.GroupVersion, GroupVersionSupported: false},
-	consts.ExternalTypeIngress: {ObjectType: &networkingv1beta1.Ingress{}, GroupVersion: networkingv1beta1.SchemeGroupVersion, GroupVersionSupported: false},
+	consts.ExternalTypeIngress: {ObjectType: &ingressv1.Ingress{}, GroupVersion: schema.GroupVersion{Group: "networking.k8s.io", Version: "v1"}, GroupVersionSupported: false},
 	consts.ServiceMonitorType:  {ObjectType: &monitoringv1.ServiceMonitor{}, GroupVersion: monitoringv1.SchemeGroupVersion, GroupVersionSupported: false, TypeWatchDisable: true},
 }
 
@@ -500,10 +501,11 @@ func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 }
 
 // computeIngress compute the Ingress object
-func computeIngress(ispn *ispnv1.Infinispan) *networkingv1beta1.Ingress {
-	ingress := networkingv1beta1.Ingress{
+func computeIngress(ispn *ispnv1.Infinispan) *ingressv1.Ingress {
+	pathTypePrefix := ingressv1.PathTypePrefix
+	ingress := ingressv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -511,23 +513,26 @@ func computeIngress(ispn *ispnv1.Infinispan) *networkingv1beta1.Ingress {
 			Namespace: ispn.Namespace,
 			Labels:    ExternalServiceLabels(ispn.Name),
 		},
-		Spec: networkingv1beta1.IngressSpec{
-			TLS: []networkingv1beta1.IngressTLS{},
-			Rules: []networkingv1beta1.IngressRule{
+		Spec: ingressv1.IngressSpec{
+			TLS: []ingressv1.IngressTLS{},
+			Rules: []ingressv1.IngressRule{
 				{
 					Host: ispn.Spec.Expose.Host,
-					IngressRuleValue: networkingv1beta1.IngressRuleValue{
-						HTTP: &networkingv1beta1.HTTPIngressRuleValue{
-							Paths: []networkingv1beta1.HTTPIngressPath{
+					IngressRuleValue: ingressv1.IngressRuleValue{
+						HTTP: &ingressv1.HTTPIngressRuleValue{
+							Paths: []ingressv1.HTTPIngressPath{
 								{
-									Path: "/",
-									Backend: networkingv1beta1.IngressBackend{
-										ServiceName: ispn.Name,
-										ServicePort: intstr.IntOrString{IntVal: consts.InfinispanUserPort}}}}},
-					}}},
-		}}
+									PathType: &pathTypePrefix,
+									Path:     "/",
+									Backend: ingressv1.IngressBackend{
+										Service: &ingressv1.IngressServiceBackend{
+											Name: ispn.Name,
+											Port: ingressv1.ServiceBackendPort{Number: consts.InfinispanUserPort},
+										},
+									}}},
+						}}}}}}
 	if ispn.IsEncryptionEnabled() {
-		ingress.Spec.TLS = []networkingv1beta1.IngressTLS{
+		ingress.Spec.TLS = []ingressv1.IngressTLS{
 			{
 				Hosts: []string{ispn.Spec.Expose.Host},
 			},

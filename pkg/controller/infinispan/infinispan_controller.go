@@ -16,6 +16,7 @@ import (
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ingressv1 "github.com/infinispan/infinispan-operator/pkg/apis/networking/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
@@ -25,7 +26,6 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -112,7 +112,7 @@ func secondaryResourceTypes() []SecondaryResourceType {
 
 var supportedTypes = map[string]*resources.ReconcileType{
 	consts.ExternalTypeRoute:   {ObjectType: &routev1.Route{}, GroupVersion: routev1.GroupVersion, GroupVersionSupported: false},
-	consts.ExternalTypeIngress: {ObjectType: &networkingv1beta1.Ingress{}, GroupVersion: networkingv1beta1.SchemeGroupVersion, GroupVersionSupported: false},
+	consts.ExternalTypeIngress: {ObjectType: &ingressv1.Ingress{}, GroupVersion: ingressv1.SchemeGroupVersion, GroupVersionSupported: false},
 	consts.ServiceMonitorType:  {ObjectType: &monitoringv1.ServiceMonitor{}, GroupVersion: monitoringv1.SchemeGroupVersion, GroupVersionSupported: false},
 }
 
@@ -472,7 +472,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 				}
 				exposeAddress = externalRoute.Spec.Host
 			} else if isTypeSupported(consts.ExternalTypeIngress) {
-				externalIngress := &networkingv1beta1.Ingress{}
+				externalIngress := &ingressv1.Ingress{}
 				if result, err := kube.LookupResource(infinispan.GetServiceExternalName(), infinispan.Namespace, externalIngress, r.client, reqLogger, eventRec); result != nil {
 					return *result, err
 				}
@@ -631,7 +631,7 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 		}
 	} else if isTypeSupported(consts.ExternalTypeIngress) {
 		err = r.client.Delete(context.TODO(),
-			&networkingv1beta1.Ingress{
+			&ingressv1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      infinispan.GetServiceExternalName(),
 					Namespace: infinispan.Namespace,

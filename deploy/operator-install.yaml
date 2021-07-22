@@ -245,7 +245,7 @@ subjects:
 
 ---
 
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: infinispans.infinispan.org
@@ -259,710 +259,709 @@ spec:
     plural: infinispans
     singular: infinispan
   scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      description: Infinispan is the Schema for the infinispans API
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: InfinispanSpec defines the desired state of Infinispan
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          description: Infinispan is the Schema for the infinispans API
           properties:
-            affinity:
-              description: Affinity is a group of affinity scheduling rules.
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: InfinispanSpec defines the desired state of Infinispan
               properties:
-                nodeAffinity:
-                  description: Describes node affinity scheduling rules for the pod.
+                affinity:
+                  description: Affinity is a group of affinity scheduling rules.
                   properties:
-                    preferredDuringSchedulingIgnoredDuringExecution:
-                      description: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
-                      items:
-                        description: An empty preferred scheduling term matches all objects with implicit weight 0 (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
-                        properties:
-                          preference:
-                            description: A node selector term, associated with the corresponding weight.
-                            properties:
-                              matchExpressions:
-                                description: A list of node selector requirements by node's labels.
-                                items:
-                                  description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                                  properties:
-                                    key:
-                                      description: The label key that the selector applies to.
-                                      type: string
-                                    operator:
-                                      description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
-                                      type: string
-                                    values:
-                                      description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
-                                      items:
-                                        type: string
-                                      type: array
-                                  required:
-                                    - key
-                                    - operator
-                                  type: object
-                                type: array
-                              matchFields:
-                                description: A list of node selector requirements by node's fields.
-                                items:
-                                  description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                                  properties:
-                                    key:
-                                      description: The label key that the selector applies to.
-                                      type: string
-                                    operator:
-                                      description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
-                                      type: string
-                                    values:
-                                      description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
-                                      items:
-                                        type: string
-                                      type: array
-                                  required:
-                                    - key
-                                    - operator
-                                  type: object
-                                type: array
-                            type: object
-                          weight:
-                            description: Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
-                            format: int32
-                            type: integer
-                        required:
-                          - preference
-                          - weight
-                        type: object
-                      type: array
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      description: If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to an update), the system may or may not try to eventually evict the pod from its node.
+                    nodeAffinity:
+                      description: Describes node affinity scheduling rules for the pod.
                       properties:
-                        nodeSelectorTerms:
-                          description: Required. A list of node selector terms. The terms are ORed.
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          description: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
                           items:
-                            description: A null or empty node selector term matches no objects. The requirements of them are ANDed. The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+                            description: An empty preferred scheduling term matches all objects with implicit weight 0 (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
                             properties:
-                              matchExpressions:
-                                description: A list of node selector requirements by node's labels.
+                              preference:
+                                description: A node selector term, associated with the corresponding weight.
+                                properties:
+                                  matchExpressions:
+                                    description: A list of node selector requirements by node's labels.
+                                    items:
+                                      description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                                      properties:
+                                        key:
+                                          description: The label key that the selector applies to.
+                                          type: string
+                                        operator:
+                                          description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                          type: string
+                                        values:
+                                          description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                        - key
+                                        - operator
+                                      type: object
+                                    type: array
+                                  matchFields:
+                                    description: A list of node selector requirements by node's fields.
+                                    items:
+                                      description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                                      properties:
+                                        key:
+                                          description: The label key that the selector applies to.
+                                          type: string
+                                        operator:
+                                          description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                          type: string
+                                        values:
+                                          description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                        - key
+                                        - operator
+                                      type: object
+                                    type: array
+                                type: object
+                              weight:
+                                description: Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
+                                format: int32
+                                type: integer
+                            required:
+                              - preference
+                              - weight
+                            type: object
+                          type: array
+                        requiredDuringSchedulingIgnoredDuringExecution:
+                          description: If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to an update), the system may or may not try to eventually evict the pod from its node.
+                          properties:
+                            nodeSelectorTerms:
+                              description: Required. A list of node selector terms. The terms are ORed.
+                              items:
+                                description: A null or empty node selector term matches no objects. The requirements of them are ANDed. The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+                                properties:
+                                  matchExpressions:
+                                    description: A list of node selector requirements by node's labels.
+                                    items:
+                                      description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                                      properties:
+                                        key:
+                                          description: The label key that the selector applies to.
+                                          type: string
+                                        operator:
+                                          description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                          type: string
+                                        values:
+                                          description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                        - key
+                                        - operator
+                                      type: object
+                                    type: array
+                                  matchFields:
+                                    description: A list of node selector requirements by node's fields.
+                                    items:
+                                      description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                                      properties:
+                                        key:
+                                          description: The label key that the selector applies to.
+                                          type: string
+                                        operator:
+                                          description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                          type: string
+                                        values:
+                                          description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                        - key
+                                        - operator
+                                      type: object
+                                    type: array
+                                type: object
+                              type: array
+                          required:
+                            - nodeSelectorTerms
+                          type: object
+                      type: object
+                    podAffinity:
+                      description: Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
+                      properties:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          description: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
+                          items:
+                            description: The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+                            properties:
+                              podAffinityTerm:
+                                description: Required. A pod affinity term, associated with the corresponding weight.
+                                properties:
+                                  labelSelector:
+                                    description: A label query over a set of resources, in this case pods.
+                                    properties:
+                                      matchExpressions:
+                                        description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                                        items:
+                                          description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                                          properties:
+                                            key:
+                                              description: key is the label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
+                                              items:
+                                                type: string
+                                              type: array
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                      matchLabels:
+                                        additionalProperties:
+                                          type: string
+                                        description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                        type: object
+                                    type: object
+                                  namespaces:
+                                    description: namespaces specifies which namespaces the labelSelector applies to (matches against); null or empty list means "this pod's namespace"
+                                    items:
+                                      type: string
+                                    type: array
+                                  topologyKey:
+                                    description: This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching the labelSelector in the specified namespaces, where co-located is defined as running on a node whose value of the label with key topologyKey matches that of any node on which any of the selected pods is running. Empty topologyKey is not allowed.
+                                    type: string
+                                required:
+                                  - topologyKey
+                                type: object
+                              weight:
+                                description: weight associated with matching the corresponding podAffinityTerm, in the range 1-100.
+                                format: int32
+                                type: integer
+                            required:
+                              - podAffinityTerm
+                              - weight
+                            type: object
+                          type: array
+                        requiredDuringSchedulingIgnoredDuringExecution:
+                          description: If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied.
+                          items:
+                            description: Defines a set of pods (namely those matching the labelSelector relative to the given namespace(s)) that this pod should be co-located (affinity) or not co-located (anti-affinity) with, where co-located is defined as running on a node whose value of the label with key <topologyKey> matches that of any node on which a pod of the set of pods is running
+                            properties:
+                              labelSelector:
+                                description: A label query over a set of resources, in this case pods.
+                                properties:
+                                  matchExpressions:
+                                    description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                                    items:
+                                      description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                                      properties:
+                                        key:
+                                          description: key is the label key that the selector applies to.
+                                          type: string
+                                        operator:
+                                          description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
+                                          type: string
+                                        values:
+                                          description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                        - key
+                                        - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
+                                    description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                    type: object
+                                type: object
+                              namespaces:
+                                description: namespaces specifies which namespaces the labelSelector applies to (matches against); null or empty list means "this pod's namespace"
                                 items:
-                                  description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                                  properties:
-                                    key:
-                                      description: The label key that the selector applies to.
-                                      type: string
-                                    operator:
-                                      description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
-                                      type: string
-                                    values:
-                                      description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
-                                      items:
-                                        type: string
-                                      type: array
-                                  required:
-                                    - key
-                                    - operator
-                                  type: object
+                                  type: string
                                 type: array
-                              matchFields:
-                                description: A list of node selector requirements by node's fields.
+                              topologyKey:
+                                description: This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching the labelSelector in the specified namespaces, where co-located is defined as running on a node whose value of the label with key topologyKey matches that of any node on which any of the selected pods is running. Empty topologyKey is not allowed.
+                                type: string
+                            required:
+                              - topologyKey
+                            type: object
+                          type: array
+                      type: object
+                    podAntiAffinity:
+                      description: Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
+                      properties:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          description: The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
+                          items:
+                            description: The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+                            properties:
+                              podAffinityTerm:
+                                description: Required. A pod affinity term, associated with the corresponding weight.
+                                properties:
+                                  labelSelector:
+                                    description: A label query over a set of resources, in this case pods.
+                                    properties:
+                                      matchExpressions:
+                                        description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                                        items:
+                                          description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                                          properties:
+                                            key:
+                                              description: key is the label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
+                                              items:
+                                                type: string
+                                              type: array
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                      matchLabels:
+                                        additionalProperties:
+                                          type: string
+                                        description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                        type: object
+                                    type: object
+                                  namespaces:
+                                    description: namespaces specifies which namespaces the labelSelector applies to (matches against); null or empty list means "this pod's namespace"
+                                    items:
+                                      type: string
+                                    type: array
+                                  topologyKey:
+                                    description: This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching the labelSelector in the specified namespaces, where co-located is defined as running on a node whose value of the label with key topologyKey matches that of any node on which any of the selected pods is running. Empty topologyKey is not allowed.
+                                    type: string
+                                required:
+                                  - topologyKey
+                                type: object
+                              weight:
+                                description: weight associated with matching the corresponding podAffinityTerm, in the range 1-100.
+                                format: int32
+                                type: integer
+                            required:
+                              - podAffinityTerm
+                              - weight
+                            type: object
+                          type: array
+                        requiredDuringSchedulingIgnoredDuringExecution:
+                          description: If the anti-affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the anti-affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied.
+                          items:
+                            description: Defines a set of pods (namely those matching the labelSelector relative to the given namespace(s)) that this pod should be co-located (affinity) or not co-located (anti-affinity) with, where co-located is defined as running on a node whose value of the label with key <topologyKey> matches that of any node on which a pod of the set of pods is running
+                            properties:
+                              labelSelector:
+                                description: A label query over a set of resources, in this case pods.
+                                properties:
+                                  matchExpressions:
+                                    description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                                    items:
+                                      description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                                      properties:
+                                        key:
+                                          description: key is the label key that the selector applies to.
+                                          type: string
+                                        operator:
+                                          description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
+                                          type: string
+                                        values:
+                                          description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                        - key
+                                        - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
+                                    description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                    type: object
+                                type: object
+                              namespaces:
+                                description: namespaces specifies which namespaces the labelSelector applies to (matches against); null or empty list means "this pod's namespace"
                                 items:
-                                  description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                                  properties:
-                                    key:
-                                      description: The label key that the selector applies to.
-                                      type: string
-                                    operator:
-                                      description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
-                                      type: string
-                                    values:
-                                      description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
-                                      items:
-                                        type: string
-                                      type: array
-                                  required:
-                                    - key
-                                    - operator
-                                  type: object
+                                  type: string
                                 type: array
+                              topologyKey:
+                                description: This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching the labelSelector in the specified namespaces, where co-located is defined as running on a node whose value of the label with key topologyKey matches that of any node on which any of the selected pods is running. Empty topologyKey is not allowed.
+                                type: string
+                            required:
+                              - topologyKey
+                            type: object
+                          type: array
+                      type: object
+                  type: object
+                autoscale:
+                  description: Autoscale describe autoscaling configuration for the cluster
+                  properties:
+                    disabled:
+                      type: boolean
+                    maxMemUsagePercent:
+                      type: integer
+                    maxReplicas:
+                      format: int32
+                      type: integer
+                    minMemUsagePercent:
+                      type: integer
+                    minReplicas:
+                      format: int32
+                      type: integer
+                  required:
+                    - maxMemUsagePercent
+                    - maxReplicas
+                    - minMemUsagePercent
+                    - minReplicas
+                  type: object
+                cloudEvents:
+                  description: InfinispanCloudEvents describes how Infinispan is connected with Cloud Event, see Kafka docs for more info
+                  properties:
+                    acks:
+                      description: Acks configuration for the producer ack-value
+                      type: string
+                    bootstrapServers:
+                      description: BootstrapServers is comma separated list of boostrap server:port addresses
+                      type: string
+                    cacheEntriesTopic:
+                      description: CacheEntriesTopic is the name of the topic on which events will be published
+                      type: string
+                  required:
+                    - bootstrapServers
+                  type: object
+                container:
+                  description: InfinispanContainerSpec specify resource requirements per container
+                  properties:
+                    cpu:
+                      type: string
+                    extraJvmOpts:
+                      type: string
+                    memory:
+                      type: string
+                  type: object
+                dependencies:
+                  description: External dependencies needed by the Infinispan cluster
+                  properties:
+                    volumeClaimName:
+                      description: Name of the persistent volume claim with custom libraries
+                      type: string
+                  type: object
+                expose:
+                  description: ExposeSpec describe how Infinispan will be exposed externally
+                  properties:
+                    annotations:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    host:
+                      type: string
+                    nodePort:
+                      format: int32
+                      type: integer
+                    port:
+                      format: int32
+                      type: integer
+                    type:
+                      description: Type specifies different exposition methods for data grid
+                      enum:
+                        - NodePort
+                        - LoadBalancer
+                        - Route
+                      type: string
+                  required:
+                    - type
+                  type: object
+                image:
+                  type: string
+                logging:
+                  properties:
+                    categories:
+                      additionalProperties:
+                        description: LoggingLevelType describe the logging level for selected category
+                        enum:
+                          - trace
+                          - debug
+                          - info
+                          - warn
+                          - error
+                        type: string
+                      type: object
+                  type: object
+                replicas:
+                  format: int32
+                  type: integer
+                security:
+                  description: InfinispanSecurity info for the user application connection
+                  properties:
+                    authorization:
+                      properties:
+                        enabled:
+                          type: boolean
+                        roles:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              permissions:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                              - name
+                              - permissions
+                            type: object
+                          type: array
+                      type: object
+                    endpointAuthentication:
+                      type: boolean
+                    endpointEncryption:
+                      description: EndpointEncryption configuration
+                      properties:
+                        certSecretName:
+                          type: string
+                        certServiceName:
+                          type: string
+                        clientCert:
+                          description: ClientCertType specifies a client certificate validation mechanism.
+                          enum:
+                            - None
+                            - Authenticate
+                            - Validate
+                          type: string
+                        clientCertSecretName:
+                          type: string
+                        type:
+                          description: CertificateSourceType specifies all the possible sources for the encryption certificate
+                          enum:
+                            - Service
+                            - service
+                            - Secret
+                            - secret
+                            - None
+                          type: string
+                      type: object
+                    endpointSecretName:
+                      type: string
+                  type: object
+                service:
+                  description: InfinispanServiceSpec specify configuration for specific service
+                  properties:
+                    container:
+                      description: InfinispanServiceContainerSpec resource requirements specific for service
+                      properties:
+                        ephemeralStorage:
+                          type: boolean
+                        storage:
+                          type: string
+                        storageClassName:
+                          type: string
+                      type: object
+                    replicationFactor:
+                      format: int32
+                      type: integer
+                    sites:
+                      properties:
+                        local:
+                          properties:
+                            expose:
+                              description: CrossSiteExposeSpec describe how Infinispan Cross-Site service will be exposed externally
+                              properties:
+                                annotations:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                nodePort:
+                                  format: int32
+                                  type: integer
+                                port:
+                                  format: int32
+                                  type: integer
+                                type:
+                                  description: Type specifies different exposition methods for data grid
+                                  enum:
+                                    - NodePort
+                                    - LoadBalancer
+                                    - ClusterIP
+                                  type: string
+                              required:
+                                - type
+                              type: object
+                            name:
+                              type: string
+                          required:
+                            - expose
+                            - name
+                          type: object
+                        locations:
+                          items:
+                            properties:
+                              clusterName:
+                                type: string
+                              host:
+                                description: Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                              port:
+                                description: Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
+                                format: int32
+                                type: integer
+                              secretName:
+                                type: string
+                              url:
+                                pattern: (^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)+$)|(^(infinispan\+xsite):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)*$)
+                                type: string
+                            required:
+                              - name
                             type: object
                           type: array
                       required:
-                        - nodeSelectorTerms
+                        - local
                       type: object
-                  type: object
-                podAffinity:
-                  description: Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
-                  properties:
-                    preferredDuringSchedulingIgnoredDuringExecution:
-                      description: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
-                      items:
-                        description: The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
-                        properties:
-                          podAffinityTerm:
-                            description: Required. A pod affinity term, associated with the corresponding weight.
-                            properties:
-                              labelSelector:
-                                description: A label query over a set of resources, in this case pods.
-                                properties:
-                                  matchExpressions:
-                                    description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
-                                    items:
-                                      description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                                      properties:
-                                        key:
-                                          description: key is the label key that the selector applies to.
-                                          type: string
-                                        operator:
-                                          description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
-                                          type: string
-                                        values:
-                                          description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
-                                          items:
-                                            type: string
-                                          type: array
-                                      required:
-                                        - key
-                                        - operator
-                                      type: object
-                                    type: array
-                                  matchLabels:
-                                    additionalProperties:
-                                      type: string
-                                    description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
-                                    type: object
-                                type: object
-                              namespaces:
-                                description: namespaces specifies which namespaces the labelSelector applies to (matches against); null or empty list means "this pod's namespace"
-                                items:
-                                  type: string
-                                type: array
-                              topologyKey:
-                                description: This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching the labelSelector in the specified namespaces, where co-located is defined as running on a node whose value of the label with key topologyKey matches that of any node on which any of the selected pods is running. Empty topologyKey is not allowed.
-                                type: string
-                            required:
-                              - topologyKey
-                            type: object
-                          weight:
-                            description: weight associated with matching the corresponding podAffinityTerm, in the range 1-100.
-                            format: int32
-                            type: integer
-                        required:
-                          - podAffinityTerm
-                          - weight
-                        type: object
-                      type: array
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      description: If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied.
-                      items:
-                        description: Defines a set of pods (namely those matching the labelSelector relative to the given namespace(s)) that this pod should be co-located (affinity) or not co-located (anti-affinity) with, where co-located is defined as running on a node whose value of the label with key <topologyKey> matches that of any node on which a pod of the set of pods is running
-                        properties:
-                          labelSelector:
-                            description: A label query over a set of resources, in this case pods.
-                            properties:
-                              matchExpressions:
-                                description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
-                                items:
-                                  description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                                  properties:
-                                    key:
-                                      description: key is the label key that the selector applies to.
-                                      type: string
-                                    operator:
-                                      description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
-                                      type: string
-                                    values:
-                                      description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
-                                      items:
-                                        type: string
-                                      type: array
-                                  required:
-                                    - key
-                                    - operator
-                                  type: object
-                                type: array
-                              matchLabels:
-                                additionalProperties:
-                                  type: string
-                                description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
-                                type: object
-                            type: object
-                          namespaces:
-                            description: namespaces specifies which namespaces the labelSelector applies to (matches against); null or empty list means "this pod's namespace"
-                            items:
-                              type: string
-                            type: array
-                          topologyKey:
-                            description: This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching the labelSelector in the specified namespaces, where co-located is defined as running on a node whose value of the label with key topologyKey matches that of any node on which any of the selected pods is running. Empty topologyKey is not allowed.
-                            type: string
-                        required:
-                          - topologyKey
-                        type: object
-                      type: array
-                  type: object
-                podAntiAffinity:
-                  description: Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
-                  properties:
-                    preferredDuringSchedulingIgnoredDuringExecution:
-                      description: The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
-                      items:
-                        description: The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
-                        properties:
-                          podAffinityTerm:
-                            description: Required. A pod affinity term, associated with the corresponding weight.
-                            properties:
-                              labelSelector:
-                                description: A label query over a set of resources, in this case pods.
-                                properties:
-                                  matchExpressions:
-                                    description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
-                                    items:
-                                      description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                                      properties:
-                                        key:
-                                          description: key is the label key that the selector applies to.
-                                          type: string
-                                        operator:
-                                          description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
-                                          type: string
-                                        values:
-                                          description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
-                                          items:
-                                            type: string
-                                          type: array
-                                      required:
-                                        - key
-                                        - operator
-                                      type: object
-                                    type: array
-                                  matchLabels:
-                                    additionalProperties:
-                                      type: string
-                                    description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
-                                    type: object
-                                type: object
-                              namespaces:
-                                description: namespaces specifies which namespaces the labelSelector applies to (matches against); null or empty list means "this pod's namespace"
-                                items:
-                                  type: string
-                                type: array
-                              topologyKey:
-                                description: This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching the labelSelector in the specified namespaces, where co-located is defined as running on a node whose value of the label with key topologyKey matches that of any node on which any of the selected pods is running. Empty topologyKey is not allowed.
-                                type: string
-                            required:
-                              - topologyKey
-                            type: object
-                          weight:
-                            description: weight associated with matching the corresponding podAffinityTerm, in the range 1-100.
-                            format: int32
-                            type: integer
-                        required:
-                          - podAffinityTerm
-                          - weight
-                        type: object
-                      type: array
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      description: If the anti-affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the anti-affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied.
-                      items:
-                        description: Defines a set of pods (namely those matching the labelSelector relative to the given namespace(s)) that this pod should be co-located (affinity) or not co-located (anti-affinity) with, where co-located is defined as running on a node whose value of the label with key <topologyKey> matches that of any node on which a pod of the set of pods is running
-                        properties:
-                          labelSelector:
-                            description: A label query over a set of resources, in this case pods.
-                            properties:
-                              matchExpressions:
-                                description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
-                                items:
-                                  description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
-                                  properties:
-                                    key:
-                                      description: key is the label key that the selector applies to.
-                                      type: string
-                                    operator:
-                                      description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
-                                      type: string
-                                    values:
-                                      description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
-                                      items:
-                                        type: string
-                                      type: array
-                                  required:
-                                    - key
-                                    - operator
-                                  type: object
-                                type: array
-                              matchLabels:
-                                additionalProperties:
-                                  type: string
-                                description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
-                                type: object
-                            type: object
-                          namespaces:
-                            description: namespaces specifies which namespaces the labelSelector applies to (matches against); null or empty list means "this pod's namespace"
-                            items:
-                              type: string
-                            type: array
-                          topologyKey:
-                            description: This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching the labelSelector in the specified namespaces, where co-located is defined as running on a node whose value of the label with key topologyKey matches that of any node on which any of the selected pods is running. Empty topologyKey is not allowed.
-                            type: string
-                        required:
-                          - topologyKey
-                        type: object
-                      type: array
-                  type: object
-              type: object
-            autoscale:
-              description: Autoscale describe autoscaling configuration for the cluster
-              properties:
-                disabled:
-                  type: boolean
-                maxMemUsagePercent:
-                  type: integer
-                maxReplicas:
-                  format: int32
-                  type: integer
-                minMemUsagePercent:
-                  type: integer
-                minReplicas:
-                  format: int32
-                  type: integer
-              required:
-                - maxMemUsagePercent
-                - maxReplicas
-                - minMemUsagePercent
-                - minReplicas
-              type: object
-            cloudEvents:
-              description: InfinispanCloudEvents describes how Infinispan is connected with Cloud Event, see Kafka docs for more info
-              properties:
-                acks:
-                  description: Acks configuration for the producer ack-value
-                  type: string
-                bootstrapServers:
-                  description: BootstrapServers is comma separated list of boostrap server:port addresses
-                  type: string
-                cacheEntriesTopic:
-                  description: CacheEntriesTopic is the name of the topic on which events will be published
-                  type: string
-              required:
-                - bootstrapServers
-              type: object
-            container:
-              description: InfinispanContainerSpec specify resource requirements per container
-              properties:
-                cpu:
-                  type: string
-                extraJvmOpts:
-                  type: string
-                memory:
-                  type: string
-              type: object
-            dependencies:
-              description: External dependencies needed by the Infinispan cluster
-              properties:
-                volumeClaimName:
-                  description: Name of the persistent volume claim with custom libraries
-                  type: string
-              type: object
-            expose:
-              description: ExposeSpec describe how Infinispan will be exposed externally
-              properties:
-                annotations:
-                  additionalProperties:
-                    type: string
-                  type: object
-                host:
-                  type: string
-                nodePort:
-                  format: int32
-                  type: integer
-                port:
-                  format: int32
-                  type: integer
-                type:
-                  description: Type specifies different exposition methods for data grid
-                  enum:
-                    - NodePort
-                    - LoadBalancer
-                    - Route
-                  type: string
-              required:
-                - type
-              type: object
-            image:
-              type: string
-            logging:
-              properties:
-                categories:
-                  additionalProperties:
-                    description: LoggingLevelType describe the logging level for selected category
-                    enum:
-                      - trace
-                      - debug
-                      - info
-                      - warn
-                      - error
-                    type: string
-                  type: object
-              type: object
-            replicas:
-              format: int32
-              type: integer
-            security:
-              description: InfinispanSecurity info for the user application connection
-              properties:
-                authorization:
-                  properties:
-                    enabled:
-                      type: boolean
-                    roles:
-                      items:
-                        properties:
-                          name:
-                            type: string
-                          permissions:
-                            items:
-                              type: string
-                            type: array
-                        required:
-                          - name
-                          - permissions
-                        type: object
-                      type: array
-                  type: object
-                endpointAuthentication:
-                  type: boolean
-                endpointEncryption:
-                  description: EndpointEncryption configuration
-                  properties:
-                    certSecretName:
-                      type: string
-                    certServiceName:
-                      type: string
-                    clientCert:
-                      description: ClientCertType specifies a client certificate validation mechanism.
-                      enum:
-                        - None
-                        - Authenticate
-                        - Validate
-                      type: string
-                    clientCertSecretName:
-                      type: string
                     type:
-                      description: CertificateSourceType specifies all the possible sources for the encryption certificate
                       enum:
-                        - Service
-                        - service
-                        - Secret
-                        - secret
-                        - None
+                        - DataGrid
+                        - Cache
                       type: string
                   type: object
-                endpointSecretName:
-                  type: string
+              required:
+                - replicas
               type: object
-            service:
-              description: InfinispanServiceSpec specify configuration for specific service
+            status:
+              description: InfinispanStatus defines the observed state of Infinispan
               properties:
-                container:
-                  description: InfinispanServiceContainerSpec resource requirements specific for service
+                conditions:
+                  items:
+                    description: InfinispanCondition define a condition of the cluster
+                    properties:
+                      message:
+                        description: Human-readable message indicating details about last transition.
+                        type: string
+                      status:
+                        description: Status is the status of the condition.
+                        type: string
+                      type:
+                        description: Type is the type of the condition.
+                        type: string
+                    required:
+                      - status
+                      - type
+                    type: object
+                  type: array
+                consoleUrl:
+                  type: string
+                podStatus:
                   properties:
-                    ephemeralStorage:
-                      type: boolean
-                    storage:
-                      type: string
-                    storageClassName:
-                      type: string
+                    ready:
+                      description: Deployments are ready to serve requests
+                      items:
+                        type: string
+                      type: array
+                    starting:
+                      description: Deployments are starting, may or may not succeed
+                      items:
+                        type: string
+                      type: array
+                    stopped:
+                      description: Deployments are not starting, unclear what next step will be
+                      items:
+                        type: string
+                      type: array
                   type: object
-                replicationFactor:
+                replicasWantedAtRestart:
                   format: int32
                   type: integer
-                sites:
+                security:
+                  description: InfinispanSecurity info for the user application connection
                   properties:
-                    local:
+                    authorization:
                       properties:
-                        expose:
-                          description: CrossSiteExposeSpec describe how Infinispan Cross-Site service will be exposed externally
-                          properties:
-                            annotations:
-                              additionalProperties:
+                        enabled:
+                          type: boolean
+                        roles:
+                          items:
+                            properties:
+                              name:
                                 type: string
-                              type: object
-                            nodePort:
-                              format: int32
-                              type: integer
-                            port:
-                              format: int32
-                              type: integer
-                            type:
-                              description: Type specifies different exposition methods for data grid
-                              enum:
-                                - NodePort
-                                - LoadBalancer
-                                - ClusterIP
-                              type: string
-                          required:
-                            - type
-                          type: object
-                        name:
-                          type: string
-                      required:
-                        - expose
-                        - name
+                              permissions:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                              - name
+                              - permissions
+                            type: object
+                          type: array
                       type: object
-                    locations:
-                      items:
-                        properties:
-                          clusterName:
-                            type: string
-                          host:
-                            description: Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
-                            type: string
-                          name:
-                            type: string
-                          namespace:
-                            type: string
-                          port:
-                            description: Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
-                            format: int32
-                            type: integer
-                          secretName:
-                            type: string
-                          url:
-                            pattern: (^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)+$)|(^(infinispan\+xsite):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)*$)
-                            type: string
-                        required:
-                          - name
-                        type: object
-                      type: array
-                  required:
-                    - local
-                  type: object
-                type:
-                  enum:
-                    - DataGrid
-                    - Cache
-                  type: string
-              type: object
-          required:
-            - replicas
-          type: object
-        status:
-          description: InfinispanStatus defines the observed state of Infinispan
-          properties:
-            conditions:
-              items:
-                description: InfinispanCondition define a condition of the cluster
-                properties:
-                  message:
-                    description: Human-readable message indicating details about last transition.
-                    type: string
-                  status:
-                    description: Status is the status of the condition.
-                    type: string
-                  type:
-                    description: Type is the type of the condition.
-                    type: string
-                required:
-                  - status
-                  - type
-                type: object
-              type: array
-            consoleUrl:
-              type: string
-            podStatus:
-              properties:
-                ready:
-                  description: Deployments are ready to serve requests
-                  items:
-                    type: string
-                  type: array
-                starting:
-                  description: Deployments are starting, may or may not succeed
-                  items:
-                    type: string
-                  type: array
-                stopped:
-                  description: Deployments are not starting, unclear what next step will be
-                  items:
-                    type: string
-                  type: array
-              type: object
-            replicasWantedAtRestart:
-              format: int32
-              type: integer
-            security:
-              description: InfinispanSecurity info for the user application connection
-              properties:
-                authorization:
-                  properties:
-                    enabled:
+                    endpointAuthentication:
                       type: boolean
-                    roles:
-                      items:
-                        properties:
-                          name:
-                            type: string
-                          permissions:
-                            items:
-                              type: string
-                            type: array
-                        required:
-                          - name
-                          - permissions
-                        type: object
-                      type: array
-                  type: object
-                endpointAuthentication:
-                  type: boolean
-                endpointEncryption:
-                  description: EndpointEncryption configuration
-                  properties:
-                    certSecretName:
-                      type: string
-                    certServiceName:
-                      type: string
-                    clientCert:
-                      description: ClientCertType specifies a client certificate validation mechanism.
-                      enum:
-                        - None
-                        - Authenticate
-                        - Validate
-                      type: string
-                    clientCertSecretName:
-                      type: string
-                    type:
-                      description: CertificateSourceType specifies all the possible sources for the encryption certificate
-                      enum:
-                        - Service
-                        - service
-                        - Secret
-                        - secret
-                        - None
+                    endpointEncryption:
+                      description: EndpointEncryption configuration
+                      properties:
+                        certSecretName:
+                          type: string
+                        certServiceName:
+                          type: string
+                        clientCert:
+                          description: ClientCertType specifies a client certificate validation mechanism.
+                          enum:
+                            - None
+                            - Authenticate
+                            - Validate
+                          type: string
+                        clientCertSecretName:
+                          type: string
+                        type:
+                          description: CertificateSourceType specifies all the possible sources for the encryption certificate
+                          enum:
+                            - Service
+                            - service
+                            - Secret
+                            - secret
+                            - None
+                          type: string
+                      type: object
+                    endpointSecretName:
                       type: string
                   type: object
-                endpointSecretName:
+                statefulSetName:
                   type: string
               type: object
-            statefulSetName:
-              type: string
           type: object
-      type: object
-  version: v1
-  versions:
-    - name: v1
       served: true
       storage: true
+      subresources:
+        status: {}
 
 ---
 
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: caches.infinispan.org
@@ -976,111 +975,110 @@ spec:
     plural: caches
     singular: cache
   scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      description: Cache is the Schema for the caches API
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: CacheSpec defines the desired state of Cache
-          properties:
-            adminAuth:
-              description: Deprecated. This no longer has any effect. The operator's admin credentials are now used to perform cache operations
-              properties:
-                password:
-                  description: Secret and key containing the admin password for authentication.
-                  properties:
-                    key:
-                      description: The key of the secret to select from.  Must be a valid secret key.
-                      type: string
-                    name:
-                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
-                      type: string
-                    optional:
-                      description: Specify whether the Secret or its key must be defined
-                      type: boolean
-                  required:
-                    - key
-                  type: object
-                secretName:
-                  description: name of the secret containing both admin username and password
-                  type: string
-                username:
-                  description: Secret and key containing the admin username for authentication.
-                  properties:
-                    key:
-                      description: The key of the secret to select from.  Must be a valid secret key.
-                      type: string
-                    name:
-                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
-                      type: string
-                    optional:
-                      description: Specify whether the Secret or its key must be defined
-                      type: boolean
-                  required:
-                    - key
-                  type: object
-              type: object
-            clusterName:
-              description: Name of the cluster where to create the cache
-              type: string
-            name:
-              description: Name of the cache to be created. If empty ObjectMeta.Name will be used
-              type: string
-            template:
-              description: Cache template in XML format
-              type: string
-            templateName:
-              description: Name of the template to be used to create this cache
-              type: string
-          required:
-            - clusterName
-          type: object
-        status:
-          description: CacheStatus defines the observed state of Cache
-          properties:
-            conditions:
-              description: Conditions list for this cache
-              items:
-                description: CacheCondition define a condition of the cluster
-                properties:
-                  message:
-                    description: Human-readable message indicating details about last transition.
-                    type: string
-                  status:
-                    description: Status is the status of the condition.
-                    type: string
-                  type:
-                    description: Type is the type of the condition.
-                    type: string
-                required:
-                  - status
-                  - type
-                type: object
-              type: array
-            serviceName:
-              description: Service name that exposes the cache inside the cluster
-              type: string
-          type: object
-      type: object
-  version: v2alpha1
   versions:
     - name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          description: Cache is the Schema for the caches API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: CacheSpec defines the desired state of Cache
+              properties:
+                adminAuth:
+                  description: Deprecated. This no longer has any effect. The operator's admin credentials are now used to perform cache operations
+                  properties:
+                    password:
+                      description: Secret and key containing the admin password for authentication.
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must be a valid secret key.
+                          type: string
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                          type: string
+                        optional:
+                          description: Specify whether the Secret or its key must be defined
+                          type: boolean
+                      required:
+                        - key
+                      type: object
+                    secretName:
+                      description: name of the secret containing both admin username and password
+                      type: string
+                    username:
+                      description: Secret and key containing the admin username for authentication.
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must be a valid secret key.
+                          type: string
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                          type: string
+                        optional:
+                          description: Specify whether the Secret or its key must be defined
+                          type: boolean
+                      required:
+                        - key
+                      type: object
+                  type: object
+                clusterName:
+                  description: Name of the cluster where to create the cache
+                  type: string
+                name:
+                  description: Name of the cache to be created. If empty ObjectMeta.Name will be used
+                  type: string
+                template:
+                  description: Cache template in XML format
+                  type: string
+                templateName:
+                  description: Name of the template to be used to create this cache
+                  type: string
+              required:
+                - clusterName
+              type: object
+            status:
+              description: CacheStatus defines the observed state of Cache
+              properties:
+                conditions:
+                  description: Conditions list for this cache
+                  items:
+                    description: CacheCondition define a condition of the cluster
+                    properties:
+                      message:
+                        description: Human-readable message indicating details about last transition.
+                        type: string
+                      status:
+                        description: Status is the status of the condition.
+                        type: string
+                      type:
+                        description: Type is the type of the condition.
+                        type: string
+                    required:
+                      - status
+                      - type
+                    type: object
+                  type: array
+                serviceName:
+                  description: Service name that exposes the cache inside the cluster
+                  type: string
+              type: object
+          type: object
       served: true
       storage: true
+      subresources:
+        status: {}
 
 ---
 
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: backups.infinispan.org
@@ -1094,103 +1092,102 @@ spec:
     plural: backups
     singular: backup
   scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      description: Backup is the Schema for the backups API
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: BackupSpec defines the desired state of Backup
-          properties:
-            cluster:
-              type: string
-            container:
-              description: InfinispanContainerSpec specify resource requirements per container
-              properties:
-                cpu:
-                  type: string
-                extraJvmOpts:
-                  type: string
-                memory:
-                  type: string
-              type: object
-            resources:
-              properties:
-                cacheConfigs:
-                  description: Deprecated and to be removed on subsequent release. Use .Templates instead.
-                  items:
-                    type: string
-                  type: array
-                caches:
-                  items:
-                    type: string
-                  type: array
-                counters:
-                  items:
-                    type: string
-                  type: array
-                protoSchemas:
-                  items:
-                    type: string
-                  type: array
-                scripts:
-                  description: Deprecated and to be removed on subsequent release. Use .Tasks instead.
-                  items:
-                    type: string
-                  type: array
-                tasks:
-                  items:
-                    type: string
-                  type: array
-                templates:
-                  items:
-                    type: string
-                  type: array
-              type: object
-            volume:
-              properties:
-                storage:
-                  type: string
-                storageClassName:
-                  type: string
-              type: object
-          required:
-            - cluster
-          type: object
-        status:
-          description: BackupStatus defines the observed state of Backup
-          properties:
-            phase:
-              description: State indicates the current state of the backup operation
-              type: string
-            pvc:
-              description: The name of the created PersistentVolumeClaim used to store the backup
-              type: string
-            reason:
-              description: Reason indicates the reason for any backup related failures.
-              type: string
-          required:
-            - phase
-          type: object
-      type: object
-  version: v2alpha1
   versions:
     - name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          description: Backup is the Schema for the backups API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: BackupSpec defines the desired state of Backup
+              properties:
+                cluster:
+                  type: string
+                container:
+                  description: InfinispanContainerSpec specify resource requirements per container
+                  properties:
+                    cpu:
+                      type: string
+                    extraJvmOpts:
+                      type: string
+                    memory:
+                      type: string
+                  type: object
+                resources:
+                  properties:
+                    cacheConfigs:
+                      description: Deprecated and to be removed on subsequent release. Use .Templates instead.
+                      items:
+                        type: string
+                      type: array
+                    caches:
+                      items:
+                        type: string
+                      type: array
+                    counters:
+                      items:
+                        type: string
+                      type: array
+                    protoSchemas:
+                      items:
+                        type: string
+                      type: array
+                    scripts:
+                      description: Deprecated and to be removed on subsequent release. Use .Tasks instead.
+                      items:
+                        type: string
+                      type: array
+                    tasks:
+                      items:
+                        type: string
+                      type: array
+                    templates:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                volume:
+                  properties:
+                    storage:
+                      type: string
+                    storageClassName:
+                      type: string
+                  type: object
+              required:
+                - cluster
+              type: object
+            status:
+              description: BackupStatus defines the observed state of Backup
+              properties:
+                phase:
+                  description: State indicates the current state of the backup operation
+                  type: string
+                pvc:
+                  description: The name of the created PersistentVolumeClaim used to store the backup
+                  type: string
+                reason:
+                  description: Reason indicates the reason for any backup related failures.
+                  type: string
+              required:
+                - phase
+              type: object
+          type: object
       served: true
       storage: true
+      subresources:
+        status: {}
 
 ---
 
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: restores.infinispan.org
@@ -1204,96 +1201,95 @@ spec:
     plural: restores
     singular: restore
   scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      description: Restore is the Schema for the restores API
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: BackupSpec defines the desired state of Backup
-          properties:
-            backup:
-              type: string
-            cluster:
-              type: string
-            container:
-              description: InfinispanContainerSpec specify resource requirements per container
-              properties:
-                cpu:
-                  type: string
-                extraJvmOpts:
-                  type: string
-                memory:
-                  type: string
-              type: object
-            resources:
-              properties:
-                cacheConfigs:
-                  description: Deprecated and to be removed on subsequent release. Use .Templates instead.
-                  items:
-                    type: string
-                  type: array
-                caches:
-                  items:
-                    type: string
-                  type: array
-                counters:
-                  items:
-                    type: string
-                  type: array
-                protoSchemas:
-                  items:
-                    type: string
-                  type: array
-                scripts:
-                  description: Deprecated and to be removed on subsequent release. Use .Tasks instead.
-                  items:
-                    type: string
-                  type: array
-                tasks:
-                  items:
-                    type: string
-                  type: array
-                templates:
-                  items:
-                    type: string
-                  type: array
-              type: object
-          required:
-            - backup
-            - cluster
-          type: object
-        status:
-          description: RestoreStatus defines the observed state of Restore
-          properties:
-            phase:
-              description: State indicates the current state of the restore operation
-              type: string
-            reason:
-              description: Reason indicates the reason for any Restore related failures.
-              type: string
-          required:
-            - phase
-          type: object
-      type: object
-  version: v2alpha1
   versions:
     - name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          description: Restore is the Schema for the restores API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: BackupSpec defines the desired state of Backup
+              properties:
+                backup:
+                  type: string
+                cluster:
+                  type: string
+                container:
+                  description: InfinispanContainerSpec specify resource requirements per container
+                  properties:
+                    cpu:
+                      type: string
+                    extraJvmOpts:
+                      type: string
+                    memory:
+                      type: string
+                  type: object
+                resources:
+                  properties:
+                    cacheConfigs:
+                      description: Deprecated and to be removed on subsequent release. Use .Templates instead.
+                      items:
+                        type: string
+                      type: array
+                    caches:
+                      items:
+                        type: string
+                      type: array
+                    counters:
+                      items:
+                        type: string
+                      type: array
+                    protoSchemas:
+                      items:
+                        type: string
+                      type: array
+                    scripts:
+                      description: Deprecated and to be removed on subsequent release. Use .Tasks instead.
+                      items:
+                        type: string
+                      type: array
+                    tasks:
+                      items:
+                        type: string
+                      type: array
+                    templates:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+              required:
+                - backup
+                - cluster
+              type: object
+            status:
+              description: RestoreStatus defines the observed state of Restore
+              properties:
+                phase:
+                  description: State indicates the current state of the restore operation
+                  type: string
+                reason:
+                  description: Reason indicates the reason for any Restore related failures.
+                  type: string
+              required:
+                - phase
+              type: object
+          type: object
       served: true
       storage: true
+      subresources:
+        status: {}
 
 ---
 
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: batches.infinispan.org
@@ -1307,53 +1303,52 @@ spec:
     plural: batches
     singular: batch
   scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      description: Batch is the Schema for the batches API
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: BatchSpec defines the desired state of Batch
-          properties:
-            cluster:
-              type: string
-            config:
-              type: string
-            configMap:
-              type: string
-          required:
-            - cluster
-          type: object
-        status:
-          description: BatchStatus defines the observed state of Batch
-          properties:
-            clusterUID:
-              description: The UUID of the Infinispan instance that the Batch is associated with
-              type: string
-            phase:
-              description: State indicates the current state of the batch operation
-              type: string
-            reason:
-              description: Reason indicates the reason for any batch related failures.
-              type: string
-          required:
-            - phase
-          type: object
-      type: object
-  version: v2alpha1
   versions:
     - name: v2alpha1
+      schema:
+        openAPIV3Schema:
+          description: Batch is the Schema for the batches API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: BatchSpec defines the desired state of Batch
+              properties:
+                cluster:
+                  type: string
+                config:
+                  type: string
+                configMap:
+                  type: string
+              required:
+                - cluster
+              type: object
+            status:
+              description: BatchStatus defines the observed state of Batch
+              properties:
+                clusterUID:
+                  description: The UUID of the Infinispan instance that the Batch is associated with
+                  type: string
+                phase:
+                  description: State indicates the current state of the batch operation
+                  type: string
+                reason:
+                  description: Reason indicates the reason for any batch related failures.
+                  type: string
+              required:
+                - phase
+              type: object
+          type: object
       served: true
       storage: true
+      subresources:
+        status: {}
 
 ---
 
