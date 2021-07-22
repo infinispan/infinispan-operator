@@ -30,7 +30,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -59,7 +59,7 @@ type TestKubernetes struct {
 func init() {
 	addToScheme(&v1.SchemeBuilder, Scheme)
 	addToScheme(&rbacv1.SchemeBuilder, Scheme)
-	addToScheme(&apiextv1beta1.SchemeBuilder, Scheme)
+	addToScheme(&apiextv1.SchemeBuilder, Scheme)
 	addToScheme(&ispnv1.SchemeBuilder.SchemeBuilder, Scheme)
 	addToScheme(&ispnv2.SchemeBuilder.SchemeBuilder, Scheme)
 	addToScheme(&appsv1.SchemeBuilder, Scheme)
@@ -320,10 +320,10 @@ func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func())
 }
 
 // CreateOrUpdateAndWaitForCRD creates or updates a Custom Resource Definition (CRD), waiting it to become ready.
-func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomResourceDefinition) {
+func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1.CustomResourceDefinition) {
 	fmt.Printf("Create or update CRD %s\n", crd.Name)
 
-	customResourceObject := &apiextv1beta1.CustomResourceDefinition{
+	customResourceObject := &apiextv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: crd.Name,
 		},
@@ -343,13 +343,13 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1beta1.CustomRes
 
 		for _, cond := range crd.Status.Conditions {
 			switch cond.Type {
-			case apiextv1beta1.Established:
-				if cond.Status == apiextv1beta1.ConditionTrue {
+			case apiextv1.Established:
+				if cond.Status == apiextv1.ConditionTrue {
 					fmt.Printf("CRD %s\n", result)
 					return true, nil
 				}
-			case apiextv1beta1.NamesAccepted:
-				if cond.Status == apiextv1beta1.ConditionFalse {
+			case apiextv1.NamesAccepted:
+				if cond.Status == apiextv1.ConditionFalse {
 					return false, fmt.Errorf("naming conflict detected for CRD %s", crd.GetName())
 				}
 			}
@@ -514,7 +514,7 @@ func debugPods(required int, pods []v1.Pod) {
 
 // DeleteCRD deletes a CustomResourceDefinition
 func (k TestKubernetes) DeleteCRD(name string) {
-	crd := &apiextv1beta1.CustomResourceDefinition{
+	crd := &apiextv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
@@ -592,7 +592,7 @@ func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
 }
 
 func (k TestKubernetes) installCRD(path string) {
-	crd := &apiextv1beta1.CustomResourceDefinition{}
+	crd := &apiextv1.CustomResourceDefinition{}
 	k.LoadResourceFromYaml(path, crd)
 	k.CreateOrUpdateAndWaitForCRD(crd)
 }
