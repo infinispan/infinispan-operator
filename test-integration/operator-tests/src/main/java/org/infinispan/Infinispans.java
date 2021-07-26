@@ -2,6 +2,14 @@ package org.infinispan;
 
 public class Infinispans {
 
+   public static Infinispan cache() {
+      return new Infinispan("src/test/resources/infinispans/cache.yaml");
+   }
+
+   public static Infinispan datagrid() {
+      return new Infinispan("src/test/resources/infinispans/datagrid.yaml");
+   }
+
    public static Infinispan cacheService() {
       return new Infinispan("src/test/resources/infinispans/cache_service.yaml");
    }

@@ -7,7 +7,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
+import cz.xtf.core.waiting.Waiter;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodCondition;
+import io.fabric8.kubernetes.api.model.apps.StatefulSet;
 import org.infinispan.cr.InfinispanObject;
 import org.infinispan.cr.status.Condition;
 import org.infinispan.crd.InfinispanContextProvider;
@@ -72,11 +79,19 @@ public class Infinispan {
          }
       };
 
-      new SimpleWaiter(bs).timeout(TimeUnit.MINUTES, 3).waitFor();
+      new SimpleWaiter(bs).timeout(TimeUnit.MINUTES, 5).reason("Forming a cluster...").logPoint(Waiter.LogPoint.BOTH).waitFor();
 
       if(openShift.getLabeledPods("clusterName", clusterName).size() != infinispanObject.getSpec().getReplicas()) {
          throw new IllegalStateException(clusterName + " is WellFormed but cluster pod count doesn't match expected replicas!");
       }
+   }
+
+   public int getSize() {
+      return infinispanObject.getSpec().getReplicas();
+   }
+
+   public String getHostname() {
+      return openShift.routes().withName(clusterName + "-external").get().getSpec().getHost();
    }
 
    public Credentials getDefaultCredentials() throws IOException {
@@ -96,5 +111,22 @@ public class Infinispan {
       String identitiesYaml = new String(Base64.getDecoder().decode(creds.get("identities.yaml")));
       Identities identities = new ObjectMapper(new YAMLFactory()).readValue(identitiesYaml, Identities.class);
       return identities.getCredentials(username);
+   }
+
+   public Waiter isClusterRunningWithServerImageWaiter(String serverImage, int expectedReplicas) {
+      BooleanSupplier bs = () -> {
+         List<Pod> clusterPods = openShift.pods().withLabel("clusterName", clusterName).list().getItems();
+
+         if(clusterPods.size() != expectedReplicas) return false;
+         if(clusterPods.stream().filter(p -> serverImage.equals(p.getSpec().getContainers().get(0).getImage())).count() != expectedReplicas) return false;
+
+         Predicate<PodCondition> readyConditionFilter = p -> "Ready".equals(p.getType());
+         Function<Pod, PodCondition> podToConditionMapper = p -> p.getStatus().getConditions().stream().filter(readyConditionFilter).findFirst().orElseThrow(() -> new IllegalStateException("Unable to retreive pod Ready status"));
+         List<PodCondition> podConditions = clusterPods.stream().map(podToConditionMapper).collect(Collectors.toList());
+
+         return podConditions.stream().filter(pc -> "True".equals(pc.getStatus())).count() == expectedReplicas;
+      };
+
+      return new SimpleWaiter(bs).reason("Upgrading cluster...").logPoint(Waiter.LogPoint.BOTH).timeout(TimeUnit.MINUTES, 10);
    }
 }

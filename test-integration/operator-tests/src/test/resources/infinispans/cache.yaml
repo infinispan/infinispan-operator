@@ -1,0 +1,11 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: cache
+spec:
+  expose:
+    type: Route
+  service:
+    type: Cache
+    replicationFactor: 2
+  replicas: 2

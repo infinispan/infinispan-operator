@@ -7,20 +7,23 @@ public class Caches {
    }
 
    public static String fragile(String name) {
-      return "<infinispan>\n" +
-            "    <cache-container>\n" +
-            "        <distributed-cache owners=\"1\" mode=\"SYNC\" name=\"" + name + "\">\n" +
-            "            <encoding>\n" +
-            "                <key media-type=\"text/plain\"/>\n" +
-            "                <value media-type=\"text/plain\"/>\n" +
-            "            </encoding>\n" +
-            "            <transaction mode=\"NONE\"/>\n" +
-            "            <memory>\n" +
-            "                <off-heap strategy=\"REMOVE\" eviction=\"MEMORY\" size=\"96468992\"/>\n" +
-            "            </memory>\n" +
-            "            <partition-handling when-split=\"ALLOW_READ_WRITES\" merge-policy=\"REMOVE_ALL\"/>\n" +
-            "        </distributed-cache>" +
-            "    </cache-container>\n" +
-            "</infinispan>\n";
+      CacheBuilder cacheBuilder = new CacheBuilder(name);
+      cacheBuilder.withEncoding();
+      cacheBuilder.withTransaction();
+      cacheBuilder.withMemory();
+      cacheBuilder.withPartitionHandling();
+
+      return cacheBuilder.build();
+   }
+
+   public static String persisted(String name) {
+      CacheBuilder cacheBuilder = new CacheBuilder(name);
+      cacheBuilder.withEncoding();
+      cacheBuilder.withTransaction();
+      cacheBuilder.withMemory();
+      cacheBuilder.withPersistence();
+      cacheBuilder.withPartitionHandling();
+
+      return cacheBuilder.build();
    }
 }
