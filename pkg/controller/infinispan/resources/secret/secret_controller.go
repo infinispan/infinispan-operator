@@ -81,17 +81,13 @@ func Add(mgr manager.Manager) error {
 
 func (s *secretResource) Process() (reconcile.Result, error) {
 	// Reconcile Encryption Secrets
-	if result, err := s.reconcileKeystoreSecret(); result != nil {
-		return *result, err
-	}
-
 	if result, err := s.reconcileTruststoreSecret(); result != nil {
 		return *result, err
 	}
 
 	// Reconcile Credential Secrets
 	if err := s.reconcileAdminSecret(); err != nil {
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 
 	// If the user has provided their own secret or authentication is disabled, do nothing
@@ -132,33 +128,13 @@ func (s secretResource) createSecret(name, label string, identities []byte) erro
 
 	s.log.Info(fmt.Sprintf("Creating Identities Secret %s", secret.Name))
 	_, err := controllerutil.CreateOrUpdate(ctx, s.client, secret, func() error {
-		return s.setControllerRef(secret)
+		return controllerutil.SetControllerReference(s.infinispan, secret, s.scheme)
 	})
 
 	if err != nil {
 		return fmt.Errorf("Unable to create identities secret: %w", err)
 	}
 	return nil
-}
-
-func (s secretResource) reconcileKeystoreSecret() (*reconcile.Result, error) {
-	i := s.infinispan
-	if !i.IsEncryptionEnabled() {
-		return nil, nil
-	}
-
-	keystoreSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, s.client, s.log, s.eventRec); result != nil {
-		return result, err
-	}
-
-	_, err := controllerutil.CreateOrUpdate(context.TODO(), s.client, keystoreSecret, func() error {
-		return s.setControllerRef(keystoreSecret)
-	})
-	if err != nil {
-		return &reconcile.Result{}, err
-	}
-	return nil, nil
 }
 
 func (s secretResource) reconcileTruststoreSecret() (*reconcile.Result, error) {
@@ -222,7 +198,7 @@ func (s secretResource) reconcileTruststoreSecret() (*reconcile.Result, error) {
 			trustSecret.Data[consts.EncryptTruststoreKey] = truststore
 			return nil
 		}
-		return s.setControllerRef(trustSecret)
+		return nil
 	})
 	if err != nil {
 		return &reconcile.Result{}, err
@@ -249,7 +225,7 @@ func (s secretResource) reconcileAdminSecret() error {
 			}
 			adminSecret.Labels = infinispan.LabelsResource(s.infinispan.Name, "infinispan-secret-admin-identities")
 			adminSecret.Data[consts.ServerIdentitiesFilename] = identities
-			if err = s.setControllerRef(adminSecret); err != nil {
+			if err = controllerutil.SetControllerReference(s.infinispan, adminSecret, s.scheme); err != nil {
 				return err
 			}
 		}
@@ -295,12 +271,4 @@ func (s secretResource) getSecret(name string) (*corev1.Secret, error) {
 		return nil, nil
 	}
 	return nil, err
-}
-
-func (s secretResource) setControllerRef(secret *corev1.Secret) error {
-	if ownerRef := metav1.GetControllerOf(secret); ownerRef != nil && ownerRef.UID != s.infinispan.UID {
-		return fmt.Errorf("Unable to update Secret %s's ownerReference with controller=true as it's already owned by %s:%s:%s",
-			secret.Name, ownerRef.Kind, ownerRef.Name, ownerRef.UID)
-	}
-	return controllerutil.SetControllerReference(s.infinispan, secret, s.scheme)
 }

@@ -38,9 +38,9 @@ const (
 	OperatorPodTargetLabels string = "infinispan.org/operatorPodTargetLabels"
 	// OperatorTargetLabels labels propagated by the operator to services/ingresses/routes
 	OperatorTargetLabels string = "infinispan.org/operatorTargetLabels"
-	// OperatorTargetLabelsEnvVarName is the name of the envvar containg operator label/value map for services/ingresses/routes
+	// OperatorTargetLabelsEnvVarName is the name of the envvar containing operator label/value map for services/ingresses/routes
 	OperatorTargetLabelsEnvVarName string = "INFINISPAN_OPERATOR_TARGET_LABELS"
-	// OperatorPodTargetLabelsEnvVarName is the name of the envvar containg operator label/value map for pods
+	// OperatorPodTargetLabelsEnvVarName is the name of the envvar containing operator label/value map for pods
 	OperatorPodTargetLabelsEnvVarName string = "INFINISPAN_OPERATOR_POD_TARGET_LABELS"
 
 	MaxRouteObjectNameLength = 63

@@ -12,6 +12,7 @@ import (
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
@@ -308,6 +309,13 @@ func (k Kubernetes) GetExternalAddress(route *corev1.Service) string {
 func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime.Object) error {
 	labelSelector := labels.SelectorFromSet(set)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
+	err := k.Client.List(context.TODO(), list, listOps)
+	return err
+}
+
+func (k Kubernetes) ResourcesListByField(namespace, fieldName, fieldValue string, list runtime.Object) error {
+	fieldSelector := fields.OneTermEqualSelector(fieldName, fieldValue)
+	listOps := &client.ListOptions{Namespace: namespace, FieldSelector: fieldSelector}
 	err := k.Client.List(context.TODO(), list, listOps)
 	return err
 }

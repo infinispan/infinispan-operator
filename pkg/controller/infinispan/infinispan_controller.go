@@ -126,6 +126,23 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Add Secret name fields to the index for caching
+	if err = mgr.GetFieldIndexer().IndexField(&infinispanv1.Infinispan{}, "spec.security.endpointSecretName", func(obj runtime.Object) []string {
+		return []string{obj.(*infinispanv1.Infinispan).GetSecretName()}
+	}); err != nil {
+		return err
+	}
+	if err = mgr.GetFieldIndexer().IndexField(&infinispanv1.Infinispan{}, "spec.security.endpointEncryption.certSecretName", func(obj runtime.Object) []string {
+		return []string{obj.(*infinispanv1.Infinispan).GetKeystoreSecretName()}
+	}); err != nil {
+		return err
+	}
+	if err = mgr.GetFieldIndexer().IndexField(&infinispanv1.Infinispan{}, "spec.security.endpointEncryption.clientCertSecretName", func(obj runtime.Object) []string {
+		return []string{obj.(*infinispanv1.Infinispan).GetTruststoreSecretName()}
+	}); err != nil {
+		return err
+	}
+
 	// Watch for changes to primary resource Infinispan
 	err = c.Watch(&source.Kind{Type: &infinispanv1.Infinispan{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
@@ -151,6 +168,33 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}, secondaryResource.objectPredicate); err != nil {
 			return err
 		}
+	}
+
+	err = c.Watch(
+		&source.Kind{Type: &corev1.Secret{}},
+		&handler.EnqueueRequestsFromMapFunc{
+			ToRequests: handler.ToRequestsFunc(func(a handler.MapObject) []reconcile.Request {
+				var requests []reconcile.Request
+				// Lookup only Secrets not controlled by Infinispan CR GVK. This means it's a custom defined Secret
+				if !kube.IsControlledByGVK(a.Meta.GetOwnerReferences(), infinispanv1.SchemeGroupVersion.WithKind(reflect.TypeOf(infinispanv1.Infinispan{}).Name())) {
+					for _, field := range []string{"spec.security.endpointSecretName", "spec.security.endpointEncryption.certSecretName", "spec.security.endpointEncryption.clientCertSecretName"} {
+						ispnList := &infinispanv1.InfinispanList{}
+						if err := kubernetes.ResourcesListByField(a.Meta.GetNamespace(), field, a.Meta.GetName(), ispnList); err != nil {
+							log.Error(err, "failed to list Infinispan CR")
+						}
+						for _, item := range ispnList.Items {
+							requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}})
+						}
+						if len(requests) > 0 {
+							return requests
+						}
+					}
+				}
+				return nil
+			}),
+		})
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -228,7 +272,7 @@ func (r *ReconcileInfinispan) Reconcile(request reconcile.Request) (reconcile.Re
 		return *result, err
 	}
 
-	// Wait for the Secret to be created by secret-controller or provided by ser
+	// Wait for the Secret to be created by secret-controller or provided by user
 	var userSecret *corev1.Secret
 	if infinispan.IsAuthenticationEnabled() {
 		userSecret = &corev1.Secret{}
@@ -653,6 +697,13 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 }
 
 func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinispan) error {
+	// Remove controller owner reference from the custom Secrets
+	for _, secretName := range []string{infinispan.GetKeystoreSecretName(), infinispan.GetTruststoreSecretName()} {
+		if err := r.dropSecretOwnerReference(secretName, infinispan); err != nil {
+			return err
+		}
+	}
+
 	if contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
 		// Set Infinispan CR as owner reference for PVC if it not defined
 		pvcs := &corev1.PersistentVolumeClaimList{}
@@ -702,6 +753,26 @@ func (r *ReconcileInfinispan) upgradeInfinispan(infinispan *infinispanv1.Infinis
 			}
 		}
 	})
+}
+
+func (r *ReconcileInfinispan) dropSecretOwnerReference(secretName string, infinispan *infinispanv1.Infinispan) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: infinispan.Namespace,
+		},
+	}
+	_, err := kube.CreateOrPatch(context.TODO(), r.client, secret, func() error {
+		if secret.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(corev1.Resource(""), secretName)
+		}
+		kube.RemoveOwnerReference(secret, infinispan)
+		return nil
+	})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 func (r *ReconcileInfinispan) scheduleUpgradeIfNeeded(infinispan *infinispanv1.Infinispan, podList *corev1.PodList, logger logr.Logger) (*reconcile.Result, error) {
@@ -1422,9 +1493,9 @@ func (r *ReconcileInfinispan) reconcileContainerConf(ispn *infinispanv1.Infinisp
 
 	externalArtifactsUpd, err := applyExternalArtifactsDownload(ispn, &statefulSet.Spec.Template.Spec)
 	if err != nil {
-		return  &reconcile.Result{}, err
+		return &reconcile.Result{}, err
 	}
-	updateNeeded =  externalArtifactsUpd || updateNeeded
+	updateNeeded = externalArtifactsUpd || updateNeeded
 	updateNeeded = applyExternalDependenciesVolume(ispn, &statefulSet.Spec.Template.Spec) || updateNeeded
 
 	// Validate identities Secret name changes
