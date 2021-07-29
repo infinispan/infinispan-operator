@@ -13,8 +13,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -232,4 +234,24 @@ func GetOperatorNamespace() (string, error) {
 		}
 	}
 	return operatorNs, err
+}
+
+func IsControlledByGVK(refs []metav1.OwnerReference, gvk schema.GroupVersionKind) bool {
+	for _, ref := range refs {
+		if ref.Controller != nil && *ref.Controller && ref.APIVersion == gvk.GroupVersion().String() && ref.Kind == gvk.Kind {
+			return true
+		}
+	}
+	return false
+}
+
+func RemoveOwnerReference(obj, owner metav1.Object) {
+	ownerReferences := obj.GetOwnerReferences()
+	for index, ref := range ownerReferences {
+		if ref.UID == owner.GetUID() {
+			ownerReferences[index] = ownerReferences[len(ownerReferences)-1]
+			obj.SetOwnerReferences(ownerReferences[:len(ownerReferences)-1])
+			break
+		}
+	}
 }
