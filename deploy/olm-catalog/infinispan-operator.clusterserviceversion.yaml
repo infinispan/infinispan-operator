@@ -503,6 +503,7 @@ spec:
                 - storageclasses
               verbs:
                 - get
+                - list
                 - watch
     strategy: deployment
   installModes:
