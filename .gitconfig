@@ -1,0 +1,30 @@
+[user]
+	email = vrigamon@redhat.com
+	name = Vittorio Rigamonti
+[filesystem "Oracle Corporation|11.0.5|/dev/mapper/fedora-home"]
+	timestampResolution = 9000 nanoseconds
+	minRacyThreshold = 1611 microseconds
+[filesystem "Oracle Corporation|11.0.6|/dev/mapper/fedora-home"]
+	timestampResolution = 6000 nanoseconds
+	minRacyThreshold = 941 microseconds
+# ------------------ M E R G E -------------------------
+[merge]
+    tool = meld
+
+[mergetool "meld"]
+    cmd = meld --auto-merge \"$LOCAL\" \"$BASE\" \"$REMOTE\" --output \"$MERGED\" --label \"MERGE (REMOTE BASE MY)\"
+    trustExitCode = false
+
+[mergetool]
+    # don't ask if we want to skip merge
+    prompt = false
+
+    # don't create backup *.orig files
+    keepBackup = false
+
+# ------------------ D I F F -------------------------
+[diff]
+    tool = meld
+
+[difftool "meld"]
+    cmd = meld \"$LOCAL\" \"$REMOTE\" --label \"DIFF (ORIGINAL MY)\"
