@@ -2,11 +2,11 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/infinispan.infinispan.org_infinispans.yaml
-- bases/infinispan.infinispan.org_backups.yaml
-- bases/infinispan.infinispan.org_restores.yaml
-- bases/infinispan.infinispan.org_batches.yaml
-- bases/infinispan.infinispan.org_caches.yaml
+- bases/infinispan.org_infinispans.yaml
+- bases/infinispan.org_backups.yaml
+- bases/infinispan.org_restores.yaml
+- bases/infinispan.org_batches.yaml
+- bases/infinispan.org_caches.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

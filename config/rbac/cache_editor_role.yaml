@@ -5,7 +5,7 @@ metadata:
   name: cache-editor-role
 rules:
 - apiGroups:
-  - infinispan.infinispan.org
+  - infinispan.org
   resources:
   - caches
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - infinispan.infinispan.org
+  - infinispan.org
   resources:
   - caches/status
   verbs:

@@ -5,7 +5,7 @@ metadata:
   name: restore-viewer-role
 rules:
 - apiGroups:
-  - infinispan.infinispan.org
+  - infinispan.org
   resources:
   - restores
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - infinispan.infinispan.org
+  - infinispan.org
   resources:
   - restores/status
   verbs:

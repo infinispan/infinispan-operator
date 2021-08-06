@@ -38,6 +38,7 @@ import (
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	infinispanv2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 )
 
 var kubernetes *kube.Kubernetes
@@ -49,9 +50,9 @@ type CacheReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=infinispan.infinispan.org,resources=caches,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=infinispan.infinispan.org,resources=caches/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=infinispan.infinispan.org,resources=caches/finalizers,verbs=update
+// +kubebuilder:rbac:groups=infinispan.org,resources=caches,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=infinispan.org,resources=caches/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=infinispan.org,resources=caches/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -195,8 +196,6 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 			return reconcile.Result{}, err
 		}
 	}
-	return reconcile.Result{}, nil
-
 	return ctrl.Result{}, nil
 }
 

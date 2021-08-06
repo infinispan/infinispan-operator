@@ -5,7 +5,7 @@ metadata:
   name: cache-viewer-role
 rules:
 - apiGroups:
-  - infinispan.infinispan.org
+  - infinispan.org
   resources:
   - caches
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - infinispan.infinispan.org
+  - infinispan.org
   resources:
   - caches/status
   verbs:

@@ -2,7 +2,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: backups.infinispan.infinispan.org
+  name: backups.infinispan.org
 spec:
   conversion:
     strategy: Webhook

@@ -1,4 +1,4 @@
-apiVersion: infinispan.infinispan.org/v2alpha1
+apiVersion: infinispan.org/v2alpha1
 kind: Restore
 metadata:
   name: restore-sample
