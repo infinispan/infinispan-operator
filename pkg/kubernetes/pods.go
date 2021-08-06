@@ -1,0 +1,120 @@
+package kubernetes
+
+import (
+	"context"
+	"reflect"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+// GetPodDefaultImage returns an Infinispan pod's default image.
+// If the default image cannot be found, it returns the running image.
+func GetPodDefaultImage(container corev1.Container) string {
+	envs := container.Env
+	for _, env := range envs {
+		if env.Name == "DEFAULT_IMAGE" {
+			return env.Value
+		}
+	}
+
+	return container.Image
+}
+
+func AreAllPodsReady(podList *corev1.PodList) bool {
+	for _, pod := range podList.Items {
+		containerStatuses := pod.Status.ContainerStatuses
+		if len(containerStatuses) == 0 || !containerStatuses[0].Ready {
+			return false
+		}
+	}
+
+	return true
+}
+
+func ArePodIPsReady(pods *corev1.PodList) bool {
+	for _, pod := range pods.Items {
+		if pod.Status.PodIP == "" {
+			return false
+		}
+	}
+
+	return len(pods.Items) > 0
+}
+
+func IsPodReady(pod corev1.Pod) bool {
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+func GetEnvVarIndex(envVarName string, env *[]corev1.EnvVar) int {
+	for i, value := range *env {
+		if value.Name == envVarName {
+			return i
+		}
+	}
+	return -1
+}
+
+func IsInitContainersEqual(srcContainer, destContainer []corev1.Container) bool {
+	if len(srcContainer) != len(destContainer) {
+		return false
+	}
+	for _, srcInitContainer := range srcContainer {
+		if dstInitContainerIdx := ContainerIndex(destContainer, srcInitContainer.Name); dstInitContainerIdx < 0 {
+			return false
+		} else {
+			if !reflect.DeepEqual(srcInitContainer.Command, destContainer[dstInitContainerIdx].Command) ||
+				!reflect.DeepEqual(srcInitContainer.Args, destContainer[dstInitContainerIdx].Args) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func InitContainerFailed(containerStatuses []corev1.ContainerStatus) bool {
+	for _, containerStatus := range containerStatuses {
+		if containerStatus.LastTerminationState.Terminated != nil && containerStatus.LastTerminationState.Terminated.ExitCode != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func ContainerIndex(containers []corev1.Container, name string) int {
+	for i, container := range containers {
+		if container.Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// findFinalOwnerRef tries to locate the final controller/owner based on the owner reference provided.
+func findFinalOwnerRef(ns string, ownerRef *metav1.OwnerReference, client crclient.Client) (*metav1.OwnerReference, error) {
+	if ownerRef == nil {
+		return nil, nil
+	}
+
+	obj := &unstructured.Unstructured{}
+	obj.SetAPIVersion(ownerRef.APIVersion)
+	obj.SetKind(ownerRef.Kind)
+	err := client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: ownerRef.Name}, obj)
+	if err != nil {
+		return nil, err
+	}
+	newOwnerRef := metav1.GetControllerOf(obj)
+	if newOwnerRef != nil {
+		return findFinalOwnerRef(ns, newOwnerRef, client)
+	}
+
+	return ownerRef, nil
+}

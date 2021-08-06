@@ -41,7 +41,7 @@ import (
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 )
 
-var kubernetes *kube.Kubernetes
+var cacheKubernetes *kube.Kubernetes
 
 // CacheReconciler reconciles a Cache object
 type CacheReconciler struct {
@@ -126,7 +126,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 		return reconcile.Result{}, nil
 	}
 
-	cluster, err := ispnctrl.NewCluster(ispnInstance, kubernetes)
+	cluster, err := ispnctrl.NewCluster(ispnInstance, cacheKubernetes)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -201,7 +201,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CacheReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	kubernetes = kube.NewKubernetesFromController(mgr)
+	cacheKubernetes = kube.NewKubernetesFromController(mgr)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infinispanv2alpha1.Cache{}).
 		Complete(r)

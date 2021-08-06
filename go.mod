@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/go-logr/logr v0.3.0
+	github.com/go-playground/validator/v10 v10.8.0
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	gopkg.in/yaml.v2 v2.3.0
