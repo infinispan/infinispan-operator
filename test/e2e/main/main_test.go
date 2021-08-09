@@ -543,7 +543,7 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		limit := resource.MustParse("550m")
-		request := resource.MustParse("275m")
+		request := resource.MustParse("550m")
 		if limit.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"]) != 0 ||
 			request.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"]) != 0 {
 			panic("CPU field not updated")
