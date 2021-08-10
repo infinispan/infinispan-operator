@@ -4,18 +4,9 @@ ifdef::context[:parent-context: {context}]
 = Backing up and restoring {brandname} clusters
 
 [role="_abstract"]
-{ispn_operator} watches for custom resources (CR) that let you back up and restore {brandname} cluster state for disaster recovery or when migrating between {brandname} versions.
+{ispn_operator} lets you back up and restore {brandname} cluster state for disaster recovery and to migrate {brandname} resources between clusters.
 
-`Backup` CR:: Archives {brandname} cluster content to a persistent volume.
-`Restore` CR:: Restores archived content to a {brandname} cluster.
-+
-[NOTE]
-====
-Modifying existing `Backup` or `Restore` CR instances has no effect.
-Backup and restore operations are "one-time" events that modify {brandname} resources.
-To update `.spec` fields for the CR, or when a backup or restore operation fails, you must create a new instance of the `Backup` or `Restore` CR.
-====
-+
+include::{topics}/con_backup_restore.adoc[leveloffset=+1]
 include::{topics}/proc_backing_up_cluster.adoc[leveloffset=+1]
 include::{topics}/proc_restoring_cluster.adoc[leveloffset=+1]
 

@@ -1,4 +1,5 @@
 spec:
+  ...
   resources:
     caches:
       - "*"

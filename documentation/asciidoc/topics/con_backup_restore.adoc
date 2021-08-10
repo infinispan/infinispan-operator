@@ -1,0 +1,27 @@
+[id='backup-restore_{context}']
+= Backup and Restore CRs
+
+[role="_abstract"]
+`Backup` and `Restore` CRs save in-memory data at runtime so you can easily recreate {brandname} clusters.
+
+Applying a `Backup` or `Restore` CR creates a new pod that joins the {brandname} cluster as a zero-capacity member, which means it does not require cluster rebalancing or state transfer to join.
+
+For backup operations, the pod iterates over cache entries and other resources and creates an archive, a `.zip` file, in the `{backup_path}` directory on the persistent volume (PV).
+
+For restore operations, the pod retrieves {brandname} resources from the archive on the PV and applies them to the {brandname} cluster.
+
+When either the backup or restore operation completes, the pod leaves the cluster and is terminated.
+
+.Notes
+
+* Performing backups does not have a significant impact on performance because the other nodes in the {brandname} cluster only need to respond to the backup pod as it iterates over cache entries.
+
+* If you restore existing caches from a backup, only the data gets restored not the cache configuration.
++
+For example, you back up a cache named `mycache` that is distributed.
+If you then restore that backup to a cluster where `mycache` is replicated, the operation overwrites the data but retains the replicated configuration.
+
+* Backup and restore operations are "one-time" events that modify {brandname} resources.
++
+Modifying existing `Backup` or `Restore` CR instances has no effect.
+To update `.spec` fields for the CR, or when a backup or restore operation fails, you must create a new instance of the `Backup` or `Restore` CR.

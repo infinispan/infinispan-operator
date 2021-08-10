@@ -7,29 +7,28 @@ Restore {brandname} cluster state from a backup archive.
 .Prerequisites
 
 * Create a `Backup` CR on a source cluster.
-* Create a {brandname} cluster of {datagridservice} nodes where you want to restore state.
+* Create a target {brandname} cluster of {datagridservice} nodes to restore.
+* Ensure there are no active client connections to the target {brandname} cluster you want to restore.
 +
 [IMPORTANT]
 ====
-Make sure there are no active client connections to the cluster before you restore the backup.
-Cache entries that you restore from a backup could overwrite more recent cache entries.
-For example, a client does `cache.put(k=2)` before you restore a backup that contains `k=1`.
+Cache entries that you restore from a backup can overwrite more recent cache entries.
+For example, a client performs a `cache.put(k=2)` operation and you then restore a backup that contains `k=1`.
 ====
 
 
 .Procedure
 
-. Create a `Restore` CR.
-.. Name the `Restore` CR with the `metadata.name` field.
-.. Specify a `Backup` CR to use with the `spec.backup` field.
-.. Specify the {brandname} cluster to restore with the `spec.cluster` field.
+. Name the `Restore` CR with the `metadata.name` field.
+. Specify a `Backup` CR to use with the `spec.backup` field.
+. Specify the {brandname} cluster to restore with the `spec.cluster` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/restore.yaml[]
 ----
 +
-. Add the `spec.resources` field to restore specific resources only.
+. Optionally add the `spec.resources` field to restore specific resources only.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -42,13 +41,14 @@ include::yaml/backup_resources.yaml[]
 ----
 $ {oc_apply_cr} my-restore.yaml
 ----
-+
-A new pod joins the {brandname} cluster and restores state from the backup file.
-When the operation is complete, the pod leaves the cluster and logs the following message:
+
+.Verification
+
+. Check {brandname} logs for the following message:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 ISPN005045: Restore 'my-backup' complete
 ----
 +
-. Open the {brandname} Console or establish a CLI connection to verify the caches and data are restored to the cluster.
+. Open the {brandname} Console or establish a CLI connection to verify caches and data are restored.
