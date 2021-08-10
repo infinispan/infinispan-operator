@@ -54,14 +54,14 @@ $ {oc_apply_cr} my-backup.yaml
 
 .Verification
 
-. Check {brandname} logs for the following message:
+. Check that the `status.phase` field has a status of `Succeeded` in the `Backup` CR and that {brandname} logs have the following message:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 ISPN005044: Backup file created 'my-backup.zip'
 ----
 +
-. Run the following command to verify that the backup is successfully created:
+. Run the following command to check that the backup is successfully created:
 +
 [source,options="nowrap",subs=attributes+]
 ----
