@@ -11,7 +11,8 @@ Restore {brandname} cluster state from a backup archive.
 +
 [NOTE]
 ====
-If you restore an existing cache, the operation overwrites the data in the cache but not the cache configuration. +
+If you restore an existing cache, the operation overwrites the data in the cache but not the cache configuration.
+
 For example, you back up a distributed cache named `mycache` on the source cluster.
 You then restore `mycache` on a target cluster where it already exists as a replicated cache.
 In this case, the data from the source cluster is restored and `mycache` continues to have a replicated configuration on the target cluster.
