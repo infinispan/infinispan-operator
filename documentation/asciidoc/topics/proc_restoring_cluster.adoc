@@ -1,4 +1,4 @@
-[id='restoring_clusters-{context}']
+[id='restoring-clusters_{context}']
 = Restoring {brandname} clusters
 
 [role="_abstract"]
@@ -7,15 +7,20 @@ Restore {brandname} cluster state from a backup archive.
 .Prerequisites
 
 * Create a `Backup` CR on a source cluster.
-* Create a target {brandname} cluster of {datagridservice} nodes to restore.
-* Ensure there are no active client connections to the target {brandname} cluster you want to restore.
+* Create a target {brandname} cluster of {datagridservice} nodes.
 +
-[IMPORTANT]
+[NOTE]
 ====
-Cache entries that you restore from a backup can overwrite more recent cache entries.
-For example, a client performs a `cache.put(k=2)` operation and you then restore a backup that contains `k=1`.
+If you restore an existing cache, the operation overwrites the data in the cache but not the cache configuration. +
+For example, you back up a distributed cache named `mycache` on the source cluster.
+You then restore `mycache` on a target cluster where it already exists as a replicated cache.
+In this case, the data from the source cluster is restored and `mycache` continues to have a replicated configuration on the target cluster.
 ====
 
+* Ensure there are no active client connections to the target {brandname} cluster you want to restore.
++
+Cache entries that you restore from a backup can overwrite more recent cache entries. +
+For example, a client performs a `cache.put(k=2)` operation and you then restore a backup that contains `k=1`.
 
 .Procedure
 
