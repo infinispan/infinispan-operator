@@ -7,15 +7,10 @@ Create a backup file that stores {brandname} cluster state to a persistent volum
 .Prerequisites
 
 * Create an `Infinispan` CR with `spec.service.type: DataGrid`.
-* Decide which {brandname} resources you want to back up.
 * Ensure there are no active client connections to the {brandname} cluster.
 +
-[IMPORTANT]
-====
-{brandname} backups do not provide snapshot isolation.
-Client write operations might not be archived if they occur after the cache is backed up.
-To archive the exact state of the cluster, you should ensure there are no active client connections before you back it up.
-====
+{brandname} backups do not provide snapshot isolation and data modifications are not written to the archive after the cache is backed up. +
+To archive the exact state of the cluster, you should always disconnect any clients before you back it up.
 
 .Procedure
 

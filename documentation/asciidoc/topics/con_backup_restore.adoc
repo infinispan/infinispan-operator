@@ -8,20 +8,18 @@ Applying a `Backup` or `Restore` CR creates a new pod that joins the {brandname}
 
 For backup operations, the pod iterates over cache entries and other resources and creates an archive, a `.zip` file, in the `{backup_path}` directory on the persistent volume (PV).
 
+[NOTE]
+====
+Performing backups does not significantly impact performance because the other nodes in the {brandname} cluster only need to respond to the backup pod as it iterates over cache entries.
+====
+
 For restore operations, the pod retrieves {brandname} resources from the archive on the PV and applies them to the {brandname} cluster.
 
 When either the backup or restore operation completes, the pod leaves the cluster and is terminated.
 
-.Notes
+.Reconciliation
 
-* Performing backups does not have a significant impact on performance because the other nodes in the {brandname} cluster only need to respond to the backup pod as it iterates over cache entries.
+{ispn_operator} does not reconcile `Backup` and `Restore` CRs which mean that backup and restore operations are "one-time" events.
 
-* If you restore existing caches from a backup, only the data gets restored not the cache configuration.
-+
-For example, you back up a cache named `mycache` that is distributed.
-If you then restore that backup to a cluster where `mycache` is replicated, the operation overwrites the data but retains the replicated configuration.
-
-* Backup and restore operations are "one-time" events that modify {brandname} resources.
-+
-Modifying existing `Backup` or `Restore` CR instances has no effect.
-To update `.spec` fields for the CR, or when a backup or restore operation fails, you must create a new instance of the `Backup` or `Restore` CR.
+Modifying an existing `Backup` or `Restore` CR instance does not perform an operation or have any effect.
+If you want to update `.spec` fields, you must create a new instance of the `Backup` or `Restore` CR.

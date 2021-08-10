@@ -1,0 +1,46 @@
+[id='backup-restore-status_{context}']
+= Backup and restore status
+
+[role="_abstract"]
+`Backup` and `Restore` CRs include a `status.phase` field that provides the status for each phase of the operation.
+
+[%header,cols=2*]
+|===
+|Status
+|Description
+
+|`Initializing`
+|The system has accepted the request and the controller is preparing the underlying resources to create the pod.
+
+|`Initialized`
+|The controller has prepared all underlying resources successfully.
+
+|`Running`
+|The pod is created and the operation is in progress on the {brandname} cluster.
+
+|`Succeeded`
+|The operation has completed successfully on the {brandname} cluster and the pod is terminated.
+
+|`Failed`
+|The operation did not successfully complete and the pod is terminated.
+
+|`Unknown`
+|The controller cannot obtain the status of the pod or determine the state of the operation. This condition typically indicates a temporary communication error with the pod.
+|===
+
+[discrete]
+== Handling failed operations
+
+If the `status.phase` field of the `Backup` or `Restore` CR is `Failed`, you should do the following:
+
+. Examine the logs for the pod that performed the failed operation.
++
+Pods are terminated but remain available until you delete the `Backup` or `Restore` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_logs} <backup|restore_pod_name>
+----
++
+. Resolve any error conditions or other causes of failure as indicated by the pod logs.
+. Create a new instance of the `Backup` or `Restore` CR and attempt the operation again.

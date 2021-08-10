@@ -9,6 +9,7 @@ ifdef::context[:parent-context: {context}]
 include::{topics}/con_backup_restore.adoc[leveloffset=+1]
 include::{topics}/proc_backing_up_cluster.adoc[leveloffset=+1]
 include::{topics}/proc_restoring_cluster.adoc[leveloffset=+1]
+include::{topics}/ref_backup_restore_status.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]
