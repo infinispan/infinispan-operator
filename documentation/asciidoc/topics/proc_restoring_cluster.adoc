@@ -1,4 +1,4 @@
-[id='restoring_clusters-{context}']
+[id='restoring-clusters_{context}']
 = Restoring {brandname} clusters
 
 [role="_abstract"]
@@ -7,29 +7,34 @@ Restore {brandname} cluster state from a backup archive.
 .Prerequisites
 
 * Create a `Backup` CR on a source cluster.
-* Create a {brandname} cluster of {datagridservice} nodes where you want to restore state.
+* Create a target {brandname} cluster of {datagridservice} nodes.
 +
-[IMPORTANT]
+[NOTE]
 ====
-Make sure there are no active client connections to the cluster before you restore the backup.
-Cache entries that you restore from a backup could overwrite more recent cache entries.
-For example, a client does `cache.put(k=2)` before you restore a backup that contains `k=1`.
+If you restore an existing cache, the operation overwrites the data in the cache but not the cache configuration.
+
+For example, you back up a distributed cache named `mycache` on the source cluster.
+You then restore `mycache` on a target cluster where it already exists as a replicated cache.
+In this case, the data from the source cluster is restored and `mycache` continues to have a replicated configuration on the target cluster.
 ====
 
+* Ensure there are no active client connections to the target {brandname} cluster you want to restore.
++
+Cache entries that you restore from a backup can overwrite more recent cache entries. +
+For example, a client performs a `cache.put(k=2)` operation and you then restore a backup that contains `k=1`.
 
 .Procedure
 
-. Create a `Restore` CR.
-.. Name the `Restore` CR with the `metadata.name` field.
-.. Specify a `Backup` CR to use with the `spec.backup` field.
-.. Specify the {brandname} cluster to restore with the `spec.cluster` field.
+. Name the `Restore` CR with the `metadata.name` field.
+. Specify a `Backup` CR to use with the `spec.backup` field.
+. Specify the {brandname} cluster to restore with the `spec.cluster` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/restore.yaml[]
 ----
 +
-. Add the `spec.resources` field to restore specific resources only.
+. Optionally add the `spec.resources` field to restore specific resources only.
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -42,13 +47,14 @@ include::yaml/backup_resources.yaml[]
 ----
 $ {oc_apply_cr} my-restore.yaml
 ----
-+
-A new pod joins the {brandname} cluster and restores state from the backup file.
-When the operation is complete, the pod leaves the cluster and logs the following message:
+
+.Verification
+
+* Check that the `status.phase` field has a status of `Succeeded` in the `Restore` CR and that {brandname} logs have the following message:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 ISPN005045: Restore 'my-backup' complete
 ----
-+
-. Open the {brandname} Console or establish a CLI connection to verify the caches and data are restored to the cluster.
+
+You should then open the {brandname} Console or establish a CLI connection to verify data and {brandname} resources are restored as expected.
