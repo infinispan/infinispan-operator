@@ -44,11 +44,11 @@ $ {oc_apply_cr} my-restore.yaml
 
 .Verification
 
-. Check {brandname} logs for the following message:
+* Check that the `status.phase` field has a status of `Succeeded` in the `Restore` CR and that {brandname} logs have the following message:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 ISPN005045: Restore 'my-backup' complete
 ----
-+
-. Open the {brandname} Console or establish a CLI connection to verify caches and data are restored.
+
+You should then open the {brandname} Console or establish a CLI connection to verify data and {brandname} resources are restored as expected.

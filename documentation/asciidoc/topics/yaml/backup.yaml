@@ -6,4 +6,4 @@ spec:
   cluster: source-cluster
   volume:
     storage: 1Gi
-    storageClassName: "blah"
+    storageClassName: my-storage-class

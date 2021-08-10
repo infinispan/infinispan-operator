@@ -6,14 +6,14 @@ ifdef::context[:parent-context: {context}]
 [role="_abstract"]
 {ispn_operator} provides a `Batch` CR that lets you create {brandname} resources in bulk.
 `Batch` CR uses the {brandname} command line interface (CLI) in batch mode to carry out sequences of operations.
-+
+
 [NOTE]
 ====
 Modifying a `Batch` CR instance has no effect.
 Batch operations are "one-time" events that modify {brandname} resources.
 To update `.spec` fields for the CR, or when a batch operation fails, you must create a new instance of the `Batch` CR.
 ====
-+
+
 include::{topics}/proc_batching_inline.adoc[leveloffset=+1]
 include::{topics}/proc_batching_create_configmap.adoc[leveloffset=+1]
 include::{topics}/proc_batching_configmap.adoc[leveloffset=+1]
