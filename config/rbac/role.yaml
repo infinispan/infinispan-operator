@@ -1,0 +1,138 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - infinispan.org
+  resources:
+  - backups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infinispan.org
+  resources:
+  - backups/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - backups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - batches
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infinispan.org
+  resources:
+  - batches/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - batches/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - caches
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infinispan.org
+  resources:
+  - caches/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - caches/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - infinispans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infinispan.org
+  resources:
+  - infinispans/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - infinispans/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - restores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infinispan.org
+  resources:
+  - restores/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - infinispan.org
+  resources:
+  - restores/status
+  verbs:
+  - get
+  - patch
+  - update

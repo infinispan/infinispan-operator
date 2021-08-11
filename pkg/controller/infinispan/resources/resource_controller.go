@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,7 +30,7 @@ type Resource interface {
 }
 
 type ReconcileType struct {
-	ObjectType            runtime.Object
+	ObjectType            client.Object
 	GroupVersion          schema.GroupVersion
 	GroupVersionSupported bool
 	TypeWatchDisable      bool
@@ -54,7 +54,7 @@ type Reconciler interface {
 	// Events for the struct handled by this controller
 	EventsPredicate() predicate.Predicate
 	// Create a new instance of Infinispan wrapping the actual k8s type
-	ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *Controller, kube *kube.Kubernetes, log logr.Logger) Resource
+	ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *Controller, kube *kube.Kubernetes) Resource
 }
 
 type Controller struct {
@@ -121,7 +121,7 @@ func CreateController(name string, reconciler Reconciler, mgr manager.Manager) e
 	return nil
 }
 
-func (r *Controller) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Controller) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	reconciler := r.Reconciler
 	var objects []string
 	for _, obj := range reconciler.Types() {
@@ -149,7 +149,7 @@ func (r *Controller) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, nil
 	}
 
-	instance := reconciler.ResourceInstance(infinispan, r, r.Kube, reqLogger)
+	instance := reconciler.ResourceInstance(infinispan, r, r.Kube)
 	// Process resource
 	return instance.Process()
 }

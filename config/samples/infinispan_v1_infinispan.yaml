@@ -1,0 +1,7 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: infinispan-sample
+spec:
+  # Add fields here
+  foo: bar

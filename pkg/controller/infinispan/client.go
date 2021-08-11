@@ -3,7 +3,7 @@ package infinispan
 import (
 	"fmt"
 
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	client "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"

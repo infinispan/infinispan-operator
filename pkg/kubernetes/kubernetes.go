@@ -27,8 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-const containerName = "infinispan"
-
 // Kubernetes abstracts interaction with a Kubernetes cluster
 type Kubernetes struct {
 	Client     client.Client
@@ -120,12 +118,11 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 		Namespace(options.Namespace).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
-			Command:   options.Command,
-			Container: containerName,
-			Stdin:     false,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
+			Command: options.Command,
+			Stdin:   false,
+			Stdout:  true,
+			Stderr:  true,
+			TTY:     false,
 		}, scheme.ParameterCodec)
 	var execOut, execErr bytes.Buffer
 	// Create an executor
@@ -164,10 +161,10 @@ func SetConfigDefaults(config *rest.Config) *rest.Config {
 // ServiceCAsCRDResourceExists returns true if the platform
 // has the servicecas.operator.openshift.io custom resource deployed
 // Used to check if serviceca operator is serving TLS certificates
-func (k Kubernetes) hasServiceCAsCRDResource(version string) bool {
+func (k Kubernetes) hasServiceCAsCRDResource() bool {
 	// Using an ad-hoc path
-	req := k.RestClient.Get().AbsPath("apis/apiextensions.k8s.io/" + version + "/customresourcedefinitions/servicecas.operator.openshift.io")
-	result := req.Do()
+	req := k.RestClient.Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/servicecas.operator.openshift.io")
+	result := req.Do(context.TODO())
 	var status int
 	result.StatusCode(&status)
 	return status >= http.StatusOK && status < http.StatusMultipleChoices
@@ -176,7 +173,7 @@ func (k Kubernetes) hasServiceCAsCRDResource(version string) bool {
 // GetServingCertsMode returns a label that identify the kind of serving
 // certs service is available. Returns 'openshift.io' for service-ca on openshift
 func (k Kubernetes) GetServingCertsMode() string {
-	if k.hasServiceCAsCRDResource("v1beta1") || k.hasServiceCAsCRDResource("v1") {
+	if k.hasServiceCAsCRDResource() {
 		return "openshift.io"
 
 		// Code to check if other modes of serving TLS cert service is available
@@ -310,21 +307,29 @@ func (k Kubernetes) GetExternalAddress(route *corev1.Service) string {
 
 // ResourcesList returns a typed list of resource associated with the cluster
 func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime.Object) error {
+	objectList, ok := list.(client.ObjectList)
+	if !ok {
+		return fmt.Errorf("Argument of type %T is not an ObjectList", list)
+	}
 	labelSelector := labels.SelectorFromSet(set)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
-	err := k.Client.List(context.TODO(), list, listOps)
+	err := k.Client.List(context.TODO(), objectList, listOps)
 	return err
 }
 
 func (k Kubernetes) ResourcesListByField(namespace, fieldName, fieldValue string, list runtime.Object) error {
+	objectList, ok := list.(client.ObjectList)
+	if !ok {
+		return fmt.Errorf("Argument of type %T is not an ObjectList", list)
+	}
 	fieldSelector := fields.OneTermEqualSelector(fieldName, fieldValue)
 	listOps := &client.ListOptions{Namespace: namespace, FieldSelector: fieldSelector}
-	err := k.Client.List(context.TODO(), list, listOps)
+	err := k.Client.List(context.TODO(), objectList, listOps)
 	return err
 }
 
 func (k Kubernetes) Logs(pod, namespace string) (logs string, err error) {
-	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Param("container", containerName).Stream()
+	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Stream(context.TODO())
 	if err != nil {
 		return "", err
 	}

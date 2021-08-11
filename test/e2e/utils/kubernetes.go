@@ -13,16 +13,16 @@ import (
 	"testing"
 	"time"
 
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	"github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	ispnv2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	backupCtrl "github.com/infinispan/infinispan-operator/pkg/controller/backup"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/api/v2alpha1"
+	ispnv2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	backupCtrl "github.com/infinispan/infinispan-operator/controllers"
+	restoreCtrl "github.com/infinispan/infinispan-operator/controllers"
+	launcher "github.com/infinispan/infinispan-operator/launcher"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	serviceCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources/service"
-	restoreCtrl "github.com/infinispan/infinispan-operator/pkg/controller/restore"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	"github.com/infinispan/infinispan-operator/pkg/launcher"
 	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -69,7 +70,7 @@ func init() {
 	addToScheme(&ispnv2.SchemeBuilder.SchemeBuilder, Scheme)
 	addToScheme(&appsv1.SchemeBuilder, Scheme)
 	addToScheme(&storagev1.SchemeBuilder, Scheme)
-	ExpectNoError(routev1.Install(Scheme))
+	ExpectNoError(routev1.AddToScheme(Scheme))
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
@@ -152,7 +153,7 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 	ExpectNoError(err)
 }
 
-func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, specLabel map[string]string) {
+func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string) {
 	panicVal := recover()
 	// Print pod output if a panic has occurred
 	if panicVal != nil {
@@ -171,19 +172,12 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, specLabel 
 
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
 		ctx := context.TODO()
-		if specLabel != nil {
-			opts = []client.DeleteAllOfOption{
-				client.InNamespace(namespace),
-				client.MatchingLabels(specLabel),
-			}
-		}
-
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
-		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
+		k.WaitForPods(0, 5*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
 	}
 
@@ -270,7 +264,7 @@ func (k TestKubernetes) GetBatch(name, namespace string) *ispnv2.Batch {
 	return batch
 }
 
-func (k TestKubernetes) Create(obj runtime.Object) {
+func (k TestKubernetes) Create(obj client.Object) {
 	ExpectNoError(k.Kubernetes.Client.Create(context.TODO(), obj))
 }
 
@@ -287,22 +281,22 @@ func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout 
 }
 
 func (k TestKubernetes) DeleteBackup(backup *ispnv2.Backup) {
-	labelSelector := labels.SelectorFromSet(backupCtrl.PodLabels(backup.Name, backup.Spec.Cluster))
+	labelSelector := labels.SelectorFromSet(backupCtrl.BackupPodLabels(backup.Name, backup.Spec.Cluster))
 	k.DeleteResource(backup.Namespace, labelSelector, backup, SinglePodTimeout)
 }
 
 func (k TestKubernetes) DeleteRestore(restore *ispnv2.Restore) {
-	labelSelector := labels.SelectorFromSet(restoreCtrl.PodLabels(restore.Name, restore.Spec.Cluster))
+	labelSelector := labels.SelectorFromSet(restoreCtrl.RestorePodLabels(restore.Name, restore.Spec.Cluster))
 	k.DeleteResource(restore.Namespace, labelSelector, restore, SinglePodTimeout)
 }
 
 func (k TestKubernetes) DeleteBatch(batch *ispnv2.Batch) {
-	labelSelector := labels.SelectorFromSet(restoreCtrl.PodLabels(batch.Name, batch.Spec.Cluster))
+	labelSelector := labels.SelectorFromSet(restoreCtrl.RestorePodLabels(batch.Name, batch.Spec.Cluster))
 	k.DeleteResource(batch.Namespace, labelSelector, batch, SinglePodTimeout)
 }
 
 // DeleteResource deletes the k8 resource and waits that all the pods and pvs associated with that resource are gone
-func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selector, obj runtime.Object, timeout time.Duration) {
+func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selector, obj client.Object, timeout time.Duration) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), obj, DeleteOpts...)
 	ExpectMaybeNotFound(err)
 
@@ -360,7 +354,7 @@ func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func())
 	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		_, updateErr := controllerutil.CreateOrUpdate(context.TODO(), k.Kubernetes.Client, ispn, func() error {
 			if ispn.CreationTimestamp.IsZero() {
-				return k8serrors.NewNotFound(ispnv1.Resource("infinispan.org"), ispn.Name)
+				return k8serrors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), ispn.Name)
 			}
 			// Change the Infinispan spec
 			if update != nil {
@@ -642,11 +636,11 @@ func (k TestKubernetes) DeleteSecret(secret *v1.Secret) {
 
 // RunOperator runs an operator on a Kubernetes cluster
 func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
-	k.installCRD(crdsPath + "infinispan.org_infinispans_crd.yaml")
-	k.installCRD(crdsPath + "infinispan.org_caches_crd.yaml")
-	k.installCRD(crdsPath + "infinispan.org_backups_crd.yaml")
-	k.installCRD(crdsPath + "infinispan.org_restores_crd.yaml")
-	k.installCRD(crdsPath + "infinispan.org_batches_crd.yaml")
+	k.installCRD(crdsPath + "infinispan.org_infinispans.yaml")
+	k.installCRD(crdsPath + "infinispan.org_caches.yaml")
+	k.installCRD(crdsPath + "infinispan.org_backups.yaml")
+	k.installCRD(crdsPath + "infinispan.org_restores.yaml")
+	k.installCRD(crdsPath + "infinispan.org_batches.yaml")
 	stopCh := make(chan struct{})
 	go runOperatorLocally(stopCh, namespace)
 	return stopCh
@@ -661,7 +655,11 @@ func (k TestKubernetes) installCRD(path string) {
 func (k TestKubernetes) LoadResourceFromYaml(path string, obj runtime.Object) {
 	yamlReader, err := GetYamlReaderFromFile(path)
 	ExpectNoError(err)
+	// TODO: seems that new sdk puts a new line and a separator at the crd start
 	y, err := yamlReader.Read()
+	if y[0] == '\n' {
+		y, err = yamlReader.Read()
+	}
 	ExpectNoError(err)
 	ExpectNoError(k8syaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&obj))
 }
@@ -678,7 +676,7 @@ func RunOperator(m *testing.M, k *TestKubernetes) {
 			k.DeleteCRD("batch.infinispan.org")
 			k.NewNamespace(namespace)
 		}
-		stopCh := k.RunOperator(namespace, "../../../deploy/crds/")
+		stopCh := k.RunOperator(namespace, "../../../config/crd/bases/")
 		code := m.Run()
 		close(stopCh)
 		os.Exit(code)

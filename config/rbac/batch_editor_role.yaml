@@ -1,0 +1,24 @@
+# permissions for end users to edit batches.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: batch-editor-role
+rules:
+- apiGroups:
+  - infinispan.org
+  resources:
+  - batches
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infinispan.org
+  resources:
+  - batches/status
+  verbs:
+  - get

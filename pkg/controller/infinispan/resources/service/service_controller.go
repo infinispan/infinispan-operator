@@ -7,17 +7,17 @@ import (
 	"strconv"
 	"strings"
 
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	ingressv1 "github.com/infinispan/infinispan-operator/pkg/apis/networking/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
+	ingressv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -41,10 +41,12 @@ const (
 var ctx = context.Background()
 
 // reconcileConfig reconciles a Service,Route and Ingress objects
-type reconcileService struct {
+type ReconcileService struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client.Client
+	Scheme *runtime.Scheme
+	Log    logr.Logger
 }
 
 type serviceResource struct {
@@ -56,29 +58,29 @@ type serviceResource struct {
 	eventRec   record.EventRecorder
 }
 
-func (r reconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
+func (r ReconcileService) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes) resources.Resource {
 	return &serviceResource{
 		infinispan: infinispan,
 		client:     r.Client,
-		scheme:     ctrl.Scheme,
+		scheme:     r.Scheme,
 		kube:       kube,
-		log:        log,
+		log:        r.Log,
 		eventRec:   ctrl.EventRec,
 	}
 }
 
 var reconcileTypes = map[string]*resources.ReconcileType{
 	consts.ExternalTypeService: {ObjectType: &corev1.Service{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true},
-	consts.ExternalTypeRoute:   {ObjectType: &routev1.Route{}, GroupVersion: routev1.GroupVersion, GroupVersionSupported: false},
+	consts.ExternalTypeRoute:   {ObjectType: &routev1.Route{}, GroupVersion: routev1.SchemeGroupVersion, GroupVersionSupported: false},
 	consts.ExternalTypeIngress: {ObjectType: &ingressv1.Ingress{}, GroupVersion: schema.GroupVersion{Group: "networking.k8s.io", Version: "v1"}, GroupVersionSupported: false},
 	consts.ServiceMonitorType:  {ObjectType: &monitoringv1.ServiceMonitor{}, GroupVersion: monitoringv1.SchemeGroupVersion, GroupVersionSupported: false, TypeWatchDisable: true},
 }
 
-func (r reconcileService) Types() map[string]*resources.ReconcileType {
+func (r ReconcileService) Types() map[string]*resources.ReconcileType {
 	return reconcileTypes
 }
 
-func (r reconcileService) EventsPredicate() predicate.Predicate {
+func (r ReconcileService) EventsPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			return false
@@ -93,8 +95,8 @@ func isTypeSupported(kind string) bool {
 	return reconcileTypes[kind].GroupVersionSupported
 }
 
-func Add(mgr manager.Manager) error {
-	return resources.CreateController(ControllerName, &reconcileService{mgr.GetClient()}, mgr)
+func (r *ReconcileService) SetupWithManager(mgr manager.Manager) error {
+	return resources.CreateController(ControllerName, r, mgr)
 }
 
 func (s serviceResource) Process() (reconcile.Result, error) {
@@ -144,15 +146,12 @@ func (s serviceResource) Process() (reconcile.Result, error) {
 }
 
 // reconcileResource creates the resource (Service, Route or Ingress) for Infinispan if needed
-func (s serviceResource) reconcileResource(resource runtime.Object) error {
+func (s serviceResource) reconcileResource(resource client.Object) error {
 	unstructuredResource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(resource)
 	if err != nil {
 		return err
 	}
-	key, err := client.ObjectKeyFromObject(resource)
-	if err != nil {
-		return err
-	}
+	key := client.ObjectKeyFromObject(resource)
 	findResource := &unstructured.Unstructured{}
 	findResource.SetGroupVersionKind(resource.GetObjectKind().GroupVersionKind())
 	findResource.SetName(key.Name)

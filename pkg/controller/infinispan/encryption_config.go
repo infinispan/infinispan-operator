@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	"github.com/go-logr/logr"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -18,7 +20,7 @@ const (
 	EncryptKeystorePath = ServerRoot + "/conf/keystore"
 )
 
-func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfiguration, client client.Client) (*reconcile.Result, error) {
+func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfiguration, client client.Client, log logr.Logger, eventRec record.EventRecorder) (*reconcile.Result, error) {
 	if !i.IsEncryptionEnabled() {
 		return nil, nil
 	}

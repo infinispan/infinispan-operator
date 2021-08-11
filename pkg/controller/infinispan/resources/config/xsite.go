@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"

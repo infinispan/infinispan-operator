@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	k8sctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -36,11 +36,13 @@ const (
 
 var ctx = context.Background()
 
-// reconcileSecret reconciles a Secret object
-type reconcileSecret struct {
+// ReconcileSecret reconciles a Secret object
+type ReconcileSecret struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client.Client
+	Log    logr.Logger
+	Scheme *runtime.Scheme
 }
 
 type secretResource struct {
@@ -52,22 +54,22 @@ type secretResource struct {
 	eventRec   record.EventRecorder
 }
 
-func (r reconcileSecret) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
+func (r ReconcileSecret) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes) resources.Resource {
 	return &secretResource{
 		infinispan: infinispan,
 		client:     r.Client,
-		scheme:     ctrl.Scheme,
+		scheme:     r.Scheme,
 		kube:       kube,
-		log:        log,
+		log:        r.Log,
 		eventRec:   ctrl.EventRec,
 	}
 }
 
-func (r reconcileSecret) Types() map[string]*resources.ReconcileType {
+func (r ReconcileSecret) Types() map[string]*resources.ReconcileType {
 	return map[string]*resources.ReconcileType{"Secret": {ObjectType: &corev1.Secret{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true}}
 }
 
-func (r reconcileSecret) EventsPredicate() predicate.Predicate {
+func (r ReconcileSecret) EventsPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			return false
@@ -75,8 +77,8 @@ func (r reconcileSecret) EventsPredicate() predicate.Predicate {
 	}
 }
 
-func Add(mgr manager.Manager) error {
-	return resources.CreateController(ControllerName, &reconcileSecret{mgr.GetClient()}, mgr)
+func (r *ReconcileSecret) SetupWithManager(mgr manager.Manager) error {
+	return resources.CreateController(ControllerName, r, mgr)
 }
 
 func (s *secretResource) Process() (reconcile.Result, error) {
@@ -127,8 +129,8 @@ func (s secretResource) createSecret(name, label string, identities []byte) erro
 	}
 
 	s.log.Info(fmt.Sprintf("Creating Identities Secret %s", secret.Name))
-	_, err := controllerutil.CreateOrUpdate(ctx, s.client, secret, func() error {
-		return controllerutil.SetControllerReference(s.infinispan, secret, s.scheme)
+	_, err := k8sctrlutil.CreateOrUpdate(ctx, s.client, secret, func() error {
+		return k8sctrlutil.SetControllerReference(s.infinispan, secret, s.scheme)
 	})
 
 	if err != nil {
@@ -162,7 +164,7 @@ func (s secretResource) reconcileTruststoreSecret() (*reconcile.Result, error) {
 		return result, err
 	}
 
-	_, err := kube.CreateOrPatch(ctx, s.client, trustSecret, func() error {
+	_, err := k8sctrlutil.CreateOrPatch(ctx, s.client, trustSecret, func() error {
 		if trustSecret.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(corev1.Resource("secret"), i.GetTruststoreSecretName())
 		}
@@ -214,7 +216,7 @@ func (s secretResource) reconcileAdminSecret() error {
 		},
 	}
 
-	_, err := kube.CreateOrPatch(ctx, s.client, adminSecret, func() error {
+	_, err := k8sctrlutil.CreateOrPatch(ctx, s.client, adminSecret, func() error {
 		if adminSecret.CreationTimestamp.IsZero() {
 			identities, err := security.GetAdminCredentials()
 			if err != nil {
@@ -225,7 +227,7 @@ func (s secretResource) reconcileAdminSecret() error {
 			}
 			adminSecret.Labels = infinispan.LabelsResource(s.infinispan.Name, "infinispan-secret-admin-identities")
 			adminSecret.Data[consts.ServerIdentitiesFilename] = identities
-			if err = controllerutil.SetControllerReference(s.infinispan, adminSecret, s.scheme); err != nil {
+			if err = k8sctrlutil.SetControllerReference(s.infinispan, adminSecret, s.scheme); err != nil {
 				return err
 			}
 		}

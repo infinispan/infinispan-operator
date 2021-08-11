@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnCtrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
@@ -19,14 +19,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // Adapter interface that allows the zero-capacity controller to interact with the underlying k8 resource
@@ -51,7 +50,7 @@ type Resource interface {
 
 type Reconciler interface {
 	// The k8 struct being handled by this controller
-	Type() runtime.Object
+	Type() client.Object
 	// Create a new instance of the zero Resource wrapping the actual k8 type
 	ResourceInstance(name types.NamespacedName, ctrl *Controller) (Resource, error)
 }
@@ -81,6 +80,7 @@ type Controller struct {
 	Kube       *kube.Kubernetes
 	Log        logr.Logger
 	Scheme     *runtime.Scheme
+	EventRec   record.EventRecorder
 }
 
 type Phase string
@@ -102,7 +102,7 @@ const (
 	ZeroUnknown Phase = "Unknown"
 )
 
-func CreateController(name string, reconciler Reconciler, mgr manager.Manager) error {
+func CreateController(name string, reconciler Reconciler, mgr ctrl.Manager, eventRec record.EventRecorder) error {
 	r := &Controller{
 		Name:       name,
 		Client:     mgr.GetClient(),
@@ -110,27 +110,15 @@ func CreateController(name string, reconciler Reconciler, mgr manager.Manager) e
 		Kube:       kube.NewKubernetesFromController(mgr),
 		Log:        logf.Log.WithName(name),
 		Scheme:     mgr.GetScheme(),
+		EventRec:   eventRec,
 	}
 
-	// Create a new controller
-	c, err := controller.New(name, mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to primary resource
-	err = c.Watch(&source.Kind{Type: reconciler.Type()}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	return c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    reconciler.Type(),
-	})
+	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{Reconciler: r}).
+		For(reconciler.Type()).Owns(&corev1.Pod{}).
+		Complete(r)
 }
 
-func (z *Controller) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (z *Controller) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	reconciler := z.Reconciler
 	resource := reflect.TypeOf(reconciler.Type()).Elem().Name()
 	namespace := request.Namespace
@@ -439,7 +427,7 @@ func (z *Controller) configureServer(name, namespace string, infinispan *v1.Infi
 		"org.infinispan.server.core.backup": "debug",
 	}
 
-	if result, err := ispnCtrl.ConfigureServerEncryption(infinispan, config, z.Client); result != nil {
+	if result, err := ispnCtrl.ConfigureServerEncryption(infinispan, config, z.Client, z.Log, z.EventRec); result != nil {
 		return nil, fmt.Errorf("Unable to configure zero-capacity encryption: %w", err)
 	}
 

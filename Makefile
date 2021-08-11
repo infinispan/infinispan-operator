@@ -1,222 +1,119 @@
-IMAGE ?= quay.io/infinispan/operator
-TAG ?= latest
-GOOS ?= linux
-PROG  := infinispan-operator
-OPERATOR_SDK_VERSION ?= v0.18.0
-YQ_VERSION ?= 4.6.1
-GOLANG_CI_LINT_VERSION ?= 1.39.0
-KUBECONFIG ?= ${HOME}/.kube/config
+# Current Operator version
+VERSION ?= 0.0.1
+# Default bundle image tag
+BUNDLE_IMG ?= controller-bundle:$(VERSION)
+# Options for 'bundle-build'
+ifneq ($(origin CHANNELS), undefined)
+BUNDLE_CHANNELS := --channels=$(CHANNELS)
+endif
+ifneq ($(origin DEFAULT_CHANNEL), undefined)
+BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
+endif
+BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
-.PHONY: dep build image push run clean help
+# Image URL to use all building/pushing image targets
+IMG ?= controller:latest
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
-.DEFAULT_GOAL := help
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
 
-## dep              Ensure deps is locally available.
-##
-dep:
-	go mod tidy
+all: manager
 
-## lint             Invoke linter to promote Go lang best practices.
-##
-lint:
-	./build/run-lint.sh ${GOLANG_CI_LINT_VERSION}
+# Run tests
+ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
+test: generate fmt vet manifests
+	mkdir -p ${ENVTEST_ASSETS_DIR}
+	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.7.0/hack/setup-envtest.sh
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
 
-## vet              Inspects the source code for suspicious constructs.
-##
+# Build manager binary
+manager: generate fmt vet
+	go build -o bin/manager main.go
+
+# Run against the configured Kubernetes cluster in ~/.kube/config
+run: generate fmt vet manifests
+	go run ./main.go
+
+# Install CRDs into a cluster
+install: manifests kustomize
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+
+# Uninstall CRDs from a cluster
+uninstall: manifests kustomize
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+
+# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
+deploy: manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+# UnDeploy controller from the configured Kubernetes cluster in ~/.kube/config
+undeploy:
+	$(KUSTOMIZE) build config/default | kubectl delete -f -
+
+# Generate manifests e.g. CRD, RBAC etc.
+manifests: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+# Run go fmt against code
+fmt:
+	go fmt ./...
+
+# Run go vet against code
 vet:
 	go vet ./...
 
-## clean            Remove all generated build files.
-##
-clean:
-	rm -rf build/_output
+# Generate code
+generate: controller-gen
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-## updatecsv         Update csv with new roles
-##
-update-csv:
-	./build/update-csv.sh ${YQ_VERSION}
+# Build the docker image
+docker-build: test
+	docker build -t ${IMG} .
 
-## codegen          Generates CRDs, k8s code for custom resources and install bundle.
-##
-codegen: embed-resources update-csv
-	./build/crds-gen.sh ${OPERATOR_SDK_VERSION} ${YQ_VERSION}
-	./build/install-bundle.sh
+# Push the docker image
+docker-push:
+	docker push ${IMG}
 
-## install-bundle   Combine single operator install bundle from the multiples files.
-##
-install-bundle:
-	./build/install-bundle.sh
+# Download controller-gen locally if necessary
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+controller-gen:
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
 
-## embed-resources  Embedding static resources into go files with rice tool.
-##
-embed-resources:
-	./build/embed-resources.sh
+# Download kustomize locally if necessary
+KUSTOMIZE = $(shell pwd)/bin/kustomize
+kustomize:
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
 
-## build            Compile and build the Infinispan operator.
-##
-build: embed-resources
-	./build/build.sh ${GOOS}
+# go-get-tool will 'go get' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
 
-## image            Build a Docker image for the Infinispan operator.
-image: build
-ifeq ($(MULTISTAGE),NO)
-##                  This branch builds the image in a docker container which provides multistage build
-##                  for distro that doesn't provide multistage build directly (i.e. Fedora 30 or early).
-##
-	-docker run -d --rm --privileged -p 23751:2375 --name dind docker:18-dind --storage-driver overlay2
-	-sleep 5
-	-docker --host=:23751 build -t "$(IMAGE):$(TAG)" . -f build/Dockerfile
-	-docker --host=:23751 save -o ./make.image.out.tar "$(IMAGE):$(TAG)"
-	-docker load -i ./make.image.out.tar
-	-rm -f make.image.out.tar
-	-docker stop dind
-else
-	docker build -t "$(IMAGE):$(TAG)" . -f build/Dockerfile
-endif
-## push             Push Docker images to Docker Hub.
-##
-push: image
-	docker push $(IMAGE):$(TAG)
+# Generate bundle manifests and metadata, then validate generated files.
+.PHONY: bundle
+bundle: manifests kustomize
+	operator-sdk generate kustomize manifests -q
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	operator-sdk bundle validate ./bundle
 
-## push-okd4        Push docker image to the OCP|OKD4 internal registry and deploy the operator.
-##
-push-okd4: build
-	build/push-okd4.sh ${YQ_VERSION}
-
-## run              Create the Infinispan operator on OKD with the public image.
-##                  - Specify cluster access configuration with KUBECONFIG.
-##                  Example: "make run KUBECONFIG=/path/to/admin.kubeconfig"
-##
-run:
-	build/run-okd.sh ${KUBECONFIG}
-
-## run-local        Run Infinispan operator code locally and deploying descriptors to OKD.
-##                  - Specify cluster access configuration with KUBECONFIG.
-##                  Example: "make run-local KUBECONFIG=/path/to/admin.kubeconfig"
-##                  - Override the OKD login user name.
-##                  Example: "make run-local OC_USER=myuser"
-##                  - Override the project for operator run.
-##                  Example: "make run-local PROJECT_NAME=infinispan-operator"
-##
-run-local: build
-	build/run-local.sh ${KUBECONFIG}
-
-## unit-test        Perform unit test
-##
-unit-test: build
-	go test ./pkg/... -v
-
-## test             Perform end to end (e2e) tests on running clusters.
-##                  - Specify the target cluster with KUBECONFIG.
-##                  Example: "make test KUBECONFIG=/path/to/admin.kubeconfig"
-##                  - Specify a single test to run.
-##                  Example: "make test TEST_NAME=TestCacheService"
-##                  - Specify the namespace/project for running test.
-##                  Example: "make test TESTING_NAMESPACE=infinispan-operator"
-##                  - Specify whether run operator locally or use the predefined installation.
-##                  Example: "make test RUN_LOCAL_OPERATOR=false"
-##                  - Specify expose service type. NodePort or LoadBalancer are supported only.
-##                  Example: "make test EXPOSE_SERVICE_TYPE=LoadBalancer"
-##                  - Specify parallel test running count. Default is one, i.e. no parallel tests enabled.
-##                  Example: "make test PARALLEL_COUNT=2"
-##
-test: build
-	build/run-tests.sh ${KUBECONFIG} main
-
-## multinamespace-test Perform end to end (e2e) tests in multinamespace mode
-##                     Same setting as `ŧest` rule
-##
-
-multinamespace-test: build
-	build/run-tests.sh ${KUBECONFIG} multinamespace
-
-## backuprestore-test Perform end to end (e2e) tests for Backup/Restore CR's
-##                     Same setting as `ŧest` rule
-##
-
-backuprestore-test: build
-	build/run-tests.sh ${KUBECONFIG} backup-restore
-
-## batch-test Perform end to end (e2e) tests for Batch CR's
-##                     Same setting as `ŧest` rule
-##
-
-batch-test: build
-	build/run-tests.sh ${KUBECONFIG} batch
-
-## upgrade-test         Performs test upgrade from one operator version to another against different git branches
-##                      This script deploys operator to the OKD/OCP cluster from the local source code or already
-##                      build image located inside the docker registry.
-##                      - Specify the testing cluster with KUBECONFIG.
-##                      Example: "make upgrade-test KUBECONFIG=/path/to/admin.kubeconfig"
-##                      - Override the OKD login user name.
-##                      Example: "make upgrade-test OC_USER=myuser"
-##                      - Override the project for operator run.
-##                      Example: "make upgrade-test PROJECT_NAME=infinispan-operator"
-##                      - Specify source migration git branch or tag name. This is required parameter.
-##                      Example: "make upgrade-test FROM_UPGRADE_VERSION=2.0.x"
-##                      - Override from source code build flag.
-##                      Example: "make upgrade-test FROM_SOURCE_BUILD_FLAG=true"
-##                      - Specify target migration git branch or tag name. If it's not defined the current branch will be used as target.
-##                      Example: "make upgrade-test TO_UPGRADE_VERSION=main"
-##                      - Override to source code build flag.
-##                      Example: "make upgrade-test TO_SOURCE_BUILD_FLAG=true"
-##
-upgrade-test:
-	build/upgrade-test.sh ${KUBECONFIG}
-
-## upgrade-test-local   Performs test upgrade from one operator version to another
-##                      This script runs operator locally connecting to the any located OKD/OCP/K8S cluster
-##                      - Specify the testing cluster with KUBECONFIG.
-##                      Example: "make upgrade-test-local KUBECONFIG=/path/to/admin.kubeconfig"
-##                      Example: "make upgrade-test-local FROM_UPGRADE_VERSION=2.0.x"
-##                      - Specify target migration git branch or tag name. If it's not defined the current branch will be used as target.
-##                      Example: "make upgrade-test-local TO_UPGRADE_VERSION=main"
-
-##
-upgrade-test-local:
-	build/upgrade-test-local.sh ${KUBECONFIG}
-
-## release          Release a versioned operator.
-##                  - Requires 'RELEASE_NAME=X.Y.Z'. Defaults to dry run.
-##                  - Pass 'DRY_RUN=false' to commit the release.
-##                  - Example: "make DRY_RUN=false RELEASE_NAME=X.Y.Z release"
-##
-release:
-	build/release.sh
-
-# Minikube parameters
-PROFILE ?= operator-minikube
-VMDRIVER ?= virtualbox
-NAMESPACE ?= infinispan-operator
-
-## minikube-config        Configure Minikube VM with adequate options.
-minikube-config:
-	build/minikube/config.sh ${PROFILE} ${VMDRIVER}
-
-## minikube-start         Start Minikube.
-minikube-start:
-	build/minikube/start.sh ${PROFILE}
-
-## minikube-run-local     Run Infinispan operator image locally deploying descriptors to Minikube.
-minikube-run-local: build
-	build/minikube/run-local.sh ${NAMESPACE}
-
-## minikube-run-local     Run testsuite on Minikube
-minikube-test: build
-	build/minikube/run-tests.sh ${NAMESPACE}
-
-## minikube-clean         Remove Infinispan operator descriptors from Minikube.
-minikube-clean: clean
-	build/minikube/clean.sh ${NAMESPACE}
-
-## minikube-delete        Delete Minikube virtual machine.
-minikube-delete:
-	build/minikube/delete.sh ${PROFILE}
-
-## minikube-stop          Stop Minikube virtual machine.
-minikube-stop:
-	build/minikube/stop.sh ${PROFILE}
-
-help : Makefile
-	@sed -n 's/^##//p' $<
+# Build the bundle image.
+.PHONY: bundle-build
+bundle-build:
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .

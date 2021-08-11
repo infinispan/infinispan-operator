@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	routev1 "github.com/openshift/api/route/v1"
@@ -215,7 +215,7 @@ func exposeServiceType(testKube *TestKubernetes) ispnv1.ExposeType {
 	case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
 		return ispnv1.ExposeType(ExposeServiceType)
 	case ispnv1.ExposeTypeRoute:
-		okRoute, err := testKube.Kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
+		okRoute, err := testKube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
 		ExpectNoError(err)
 		if okRoute {
 			return ispnv1.ExposeTypeRoute

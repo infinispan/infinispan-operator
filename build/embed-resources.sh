@@ -28,6 +28,6 @@ if ! validateRice; then
 fi
 
 rice embed-go -i pkg/controller/infinispan/resources/operatorconfig/grafana.go
-rice embed-go -i pkg/controller/infinispan/dependencies.go
+rice embed-go -i controllers/dependencies.go
 sed -i "s|time.Unix(.*, 0)|time.Unix(1620137619, 0)|" pkg/controller/infinispan/resources/operatorconfig/rice-box.go
-sed -i "s|time.Unix(.*, 0)|time.Unix(1620137619, 0)|" pkg/controller/infinispan/rice-box.go
+sed -i "s|time.Unix(.*, 0)|time.Unix(1620137619, 0)|" pkg/controllers/rice-box.go

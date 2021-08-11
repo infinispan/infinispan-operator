@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	ispnctrl "github.com/infinispan/infinispan-operator/controllers"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
-	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
@@ -31,11 +31,13 @@ const (
 
 var ctx = context.Background()
 
-// reconcileConfig reconciles a ConfigMap object
-type reconcileConfig struct {
+// ReconcileConfig reconciles a ConfigMap object
+type ReconcileConfig struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client.Client
+	Scheme *runtime.Scheme
+	Log    logr.Logger
 }
 
 type configResource struct {
@@ -47,22 +49,22 @@ type configResource struct {
 	eventRec   record.EventRecorder
 }
 
-func (r reconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes, log logr.Logger) resources.Resource {
+func (r ReconcileConfig) ResourceInstance(infinispan *ispnv1.Infinispan, ctrl *resources.Controller, kube *kube.Kubernetes) resources.Resource {
 	return &configResource{
 		infinispan: infinispan,
 		client:     r.Client,
-		scheme:     ctrl.Scheme,
+		scheme:     r.Scheme,
 		kube:       kube,
-		log:        log,
+		log:        r.Log,
 		eventRec:   ctrl.EventRec,
 	}
 }
 
-func (r reconcileConfig) Types() map[string]*resources.ReconcileType {
+func (r ReconcileConfig) Types() map[string]*resources.ReconcileType {
 	return map[string]*resources.ReconcileType{"ConfigMap": {ObjectType: &corev1.ConfigMap{}, GroupVersion: corev1.SchemeGroupVersion, GroupVersionSupported: true}}
 }
 
-func (r reconcileConfig) EventsPredicate() predicate.Predicate {
+func (r ReconcileConfig) EventsPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			return false
@@ -70,8 +72,8 @@ func (r reconcileConfig) EventsPredicate() predicate.Predicate {
 	}
 }
 
-func Add(mgr manager.Manager) error {
-	return resources.CreateController(ControllerName, &reconcileConfig{mgr.GetClient()}, mgr)
+func (r *ReconcileConfig) SetupWithManager(mgr manager.Manager) error {
+	return resources.CreateController(ControllerName, r, mgr)
 }
 
 func (c *configResource) Process() (reconcile.Result, error) {
@@ -168,7 +170,7 @@ func (c configResource) computeAndReconcileConfigMap(xsite *configuration.XSite)
 		serverConf.XSite = xsite
 	}
 
-	if result, err := infinispan.ConfigureServerEncryption(c.infinispan, &serverConf, c.client); result != nil {
+	if result, err := infinispan.ConfigureServerEncryption(c.infinispan, &serverConf, c.client, c.log, c.eventRec); result != nil {
 		return result, err
 	}
 

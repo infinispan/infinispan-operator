@@ -1,0 +1,24 @@
+# permissions for end users to edit infinispans.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: infinispan-editor-role
+rules:
+- apiGroups:
+  - infinispan.org
+  resources:
+  - infinispans
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infinispan.org
+  resources:
+  - infinispans/status
+  verbs:
+  - get

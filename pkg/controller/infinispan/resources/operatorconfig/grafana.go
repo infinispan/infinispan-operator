@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	rice "github.com/GeertJohan/go.rice"
+	grafanav1alpha1 "github.com/infinispan/infinispan-operator/pkg/apis/integreatly/v1alpha1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	grafanav1alpha1 "github.com/integr8ly/grafana-operator/v3/pkg/apis/integreatly/v1alpha1"
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+	"github.com/infinispan/infinispan-operator/pkg/k8sutil"
+	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -38,10 +38,10 @@ func (r *ReconcileOperatorConfig) reconcileGrafana(config, currentConfig map[str
 		return &reconcile.Result{RequeueAfter: consts.DefaultLongWaitOnCreateResource}, nil
 	}
 	infinispanDashboard := emptyDashboard(config)
-	if _, err = controllerutil.CreateOrUpdate(ctx, r.client, infinispanDashboard, func() error {
+	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, infinispanDashboard, func() error {
 		if infinispanDashboard.CreationTimestamp.IsZero() {
 			if grafanaNs == operatorNs {
-				if ownRef, err := kube.GetOperatorPodOwnerRef(operatorNs, r.client); err != nil {
+				if ownRef, err := kubernetes.GetOperatorPodOwnerRef(operatorNs, r.Client); err != nil {
 					if errors.Is(err, k8sutil.ErrRunLocal) {
 						r.Log.Info(fmt.Sprintf("Not setting controller reference for Grafana Dashboard, cause %s.", err.Error()))
 					} else {
@@ -89,7 +89,8 @@ func populateDashboard(dashboard *grafanav1alpha1.GrafanaDashboard, config map[s
 	}
 	dashboard.Spec = grafanav1alpha1.GrafanaDashboardSpec{
 		Json: dashboardJSONData,
-		Name: "infinispan.json",
+		// TODO migration to 1.22. No more needed Name field?
+		// Name: "infinispan.json",
 		Datasources: []grafanav1alpha1.GrafanaDashboardDatasource{
 			{
 				InputName:      "DS_PROMETHEUS",

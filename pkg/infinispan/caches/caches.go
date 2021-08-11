@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	infinispanv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 )
