@@ -11,12 +11,10 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -159,12 +157,8 @@ const (
 // }
 
 // LookupResource lookup for resource to be created by separate resource controller
-func LookupResource(name, namespace string, resource runtime.Object, client client.Client, logger logr.Logger, eventRec record.EventRecorder) (*reconcile.Result, error) {
-	clientObject, ok := resource.(runtimeClient.Object)
-	if ok {
-		return nil, fmt.Errorf("Argument of type %T is not an controller-runtime.Object", resource)
-	}
-	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, clientObject)
+func LookupResource(name, namespace string, resource client.Object, client client.Client, logger logr.Logger, eventRec record.EventRecorder) (*reconcile.Result, error) {
+	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, resource)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			if eventRec != nil {

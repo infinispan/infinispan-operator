@@ -34,6 +34,13 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	infinispanv2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers"
+	grafanav1alpha1 "github.com/infinispan/infinispan-operator/pkg/apis/integreatly/v1alpha1"
+	configController "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources/config"
+	secretController "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources/secret"
+	serviceController "github.com/infinispan/infinispan-operator/pkg/controller/infinispan/resources/service"
+	routev1 "github.com/openshift/api/route/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	ingressv1 "k8s.io/api/networking/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -47,6 +54,10 @@ func init() {
 
 	utilruntime.Must(infinispanv1.AddToScheme(scheme))
 	utilruntime.Must(infinispanv2alpha1.AddToScheme(scheme))
+	utilruntime.Must(routev1.AddToScheme(scheme))
+	utilruntime.Must(ingressv1.AddToScheme(scheme))
+	utilruntime.Must(monitoringv1.AddToScheme(scheme))
+	utilruntime.Must(grafanav1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -118,6 +129,33 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cache")
+		os.Exit(1)
+	}
+
+	if err = (&secretController.ReconcileSecret{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Secret"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Secret")
+		os.Exit(1)
+	}
+
+	if err = (&serviceController.ReconcileService{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Service"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Service")
+		os.Exit(1)
+	}
+
+	if err = (&configController.ReconcileConfig{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Config"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Config")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

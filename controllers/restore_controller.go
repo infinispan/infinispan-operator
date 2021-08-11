@@ -175,7 +175,7 @@ func (r *restore) Init() (*zero.Spec, error) {
 
 	return &zero.Spec{
 		Container: r.instance.Spec.Container,
-		PodLabels: PodLabels(r.instance.Name, backup.Spec.Cluster),
+		PodLabels: RestorePodLabels(r.instance.Name, backup.Spec.Cluster),
 		Volume: zero.VolumeSpec{
 			MountPath: BackupDataMountPath,
 			VolumeSource: corev1.VolumeSource{
@@ -221,7 +221,7 @@ func (r *restore) ExecStatus(client http.HttpClient) (zero.Phase, error) {
 	return zero.Phase(status), nil
 }
 
-func PodLabels(backup, cluster string) map[string]string {
+func RestorePodLabels(backup, cluster string) map[string]string {
 	m := ispnctrl.ServiceLabels(cluster)
 	m["restore_cr"] = backup
 	return m

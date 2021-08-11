@@ -364,12 +364,10 @@ type InfinispanStatus struct {
 	ConsoleUrl *string `json:"consoleUrl,omitempty"`
 }
 
-// +genclient
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // Infinispan is the Schema for the infinispans API
-// +k8s:openapi-gen=true
-// +kubebuilder:subresource:status
 type Infinispan struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
