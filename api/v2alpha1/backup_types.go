@@ -73,7 +73,7 @@ type BackupStatus struct {
 }
 
 // +genclient
-// +kubebuilder:object:root=true 
+// +kubebuilder:object:root=true
 
 // Backup is the Schema for the backups API
 // +k8s:openapi-gen=true

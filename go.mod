@@ -7,6 +7,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/go-logr/logr v0.4.0
 	github.com/go-playground/validator/v10 v10.8.0
+	github.com/iancoleman/strcase v0.2.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.14.0
 	github.com/openshift/api v3.9.0+incompatible
@@ -17,7 +18,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	honnef.co/go/tools v0.0.1-2020.1.3
 	k8s.io/api v0.19.4
-	k8s.io/apiextensions-apiserver v0.19.4 // indirect
+	k8s.io/apiextensions-apiserver v0.19.4
 	k8s.io/apimachinery v0.19.4
 	k8s.io/client-go v0.19.4
 	k8s.io/cloud-provider v0.19.4
