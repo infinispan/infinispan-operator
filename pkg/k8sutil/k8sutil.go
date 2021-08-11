@@ -21,6 +21,8 @@ import (
 	"os"
 	"strings"
 
+	"errors"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,7 +62,7 @@ var ErrNoNamespace = fmt.Errorf("namespace not found for current environment")
 var ErrRunLocal = fmt.Errorf("operator run mode forced to local")
 
 // GetOperatorNamespace returns the namespace the operator should be running in.
-func GetOperatorNamespace() (string, error) {
+func getOperatorNamespace() (string, error) {
 	if isRunModeLocal() {
 		return "", ErrRunLocal
 	}
@@ -74,6 +76,19 @@ func GetOperatorNamespace() (string, error) {
 	ns := strings.TrimSpace(string(nsBytes))
 	log.V(1).Info("Found namespace", "Namespace", ns)
 	return ns, nil
+}
+
+func GetOperatorNamespace() (string, error) {
+	operatorNs, err := getOperatorNamespace()
+	// This makes everything work even running outside the cluster
+	if errors.Is(err, ErrRunLocal) {
+		var operatorWatchNs string
+		operatorWatchNs, err = GetWatchNamespace()
+		if operatorWatchNs != "" {
+			operatorNs = strings.Split(operatorWatchNs, ",")[0]
+		}
+	}
+	return operatorNs, err
 }
 
 // GetOperatorName return the operator name
