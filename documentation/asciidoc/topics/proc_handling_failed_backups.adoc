@@ -1,0 +1,19 @@
+[id='handling-failed-backups_{context}']
+= Handling failed backup and restore operations
+
+[role="_abstract"]
+If the `status.phase` field of the `Backup` or `Restore` CR is `Failed`, you should examine pod logs to determine the root cause before you attempt the operation again.
+
+.Procedure
+
+. Examine the logs for the pod that performed the failed operation.
++
+Pods are terminated but remain available until you delete the `Backup` or `Restore` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_logs} <backup|restore_pod_name>
+----
++
+. Resolve any error conditions or other causes of failure as indicated by the pod logs.
+. Create a new instance of the `Backup` or `Restore` CR and attempt the operation again.
