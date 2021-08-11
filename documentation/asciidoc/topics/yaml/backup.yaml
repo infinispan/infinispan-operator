@@ -4,3 +4,6 @@ metadata:
   name: my-backup
 spec:
   cluster: source-cluster
+  volume:
+    storage: 1Gi
+    storageClassName: my-storage-class

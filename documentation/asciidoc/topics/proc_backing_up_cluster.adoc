@@ -6,36 +6,34 @@ Create a backup file that stores {brandname} cluster state to a persistent volum
 
 .Prerequisites
 
-* Create an `Infinispan` CR of `spec.service.type: DataGrid`.
-* Have some resources on your {brandname} cluster to back up.
-Backups archive all resources that the Cache Manager controls, including caches, cache entries, cache templates, Protobuf schema, counters, scripts, and so on.
-
-[IMPORTANT]
-====
-{brandname} backups do not provide snapshot isolation.
-If a write operation occurs on a cache entry that the backup operation has already archived, that write might not be backed up.
-To ensure that you archive the exact state of the cluster, make sure there are no active client connections to the cluster before you back it up.
-====
+* Create an `Infinispan` CR with `spec.service.type: DataGrid`.
+* Ensure there are no active client connections to the {brandname} cluster.
++
+{brandname} backups do not provide snapshot isolation and data modifications are not written to the archive after the cache is backed up. +
+To archive the exact state of the cluster, you should always disconnect any clients before you back it up.
 
 .Procedure
 
-. Create a `Backup` CR.
-.. Name the `Backup` CR with the `metadata.name` field.
-.. Specify the {brandname} cluster to backup with the `spec.cluster` field.
+. Name the `Backup` CR with the `metadata.name` field.
+. Specify the {brandname} cluster to backup with the `spec.cluster` field.
+. Configure the persistent volume claim (PVC) that adds the backup archive to the persistent volume (PV) with the `spec.volume.storage` and `spec.volume.storage.storageClassName` fields.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/backup.yaml[]
 ----
 +
-. Add the `spec.resources` field if you only want to back up certain resources.
+. Optionally include `spec.resources` fields to specify which {brandname} resources you want to back up.
++
+If you do not include any `spec.resources` fields, the `Backup` CR creates an archive that contains all {brandname} resources.
+If you do specify `spec.resources` fields, the `Backup` CR creates an archive that contains those resources only.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/backup_resources.yaml[]
 ----
 +
-You can also use the `*` wildcard character to back up all resources.
+You can also use the `*` wildcard character as in the following example:
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -48,18 +46,17 @@ include::yaml/backup_resources_glob.yaml[]
 ----
 $ {oc_apply_cr} my-backup.yaml
 ----
-+
-A new pod joins the {brandname} cluster and creates the backup file.
-When the operation is complete, the pod leaves the cluster and logs the following message:
+
+.Verification
+
+. Check that the `status.phase` field has a status of `Succeeded` in the `Backup` CR and that {brandname} logs have the following message:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 ISPN005044: Backup file created 'my-backup.zip'
 ----
 +
-The resulting backup file is stored in the `{backup_path}` directory.
-+
-. Run the following command to verify that the backup is successful:
+. Run the following command to check that the backup is successfully created:
 +
 [source,options="nowrap",subs=attributes+]
 ----
