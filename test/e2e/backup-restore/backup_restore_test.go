@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/iancoleman/strcase"
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"

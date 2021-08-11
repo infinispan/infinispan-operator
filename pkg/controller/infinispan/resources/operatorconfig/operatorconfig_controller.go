@@ -106,5 +106,6 @@ func (r *ReconcileOperatorConfig) Reconcile(ctx context.Context, request reconci
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ReconcileOperatorConfig) SetupWithManager(mgr manager.Manager) error {
+	r.Kube = kube.NewKubernetesFromController(mgr)
 	return r.addOperatorConfig(mgr)
 }

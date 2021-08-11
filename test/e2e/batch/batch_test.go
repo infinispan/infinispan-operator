@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/iancoleman/strcase"
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	batchCtrl "github.com/infinispan/infinispan-operator/pkg/controller/batch"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
 	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
