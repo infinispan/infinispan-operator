@@ -645,7 +645,7 @@ func (r *InfinispanReconciler) upgradeInfinispan(infinispan *infinispanv1.Infini
 		}
 	}
 
-	if contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
+	if k8sctrlutil.ContainsFinalizer(infinispan, consts.InfinispanFinalizer) {
 		// Set Infinispan CR as owner reference for PVC if it not defined
 		pvcs := &corev1.PersistentVolumeClaimList{}
 		err := kubernetes.ResourcesList(infinispan.Namespace, LabelsResource(infinispan.Name, ""), pvcs)
@@ -669,9 +669,7 @@ func (r *InfinispanReconciler) upgradeInfinispan(infinispan *infinispanv1.Infini
 
 	return r.update(infinispan, func() {
 		// Remove finalizer if it defined in the Infinispan CR
-		if contains(infinispan.GetFinalizers(), consts.InfinispanFinalizer) {
-			infinispan.SetFinalizers(remove(infinispan.GetFinalizers(), consts.InfinispanFinalizer))
-		}
+		k8sctrlutil.RemoveFinalizer(infinispan, consts.InfinispanFinalizer)
 
 		infinispan.Spec.Image = nil
 		sc := infinispan.Spec.Service.Container
@@ -1591,27 +1589,6 @@ func HashMap(m map[string][]byte) string {
 		hash.Write(v)
 	}
 	return hex.EncodeToString(hash.Sum(nil))
-}
-
-// TODO Replace with controllerutil.ContainsFinalizer after operator-sdk update (controller-runtime v0.6.1+)
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-// TODO Replace with controllerutil.RemoveFinalizer after operator-sdk update (controller-runtime v0.6.0+)
-func remove(list []string, s string) []string {
-	var slice []string
-	for _, v := range list {
-		if v != s {
-			slice = append(slice, v)
-		}
-	}
-	return slice
 }
 
 // SetupWithManager sets up the controller with the Manager.
