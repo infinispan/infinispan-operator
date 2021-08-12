@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 		for _, namespace := range namespaces {
 			testKube.NewNamespace(namespace)
 		}
-		stopCh := testKube.RunOperator(nsAsString, "../../../deploy/crds/")
+		stopCh := testKube.RunOperator(nsAsString, "../../../config/crd/bases/")
 		code := m.Run()
 		close(stopCh)
 		os.Exit(code)

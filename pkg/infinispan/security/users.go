@@ -1,11 +1,12 @@
 package security
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"math/big"
 
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"gopkg.in/yaml.v2"
 )
@@ -107,8 +108,8 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 }
 
 // passwordFromSecret returns password associated with a user in a given secret
-func passwordFromSecret(user, secretName, namespace string, k *kube.Kubernetes) (string, error) {
-	secret, err := k.GetSecret(secretName, namespace)
+func passwordFromSecret(user, secretName, namespace string, k *kube.Kubernetes, ctx context.Context) (string, error) {
+	secret, err := k.GetSecret(secretName, namespace, ctx)
 	if err != nil {
 		return "", nil
 	}
@@ -121,10 +122,10 @@ func passwordFromSecret(user, secretName, namespace string, k *kube.Kubernetes) 
 	return pass, nil
 }
 
-func UserPassword(user, secretName, namespace string, k *kube.Kubernetes) (string, error) {
-	return passwordFromSecret(user, secretName, namespace, k)
+func UserPassword(user, secretName, namespace string, k *kube.Kubernetes, ctx context.Context) (string, error) {
+	return passwordFromSecret(user, secretName, namespace, k, ctx)
 }
 
-func AdminPassword(secretName, namespace string, k *kube.Kubernetes) (string, error) {
-	return passwordFromSecret(consts.DefaultOperatorUser, secretName, namespace, k)
+func AdminPassword(secretName, namespace string, k *kube.Kubernetes, ctx context.Context) (string, error) {
+	return passwordFromSecret(consts.DefaultOperatorUser, secretName, namespace, k, ctx)
 }

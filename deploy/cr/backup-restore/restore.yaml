@@ -1,7 +1,0 @@
-apiVersion: infinispan.org/v2alpha1
-kind: Restore
-metadata:
-  name: test-backup-restore
-spec:
-  backup: example-infinispan-backup
-  cluster: example-infinispan

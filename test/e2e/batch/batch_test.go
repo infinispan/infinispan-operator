@@ -10,19 +10,19 @@ import (
 	"time"
 
 	"github.com/iancoleman/strcase"
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	batchCtrl "github.com/infinispan/infinispan-operator/pkg/controller/batch"
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
+	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -110,7 +110,7 @@ func TestBatchConfigAndConfigMap(t *testing.T) {
 	helper.CreateBatch(name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
 
 	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
-	if batch.Status.Reason != "At most one of ['Spec.config', 'spec.ConfigMap'] must be configured" {
+	if batch.Status.Reason != "at most one of ['Spec.config', 'spec.ConfigMap'] must be configured" {
 		panic(fmt.Errorf("Unexpected 'Status.Reason': %s", batch.Status.Reason))
 	}
 	testKube.DeleteBatch(batch)
@@ -139,7 +139,7 @@ func batchString() string {
 
 func httpClient(infinispan *v1.Infinispan) tutils.HTTPClient {
 	user := consts.DefaultDeveloperUser
-	password, err := users.UserPassword(user, infinispan.GetSecretName(), tutils.Namespace, testKube.Kubernetes)
+	password, err := users.UserPassword(user, infinispan.GetSecretName(), tutils.Namespace, testKube.Kubernetes, context.TODO())
 	tutils.ExpectNoError(err)
 	protocol := testKube.GetSchemaForRest(infinispan)
 	return tutils.NewHTTPClient(user, password, protocol)
@@ -175,13 +175,13 @@ func waitForK8sResourceCleanup(name string) {
 
 	// If no Job pods available, then the pods have been garbage collected
 	err = wait.Poll(tutils.DefaultPollPeriod, tutils.TestTimeout, func() (bool, error) {
-		_, e := batchCtrl.GetJobPodName(name, tutils.Namespace, testKube.Kubernetes.Client)
+		_, e := batchCtrl.GetJobPodName(name, tutils.Namespace, testKube.Kubernetes.Client, ctx)
 		return e != nil, nil
 	})
 	tutils.ExpectNoError(err)
 }
 
-func assertK8ResourceExists(name string, obj runtime.Object) bool {
+func assertK8ResourceExists(name string, obj client.Object) bool {
 	client := testKube.Kubernetes.Client
 	key := types.NamespacedName{
 		Name:      name,

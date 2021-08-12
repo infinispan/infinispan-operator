@@ -2,15 +2,16 @@ package utils
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	"github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/controllers/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -215,7 +216,7 @@ func exposeServiceType(testKube *TestKubernetes) ispnv1.ExposeType {
 	case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
 		return ispnv1.ExposeType(ExposeServiceType)
 	case ispnv1.ExposeTypeRoute:
-		okRoute, err := testKube.Kubernetes.IsGroupVersionSupported(routev1.GroupVersion.String(), "Route")
+		okRoute, err := testKube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
 		ExpectNoError(err)
 		if okRoute {
 			return ispnv1.ExposeTypeRoute
@@ -253,7 +254,7 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 	}
 
 	user := constants.DefaultDeveloperUser
-	pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes)
+	pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
 	ExpectNoError(err)
 	return NewHTTPClient(user, pass, protocol)
 }
@@ -268,7 +269,7 @@ func HTTPSClientAndHost(i *v1.Infinispan, tlsConfig *tls.Config, kube *TestKuber
 
 	userAndPassword := func() (string, string) {
 		user := constants.DefaultDeveloperUser
-		pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes)
+		pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
 		ExpectNoError(err)
 		return user, pass
 	}

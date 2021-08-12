@@ -7,8 +7,6 @@ pipeline {
 
     environment {
         GO111MODULE = 'on'
-        KIND_VERSION = 'v0.11.0'
-        METALLB_VERSION = 'v0.9.6'
         KUBECONFIG = "$WORKSPACE/kind-kube-config.yaml"
         TESTING_NAMESPACE = 'namespace-for-testing'
         WATCH_NAMESPACE = 'namespace-for-testing'
@@ -43,7 +41,7 @@ pipeline {
             }
             when {
                 expression {
-                    return !env.BRANCH_NAME.startsWith('PR-') || sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(doc|documentation|manual|olm|ci|deploy/cr/|deploy/olm-catalog|build/cekit|build/jenkins|build/minikube|test-integration|.gitignore))/\'', returnStatus: true) == 0
+                    return !env.BRANCH_NAME.startsWith('PR-') || sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
                 }
             }
             stages {
@@ -63,7 +61,9 @@ pipeline {
                             env.TESTING_CONTEXT = sh(script: 'kubectl --insecure-skip-tls-verify config current-context', , returnStdout: true).trim()
                         }
 
-                        sh 'build/ci/prepare-sa-test.sh'
+                        sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
+                        sh "kubectl create namespace $TESTING_NAMESPACE"
+                        sh "make install"
                     }
                 }
 
@@ -96,7 +96,7 @@ pipeline {
 
                 stage('Xsite') {
                     steps {
-                        sh 'build/ci/configure-xsite.sh'
+                        sh 'scripts/ci/configure-xsite.sh'
                         sh 'go test -v ./test/e2e/xsite/ -timeout 30m'
                     }
                 }

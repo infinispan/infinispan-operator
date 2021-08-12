@@ -1,0 +1,8 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- infinispan/infinispan_v1_infinispan.yaml
+- backup-restore/infinispan_v2alpha1_backup.yaml
+- backup-restore/infinispan_v2alpha1_restore.yaml
+- batch/infinispan_v2alpha1_batch.yaml
+- cache/infinispan_v2alpha1_cache.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
