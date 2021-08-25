@@ -566,6 +566,24 @@ func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
 	return curr.GetEndpointScheme()
 }
 
+func (k TestKubernetes) GetAdminServicePorts(namespace, name string) []v1.ServicePort {
+	return k.getPorts(namespace, fmt.Sprintf("%s-admin", name))
+}
+
+func (k TestKubernetes) GetServicePorts(namespace, name string) []v1.ServicePort {
+	return k.getPorts(namespace, name)
+}
+
+func (k TestKubernetes) getPorts(namespace, name string) []v1.ServicePort {
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+	service := &corev1.Service{}
+	ExpectNoError(k.Kubernetes.Client.Get(context.TODO(), key, service))
+	return service.Spec.Ports
+}
+
 func debugPods(required int, pods []v1.Pod) {
 	log.Info("pod list incomplete", "required", required, "pod list size", len(pods))
 	for _, pod := range pods {

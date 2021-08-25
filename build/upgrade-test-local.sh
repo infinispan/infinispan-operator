@@ -56,6 +56,7 @@ if git checkout "${FROM_UPGRADE_VERSION}"; then
     export DEFAULT_IMAGE=$(sed -n '/name: DEFAULT_IMAGE/ {n;p}' "${TO_OPERATOR_DEPLOY_FILE}" | awk -F '"' '{print $2}')
   else
     export DEFAULT_IMAGE="${TO_OPERATOR_IMAGE}"
+    export EXPECTED_IMAGE="${TO_OPERATOR_IMAGE}"
   fi
 
   if ! "${TO_TEST_SCRIPT_FILE}" "${KUBECONFIG}"; then

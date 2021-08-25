@@ -650,6 +650,17 @@ func (r *ReconcileInfinispan) destroyResources(infinispan *infinispanv1.Infinisp
 	err = r.client.Delete(context.TODO(),
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.GetAdminServiceName(),
+				Namespace: infinispan.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.client.Delete(context.TODO(),
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetServiceExternalName(),
 				Namespace: infinispan.Namespace,
 			},
