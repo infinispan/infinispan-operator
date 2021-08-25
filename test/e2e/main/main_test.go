@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -18,10 +19,12 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
 	"github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
+	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
 	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
 	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -74,9 +77,33 @@ func TestOperatorUpgrade(t *testing.T) {
 				tutils.ExpectNoError(fmt.Errorf("upgraded image [%v] in Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, tutils.ExpectedImage))
 			}
 		}
+
+		checkServicePorts(t, name)
+		checkBatch(name)
+
 	default:
 		t.Skipf("Operator upgrade stage '%s' is unsupported or disabled", tutils.OperatorUpgradeStage)
 	}
+}
+
+func checkServicePorts(t *testing.T, name string) {
+	// Check two services are exposed and the admin service listens on its own port
+	userPort := testKube.GetServicePorts(tutils.Namespace, name)
+	assert.Equal(t, 1, len(userPort))
+	assert.Equal(t, cconsts.InfinispanUserPort, int(userPort[0].Port))
+
+	adminPort := testKube.GetAdminServicePorts(tutils.Namespace, name)
+	assert.Equal(t, 1, len(adminPort))
+	assert.Equal(t, cconsts.InfinispanAdminPort, int(adminPort[0].Port))
+}
+
+func checkBatch(name string) {
+	// Run a batch in the migrated cluster
+	batchHelper := batchtest.NewBatchHelper(testKube)
+	batchName := "upgrade-batch"
+	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
+	batchHelper.CreateBatch(batchName, name, &config, nil)
+	batchHelper.WaitForValidBatchPhase(batchName, v2.BatchSucceeded)
 }
 
 func TestUpdateOperatorPassword(t *testing.T) {

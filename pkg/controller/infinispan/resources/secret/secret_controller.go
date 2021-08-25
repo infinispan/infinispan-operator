@@ -250,7 +250,7 @@ func (s secretResource) reconcileAdminSecret() error {
 }
 
 func (s secretResource) addCliProperties(secret *corev1.Secret, password string) {
-	service := s.infinispan.GetServiceName()
+	service := s.infinispan.GetAdminServiceName()
 	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(password), service, consts.InfinispanAdminPort)
 	properties := fmt.Sprintf("autoconnect-url=%s", url)
 	secret.Data[consts.CliPropertiesFilename] = []byte(properties)

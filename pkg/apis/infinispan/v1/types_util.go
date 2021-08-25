@@ -262,6 +262,10 @@ func (ispn *Infinispan) GetServiceName() string {
 	return ispn.Name
 }
 
+func (ispn *Infinispan) GetAdminServiceName() string {
+	return fmt.Sprintf("%s-admin", ispn.Name)
+}
+
 func (ispn *Infinispan) GetPingServiceName() string {
 	return fmt.Sprintf("%s-ping", ispn.Name)
 }

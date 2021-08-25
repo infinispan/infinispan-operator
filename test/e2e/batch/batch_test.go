@@ -28,6 +28,7 @@ import (
 var (
 	ctx      = context.Background()
 	testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
+	helper   = NewBatchHelper(testKube)
 )
 
 func TestMain(m *testing.M) {
@@ -45,9 +46,9 @@ func TestBatchInlineConfig(t *testing.T) {
 func testBatchInlineConfig(infinispan *v1.Infinispan) {
 	name := infinispan.Name
 	batchScript := batchString()
-	batch := createBatch(name, name, &batchScript, nil)
+	batch := helper.CreateBatch(name, name, &batchScript, nil)
 
-	waitForValidBatchPhase(name, v2.BatchSucceeded)
+	helper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 
 	client := httpClient(infinispan)
 	hostAddr := hostAddr(client, infinispan)
@@ -78,9 +79,9 @@ func TestBatchConfigMap(t *testing.T) {
 		panic(fmt.Errorf("Unable to create ConfigMap: %w", err))
 	}
 
-	batch := createBatch(name, name, nil, &configMapName)
+	batch := helper.CreateBatch(name, name, nil, &configMapName)
 
-	waitForValidBatchPhase(name, v2.BatchSucceeded)
+	helper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 	testKube.DeleteBatch(batch)
 	waitForK8sResourceCleanup(name)
 
@@ -93,9 +94,9 @@ func TestBatchConfigMap(t *testing.T) {
 func TestBatchNoConfigOrConfigMap(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	createBatch(name, "doesn't exist", nil, nil)
+	helper.CreateBatch(name, "doesn't exist", nil, nil)
 
-	batch := waitForValidBatchPhase(name, v2.BatchFailed)
+	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
 	if batch.Status.Reason != "'Spec.config' OR 'spec.ConfigMap' must be configured" {
 		panic(fmt.Errorf("Unexpected 'Status.Reason': %s", batch.Status.Reason))
 	}
@@ -106,9 +107,9 @@ func TestBatchNoConfigOrConfigMap(t *testing.T) {
 func TestBatchConfigAndConfigMap(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	createBatch(name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
+	helper.CreateBatch(name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
 
-	batch := waitForValidBatchPhase(name, v2.BatchFailed)
+	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
 	if batch.Status.Reason != "At most one of ['Spec.config', 'spec.ConfigMap'] must be configured" {
 		panic(fmt.Errorf("Unexpected 'Status.Reason': %s", batch.Status.Reason))
 	}
@@ -123,9 +124,9 @@ func TestBatchFail(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, infinispan.Labels)
 
 	batchScript := "SOME INVALID BATCH CMD!"
-	batch := createBatch(name, name, &batchScript, nil)
+	batch := helper.CreateBatch(name, name, &batchScript, nil)
 
-	waitForValidBatchPhase(name, v2.BatchFailed)
+	helper.WaitForValidBatchPhase(name, v2.BatchFailed)
 	testKube.DeleteBatch(batch)
 	waitForK8sResourceCleanup(name)
 }
@@ -163,43 +164,6 @@ func createCluster(name string) *v1.Infinispan {
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	return infinispan
-}
-
-func createBatch(name, cluster string, config, configMap *string) *v2.Batch {
-	batch := &v2.Batch{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v2alpha1",
-			Kind:       "Batch",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: tutils.Namespace,
-		},
-		Spec: v2.BatchSpec{
-			Cluster:   cluster,
-			Config:    config,
-			ConfigMap: configMap,
-		},
-	}
-	batch.Labels = map[string]string{"test-name": name}
-	testKube.Create(batch)
-	return batch
-}
-
-func waitForValidBatchPhase(name string, phase v2.BatchPhase) *v2.Batch {
-	var batch *v2.Batch
-	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
-		batch = testKube.GetBatch(name, tutils.Namespace)
-		if batch.Status.Phase == v2.BatchFailed && phase != v2.BatchFailed {
-			return true, fmt.Errorf("Batch failed. Reason: %s", batch.Status.Reason)
-		}
-		return phase == batch.Status.Phase, nil
-	})
-	if err != nil {
-		println(fmt.Sprintf("Expected Batch Phase %s, got %s:%s", phase, batch.Status.Phase, batch.Status.Reason))
-	}
-	tutils.ExpectNoError(err)
-	return batch
 }
 
 func waitForK8sResourceCleanup(name string) {

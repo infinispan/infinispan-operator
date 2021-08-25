@@ -110,6 +110,10 @@ func (s serviceResource) Process() (reconcile.Result, error) {
 		return reconcile.Result{}, err
 	}
 
+	if err := s.reconcileResource(computeAdminService(s.infinispan)); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	if err := s.reconcileResource(computePingService(s.infinispan)); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -314,6 +318,30 @@ func computeService(ispn *ispnv1.Infinispan) *corev1.Service {
 					Name: consts.InfinispanUserPortName,
 					Port: consts.InfinispanUserPort,
 				},
+			},
+		},
+	}
+	// This way CR labels will override operator labels with same name
+	ispn.AddOperatorLabelsForServices(service.Labels)
+	ispn.AddLabelsForServices(service.Labels)
+	return &service
+}
+
+func computeAdminService(ispn *ispnv1.Infinispan) *corev1.Service {
+	service := corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ispn.GetAdminServiceName(),
+			Namespace: ispn.Namespace,
+			Labels:    infinispan.LabelsResource(ispn.Name, "infinispan-service-admin"),
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeClusterIP,
+			Selector: infinispan.ServiceLabels(ispn.Name),
+			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanAdminPortName,
 					Port: consts.InfinispanAdminPort,
@@ -580,7 +608,7 @@ func computeServiceMonitor(ispn *ispnv1.Infinispan) *monitoringv1.ServiceMonitor
 				},
 			},
 			Selector: metav1.LabelSelector{
-				MatchLabels: infinispan.LabelsResource(ispn.Name, "infinispan-service"),
+				MatchLabels: infinispan.LabelsResource(ispn.Name, "infinispan-service-admin"),
 			},
 			NamespaceSelector: monitoringv1.NamespaceSelector{
 				MatchNames: []string{ispn.Namespace},
