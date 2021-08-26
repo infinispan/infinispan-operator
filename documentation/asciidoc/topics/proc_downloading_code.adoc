@@ -21,7 +21,7 @@ The download also occurs when {ispn_operator} recreates nodes after terminating 
 
 . Add the `spec.dependencies.artifacts` field to your `Infinispan` CR.
 .. Specify the location of the file to download via `HTTP` or `FTP` as the value of the `spec.dependencies.artifacts.url` field.
-.. Optionally specify a checksum value to verify the integrity of the download.
+.. Optionally specify a checksum value to verify the integrity of the download with the `spec.dependencies.artifacts.hash` field.
 .. Set the file type, if necessary, with the `spec.dependencies.artifacts.type` field.
 +
 You should explicitly set the file type if it is not included in the URL or if the file type is actually different to the extension in the URL.
