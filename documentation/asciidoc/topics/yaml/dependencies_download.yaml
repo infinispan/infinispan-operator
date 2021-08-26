@@ -7,7 +7,7 @@ spec:
   dependencies:
     artifacts:
       - url: http://example.com:8080/path
-        hash: d5db29cd03a2ed055086cef9c31c252b4587d6d0
+        hash: sha256:596408848b56b5a23096baa110cd8b633c9a9aef2edd6b38943ade5b4edcd686
         type: zip
   service:
     type: DataGrid
