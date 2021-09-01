@@ -18,10 +18,10 @@ include::yaml/container_resources.yaml[]
 |Specifies JVM options.
 
 |`spec.container.cpu`
-|Allocates host CPU resources to {brandname} nodes, measured in CPU units.
+|Allocates host CPU resources to {brandname} pods, measured in CPU units.
 
 |`spec.container.memory`
-|Allocates host memory to {brandname} nodes, measured in bytes.
+|Allocates host memory to {brandname} pods, measured in bytes.
 
 |===
 

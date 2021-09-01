@@ -6,7 +6,7 @@ Reference information for network services that {ispn_operator} creates and mana
 
 == Internal service
 
-* Allow {brandname} nodes to discover each other and form clusters.
+* Allow {brandname} pods to discover each other and form clusters.
 * Provide access to {brandname} endpoints from clients in the same {k8s} namespace.
 
 [%header,cols=4*]

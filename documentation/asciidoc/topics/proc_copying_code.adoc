@@ -2,7 +2,7 @@
 = Copying code artifacts to {brandname} clusters
 
 [role="_abstract"]
-Adding your artifacts to a persistent volume (PV) and then copy them to {brandname} nodes.
+Adding your artifacts to a persistent volume (PV) and then copy them to {brandname} pods.
 
 This procedure explains how to use a temporary pod that mounts a persistent volume claim (PVC) that:
 
@@ -20,7 +20,7 @@ You can use a combination of those access modes by reclaiming and reusing PVCs w
 
 [NOTE]
 ====
-Using `ReadWriteOnce` access mode results in all {brandname} nodes in a cluster being scheduled on the same {k8s} node.
+Using `ReadWriteOnce` access mode results in all {brandname} pods in a cluster being scheduled on the same {k8s} node.
 ====
 
 .Procedure

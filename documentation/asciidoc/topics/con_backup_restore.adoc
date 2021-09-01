@@ -10,7 +10,7 @@ For backup operations, the pod iterates over cache entries and other resources a
 
 [NOTE]
 ====
-Performing backups does not significantly impact performance because the other nodes in the {brandname} cluster only need to respond to the backup pod as it iterates over cache entries.
+Performing backups does not significantly impact performance because the other pods in the {brandname} cluster only need to respond to the backup pod as it iterates over cache entries.
 ====
 
 For restore operations, the pod retrieves {brandname} resources from the archive on the PV and applies them to the {brandname} cluster.

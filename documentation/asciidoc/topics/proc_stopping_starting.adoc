@@ -2,11 +2,11 @@
 = Stopping and starting {brandname} clusters
 
 [role="_abstract"]
-Stop and start {brandname} nodes in a graceful, ordered fashion to correctly preserve cluster state.
+Stop and start {brandname} pods in a graceful, ordered fashion to correctly preserve cluster state.
 
-Clusters of {datagridservice} nodes must restart with the same number of nodes that existed before shutdown.
+Clusters of {datagridservice} pods must restart with the same number of pods that existed before shutdown.
 This allows {brandname} to restore the distribution of data across the cluster.
-After {ispn_operator} fully restarts the cluster you can safely add and remove nodes.
+After {ispn_operator} fully restarts the cluster you can safely add and remove pods.
 
 .Procedure
 
@@ -18,14 +18,14 @@ spec:
   replicas: 0
 ----
 +
-. Ensure you have the correct number of nodes before you restart the cluster.
+. Ensure you have the correct number of pods before you restart the cluster.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 $ {oc_get_infinispan} {example_crd_name} -o=jsonpath='{.status.replicasWantedAtRestart}'
 ----
 +
-. Change the `spec.replicas` field to the same number of nodes to restart the {brandname} cluster.
+. Change the `spec.replicas` field to the same number of pods to restart the {brandname} cluster.
 +
 ----
 spec:
