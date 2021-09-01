@@ -1,8 +1,8 @@
 [id='creating-cache-service_{context}']
-= Creating {cacheservice} nodes
+= Creating {cacheservice} pods
 
 [role="_abstract"]
-Create {brandname} clusters with {cacheservice} nodes for a volatile, low-latency data store with minimal configuration.
+Create {brandname} clusters with {cacheservice} pods for a volatile, low-latency data store with minimal configuration.
 
 .Procedure
 

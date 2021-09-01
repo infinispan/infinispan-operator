@@ -4,7 +4,7 @@ ifdef::context[:parent-context: {context}]
 = Configuring encryption
 
 [role="_abstract"]
-Encrypt connections between clients and {brandname} nodes with {openshift}
+Encrypt connections between clients and {brandname} pods with {openshift}
 service certificates or custom TLS certificates.
 
 include::{topics}/ref_encryption_service_ca.adoc[leveloffset=+1]

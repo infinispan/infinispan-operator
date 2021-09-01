@@ -32,6 +32,6 @@ include::yaml/infinispan_cr.yaml[]
 |Specifies a name for your {brandname} cluster.
 
 |`spec.replicas`
-|Specifies the number of nodes in your {brandname} cluster.
+|Specifies the number of pods in your {brandname} cluster.
 
 |===

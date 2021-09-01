@@ -2,7 +2,7 @@
 = Verifying {brandname} clusters
 
 [role="_abstract"]
-Check that {brandname} nodes have successfully formed clusters.
+Check that {brandname} pods have successfully formed clusters.
 
 .Procedure
 
@@ -13,7 +13,7 @@ Check that {brandname} nodes have successfully formed clusters.
 include::cmd_examples/get_infinispan.adoc[]
 ----
 +
-The response indicates that {brandname} nodes have received clustered views, as in the following example:
+The response indicates that {brandname} pods have received clustered views, as in the following example:
 +
 [source,options="nowrap",subs=attributes+]
 ----

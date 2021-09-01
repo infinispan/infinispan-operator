@@ -3,7 +3,7 @@
 
 [role="_abstract"]
 Backup locations can automatically go offline when remote sites become
-unavailable. This prevents nodes from attempting to replicate data to offline
+unavailable. This prevents pods from attempting to replicate data to offline
 backup locations, which can have a performance impact on your cluster because it
 results in error.
 

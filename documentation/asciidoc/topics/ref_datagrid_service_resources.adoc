@@ -2,7 +2,7 @@
 = {datagridservice} CR
 
 [role="_abstract"]
-This topic describes the `Infinispan` CR for {datagridservice} nodes.
+This topic describes the `Infinispan` CR for {datagridservice} pods.
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
@@ -21,13 +21,13 @@ include::yaml/datagrid_service.yaml[]
 |Automatically creates a `ServiceMonitor` for your cluster.
 
 |`spec.replicas`
-|Specifies the number of nodes in your cluster.
+|Specifies the number of pods in your cluster.
 
 |`spec.service.type`
-|Configures the type {brandname} service. A value of `DataGrid` creates a cluster with {datagridservice} nodes.
+|Configures the type {brandname} service. A value of `DataGrid` creates a cluster with {datagridservice} pods.
 
 |`spec.service.container`
-|Configures the storage resources for {datagridservice} nodes.
+|Configures the storage resources for {datagridservice} pods.
 
 |`spec.service.sites`
 |Configures cross-site replication.
@@ -39,7 +39,7 @@ include::yaml/datagrid_service.yaml[]
 |Specifies TLS certificates and keystores to encrypt client connections.
 
 |`spec.container`
-|Specifies JVM, CPU, and memory resources for {brandname} nodes.
+|Specifies JVM, CPU, and memory resources for {brandname} pods.
 
 |`spec.logging`
 |Configures {brandname} logging categories.

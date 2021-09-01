@@ -1,8 +1,8 @@
 [id='creating-datagrid-service_{context}']
-= Creating {datagridservice} nodes
+= Creating {datagridservice} pods
 
 [role="_abstract"]
-To use custom cache definitions along with {brandname} capabilities such as cross-site replication, create clusters of {datagridservice} nodes.
+To use custom cache definitions along with {brandname} capabilities such as cross-site replication, create clusters of {datagridservice} pods.
 
 .Procedure
 

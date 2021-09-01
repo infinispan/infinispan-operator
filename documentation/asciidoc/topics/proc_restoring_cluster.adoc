@@ -7,7 +7,7 @@ Restore {brandname} cluster state from a backup archive.
 .Prerequisites
 
 * Create a `Backup` CR on a source cluster.
-* Create a target {brandname} cluster of {datagridservice} nodes.
+* Create a target {brandname} cluster of {datagridservice} pods.
 +
 [NOTE]
 ====

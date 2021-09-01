@@ -2,10 +2,10 @@
 = Allocating storage resources
 
 [role="_abstract"]
-You can allocate storage for {datagridservice} nodes but not {cacheservice} nodes.
+You can allocate storage for {datagridservice} pods but not {cacheservice} pods.
 
 By default, {ispn_operator} allocates `1Gi` for the persistent volume claim.
-However you should adjust the amount of storage available to {datagridservice} nodes so that {brandname} can preserve cluster state during shutdown.
+However you should adjust the amount of storage available to {datagridservice} pods so that {brandname} can preserve cluster state during shutdown.
 
 [IMPORTANT]
 ====
@@ -30,7 +30,7 @@ include::yaml/container_storage.yaml[]
 |Description
 
 |`spec.service.container.storage`
-|Specifies the amount of storage for {datagridservice} nodes.
+|Specifies the amount of storage for {datagridservice} pods.
 
 |`spec.service.container.ephemeralStorage`
 |Defines whether storage is ephemeral or permanent. Set the value to `true` to use ephemeral storage, which means all data in storage is deleted when clusters shut down or restart. The default value is `false`, which means storage is permanent.

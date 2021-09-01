@@ -10,7 +10,7 @@ When downloading files, {ispn_operator} can automatically detect the file type.
 [NOTE]
 ====
 Each time {ispn_operator} creates a {brandname} node it downloads the artifacts to the node.
-The download also occurs when {ispn_operator} recreates nodes after terminating them.
+The download also occurs when {ispn_operator} recreates pods after terminating them.
 ====
 
 .Prerequisites
