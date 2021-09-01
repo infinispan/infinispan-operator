@@ -4,14 +4,14 @@ ifdef::context[:parent-context: {context}]
 = Setting up {brandname} services
 
 [role="_abstract"]
-Use {ispn_operator} to create clusters of either {cacheservice} or {datagridservice} nodes.
+Use {ispn_operator} to create clusters of either {cacheservice} or {datagridservice} pods.
 
 [IMPORTANT]
 ====
-If you do not specify a value for the `spec.service.type` field, {ispn_operator} creates {cacheservice} nodes by default.
+If you do not specify a value for the `spec.service.type` field, {ispn_operator} creates {cacheservice} pods by default.
 
-You cannot change the `spec.service.type` field after you create nodes.
-To change the service type, you must delete the existing nodes and create new ones.
+You cannot change the `spec.service.type` field after you create pods.
+To change the service type, you must delete the existing pods and create new ones.
 ====
 
 include::{topics}/con_services.adoc[leveloffset=+1]
@@ -22,9 +22,12 @@ include::{topics}/ref_datagrid_service_resources.adoc[leveloffset=+2]
 
 //Cache Service
 include::{topics}/proc_creating_cache_service.adoc[leveloffset=+1]
-include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
-include::{topics}/proc_configuring_owners.adoc[leveloffset=+2]
 include::{topics}/ref_cache_service_resources.adoc[leveloffset=+2]
+
+//Automatic scaling
+include::{topics}/con_automatic_scaling.adoc[leveloffset=+1]
+include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
+
 
 //Container resources and storage
 include::{topics}/proc_allocating_storage.adoc[leveloffset=+1]

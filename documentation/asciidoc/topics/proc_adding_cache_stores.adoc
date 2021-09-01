@@ -2,7 +2,7 @@
 = Adding persistent cache stores
 
 [role="_abstract"]
-You can add persistent cache stores to {datagridservice} nodes to save data to the persistent volume.
+You can add persistent cache stores to {datagridservice} pods to save data to the persistent volume.
 
 {brandname} creates a Single File cache store, `.dat` file, in the `{pv_path}` directory.
 

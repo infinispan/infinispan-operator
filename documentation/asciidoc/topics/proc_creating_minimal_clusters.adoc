@@ -2,7 +2,7 @@
 = Creating {brandname} clusters
 
 [role="_abstract"]
-Use {ispn_operator} to create clusters of two or more {brandname} nodes.
+Use {ispn_operator} to create clusters of two or more {brandname} pods.
 
 .Prerequisites
 
@@ -18,7 +18,7 @@ endif::downstream[]
 
 .Procedure
 
-. Specify the number of {brandname} nodes in the cluster with `spec.replicas`
+. Specify the number of {brandname} pods in the cluster with `spec.replicas`
 in your `Infinispan` CR.
 +
 For example, create a `cr_minimal.yaml` file as follows:
@@ -35,7 +35,7 @@ include::cmd_examples/cat_cr_minimal.adoc[]
 $ {oc_apply_cr} cr_minimal.yaml
 ----
 +
-. Watch {ispn_operator} create the {brandname} nodes.
+. Watch {ispn_operator} create the {brandname} pods.
 +
 [source,options="nowrap",subs=attributes+]
 ----

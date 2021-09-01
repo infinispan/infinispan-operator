@@ -6,7 +6,7 @@ Find out details for configuring {brandname} caches with `Cache` CR.
 
 When using `Cache` CRs, the following rules apply:
 
-* `Cache` CRs apply to {datagridservice} nodes only.
+* `Cache` CRs apply to {datagridservice} pods only.
 * You can create a single cache for each `Cache` CR.
 * If your `Cache` CR contains both a template and an XML configuration, {ispn_operator} uses the template.
 * If you edit caches in the {osweb}, the changes are reflected through the user interface but do not take effect on the {brandname} cluster. You cannot edit caches. To change cache configuration, you must first delete the cache through the console or CLI and then re-create the cache.

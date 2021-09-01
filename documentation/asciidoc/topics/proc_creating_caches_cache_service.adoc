@@ -1,8 +1,8 @@
 [id='creating-caches-cacheservice_{context}']
-= Adding caches to {cacheservice} nodes
+= Adding caches to {cacheservice} pods
 
 [role="_abstract"]
-{cacheservice} nodes include a default cache configuration with recommended
+{cacheservice} pods include a default cache configuration with recommended
 settings. This default cache lets you start using {brandname} without the need
 to create caches.
 
@@ -10,7 +10,7 @@ to create caches.
 ====
 Because the default cache provides recommended settings, you should create
 caches only as copies of the default. If you want multiple custom caches you
-should create {datagridservice} nodes instead of {cacheservice} nodes.
+should create {datagridservice} pods instead of {cacheservice} pods.
 ====
 
 .Procedure

@@ -2,7 +2,7 @@
 = {cacheservice} CR
 
 [role="_abstract"]
-This topic describes the `Infinispan` CR for {cacheservice} nodes.
+This topic describes the `Infinispan` CR for {cacheservice} pods.
 
 [source,options="nowrap",subs=attributes+]
 ----
@@ -21,13 +21,13 @@ include::yaml/cache_service.yaml[]
 |Automatically creates a `ServiceMonitor` for your cluster.
 
 |`spec.replicas`
-|Specifies the number of nodes in your cluster.
+|Specifies the number of pods in your cluster.
 
 |`spec.service.type`
-|Configures the type {brandname} service. A value of `Cache` creates a cluster with {cacheservice} nodes.
+|Configures the type {brandname} service. A value of `Cache` creates a cluster with {cacheservice} pods.
 
 |`spec.service.replicationFactor`
-|Sets the number of copies for each entry across the cluster.
+|Sets the number of copies for each entry across the cluster. The default for {cacheservice} pods is two, which replicates each cache entry to avoid data loss.
 
 |`spec.autoscale`
 |Enables and configures automatic scaling.
@@ -39,7 +39,7 @@ include::yaml/cache_service.yaml[]
 |Specifies TLS certificates and keystores to encrypt client connections.
 
 |`spec.container`
-|Specifies JVM, CPU, and memory resources for {brandname} nodes.
+|Specifies JVM, CPU, and memory resources for {brandname} pods.
 
 |`spec.logging`
 |Configures {brandname} logging categories.

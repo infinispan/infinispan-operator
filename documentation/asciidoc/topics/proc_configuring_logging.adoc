@@ -15,7 +15,7 @@ include::yaml/logging_categories.yaml[]
 ----
 +
 . Apply the changes.
-. Retrieve logs from {brandname} nodes as required.
+. Retrieve logs from {brandname} pods as required.
 +
 [source,options="nowrap",subs=attributes+]
 ----
