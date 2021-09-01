@@ -6,7 +6,7 @@ Services are stateful applications, based on the {brandname} Server image, that 
 
 == {datagridservice}
 
-Use {datagridservice} if you want to:
+Deploy clusters of {datagridservice} pods if you want to:
 
 * Back up data across global clusters with cross-site replication.
 * Create caches with any valid configuration.
@@ -16,8 +16,9 @@ Use {datagridservice} if you want to:
 
 == {cacheservice}
 
-Use {cacheservice} if you want a volatile, low-latency data store with minimal configuration.
-{cacheservice} nodes:
+Deploy clusters of {cacheservice} pods if you want a volatile, low-latency data store with minimal configuration.
+
+{cacheservice} pods:
 
 * Automatically scale to meet capacity when data storage demands go up or down.
 * Synchronously distribute data to ensure consistency.
@@ -27,5 +28,5 @@ Use {cacheservice} if you want a volatile, low-latency data store with minimal c
 
 [IMPORTANT]
 ====
-Because {cacheservice} nodes are volatile you lose all data when you apply changes to the cluster with the `Infinispan` CR or update the {brandname} version.
+Because {cacheservice} pods are volatile you lose all data when you apply changes to the cluster with the `Infinispan` CR or update the {brandname} version.
 ====

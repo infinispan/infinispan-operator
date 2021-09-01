@@ -2,27 +2,7 @@
 = Configuring automatic scaling
 
 [role="_abstract"]
-If you create clusters with {cacheservice} nodes, {ispn_operator}
-can automatically scale nodes up or down based on memory usage for the default
-cache.
-
-[IMPORTANT]
-====
-Automatic scaling works with the default cache only. If you plan to add other
-caches to your cluster, you should not include the `autoscale` field in your
-`Infinispan` CR. In this case you should use eviction to control the size of
-the data container on each node.
-====
-
-To configure automatic scaling you set:
-
-* A maximum threshold for memory usage on each {brandname} node in your cluster.
-+
-When {ispn_operator} detects that any node in the cluster reaches the threshold, it creates a new node if possible. If {ispn_operator} cannot create a new node then it performs eviction when memory usage reaches 100 percent.
-
-* A minimum threshold for memory usage across your {brandname} cluster.
-+
-When {ispn_operator} detects that memory usage falls below the minimum, it shuts down nodes
+If you create clusters with {cacheservice} pods, you can configure {ispn_operator} to automatically scale clusters.
 
 .Procedure
 
@@ -33,10 +13,28 @@ When {ispn_operator} detects that memory usage falls below the minimum, it shuts
 Set a value of `true` for the `autoscale.disabled` field to disable automatic scaling.
 ====
 +
-. Specify a maximum threshold, as a percentage, for memory usage on each node with the `spec.autoscale.maxMemUsagePercent` field.
-. Set the maximum number of number of nodes for the cluster with the `spec.autoscale.maxReplicas` field.
-. Specify a minimum threshold, as a percentage, for cluster memory usage with the `spec.autoscale.minMemUsagePercent` field.
-. Set the minimum number of number of nodes for the cluster with the `spec.autoscale.minReplicas` field.
+. Configure thresholds for automatic scaling with the following fields:
++
+[%header,cols=2*]
+|===
+|Field
+|Description
+
+|`spec.autoscale.maxMemUsagePercent`
+|Specifies a maximum threshold, as a percentage, for memory usage on each node.
+
+|`spec.autoscale.maxReplicas`
+|Specifies the maximum number of {cacheservice} pods for the cluster.
+
+|`spec.autoscale.minMemUsagePercent`
+|Specifies a minimum threshold, as a percentage, for cluster memory usage.
+
+|`spec.autoscale.minReplicas`
+|Specifies the minimum number of {cacheservice} pods for the cluster.
+
+|===
++
+For example, add the following to your `Infinispan` CR:
 +
 [source,options="nowrap",subs=attributes+]
 ----

@@ -1,4 +1,0 @@
-spec:
-  service:
-    type: Cache
-    replicationFactor: 3
