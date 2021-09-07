@@ -9,9 +9,9 @@ const (
 	OperandImageOpenJ9 = "RELATED_IMAGE_OPENJ9"
 
 	// DefaultOperandImageOpenJDK default image for OpenJDK stack
-	DefaultOperandImageOpenJDK = "quay.io/infinispan/server:12.1"
+	DefaultOperandImageOpenJDK = "quay.io/infinispan/server:13.0"
 	// DefaultOperandImageOpenJ9 default image for OpenJ9 stack
-	DefaultOperandImageOpenJ9 = "infinispan-for-openj9/server:12.1"
+	DefaultOperandImageOpenJ9 = "infinispan-for-openj9/server:13.0"
 )
 
 // GetDefaultInfinispanJavaImage returns default Infinispan Java image depends of the runtime architecture
