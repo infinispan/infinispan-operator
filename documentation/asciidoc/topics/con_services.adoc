@@ -16,9 +16,10 @@ Deploy clusters of {datagridservice} pods if you want to:
 
 == {cacheservice}
 
-Deploy clusters of {cacheservice} pods if you want a volatile, low-latency data store with minimal configuration.
+Deploy clusters of {cacheservice} pods if you want a low-latency data store with minimal configuration.
 
-{cacheservice} pods:
+{cacheservice} pods provide volatile storage only, which means you lose all data when you modify your `Infinispan` CR or update the version of your {brandname} cluster.
+However, if you only want to quickly provide applications with high-performance caching without the overhead of configuration then you can use {cacheservice} pods to:
 
 * Automatically scale to meet capacity when data storage demands go up or down.
 * Synchronously distribute data to ensure consistency.
@@ -28,5 +29,15 @@ Deploy clusters of {cacheservice} pods if you want a volatile, low-latency data 
 
 [IMPORTANT]
 ====
-Because {cacheservice} pods are volatile you lose all data when you apply changes to the cluster with the `Infinispan` CR or update the {brandname} version.
+//Community content
+ifdef::community[]
+The {brandname} team recommend that you deploy {datagridservice} pods instead of {cacheservice} pods.
+endif::community[]
+//Downstream content
+ifdef::downstream[]
+Red Hat recommends that you deploy {datagridservice} pods instead of {cacheservice} pods.
+endif::downstream[]
+
+{cacheservice} is planned for removal in the next version of the `Infinispan` CRD.
+{datagridservice} remains under active development and will continue to benefit from new features and improved tooling to automate complex operations such as upgrading clusters and migrating data.
 ====
