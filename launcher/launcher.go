@@ -73,6 +73,7 @@ func Launch(p Parameters) {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "632512e4.infinispan.org",
+		Namespace:              os.Getenv("WATCH_NAMESPACE"),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
