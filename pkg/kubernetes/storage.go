@@ -9,8 +9,8 @@ import (
 )
 
 // FindStorageClass finds an existed storage class
-func FindStorageClass(name string, client crclient.Client) (*storagev1.StorageClass, error) {
+func FindStorageClass(name string, client crclient.Client, ctx context.Context) (*storagev1.StorageClass, error) {
 	storageClass := &storagev1.StorageClass{}
-	err := client.Get(context.TODO(), types.NamespacedName{Name: name}, storageClass)
+	err := client.Get(ctx, types.NamespacedName{Name: name}, storageClass)
 	return storageClass, err
 }

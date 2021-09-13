@@ -2,11 +2,12 @@ package batch
 
 import (
 	"fmt"
-	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
+	"time"
+
+	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"time"
 )
 
 type BatchHelper struct {

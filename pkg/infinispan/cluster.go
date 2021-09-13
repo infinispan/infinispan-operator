@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"

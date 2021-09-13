@@ -1,4 +1,0 @@
-#!/bin/bash
-
-mkdir -p /usr/local/bin
-cp /tmp/artifacts/application /usr/local/bin/infinispan-operator

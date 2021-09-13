@@ -1,6 +1,0 @@
-apiVersion: infinispan.org/v2alpha1
-kind: Backup
-metadata:
-  name: example-infinispan-backup
-spec:
-  cluster: example-infinispan

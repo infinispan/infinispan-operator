@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,13 +14,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/iancoleman/strcase"
-	ispnv1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	v1 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v1"
-	"github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	v2 "github.com/infinispan/infinispan-operator/pkg/apis/infinispan/v2alpha1"
-	cconsts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
-	ispnctrl "github.com/infinispan/infinispan-operator/pkg/controller/infinispan"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/controllers"
+	cconsts "github.com/infinispan/infinispan-operator/controllers/constants"
+	hash "github.com/infinispan/infinispan-operator/pkg/hash"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
@@ -70,7 +71,7 @@ func TestOperatorUpgrade(t *testing.T) {
 
 		// Validates that all pods are running with desired image
 		pods := &corev1.PodList{}
-		err := testKube.Kubernetes.ResourcesList(tutils.Namespace, ispnctrl.PodLabels(spec.Name), pods)
+		err := testKube.Kubernetes.ResourcesList(tutils.Namespace, controllers.PodLabels(spec.Name), pods, context.TODO())
 		tutils.ExpectNoError(err)
 		for _, pod := range pods.Items {
 			if pod.Spec.Containers[0].Image != tutils.ExpectedImage {
@@ -103,7 +104,7 @@ func checkBatch(name string) {
 	batchName := "upgrade-batch"
 	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
 	batchHelper.CreateBatch(batchName, name, &config, nil)
-	batchHelper.WaitForValidBatchPhase(batchName, v2.BatchSucceeded)
+	batchHelper.WaitForValidBatchPhase(batchName, v2alpha1.BatchSucceeded)
 }
 
 func TestUpdateOperatorPassword(t *testing.T) {
@@ -120,16 +121,16 @@ func TestUpdateOperatorPassword(t *testing.T) {
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	newPassword := "supersecretoperatorpassword"
-	secret, err := testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace)
+	secret, err := testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace, context.TODO())
 	tutils.ExpectNoError(err)
-	_, err = kube.CreateOrPatch(context.TODO(), testKube.Kubernetes.Client, secret, func() error {
+	_, err = controllerutil.CreateOrPatch(context.TODO(), testKube.Kubernetes.Client, secret, func() error {
 		secret.Data["password"] = []byte(newPassword)
 		return nil
 	})
 	tutils.ExpectNoError(err)
 
 	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (bool, error) {
-		secret, err = testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace)
+		secret, err = testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace, context.TODO())
 		tutils.ExpectNoError(err)
 		identities := secret.Data[cconsts.ServerIdentitiesFilename]
 		pwd, err := users.FindPassword(cconsts.DefaultOperatorUser, identities)
@@ -185,7 +186,7 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	}
 
 	keystoreSecret = testKube.GetSecret(keystoreSecret.Name, keystoreSecret.Namespace)
-	keystoreSecret.Data[ispnctrl.EncryptKeystoreName] = newKeystore
+	keystoreSecret.Data[controllers.EncryptKeystoreName] = newKeystore
 	testKube.UpdateSecret(keystoreSecret)
 
 	truststoreSecret = testKube.GetSecret(truststoreSecret.Name, truststoreSecret.Namespace)
@@ -264,7 +265,7 @@ func TestNodeStartup(t *testing.T) {
 	}
 
 	svcList := &corev1.ServiceList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(ispn.Namespace, map[string]string{"infinispan_cr": "test-node-startup"}, svcList))
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(ispn.Namespace, map[string]string{"infinispan_cr": "test-node-startup"}, svcList, context.TODO()))
 	if len(svcList.Items) == 0 {
 		panic("No services found for cluster")
 	}
@@ -300,7 +301,7 @@ func TestNodeStartup(t *testing.T) {
 // and match them with the labels map provided by the caller
 func areOperatorLabelsPropagated(namespace, varName string, labels map[string]string) bool {
 	podList := &corev1.PodList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(namespace, map[string]string{"name": tutils.OperatorName}, podList))
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(namespace, map[string]string{"name": tutils.OperatorName}, podList, context.TODO()))
 	if len(podList.Items) == 0 {
 		panic("Cannot get the Infinispan operator pod")
 	}
@@ -327,10 +328,10 @@ func areOperatorLabelsPropagated(namespace, varName string, labels map[string]st
 
 // Run some functions for testing rights not covered by integration tests
 func TestRolesSynthetic(t *testing.T) {
-	_, err := serviceAccountKube.Kubernetes.GetNodeHost(log)
+	_, err := serviceAccountKube.Kubernetes.GetNodeHost(log, context.TODO())
 	tutils.ExpectNoError(err)
 
-	_, err = kube.FindStorageClass("not-present-storage-class", serviceAccountKube.Kubernetes.Client)
+	_, err = kube.FindStorageClass("not-present-storage-class", serviceAccountKube.Kubernetes.Client, context.TODO())
 	if !errors.IsNotFound(err) {
 		tutils.ExpectNoError(err)
 	}
@@ -353,7 +354,7 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 
 	// Making sure no PVCs were created
 	pvcs := &corev1.PersistentVolumeClaimList{}
-	err := testKube.Kubernetes.ResourcesList(spec.Namespace, ispnctrl.PodLabels(spec.Name), pvcs)
+	err := testKube.Kubernetes.ResourcesList(spec.Namespace, controllers.PodLabels(spec.Name), pvcs, context.TODO())
 	tutils.ExpectNoError(err)
 	if len(pvcs.Items) > 0 {
 		tutils.ExpectNoError(fmt.Errorf("persistent volume claims were found (count = %d) but not expected for ephemeral storage configuration", len(pvcs.Items)))
@@ -447,7 +448,7 @@ func checkRestConnection(hostAddr string, client tutils.HTTPClient) {
 }
 
 func TestClientCertValidate(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertValidate
 		serverName := tutils.GetServerName(spec)
 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
@@ -458,7 +459,7 @@ func TestClientCertValidate(t *testing.T) {
 }
 
 func TestClientCertValidateNoAuth(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 		authType = ispnv1.ClientCertValidate
 		serverName := tutils.GetServerName(spec)
@@ -470,7 +471,7 @@ func TestClientCertValidateNoAuth(t *testing.T) {
 }
 
 func TestClientCertAuthenticate(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertAuthenticate
 		serverName := tutils.GetServerName(spec)
 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, true)
@@ -481,7 +482,7 @@ func TestClientCertAuthenticate(t *testing.T) {
 }
 
 func TestClientCertValidateWithAuthorization(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		spec.Spec.Security.Authorization = &v1.Authorization{
 			Enabled: true,
 			Roles: []ispnv1.AuthorizationRole{
@@ -501,7 +502,7 @@ func TestClientCertValidateWithAuthorization(t *testing.T) {
 }
 
 func TestClientCertAuthenticateWithAuthorization(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		spec.Spec.Security.Authorization = &v1.Authorization{
 			Enabled: true,
 			Roles: []ispnv1.AuthorizationRole{
@@ -521,7 +522,7 @@ func TestClientCertAuthenticateWithAuthorization(t *testing.T) {
 }
 
 func TestClientCertGeneratedTruststoreAuthenticate(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertAuthenticate
 		serverName := tutils.GetServerName(spec)
 		keystore, caCert, clientCert, tlsConfig := tutils.CreateKeystoreAndClientCerts(serverName)
@@ -532,7 +533,7 @@ func TestClientCertGeneratedTruststoreAuthenticate(t *testing.T) {
 }
 
 func TestClientCertGeneratedTruststoreValidate(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		authType = ispnv1.ClientCertValidate
 		serverName := tutils.GetServerName(spec)
 		keystore, caCert, _, tlsConfig := tutils.CreateKeystoreAndClientCerts(serverName)
@@ -1207,7 +1208,7 @@ func TestExternalDependenciesHttp(t *testing.T) {
 		for taskName, taskData := range webServerConfig.BinaryData {
 			for artifactIndex, artifact := range ispn.Spec.Dependencies.Artifacts {
 				if strings.Contains(artifact.Url, taskName) {
-					ispn.Spec.Dependencies.Artifacts[artifactIndex].Hash = fmt.Sprintf("sha1:%s", ispnctrl.HashByte(taskData))
+					ispn.Spec.Dependencies.Artifacts[artifactIndex].Hash = fmt.Sprintf("sha1:%s", hash.HashByte(taskData))
 				}
 			}
 		}
@@ -1232,7 +1233,7 @@ func TestExternalDependenciesHttp(t *testing.T) {
 
 	podList := &corev1.PodList{}
 	tutils.ExpectNoError(wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		err = testKube.Kubernetes.ResourcesList(ispn.Namespace, ispnctrl.PodLabels(ispn.Name), podList)
+		err = testKube.Kubernetes.ResourcesList(ispn.Namespace, controllers.PodLabels(ispn.Name), podList, context.TODO())
 		if err != nil {
 			return false, nil
 		}

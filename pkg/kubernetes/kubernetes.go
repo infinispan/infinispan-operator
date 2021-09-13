@@ -9,12 +9,13 @@ import (
 	"sort"
 
 	"github.com/go-logr/logr"
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
@@ -27,8 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-const containerName = "infinispan"
-
 // Kubernetes abstracts interaction with a Kubernetes cluster
 type Kubernetes struct {
 	Client     client.Client
@@ -39,7 +38,7 @@ type Kubernetes struct {
 // NewKubernetesFromController creates a new Kubernetes instance from controller runtime Manager
 func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 	config := mgr.GetConfig()
-	config = SetConfigDefaults(config)
+	config = SetConfigDefaults(config, mgr.GetScheme())
 	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
 		panic(err.Error())
@@ -53,12 +52,12 @@ func NewKubernetesFromController(mgr manager.Manager) *Kubernetes {
 }
 
 // NewKubernetesFromConfig creates a new Kubernetes from the Kubernetes master URL to connect to
-func NewKubernetesFromConfig(config *rest.Config) (*Kubernetes, error) {
+func NewKubernetesFromConfig(config *rest.Config, scheme *runtime.Scheme) (*Kubernetes, error) {
 	kubeClient, err := client.New(config, client.Options{})
 	if err != nil {
 		return nil, err
 	}
-	config = SetConfigDefaults(config)
+	config = SetConfigDefaults(config, scheme)
 	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
 		panic(err.Error())
@@ -94,9 +93,9 @@ func (k Kubernetes) IsGroupVersionSupported(groupVersion string, kind string) (b
 }
 
 // GetSecret returns secret associated with given secret name
-func (k Kubernetes) GetSecret(secretName, namespace string) (*corev1.Secret, error) {
+func (k Kubernetes) GetSecret(secretName, namespace string, ctx context.Context) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	err := k.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
+	err := k.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -120,12 +119,11 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 		Namespace(options.Namespace).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
-			Command:   options.Command,
-			Container: containerName,
-			Stdin:     false,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
+			Command: options.Command,
+			Stdin:   false,
+			Stdout:  true,
+			Stderr:  true,
+			TTY:     false,
 		}, scheme.ParameterCodec)
 	var execOut, execErr bytes.Buffer
 	// Create an executor
@@ -152,11 +150,11 @@ func FindKubeConfig() string {
 	return consts.GetEnvWithDefault("KUBECONFIG", consts.DefaultKubeConfig)
 }
 
-func SetConfigDefaults(config *rest.Config) *rest.Config {
+func SetConfigDefaults(config *rest.Config, scheme *runtime.Scheme) *rest.Config {
 	gv := corev1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/api"
-	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 	return config
 }
@@ -164,10 +162,10 @@ func SetConfigDefaults(config *rest.Config) *rest.Config {
 // ServiceCAsCRDResourceExists returns true if the platform
 // has the servicecas.operator.openshift.io custom resource deployed
 // Used to check if serviceca operator is serving TLS certificates
-func (k Kubernetes) hasServiceCAsCRDResource(version string) bool {
+func (k Kubernetes) hasServiceCAsCRDResource(version string, ctx context.Context) bool {
 	// Using an ad-hoc path
 	req := k.RestClient.Get().AbsPath("apis/apiextensions.k8s.io/" + version + "/customresourcedefinitions/servicecas.operator.openshift.io")
-	result := req.Do()
+	result := req.Do(ctx)
 	var status int
 	result.StatusCode(&status)
 	return status >= http.StatusOK && status < http.StatusMultipleChoices
@@ -175,8 +173,8 @@ func (k Kubernetes) hasServiceCAsCRDResource(version string) bool {
 
 // GetServingCertsMode returns a label that identify the kind of serving
 // certs service is available. Returns 'openshift.io' for service-ca on openshift
-func (k Kubernetes) GetServingCertsMode() string {
-	if k.hasServiceCAsCRDResource("v1beta1") || k.hasServiceCAsCRDResource("v1") {
+func (k Kubernetes) GetServingCertsMode(ctx context.Context) string {
+	if k.hasServiceCAsCRDResource("v1", ctx) {
 		return "openshift.io"
 
 		// Code to check if other modes of serving TLS cert service is available
@@ -185,7 +183,7 @@ func (k Kubernetes) GetServingCertsMode() string {
 	return ""
 }
 
-func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace string, logger logr.Logger) (*restclient.Config, error) {
+func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace string, logger logr.Logger, ctx context.Context) (*restclient.Config, error) {
 	logger.Info("connect to backup Kubernetes cluster", "url", masterURL)
 
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
@@ -194,7 +192,7 @@ func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace str
 		return nil, err
 	}
 
-	secret, err := k.GetSecret(secretName, namespace)
+	secret, err := k.GetSecret(secretName, namespace, ctx)
 	if err != nil {
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
@@ -213,7 +211,7 @@ func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace str
 	return config, nil
 }
 
-func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr.Logger) (*restclient.Config, error) {
+func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr.Logger, ctx context.Context) (*restclient.Config, error) {
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
 		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
@@ -223,7 +221,7 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace stri
 	// Skip-tls for accessing other OpenShift clusters
 	config.Insecure = true
 
-	secret, err := k.GetSecret(secretName, namespace)
+	secret, err := k.GetSecret(secretName, namespace, ctx)
 	if err != nil {
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
@@ -237,7 +235,7 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace stri
 	return nil, fmt.Errorf("token required connect to OpenShift cluster")
 }
 
-func (k Kubernetes) GetNodeHost(logger logr.Logger) (string, error) {
+func (k Kubernetes) GetNodeHost(logger logr.Logger, ctx context.Context) (string, error) {
 	//The IPs must be fetch. Some cases, the API server (which handles REST requests) isn't the same as the worker
 	//So, we get the workers list. It needs some permissions cluster-reader permission
 	//oc create clusterrolebinding <name> -n ${NAMESPACE} --clusterrole=cluster-reader --serviceaccount=${NAMESPACE}:<account-name>
@@ -251,11 +249,11 @@ func (k Kubernetes) GetNodeHost(logger logr.Logger) (string, error) {
 	listOps := &client.ListOptions{
 		LabelSelector: labels.NewSelector().Add(*req),
 	}
-	err = k.Client.List(context.TODO(), workerList, listOps)
+	err = k.Client.List(ctx, workerList, listOps)
 
 	if err != nil || len(workerList.Items) == 0 {
 		// Fallback selecting everything
-		err = k.Client.List(context.TODO(), workerList, &client.ListOptions{})
+		err = k.Client.List(ctx, workerList, &client.ListOptions{})
 		if err != nil {
 			return "", err
 		}
@@ -309,22 +307,30 @@ func (k Kubernetes) GetExternalAddress(route *corev1.Service) string {
 }
 
 // ResourcesList returns a typed list of resource associated with the cluster
-func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime.Object) error {
+func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime.Object, ctx context.Context) error {
+	objectList, ok := list.(client.ObjectList)
+	if !ok {
+		return fmt.Errorf("Argument of type %T is not an ObjectList", list)
+	}
 	labelSelector := labels.SelectorFromSet(set)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
-	err := k.Client.List(context.TODO(), list, listOps)
+	err := k.Client.List(ctx, objectList, listOps)
 	return err
 }
 
-func (k Kubernetes) ResourcesListByField(namespace, fieldName, fieldValue string, list runtime.Object) error {
+func (k Kubernetes) ResourcesListByField(namespace, fieldName, fieldValue string, list runtime.Object, ctx context.Context) error {
+	objectList, ok := list.(client.ObjectList)
+	if !ok {
+		return fmt.Errorf("Argument of type %T is not an ObjectList", list)
+	}
 	fieldSelector := fields.OneTermEqualSelector(fieldName, fieldValue)
 	listOps := &client.ListOptions{Namespace: namespace, FieldSelector: fieldSelector}
-	err := k.Client.List(context.TODO(), list, listOps)
+	err := k.Client.List(ctx, objectList, listOps)
 	return err
 }
 
-func (k Kubernetes) Logs(pod, namespace string) (logs string, err error) {
-	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Param("container", containerName).Stream()
+func (k Kubernetes) Logs(pod, namespace string, ctx context.Context) (logs string, err error) {
+	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Stream(ctx)
 	if err != nil {
 		return "", err
 	}

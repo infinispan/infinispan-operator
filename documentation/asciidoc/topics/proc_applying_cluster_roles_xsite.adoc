@@ -11,6 +11,6 @@ If you install {ispn_operator} manually, you must complete this procedure to set
 
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} deploy/clusterrole.yaml
-$ {oc_apply_cr} deploy/clusterrole_binding.yaml
+$ {oc_apply_cr} config/rbac/clusterrole.yaml
+$ {oc_apply_cr} config/rbac/clusterrole_binding.yaml
 ----

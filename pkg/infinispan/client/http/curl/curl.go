@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	consts "github.com/infinispan/infinispan-operator/pkg/controller/constants"
+	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	client "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 )
