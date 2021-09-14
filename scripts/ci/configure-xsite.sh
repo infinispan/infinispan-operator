@@ -21,15 +21,14 @@ for INSTANCE_IDX in 1 2; do
   kind create cluster --config kind-config-xsite.yaml --name "${INSTANCE}"
   kind load docker-image $IMG --name "${INSTANCE}"
 
-  make deploy IMG=$IMG
-
-  # Set the imagePullPolicy to Never so the loaded image is used
-  kubectl -n infinispan-operator-system patch deployment infinispan-operator-controller-manager -p \
-  '{"spec": {"template": {"spec":{"containers":[{"name":"manager","imagePullPolicy":"Never"}]}}}}'
-
-
   TESTING_NAMESPACE_XSITE="${TESTING_NAMESPACE}-${INSTANCE}"
   kubectl create namespace "${TESTING_NAMESPACE_XSITE}"
+
+  make deploy IMG=$IMG DEPLOYMENT_NAMESPACE="${TESTING_NAMESPACE_XSITE}"
+
+  # Set the imagePullPolicy to Never so the loaded image is used
+  kubectl -n ${TESTING_NAMESPACE_XSITE} patch deployment infinispan-operator-controller-manager -p \
+  '{"spec": {"template": {"spec":{"containers":[{"name":"manager","imagePullPolicy":"Never"}]}}}}'
 
   # Creating service account for the cross cluster token based auth
   kubectl create clusterrole xsite-cluster-role --verb=get,list,watch --resource=nodes,services
