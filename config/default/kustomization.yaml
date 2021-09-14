@@ -1,3 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
 # Adds namespace to all resources.
 namespace: infinispan-operator-system
 
@@ -8,7 +11,7 @@ namespace: infinispan-operator-system
 # field above.
 namePrefix: infinispan-operator-
 
-bases:
+resources:
 - ../crd
 - ../rbac
 - ../manager

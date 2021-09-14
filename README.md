@@ -38,10 +38,10 @@ To watch specific namespaces:
 ### On K8s
 To deploy the operator to the cluster you're currently connected to, execute:
 
-`make deploy IMG=<image_name:tag>`
+`make deploy IMG=<image_name:tag> DEPLOYMENT_NAMESPACE=<namespace>`
 
 This will update the `config/manager/manager.yaml` to utilise the specified image and will create all of the required
-resources on the kubernetes cluster in the `infinispan-operator-system` namespace.
+resources on the kubernetes cluster in the `$DEPLOYMENT_NAMESPACE` namespace.
 
 # OLM Bundle
 The OLM bundle manifests are created by executing `make bundle VERSION=<latest-version>`.
