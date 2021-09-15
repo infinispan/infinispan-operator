@@ -28,12 +28,15 @@ To create a docker container and push to a remote repository execute:
 ## Running the Operator
 
 ### Locally
+The following commands will generate and install the CRDs to the local cluster before starting the operator. To only execute the operator, simply omit the `install` target.
+
 To watch all namespaces:
 
-`make run`
+`make install run`
 
 To watch specific namespaces:
-`make run WATCH_NAMESPACE=namespace1,namespace2`
+
+`make install run WATCH_NAMESPACE=namespace1,namespace2`
 
 ### On K8s
 To deploy the operator to the cluster you're currently connected to, execute:
@@ -63,10 +66,25 @@ make bundle-build bundle-push VERSION=<latest-version> IMG=<operator-image> BUND
 
 ## Go Integration Tests
 
-`make test`
-`make batch-test`
-`make multinamespace-test`
-`make backuprestore-test`
+The different categories of integration tests can be executed with the following commands:
+
+- `make test`
+- `make batch-test`
+- `make multinamespace-test`
+- `make backuprestore-test`
+
+The target cluster should be specified by exporting or explicitly providing `KUBECONFIG`, e.g. `make test KUBECONFIG=/path/to/admin.kubeconfig`.
+
+### Env Variables
+The followin variables can be exported or provided as part of the `make *test` call.
+
+| Variable              | Purpose                                                                              |
+|-----------------------|--------------------------------------------------------------------------------------|
+| `TEST_NAME`           | Specify a single test to run                                                         |
+| `TESTING_NAMESPACE`   | Specify the namespace/project for running test                                       |
+| `RUN_LOCAL_OPERATOR`  | Specify whether run operator locally or use the predefined installation              |
+| `EXPOSE_SERVICE_TYPE` | Specify expose service type. `NodePort \| LoadBalancer \| Route`.                    |
+| `PARALLEL_COUNT`      | Specify parallel test running count. Default is one, i.e. no parallel tests enabled. |
 
 ### Xsite
 Cross-Site tests require you to create two k8s Kind clusters or utilize already prepared OKD clusters:
