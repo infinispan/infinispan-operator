@@ -8,7 +8,6 @@ require (
 	github.com/go-logr/logr v0.3.0
 	github.com/go-playground/validator/v10 v10.8.0
 	github.com/iancoleman/strcase v0.2.0
-	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.14.0 // indirect
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/operator-framework/api v0.4.0

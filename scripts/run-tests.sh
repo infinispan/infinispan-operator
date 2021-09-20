@@ -12,8 +12,8 @@ GO_LDFLAGS="-X github.com/infinispan/infinispan-operator/launcher.Version=${VERS
 
 go clean -testcache ./test/e2e
 if [ -z "${TEST_NAME}" ]; then
-  go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout 45m -ldflags "${GO_LDFLAGS}" -parallel "${PARALLEL_COUNT}"
+  go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout 90m -ldflags "${GO_LDFLAGS}" -parallel "${PARALLEL_COUNT}"
 else
   echo "Running test '${TEST_NAME}'"
-  go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout 45m -ldflags "${GO_LDFLAGS}" -run "${TEST_NAME}"
+  go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout 90m -ldflags "${GO_LDFLAGS}" -run "${TEST_NAME}"
 fi

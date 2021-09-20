@@ -14,8 +14,10 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -231,7 +233,7 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 
 	err = z.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &corev1.Pod{})
 	if errors.IsNotFound(err) {
-		pod, err := z.zeroPodSpec(name, namespace, configMap.Name, podSecurityCtx, infinispan, spec)
+		pod, err := z.zeroPodSpec(name, namespace, configMap, podSecurityCtx, infinispan, spec)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to compute Spec for zero-capacity pod: %w", err)
 		}
@@ -294,9 +296,11 @@ func (z *zeroCapacityController) cleanupResources(httpClient http.HttpClient, re
 			z.Log.Error(logErr, "error encountered when cleaning up zero-capacity pod")
 		}
 		defer func() {
-			cerr := rsp.Body.Close()
-			if logErr == nil {
-				logErr = cerr
+			if rsp != nil {
+				cerr := rsp.Body.Close()
+				if logErr == nil {
+					logErr = cerr
+				}
 			}
 		}()
 	}
@@ -311,7 +315,7 @@ func (z *zeroCapacityController) isZeroPodReady(request reconcile.Request, ctx c
 	return kube.IsPodReady(*pod)
 }
 
-func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, podSecurityCtx *corev1.PodSecurityContext, ispn *v1.Infinispan, zeroSpec *zeroCapacitySpec) (*corev1.Pod, error) {
+func (z *zeroCapacityController) zeroPodSpec(name, namespace string, configMap *corev1.ConfigMap, podSecurityCtx *corev1.PodSecurityContext, ispn *v1.Infinispan, zeroSpec *zeroCapacitySpec) (*corev1.Pod, error) {
 	podResources, err := PodResources(zeroSpec.Container)
 	if err != nil {
 		return nil, err
@@ -319,6 +323,11 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 	dataVolName := name + "-data"
 	labels := zeroSpec.PodLabels
 	ispn.AddLabelsForPods(labels)
+	// Server config is needed to build the startup cmd line
+	serverConf := &config.InfinispanConfiguration{}
+	if err = yaml.Unmarshal([]byte(configMap.Data[consts.ServerConfigFilename]), serverConf); err != nil {
+		return nil, err
+	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -330,11 +339,12 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 			Containers: []corev1.Container{{
 				Image:          ispn.ImageName(),
 				Name:           name,
-				Env:            PodEnv(ispn, nil),
+				Env:            PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: OperatorSecurityMountPath + "/" + consts.ServerIdentitiesCliFilename}}),
 				LivenessProbe:  PodLivenessProbe(),
 				Ports:          PodPorts(),
 				ReadinessProbe: PodReadinessProbe(),
 				Resources:      *podResources,
+				Args:           buildStartupArgs(""),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      ConfigVolumeName,
@@ -353,6 +363,9 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 					{
 						Name:      name,
 						MountPath: zeroSpec.Volume.MountPath,
+					}, {
+						Name:      InfinispanXmlVolumeName,
+						MountPath: OperatorConfMountPath,
 					},
 				},
 			}},
@@ -363,7 +376,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 					Name: ConfigVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
-							LocalObjectReference: corev1.LocalObjectReference{Name: configMap},
+							LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
 						},
 					}},
 				// Volume for admin credentials
@@ -385,6 +398,13 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 					Name: dataVolName,
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				}, {
+					Name: InfinispanXmlVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: ispn.GetInfinispanServerConfigMapName(),
+						},
 					},
 				},
 			},

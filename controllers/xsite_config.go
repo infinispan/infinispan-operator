@@ -48,11 +48,11 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 	}
 
 	xsite := &config.XSite{
-		Address:        localSiteHost,
-		Name:           infinispan.Spec.Service.Sites.Local.Name,
-		Port:           localSitePort,
-		Transport:      "tunnel",
-		MaxSiteMasters: maxRelayNodes,
+		Address:       localSiteHost,
+		Name:          infinispan.Spec.Service.Sites.Local.Name,
+		Port:          localSitePort,
+		Transport:     "tunnel",
+		MaxRelayNodes: maxRelayNodes,
 	}
 
 	for _, remoteLocation := range infinispan.GetRemoteSiteLocations() {

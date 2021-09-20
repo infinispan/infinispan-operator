@@ -667,6 +667,8 @@ spec:
                 required:
                 - bootstrapServers
                 type: object
+              configMapName:
+                type: string
               container:
                 description: InfinispanContainerSpec specify resource requirements
                   per container
