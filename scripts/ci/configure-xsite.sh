@@ -13,7 +13,7 @@ TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 kind delete clusters --all
 
 # Common part for both nodes
-make docker-build IMG=$IMG
+make operator-build IMG=$IMG
 
 for INSTANCE_IDX in 1 2; do
   INSTANCE="xsite"${INSTANCE_IDX}

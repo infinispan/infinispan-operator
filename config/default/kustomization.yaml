@@ -11,6 +11,9 @@ namespace: infinispan-operator-system
 # field above.
 namePrefix: infinispan-operator-
 
+commonLabels:
+  app.kubernetes.io/name: infinispan-operator
+
 resources:
 - ../crd
 - ../rbac

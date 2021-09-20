@@ -11,6 +11,7 @@ require (
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.14.0 // indirect
 	github.com/openshift/api v3.9.0+incompatible
+	github.com/operator-framework/api v0.4.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.0
 	github.com/prometheus/common v0.26.0
 	github.com/stretchr/testify v1.7.0
