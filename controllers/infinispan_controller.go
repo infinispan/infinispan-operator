@@ -785,7 +785,7 @@ func (r *infinispanRequest) dropSecretOwnerReference(secretName string) error {
 			Namespace: r.infinispan.Namespace,
 		},
 	}
-	_, err := controllerutil.CreateOrPatch(r.ctx, r.Client, secret, func() error {
+	_, err := kube.CreateOrPatch(r.ctx, r.Client, secret, func() error {
 		if secret.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(corev1.Resource(""), secretName)
 		}
@@ -1467,7 +1467,7 @@ type UpdateFn func()
 
 func (r *infinispanRequest) update(update UpdateFn, ignoreNotFound ...bool) error {
 	ispn := r.infinispan
-	_, err := controllerutil.CreateOrPatch(r.ctx, r.Client, ispn, func() error {
+	_, err := kube.CreateOrPatch(r.ctx, r.Client, ispn, func() error {
 		if ispn.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), ispn.Name)
 		}

@@ -8,6 +8,7 @@ import (
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -109,7 +110,7 @@ func (r *backupResource) Transform() (bool, error) {
 
 func (r *backupResource) update(mutate func()) (bool, error) {
 	backup := r.instance
-	res, err := controllerutil.CreateOrPatch(r.ctx, r.client, backup, func() error {
+	res, err := kube.CreateOrPatch(r.ctx, r.client, backup, func() error {
 		if backup.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(schema.ParseGroupResource("backup.infinispan.org"), backup.Name)
 		}
