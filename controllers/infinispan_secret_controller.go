@@ -186,7 +186,7 @@ func (s *secretRequest) reconcileTruststoreSecret() (*reconcile.Result, error) {
 		return result, err
 	}
 
-	_, err := k8sctrlutil.CreateOrPatch(s.ctx, s.Client, trustSecret, func() error {
+	_, err := kube.CreateOrPatch(s.ctx, s.Client, trustSecret, func() error {
 		if trustSecret.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(corev1.Resource("secret"), i.GetTruststoreSecretName())
 		}
@@ -238,7 +238,7 @@ func (s *secretRequest) reconcileAdminSecret() error {
 		},
 	}
 
-	_, err := k8sctrlutil.CreateOrPatch(s.ctx, s.Client, adminSecret, func() error {
+	_, err := kube.CreateOrPatch(s.ctx, s.Client, adminSecret, func() error {
 		if adminSecret.CreationTimestamp.IsZero() {
 			identities, err := security.GetAdminCredentials()
 			if err != nil {

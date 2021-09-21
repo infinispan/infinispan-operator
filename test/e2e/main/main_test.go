@@ -123,7 +123,7 @@ func TestUpdateOperatorPassword(t *testing.T) {
 	newPassword := "supersecretoperatorpassword"
 	secret, err := testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace, context.TODO())
 	tutils.ExpectNoError(err)
-	_, err = controllerutil.CreateOrPatch(context.TODO(), testKube.Kubernetes.Client, secret, func() error {
+	_, err = kube.CreateOrPatch(context.TODO(), testKube.Kubernetes.Client, secret, func() error {
 		secret.Data["password"] = []byte(newPassword)
 		return nil
 	})
