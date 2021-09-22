@@ -858,6 +858,9 @@ spec:
                             required:
                             - type
                             type: object
+                          maxRelayNodes:
+                            format: int32
+                            type: integer
                           name:
                             type: string
                         required:

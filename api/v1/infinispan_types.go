@@ -130,6 +130,8 @@ type InfinispanContainerSpec struct {
 type InfinispanSitesLocalSpec struct {
 	Name   string              `json:"name"`
 	Expose CrossSiteExposeSpec `json:"expose"`
+	// +optional
+	MaxRelayNodes int32 `json:"maxRelayNodes,omitempty"`
 }
 
 type InfinispanSiteLocationSpec struct {
@@ -335,6 +337,7 @@ const (
 	ConditionUpgrade             ConditionType = "Upgrade"
 	ConditionWellFormed          ConditionType = "WellFormed"
 	ConditionCrossSiteViewFormed ConditionType = "CrossSiteViewFormed"
+	ConditionGossipRouterReady   ConditionType = "GossipRouterReady"
 )
 
 // InfinispanCondition define a condition of the cluster

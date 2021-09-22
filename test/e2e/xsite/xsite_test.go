@@ -42,6 +42,7 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 							Type: exposeType,
 							Port: exposePort,
 						},
+						MaxRelayNodes: 2,
 					},
 					Locations: []ispnv1.InfinispanSiteLocationSpec{
 						{

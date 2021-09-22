@@ -42,3 +42,8 @@ func BatchLabels(name string) map[string]string {
 		"app":              "infinispan-batch-pod",
 	}
 }
+
+// GossipRouterPodLabels returns the labels to apply to GossipRouter pod
+func GossipRouterPodLabels(name string) map[string]string {
+	return LabelsResource(name, "infinispan-router-pod")
+}

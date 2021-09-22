@@ -58,6 +58,33 @@ func probe(failureThreshold, initialDelay, period, successThreshold, timeout int
 	}
 }
 
+func GossipRouterLivenessProbe() *corev1.Probe {
+	return TcpProbe(consts.CrossSitePort, 5, 5, 10, 1, 60)
+}
+
+func GossipRouterReadinessProbe() *corev1.Probe {
+	return TcpProbe(consts.CrossSitePort, 5, 5, 10, 1, 60)
+}
+
+func GossipRouterStartupProbe() *corev1.Probe {
+	return TcpProbe(consts.CrossSitePort, 5, 5, 10, 1, 60)
+}
+
+func TcpProbe(port, failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{IntVal: port},
+			},
+		},
+		FailureThreshold:    failureThreshold,
+		InitialDelaySeconds: initialDelay,
+		PeriodSeconds:       period,
+		SuccessThreshold:    successThreshold,
+		TimeoutSeconds:      timeout,
+	}
+}
+
 func PodResources(spec infinispanv1.InfinispanContainerSpec) (*corev1.ResourceRequirements, error) {
 	memory, err := resource.ParseQuantity(spec.Memory)
 	if err != nil {
