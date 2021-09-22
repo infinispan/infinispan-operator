@@ -48,6 +48,8 @@ const (
 
 	SiteServiceNameTemplate = "%v-site"
 	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
+
+	GossipRouterDeploymentNameTemplate = "%s-tunnel"
 )
 
 type ExternalDependencyType string
@@ -618,4 +620,9 @@ func (ispn *Infinispan) IsServiceMonitorEnabled() bool {
 		return err == nil && isMonitor
 	}
 	return false
+}
+
+// GetGossipRouterDeploymentName returns the Gossip Router deployment name
+func (ispn *Infinispan) GetGossipRouterDeploymentName() string {
+	return fmt.Sprintf(GossipRouterDeploymentNameTemplate, ispn.Name)
 }

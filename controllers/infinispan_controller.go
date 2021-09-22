@@ -123,7 +123,7 @@ func (r *InfinispanReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Infinispan
-	secondaryResourceTypes := []client.Object{&appsv1.StatefulSet{}, &corev1.ConfigMap{}, &corev1.Secret{}}
+	secondaryResourceTypes := []client.Object{&appsv1.StatefulSet{}, &corev1.ConfigMap{}, &corev1.Secret{}, &appsv1.Deployment{}}
 	for _, secondaryResource := range secondaryResourceTypes {
 		builder.Owns(secondaryResource)
 	}
@@ -180,7 +180,7 @@ func (r *InfinispanReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=core;events.k8s.io,resources=events,verbs=create;patch
 
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=deployments/finalizers;statefulsets,verbs=get;list;watch;create;update;delete
 
@@ -287,6 +287,65 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		trustSecret = &corev1.Secret{}
 		if result, err := kube.LookupResource(infinispan.GetTruststoreSecretName(), infinispan.Namespace, trustSecret, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 			return *result, err
+		}
+	}
+
+	if infinispan.HasSites() {
+		reqLogger.Info("Checking the Cross-Site Deployment (Gossip Router)")
+		tunnelDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.GetGossipRouterDeploymentName(),
+				Namespace: infinispan.Namespace,
+			},
+		}
+		result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, tunnelDeployment, func() error {
+			tunnel := r.GetGossipRouterDeployment(infinispan)
+			tunnelDeployment.Spec = tunnel.Spec
+			tunnelDeployment.Labels = tunnel.Labels
+			if tunnelDeployment.CreationTimestamp.IsZero() {
+				reqLogger.Info("Creating the Cross-Site Deployment (Gossip Router)")
+				return controllerutil.SetControllerReference(r.infinispan, tunnelDeployment, r.scheme)
+			}
+			return nil
+		})
+		if err != nil {
+			if errors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			} else {
+				reqLogger.Error(err, "Failed to configure Cross-Site Deployment")
+				return reconcile.Result{}, err
+			}
+		}
+		if result != controllerutil.OperationResultNone {
+			reqLogger.Info(fmt.Sprintf("Cross-site deployment %s", string(result)))
+		}
+
+		gossipRouterPods, err := GossipRouterPodList(infinispan, r.kubernetes, r.ctx)
+		if err != nil {
+			reqLogger.Error(err, "Failed to fetch Gossip Router pod")
+			return reconcile.Result{}, err
+		}
+		if !kube.AreAllPodsReady(gossipRouterPods) {
+			reqLogger.Info("Gossip Router pod is not ready")
+			return reconcile.Result{}, r.update(func() {
+				r.infinispan.SetCondition(infinispanv1.ConditionGossipRouterReady, metav1.ConditionFalse, "Gossip Router pod not ready")
+			})
+		}
+		if err = r.update(func() {
+			r.infinispan.SetCondition(infinispanv1.ConditionGossipRouterReady, metav1.ConditionTrue, "")
+		}); err != nil {
+			reqLogger.Error(err, "Failed to set Gossip Router pod condition")
+			return reconcile.Result{}, err
+		}
+	} else {
+		tunnelDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.GetGossipRouterDeploymentName(),
+				Namespace: infinispan.Namespace,
+			},
+		}
+		if err := r.Client.Delete(r.ctx, tunnelDeployment); err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -523,9 +582,8 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		}
 	}
 
-	// If x-site enable configure the coordinator pods to be selected by the x-site service
 	if infinispan.HasSites() {
-		crossSiteViewCondition, err := r.applyLabelsToCoordinatorsPod(podList, infinispan.GetSiteLocationsName(), cluster)
+		crossSiteViewCondition, err := r.GetCrossSiteViewCondition(podList, infinispan.GetSiteLocationsName(), cluster)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -620,6 +678,17 @@ func (r *infinispanRequest) destroyResources() error {
 		&appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.Name,
+				Namespace: infinispan.Namespace,
+			},
+		})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	err = r.Client.Delete(r.ctx,
+		&appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      infinispan.GetGossipRouterDeploymentName(),
 				Namespace: infinispan.Namespace,
 			},
 		})
@@ -1484,4 +1553,9 @@ func (r *infinispanRequest) update(update UpdateFn, ignoreNotFound ...bool) erro
 
 func (reconciler *InfinispanReconciler) isTypeSupported(kind string) bool {
 	return reconciler.supportedTypes[kind].GroupVersionSupported
+}
+
+func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kubernetes, ctx context.Context) (*corev1.PodList, error) {
+	podList := &corev1.PodList{}
+	return podList, kube.ResourcesList(infinispan.Namespace, GossipRouterPodLabels(infinispan.Name), podList, ctx)
 }

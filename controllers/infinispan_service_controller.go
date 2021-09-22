@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -138,6 +137,16 @@ func (reconciler *ServiceReconciler) Reconcile(ctx context.Context, request reco
 
 	if s.infinispan.HasSites() {
 		if err := s.reconcileResource(computeSiteService(s.infinispan)); err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		siteService := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      s.infinispan.GetSiteServiceName(),
+				Namespace: s.infinispan.Namespace,
+			},
+		}
+		if err := s.Client.Delete(s.ctx, siteService); err != nil && !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 	}
@@ -466,8 +475,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 
 // computeSiteService compute the XSite service
 func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
-	lsPodSelector := PodLabels(ispn.Name)
-	lsPodSelector[consts.CoordinatorPodLabel] = strconv.FormatBool(true)
+	lsPodSelector := GossipRouterPodLabels(ispn.Name)
 
 	exposeSpec := corev1.ServiceSpec{}
 	exposeConf := ispn.Spec.Service.Sites.Local.Expose
