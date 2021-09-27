@@ -53,6 +53,9 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 					},
 				},
 			},
+			Container: ispnv1.InfinispanContainerSpec{
+				Memory: tutils.Memory,
+			},
 		},
 	}
 }

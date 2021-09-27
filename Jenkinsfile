@@ -97,7 +97,7 @@ pipeline {
                 stage('Xsite') {
                     steps {
                         sh 'scripts/ci/configure-xsite.sh'
-                        sh 'go test -v ./test/e2e/xsite/ -timeout 30m'
+                        sh 'INFINISPAN_MEMORY="1Gi" go test -v ./test/e2e/xsite/ -timeout 30m'
                     }
                 }
             }
