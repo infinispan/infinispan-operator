@@ -656,6 +656,18 @@ func (k TestKubernetes) DeleteSecret(secret *v1.Secret) {
 	ExpectMaybeNotFound(err)
 }
 
+// CreateConfigMap creates a ConfigMap
+func (k TestKubernetes) CreateConfigMap(configMap *v1.ConfigMap) {
+	err := k.Kubernetes.Client.Create(context.TODO(), configMap)
+	ExpectNoError(err)
+}
+
+// DeleteConfigMap deletes a ConfigMap
+func (k TestKubernetes) DeleteConfigMap(configMap *v1.ConfigMap) {
+	err := k.Kubernetes.Client.Delete(context.TODO(), configMap, DeleteOpts...)
+	ExpectMaybeNotFound(err)
+}
+
 // RunOperator runs an operator on a Kubernetes cluster
 func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
 	k.installCRD(crdsPath + "infinispan.org_infinispans.yaml")
