@@ -893,6 +893,7 @@ spec:
                         type: array
                     required:
                     - local
+                    - locations
                     type: object
                   type:
                     enum:

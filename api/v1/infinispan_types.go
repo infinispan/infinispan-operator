@@ -153,7 +153,7 @@ type InfinispanSiteLocationSpec struct {
 
 type InfinispanSitesSpec struct {
 	Local     InfinispanSitesLocalSpec     `json:"local"`
-	Locations []InfinispanSiteLocationSpec `json:"locations,omitempty"`
+	Locations []InfinispanSiteLocationSpec `json:"locations"`
 }
 
 // LoggingLevelType describe the logging level for selected category
