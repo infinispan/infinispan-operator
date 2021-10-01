@@ -75,9 +75,8 @@ func TestBatchConfigMap(t *testing.T) {
 		},
 	}
 
-	if err := testKube.Kubernetes.Client.Create(ctx, configMap); err != nil {
-		panic(fmt.Errorf("Unable to create ConfigMap: %w", err))
-	}
+	testKube.CreateConfigMap(configMap)
+	defer testKube.DeleteConfigMap(configMap)
 
 	batch := helper.CreateBatch(name, name, nil, &configMapName)
 
