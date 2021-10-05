@@ -30,6 +30,7 @@ public class HotRodServlet extends HttpServlet {
          String username = request.getParameter("username");
          String password = request.getParameter("password");
          String encrypted = request.getParameter("encrypted");
+         String clientValidation = request.getParameter("clientValidation");
 
          ConfigurationBuilder builder = new ConfigurationBuilder();
          builder.addServer().host(serviceName).port(11222);
@@ -40,6 +41,13 @@ public class HotRodServlet extends HttpServlet {
 
          if(encrypted != null) {
             builder.security().ssl().trustStorePath("/etc/" + serviceName + "-cert-secret/tls.crt");
+         }
+
+         if(clientValidation != null) {
+            builder.security().ssl().keyStoreFileName("/etc/encryption-secret/keystore.p12");
+            builder.security().ssl().keyStorePassword("password".toCharArray());
+            builder.security().ssl().keyStoreCertificatePassword("password".toCharArray());
+            builder.security().ssl().keyStoreType("PKCS12");
          }
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());
