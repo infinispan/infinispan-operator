@@ -38,3 +38,7 @@ spec:
                 fieldPath: metadata.namespace
           - name: RELATED_IMAGE_OPENJDK
             value: "quay.io/infinispan/server:13.0"
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
