@@ -17,4 +17,8 @@ public class Infinispans {
    public static Infinispan devSetup() {
       return new Infinispan("src/test/resources/infinispans/dev_setup.yaml");
    }
+
+   public static Infinispan clientTlsValidation() {
+      return new Infinispan("src/test/resources/infinispans/client_validation.yaml");
+   }
 }

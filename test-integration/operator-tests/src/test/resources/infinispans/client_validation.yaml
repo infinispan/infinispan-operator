@@ -1,0 +1,19 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: client-validation
+  annotations:
+    infinispan.org/monitoring: 'false'
+spec:
+  service:
+    type: DataGrid
+  expose:
+    type: Route
+  replicas: 1
+  security:
+    endpointAuthentication: true
+    endpointEncryption:
+      type: Service
+      clientCert: Validate
+      clientCertSecretName: client-validation-client-cert-secret
+    endpointSecretName: connect-secret
