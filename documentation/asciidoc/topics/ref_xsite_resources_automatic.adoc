@@ -29,6 +29,9 @@ include::yaml/xsite_automatic.yaml[]
 |`service.sites.local.expose.port`
 |Specifies the network port for the service if you expose {brandname} through a `LoadBalancer`. The default port is `7900`.
 
+|`service.sites.local.maxRelayNodes`
+|Specifies the maximum number of nodes that can send RELAY messages for cross-site replication. The default value is `1`.
+
 |`service.sites.locations`
 |Provides connection information for all backup locations.
 

@@ -1,0 +1,44 @@
+[id='managed-cross-site-connections_{context}']
+= Managed cross-site connections
+
+[role="_abstract"]
+{ispn_operator} can discover {brandname} clusters running in different data centers to form global clusters.
+
+The following diagram illustrates two separate {brandname} clusters running in New York City, **NYC**, and London, **LON** that exchange JGroups `RELAY` messages to perform cross-site replication:
+
+.Managed cross-site connections
+ifdef::community[]
+image::operator-cross-site.svg[This diagram depicts two clusters in separate data centers that use RELAY messages for cross-site replication.]
+endif::community[]
+ifdef::downstream[]
+image::operator-cross-site.png[This diagram depicts two clusters in separate data centers that use RELAY messages for cross-site replication.]
+endif::downstream[]
+
+Managed cross-site connections use tunnel pods to send RELAY messages to the correct cluster.
+These tunnel pods are GossipRouter instances that use the JGroups `TCPGOSSIP` protocol to fetch and maintain IP addresses for nodes in the cluster.
+
+To manage cross-site connections, {ispn_operator}:
+
+. Creates a tunnel pod for each cluster.
+. Uses the Kubernetes API to retrieve IP addresses for tunnel pods in all clusters.
+. Provides the IP addresses for tunnel pods to all nodes that send RELAY messages for cross-site replication.
+
+[IMPORTANT]
+====
+{ispn_operator} in each {openshiftshort} cluster must have network access to the remote Kubernetes API.
+====
+
+[discrete]
+== How managed cross-site connections work
+
+You configure the number of nodes in each cluster that can send RELAY messages for cross-site replication with the `sites.local.maxRelayNodes` field.
+Those nodes send RELAY messages to tunnel pods at random.
+The tunnel pods then parse the RELAY message headers to forward cross-site replication requests to the correct backup cluster.
+
+If a tunnel pod crashes then all nodes send RELAY messages to any other available tunnel pod because {ispn_operator} provides the IP addresses for all tunnel pods to all clusters.
+When this happens {ispn_operator} automatically creates a new tunnel pod in the cluster so it can handle RELAY messages.
+
+[NOTE]
+====
+{brandname} clusters do not start running until {ispn_operator} discovers all backup locations that you configure.
+====

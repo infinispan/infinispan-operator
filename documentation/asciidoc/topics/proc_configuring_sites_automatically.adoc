@@ -1,5 +1,5 @@
 [id='configuring-sites-automatically_{context}']
-= Configuring {ispn_operator} to handle cross-site connections
+= Configuring {ispn_operator} to manage cross-site connections
 
 [role="_abstract"]
 Configure {ispn_operator} to establish cross-site views with {brandname} clusters.
@@ -17,6 +17,11 @@ Configure {ispn_operator} to establish cross-site views with {brandname} cluster
 +
 * `spec.service.sites.local.expose.nodePort` if you use `NodePort`.
 * `spec.service.sites.local.expose.port` if you use `LoadBalancer`.
++
+. Specify the number of nodes that can send RELAY messages with the `service.sites.local.maxRelayNodes` field.
++
+You should configure all nodes in the cluster to send RELAY messages for optimal performance.
+This allows all nodes to send replication requests to backup locations directly, rather than forwarding the requests to relay nodes.
 +
 . Provide the name, URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 . If {brandname} cluster names or namespaces at the remote site do not match the local site, specify those values with the `clusterName` and `namespace` fields.

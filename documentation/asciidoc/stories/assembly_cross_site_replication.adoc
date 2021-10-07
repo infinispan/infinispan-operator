@@ -1,24 +1,24 @@
 ifdef::context[:parent-context: {context}]
 [id='setting-up-xsite']
 :context: cross-site
-= Setting up cross-site replication
+= Configuring cross-site replication
 
 [role="_abstract"]
 Ensure service availability with {ispn_operator} by configuring cross-site replication to back up data between {brandname} clusters.
 
 //Automatically forming cross-site views
-include::{topics}/con_xsite_replication.adoc[leveloffset=+1]
+include::{topics}/con_xsite_managed_connections.adoc[leveloffset=+1]
 //
 //Community content
 //
 ifdef::community[]
-=== {k8s} clusters
+=== Setting up {k8s} clusters
 Apply cluster roles and then create site access secrets if you run {ispn_operator} on vanilla {k8s} or minikube.
 
 include::{topics}/proc_applying_cluster_roles_xsite.adoc[leveloffset=+3]
 include::{topics}/proc_creating_kubernetes_site_secrets.adoc[leveloffset=+3]
 
-=== {openshiftshort} clusters
+=== Setting up {openshiftshort} clusters
 Create and exchange service account tokens if you run {ispn_operator} on {openshiftshort}.
 
 include::{topics}/proc_creating_sa_tokens.adoc[leveloffset=+3]
@@ -34,7 +34,7 @@ include::{topics}/proc_exchanging_sa_tokens.adoc[leveloffset=+2]
 endif::downstream[]
 
 include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+2]
-include::{topics}/ref_xsite_resources_automatic.adoc[leveloffset=+2]
+include::{topics}/ref_xsite_resources_automatic.adoc[leveloffset=+3]
 
 //Manually forming cross-site views
 include::{topics}/proc_configuring_sites_manually.adoc[leveloffset=+1]

@@ -1,6 +1,6 @@
 ifdef::context[:parent-context: {context}]
-[id='cache-cr']
-:context: cache-cr
+[id='creating-caches']
+:context: creating-caches
 = Creating caches with {ispn_operator}
 
 [role="_abstract"]
