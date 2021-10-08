@@ -206,7 +206,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 
 	// 4. Delete the original cluster
 	testKube.DeleteInfinispan(infinispan)
-	waitForNoCluster(sourceCluster)
+	waitForNoCluster(infinispan)
 
 	// 5. Create a new cluster to restore the backup to
 	targetCluster := name + "-target"
@@ -354,9 +354,9 @@ func assertNumEntries(cacheName, host string, numEntries int, client tutils.HTTP
 	tutils.ExpectNoError(err)
 }
 
-func waitForNoCluster(name string) {
+func waitForNoCluster(infinispan *v1.Infinispan) {
 	statefulSet := &appsv1.StatefulSet{}
-	namespacedName := types.NamespacedName{Namespace: tutils.Namespace, Name: name}
+	namespacedName := types.NamespacedName{Namespace: tutils.Namespace, Name: infinispan.GetStatefulSetName()}
 	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
 		e := testKube.Kubernetes.Client.Get(context.Background(), namespacedName, statefulSet)
 		return e != nil && k8errors.IsNotFound(e), nil

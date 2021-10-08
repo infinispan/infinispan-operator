@@ -430,7 +430,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	// Reconcile the StatefulSet
 	// Check if the StatefulSet already exists, if not create a new one
 	statefulSet := &appsv1.StatefulSet{}
-	err = r.Client.Get(ctx, types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, statefulSet)
+	err = r.Client.Get(ctx, types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.GetStatefulSetName()}, statefulSet)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Configuring the StatefulSet")
 
@@ -446,7 +446,6 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			reqLogger.Error(err, "failed to create new StatefulSet", "StatefulSet.Name", statefulSet.Name)
 			return ctrl.Result{}, err
 		}
-
 		// StatefulSet created successfully
 		reqLogger.Info("End of the StatefulSet creation")
 	}
@@ -455,8 +454,9 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		return ctrl.Result{}, err
 	}
 
-	// Update Pod's status for the OLM
+	// Update Pod's status for the OLM and the statefulSet name
 	if err := r.update(func() {
+		infinispan.Status.StatefulSetName = statefulSet.Name
 		infinispan.Status.PodStatus = GetSingleStatefulSetStatus(*statefulSet)
 	}); err != nil {
 		return ctrl.Result{}, err
@@ -563,7 +563,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		r.addAutoscalingEquipment()
 	}
 	// Inspect the system and get the current Infinispan conditions
-	currConds := getInfinispanConditions(podList.Items, infinispan, cluster)
+	currConds := getInfinispanConditions(podList.Items, infinispan.Spec.Replicas, cluster)
 
 	// Update the Infinispan status with the pod status
 	if err := r.update(func() {
@@ -755,7 +755,7 @@ func (r *infinispanRequest) destroyResources() error {
 	err = r.Client.Delete(r.ctx,
 		&appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.Name,
+				Name:      infinispan.GetStatefulSetName(),
 				Namespace: infinispan.Namespace,
 			},
 		})
@@ -947,7 +947,7 @@ func (r *infinispanRequest) dropSecretOwnerReference(secretName string) error {
 
 func (r *infinispanRequest) scheduleUpgradeIfNeeded(podList *corev1.PodList) (*ctrl.Result, error) {
 	infinispan := r.infinispan
-	if upgrade, err := upgradeRequired(infinispan, podList); upgrade || err != nil {
+	if shutdownUpgradeRequired(infinispan, podList) {
 		if err := r.update(func() {
 			podDefaultImage := kube.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
 			r.reqLogger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", consts.DefaultImageName)
@@ -960,22 +960,30 @@ func (r *infinispanRequest) scheduleUpgradeIfNeeded(podList *corev1.PodList) (*c
 	return nil, nil
 }
 
-func upgradeRequired(infinispan *infinispanv1.Infinispan, podList *corev1.PodList) (bool, error) {
+func shutdownUpgradeRequired(infinispan *infinispanv1.Infinispan, podList *corev1.PodList) bool {
 	if len(podList.Items) == 0 {
-		return false, nil
+		return false
 	}
 	if infinispan.IsUpgradeCondition() {
-		return false, nil
+		return false
+	}
+
+	if infinispan.Spec.Upgrades != nil && infinispan.Spec.Upgrades.Type != infinispanv1.UpgradeTypeShutdown {
+		return false
 	}
 
 	// All pods need to be ready for the upgrade to be scheduled
-	// Handles brief window during whichstatefulSetForInfinispan resources have been removed,
+	// Handles brief window during which statefulSetForInfinispan resources have been removed,
 	//and old ones terminating while new ones are being created.
 	// We don't want yet another upgrade to be scheduled then.
 	if !kube.AreAllPodsReady(podList) {
-		return false, nil
+		return false
 	}
 
+	return isImageOutdated(podList)
+}
+
+func isImageOutdated(podList *corev1.PodList) bool {
 	// Get default Infinispan image for a running Infinispan pod
 	podDefaultImage := kube.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
 
@@ -984,7 +992,7 @@ func upgradeRequired(infinispan *infinispanv1.Infinispan, podList *corev1.PodLis
 
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
-	return podDefaultImage != desiredImage, nil
+	return podDefaultImage != desiredImage
 }
 
 func IsUpgradeRequired(infinispan *infinispanv1.Infinispan, kube *kube.Kubernetes, ctx context.Context) (bool, error) {
@@ -992,12 +1000,7 @@ func IsUpgradeRequired(infinispan *infinispanv1.Infinispan, kube *kube.Kubernete
 	if err != nil {
 		return false, err
 	}
-	return upgradeRequired(infinispan, podList)
-}
-
-func PodList(infinispan *infinispanv1.Infinispan, kube *kube.Kubernetes, ctx context.Context) (*corev1.PodList, error) {
-	podList := &corev1.PodList{}
-	return podList, kube.ResourcesList(infinispan.Namespace, PodLabels(infinispan.Name), podList, ctx)
+	return shutdownUpgradeRequired(infinispan, podList), nil
 }
 
 func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *corev1.Affinity {
@@ -1187,7 +1190,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        ispn.Name,
+			Name:        ispn.GetStatefulSetName(),
 			Namespace:   ispn.Namespace,
 			Annotations: consts.DeploymentAnnotations,
 			Labels:      map[string]string{},
@@ -1346,13 +1349,13 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, cluster ispn.ClusterInterface) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, replicas int32, cluster ispn.ClusterInterface) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	clusterViews := make(map[string]bool)
 	var errors []string
 	// Avoid to inspect the system if we're still waiting for the pods
-	if int32(len(pods)) < m.Spec.Replicas {
-		errors = append(errors, fmt.Sprintf("Running %d pods. Needed %d", len(pods), m.Spec.Replicas))
+	if int32(len(pods)) < replicas {
+		errors = append(errors, fmt.Sprintf("Running %d pods. Needed %d", len(pods), replicas))
 	} else {
 		for _, pod := range pods {
 			if kube.IsPodReady(pod) {

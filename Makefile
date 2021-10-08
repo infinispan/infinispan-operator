@@ -75,6 +75,11 @@ batch-test: manager manifests
 upgrade-test: manager manifests
 	scripts/run-tests.sh upgrade
 
+.PHONY: hotrod-rolling-upgrade-test
+## Execute end to end (e2e) tests for Hot Rod Rolling upgrades.
+hotrod-upgrade-test: manager manifests
+	scripts/run-tests.sh hotrod-rolling-upgrade
+
 .PHONY: manager
 ## Build manager binary
 manager: generate fmt vet

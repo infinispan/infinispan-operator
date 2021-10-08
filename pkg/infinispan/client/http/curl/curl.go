@@ -52,6 +52,10 @@ func (c *CurlClient) Put(podName, path, payload string, headers map[string]strin
 	return c.executeCurlCommand(podName, path, headers, data, "-X PUT")
 }
 
+func (c *CurlClient) Delete(podName, path string, headers map[string]string) (*http.Response, error, string) {
+	return c.executeCurlCommand(podName, path, headers, "-X DELETE")
+}
+
 func (c *CurlClient) executeCurlCommand(podName string, path string, headers map[string]string, args ...string) (*http.Response, error, string) {
 	httpURL := fmt.Sprintf("%s://%s:%d/%s", c.config.Protocol, podName, consts.InfinispanAdminPort, path)
 

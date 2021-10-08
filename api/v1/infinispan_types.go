@@ -359,7 +359,23 @@ type InfinispanSpec struct {
 	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`
 	// +optional
 	ConfigMapName string `json:"configMapName,omitempty"`
+	// Strategy to use when doing upgrades
+	Upgrades *InfinispanUpgradesSpec `json:"upgrades,omitempty"`
 }
+
+// InfinispanUpgradesSpec defines the Infinispan upgrade strategy
+type InfinispanUpgradesSpec struct {
+	Type UpgradeType `json:"type"`
+}
+
+type UpgradeType string
+
+const (
+	// UpgradeTypeHotRodRolling Upgrade with no downtime and data copied over Hot Rod
+	UpgradeTypeHotRodRolling UpgradeType = "HotRodRolling"
+	// UpgradeTypeShutdown Upgrade requires downtime and data persisted in cache stores
+	UpgradeTypeShutdown UpgradeType = "Shutdown"
+)
 
 type ConditionType string
 
@@ -411,7 +427,26 @@ type InfinispanStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Infinispan Console URL",xDescriptors="urn:alm:descriptor:org.w3:link"
 	ConsoleUrl *string `json:"consoleUrl,omitempty"`
+	// +optional
+	HotRodRollingUpgradeStatus *HotRodRollingUpgradeStatus `json:"hotRodRollingUpgradeStatus,omitempty"`
 }
+
+type HotRodRollingUpgradeStatus struct {
+	Stage                 HotRodRollingUpgradeStage `json:"stage,omitempty"`
+	SourceStatefulSetName string                    `json:"SourceStatefulSetName,omitempty"`
+	TargetStatefulSetName string                    `json:"TargetStatefulSetName,omitempty"`
+}
+
+type HotRodRollingUpgradeStage string
+
+const (
+	HotRodRollingStageStart              HotRodRollingUpgradeStage = "HotRodRollingStageStart"
+	HotRodRollingStagePrepare            HotRodRollingUpgradeStage = "HotRodRollingStagePrepare"
+	HotRodRollingStageRedirect           HotRodRollingUpgradeStage = "HotRodRollingStageRedirect"
+	HotRodRollingStageSync               HotRodRollingUpgradeStage = "HotRodRollingStageSync"
+	HotRodRollingStageStatefulSetReplace HotRodRollingUpgradeStage = "HotRodRollingStageStatefulSetReplace"
+	HotRodRollingStageCleanup            HotRodRollingUpgradeStage = "HotRodRollingStageCleanup"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

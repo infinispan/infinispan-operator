@@ -162,6 +162,9 @@ func (ispn *Infinispan) ApplyDefaults() {
 	} else if ispn.IsGeneratedSecret() {
 		ispn.Spec.Security.EndpointSecretName = ""
 	}
+	if ispn.Spec.Upgrades == nil {
+		ispn.Spec.Upgrades = &InfinispanUpgradesSpec{Type: UpgradeTypeShutdown}
+	}
 }
 
 func (ispn *Infinispan) ApplyMonitoringAnnotation() {
@@ -247,7 +250,17 @@ func (ispn *Infinispan) GetAdminServiceName() string {
 }
 
 func (ispn *Infinispan) GetPingServiceName() string {
-	return fmt.Sprintf("%s-ping", ispn.Name)
+	return fmt.Sprintf("%s-ping", ispn.GetStatefulSetName())
+}
+
+// GetStatefulSetName returns the name of the StatefulSet associated with the CRD. After one or more live migrations,
+// the name can change
+func (ispn *Infinispan) GetStatefulSetName() string {
+	statefulSetName := ispn.Status.StatefulSetName
+	if statefulSetName != "" {
+		return statefulSetName
+	}
+	return ispn.Name
 }
 
 func (ispn *Infinispan) IsCache() bool {
@@ -363,9 +376,9 @@ func (ispn *Infinispan) IsGeneratedSecret() bool {
 	return ispn.Spec.Security.EndpointSecretName == ispn.GenerateSecretName()
 }
 
-// GetConfigName returns the ConfigMap name for the cluster
+// GetConfigName returns the ConfigMap name for the cluster. It follows the StatefulSetName instead of the CRD name to support live migrations
 func (ispn *Infinispan) GetConfigName() string {
-	return fmt.Sprintf("%v-configuration", ispn.Name)
+	return fmt.Sprintf("%v-configuration", ispn.GetStatefulSetName())
 }
 
 // GetInfinispanSecuritySecretName returns the Secret containing the server certs and auth props

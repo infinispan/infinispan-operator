@@ -170,7 +170,7 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 			Diagnostics: consts.JGroupsDiagnosticsFlag == "TRUE",
 			DNSPing: config.DNSPing{
 				RecordType: "A",
-				Query:      fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
+				Query:      fmt.Sprintf("%s-ping.%s.svc.cluster.local", r.infinispan.GetStatefulSetName(), namespace),
 			},
 			FastMerge: consts.JGroupsFastMerge,
 		},

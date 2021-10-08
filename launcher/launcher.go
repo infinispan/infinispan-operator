@@ -140,6 +140,11 @@ func Launch(p Parameters) {
 		setupLog.Error(err, "unable to create controller", "controller", "OperatorConfig")
 		os.Exit(1)
 	}
+
+	if err = (&controllers.HotRodRollingUpgradeReconciler{}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HotRodRollingUpgrade")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("health", healthz.Ping); err != nil {

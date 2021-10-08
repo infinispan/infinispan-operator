@@ -35,12 +35,20 @@ type Health struct {
 type CacheManagerInfo struct {
 	Coordinator bool           `json:"coordinator"`
 	SitesView   *[]interface{} `json:"sites_view,omitempty"`
+	ClusterName string         `json:"cluster_name"`
 }
 
 type Logger struct {
 	Name  string `json:"name"`
 	Level string `json:"level"`
 }
+
+type CacheConfiguration struct {
+	Name          string          `json:"name"`
+	Configuration json.RawMessage `json:"configuration"`
+}
+
+type Headers map[string]string
 
 func (i CacheManagerInfo) GetSitesView() (map[string]bool, error) {
 	sitesView := make(map[string]bool)
@@ -62,6 +70,12 @@ type ClusterInterface interface {
 	ExistsCache(cacheName, podName string) (bool, error)
 	CreateCacheWithTemplate(cacheName, cacheXML, podName string) error
 	CreateCacheWithTemplateName(cacheName, templateName, podName string) error
+	CreateCache(cacheName, jsonConfig, podName string) error
+	GetCacheConfig(cacheName, podName string) (cacheConfig string, err error)
+	AddRemoteStore(cacheName, jsonConfig, podName string) error
+	IsSourceConnected(cacheName, podName string) (bool, error)
+	DisconnectSource(cacheName, podName string) error
+	SyncData(cacheName, podName string) (string, error)
 	GetMemoryLimitBytes(podName string) (uint64, error)
 	GetMaxMemoryUnboundedBytes(podName string) (uint64, error)
 	CacheNames(podName string) ([]string, error)
@@ -239,6 +253,101 @@ func (c Cluster) CreateCacheWithTemplateName(cacheName, templateName, podName st
 	path := fmt.Sprintf("%s/caches/%s?template=%s", consts.ServerHTTPBasePath, cacheName, templateName)
 	rsp, err, reason := c.Client.Post(podName, path, "", nil)
 	return validateResponse(rsp, reason, err, "creating cache with template", http.StatusOK)
+}
+
+// CreateCache create cache on the pod `podName`
+func (c Cluster) CreateCache(cacheName, jsonConfig, podName string) error {
+	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Post(podName, path, jsonConfig, Headers{"Content-Type": "application/json"})
+	return validateResponse(rsp, reason, err, "creating cache", http.StatusOK)
+}
+
+// GetCacheConfig returns the cache configuration
+func (c Cluster) GetCacheConfig(cacheName, podName string) (cacheConfig string, err error) {
+	path := fmt.Sprintf("%s/caches/%s?action=config", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Get(podName, path, nil)
+	if err = validateResponse(rsp, reason, err, "getting cache config", http.StatusOK); err != nil {
+		return
+	}
+	defer func() {
+		cerr := rsp.Body.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+	var body json.RawMessage
+	if err = json.NewDecoder(rsp.Body).Decode(&body); err != nil {
+		return "", fmt.Errorf("unable to decode: %w", err)
+	}
+	return string(body), nil
+}
+
+// AddRemoteStore connects the target cluster to the source cluster using a Remote Store
+func (c Cluster) AddRemoteStore(cacheName, jsonConfig, podName string) error {
+	path := fmt.Sprintf("%s/caches/%s/rolling-upgrade/source-connection", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Post(podName, path, jsonConfig, Headers{"Content-Type": "application/json"})
+	defer func() {
+		cerr := rsp.Body.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+	return validateResponse(rsp, reason, err, "add remote store", http.StatusNoContent)
+}
+
+// IsSourceConnected returns true if the cache is connected to a remote cluster
+func (c Cluster) IsSourceConnected(cacheName, podName string) (bool, error) {
+	path := fmt.Sprintf("%s/caches/%s/rolling-upgrade/source-connection", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Head(podName, path, nil)
+	defer func() {
+		if rsp != nil {
+			cerr := rsp.Body.Close()
+			if err == nil {
+				err = cerr
+			}
+		}
+	}()
+
+	if err := validateResponse(rsp, reason, err, "source-connected", http.StatusOK, http.StatusNotFound); err != nil {
+		return false, err
+	}
+	switch rsp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+// DisconnectSource disconnect the target cluster from the source cluster
+func (c Cluster) DisconnectSource(cacheName, podName string) error {
+	path := fmt.Sprintf("%s/caches/%s/rolling-upgrade/source-connection", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Delete(podName, path, nil)
+	return validateResponse(rsp, reason, err, "disconnect source", http.StatusNoContent)
+}
+
+// SyncData Pulls data from the source cluster and write it to the target cluster
+func (c Cluster) SyncData(cacheName, podName string) (string, error) {
+	path := fmt.Sprintf("%s/caches/%s?action=sync-data", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Post(podName, path, "", nil)
+
+	defer func() {
+		cerr := rsp.Body.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+
+	if err = validateResponse(rsp, reason, err, "syncing data", http.StatusOK); err != nil {
+		return "", err
+	}
+
+	all, err := ioutil.ReadAll(rsp.Body)
+
+	if err != nil {
+		return string(all), fmt.Errorf("unable to decode: %w", err)
+	}
+	return string(all), nil
 }
 
 func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
