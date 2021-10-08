@@ -1,44 +1,32 @@
 ifdef::context[:parent-context: {context}]
 [id='setting-up-xsite']
 :context: cross-site
-= Configuring cross-site replication
+= Replicating data across clusters in multiple sites
 
 [role="_abstract"]
-Ensure service availability with {ispn_operator} by configuring cross-site replication to back up data between {brandname} clusters.
+Ensure availability with {ispn_operator} by configuring geographically distributed clusters as a unified service.
 
-//Automatically forming cross-site views
-include::{topics}/con_xsite_managed_connections.adoc[leveloffset=+1]
-//
-//Community content
-//
+You can configure clusters to perform cross-site replication with:
+
+* Connections that {ispn_operator} manages.
+* Connections that you configure and manage.
+
+[NOTE]
+====
+You can use both managed and manual connections for {brandname} clusters in the same `Infinispan` CR.
+You must ensure that {brandname} clusters establish connections in the same way at each site.
+====
+
+include::{topics}/con_managed_cross_site_connections.adoc[leveloffset=+1]
+include::assembly_cross_site_managed_openshift.adoc[leveloffset=+1]
 ifdef::community[]
-=== Setting up {k8s} clusters
-Apply cluster roles and then create site access secrets if you run {ispn_operator} on vanilla {k8s} or minikube.
-
-include::{topics}/proc_applying_cluster_roles_xsite.adoc[leveloffset=+3]
-include::{topics}/proc_creating_kubernetes_site_secrets.adoc[leveloffset=+3]
-
-=== Setting up {openshiftshort} clusters
-Create and exchange service account tokens if you run {ispn_operator} on {openshiftshort}.
-
-include::{topics}/proc_creating_sa_tokens.adoc[leveloffset=+3]
-include::{topics}/proc_exchanging_sa_tokens.adoc[leveloffset=+3]
+include::assembly_cross_site_managed_kubernetes.adoc[leveloffset=+1]
 endif::community[]
 
-//
-//Downstream content
-//
-ifdef::downstream[]
-include::{topics}/proc_creating_sa_tokens.adoc[leveloffset=+2]
-include::{topics}/proc_exchanging_sa_tokens.adoc[leveloffset=+2]
-endif::downstream[]
-
-include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+2]
-include::{topics}/ref_xsite_resources_automatic.adoc[leveloffset=+3]
-
-//Manually forming cross-site views
+include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_sites_manually.adoc[leveloffset=+1]
-include::{topics}/ref_xsite_resources_manual.adoc[leveloffset=+2]
+
+include::{topics}/ref_cross_site_resources.adoc[leveloffset=+1]
 
 //Configuring xsite within the same cluster
 include::{topics}/proc_configuring_xsite_within_clusters.adoc[leveloffset=+1]

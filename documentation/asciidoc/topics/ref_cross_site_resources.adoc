@@ -1,21 +1,24 @@
 [id='cross-site-resources-automatic_{context}']
-= Resources for managed cross-site connections
+= Resources for configuring cross-site replication
 
 [role="_abstract"]
-This topic describes resources for cross-site connections that {ispn_operator} manages.
+The following tables provides fields and descriptions for cross-site resources.
 
-[source,options="nowrap",subs=attributes+]
-----
-include::yaml/xsite_automatic.yaml[]
-----
-
-[%header,cols=2*]
+.service.type
+[%header,%autowidth,cols="1,1",stripes=even]
 |===
 |Field
 |Description
 
 |`service.type: DataGrid`
 |{brandname} supports cross-site replication with {datagridservice} clusters only.
+|===
+
+.service.sites.local
+[%header,%autowidth,cols="1,1",stripes=even]
+|===
+|Field
+|Description
 
 |`service.sites.local.name`
 |Names the local site where a {brandname} cluster runs.
@@ -32,35 +35,36 @@ include::yaml/xsite_automatic.yaml[]
 |`service.sites.local.maxRelayNodes`
 |Specifies the maximum number of nodes that can send RELAY messages for cross-site replication. The default value is `1`.
 
+|===
+
+.service.sites.locations
+[%header,%autowidth,cols="1,1",stripes=even]
+|===
+|Field
+|Description
+
 |`service.sites.locations`
 |Provides connection information for all backup locations.
 
 |`service.sites.locations.name`
 |Specifies a backup location that matches `.spec.service.sites.local.name`.
 
-//Community
-ifdef::community[]
 |`service.sites.locations.url`
-|Specifies a backup location.
+|Specifies the URL of the Kubernetes API for managed connections or a static URL for manual connections.
 
-Use `kubernetes://` if the backup location is a Kubernetes instance.
+ifdef::community[]
+Use `kubernetes://` if the backup location is a {k8s} instance.
 
 Use `openshift://` if the backup location is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API.
-
-Use `infinispan+xsite://` if the backup location has a static hostname and port.
-
-|`service.sites.locations.secretName`
-|Specifies the access secret for a site. This secret contains different authentication objects, depending on your Kubernetes environment.
 endif::community[]
 
-//Downstream
-ifdef::downstream[]
-|`service.sites.locations.url`
-|Specifies the URL of the Kubernetes API for the backup location.
+Use the `infinispan+xsite://<hostname>:<port>` format for static hostnames and ports. The default port is `7900`.
 
 |`service.sites.locations.secretName`
 |Specifies the secret that contains the service account token for the backup site.
-endif::downstream[]
+ifdef::community[]
+If you set up cross-site on {k8s} this field specifies the access secret for a site which can be any appropriate authentication object.
+endif::community[]
 
 |`service.sites.locations.clusterName`
 |Specifies the cluster name at the backup location if it is different to the cluster name at the local site.
@@ -68,3 +72,19 @@ endif::downstream[]
 |`service.sites.locations.namespace`
 |Specifies the namespace of the {brandname} cluster at the backup location if it does not match the namespace at the local site.
 |===
+
+[discrete]
+== Managed cross-site connections
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/xsite_automatic.yaml[]
+----
+
+[discrete]
+== Manual cross-site connections
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/xsite_manual.yaml[]
+----

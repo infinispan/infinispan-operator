@@ -30,9 +30,6 @@ include::{topics}/con_cache_cr.adoc[leveloffset=+1]
 include::{topics}/proc_creating_caches_xml.adoc[leveloffset=+1]
 include::{topics}/proc_creating_caches_templates.adoc[leveloffset=+1]
 
-//Adding Cache Configuration
-include::{topics}/proc_adding_backup_locations.adoc[leveloffset=+1]
-include::{topics}/con_backups_automatic_offline.adoc[leveloffset=+2]
 include::{topics}/proc_adding_cache_stores.adoc[leveloffset=+1]
 
 // Restore the parent context.
