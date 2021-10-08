@@ -13,6 +13,7 @@ spec:
         name: SiteA
         expose:
           type: ClusterIP
+        maxRelayNodes: 1
       locations:
         - name: SiteB
           clusterName: example-clusterb

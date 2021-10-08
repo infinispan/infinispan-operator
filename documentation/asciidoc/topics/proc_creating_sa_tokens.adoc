@@ -1,5 +1,5 @@
 [id='creating-sa-tokens_{context}']
-= Creating service account tokens
+= Creating service account tokens for managed connections
 
 [role="_abstract"]
 Generate service account tokens on each {openshiftshort} cluster that acts as a backup location.

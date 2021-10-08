@@ -1,0 +1,36 @@
+ifdef::context[:parent-context: {context}]
+[id='setting-up-xsite']
+:context: cross-site
+= Replicating data across clusters in multiple sites
+
+[role="_abstract"]
+Ensure availability with {ispn_operator} by configuring geographically distributed clusters as a unified service.
+
+You can configure clusters to perform cross-site replication with:
+
+* Connections that {ispn_operator} manages.
+* Connections that you configure and manage.
+
+[NOTE]
+====
+You can use both managed and manual connections for {brandname} clusters in the same `Infinispan` CR.
+You must ensure that {brandname} clusters establish connections in the same way at each site.
+====
+
+include::{topics}/con_managed_cross_site_connections.adoc[leveloffset=+1]
+include::assembly_cross_site_managed_openshift.adoc[leveloffset=+1]
+ifdef::community[]
+include::assembly_cross_site_managed_kubernetes.adoc[leveloffset=+1]
+endif::community[]
+
+include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+1]
+include::{topics}/proc_configuring_sites_manually.adoc[leveloffset=+1]
+
+include::{topics}/ref_cross_site_resources.adoc[leveloffset=+1]
+
+//Configuring xsite within the same cluster
+include::{topics}/proc_configuring_xsite_within_clusters.adoc[leveloffset=+1]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

@@ -1,12 +1,17 @@
 [id='configuring-sites-automatically_{context}']
-= Configuring {ispn_operator} to handle cross-site connections
+= Configuring {ispn_operator} to manage cross-site connections
 
 [role="_abstract"]
 Configure {ispn_operator} to establish cross-site views with {brandname} clusters.
 
 .Prerequisites
 
-* Create secrets that contain service account tokens for each backup location.
+ifdef::community[]
+* Set up {openshiftshort} or {k8s} for cross-site replication.
+endif::community[]
+ifdef::downstream[]
+* Set up {openshift} for cross-site replication.
+endif::downstream[]
 
 .Procedure
 
@@ -17,6 +22,11 @@ Configure {ispn_operator} to establish cross-site views with {brandname} cluster
 +
 * `spec.service.sites.local.expose.nodePort` if you use `NodePort`.
 * `spec.service.sites.local.expose.port` if you use `LoadBalancer`.
++
+. Specify the number of nodes that can send RELAY messages with the `service.sites.local.maxRelayNodes` field.
++
+You should configure all nodes in the cluster to send RELAY messages for better performance.
+This allows all nodes to send replication requests to backup locations directly, rather than forwarding the requests to relay nodes.
 +
 . Provide the name, URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 . If {brandname} cluster names or namespaces at the remote site do not match the local site, specify those values with the `clusterName` and `namespace` fields.
@@ -61,5 +71,8 @@ include::cmd_examples/get_infinispan.adoc[]
 
 .Next steps
 
-If your clusters have formed a cross-site view, you can start adding backup
-locations to caches.
+If your clusters have formed a cross-site view, you can start adding backup locations to caches.
+
+[role="_additional-resources"]
+.Additional resources
+* link:{xsite_docs}[{brandname} guide to cross-site replication]

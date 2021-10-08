@@ -1,8 +1,0 @@
-<distributed-cache name="customers">
-  <encoding media-type="application/x-protostream"/>
-  <backups>
-    <backup site="LON" strategy="SYNC">
-      <take-offline min-wait="120000"/>
-    </backup>
-  </backups>
-</distributed-cache>

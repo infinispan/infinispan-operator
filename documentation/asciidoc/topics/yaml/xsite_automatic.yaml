@@ -6,6 +6,7 @@ spec:
         name: LON
         expose:
           type: LoadBalancer
+        maxRelayNodes: 1
       locations:
       - name: NYC
         clusterName: <nyc_cluster_name>

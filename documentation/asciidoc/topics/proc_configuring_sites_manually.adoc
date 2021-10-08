@@ -1,12 +1,9 @@
-[id='manual-xsite-views_{context}']
-= Manually connecting {brandname} clusters
+[id='configuring-sites-manually_{context}']
+= Configuring cross-site connections manually
 
 [role="_abstract"]
 You can specify static network connection details to perform cross-site replication with {brandname} clusters running outside {k8s}.
 Manual cross-site connections are necessary in any scenario where access to the Kubernetes API is not available outside the {k8s} cluster where {brandname} runs.
-
-You can use both automatic and manual connections for {brandname} clusters in the same `Infinispan` CR.
-However, you must ensure that {brandname} clusters establish connections in the same way at each site.
 
 .Prerequisites
 
@@ -68,5 +65,8 @@ include::cmd_examples/get_infinispan.adoc[]
 
 .Next steps
 
-If your clusters have formed a cross-site view, you can start adding backup
-locations to caches.
+If your clusters have formed a cross-site view, you can start adding backup locations to caches.
+
+[role="_additional-resources"]
+.Additional resources
+* link:{xsite_docs}[{brandname} guide to cross-site replication]
