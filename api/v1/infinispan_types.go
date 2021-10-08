@@ -127,11 +127,14 @@ type InfinispanContainerSpec struct {
 	CPU string `json:"cpu,omitempty"`
 }
 
+// InfinispanSitesLocalSpec enables cross-site replication
 type InfinispanSitesLocalSpec struct {
 	Name   string              `json:"name"`
 	Expose CrossSiteExposeSpec `json:"expose"`
 	// +optional
 	MaxRelayNodes int32 `json:"maxRelayNodes,omitempty"`
+	// +optional
+	TLS TLSSiteSpec `json:"tls"`
 }
 
 type InfinispanSiteLocationSpec struct {
@@ -397,6 +400,18 @@ type InfinispanList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Infinispan `json:"items"`
+}
+
+// TLSSiteSpec enables TLS for cross-site replication
+type TLSSiteSpec struct {
+	// +optional
+	Protocol string `json:"protocol,omitempty"`
+	// +optional
+	TransportKeystoreSecretName string `json:"transportKeystore,omitempty"`
+	// +optional
+	RouterKeystoreSecretName string `json:"routerKeystore,omitempty"`
+	// +optional
+	TruststoreSecretName string `json:"truststore,omitempty"`
 }
 
 func init() {

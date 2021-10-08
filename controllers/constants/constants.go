@@ -80,6 +80,9 @@ const (
 	ServerEncryptRoot                   = "/etc/encrypt"
 	ServerEncryptTruststoreRoot         = ServerEncryptRoot + "/truststore"
 	ServerEncryptKeystoreRoot           = ServerEncryptRoot + "/keystore"
+	SiteTransportKeystoreRoot           = ServerEncryptRoot + "/transport-site-tls"
+	SiteRouterKeystoreRoot              = ServerEncryptRoot + "/router-site-tls"
+	SiteTruststoreRoot                  = ServerEncryptRoot + "/truststore-site-tls"
 	ServerSecurityRoot                  = "/etc/security"
 	ServerConfigFilename                = "infinispan.yaml"
 	ServerConfigPath                    = ServerConfigRoot + "/" + ServerConfigFilename
@@ -145,6 +148,10 @@ const (
 )
 
 const DefaultKubeConfig = "~/.kube/config"
+
+const (
+	DefaultSiteTLSProtocol = "TLSv1.2"
+)
 
 // GetWithDefault return value if not empty else return defValue
 func GetWithDefault(value, defValue string) string {

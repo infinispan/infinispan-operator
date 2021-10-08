@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/infinispan/infinispan-operator/controllers/constants"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -50,6 +51,10 @@ const (
 	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
 
 	GossipRouterDeploymentNameTemplate = "%s-tunnel"
+
+	SiteTransportTLSSecretNameTemplate  = "%s-transport-site-tls-secret"
+	SiteRouterTLSSecretNameTemplate     = "%s-router-site-tls-secret"
+	SiteTruststoreTLSSecretNameTemplate = "%s-truststore-site-tls-secret"
 )
 
 type ExternalDependencyType string
@@ -256,6 +261,10 @@ func (ispn *Infinispan) IsCache() bool {
 
 func (ispn *Infinispan) HasSites() bool {
 	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil && len(ispn.Spec.Service.Sites.Locations) > 0
+}
+
+func (ispn *Infinispan) GetCrossSiteExposeType() CrossSiteExposeType {
+	return ispn.Spec.Service.Sites.Local.Expose.Type
 }
 
 // GetRemoteSiteLocations returns remote site locations
@@ -636,4 +645,44 @@ func (ispn *Infinispan) IsServiceMonitorEnabled() bool {
 // GetGossipRouterDeploymentName returns the Gossip Router deployment name
 func (ispn *Infinispan) GetGossipRouterDeploymentName() string {
 	return fmt.Sprintf(GossipRouterDeploymentNameTemplate, ispn.Name)
+}
+
+// IsSiteTLSEnabled returns true if the TLS is enabled for cross-site replication communicate
+func (ispn *Infinispan) IsSiteTLSEnabled() bool {
+	return (TLSSiteSpec{}) == ispn.Spec.Service.Sites.Local.TLS
+}
+
+// GetSiteTLSProtocol returns the TLS protocol to be used to encrypt cross-site replication communication
+func (ispn *Infinispan) GetSiteTLSProtocol() string {
+	if !ispn.IsSiteTLSEnabled() {
+		return constants.DefaultSiteTLSProtocol
+	}
+	return constants.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.Protocol, constants.DefaultSiteTLSProtocol)
+}
+
+// GetSiteTransportSecretName returns the secret name with the keystore for cross-site replication transport
+func (ispn *Infinispan) GetSiteTransportSecretName() string {
+	secretName := fmt.Sprintf(SiteTransportTLSSecretNameTemplate, ispn.Name)
+	if !ispn.IsSiteTLSEnabled() {
+		return secretName
+	}
+	return constants.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.TransportKeystoreSecretName, secretName)
+}
+
+// GetSiteRouterSecretName returns the secret name with the keystore for cross-site replication Router
+func (ispn *Infinispan) GetSiteRouterSecretName() string {
+	secretName := fmt.Sprintf(SiteRouterTLSSecretNameTemplate, ispn.Name)
+	if !ispn.IsSiteTLSEnabled() {
+		return secretName
+	}
+	return constants.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.RouterKeystoreSecretName, secretName)
+}
+
+// GetSiteTrustoreSecretName returns the secret name with the truststore for cross-site replication
+func (ispn *Infinispan) GetSiteTrustoreSecretName() string {
+	secretName := fmt.Sprintf(SiteTruststoreTLSSecretNameTemplate, ispn.Name)
+	if !ispn.IsSiteTLSEnabled() {
+		return secretName
+	}
+	return constants.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.TruststoreSecretName, secretName)
 }

@@ -60,6 +60,10 @@ const (
 	EventReasonEphemeralStorage      = "EphemeralStorageEnables"
 	EventReasonParseValueProblem     = "ParseValueProblem"
 	EventLoadBalancerUnsupported     = "LoadBalancerUnsupported"
+
+	SiteTransportKeystoreVolumeName = "encrypt-transport-site-tls-volume"
+	SiteRouterKeystoreVolumeName    = "encrypt-router-site-tls-volume"
+	SiteTruststoreVolumeName        = "encrypt-truststore-site-tls-volume"
 )
 
 // InfinispanReconciler reconciles a Infinispan object
@@ -317,6 +321,21 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	}
 
 	if infinispan.HasSites() {
+		var gossipRouterTLSSecret *corev1.Secret
+		if infinispan.IsSiteTLSEnabled() {
+			// Keystore for Gossip Router
+			gossipRouterTLSSecret = &corev1.Secret{}
+			if result, err := kube.LookupResource(infinispan.GetSiteRouterSecretName(), infinispan.Namespace, gossipRouterTLSSecret, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+				return *result, err
+			}
+
+			// Keystore for Infinispan pods (JGroups)
+			transportTLSSecret := &corev1.Secret{}
+			if result, err := kube.LookupResource(infinispan.GetSiteTransportSecretName(), infinispan.Namespace, transportTLSSecret, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+				return *result, err
+			}
+		}
+
 		reqLogger.Info("Checking the Cross-Site Deployment (Gossip Router)")
 		tunnelDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -325,7 +344,10 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			},
 		}
 		result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, tunnelDeployment, func() error {
-			tunnel := r.GetGossipRouterDeployment(infinispan)
+			tunnel, err := r.GetGossipRouterDeployment(infinispan, gossipRouterTLSSecret)
+			if err != nil {
+				return err
+			}
 			tunnelDeployment.Spec = tunnel.Spec
 			tunnelDeployment.Labels = tunnel.Labels
 			if tunnelDeployment.CreationTimestamp.IsZero() {
@@ -334,6 +356,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			}
 			return nil
 		})
+
 		if err != nil {
 			if errors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
@@ -1273,6 +1296,10 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 					Value: hash.HashMap(trustSecret.Data),
 				})
 		}
+	}
+
+	if ispn.IsSiteTLSEnabled() {
+		AddSecretVolume(ispn.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTruststoreRoot, &dep.Spec.Template.Spec)
 	}
 
 	// Set Infinispan instance as the owner and controller

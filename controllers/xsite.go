@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,7 +11,9 @@ import (
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 )
 
@@ -54,6 +57,84 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan) *app
 		replicas = 0
 	}
 
+	reqLogger := r.log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.GetGossipRouterDeploymentName())
+	isTLS := m.IsSiteTLSEnabled()
+	args := make([]string, 0)
+	args = append(args, "-port", strconv.Itoa(consts.CrossSitePort))
+	args = append(args, "-dump_msgs", "registration")
+
+	ignoreList := []string{"password", "type", "alias"}
+	extractFileName := func(secret *corev1.Secret) (string, error) {
+		keys := make([]string, 0)
+		for k := range secret.Data {
+			k = strings.TrimSpace(k)
+			if !contains(ignoreList, k) && len(k) > 0 {
+				keys = append(keys, k)
+			}
+		}
+		if len(keys) != 1 {
+			return "", fmt.Errorf("expected exactly one Data key in Secret %s but it contains %s", secret.ObjectMeta.Name, keys)
+		}
+		return keys[0], nil
+	}
+
+	addKeystoreVolume := false
+	addTruststoreVolume := false
+
+	if isTLS {
+		// NIO does not work yet
+		args = append(args, "-nio", "false")
+
+		// Configure Keystore
+		keystoreFileName, err := extractFileName(keystoreSecret)
+		if err != nil {
+			return nil, err
+		}
+
+		password := string(keystoreSecret.Data["password"])
+		if len(password) == 0 {
+			return nil, fmt.Errorf("Password is required for Keystore in Secret %s", keystoreSecret.ObjectMeta.Name)
+		}
+
+		reqLogger.Info("TLS Configured.", "Keystore", keystoreFileName, "Secret Name", keystoreSecret.ObjectMeta.Name)
+		addKeystoreVolume = true
+
+		args = append(args, "-tls_protocol", m.GetSiteTLSProtocol())
+		args = append(args, "-tls_keystore_password", password)
+		args = append(args, "-tls_keystore_type", consts.GetWithDefault(string(keystoreSecret.Data["type"]), "pkcs12"))
+		args = append(args, "-tls_keystore_alias", consts.GetWithDefault(string(keystoreSecret.Data["alias"]), "gossip-router"))
+		args = append(args, "-tls_keystore_path", fmt.Sprintf("%s/%s", consts.SiteRouterKeystoreRoot, keystoreFileName))
+
+		// Configure Truststore (optional)
+		truststoreSecret := &corev1.Secret{}
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Namespace: m.Namespace, Name: m.GetSiteTrustoreSecretName()}, truststoreSecret)
+		if err != nil && !errors.IsNotFound(err) {
+			return nil, err
+		} else if err == nil || !errors.IsNotFound(err) {
+			// truststore exists
+			trustStoreFileName, err := extractFileName(truststoreSecret)
+			if err != nil {
+				return nil, err
+			}
+
+			password := string(truststoreSecret.Data["password"])
+			if len(password) == 0 {
+				return nil, fmt.Errorf("Password is required for Truststore in Secret %s", truststoreSecret.ObjectMeta.Name)
+			}
+
+			reqLogger.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", truststoreSecret.ObjectMeta.Name)
+			addTruststoreVolume = true
+
+			args = append(args, "-tls_truststore_password", password)
+			args = append(args, "-tls_truststore_type", consts.GetWithDefault(string(truststoreSecret.Data["type"]), "pkcs12"))
+			args = append(args, "-tls_truststore_path", fmt.Sprintf("%s/%s", consts.SiteTruststoreRoot, trustStoreFileName))
+		} else {
+			reqLogger.Info("No Truststore secret found.", "Secret Name", m.GetSiteTrustoreSecretName())
+		}
+	} else {
+		reqLogger.Info("No TLS configured")
+	}
+
 	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -79,7 +160,7 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan) *app
 						Name:    "gossiprouter",
 						Image:   m.ImageName(),
 						Command: []string{"/opt/gossiprouter/bin/launch.sh"},
-						Args:    []string{"-port", strconv.Itoa(consts.CrossSitePort), "-dump_msgs", "registration"},
+						Args:    args,
 						Ports: []corev1.ContainerPort{
 							{
 								ContainerPort: consts.CrossSitePort,
@@ -96,5 +177,22 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan) *app
 			Replicas: pointer.Int32Ptr(replicas),
 		},
 	}
-	return deployment
+
+	if addKeystoreVolume {
+		AddSecretVolume(m.GetSiteRouterSecretName(), SiteRouterKeystoreVolumeName, consts.SiteRouterKeystoreRoot, &deployment.Spec.Template.Spec)
+	}
+	if addTruststoreVolume {
+		AddSecretVolume(m.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTruststoreRoot, &deployment.Spec.Template.Spec)
+	}
+
+	return deployment, nil
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
