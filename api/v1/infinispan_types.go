@@ -407,11 +407,22 @@ type TLSSiteSpec struct {
 	// +optional
 	Protocol string `json:"protocol,omitempty"`
 	// +optional
-	TransportKeystoreSecretName string `json:"transportKeystore,omitempty"`
+	TransportKeyStore *CrossSiteKeyStore `json:"transportKeyStore,omitempty"`
 	// +optional
-	RouterKeystoreSecretName string `json:"routerKeystore,omitempty"`
+	RouterKeyStore *CrossSiteKeyStore `json:"routerKeyStore,omitempty"`
 	// +optional
-	TruststoreSecretName string `json:"truststore,omitempty"`
+	TrustStore *CrossSiteTrustStore `json:"trustStore,omitempty"`
+}
+
+type CrossSiteKeyStore struct {
+	SecretName string `json:"secretName,omitempty"`
+	Alias      string `json:"alias,omitempty"`
+	Filename   string `json:"filename,omitempty"`
+}
+
+type CrossSiteTrustStore struct {
+	SecretName string `json:"secretName,omitempty"`
+	Filename   string `json:"filename,omitempty"`
 }
 
 func init() {

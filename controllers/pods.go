@@ -182,43 +182,44 @@ func chmodInitContainer(containerName, volumeName, mountPath string) corev1.Cont
 }
 
 func AddVolumesForEncryption(i *infinispanv1.Infinispan, spec *corev1.PodSpec) {
-	addSecretVolume := func(secretName, volumeName, mountPath string, spec *corev1.PodSpec) {
-		v := &spec.Volumes
+	AddSecretVolume(i.GetKeystoreSecretName(), EncryptKeystoreVolumeName, consts.ServerEncryptKeystoreRoot, spec)
 
-		if _, index := findSecretInVolume(spec, volumeName); index < 0 {
-			*v = append(*v, corev1.Volume{Name: volumeName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: secretName,
-					},
+	if i.IsClientCertEnabled() {
+		AddSecretVolume(i.GetTruststoreSecretName(), EncryptTruststoreVolumeName, consts.ServerEncryptTruststoreRoot, spec)
+	}
+}
+
+// AddSecretVolume create a volume for a specific secret
+func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodSpec) {
+	v := &spec.Volumes
+
+	if _, index := findSecretInVolume(spec, volumeName); index < 0 {
+		*v = append(*v, corev1.Volume{Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: secretName,
 				},
-			})
-		}
+			},
+		})
+	}
 
-		volumeMount := corev1.VolumeMount{
-			Name:      volumeName,
-			MountPath: mountPath,
-		}
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: mountPath,
+	}
 
-		index := -1
-		volumeMounts := &spec.Containers[0].VolumeMounts
-		for i, vm := range *volumeMounts {
-			if vm.Name == volumeName {
-				index = i
-				break
-			}
-		}
-
-		if index < 0 {
-			*volumeMounts = append(*volumeMounts, volumeMount)
-		} else {
-			(*volumeMounts)[index] = volumeMount
+	index := -1
+	volumeMounts := &spec.Containers[0].VolumeMounts
+	for i, vm := range *volumeMounts {
+		if vm.Name == volumeName {
+			index = i
+			break
 		}
 	}
 
-	addSecretVolume(i.GetKeystoreSecretName(), EncryptKeystoreVolumeName, consts.ServerEncryptKeystoreRoot, spec)
-
-	if i.IsClientCertEnabled() {
-		addSecretVolume(i.GetTruststoreSecretName(), EncryptTruststoreVolumeName, consts.ServerEncryptTruststoreRoot, spec)
+	if index < 0 {
+		*volumeMounts = append(*volumeMounts, volumeMount)
+	} else {
+		(*volumeMounts)[index] = volumeMount
 	}
 }

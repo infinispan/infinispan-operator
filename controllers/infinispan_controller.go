@@ -1299,7 +1299,14 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	}
 
 	if ispn.IsSiteTLSEnabled() {
-		AddSecretVolume(ispn.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTruststoreRoot, &dep.Spec.Template.Spec)
+		AddSecretVolume(ispn.GetSiteTransportSecretName(), SiteRouterKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, spec)
+		secret, err := FindSiteTrustStoreSecret(ispn, r.Client, r.ctx)
+		if err != nil {
+			return nil, err
+		}
+		if secret != nil {
+			AddSecretVolume(ispn.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, spec)
+		}
 	}
 
 	// Set Infinispan instance as the owner and controller

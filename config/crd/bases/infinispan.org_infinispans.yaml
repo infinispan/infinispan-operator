@@ -834,6 +834,7 @@ spec:
                   sites:
                     properties:
                       local:
+                        description: InfinispanSitesLocalSpec enables cross-site replication
                         properties:
                           expose:
                             description: CrossSiteExposeSpec describe how Infinispan
@@ -865,6 +866,37 @@ spec:
                             type: integer
                           name:
                             type: string
+                          tls:
+                            description: TLSSiteSpec enables TLS for cross-site replication
+                            properties:
+                              protocol:
+                                type: string
+                              routerKeyStore:
+                                properties:
+                                  alias:
+                                    type: string
+                                  filename:
+                                    type: string
+                                  secretName:
+                                    type: string
+                                type: object
+                              transportKeyStore:
+                                properties:
+                                  alias:
+                                    type: string
+                                  filename:
+                                    type: string
+                                  secretName:
+                                    type: string
+                                type: object
+                              trustStore:
+                                properties:
+                                  filename:
+                                    type: string
+                                  secretName:
+                                    type: string
+                                type: object
+                            type: object
                         required:
                         - expose
                         - name

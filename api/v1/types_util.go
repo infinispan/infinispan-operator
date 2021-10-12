@@ -666,7 +666,35 @@ func (ispn *Infinispan) GetSiteTransportSecretName() string {
 	if !ispn.IsSiteTLSEnabled() {
 		return secretName
 	}
-	return constants.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.TransportKeystoreSecretName, secretName)
+	tls := ispn.Spec.Service.Sites.Local.TLS
+	if tls.TransportKeyStore == nil {
+		return secretName
+	}
+	return constants.GetWithDefault(tls.TransportKeyStore.SecretName, secretName)
+}
+
+func (ispn *Infinispan) GetSiteTransportKeyStoreFileName() string {
+	filename := "keystore.p12"
+	if !ispn.IsSiteTLSEnabled() {
+		return filename
+	}
+	tls := ispn.Spec.Service.Sites.Local.TLS
+	if tls.TransportKeyStore == nil {
+		return filename
+	}
+	return constants.GetWithDefault(tls.TransportKeyStore.Filename, filename)
+}
+
+func (ispn *Infinispan) GetSiteTransportKeyStoreAlias() string {
+	alias := "transport"
+	if !ispn.IsSiteTLSEnabled() {
+		return alias
+	}
+	tls := ispn.Spec.Service.Sites.Local.TLS
+	if tls.TransportKeyStore == nil {
+		return alias
+	}
+	return constants.GetWithDefault(tls.TransportKeyStore.Alias, alias)
 }
 
 // GetSiteRouterSecretName returns the secret name with the keystore for cross-site replication Router
@@ -675,7 +703,35 @@ func (ispn *Infinispan) GetSiteRouterSecretName() string {
 	if !ispn.IsSiteTLSEnabled() {
 		return secretName
 	}
-	return constants.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.RouterKeystoreSecretName, secretName)
+	tls := ispn.Spec.Service.Sites.Local.TLS
+	if tls.RouterKeyStore == nil {
+		return secretName
+	}
+	return constants.GetWithDefault(tls.RouterKeyStore.SecretName, secretName)
+}
+
+func (ispn *Infinispan) GetSiteRouterKeyStoreFileName() string {
+	filename := "keystore.p12"
+	if !ispn.IsSiteTLSEnabled() {
+		return filename
+	}
+	tls := ispn.Spec.Service.Sites.Local.TLS
+	if tls.RouterKeyStore == nil {
+		return filename
+	}
+	return constants.GetWithDefault(tls.RouterKeyStore.Filename, filename)
+}
+
+func (ispn *Infinispan) GetSiteRouterKeyStoreAlias() string {
+	alias := "gossip-router"
+	if !ispn.IsSiteTLSEnabled() {
+		return alias
+	}
+	tls := ispn.Spec.Service.Sites.Local.TLS
+	if tls.RouterKeyStore == nil {
+		return alias
+	}
+	return constants.GetWithDefault(tls.RouterKeyStore.Alias, alias)
 }
 
 // GetSiteTrustoreSecretName returns the secret name with the truststore for cross-site replication
@@ -684,5 +740,21 @@ func (ispn *Infinispan) GetSiteTrustoreSecretName() string {
 	if !ispn.IsSiteTLSEnabled() {
 		return secretName
 	}
-	return constants.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.TruststoreSecretName, secretName)
+	tls := ispn.Spec.Service.Sites.Local.TLS
+	if tls.TrustStore == nil {
+		return secretName
+	}
+	return constants.GetWithDefault(tls.TrustStore.SecretName, secretName)
+}
+
+func (ispn *Infinispan) GetSiteTrustStoreFileName() string {
+	filename := "truststore.p12"
+	if !ispn.IsSiteTLSEnabled() {
+		return filename
+	}
+	tls := ispn.Spec.Service.Sites.Local.TLS
+	if tls.TrustStore == nil {
+		return filename
+	}
+	return constants.GetWithDefault(tls.TrustStore.Filename, filename)
 }

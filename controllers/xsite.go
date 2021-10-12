@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-logr/logr"
+	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
@@ -15,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (r *infinispanRequest) GetCrossSiteViewCondition(podList *corev1.PodList, siteLocations []string, cluster ispn.ClusterInterface) (*ispnv1.InfinispanCondition, error) {
@@ -58,78 +61,32 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan) *app
 	}
 
 	reqLogger := r.log.WithValues("Request.Namespace", m.Namespace, "Request.Name", m.GetGossipRouterDeploymentName())
-	isTLS := m.IsSiteTLSEnabled()
 	args := make([]string, 0)
 	args = append(args, "-port", strconv.Itoa(consts.CrossSitePort))
 	args = append(args, "-dump_msgs", "registration")
 
-	ignoreList := []string{"password", "type", "alias"}
-	extractFileName := func(secret *corev1.Secret) (string, error) {
-		keys := make([]string, 0)
-		for k := range secret.Data {
-			k = strings.TrimSpace(k)
-			if !contains(ignoreList, k) && len(k) > 0 {
-				keys = append(keys, k)
-			}
-		}
-		if len(keys) != 1 {
-			return "", fmt.Errorf("expected exactly one Data key in Secret %s but it contains %s", secret.ObjectMeta.Name, keys)
-		}
-		return keys[0], nil
-	}
-
 	addKeystoreVolume := false
 	addTruststoreVolume := false
 
-	if isTLS {
-		// NIO does not work yet
-		args = append(args, "-nio", "false")
+	if m.IsSiteTLSEnabled() {
+		// Configure KeyStore
+		if err := configureKeyStore(&args, m, keystoreSecret, reqLogger); err != nil {
+			return nil, err
+		}
+		addKeystoreVolume = true
 
-		// Configure Keystore
-		keystoreFileName, err := extractFileName(keystoreSecret)
+		// Configure Truststore (optional)
+		truststoreSecret, err := FindSiteTrustStoreSecret(m, r.Client, r.ctx)
 		if err != nil {
 			return nil, err
 		}
-
-		password := string(keystoreSecret.Data["password"])
-		if len(password) == 0 {
-			return nil, fmt.Errorf("Password is required for Keystore in Secret %s", keystoreSecret.ObjectMeta.Name)
-		}
-
-		reqLogger.Info("TLS Configured.", "Keystore", keystoreFileName, "Secret Name", keystoreSecret.ObjectMeta.Name)
-		addKeystoreVolume = true
-
-		args = append(args, "-tls_protocol", m.GetSiteTLSProtocol())
-		args = append(args, "-tls_keystore_password", password)
-		args = append(args, "-tls_keystore_type", consts.GetWithDefault(string(keystoreSecret.Data["type"]), "pkcs12"))
-		args = append(args, "-tls_keystore_alias", consts.GetWithDefault(string(keystoreSecret.Data["alias"]), "gossip-router"))
-		args = append(args, "-tls_keystore_path", fmt.Sprintf("%s/%s", consts.SiteRouterKeystoreRoot, keystoreFileName))
-
-		// Configure Truststore (optional)
-		truststoreSecret := &corev1.Secret{}
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Namespace: m.Namespace, Name: m.GetSiteTrustoreSecretName()}, truststoreSecret)
-		if err != nil && !errors.IsNotFound(err) {
-			return nil, err
-		} else if err == nil || !errors.IsNotFound(err) {
-			// truststore exists
-			trustStoreFileName, err := extractFileName(truststoreSecret)
-			if err != nil {
+		if truststoreSecret != nil {
+			if err := configureTrustStore(&args, m, truststoreSecret, reqLogger); err != nil {
 				return nil, err
 			}
-
-			password := string(truststoreSecret.Data["password"])
-			if len(password) == 0 {
-				return nil, fmt.Errorf("Password is required for Truststore in Secret %s", truststoreSecret.ObjectMeta.Name)
-			}
-
-			reqLogger.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", truststoreSecret.ObjectMeta.Name)
 			addTruststoreVolume = true
-
-			args = append(args, "-tls_truststore_password", password)
-			args = append(args, "-tls_truststore_type", consts.GetWithDefault(string(truststoreSecret.Data["type"]), "pkcs12"))
-			args = append(args, "-tls_truststore_path", fmt.Sprintf("%s/%s", consts.SiteTruststoreRoot, trustStoreFileName))
 		} else {
-			reqLogger.Info("No Truststore secret found.", "Secret Name", m.GetSiteTrustoreSecretName())
+			reqLogger.Info("No TrustStore secret found.", "Secret Name", m.GetSiteTrustoreSecretName())
 		}
 	} else {
 		reqLogger.Info("No TLS configured")
@@ -179,20 +136,74 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan) *app
 	}
 
 	if addKeystoreVolume {
-		AddSecretVolume(m.GetSiteRouterSecretName(), SiteRouterKeystoreVolumeName, consts.SiteRouterKeystoreRoot, &deployment.Spec.Template.Spec)
+		AddSecretVolume(m.GetSiteRouterSecretName(), SiteRouterKeystoreVolumeName, consts.SiteRouterKeyStoreRoot, &deployment.Spec.Template.Spec)
 	}
 	if addTruststoreVolume {
-		AddSecretVolume(m.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTruststoreRoot, &deployment.Spec.Template.Spec)
+		AddSecretVolume(m.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, &deployment.Spec.Template.Spec)
 	}
 
 	return deployment, nil
 }
 
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
+func FindSiteTrustStoreSecret(ispn *infinispanv1.Infinispan, client client.Client, ctx context.Context) (*corev1.Secret, error) {
+	truststoreSecret := &corev1.Secret{}
+	err := client.Get(ctx, types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetSiteTrustoreSecretName()}, truststoreSecret)
+	if err != nil && errors.IsNotFound(err) {
+		// not found!
+		return nil, nil
+	} else if err != nil {
+		// got an error
+		return nil, err
+	} else {
+		// found it!
+		return truststoreSecret, nil
 	}
-	return false
+}
+
+func configureKeyStore(args *[]string, infinispan *infinispanv1.Infinispan, keystoreSecret *corev1.Secret, log logr.Logger) error {
+	// NIO does not work with TLS
+	*args = append(*args, "-nio", "false")
+
+	filename := infinispan.GetSiteRouterKeyStoreFileName()
+	if len(filename) == 0 {
+		return fmt.Errorf("Filename is required for Keystore stored in Secret %s", keystoreSecret.Name)
+	}
+
+	password := string(keystoreSecret.Data["password"])
+	if len(password) == 0 {
+		return fmt.Errorf("Password is required for Keystore stored in Secret %s", keystoreSecret.Name)
+	}
+
+	alias := infinispan.GetSiteRouterKeyStoreAlias()
+	if len(alias) == 0 {
+		return fmt.Errorf("Alias is required for Keystore stored in Secret %s", keystoreSecret.Name)
+	}
+
+	log.Info("TLS Configured.", "Keystore", filename, "Secret Name", keystoreSecret.Name)
+
+	*args = append(*args, "-tls_protocol", infinispan.GetSiteTLSProtocol())
+	*args = append(*args, "-tls_keystore_password", password)
+	*args = append(*args, "-tls_keystore_type", consts.GetWithDefault(string(keystoreSecret.Data["type"]), "pkcs12"))
+	*args = append(*args, "-tls_keystore_alias", alias)
+	*args = append(*args, "-tls_keystore_path", fmt.Sprintf("%s/%s", consts.SiteRouterKeyStoreRoot, filename))
+	return nil
+}
+
+func configureTrustStore(args *[]string, infinispan *infinispanv1.Infinispan, trustStoreSecret *corev1.Secret, log logr.Logger) error {
+	filename := infinispan.GetSiteTrustStoreFileName()
+	if len(filename) == 0 {
+		return fmt.Errorf("Filename is required for TrustStore stored in Secret %s", trustStoreSecret.Name)
+	}
+
+	password := string(trustStoreSecret.Data["password"])
+	if len(password) == 0 {
+		return fmt.Errorf("Password is required for TrustStore in Secret %s", trustStoreSecret.Name)
+	}
+
+	log.Info("Found Truststore.", "Truststore", filename, "Secret Name", trustStoreSecret.Name)
+
+	*args = append(*args, "-tls_truststore_password", password)
+	*args = append(*args, "-tls_truststore_type", consts.GetWithDefault(string(trustStoreSecret.Data["type"]), "pkcs12"))
+	*args = append(*args, "-tls_truststore_path", fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, filename))
+	return nil
 }
