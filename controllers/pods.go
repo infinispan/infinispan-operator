@@ -189,7 +189,7 @@ func AddVolumesForEncryption(i *infinispanv1.Infinispan, spec *corev1.PodSpec) {
 	}
 }
 
-// AddSecretVolume create a volume for a specific secret
+// AddSecretVolume creates a volume to a secret
 func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodSpec) {
 	v := &spec.Volumes
 

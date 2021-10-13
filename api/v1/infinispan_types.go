@@ -414,12 +414,14 @@ type TLSSiteSpec struct {
 	TrustStore *CrossSiteTrustStore `json:"trustStore,omitempty"`
 }
 
+// CrossSiteKeyStore keystore configuration for cross-site replication with TLS
 type CrossSiteKeyStore struct {
 	SecretName string `json:"secretName,omitempty"`
 	Alias      string `json:"alias,omitempty"`
 	Filename   string `json:"filename,omitempty"`
 }
 
+// CrossSiteTrustStore truststore configuration for cross-site replication with TLS
 type CrossSiteTrustStore struct {
 	SecretName string `json:"secretName,omitempty"`
 	Filename   string `json:"filename,omitempty"`

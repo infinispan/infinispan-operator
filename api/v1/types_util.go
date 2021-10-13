@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/infinispan/infinispan-operator/controllers/constants"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -261,10 +260,6 @@ func (ispn *Infinispan) IsCache() bool {
 
 func (ispn *Infinispan) HasSites() bool {
 	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil && len(ispn.Spec.Service.Sites.Locations) > 0
-}
-
-func (ispn *Infinispan) GetCrossSiteExposeType() CrossSiteExposeType {
-	return ispn.Spec.Service.Sites.Local.Expose.Type
 }
 
 // GetRemoteSiteLocations returns remote site locations
@@ -655,12 +650,12 @@ func (ispn *Infinispan) IsSiteTLSEnabled() bool {
 // GetSiteTLSProtocol returns the TLS protocol to be used to encrypt cross-site replication communication
 func (ispn *Infinispan) GetSiteTLSProtocol() string {
 	if !ispn.IsSiteTLSEnabled() {
-		return constants.DefaultSiteTLSProtocol
+		return consts.DefaultSiteTLSProtocol
 	}
-	return constants.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.Protocol, constants.DefaultSiteTLSProtocol)
+	return consts.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.Protocol, consts.DefaultSiteTLSProtocol)
 }
 
-// GetSiteTransportSecretName returns the secret name with the keystore for cross-site replication transport
+// GetSiteTransportSecretName returns the secret name for the transport TLS keystore
 func (ispn *Infinispan) GetSiteTransportSecretName() string {
 	secretName := fmt.Sprintf(SiteTransportTLSSecretNameTemplate, ispn.Name)
 	if !ispn.IsSiteTLSEnabled() {
@@ -670,34 +665,34 @@ func (ispn *Infinispan) GetSiteTransportSecretName() string {
 	if tls.TransportKeyStore == nil {
 		return secretName
 	}
-	return constants.GetWithDefault(tls.TransportKeyStore.SecretName, secretName)
+	return consts.GetWithDefault(tls.TransportKeyStore.SecretName, secretName)
 }
 
+// GetSiteTransportKeyStoreFileName returns the keystore filename for the transport TLS configuration
 func (ispn *Infinispan) GetSiteTransportKeyStoreFileName() string {
-	filename := "keystore.p12"
 	if !ispn.IsSiteTLSEnabled() {
-		return filename
+		return consts.DefaultSiteKeyStoreFileName
 	}
 	tls := ispn.Spec.Service.Sites.Local.TLS
 	if tls.TransportKeyStore == nil {
-		return filename
+		return consts.DefaultSiteKeyStoreFileName
 	}
-	return constants.GetWithDefault(tls.TransportKeyStore.Filename, filename)
+	return consts.GetWithDefault(tls.TransportKeyStore.Filename, consts.DefaultSiteKeyStoreFileName)
 }
 
+// GetSiteTransportKeyStoreAlias return the key alias in the keystore for the transport TLS configuration
 func (ispn *Infinispan) GetSiteTransportKeyStoreAlias() string {
-	alias := "transport"
 	if !ispn.IsSiteTLSEnabled() {
-		return alias
+		return consts.DefaultSiteTransportKeyStoreAlias
 	}
 	tls := ispn.Spec.Service.Sites.Local.TLS
 	if tls.TransportKeyStore == nil {
-		return alias
+		return consts.DefaultSiteTransportKeyStoreAlias
 	}
-	return constants.GetWithDefault(tls.TransportKeyStore.Alias, alias)
+	return consts.GetWithDefault(tls.TransportKeyStore.Alias, consts.DefaultSiteTransportKeyStoreAlias)
 }
 
-// GetSiteRouterSecretName returns the secret name with the keystore for cross-site replication Router
+// GetSiteRouterSecretName returns the secret name for the router TLS keystore
 func (ispn *Infinispan) GetSiteRouterSecretName() string {
 	secretName := fmt.Sprintf(SiteRouterTLSSecretNameTemplate, ispn.Name)
 	if !ispn.IsSiteTLSEnabled() {
@@ -707,34 +702,34 @@ func (ispn *Infinispan) GetSiteRouterSecretName() string {
 	if tls.RouterKeyStore == nil {
 		return secretName
 	}
-	return constants.GetWithDefault(tls.RouterKeyStore.SecretName, secretName)
+	return consts.GetWithDefault(tls.RouterKeyStore.SecretName, secretName)
 }
 
+// GetSiteRouterKeyStoreFileName returns the keystore filename for the router TLS configuration
 func (ispn *Infinispan) GetSiteRouterKeyStoreFileName() string {
-	filename := "keystore.p12"
 	if !ispn.IsSiteTLSEnabled() {
-		return filename
+		return consts.DefaultSiteKeyStoreFileName
 	}
 	tls := ispn.Spec.Service.Sites.Local.TLS
 	if tls.RouterKeyStore == nil {
-		return filename
+		return consts.DefaultSiteKeyStoreFileName
 	}
-	return constants.GetWithDefault(tls.RouterKeyStore.Filename, filename)
+	return consts.GetWithDefault(tls.RouterKeyStore.Filename, consts.DefaultSiteKeyStoreFileName)
 }
 
+// GetSiteRouterKeyStoreAlias return the key alias in the keystore for the router TLS configuration
 func (ispn *Infinispan) GetSiteRouterKeyStoreAlias() string {
-	alias := "gossip-router"
 	if !ispn.IsSiteTLSEnabled() {
-		return alias
+		return consts.DefaultSiteRouterKeyStoreAlias
 	}
 	tls := ispn.Spec.Service.Sites.Local.TLS
 	if tls.RouterKeyStore == nil {
-		return alias
+		return consts.DefaultSiteRouterKeyStoreAlias
 	}
-	return constants.GetWithDefault(tls.RouterKeyStore.Alias, alias)
+	return consts.GetWithDefault(tls.RouterKeyStore.Alias, consts.DefaultSiteRouterKeyStoreAlias)
 }
 
-// GetSiteTrustoreSecretName returns the secret name with the truststore for cross-site replication
+// GetSiteTrustoreSecretName returns the secret name with the truststore for the transport and router TLS keystore
 func (ispn *Infinispan) GetSiteTrustoreSecretName() string {
 	secretName := fmt.Sprintf(SiteTruststoreTLSSecretNameTemplate, ispn.Name)
 	if !ispn.IsSiteTLSEnabled() {
@@ -744,17 +739,17 @@ func (ispn *Infinispan) GetSiteTrustoreSecretName() string {
 	if tls.TrustStore == nil {
 		return secretName
 	}
-	return constants.GetWithDefault(tls.TrustStore.SecretName, secretName)
+	return consts.GetWithDefault(tls.TrustStore.SecretName, secretName)
 }
 
+// GetSiteTrustStoreFileName returns the truststore filename for the transport and router TLS configuration
 func (ispn *Infinispan) GetSiteTrustStoreFileName() string {
-	filename := "truststore.p12"
 	if !ispn.IsSiteTLSEnabled() {
-		return filename
+		return consts.DefaultSiteTrustStoreFileName
 	}
 	tls := ispn.Spec.Service.Sites.Local.TLS
 	if tls.TrustStore == nil {
-		return filename
+		return consts.DefaultSiteTrustStoreFileName
 	}
-	return constants.GetWithDefault(tls.TrustStore.Filename, filename)
+	return consts.GetWithDefault(tls.TrustStore.Filename, consts.DefaultSiteTrustStoreFileName)
 }

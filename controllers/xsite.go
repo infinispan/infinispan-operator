@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
@@ -51,7 +50,7 @@ func (r *infinispanRequest) GetCrossSiteViewCondition(podList *corev1.PodList, s
 }
 
 // GetGossipRouterDeployment returns the deployment for the Gossip Router pod
-func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan) *appsv1.Deployment {
+func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keystoreSecret *corev1.Secret) (*appsv1.Deployment, error) {
 	lsTunnel := GossipRouterPodLabels(m.Name)
 	replicas := int32(1)
 
@@ -145,7 +144,8 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan) *app
 	return deployment, nil
 }
 
-func FindSiteTrustStoreSecret(ispn *infinispanv1.Infinispan, client client.Client, ctx context.Context) (*corev1.Secret, error) {
+// FindSiteTrustStoreSecret searches for the truststore secret. Returns nil if not found.
+func FindSiteTrustStoreSecret(ispn *ispnv1.Infinispan, client client.Client, ctx context.Context) (*corev1.Secret, error) {
 	truststoreSecret := &corev1.Secret{}
 	err := client.Get(ctx, types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetSiteTrustoreSecretName()}, truststoreSecret)
 	if err != nil && errors.IsNotFound(err) {
@@ -160,23 +160,23 @@ func FindSiteTrustStoreSecret(ispn *infinispanv1.Infinispan, client client.Clien
 	}
 }
 
-func configureKeyStore(args *[]string, infinispan *infinispanv1.Infinispan, keystoreSecret *corev1.Secret, log logr.Logger) error {
+func configureKeyStore(args *[]string, infinispan *ispnv1.Infinispan, keystoreSecret *corev1.Secret, log logr.Logger) error {
 	// NIO does not work with TLS
 	*args = append(*args, "-nio", "false")
 
 	filename := infinispan.GetSiteRouterKeyStoreFileName()
 	if len(filename) == 0 {
-		return fmt.Errorf("Filename is required for Keystore stored in Secret %s", keystoreSecret.Name)
+		return fmt.Errorf("filename is required for Keystore stored in Secret %s", keystoreSecret.Name)
 	}
 
 	password := string(keystoreSecret.Data["password"])
 	if len(password) == 0 {
-		return fmt.Errorf("Password is required for Keystore stored in Secret %s", keystoreSecret.Name)
+		return fmt.Errorf("password is required for Keystore stored in Secret %s", keystoreSecret.Name)
 	}
 
 	alias := infinispan.GetSiteRouterKeyStoreAlias()
 	if len(alias) == 0 {
-		return fmt.Errorf("Alias is required for Keystore stored in Secret %s", keystoreSecret.Name)
+		return fmt.Errorf("alias is required for Keystore stored in Secret %s", keystoreSecret.Name)
 	}
 
 	log.Info("TLS Configured.", "Keystore", filename, "Secret Name", keystoreSecret.Name)
@@ -189,15 +189,15 @@ func configureKeyStore(args *[]string, infinispan *infinispanv1.Infinispan, keys
 	return nil
 }
 
-func configureTrustStore(args *[]string, infinispan *infinispanv1.Infinispan, trustStoreSecret *corev1.Secret, log logr.Logger) error {
+func configureTrustStore(args *[]string, infinispan *ispnv1.Infinispan, trustStoreSecret *corev1.Secret, log logr.Logger) error {
 	filename := infinispan.GetSiteTrustStoreFileName()
 	if len(filename) == 0 {
-		return fmt.Errorf("Filename is required for TrustStore stored in Secret %s", trustStoreSecret.Name)
+		return fmt.Errorf("filename is required for TrustStore stored in Secret %s", trustStoreSecret.Name)
 	}
 
 	password := string(trustStoreSecret.Data["password"])
 	if len(password) == 0 {
-		return fmt.Errorf("Password is required for TrustStore in Secret %s", trustStoreSecret.Name)
+		return fmt.Errorf("password is required for TrustStore in Secret %s", trustStoreSecret.Name)
 	}
 
 	log.Info("Found Truststore.", "Truststore", filename, "Secret Name", trustStoreSecret.Name)

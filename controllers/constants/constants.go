@@ -150,7 +150,11 @@ const (
 const DefaultKubeConfig = "~/.kube/config"
 
 const (
-	DefaultSiteTLSProtocol = "TLSv1.2"
+	DefaultSiteTLSProtocol            = "TLSv1.2"
+	DefaultSiteKeyStoreFileName       = "keystore.p12"
+	DefaultSiteTransportKeyStoreAlias = "transport"
+	DefaultSiteRouterKeyStoreAlias    = "router"
+	DefaultSiteTrustStoreFileName     = "truststore.p12"
 )
 
 // GetWithDefault return value if not empty else return defValue

@@ -1700,6 +1700,7 @@ func (reconciler *InfinispanReconciler) isTypeSupported(kind string) bool {
 	return reconciler.supportedTypes[kind].GroupVersionSupported
 }
 
+// GossipRouterPodList returns a list of pods where JGroups Gossip Router is running
 func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kubernetes, ctx context.Context) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 	return podList, kube.ResourcesList(infinispan.Namespace, GossipRouterPodLabels(infinispan.Name), podList, ctx)
