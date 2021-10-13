@@ -649,7 +649,7 @@ func (ispn *Infinispan) GetGossipRouterDeploymentName() string {
 
 // IsSiteTLSEnabled returns true if the TLS is enabled for cross-site replication communicate
 func (ispn *Infinispan) IsSiteTLSEnabled() bool {
-	return (TLSSiteSpec{}) == ispn.Spec.Service.Sites.Local.TLS
+	return ispn.HasSites() && (TLSSiteSpec{}) == ispn.Spec.Service.Sites.Local.TLS
 }
 
 // GetSiteTLSProtocol returns the TLS protocol to be used to encrypt cross-site replication communication
