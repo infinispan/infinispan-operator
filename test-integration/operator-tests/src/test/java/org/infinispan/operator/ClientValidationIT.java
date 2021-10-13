@@ -42,6 +42,10 @@ class ClientValidationIT {
    private static String user;
    private static String pass;
 
+   private static Secret encryptionSecret;
+   private static Secret authSecret;
+   private static Secret clientValidationSecret;
+
    @BeforeAll
    static void deploy() throws IOException {
       appName = infinispan.getClusterName();
@@ -49,17 +53,17 @@ class ClientValidationIT {
 
       certs = KeystoreGenerator.generateCerts(hostName, new String[]{appName});
 
-      Secret encryptionSecret = new SecretBuilder("encryption-secret")
+      encryptionSecret = new SecretBuilder("encryption-secret")
               .addData("keystore.p12", certs.keystore)
               .addData("alias", hostName.getBytes())
               .addData("password", "password".getBytes())
               .build();
 
-      Secret authSecret = new SecretBuilder("connect-secret")
+      authSecret = new SecretBuilder("connect-secret")
               .addData("identities.yaml", Paths.get("src/test/resources/secrets/identities.yaml"))
               .build();
 
-      Secret clientValidationSecret = new SecretBuilder(appName + "-client-cert-secret")
+      clientValidationSecret = new SecretBuilder(appName + "-client-cert-secret")
               .addData("truststore.p12", certs.truststore)
               .addData("truststore-password", "password".getBytes())
               .build();
@@ -86,7 +90,14 @@ class ClientValidationIT {
    @AfterAll
    static void undeploy() throws IOException {
       infinispan.delete();
-      new CleanUpValidator(openShift, appName).withExposedRoute().validate();
+
+      try{
+         Assertions.assertThat(openShift.getSecret("encryption-secret")).hasSameClassAs(encryptionSecret);
+         Assertions.assertThat(openShift.getSecret("connect-secret")).hasSameClassAs(authSecret);
+         Assertions.assertThat(openShift.getSecret(appName + "-client-cert-secret")).hasSameClassAs(clientValidationSecret);
+      } finally {
+         new CleanUpValidator(openShift, appName).withExposedRoute().validate();
+      }
    }
 
    @Test
