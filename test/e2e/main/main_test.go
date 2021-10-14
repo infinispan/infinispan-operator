@@ -14,8 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -25,7 +23,6 @@ import (
 	hash "github.com/infinispan/infinispan-operator/pkg/hash"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -49,62 +46,6 @@ var log = logf.Log.WithName("main_test")
 
 func TestMain(m *testing.M) {
 	tutils.RunOperator(m, testKube)
-}
-
-// Test operator and cluster version upgrade flow
-func TestOperatorUpgrade(t *testing.T) {
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
-	switch tutils.OperatorUpgradeStage {
-	case tutils.OperatorUpgradeStageFrom:
-		testKube.CreateInfinispan(spec, tutils.Namespace)
-		testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-		testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-	case tutils.OperatorUpgradeStageTo:
-		if tutils.CleanupInfinispan == "TRUE" {
-			defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, nil)
-		}
-		for _, state := range tutils.OperatorUpgradeStateFlow {
-			testKube.WaitForInfinispanCondition(strcase.ToKebab(t.Name()), tutils.Namespace, state)
-		}
-
-		// Validates that all pods are running with desired image
-		pods := &corev1.PodList{}
-		err := testKube.Kubernetes.ResourcesList(tutils.Namespace, controllers.PodLabels(spec.Name), pods, context.TODO())
-		tutils.ExpectNoError(err)
-		for _, pod := range pods.Items {
-			if pod.Spec.Containers[0].Image != tutils.ExpectedImage {
-				tutils.ExpectNoError(fmt.Errorf("upgraded image [%v] in Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, tutils.ExpectedImage))
-			}
-		}
-
-		checkServicePorts(t, name)
-		checkBatch(name)
-
-	default:
-		t.Skipf("Operator upgrade stage '%s' is unsupported or disabled", tutils.OperatorUpgradeStage)
-	}
-}
-
-func checkServicePorts(t *testing.T, name string) {
-	// Check two services are exposed and the admin service listens on its own port
-	userPort := testKube.GetServicePorts(tutils.Namespace, name)
-	assert.Equal(t, 1, len(userPort))
-	assert.Equal(t, cconsts.InfinispanUserPort, int(userPort[0].Port))
-
-	adminPort := testKube.GetAdminServicePorts(tutils.Namespace, name)
-	assert.Equal(t, 1, len(adminPort))
-	assert.Equal(t, cconsts.InfinispanAdminPort, int(adminPort[0].Port))
-}
-
-func checkBatch(name string) {
-	// Run a batch in the migrated cluster
-	batchHelper := batchtest.NewBatchHelper(testKube)
-	batchName := "upgrade-batch"
-	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
-	batchHelper.CreateBatch(batchName, name, &config, nil)
-	batchHelper.WaitForValidBatchPhase(batchName, v2alpha1.BatchSucceeded)
 }
 
 func TestUpdateOperatorPassword(t *testing.T) {

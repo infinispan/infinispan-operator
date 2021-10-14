@@ -54,7 +54,7 @@ pipeline {
 
                 stage('Create k8s Cluster') {
                     steps {
-                        sh 'kind create cluster --config kind-config.yaml'
+                        sh 'scripts/ci/kind-with-olm.sh'
                         writeFile file: "${KUBECONFIG}", text: sh(script: 'kind get kubeconfig', , returnStdout: true)
 
                         script {
@@ -62,8 +62,8 @@ pipeline {
                         }
 
                         sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
-                        sh "kubectl create namespace $TESTING_NAMESPACE"
-                        sh "make install"
+                        sh 'scripts/ci/install-catalog-source.sh'
+                        sh 'make install'
                     }
                 }
 
@@ -94,6 +94,12 @@ pipeline {
                     }
                 }
 
+                stage('Upgrade') {
+                    steps {
+                        sh 'make upgrade-test'
+                    }
+                }
+
                 stage('Xsite') {
                     steps {
                         sh 'scripts/ci/configure-xsite.sh'
@@ -120,6 +126,7 @@ pipeline {
 
         cleanup {
             sh 'kind delete clusters --all'
+            sh 'docker kill $(docker ps -q) || true'
             sh 'docker container prune -f'
             sh 'docker rmi $(docker images -f "dangling=true" -q) || true'
         }

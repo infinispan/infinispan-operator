@@ -1303,8 +1303,11 @@ func (r *infinispanRequest) reconcileGracefulShutdown(statefulSet *appsv1.Statef
 				return &ctrl.Result{}, err
 			}
 			statefulSet.Spec.Replicas = pointer.Int32Ptr(0)
-			err := r.Client.Update(r.ctx, statefulSet)
-			if err != nil {
+			if err := r.Client.Update(r.ctx, statefulSet); err != nil {
+				if errors.IsConflict(err) {
+					logger.Info("Requeuing request due to conflict on StatefulSet replicas update.")
+					return &ctrl.Result{Requeue: true}, nil
+				}
 				logger.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
 				return &ctrl.Result{}, err
 			}

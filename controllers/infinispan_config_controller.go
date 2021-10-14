@@ -70,7 +70,7 @@ func (r *ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := reconciler.log.WithValues("Reconciling", "Secret", "Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := reconciler.log.WithValues("Reconciling", "ConfigMap", "Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	infinispan := &v1.Infinispan{}
 	if err := reconciler.Get(ctx, request.NamespacedName, infinispan); err != nil {
 		if errors.IsNotFound(err) {
@@ -96,11 +96,13 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 
 	// Don't update the ConfigMap if an update is about to be scheduled
 	if req, err := IsUpgradeRequired(infinispan, r.kubernetes, ctx); req || err != nil {
+		reqLogger.Info("Postponing reconciliation. Infinispan upgrade required")
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 	}
 
 	// Don't update the configMap if an update is in progress
 	if infinispan.IsConditionTrue(v1.ConditionUpgrade) {
+		reqLogger.Info("Postponing reconciliation. Infinispan upgrade in progress")
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 	}
 

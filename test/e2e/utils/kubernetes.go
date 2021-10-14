@@ -152,6 +152,10 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 
 func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, specLabel map[string]string) {
 	panicVal := recover()
+	k.CleanNamespaceAndLogWithPanic(namespace, specLabel, panicVal)
+}
+
+func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabel map[string]string, panicVal interface{}) {
 	// Print pod output if a panic has occurred
 	if panicVal != nil {
 		k.PrintAllResources(namespace, &v1.PodList{}, map[string]string{"app": "infinispan-pod"})
@@ -392,19 +396,26 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1.CustomResource
 		return nil
 	})
 	ExpectNoError(err)
+	k.WaitForCrd(crd)
+	fmt.Printf("CRD %s: %s\n", crd.Name, result)
+}
 
-	fmt.Println("Wait for CRD to be established")
-	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+func (k TestKubernetes) WaitForCrd(crd *apiextv1.CustomResourceDefinition) {
+	fmt.Printf("Wait for CRD %s\n", crd.Name)
+	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 		if err != nil {
-			return false, fmt.Errorf("unable to get CRD: %w", err)
+			if k8serrors.IsNotFound(err) {
+				return false, nil
+			} else {
+				return false, fmt.Errorf("unable to get CRD: %w", err)
+			}
 		}
 
 		for _, cond := range crd.Status.Conditions {
 			switch cond.Type {
 			case apiextv1.Established:
 				if cond.Status == apiextv1.ConditionTrue {
-					fmt.Printf("CRD %s\n", result)
 					return true, nil
 				}
 			case apiextv1.NamesAccepted:
@@ -416,8 +427,8 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1.CustomResource
 
 		return false, nil
 	})
-
 	ExpectNoError(err)
+	fmt.Printf("CRD %s established\n", crd.Name)
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
@@ -531,9 +542,9 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps
 	ExpectNoError(err)
 }
 
-func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condition ispnv1.ConditionType) *ispnv1.Infinispan {
+func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace string, condition ispnv1.ConditionType, timeout time.Duration) *ispnv1.Infinispan {
 	ispn := &ispnv1.Infinispan{}
-	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+	err := wait.Poll(ConditionPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
 		if err != nil && k8serrors.IsNotFound(err) {
 			return false, err
@@ -549,6 +560,10 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condi
 	})
 	ExpectNoError(err)
 	return ispn
+}
+
+func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condition ispnv1.ConditionType) *ispnv1.Infinispan {
+	return k.WaitForInfinispanConditionWithTimeout(name, namespace, condition, ConditionWaitTimeout)
 }
 
 func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
@@ -701,7 +716,7 @@ func (k TestKubernetes) LoadResourceFromYaml(path string, obj runtime.Object) {
 func RunOperator(m *testing.M, k *TestKubernetes) {
 	namespace := strings.ToLower(Namespace)
 	if "TRUE" == RunLocalOperator {
-		if "TRUE" != RunSaOperator && OperatorUpgradeStage != OperatorUpgradeStageTo {
+		if "TRUE" != RunSaOperator {
 			k.DeleteNamespace(namespace)
 			k.DeleteCRD("infinispans.infinispan.org")
 			k.DeleteCRD("caches.infinispan.org")

@@ -1,7 +1,7 @@
 # Current Operator version
 VERSION ?= $(shell git describe --tags --always --dirty)
 # Default bundle image tag
-BUNDLE_IMG ?= controller-bundle:$(VERSION)
+BUNDLE_IMG ?= infinispan-operator-bundle:v$(VERSION)
 export KUBECONFIG ?= ${HOME}/.kube/config
 export WATCH_NAMESPACE ?= namespace-for-testing
 
@@ -12,7 +12,7 @@ endif
 ifneq ($(origin DEFAULT_CHANNEL), undefined)
 BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
-BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
+BUNDLE_METADATA_OPTS ?= --version $(VERSION) $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # The namespace to deploy the infinispan-operator
 DEPLOYMENT_NAMESPACE ?= infinispan-operator-system
@@ -22,6 +22,8 @@ IMG ?= quay.io/infinispan/operator:latest
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+
+CONTAINER_TOOL ?= docker
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -67,6 +69,11 @@ backuprestore-test: manager manifests
 ## Execute end to end (e2e) tests for Batch CR's
 batch-test: manager manifests
 	scripts/run-tests.sh batch
+
+.PHONY: upgrade-test
+## Execute end to end (e2e) tests for OLM upgrades.
+upgrade-test: manager manifests
+	scripts/run-tests.sh upgrade
 
 .PHONY: manager
 ## Build manager binary
@@ -123,15 +130,15 @@ generate: controller-gen rice
 	$(RICE) embed-go -i controllers/dependencies.go -i controllers/grafana.go
 	find . -type f -name 'rice-box.go' -exec sed -i "s|time.Unix(.*, 0)|time.Unix(1620137619, 0)|" {} \;
 
-.PHONY: docker-build
-## Build the docker image
-docker-build: manager
-	docker build -t $(IMG) .
+.PHONY: operator-build
+## Build the operator image
+operator-build: manager
+	$(CONTAINER_TOOL) build -t $(IMG) .
 
-.PHONY: docker-push
-## Push the docker image
-docker-push:
-	docker push $(IMG)
+.PHONY: operator-push
+## Push the operator image
+operator-push:
+	$(CONTAINER_TOOL) push $(IMG)
 
 RICE = $(shell pwd)/bin/rice
 .PHONY: rice
@@ -176,15 +183,59 @@ endef
 bundle: manifests kustomize
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite $(BUNDLE_METADATA_OPTS)
+# Hack to set the metadata package name to "infinispan". `operator-sdk --package infinispan` can't be used as it
+# changes the csv name from  infinispan-operator.v0.0.0 -> infinispan.v0.0.0
+	sed -i -e 's/infinispan-operator/infinispan/' bundle/metadata/annotations.yaml bundle.Dockerfile
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
 ## Build the bundle image.
 bundle-build:
-	docker build --build-arg VERSION=$(VERSION) -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 ## Push the bundle image.
 bundle-push:
-	docker push $(BUNDLE_IMG)
+	$(CONTAINER_TOOL) push $(BUNDLE_IMG)
+
+.PHONY: opm
+OPM = ./bin/opm
+opm: ## Download opm locally if necessary.
+ifeq (,$(wildcard $(OPM)))
+ifeq (,$(shell which opm 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPM)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.18.0/$${OS}-$${ARCH}-opm ;\
+	chmod +x $(OPM) ;\
+	}
+else
+OPM = $(shell which opm)
+endif
+endif
+
+# A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
+# These images MUST exist in a registry and be pull-able.
+BUNDLE_IMGS ?= $(BUNDLE_IMG)
+
+# The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+
+# Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
+ifneq ($(origin CATALOG_BASE_IMG), undefined)
+FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
+endif
+
+## This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
+## https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
+.PHONY: catalog-build
+## Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
+catalog-build: opm ## Build a catalog image.
+	$(OPM) index add --container-tool $(CONTAINER_TOOL) --mode replaces --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+
+.PHONY: catalog-push
+## Push the catalog image.
+catalog-push: ## Push a catalog image.
+	$(CONTAINER_TOOL) push $(CATALOG_IMG)

@@ -5,7 +5,8 @@ This is a Kubernetes operator to manage Infinispan clusters.
 ## System Requirements
 
 * [go 1.15](https://github.com/golang/go) or higher.
-* Docker
+* Docker | Podman
+* [Operator SDK 1.3.2](https://github.com/operator-framework/operator-sdk/releases/download/v1.3.2/operator-sdk_linux_amd64)
 * A running Kubernetes cluster
 
 # Usage
@@ -18,12 +19,14 @@ To build the go binary locally, execute:
 
 `make manager`
 
-## Docker Image
+## Operator Image
 
-To create a docker container and push to a remote repository execute:
+To create a container and push to a remote repository execute:
 
-`make docker-build docker-push IMG=<image_name:tag>`
+`make operator-build operator-push IMG=<image_name:tag>`
 
+> By default the Makefile uses `docker` to create images. If another container tool is desired, this can be configured
+by setting `CONTAINER_TOOL=podman`.
 
 ## Running the Operator
 
