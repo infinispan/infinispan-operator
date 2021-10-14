@@ -1021,7 +1021,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	labelsForPod := PodLabels(ispn.Name)
 	ispn.AddOperatorLabelsForPods(labelsForPod)
 	ispn.AddLabelsForPods(labelsForPod)
-	ispn.AddVersionLabelForPods(labelsForPod)
+	ispn.AddStatefulSetLabelForPods(labelsForPod)
 
 	pvcs := &corev1.PersistentVolumeClaimList{}
 	err := r.kubernetes.ResourcesList(ispn.Namespace, LabelsResource(ispn.Name, ""), pvcs, r.ctx)
@@ -1487,7 +1487,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 			labelsForPod := PodLabels(ispn.Name)
 			ispn.AddOperatorLabelsForPods(labelsForPod)
 			ispn.AddLabelsForPods(labelsForPod)
-			ispn.AddVersionLabelForPods(labelsForPod)
+			ispn.AddStatefulSetLabelForPods(labelsForPod)
 			statefulSet.Spec.Template.Labels = labelsForPod
 		}
 		err := r.Client.Update(r.ctx, statefulSet)

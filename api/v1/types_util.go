@@ -522,8 +522,8 @@ func (ispn *Infinispan) AddLabelsForPods(uMap map[string]string) {
 	addLabelsFor(ispn, PodTargetLabels, uMap)
 }
 
-func (ispn *Infinispan) AddVersionLabelForPods(uMap map[string]string) {
-	uMap[consts.VersionPodLabel] = strings.Split(consts.DefaultImageName, ":")[1]
+func (ispn *Infinispan) AddStatefulSetLabelForPods(uMap map[string]string) {
+	uMap[consts.StatefulSetPodLabel] = ispn.Name
 }
 
 // AddLabelsForServices adds to the user maps the labels defined for services and ingresses/routes in the infinispan CR. New values override old ones in map.
