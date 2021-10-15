@@ -83,7 +83,7 @@ func emptyDashboard(config map[string]string) *grafanav1alpha1.GrafanaDashboard 
 }
 
 func populateDashboard(dashboard *grafanav1alpha1.GrafanaDashboard, config map[string]string) error {
-	box, err := rice.FindBox("resources/")
+	box, err := rice.FindBox("resources")
 	if err != nil {
 		return err
 	}
