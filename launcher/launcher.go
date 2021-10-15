@@ -1,6 +1,7 @@
 package lancher
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -49,7 +50,10 @@ func init() {
 }
 
 type Parameters struct {
-	StopChannel chan struct{}
+	// Cancelling the context won't work correctly until we upgrade to at least controller-runtime v0.9.0
+	// Known issues:
+	// - https://github.com/kubernetes-sigs/controller-runtime/pull/1428
+	Ctx context.Context
 }
 
 func Launch(p Parameters) {
@@ -147,8 +151,12 @@ func Launch(p Parameters) {
 		os.Exit(1)
 	}
 
+	if p.Ctx == nil {
+		p.Ctx = ctrl.SetupSignalHandler()
+	}
+
 	setupLog.Info(fmt.Sprintf("Starting Infinispan Operator Version: %s", Version))
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(p.Ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

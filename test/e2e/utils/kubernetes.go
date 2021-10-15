@@ -684,15 +684,15 @@ func (k TestKubernetes) DeleteConfigMap(configMap *v1.ConfigMap) {
 }
 
 // RunOperator runs an operator on a Kubernetes cluster
-func (k TestKubernetes) RunOperator(namespace, crdsPath string) chan struct{} {
+func (k TestKubernetes) RunOperator(namespace, crdsPath string) context.CancelFunc {
 	k.installCRD(crdsPath + "infinispan.org_infinispans.yaml")
 	k.installCRD(crdsPath + "infinispan.org_caches.yaml")
 	k.installCRD(crdsPath + "infinispan.org_backups.yaml")
 	k.installCRD(crdsPath + "infinispan.org_restores.yaml")
 	k.installCRD(crdsPath + "infinispan.org_batches.yaml")
-	stopCh := make(chan struct{})
-	go runOperatorLocally(stopCh, namespace)
-	return stopCh
+	ctx, cancel := context.WithCancel(context.Background())
+	go runOperatorLocally(ctx, namespace)
+	return cancel
 }
 
 func (k TestKubernetes) installCRD(path string) {
@@ -725,9 +725,9 @@ func RunOperator(m *testing.M, k *TestKubernetes) {
 			k.DeleteCRD("batch.infinispan.org")
 			k.NewNamespace(namespace)
 		}
-		stopCh := k.RunOperator(namespace, "../../../config/crd/bases/")
+		stopOperator := k.RunOperator(namespace, "../../../config/crd/bases/")
 		code := m.Run()
-		close(stopCh)
+		stopOperator()
 		os.Exit(code)
 	} else {
 		code := m.Run()
@@ -736,12 +736,12 @@ func RunOperator(m *testing.M, k *TestKubernetes) {
 }
 
 // Run the operator locally
-func runOperatorLocally(stopCh chan struct{}, namespace string) {
+func runOperatorLocally(ctx context.Context, namespace string) {
 	_ = os.Setenv("WATCH_NAMESPACE", namespace)
 	_ = os.Setenv("KUBECONFIG", kube.FindKubeConfig())
 	_ = os.Setenv("OSDK_FORCE_RUN_MODE", "local")
 	_ = os.Setenv("OPERATOR_NAME", OperatorName)
-	launcher.Launch(launcher.Parameters{StopChannel: stopCh})
+	launcher.Launch(launcher.Parameters{Ctx: ctx})
 }
 func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), cache)
