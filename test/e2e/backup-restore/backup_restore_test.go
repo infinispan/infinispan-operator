@@ -132,7 +132,8 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	// 2. Populate the cluster with some data to backup
 	hostAddr, client := utils.HTTPClientAndHost(infinispan, testKube)
 	cacheName := "someCache"
-	populateCache(cacheName, hostAddr, numEntries, infinispan, client)
+	createCache(cacheName, hostAddr, infinispan, client)
+	testKube.PopulateCache(cacheName, hostAddr, "{\"value\":\"$i\"}", mime.ApplicationJson, numEntries, infinispan)
 	assertNumEntries(cacheName, hostAddr, numEntries, client)
 
 	// 3. Backup the cluster's content
@@ -286,29 +287,12 @@ func datagridServiceNoAuth(name, namespace string, replicas int) *v1.Infinispan 
 }
 
 func datagridService(name, namespace string, replicas int) *v1.Infinispan {
-	infinispan := cacheService(name, namespace, replicas)
-	infinispan.Spec.Service = v1.InfinispanServiceSpec{
-		Type: v1.ServiceTypeDataGrid,
-	}
-	return infinispan
+	spec := tutils.DefaultSpec(testKube)
+	spec.Spec.Replicas = int32(replicas)
+	return spec
 }
 
-func cacheService(name, namespace string, replicas int) *v1.Infinispan {
-	tutils.DefaultSpec(testKube)
-	return &v1.Infinispan{
-		TypeMeta: tutils.InfinispanTypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: v1.InfinispanSpec{
-			Replicas: int32(replicas),
-			Expose:   tutils.ExposeServiceSpec(testKube),
-		},
-	}
-}
-
-func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infinispan, client tutils.HTTPClient) {
+func createCache(cacheName, host string, infinispan *v1.Infinispan, client tutils.HTTPClient) {
 	post := func(url, payload string, status int, headers map[string]string) {
 		rsp, err := client.Post(url, payload, headers)
 		tutils.ExpectNoError(err)
@@ -327,14 +311,6 @@ func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infini
 		config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
 		post(url, config, http.StatusOK, headers)
 	}
-
-	client.Quiet(true)
-	for i := 0; i < numEntries; i++ {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s/%d", host, cacheName, i)
-		value := fmt.Sprintf("{\"value\":\"%d\"}", i)
-		post(url, value, http.StatusNoContent, headers)
-	}
-	client.Quiet(false)
 }
 
 func assertNumEntries(cacheName, host string, numEntries int, client tutils.HTTPClient) {

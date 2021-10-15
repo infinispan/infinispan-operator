@@ -23,6 +23,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -68,6 +69,7 @@ func init() {
 	addToScheme(&appsv1.SchemeBuilder, Scheme)
 	addToScheme(&storagev1.SchemeBuilder, Scheme)
 	ExpectNoError(routev1.AddToScheme(Scheme))
+	ExpectNoError(batchv1.AddToScheme(Scheme))
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
@@ -319,6 +321,11 @@ func (k TestKubernetes) DeleteRestore(restore *ispnv2.Restore) {
 func (k TestKubernetes) DeleteBatch(batch *ispnv2.Batch) {
 	labelSelector := labels.SelectorFromSet(controllers.BatchLabels(batch.Name))
 	k.DeleteResource(batch.Namespace, labelSelector, batch, SinglePodTimeout)
+}
+
+func (k TestKubernetes) DeleteJob(job *batchv1.Job) {
+	err := k.Kubernetes.Client.Delete(context.TODO(), job, DeleteOpts...)
+	ExpectMaybeNotFound(err)
 }
 
 // DeleteResource deletes the k8 resource and waits that all the pods and pvs associated with that resource are gone
@@ -889,4 +896,26 @@ func (k *TestKubernetes) AssertK8ResourceExists(name, namespace string, obj clie
 		Namespace: Namespace,
 	}
 	return client.Get(context.TODO(), key, obj) == nil
+}
+
+func (k TestKubernetes) WaitForJobToComplete(name, namespace string, labels map[string]string) {
+	job := &batchv1.Job{}
+	err := wait.Poll(ConditionPollPeriod, SinglePodTimeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, job)
+		if err != nil && k8serrors.IsNotFound(err) {
+			return false, err
+		}
+		if err != nil {
+			return false, nil
+		}
+		if job.Status.Failed > 0 {
+			return false, fmt.Errorf("job.Status.Failed > 0")
+		}
+		return job.Status.Succeeded > 0, nil
+	})
+	if err != nil {
+		k.PrintAllResources(namespace, &corev1.PodList{}, labels)
+		k.PrintAllResources(namespace, &batchv1.JobList{}, labels)
+		panic(fmt.Errorf("waiting for job failed %#v: %w", job.Status, err))
+	}
 }

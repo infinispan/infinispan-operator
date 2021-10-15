@@ -261,6 +261,16 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 	return NewHTTPClient(user, pass, protocol)
 }
 
+func UserAndPassword(i *ispnv1.Infinispan, kube *TestKubernetes) (user, pass string) {
+	if !i.IsAuthenticationEnabled() {
+		return
+	}
+	user = constants.DefaultDeveloperUser
+	pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
+	ExpectNoError(err)
+	return user, pass
+}
+
 func HTTPClientAndHost(i *ispnv1.Infinispan, kube *TestKubernetes) (string, HTTPClient) {
 	client := clientForCluster(i, kube)
 	hostAddr := kube.WaitForExternalService(i, RouteTimeout, client)
@@ -269,25 +279,18 @@ func HTTPClientAndHost(i *ispnv1.Infinispan, kube *TestKubernetes) (string, HTTP
 
 func HTTPSClientAndHost(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) (string, HTTPClient) {
 
-	userAndPassword := func() (string, string) {
-		user := constants.DefaultDeveloperUser
-		pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
-		ExpectNoError(err)
-		return user, pass
-	}
-
 	var client HTTPClient
 	clientCert := i.Spec.Security.EndpointEncryption.ClientCert
 	if clientCert != "" && clientCert != ispnv1.ClientCertNone {
 		if clientCert == ispnv1.ClientCertAuthenticate || !i.IsAuthenticationEnabled() {
 			client = NewHTTPSClientCert(tlsConfig)
 		} else {
-			user, pass := userAndPassword()
+			user, pass := UserAndPassword(i, kube)
 			client = NewHTTPSClientCertWithDigestAuth(user, pass, tlsConfig)
 		}
 	} else {
 		if i.IsAuthenticationEnabled() {
-			user, pass := userAndPassword()
+			user, pass := UserAndPassword(i, kube)
 			client = NewHTTPSClient(user, pass, tlsConfig)
 		} else {
 			client = NewHTTPSClientNoAuth(tlsConfig)

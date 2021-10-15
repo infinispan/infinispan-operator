@@ -105,7 +105,8 @@ func TestUpgrade(t *testing.T) {
 	numEntries := 100
 	hostAddr, client := tutils.HTTPClientAndHost(spec, testKube)
 	cacheName := "someCache"
-	populateCache(cacheName, hostAddr, numEntries, spec, client)
+	createCache(cacheName, hostAddr, numEntries, spec, client)
+	testKube.PopulateCache(cacheName, hostAddr, "{\"value\":\"$i\"}", mime.ApplicationJson, numEntries, spec)
 	assertNumEntries(cacheName, hostAddr, numEntries, client)
 
 	// Upgrade the Subscription channel if required
@@ -252,25 +253,15 @@ func printManifest() {
 	fmt.Println("Starting CSV: " + subStartingCsv)
 }
 
-func populateCache(cacheName, host string, numEntries int, infinispan *ispnv1.Infinispan, client tutils.HTTPClient) {
-	post := func(url, payload string, status int, headers map[string]string) {
-		rsp, err := client.Post(url, payload, headers)
-		tutils.ExpectNoError(err)
-		defer tutils.CloseHttpResponse(rsp)
-		if rsp.StatusCode != status {
-			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-		}
-	}
-
-	headers := map[string]string{"Content-Type": string(mime.ApplicationJson)}
+func createCache(cacheName, host string, numEntries int, infinispan *ispnv1.Infinispan, client tutils.HTTPClient) {
 	url := fmt.Sprintf("%s/rest/v2/caches/%s", host, cacheName)
-	config := `{"distributed-cache":{"mode":"SYNC", "encoding": {"media-type": "application/json"}, "persistence":{"file-store":{"fetch-state":true}}, "statistics":true}}`
-	post(url, config, http.StatusOK, headers)
-
-	for i := 0; i < numEntries; i++ {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s/%d", host, cacheName, i)
-		value := fmt.Sprintf("{\"value\":\"%d\"}", i)
-		post(url, value, http.StatusNoContent, headers)
+	payload := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}}}`
+	headers := map[string]string{"Content-Type": string(mime.ApplicationJson)}
+	rsp, err := client.Post(url, payload, headers)
+	tutils.ExpectNoError(err)
+	defer tutils.CloseHttpResponse(rsp)
+	if rsp.StatusCode != http.StatusOK {
+		panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
 	}
 }
 
