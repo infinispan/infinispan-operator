@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -1390,4 +1391,86 @@ func createCacheWithCR(cacheName string, nameSpace string, clusterName string) *
 			Name:        cacheName,
 		},
 	}
+}
+
+func TestPodDegradationAfterOOM(t *testing.T) {
+	t.Parallel()
+
+	//Creating Infinispan cluster
+	ispn := tutils.DefaultSpec(testKube)
+	name := strcase.ToKebab(t.Name())
+	ispn.Name = name
+	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn.Spec.Replicas = 2
+	ispn.Spec.Container.Memory = "256Mi"
+
+	testKube.CreateInfinispan(ispn, tutils.Namespace)
+	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, ispn.Labels)
+	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+
+	//Creating cache
+	cacheName := "failover-cache"
+	template := `<infinispan><cache-container><replicated-cache name ="` + cacheName +
+		`"><encoding media-type="text/plain"/></replicated-cache></cache-container></infinispan>`
+	veryLongValue := GenerateStringWithCharset(6000)
+	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+	createCacheWithXMLTemplate(cacheName, hostAddr, template, client)
+
+	//Generate tons of random entries
+	for key := 1; key < 50000; key++ {
+		keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+		headers := map[string]string{"Content-Type": "text/plain"}
+		_, error := client.Post(keyURL, veryLongValue, headers)
+
+		if error != nil {
+			fmt.Printf("ERROR for key=%d, Description=%s\n", key, error)
+			break
+		}
+	}
+
+	//Check if all pods are running and they are not degraded
+	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+	
+	//Verify whether the pod restarted for an OOM exception
+	hasOOMhappened := false
+	podList := &corev1.PodList{}
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(tutils.Namespace, controllers.PodLabels(ispn.Name), podList, context.TODO()))
+
+	for _, pod := range podList.Items {
+		status := pod.Status.ContainerStatuses
+
+		out:
+		for _, containerStatuses := range status {
+			if containerStatuses.LastTerminationState.Terminated != nil {
+				terminatedPod := containerStatuses.LastTerminationState.Terminated
+
+				if terminatedPod.Reason == "OOMKilled" {
+					hasOOMhappened = true
+					fmt.Printf("ExitCode='%d' Reason='%s' Message='%s'\n", terminatedPod.ExitCode, terminatedPod.Reason, terminatedPod.Message)
+					break out
+				}
+			}
+		}
+	}
+
+	if kube.AreAllPodsReady(podList) && hasOOMhappened {
+		fmt.Println("All pods are ready")
+	} else if kube.AreAllPodsReady(podList) && !hasOOMhappened {
+		panic("Test finished without an OutOfMemory occurred")
+	} else {
+		panic("One of the pods is degraded")
+	}
+}
+
+func GenerateStringWithCharset(length int) string {
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
 }
