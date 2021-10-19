@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
@@ -46,7 +45,7 @@ func (r *infinispanRequest) GetCrossSiteViewCondition(podList *corev1.PodList, s
 }
 
 // GetGossipRouterDeployment returns the deployment for the Gossip Router pod
-func (r *infinispanRequest) GetGossipRouterDeployment(m *infinispanv1.Infinispan) *appsv1.Deployment {
+func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan) *appsv1.Deployment {
 	lsTunnel := GossipRouterPodLabels(m.Name)
 	replicas := int32(1)
 
