@@ -325,13 +325,13 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		if infinispan.IsSiteTLSEnabled() {
 			// Keystore for Gossip Router
 			gossipRouterTLSSecret = &corev1.Secret{}
-			if result, err := kube.LookupResource(infinispan.GetSiteRouterSecretName(), infinispan.Namespace, gossipRouterTLSSecret, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+			if result, err := kube.LookupResource(infinispan.GetSiteRouterSecretName(), infinispan.Namespace, gossipRouterTLSSecret, r.infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 				return *result, err
 			}
 
 			// Keystore for Infinispan pods (JGroups)
 			transportTLSSecret := &corev1.Secret{}
-			if result, err := kube.LookupResource(infinispan.GetSiteTransportSecretName(), infinispan.Namespace, transportTLSSecret, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+			if result, err := kube.LookupResource(infinispan.GetSiteTransportSecretName(), infinispan.Namespace, transportTLSSecret, r.infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 				return *result, err
 			}
 		}

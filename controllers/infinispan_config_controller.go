@@ -244,8 +244,8 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 	}
 
 	if serverConf.Transport.TLS.Enabled {
-		if result, err := r.ConfigureTransportTLS(&serverConf); result != nil || err != nil {
-			return result, err
+		if result, err := ConfigureTransportTLS(r.infinispan, &serverConf, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil || err != nil {
+			return nil, result, err
 		}
 	}
 
@@ -363,13 +363,14 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 }
 
 // ConfigureTransportTLS configures the keystore and truststore paths and password in Infinispan server for TLS cross-site communication
-func (r configRequest) ConfigureTransportTLS(c *config.InfinispanConfiguration) (*reconcile.Result, error) {
+func ConfigureTransportTLS(i *v1.Infinispan, c *config.InfinispanConfiguration, client client.Client, log logr.Logger,
+	eventRec record.EventRecorder, ctx context.Context) (*reconcile.Result, error) {
 	keyStoreSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(r.infinispan.GetSiteTransportSecretName(), r.infinispan.Namespace, keyStoreSecret, r.Client, r.log, r.eventRec, r.ctx); result != nil {
+	if result, err := kube.LookupResource(i.GetSiteTransportSecretName(), i.Namespace, keyStoreSecret, i, client, log, eventRec, ctx); result != nil || err != nil {
 		return result, err
 	}
 
-	keyStoreFileName := r.infinispan.GetSiteTransportKeyStoreFileName()
+	keyStoreFileName := i.GetSiteTransportKeyStoreFileName()
 
 	if len(keyStoreFileName) == 0 {
 		return nil, fmt.Errorf("filename is required for Keystore stored in Secret %s", keyStoreSecret.Name)
@@ -380,24 +381,24 @@ func (r configRequest) ConfigureTransportTLS(c *config.InfinispanConfiguration) 
 		return nil, fmt.Errorf("password is required for Keystore in Secret %s", keyStoreSecret.Name)
 	}
 
-	alias := r.infinispan.GetSiteTransportKeyStoreAlias()
+	alias := i.GetSiteTransportKeyStoreAlias()
 	if len(alias) == 0 {
 		return nil, fmt.Errorf("alias is required for Keystore stored in Secret %s", keyStoreSecret.Name)
 	}
 
-	r.log.Info("Transport TLS Configured.", "Keystore", keyStoreFileName, "Secret Name", keyStoreSecret.Name)
+	log.Info("Transport TLS Configured.", "Keystore", keyStoreFileName, "Secret Name", keyStoreSecret.Name)
 	c.Transport.TLS.Keystore = config.Keystore{
 		Path:     fmt.Sprintf("%s/%s", consts.SiteTransportKeyStoreRoot, keyStoreFileName),
 		Password: password,
 		Alias:    alias,
 	}
 
-	trustStoreSecret, err := FindSiteTrustStoreSecret(r.infinispan, r.Client, r.ctx)
+	trustStoreSecret, err := FindSiteTrustStoreSecret(i, client, ctx)
 	if err != nil {
 		return nil, err
 	}
 	if trustStoreSecret != nil {
-		trustStoreFileName := r.infinispan.GetSiteTrustStoreFileName()
+		trustStoreFileName := i.GetSiteTrustStoreFileName()
 		if len(trustStoreFileName) == 0 {
 			return nil, fmt.Errorf("filename is required for TrustStore stored in Secret %s", trustStoreSecret.Name)
 		}
@@ -407,7 +408,7 @@ func (r configRequest) ConfigureTransportTLS(c *config.InfinispanConfiguration) 
 			return nil, fmt.Errorf("password is required for TrustStore in Secret %s", trustStoreSecret.Name)
 		}
 
-		r.log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.ObjectMeta.Name)
+		log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.ObjectMeta.Name)
 		c.Transport.TLS.Truststore = config.Truststore{
 			Path:     fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, trustStoreFileName),
 			Password: password,
