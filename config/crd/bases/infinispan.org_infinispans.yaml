@@ -869,9 +869,13 @@ spec:
                           tls:
                             description: TLSSiteSpec enables TLS for cross-site replication
                             properties:
+                              enabled:
+                                type: boolean
                               protocol:
                                 type: string
                               routerKeyStore:
+                                description: CrossSiteKeyStore keystore configuration
+                                  for cross-site replication with TLS
                                 properties:
                                   alias:
                                     type: string
@@ -881,6 +885,8 @@ spec:
                                     type: string
                                 type: object
                               transportKeyStore:
+                                description: CrossSiteKeyStore keystore configuration
+                                  for cross-site replication with TLS
                                 properties:
                                   alias:
                                     type: string
@@ -890,12 +896,16 @@ spec:
                                     type: string
                                 type: object
                               trustStore:
+                                description: CrossSiteTrustStore truststore configuration
+                                  for cross-site replication with TLS
                                 properties:
                                   filename:
                                     type: string
                                   secretName:
                                     type: string
                                 type: object
+                            required:
+                            - enabled
                             type: object
                         required:
                         - expose
