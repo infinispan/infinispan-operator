@@ -1528,7 +1528,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 	if ispn.IsAuthenticationEnabled() {
 		if AddVolumeForUserAuthentication(ispn, spec) {
 			if userSecret == nil {
-				return &ctrl.Result{}, fmt.Errorf("User secret is nil. Requeueing")
+				return &ctrl.Result{}, fmt.Errorf("user secret is nil. Requeueing")
 			}
 			spec.Containers[0].Env = append(spec.Containers[0].Env,
 				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: hash.HashByte(userSecret.Data[consts.ServerIdentitiesFilename])},
