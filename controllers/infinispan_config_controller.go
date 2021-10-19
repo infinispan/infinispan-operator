@@ -387,7 +387,7 @@ func ConfigureTransportTLS(i *v1.Infinispan, c *config.InfinispanConfiguration, 
 	}
 
 	log.Info("Transport TLS Configured.", "Keystore", keyStoreFileName, "Secret Name", keyStoreSecret.Name)
-	c.Transport.TLS.Keystore = config.Keystore{
+	c.Transport.TLS.KeyStore = config.Keystore{
 		Path:     fmt.Sprintf("%s/%s", consts.SiteTransportKeyStoreRoot, keyStoreFileName),
 		Password: password,
 		Alias:    alias,
@@ -409,7 +409,7 @@ func ConfigureTransportTLS(i *v1.Infinispan, c *config.InfinispanConfiguration, 
 		}
 
 		log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.ObjectMeta.Name)
-		c.Transport.TLS.Truststore = config.Truststore{
+		c.Transport.TLS.TrustStore = config.Truststore{
 			Path:     fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, trustStoreFileName),
 			Password: password,
 		}

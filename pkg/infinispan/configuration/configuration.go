@@ -32,8 +32,8 @@ type Transport struct {
 
 type TransportTLS struct {
 	Enabled    bool       `yaml:"enabled"`
-	Keystore   Keystore   `yaml:"keystore,omitempty"`
-	Truststore Truststore `yaml:"truststore,omitempty"`
+	KeyStore   Keystore   `yaml:"keystore,omitempty"`
+	TrustStore Truststore `yaml:"truststore,omitempty"`
 }
 
 type CloudEvents struct {

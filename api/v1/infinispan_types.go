@@ -134,7 +134,7 @@ type InfinispanSitesLocalSpec struct {
 	// +optional
 	MaxRelayNodes int32 `json:"maxRelayNodes,omitempty"`
 	// +optional
-	TLS *TLSSiteSpec `json:"tls,omitempty"`
+	TLS TLSSiteSpec `json:"tls,omitempty"`
 }
 
 type InfinispanSiteLocationSpec struct {
