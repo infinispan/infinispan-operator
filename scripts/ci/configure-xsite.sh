@@ -5,7 +5,6 @@ METALLB_ADDRESS_SHIFT=25
 METALLB_ADDRESS_START=200
 KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}
 KIND_KUBEAPI_PORT=6443
-KIND_VERSION=v0.11.0
 METALLB_VERSION=v0.9.6
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 
@@ -52,7 +51,7 @@ for INSTANCE_IDX in 1 2; do
 
   # Update Kubernetes API with Kind docker network address
   NODE_INTERNAL_IP=$(kubectl get node "${INSTANCE}"-control-plane -o jsonpath="{.status.addresses[?(@.type=='InternalIP')].address}")
-  export KIND_SERVER_KUBEAPI_URL="    server: https://"${NODE_INTERNAL_IP}":"${KIND_KUBEAPI_PORT}
+  export KIND_SERVER_KUBEAPI_URL="    server: https://${NODE_INTERNAL_IP}:"${KIND_KUBEAPI_PORT}
   SERVER_URL=$(kind get kubeconfig --name ${INSTANCE} | grep "https://127.0.0.1")
   sed -i "s,${SERVER_URL},${KIND_SERVER_KUBEAPI_URL},g" "${KUBECONFIG}"
 done

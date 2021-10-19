@@ -25,7 +25,7 @@ To create a container and push to a remote repository execute:
 
 `make operator-build operator-push IMG=<image_name:tag>`
 
-> By default the Makefile uses `docker` to create images. If another container tool is desired, this can be configured
+> By default, the Makefile uses `docker` to create images. If another container tool is desired, this can be configured
 by setting `CONTAINER_TOOL=podman`.
 
 ## Running the Operator
@@ -52,7 +52,7 @@ resources on the kubernetes cluster in the `$DEPLOYMENT_NAMESPACE` namespace.
 # OLM Bundle
 The OLM bundle manifests are created by executing `make bundle VERSION=<latest-version>`.
 
-This will create a `bundle/` dir in your local repositoray containing the bundle metadata and manifests, as well as a
+This will create a `bundle/` dir in your local repository containing the bundle metadata and manifests, as well as a
 `bundle.Dockerfile` for generating the image.
 
 The bundle image can be created and pushed to a repository with:
@@ -95,7 +95,7 @@ The different categories of integration tests can be executed with the following
 The target cluster should be specified by exporting or explicitly providing `KUBECONFIG`, e.g. `make test KUBECONFIG=/path/to/admin.kubeconfig`.
 
 ### Env Variables
-The followin variables can be exported or provided as part of the `make *test` call.
+The following variables can be exported or provided as part of the `make *test` call.
 
 | Variable              | Purpose                                                                              |
 |-----------------------|--------------------------------------------------------------------------------------|
