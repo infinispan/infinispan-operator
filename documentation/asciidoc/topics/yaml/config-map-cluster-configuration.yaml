@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+   name: my-cluster-config
+   namespace: {example_namespace}
+data:
+   infinispan-config.xml: >
+     <infinispan>
+       <!-- Custom configuration. -->
+     </infinispan>

@@ -1,0 +1,25 @@
+[id='infinispan-configuration_{context}']
+= {brandname} configuration
+
+You can add {brandname} configuration to a `ConfigMap` in XML, YAML, or JSON format.
+
+.XML
+
+[source,xml,options="nowrap",subs=attributes+]
+----
+include::xml/infinispan-config.xml[]
+----
+
+.YAML
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/infinispan-config.yaml[]
+----
+
+.JSON
+
+[source,json,options="nowrap",subs=attributes+]
+----
+include::json/infinispan-config.json[]
+----

@@ -47,6 +47,9 @@ include::yaml/datagrid_service.yaml[]
 |`spec.expose`
 |Controls how {brandname} endpoints are exposed on the network.
 
+|`spec.configMapName`
+|Specifies a `ConfigMap` that contains {brandname} configuration.
+
 |`spec.affinity`
 |Configures anti-affinity strategies that guarantee {brandname} availability.
 

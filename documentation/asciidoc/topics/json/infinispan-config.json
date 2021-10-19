@@ -1,0 +1,27 @@
+{
+  "infinispan" : {
+    "cache-container" : {
+      "name" : "default",
+      "statistics" : "true",
+      "transport" : {
+        "stack" : "tcp"
+      },
+      "distributed-cache-configuration" : {
+        "name" : "my-dist-template",
+        "mode": "SYNC",
+        "statistics": "true",
+        "encoding": {
+          "media-type": "application/x-protostream"
+        },
+        "expiration" : {
+          "lifespan" : "5000",
+          "max-idle" : "1000"
+        },
+        "memory": {
+          "max-count": "1000000",
+          "when-full": "REMOVE"
+        }
+      }
+    }
+  }
+}

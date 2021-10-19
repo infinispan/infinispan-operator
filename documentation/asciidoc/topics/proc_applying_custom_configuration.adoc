@@ -1,0 +1,53 @@
+[id='applying-custom-configuration_{context}']
+= Applying custom configuration to {brandname} clusters
+
+[role="_abstract"]
+Add {brandname} configuration to a `ConfigMap` and make it available to {ispn_operator}.
+{ispn_operator} can then apply the custom configuration to your {brandname} cluster.
+
+[IMPORTANT]
+====
+You should not attempt to configure {brandname} Server instances running in the pods.
+{ispn_operator} applies default configuration on top of your custom configuration to ensure it can continue to manage your {brandname} clusters.
+
+You should use custom configuration with {ispn_operator} to configure the cache manager, `cache-container`, only.
+This allows you to add cache templates and configure transport characteristics.
+
+If you want to use fully configurable {brandname} Server instances on {openshiftshort}, you can deploy clusters with the {brandname} Helm chart.
+====
+
+.Prerequisites
+
+* Have valid {brandname} configuration in XML, YAML, or JSON format.
+
+.Procedure
+
+. Add your {brandname} configuration to the `data` field of a `ConfigMap` as `infinispan-config.[xml|yaml|json]`, as in the following example:
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/config-map-cluster-configuration.yaml[]
+----
+
+. Create the `ConfigMap`.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_configmap} my-cluster-config --from-file=infinispan-config.yaml
+----
+
+. Specify the name of the `ConfigMap` with the `spec.configMapName` field in your `Infinispan` CR and then apply the changes.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/config_map_name.yaml[]
+----
+
+.Next steps
+
+If your cluster is already running {ispn_operator} restarts it to apply the configuration.
+Each time you modify the {brandname} configuration in the `ConfigMap`, {ispn_operator} detects the updates and restarts the cluster to apply the changes.
+
+[role="_additional-resources"]
+.Additional resources
+* link:{helm_chart_docs}[{brandname} Helm chart]
