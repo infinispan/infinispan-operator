@@ -17,5 +17,4 @@ data:
     </html>
 kind: ConfigMap
 metadata:
-  creationTimestamp: null
   name: external-libs-config

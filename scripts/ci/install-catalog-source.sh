@@ -22,7 +22,7 @@ make operator-build operator-push
 # Create the operator bundle image
 # We must capture the sha256 digest of the image for use with catalog-build later
 PUSH_OUTPUT=$(make bundle bundle-build bundle-push | tail -1)
-BUNDLE_IMG_DIGEST=$(echo ${PUSH_OUTPUT} | awk '/:/ {print $3}')
+BUNDLE_IMG_DIGEST=$(echo "${PUSH_OUTPUT}" | awk '/:/ {print $3}')
 
 # Create the Catalog image
 # It's necessary to reference the image using sha256 digest when calling `make catalog-build`
@@ -32,7 +32,7 @@ export BUNDLE_IMG=${IMG_REGISTRY}/${BUNDLE_IMG_NAME}@${BUNDLE_IMG_DIGEST}
 make catalog-build catalog-push
 
 # Create the namespace and CatalogSource
-kubectl create namespace ${TESTING_NAMESPACE} || true
+kubectl create namespace "${TESTING_NAMESPACE}" || true
 cat <<EOF | kubectl apply -f -
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
@@ -44,4 +44,3 @@ spec:
   image: ${CATALOG_IMG}
   sourceType: grpc
 EOF
-
