@@ -38,7 +38,7 @@ for INSTANCE_IDX in 1 2; do
   # Configuring MetalLB (https://metallb.universe.tf/) for real LoadBalancer setup on Kind
   KIND_SUBNET=$(docker network inspect -f '{{ (index .IPAM.Config 0).Subnet }}' kind | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}")
   echo "Using Kind Subnet '${KIND_SUBNET}' in MetalLB"
-  KIND_SUBNET_BASE=$(echo "${KIND_SUBNET}" | sed -e "s/0.0/255./g")
+  KIND_SUBNET_BASE=$(echo "${KIND_SUBNET}" | sed -E 's|([0-9]+\.[0-9]+\.)[0-9]+\.[0-9]+|\1255.|')
   METALLB_ADDRESSES_RANGE="${KIND_SUBNET_BASE}"$(("${METALLB_ADDRESS_START}" + ("${INSTANCE_IDX}" - 1) * ("${METALLB_ADDRESS_SHIFT}" + 1)))-"${KIND_SUBNET_BASE}"$(("${METALLB_ADDRESS_START}" + "${METALLB_ADDRESS_SHIFT}" + ("${INSTANCE_IDX}" - 1) * "${METALLB_ADDRESS_SHIFT}"))
   echo "MetalLB addresses range ${METALLB_ADDRESSES_RANGE} for instance ${INSTANCE}"
   kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/"${METALLB_VERSION}"/manifests/namespace.yaml
