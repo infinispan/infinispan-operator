@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration
+        name="InfinispanServerConfig" monitorInterval="60" shutdownHook="disable">
+    <Appenders>
+        <!-- Colored output on the console -->
+        <Console name="STDOUT">
+            <PatternLayout pattern="{{ .Logging.Console.Pattern }}"/>
+        </Console>
+
+        <!-- Rolling file -->
+        <RollingFile name="FILE" createOnDemand="true"
+                     fileName="{{ .Logging.File.Path }}"
+                     filePattern="{{ .Logging.File.Path }} .%d{yyyy-MM-dd}-%i">
+            <Policies>
+                <OnStartupTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="100 MB"/>
+                <TimeBasedTriggeringPolicy/>
+            </Policies>
+            <PatternLayout pattern="{{ .Logging.File.Pattern }}"/>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="STDOUT" level="{{ .Logging.Console.Level | UpperCase }}"/>
+            <AppenderRef ref="FILE" level="{{ .Logging.File.Level | UpperCase }}"/>
+        </Root>
+
+        {{ range $it := .Logging.Categories }}
+        <Logger name="{{ $it.Key }}" level="{{ $it.Value | UpperCase }}"/>
+        {{ end }}
+    </Loggers>
+</Configuration>

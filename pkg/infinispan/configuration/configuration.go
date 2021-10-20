@@ -159,7 +159,7 @@ func FromYaml(src string) (*InfinispanConfiguration, error) {
 	return config, nil
 }
 
-func (serverConf *InfinispanConfiguration) Xml() (infinispan string, err error) {
+func (serverConf *InfinispanConfiguration) Xml() (infinispan string, logging string, err error) {
 	// Setup go template to process infinispan.xml
 	funcMap := template.FuncMap{
 		"UpperCase":    strings.ToUpper,
@@ -177,23 +177,37 @@ func (serverConf *InfinispanConfiguration) Xml() (infinispan string, err error) 
 			return ret
 		},
 	}
-	var ispnXmlTemplate string
+	var ispnXmlTemplate, loggingXmlTemplate string
 	if box, err := rice.FindBox("resources"); err != nil {
-		return "", err
+		return "", "", err
 	} else {
-		if ispnXmlTemplate, err = box.String("ispnXmlTemplate.xmltmpl"); err != nil {
-			return "", err
+		if ispnXmlTemplate, err = box.String("infinispan.xmltmpl"); err != nil {
+			return "", "", err
+		}
+		if loggingXmlTemplate, err = box.String("log4j.xmltmpl"); err != nil {
+			return "", "", err
 		}
 	}
 
 	tIspn, err := template.New("infinispan.xml").Funcs(funcMap).Parse(ispnXmlTemplate)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	buffIspn := new(bytes.Buffer)
 	err = tIspn.Execute(buffIspn, serverConf)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return buffIspn.String(), nil
+
+	tLog4j, err := template.New("log4j.xml").Funcs(funcMap).Parse(loggingXmlTemplate)
+	if err != nil {
+		return "", "", err
+	}
+	buffLog4j := new(bytes.Buffer)
+	err = tLog4j.Execute(buffLog4j, serverConf)
+	if err != nil {
+		return "", "", err
+	}
+
+	return buffIspn.String(), buffLog4j.String(), nil
 }

@@ -146,7 +146,7 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 
 func (r *configRequest) computeAndReconcileServerConf(serverConf *config.InfinispanConfiguration, reqLogger logr.Logger) (*reconcile.Result, error) {
 
-	ispnXml, err := serverConf.Xml()
+	ispnXml, log4jXml, err := serverConf.Xml()
 	if err != nil {
 		return &reconcile.Result{}, err
 	}
@@ -163,6 +163,8 @@ func (r *configRequest) computeAndReconcileServerConf(serverConf *config.Infinis
 	result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, infinispanServerConf, func() error {
 		infinispanServerConf.Labels = LabelsResource(r.infinispan.Name, "infinispan-configmap-server-config")
 		infinispanServerConf.Data = map[string]string{"infinispan.xml": ispnXml}
+		infinispanServerConf.Data["log4j.xml"] = log4jXml
+
 		err = controllerutil.SetControllerReference(r.infinispan, infinispanServerConf, r.scheme)
 		return err
 	})
@@ -280,8 +282,15 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*confi
 			return err
 		}
 
+		ispnXml, log4jXml, err := serverConf.Xml()
+		if err != nil {
+			return err
+		}
+
 		if configMapObject.CreationTimestamp.IsZero() {
 			configMapObject.Data = map[string]string{consts.ServerConfigFilename: configYaml}
+			configMapObject.Data["infinispan.xml"] = ispnXml
+			configMapObject.Data["log4j.xml"] = log4jXml
 			configMapObject.Labels = lsConfigMap
 			// Set Infinispan instance as the owner and controller
 			if err = controllerutil.SetControllerReference(r.infinispan, configMapObject, r.scheme); err != nil {
@@ -294,6 +303,8 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*confi
 				serverConf.Logging = previousConfig.Logging
 			}
 			configMapObject.Data[consts.ServerConfigFilename] = configYaml
+			configMapObject.Data["infinispan.xml"] = ispnXml
+			configMapObject.Data["log4j.xml"] = log4jXml
 		}
 		return nil
 	})

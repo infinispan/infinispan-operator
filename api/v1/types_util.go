@@ -426,15 +426,17 @@ func (ispn *Infinispan) GetJavaOptions() string {
 
 // GetLogCategoriesForConfig return a map of log category for the Infinispan configuration
 func (ispn *Infinispan) GetLogCategoriesForConfig() map[string]string {
+	var categories map[string]LoggingLevelType
 	if ispn.Spec.Logging != nil {
-		categories := ispn.Spec.Logging.Categories
-		if categories != nil {
-			copied := make(map[string]string, len(categories))
-			for category, level := range categories {
-				copied[category] = string(level)
-			}
-			return copied
+		categories = ispn.Spec.Logging.Categories
+	}
+	copied := make(map[string]string, len(categories)+1)
+	copied["org.infinispan.server.core.backup"] = "debug"
+	if categories != nil {
+		for category, level := range categories {
+			copied[category] = string(level)
 		}
+		return copied
 	}
 	return make(map[string]string)
 }

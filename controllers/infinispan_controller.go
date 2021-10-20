@@ -53,9 +53,8 @@ const (
 	IdentitiesVolumeName         = "identities-volume"
 	AdminIdentitiesVolumeName    = "admin-identities-volume"
 	UserConfVolumeName           = "user-conf-volume"
-	OperatorConfVolumeName       = "operator-conf-volume"
 	InfinispanSecurityVolumeName = "infinispan-security-volume"
-	OverlayConfigMountPath       = "/opt/infinispan/server/conf/user"
+	OverlayConfigMountPath       = consts.ServerRoot + "/conf/user"
 
 	EventReasonPrelimChecksFailed    = "PrelimChecksFailed"
 	EventReasonLowPersistenceStorage = "LowPersistenceStorage"
@@ -1073,9 +1072,6 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	replicas := ispn.Spec.Replicas
 	volumeMounts := []corev1.VolumeMount{{
 		Name:      ConfigVolumeName,
-		MountPath: consts.ServerConfigRoot,
-	}, {
-		Name:      OperatorConfVolumeName,
 		MountPath: OperatorConfMountPath,
 	}, {
 		Name:      InfinispanSecurityVolumeName,
@@ -1099,13 +1095,6 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName: ispn.GetAdminSecretName(),
-			},
-		},
-	}, {
-		Name: OperatorConfVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{Name: ispn.GetInfinispanServerConfigMapName()},
 			},
 		},
 	}, {
@@ -1179,7 +1168,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 						StartupProbe:   PodStartupProbe(),
 						Resources:      *podResources,
 						VolumeMounts:   volumeMounts,
-						Args:           buildStartupArgs(overlayConfigMapKey),
+						Args:           buildStartupArgs(overlayConfigMapKey, "false"),
 					}},
 					Volumes: volumes,
 				},
@@ -1510,7 +1499,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hash.HashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
 	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])) || updateNeeded
 
-	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey); err != nil {
+	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey, "false"); err != nil {
 		return &ctrl.Result{}, err
 	} else {
 		updateNeeded = updateCmdArgs || updateNeeded
@@ -1683,18 +1672,18 @@ func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kuberne
 	return podList, kube.ResourcesList(infinispan.Namespace, GossipRouterPodLabels(infinispan.Name), podList, ctx)
 }
 
-func buildStartupArgs(overlayConfigMapKey string) []string {
+func buildStartupArgs(overlayConfigMapKey string, zeroCapacity string) []string {
 	var args []string
 	if overlayConfigMapKey != "" {
-		args = []string{"-b", "0.0.0.0", "-c", "user/" + overlayConfigMapKey, "-c", "operator/infinispan.xml"}
+		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-b", "0.0.0.0", "-c", "user/" + overlayConfigMapKey, "-c", "operator/infinispan.xml"}
 	} else {
-		args = []string{"-b", "0.0.0.0", "-c", "operator/infinispan.xml"}
+		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-b", "0.0.0.0", "-c", "operator/infinispan.xml"}
 	}
 	return args
 }
 
-func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey string) (bool, error) {
-	newArgs := buildStartupArgs(overlayConfigMapKey)
+func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey, zeroCapacity string) (bool, error) {
+	newArgs := buildStartupArgs(overlayConfigMapKey, zeroCapacity)
 	if len(newArgs) == len(statefulSet.Spec.Template.Spec.Containers[0].Args) {
 		var changed bool
 		for i := range newArgs {

@@ -337,18 +337,19 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, configMap *
 		Spec: corev1.PodSpec{
 			SecurityContext: podSecurityCtx,
 			Containers: []corev1.Container{{
-				Image:          ispn.ImageName(),
-				Name:           name,
+				Image: ispn.ImageName(),
+				Name:  name,
+				//				Env:   PodEnv(ispn, nil),
 				Env:            PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: OperatorSecurityMountPath + "/" + consts.ServerIdentitiesCliFilename}}),
 				LivenessProbe:  PodLivenessProbe(),
 				Ports:          PodPorts(),
 				ReadinessProbe: PodReadinessProbe(),
 				Resources:      *podResources,
-				Args:           buildStartupArgs(""),
+				Args:           buildStartupArgs("", "true"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      ConfigVolumeName,
-						MountPath: consts.ServerConfigRoot,
+						MountPath: OperatorConfMountPath,
 					},
 					{
 						Name:      AdminIdentitiesVolumeName,
@@ -364,8 +365,8 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, configMap *
 						Name:      name,
 						MountPath: zeroSpec.Volume.MountPath,
 					}, {
-						Name:      OperatorConfVolumeName,
-						MountPath: OperatorConfMountPath,
+						Name:      InfinispanSecurityVolumeName,
+						MountPath: OperatorSecurityMountPath,
 					},
 				},
 			}},
@@ -376,7 +377,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, configMap *
 					Name: ConfigVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
-							LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
+							LocalObjectReference: corev1.LocalObjectReference{Name: ispn.GetConfigName()},
 						},
 					}},
 				// Volume for admin credentials
@@ -400,10 +401,10 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, configMap *
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				}, {
-					Name: OperatorConfVolumeName,
+					Name: InfinispanSecurityVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						Secret: &corev1.SecretVolumeSource{
-							SecretName: ispn.GetInfinispanServerConfigMapName(),
+							SecretName: ispn.GetInfinispanSecuritySecretName(),
 						},
 					},
 				},
