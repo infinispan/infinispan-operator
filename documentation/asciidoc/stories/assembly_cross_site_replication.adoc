@@ -18,17 +18,14 @@ You must ensure that {brandname} clusters establish connections in the same way 
 ====
 
 include::{topics}/con_managed_cross_site_connections.adoc[leveloffset=+1]
-include::assembly_cross_site_managed_openshift.adoc[leveloffset=+1]
+include::{topics}/proc_creating_sa_tokens_ocp.adoc[leveloffset=+1]
+include::{topics}/proc_exchanging_sa_tokens.adoc[leveloffset=+2]
 ifdef::community[]
-include::assembly_cross_site_managed_kubernetes.adoc[leveloffset=+1]
+include::{topics}/proc_setting_up_cross_site_kube.adoc[leveloffset=+1]
 endif::community[]
-
 include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_sites_manually.adoc[leveloffset=+1]
-
 include::{topics}/ref_cross_site_resources.adoc[leveloffset=+1]
-
-//Configuring xsite within the same cluster
 include::{topics}/proc_configuring_xsite_within_clusters.adoc[leveloffset=+1]
 
 // Restore the parent context.

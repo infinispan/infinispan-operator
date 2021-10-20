@@ -21,6 +21,12 @@ To manage cross-site connections, {ispn_operator}:
 
 . Creates a tunnel pod for each cluster.
 . Uses the Kubernetes API to retrieve IP addresses for the `<cluster_name>-site` service at each cluster.
++
+[IMPORTANT]
+====
+{ispn_operator} in each {openshiftshort} cluster must have network access to the remote Kubernetes API.
+====
++
 . Provides the `<cluster_name>-site` service details to all nodes that send RELAY messages for cross-site replication.
 
 Relay nodes can then connect to tunnel pods through the `<cluster_name>-site` service and perform cross-site replication.
