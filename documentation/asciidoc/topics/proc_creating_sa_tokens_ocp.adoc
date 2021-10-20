@@ -1,9 +1,19 @@
-[id='creating-sa-tokens_{context}']
-= Creating service account tokens for managed connections
+[id='creating-sa-tokens-openshift_{context}']
+= Creating service account tokens for managed cross-site connections
 
 [role="_abstract"]
-Generate service account tokens on each {openshiftshort} cluster that acts as a backup location.
-Clusters use these tokens to authenticate with each other so {ispn_operator} can create a cross-site replication service.
+Generate service account tokens on {openshiftshort} clusters that allow {ispn_operator} to automatically discover {brandname} clusters and manage cross-site connections.
+
+//Community content
+ifdef::community[]
+This procedure is specific to {openshiftshort} clusters.
+If you are using another Kubernetes distribution, you should create site access secrets instead.
+endif::community[]
+
+.Prerequisites
+
+* Ensure all {openshiftshort} clusters have access to the Kubernetes API. +
+{ispn_operator} uses this API to manage cross-site connections.
 
 .Procedure
 
@@ -33,6 +43,7 @@ $ oc adm policy add-cluster-role-to-user cluster-reader -z <service-account-name
 ----
 +
 . Repeat the preceding steps on your other {openshiftshort} clusters.
+. Exchange service account tokens on each {openshiftshort} cluster.
 
 [role="_additional-resources"]
 .Additional resources

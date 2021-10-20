@@ -1,11 +1,25 @@
-[id='creating-kubernetes-secrets_{context}']
-= Creating Kubernetes site access secrets
+[id='applying-cluster-roles-xsite_{context}']
+= Setting up {k8s} for managed cross-site connections
 
 [role="_abstract"]
-If you run {ispn_operator} in any Kubernetes deployment (Minikube, Kind, etc.), you should create secrets that contain the files that allow Kubernetes clusters to authenticate with each other.
+Apply cluster roles and create site access secrets on {k8s} to use cross-site replication capabilities.
 
+.Procedure
+
+. Install `clusterrole.yaml` and `clusterrole_binding.yaml` if you install {ispn_operator} manually.
++
+During OLM installation, {ispn_operator} sets up cluster roles required for cross-site replication.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} config/rbac/clusterrole.yaml
+$ {oc_apply_cr} config/rbac/clusterrole_binding.yaml
+----
+
+. If you run {ispn_operator} in any Kubernetes deployment (Minikube, Kind, and so on), you should create secrets that contain the files that allow Kubernetes clusters to authenticate with each other.
++
 Do one of the following:
-
++
 * Retrieve service account tokens from each site and then add them to secrets on each backup location, for example:
 +
 [source,options="nowrap",subs=attributes+]
@@ -17,7 +31,7 @@ $ TOKENNAME=kubectl get serviceaccount/site-a -o jsonpath='{.secrets[0].name}' -
 $ TOKEN=kubectl get secret $TOKENNAME -o jsonpath='{.data.token}' -n ns-site-a | base64 --decode
 $ kubectl create secret generic site-a-secret -n ns-site-a --from-literal=token=$TOKEN
 ----
-
++
 * Create secrets on each site that contain `ca.crt`, `client.crt`, and `client.key` from your Kubernetes installation.
 +
 For example, for Minikube do the following on **LON**:
@@ -30,6 +44,4 @@ $ kubectl create secret generic site-a-secret \
     --from-file=client-key=/opt/minikube/.minikube/client.key
 ----
 
-[role="_additional-resources"]
-.Additional resources
-* link:{link_k8s_cluster_api}
+//-
