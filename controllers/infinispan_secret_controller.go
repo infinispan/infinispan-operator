@@ -137,7 +137,7 @@ func (reconciler *SecretReconciler) Reconcile(ctx context.Context, request recon
 
 	// Wait for the ConfigMap to be created by config-controller
 	configMap := &corev1.ConfigMap{}
-	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 		return *result, err
 	}
 
@@ -181,7 +181,7 @@ func (r secretRequest) computeAndReconcileAuthProps(serverConf *config.Infinispa
 	var pem []byte
 	if serverConf.Keystore.Type == "pem" {
 		keystoreSecret := &corev1.Secret{}
-		if result, err := kube.LookupResource(r.infinispan.GetKeystoreSecretName(), r.infinispan.Namespace, keystoreSecret, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+		if result, err := kube.LookupResource(r.infinispan.GetKeystoreSecretName(), r.infinispan.Namespace, keystoreSecret, r.infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 			return &reconcile.Result{}, err
 		}
 		pem = append(keystoreSecret.Data["tls.key"], keystoreSecret.Data["tls.crt"]...)

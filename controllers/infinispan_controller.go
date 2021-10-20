@@ -268,7 +268,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	overlayConfigMap := &corev1.ConfigMap{}
 	var overlayConfigMapKey string
 	if infinispan.Spec.ConfigMapName != "" {
-		if result, err := kube.LookupResource(infinispan.Spec.ConfigMapName, infinispan.Namespace, overlayConfigMap, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+		if result, err := kube.LookupResource(infinispan.Spec.ConfigMapName, infinispan.Namespace, overlayConfigMap, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 			return *result, err
 		}
 		var foundKey bool
