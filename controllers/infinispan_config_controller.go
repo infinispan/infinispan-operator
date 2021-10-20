@@ -202,6 +202,7 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*confi
 		},
 		JGroups: config.JGroups{
 			Transport:   "tcp",
+			BindPort:    7800,
 			Diagnostics: consts.JGroupsDiagnosticsFlag == "TRUE",
 			DNSPing: config.DNSPing{
 				RecordType: "A",

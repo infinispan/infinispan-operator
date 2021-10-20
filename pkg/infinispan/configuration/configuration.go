@@ -90,6 +90,7 @@ type JGroups struct {
 	Transport   string  `yaml:"transport"`
 	DNSPing     DNSPing `yaml:"dnsPing"`
 	Diagnostics bool    `yaml:"diagnostics"`
+	BindPort    int32   `yaml:"bindPort"`
 	Relay       Relay   `yaml:"relay"`
 }
 

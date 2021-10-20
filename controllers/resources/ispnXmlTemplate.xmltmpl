@@ -24,26 +24,6 @@
         {{ else }}
         <MPING bind_addr="${jgroups.bind.address:SITE_LOCAL}"/>
         {{ end }}
-        {{ if .JGroups.Encrypt }}
-        {{ if .Keystore.Path }}
-        <SSL_KEY_EXCHANGE
-                keystore_name="{{ .Keystore.Path }}"
-                keystore_password="{{ .Keystore.Password }}"
-                keystore_type="{{ .Keystore.Type }}"
-                port="2157"
-                port_range="0"
-                stack.combine="INSERT_AFTER" stack.position="VERIFY_SUSPECT"
-        />
-        {{ end }}
-        <ASYM_ENCRYPT use_external_key_exchange="{{ if .Keystore.Path}}true{{ else }}false{{ end }}"
-                sym_algorithm="AES"
-                sym_keylength="128"
-                asym_algorithm="RSA"
-                asym_keylength="512"
-                stack.combine="INSERT_AFTER" stack.position="{{ if .Keystore.path }}SSL_KEY_EXCHANGE{{ else }}VERIFY_SUSPECT{{ end }}"
-        />
-        <SERIALIZE stack.combine="INSERT_AFTER" stack.position="ASYM_ENCRYPT"/>
-        {{ end }}
     </stack>
     <stack name="image-udp" extends="udp">
         <UDP enable_diagnostics="{{ .JGroups.Diagnostics }}"
