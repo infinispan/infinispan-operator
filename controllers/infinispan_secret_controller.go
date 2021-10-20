@@ -148,9 +148,6 @@ func (reconciler *SecretReconciler) Reconcile(ctx context.Context, request recon
 	}
 
 	if result, err := r.computeAndReconcileAuthProps(serverConf, userCredSecret, adminCredSecret, reqLogger); result != nil {
-		if err != nil {
-			reqLogger.Error(err, "Error while computing and reconciling server configuration")
-		}
 		return *result, err
 	}
 
@@ -160,14 +157,14 @@ func (reconciler *SecretReconciler) Reconcile(ctx context.Context, request recon
 func (r secretRequest) computeAndReconcileAuthProps(serverConf *config.InfinispanConfiguration, userPropSecret, adminPropSecret *corev1.Secret, reqLogger logr.Logger) (*reconcile.Result, error) {
 
 	// Create admin and user identity properties from secrets
-	adminCliBatch, err := security.IdentitiesCliFileFromSecret(adminPropSecret.Data[consts.ServerIdentitiesFilename], "admin", consts.ServerRoot+"/conf/cli-admin-users.properties", consts.ServerRoot+"/conf/cli-admin-groups.properties")
+	adminCliBatch, err := security.IdentitiesCliFileFromSecret(adminPropSecret.Data[consts.ServerIdentitiesFilename], "admin", "cli-admin-users.properties", "cli-admin-groups.properties")
 	if err != nil {
 		return &reconcile.Result{}, err
 	}
 
 	var usersCliBatch string
 	if userPropSecret != nil {
-		if usersCliBatch, err = security.IdentitiesCliFileFromSecret(userPropSecret.Data[consts.ServerIdentitiesFilename], "default", consts.ServerRoot+"/conf/cli-users.properties", consts.ServerRoot+"/conf/cli-groups.properties"); err != nil {
+		if usersCliBatch, err = security.IdentitiesCliFileFromSecret(userPropSecret.Data[consts.ServerIdentitiesFilename], "default", "cli-users.properties", "cli-groups.properties"); err != nil {
 			return &reconcile.Result{}, err
 		}
 	}

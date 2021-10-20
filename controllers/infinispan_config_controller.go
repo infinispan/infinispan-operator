@@ -146,7 +146,7 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 
 func (r *configRequest) computeAndReconcileServerConf(serverConf *config.InfinispanConfiguration, reqLogger logr.Logger) (*reconcile.Result, error) {
 
-	ispnXml, err := serverConf.InfinispanConfiguration()
+	ispnXml, err := serverConf.Xml()
 	if err != nil {
 		return &reconcile.Result{}, err
 	}
@@ -202,7 +202,6 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*confi
 		},
 		JGroups: config.JGroups{
 			Transport:   "tcp",
-			BindPort:    7800,
 			Diagnostics: consts.JGroupsDiagnosticsFlag == "TRUE",
 			DNSPing: config.DNSPing{
 				RecordType: "A",

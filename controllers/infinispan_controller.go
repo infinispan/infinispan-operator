@@ -52,10 +52,10 @@ const (
 	EncryptTruststoreVolumeName  = "encrypt-trust-volume"
 	IdentitiesVolumeName         = "identities-volume"
 	AdminIdentitiesVolumeName    = "admin-identities-volume"
-	OverlayConfigVolumeName      = "overlay-config-volume"
-	InfinispanXmlVolumeName      = "infinispan-xml-volume"
+	UserConfVolumeName           = "user-conf-volume"
+	OperatorConfVolumeName       = "operator-conf-volume"
 	InfinispanSecurityVolumeName = "infinispan-security-volume"
-	OverlayConfigMountPath       = "/opt/infinispan/server/conf/overlay"
+	OverlayConfigMountPath       = "/opt/infinispan/server/conf/user"
 
 	EventReasonPrelimChecksFailed    = "PrelimChecksFailed"
 	EventReasonLowPersistenceStorage = "LowPersistenceStorage"
@@ -1075,7 +1075,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		Name:      ConfigVolumeName,
 		MountPath: consts.ServerConfigRoot,
 	}, {
-		Name:      InfinispanXmlVolumeName,
+		Name:      OperatorConfVolumeName,
 		MountPath: OperatorConfMountPath,
 	}, {
 		Name:      InfinispanSecurityVolumeName,
@@ -1102,7 +1102,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 			},
 		},
 	}, {
-		Name: InfinispanXmlVolumeName,
+		Name: OperatorConfVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{Name: ispn.GetInfinispanServerConfigMapName()},
@@ -1121,11 +1121,11 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	// Adding overlay config file if present
 	if overlayConfigMap.Name != "" {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      OverlayConfigVolumeName,
+			Name:      UserConfVolumeName,
 			MountPath: OverlayConfigMountPath,
 		})
 		volumes = append(volumes, corev1.Volume{
-			Name: OverlayConfigVolumeName,
+			Name: UserConfVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{Name: overlayConfigMap.Name},
@@ -1686,7 +1686,7 @@ func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kuberne
 func buildStartupArgs(overlayConfigMapKey string) []string {
 	var args []string
 	if overlayConfigMapKey != "" {
-		args = []string{"-b", "0.0.0.0", "-c", "overlay/" + overlayConfigMapKey, "-c", "operator/infinispan.xml"}
+		args = []string{"-b", "0.0.0.0", "-c", "user/" + overlayConfigMapKey, "-c", "operator/infinispan.xml"}
 	} else {
 		args = []string{"-b", "0.0.0.0", "-c", "operator/infinispan.xml"}
 	}
@@ -1714,13 +1714,13 @@ func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey stri
 func applyOverlayConfigVolume(configMap *corev1.ConfigMap, spec *corev1.PodSpec) bool {
 	volumes := &spec.Volumes
 	volumeMounts := &spec.Containers[0].VolumeMounts
-	volumePosition := findVolume(*volumes, OverlayConfigVolumeName)
+	volumePosition := findVolume(*volumes, UserConfVolumeName)
 	if configMap.Name != "" {
 		// Add the overlay volume if needed
 		if volumePosition < 0 {
-			*volumeMounts = append(*volumeMounts, corev1.VolumeMount{Name: OverlayConfigVolumeName, MountPath: OverlayConfigMountPath})
+			*volumeMounts = append(*volumeMounts, corev1.VolumeMount{Name: UserConfVolumeName, MountPath: OverlayConfigMountPath})
 			*volumes = append(*volumes, corev1.Volume{
-				Name: OverlayConfigVolumeName,
+				Name: UserConfVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{
@@ -1736,7 +1736,7 @@ func applyOverlayConfigVolume(configMap *corev1.ConfigMap, spec *corev1.PodSpec)
 	}
 	// Delete overlay volume mount if no more needed
 	if configMap.Name == "" && volumePosition >= 0 {
-		volumeMountPosition := findVolumeMount(*volumeMounts, OverlayConfigVolumeName)
+		volumeMountPosition := findVolumeMount(*volumeMounts, UserConfVolumeName)
 		*volumes = append(spec.Volumes[:volumePosition], spec.Volumes[volumePosition+1:]...)
 		*volumeMounts = append(spec.Containers[0].VolumeMounts[:volumeMountPosition], spec.Containers[0].VolumeMounts[volumeMountPosition+1:]...)
 		return true

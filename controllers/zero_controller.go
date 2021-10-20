@@ -364,7 +364,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, configMap *
 						Name:      name,
 						MountPath: zeroSpec.Volume.MountPath,
 					}, {
-						Name:      InfinispanXmlVolumeName,
+						Name:      OperatorConfVolumeName,
 						MountPath: OperatorConfMountPath,
 					},
 				},
@@ -400,7 +400,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, configMap *
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				}, {
-					Name: InfinispanXmlVolumeName,
+					Name: OperatorConfVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						Secret: &corev1.SecretVolumeSource{
 							SecretName: ispn.GetInfinispanServerConfigMapName(),

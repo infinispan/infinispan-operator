@@ -90,8 +90,6 @@ type JGroups struct {
 	Transport   string  `yaml:"transport"`
 	DNSPing     DNSPing `yaml:"dnsPing"`
 	Diagnostics bool    `yaml:"diagnostics"`
-	BindPort    int32   `yaml:"bindPort"`
-	Encrypt     bool    `yaml:"encrypt"`
 	Relay       Relay   `yaml:"relay"`
 }
 
@@ -160,8 +158,8 @@ func FromYaml(src string) (*InfinispanConfiguration, error) {
 	return config, nil
 }
 
-func (serverConf *InfinispanConfiguration) InfinispanConfiguration() (infinispan string, err error) {
-	// Setup go template to process infinispan.xml and jgroups-relay.xml
+func (serverConf *InfinispanConfiguration) Xml() (infinispan string, err error) {
+	// Setup go template to process infinispan.xml
 	funcMap := template.FuncMap{
 		"UpperCase":    strings.ToUpper,
 		"LowerCase":    strings.ToLower,
