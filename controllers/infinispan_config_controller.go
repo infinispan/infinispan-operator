@@ -171,9 +171,6 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 				RecordType: "A",
 				Query:      fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
 			},
-			Relay: config.Relay{
-				BindPort: 0,
-			},
 		},
 		Keystore: config.Keystore{
 			Password: "password",
@@ -184,6 +181,9 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 			RelayNodeCandidate: true,
 			MaxRelayNodes:      1,
 			Transport:          "tunnel",
+			Relay: config.Relay{
+				BindPort: 0,
+			},
 		},
 		Logging: config.Logging{
 			Console: config.Console{

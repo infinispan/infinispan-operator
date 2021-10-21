@@ -91,7 +91,6 @@ type JGroups struct {
 	DNSPing     DNSPing `yaml:"dnsPing"`
 	Diagnostics bool    `yaml:"diagnostics"`
 	BindPort    int32   `yaml:"bindPort"`
-	Relay       Relay   `yaml:"relay"`
 }
 
 type Relay struct {
@@ -113,11 +112,7 @@ type XSite struct {
 	MaxRelayNodes      int32        `yaml:"maxRelayNodes"`
 	Backups            []BackupSite `yaml:"backups"`
 	RelayNodeCandidate bool         `yaml:"relayNodeCandidate"`
-	Relay              RelayXSite   `yaml:"relay"`
-}
-
-type RelayXSite struct {
-	BindPort int32 `yaml:"bindPort"`
+	Relay              Relay        `yaml:"relay"`
 }
 
 type BackupSite struct {

@@ -41,7 +41,7 @@
         <!-- overwrite bind address and port -->
         <TCP
             bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
-            bind_port="${jgroups.relay.bind.port:{{.JGroups.Relay.BindPort}} }"
+            bind_port="${jgroups.relay.bind.port:{{.XSite.Relay.BindPort}} }"
             enable_diagnostics="{{.JGroups.Diagnostics}}"
             external_addr="{{.XSite.Address}}"
             external_port="{{.XSite.Port}}"
@@ -63,7 +63,7 @@
     <stack name="relay-tunnel" extends="udp">
         <TUNNEL
             bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
-            bind_port="${jgroups.relay.bind.port:{{.JGroups.Relay.BindPort}} }"
+            bind_port="${jgroups.relay.bind.port:{{.XSite.Relay.BindPort}} }"
             gossip_router_hosts="{{.XSite.Address}}[{{.XSite.Port}}],{{RemoteSites .XSite.Backups}}"
             enable_diagnostics="{{ .JGroups.Diagnostics }}"
             port_range="0"
