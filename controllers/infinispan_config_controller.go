@@ -245,7 +245,7 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 
 	if serverConf.Transport.TLS.Enabled {
 		if result, err := ConfigureTransportTLS(r.infinispan, &serverConf, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil || err != nil {
-			return nil, result, err
+			return result, err
 		}
 	}
 
