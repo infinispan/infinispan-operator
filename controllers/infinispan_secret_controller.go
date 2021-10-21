@@ -9,8 +9,10 @@ import (
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +21,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	k8sctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -109,33 +112,115 @@ func (reconciler *SecretReconciler) Reconcile(ctx context.Context, request recon
 		return *result, err
 	}
 
+	var userCredSecret *corev1.Secret
+
+	// If auth is enable
+	if r.infinispan.IsAuthenticationEnabled() {
+		var err error
+		// get identities secret for users
+		if userCredSecret, err = r.getSecret(r.infinispan.GetSecretName()); err != nil {
+			return reconcile.Result{}, err
+		}
+		// or create the users identities secret if it doesn't already exist
+		if userCredSecret == nil && r.infinispan.IsGeneratedSecret() {
+			if userCredSecret, err = r.createUserIdentitiesSecret(); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	}
+
 	// Reconcile Credential Secrets
-	if err := r.reconcileAdminSecret(); err != nil {
+	adminCredSecret, err := r.reconcileAdminSecret()
+	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// If the user has provided their own secret or authentication is disabled, do nothing
-	if !r.infinispan.IsAuthenticationEnabled() || !r.infinispan.IsGeneratedSecret() {
-		return reconcile.Result{}, nil
+	// Wait for the ConfigMap to be created by config-controller
+	configMap := &corev1.ConfigMap{}
+	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+		return *result, err
 	}
 
-	// Create the user identities secret if it doesn't already exist
-	secret, err := r.getSecret(r.infinispan.GetSecretName())
-	if secret != nil || err != nil {
+	// turn yaml into var
+	serverConf := &config.InfinispanConfiguration{}
+	if err = yaml.Unmarshal([]byte(configMap.Data[consts.ServerConfigFilename]), serverConf); err != nil {
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{}, r.createUserIdentitiesSecret()
+
+	if result, err := r.computeAndReconcileAuthProps(serverConf, userCredSecret, adminCredSecret, reqLogger); result != nil {
+		return *result, err
+	}
+
+	return reconcile.Result{}, nil
 }
 
-func (s *secretRequest) createUserIdentitiesSecret() error {
+func (r secretRequest) computeAndReconcileAuthProps(serverConf *config.InfinispanConfiguration, userPropSecret, adminPropSecret *corev1.Secret, reqLogger logr.Logger) (*reconcile.Result, error) {
+
+	// Create admin and user identity properties from secrets
+	adminCliBatch, err := security.IdentitiesCliFileFromSecret(adminPropSecret.Data[consts.ServerIdentitiesFilename], "admin", "cli-admin-users.properties", "cli-admin-groups.properties")
+	if err != nil {
+		return &reconcile.Result{}, err
+	}
+
+	var usersCliBatch string
+	if userPropSecret != nil {
+		if usersCliBatch, err = security.IdentitiesCliFileFromSecret(userPropSecret.Data[consts.ServerIdentitiesFilename], "default", "cli-users.properties", "cli-groups.properties"); err != nil {
+			return &reconcile.Result{}, err
+		}
+	}
+	cliBatch := adminCliBatch + usersCliBatch
+	if serverConf.Keystore.Password != "" {
+		cliBatch += "credentials add keystore -c \"" + serverConf.Keystore.Password + "\" -p secret\n"
+	}
+
+	if serverConf.Truststore.Password != "" {
+		cliBatch += "credentials add truststore -c \"" + serverConf.Truststore.Password + "\" -p secret\n"
+	}
+
+	// PEM certs need to be loaded and merget to be used by Infinispan
+	var pem []byte
+	if serverConf.Keystore.Type == "pem" {
+		keystoreSecret := &corev1.Secret{}
+		if result, err := kube.LookupResource(r.infinispan.GetKeystoreSecretName(), r.infinispan.Namespace, keystoreSecret, r.infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+			return &reconcile.Result{}, err
+		}
+		pem = append(keystoreSecret.Data["tls.key"], keystoreSecret.Data["tls.crt"]...)
+	}
+
+	// Generate infinispan.xml
+	infinispanServerSecurityConf := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.infinispan.GetInfinispanSecuritySecretName(),
+			Namespace: r.infinispan.Namespace,
+		},
+	}
+
+	// Create secret with all the objects to be mounted as "ServerRoot/conf/operator/"
+	result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, infinispanServerSecurityConf, func() error {
+		infinispanServerSecurityConf.Labels = LabelsResource(r.infinispan.Name, "infinispan-secret-server-security")
+		infinispanServerSecurityConf.Data = map[string][]byte{consts.ServerIdentitiesCliFilename: []byte(cliBatch)}
+		infinispanServerSecurityConf.Data[EncryptPemKeystoreName] = []byte(pem)
+		err = controllerutil.SetControllerReference(r.infinispan, infinispanServerSecurityConf, r.scheme)
+		return err
+	})
+	if err != nil {
+		return &reconcile.Result{}, err
+	}
+	if result != controllerutil.OperationResultNone {
+		r.reqLogger.Info(fmt.Sprintf("ConfigMap '%s' %s", r.infinispan.Name, result))
+	}
+	return nil, nil
+}
+
+func (s *secretRequest) createUserIdentitiesSecret() (*corev1.Secret, error) {
 	identities, err := security.GetUserCredentials()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return s.createSecret(s.infinispan.GetSecretName(), "infinispan-secret-identities", identities)
 }
 
-func (s *secretRequest) createSecret(name, label string, identities []byte) error {
+func (s *secretRequest) createSecret(name, label string, identities []byte) (*corev1.Secret, error) {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -156,9 +241,9 @@ func (s *secretRequest) createSecret(name, label string, identities []byte) erro
 	})
 
 	if err != nil {
-		return fmt.Errorf("unable to create identities secret: %w", err)
+		return nil, fmt.Errorf("unable to create identities secret: %w", err)
 	}
-	return nil
+	return secret, nil
 }
 
 func (s *secretRequest) reconcileTruststoreSecret() (*reconcile.Result, error) {
@@ -230,7 +315,7 @@ func (s *secretRequest) reconcileTruststoreSecret() (*reconcile.Result, error) {
 	return nil, err
 }
 
-func (s *secretRequest) reconcileAdminSecret() error {
+func (s *secretRequest) reconcileAdminSecret() (*corev1.Secret, error) {
 	adminSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      s.infinispan.GetAdminSecretName(),
@@ -270,7 +355,10 @@ func (s *secretRequest) reconcileAdminSecret() error {
 		adminSecret.Data[consts.ServerIdentitiesFilename] = identities
 		return nil
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return adminSecret, nil
 }
 
 func (s *secretRequest) addCliProperties(secret *corev1.Secret, password string) {

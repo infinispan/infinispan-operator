@@ -327,11 +327,13 @@ func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infini
 		post(url, config, http.StatusOK, headers)
 	}
 
+	client.Quiet(true)
 	for i := 0; i < numEntries; i++ {
 		url := fmt.Sprintf("%s/rest/v2/caches/%s/%d", host, cacheName, i)
 		value := fmt.Sprintf("{\"value\":\"%d\"}", i)
 		post(url, value, http.StatusNoContent, headers)
 	}
+	client.Quiet(false)
 }
 
 func assertNumEntries(cacheName, host string, numEntries int, client tutils.HTTPClient) {

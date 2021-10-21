@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"math/big"
+	"strings"
 
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -21,6 +23,10 @@ type Credentials struct {
 	Username string
 	Password string
 	Roles    []string
+}
+
+type IdentitiesYaml struct {
+	Credentials []Credentials `yaml:"credentials"`
 }
 
 // TODO certain characters having issues, so reduce sample for now
@@ -128,4 +134,29 @@ func UserPassword(user, secretName, namespace string, k *kube.Kubernetes, ctx co
 
 func AdminPassword(secretName, namespace string, k *kube.Kubernetes, ctx context.Context) (string, error) {
 	return passwordFromSecret(consts.DefaultOperatorUser, secretName, namespace, k, ctx)
+}
+
+func AuthPropsFromSecret(buf []byte) (users, groups string, err error) {
+	var creds IdentitiesYaml
+	err = yaml.Unmarshal(buf, &creds)
+	if err != nil {
+		return
+	}
+	for _, cred := range creds.Credentials {
+		users += fmt.Sprintf("%s=%s\n", cred.Username, cred.Password)
+		groups += fmt.Sprintf("%s=%s\n", cred.Username, strings.Join(cred.Roles, ","))
+	}
+	return
+}
+
+func IdentitiesCliFileFromSecret(buf []byte, realm, usersFile, groupsFile string) (string, error) {
+	var creds IdentitiesYaml
+	if err := yaml.Unmarshal(buf, &creds); err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for _, cred := range creds.Credentials {
+		fmt.Fprintf(&b, "user create %s --realm %s -p %s --groups %s --users-file %s --groups-file %s\n", cred.Username, realm, cred.Password, strings.Join(cred.Roles, ","), usersFile, groupsFile)
+	}
+	return b.String(), nil
 }

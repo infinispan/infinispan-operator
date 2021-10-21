@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	EncryptKeystoreName = "keystore.p12"
-	EncryptKeystorePath = ServerRoot + "/conf/keystore"
+	EncryptPkcs12KeystoreName = "keystore.p12"
+	EncryptPemKeystoreName    = "keystore.pem"
 )
 
 // ConfigReconciler reconciles a ConfigMap object
@@ -127,7 +127,8 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		}
 	}
 
-	if result, err := r.computeAndReconcileConfigMap(xsite); result != nil {
+	result, err := r.computeAndReconcileConfigMap(xsite)
+	if result != nil {
 		if err != nil {
 			reqLogger.Error(err, "Error while computing and reconciling ConfigMap")
 		}
@@ -150,8 +151,6 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 	} else {
 		roleMapper = "cluster"
 	}
-
-	jgroupsDiagnostics := consts.JGroupsDiagnosticsFlag == "TRUE"
 	serverConf := config.InfinispanConfiguration{
 		Infinispan: config.Infinispan{
 			Authorization: config.Authorization{
@@ -159,23 +158,60 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 				RoleMapper: roleMapper,
 			},
 			ClusterName: name,
+			Locks: config.Locks{
+				Owners:      -1,
+				Reliability: "consistent",
+			},
 		},
 		JGroups: config.JGroups{
-			Transport: "tcp",
+			Transport:   "tcp",
+			BindPort:    7800,
+			Diagnostics: consts.JGroupsDiagnosticsFlag == "TRUE",
 			DNSPing: config.DNSPing{
-				Query: fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
+				RecordType: "A",
+				Query:      fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
 			},
-			Diagnostics: jgroupsDiagnostics,
+		},
+		Keystore: config.Keystore{
+			Password: "password",
+			Alias:    "server",
+			Type:     "pkcs12",
+		},
+		XSite: &config.XSite{
+			RelayNodeCandidate: true,
+			MaxRelayNodes:      1,
+			Transport:          "tunnel",
+			Relay: config.Relay{
+				BindPort: 0,
+			},
+		},
+		Logging: config.Logging{
+			Console: config.Console{
+				Level:   "trace",
+				Pattern: "'%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n'",
+			},
+			File: config.File{
+				Level:   "trace",
+				Pattern: "'%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n'",
+				Path:    "'${sys:infinispan.server.log.path}/server.log'",
+			},
+			Categories: r.infinispan.GetLogCategoriesForConfig(),
 		},
 		Endpoints: config.Endpoints{
 			Authenticate:   r.infinispan.IsAuthenticationEnabled(),
+			ClientCert:     "none",
 			DedicatedAdmin: true,
+			Hotrod: config.Endpoint{
+				Enabled:    true,
+				Qop:        "auth",
+				ServerName: "infinispan",
+			},
+			Enabled: true,
 		},
-		Logging: config.Logging{
-			Categories: r.infinispan.GetLogCategoriesForConfig(),
-		},
+		CloudEvents: &config.CloudEvents{},
 	}
 
+	// Apply settings for authentication and roles
 	specRoles := r.infinispan.GetAuthorizationRoles()
 	if len(specRoles) > 0 {
 		confRoles := make([]config.AuthorizationRole, len(specRoles))
@@ -185,14 +221,13 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 		serverConf.Infinispan.Authorization.Roles = confRoles
 	}
 
+	// Apply settings for cross site
 	if xsite != nil {
 		serverConf.XSite = xsite
 	}
-
 	if result, err := ConfigureServerEncryption(r.infinispan, &serverConf, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
 		return result, err
 	}
-
 	r.configureCloudEvent(&serverConf)
 
 	configMapObject := &corev1.ConfigMap{
@@ -208,8 +243,15 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 			return err
 		}
 
+		ispnXml, log4jXml, err := serverConf.Xml()
+		if err != nil {
+			return err
+		}
+
 		if configMapObject.CreationTimestamp.IsZero() {
 			configMapObject.Data = map[string]string{consts.ServerConfigFilename: configYaml}
+			configMapObject.Data["infinispan.xml"] = ispnXml
+			configMapObject.Data["log4j.xml"] = log4jXml
 			configMapObject.Labels = lsConfigMap
 			// Set Infinispan instance as the owner and controller
 			if err = controllerutil.SetControllerReference(r.infinispan, configMapObject, r.scheme); err != nil {
@@ -222,6 +264,8 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 				serverConf.Logging = previousConfig.Logging
 			}
 			configMapObject.Data[consts.ServerConfigFilename] = configYaml
+			configMapObject.Data["infinispan.xml"] = ispnXml
+			configMapObject.Data["log4j.xml"] = log4jXml
 		}
 		return nil
 	})
@@ -261,9 +305,10 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 
 	configureNewKeystore := func(c *config.InfinispanConfiguration) {
 		c.Keystore.CrtPath = consts.ServerEncryptKeystoreRoot
-		c.Keystore.Path = EncryptKeystorePath
-		c.Keystore.Password = "password"
-		c.Keystore.Alias = "server"
+		c.Keystore.Path = consts.ServerOperatorSecurity + "/" + EncryptPemKeystoreName
+		c.Keystore.Password = ""
+		c.Keystore.Alias = ""
+		c.Keystore.Type = "pem"
 	}
 
 	// Configure Keystore
@@ -271,15 +316,14 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, i, client, log, eventRec, ctx); result != nil {
 		return result, err
 	}
-
 	if i.IsEncryptionCertFromService() {
 		if strings.Contains(i.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
 			configureNewKeystore(c)
 		}
 	} else {
-		if secretContains(keystoreSecret, EncryptKeystoreName) {
+		if secretContains(keystoreSecret, EncryptPkcs12KeystoreName) {
 			// If user provide a keystore in secret then use it ...
-			c.Keystore.Path = fmt.Sprintf("%s/%s", consts.ServerEncryptKeystoreRoot, EncryptKeystoreName)
+			c.Keystore.Path = fmt.Sprintf("%s/%s", consts.ServerEncryptKeystoreRoot, EncryptPkcs12KeystoreName)
 			c.Keystore.Password = string(keystoreSecret.Data["password"])
 			c.Keystore.Alias = string(keystoreSecret.Data["alias"])
 		} else if secretContains(keystoreSecret, corev1.TLSPrivateKeyKey, corev1.TLSCertKey) {

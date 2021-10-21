@@ -326,6 +326,8 @@ type InfinispanSpec struct {
 	// External dependencies needed by the Infinispan cluster
 	// +optional
 	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`
+	// +optional
+	ConfigMapName string `json:"configMapName,omitempty"`
 }
 
 type ConditionType string

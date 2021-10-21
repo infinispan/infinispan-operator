@@ -13,7 +13,6 @@ import (
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
@@ -224,14 +223,9 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 		return reconcile.Result{}, err
 	}
 
-	configMap, err := z.configureServer(name, namespace, infinispan, instance, ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("unable to create zero-capacity configuration: %w", err)
-	}
-
 	err = z.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &corev1.Pod{})
 	if errors.IsNotFound(err) {
-		pod, err := z.zeroPodSpec(name, namespace, configMap.Name, podSecurityCtx, infinispan, spec)
+		pod, err := z.zeroPodSpec(name, namespace, podSecurityCtx, infinispan, spec)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to compute Spec for zero-capacity pod: %w", err)
 		}
@@ -294,9 +288,11 @@ func (z *zeroCapacityController) cleanupResources(httpClient http.HttpClient, re
 			z.Log.Error(logErr, "error encountered when cleaning up zero-capacity pod")
 		}
 		defer func() {
-			cerr := rsp.Body.Close()
-			if logErr == nil {
-				logErr = cerr
+			if rsp != nil {
+				cerr := rsp.Body.Close()
+				if logErr == nil {
+					logErr = cerr
+				}
 			}
 		}()
 	}
@@ -311,7 +307,7 @@ func (z *zeroCapacityController) isZeroPodReady(request reconcile.Request, ctx c
 	return kube.IsPodReady(*pod)
 }
 
-func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, podSecurityCtx *corev1.PodSecurityContext, ispn *v1.Infinispan, zeroSpec *zeroCapacitySpec) (*corev1.Pod, error) {
+func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurityCtx *corev1.PodSecurityContext, ispn *v1.Infinispan, zeroSpec *zeroCapacitySpec) (*corev1.Pod, error) {
 	podResources, err := PodResources(zeroSpec.Container)
 	if err != nil {
 		return nil, err
@@ -328,17 +324,19 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 		Spec: corev1.PodSpec{
 			SecurityContext: podSecurityCtx,
 			Containers: []corev1.Container{{
-				Image:          ispn.ImageName(),
-				Name:           name,
-				Env:            PodEnv(ispn, nil),
+				Image: ispn.ImageName(),
+				Name:  name,
+				//				Env:   PodEnv(ispn, nil),
+				Env:            PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesCliFilename}}),
 				LivenessProbe:  PodLivenessProbe(),
 				Ports:          PodPorts(),
 				ReadinessProbe: PodReadinessProbe(),
 				Resources:      *podResources,
+				Args:           buildStartupArgs("", "true"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      ConfigVolumeName,
-						MountPath: consts.ServerConfigRoot,
+						MountPath: OperatorConfMountPath,
 					},
 					{
 						Name:      AdminIdentitiesVolumeName,
@@ -353,6 +351,9 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 					{
 						Name:      name,
 						MountPath: zeroSpec.Volume.MountPath,
+					}, {
+						Name:      InfinispanSecurityVolumeName,
+						MountPath: consts.ServerOperatorSecurity,
 					},
 				},
 			}},
@@ -363,7 +364,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 					Name: ConfigVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
-							LocalObjectReference: corev1.LocalObjectReference{Name: configMap},
+							LocalObjectReference: corev1.LocalObjectReference{Name: ispn.GetConfigName()},
 						},
 					}},
 				// Volume for admin credentials
@@ -386,6 +387,13 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
+				}, {
+					Name: InfinispanSecurityVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: ispn.GetInfinispanSecuritySecretName(),
+						},
+					},
 				},
 			},
 		},
@@ -401,59 +409,6 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace, configMap string, 
 		AddVolumesForEncryption(ispn, &pod.Spec)
 	}
 	return pod, nil
-}
-
-func (z *zeroCapacityController) configureServer(name, namespace string, infinispan *v1.Infinispan, instance zeroCapacityResource, ctx context.Context) (*corev1.ConfigMap, error) {
-	clusterConfig := &corev1.ConfigMap{}
-	clusterConfigName := infinispan.GetConfigName()
-	clusterKey := types.NamespacedName{
-		Namespace: namespace,
-		Name:      clusterConfigName,
-	}
-	if err := z.Client.Get(ctx, clusterKey, clusterConfig); err != nil {
-		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("unable to load ConfigMap: %s", clusterConfigName)
-		}
-		return nil, err
-	}
-
-	yaml := clusterConfig.Data[consts.ServerConfigFilename]
-	config, err := configuration.FromYaml(yaml)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse existing config: %s", clusterConfigName)
-	}
-
-	config.Infinispan.ZeroCapacityNode = true
-	config.Logging.Categories = map[string]string{
-		"org.infinispan.server.core.backup": "debug",
-	}
-
-	// TODO reinstate once zero_controller migrated to controllers. Avoids cyclic dependency
-	// if result, err := controllers.ConfigureServerEncryption(infinispan, config, z.Client, z.Log, z.EventRec); result != nil {
-	// 	return nil, fmt.Errorf("Unable to configure zero-capacity encryption: %w", err)
-	// }
-
-	yaml, err = config.Yaml()
-	if err != nil {
-		return nil, fmt.Errorf("unable to convert config to yaml: %w", err)
-	}
-
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, z.Client, configMap, func() error {
-		configMap.Data = map[string]string{consts.ServerConfigFilename: yaml}
-		return controllerutil.SetControllerReference(instance.AsMeta(), configMap, z.Scheme)
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("unable to create ConfigMap '%s': %w", clusterConfigName, err)
-	}
-	return configMap, nil
 }
 
 func newHttpClient(i *v1.Infinispan, kubernetes *kube.Kubernetes, ctx context.Context) (http.HttpClient, error) {

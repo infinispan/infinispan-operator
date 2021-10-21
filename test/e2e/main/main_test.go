@@ -128,7 +128,7 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	}
 
 	keystoreSecret = testKube.GetSecret(keystoreSecret.Name, keystoreSecret.Namespace)
-	keystoreSecret.Data[controllers.EncryptKeystoreName] = newKeystore
+	keystoreSecret.Data[controllers.EncryptPkcs12KeystoreName] = newKeystore
 	testKube.UpdateSecret(keystoreSecret)
 
 	truststoreSecret = testKube.GetSecret(truststoreSecret.Name, truststoreSecret.Namespace)
@@ -1367,13 +1367,7 @@ func testCacheWithCR(ispn *ispnv1.Infinispan, cache *v2alpha1.Cache) {
 	}
 	testKube.WaitForCacheCondition(cache.Spec.Name, cache.Namespace, condition)
 	waitForCacheToBeCreated(cache.Spec.Name, hostAddr, client)
-	keyURL := fmt.Sprintf("%v/%v", cacheURL(cache.Spec.Name, hostAddr), key)
-	putViaRoute(keyURL, value, client)
-	actual := getViaRoute(keyURL, client)
-
-	if actual != value {
-		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
-	}
+	testBasicCacheUsage(key, value, cache.Spec.Name, hostAddr, client)
 	defer testKube.DeleteCache(cache)
 }
 func createCacheWithCR(cacheName string, nameSpace string, clusterName string) *v2alpha1.Cache {
@@ -1432,7 +1426,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	//Check if all pods are running and they are not degraded
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
-	
+
 	//Verify whether the pod restarted for an OOM exception
 	hasOOMhappened := false
 	podList := &corev1.PodList{}
@@ -1441,7 +1435,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	for _, pod := range podList.Items {
 		status := pod.Status.ContainerStatuses
 
-		out:
+	out:
 		for _, containerStatuses := range status {
 			if containerStatuses.LastTerminationState.Terminated != nil {
 				terminatedPod := containerStatuses.LastTerminationState.Terminated
@@ -1473,4 +1467,171 @@ func GenerateStringWithCharset(length int) string {
 		b[i] = charset[seededRand.Intn(len(charset))]
 	}
 	return string(b)
+}
+
+// Test custom configuration with cache-container element
+func TestUserXmlCustomConfig(t *testing.T) {
+	t.Parallel()
+	configMap := newCustomConfigMap(t.Name(), "xml")
+	testCustomConfig(t, configMap)
+}
+
+func TestUserYamlCustomConfig(t *testing.T) {
+	t.Parallel()
+	configMap := newCustomConfigMap(t.Name(), "yaml")
+	testCustomConfig(t, configMap)
+}
+
+func TestUserJsonCustomConfig(t *testing.T) {
+	t.Parallel()
+	configMap := newCustomConfigMap(t.Name(), "json")
+	testCustomConfig(t, configMap)
+}
+
+func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
+	testKube.Create(configMap)
+	// Create a resource without passing any config
+	ispn := tutils.DefaultSpec(testKube)
+	ispn.Spec.ConfigMapName = configMap.Name
+	ispn.Name = strcase.ToKebab(t.Name())
+	// Register it
+	ispn.Labels = map[string]string{"test-name": t.Name()}
+	testKube.CreateInfinispan(ispn, tutils.Namespace)
+	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, ispn.Labels)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+	key := "testkey"
+	value := "test-operator"
+	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+	testBasicCacheUsage(key, value, t.Name(), hostAddr, client)
+}
+
+func testBasicCacheUsage(key, value, cacheName, hostAddr string, client tutils.HTTPClient) {
+	keyURL := fmt.Sprintf("%v/%v", cacheURL(cacheName, hostAddr), key)
+	putViaRoute(keyURL, value, client)
+	actual := getViaRoute(keyURL, client)
+
+	if actual != value {
+		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
+	}
+}
+
+// TestUserCustomConfigWithAuthUpdate tests that user custom config works well with update
+// using authentication update to trigger a cluster update
+func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
+	t.Parallel()
+	configMap := newCustomConfigMap(t.Name(), "xml")
+	testKube.Create(configMap)
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		// testing cache pre update
+		key := "testkey"
+		value := "test-operator"
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+		testBasicCacheUsage(key, value, t.Name(), hostAddr, client)
+		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+		// testing cache post update
+		key := "testkey"
+		value := "test-operator"
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+		testBasicCacheUsage(key, value, t.Name(), hostAddr, client)
+	}
+	ispn := tutils.DefaultSpec(testKube)
+	ispn.Name = strcase.ToKebab(t.Name())
+	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	ispn.Spec.ConfigMapName = configMap.Name
+	genericTestForContainerUpdated(*ispn, modifier, verifier)
+}
+
+// TestUserCustomConfigUpdateOnChange tests that user custom config works well with user config update
+func TestUserCustomConfigUpdateOnChange(t *testing.T) {
+	t.Parallel()
+	configMap := newCustomConfigMap(t.Name(), "xml")
+	testKube.Create(configMap)
+	defer testKube.DeleteConfigMap(configMap)
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		// testing cache pre update
+		key := "testkey"
+		value := "test-operator"
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+		testBasicCacheUsage(key, value, t.Name(), hostAddr, client)
+		configMapChanged := newCustomConfigMap(t.Name()+"Changed", "xml")
+		testKube.Create(configMapChanged)
+		ispn.Spec.ConfigMapName = configMapChanged.Name
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+		// testing cache post update
+		key := "testkey"
+		value := "test-operator"
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+		testBasicCacheUsage(key, value, t.Name()+"Changed", hostAddr, client)
+	}
+	ispn := tutils.DefaultSpec(testKube)
+	ispn.Name = strcase.ToKebab(t.Name())
+	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	ispn.Spec.ConfigMapName = configMap.Name
+	genericTestForContainerUpdated(*ispn, modifier, verifier)
+}
+
+// TestUserCustomConfigUpdateOnAdd tests that user custom config works well with user config update
+func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
+	t.Parallel()
+	configMap := newCustomConfigMap(t.Name(), "xml")
+	testKube.Create(configMap)
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		tutils.ExpectNoError(testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.ConfigMapName = configMap.Name
+		}))
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+		// testing cache post update
+		key := "testkey"
+		value := "test-operator"
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+		testBasicCacheUsage(key, value, t.Name(), hostAddr, client)
+	}
+	ispn := tutils.DefaultSpec(testKube)
+	ispn.Name = strcase.ToKebab(t.Name())
+	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	genericTestForContainerUpdated(*ispn, modifier, verifier)
+}
+
+func newCustomConfigMap(name, format string) *corev1.ConfigMap {
+	var userCacheContainer string
+	switch format {
+	case "xml":
+		userCacheContainer = `<infinispan
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="urn:infinispan:config:13.0 http://www.infinispan.org/schemas/infinispan-config-13.0.xsd
+					urn:infinispan:server:13.0 http://www.infinispan.org/schemas/infinispan-server-13.0.xsd"
+xmlns="urn:infinispan:config:13.0"
+xmlns:server="urn:infinispan:server:13.0">
+	<cache-container name="default" statistics="true">
+		<distributed-cache name="` + name + `"/>
+	</cache-container>
+</infinispan>`
+	case "yaml":
+		userCacheContainer = `infinispan:
+  cacheContainer:
+  	name: default
+		distributedCache:
+			name: ` + name
+	case "json":
+		userCacheContainer = `{ "infinispan": { "cacheContainer": { "name": "default", "distributedCache": { "name": "` + name + `"}}}}`
+	}
+
+	return &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: strcase.ToKebab(name),
+		Namespace: tutils.Namespace},
+		Data: map[string]string{"infinispan-config." + format: userCacheContainer},
+	}
 }

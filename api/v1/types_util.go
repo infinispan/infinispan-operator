@@ -368,6 +368,11 @@ func (ispn *Infinispan) GetConfigName() string {
 	return fmt.Sprintf("%v-configuration", ispn.Name)
 }
 
+// GetInfinispanSecuritySecretName returns the Secret containing the server certs and auth props
+func (ispn *Infinispan) GetInfinispanSecuritySecretName() string {
+	return fmt.Sprintf("%v-infinispan-security", ispn.Name)
+}
+
 // GetServiceMonitorName returns the ServiceMonitor name for the cluster
 func (ispn *Infinispan) GetServiceMonitorName() string {
 	return fmt.Sprintf("%v-monitor", ispn.Name)
@@ -416,15 +421,17 @@ func (ispn *Infinispan) GetJavaOptions() string {
 
 // GetLogCategoriesForConfig return a map of log category for the Infinispan configuration
 func (ispn *Infinispan) GetLogCategoriesForConfig() map[string]string {
+	var categories map[string]LoggingLevelType
 	if ispn.Spec.Logging != nil {
-		categories := ispn.Spec.Logging.Categories
-		if categories != nil {
-			copied := make(map[string]string, len(categories))
-			for category, level := range categories {
-				copied[category] = string(level)
-			}
-			return copied
+		categories = ispn.Spec.Logging.Categories
+	}
+	copied := make(map[string]string, len(categories)+1)
+	copied["org.infinispan.server.core.backup"] = "debug"
+	if categories != nil {
+		for category, level := range categories {
+			copied[category] = string(level)
 		}
+		return copied
 	}
 	return make(map[string]string)
 }

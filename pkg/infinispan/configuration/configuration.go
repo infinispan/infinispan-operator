@@ -1,6 +1,13 @@
 package configuration
 
 import (
+	"bytes"
+	"fmt"
+	"strings"
+	"text/template"
+
+	rice "github.com/GeertJohan/go.rice"
+	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"gopkg.in/yaml.v2"
 )
 
@@ -40,10 +47,19 @@ type AuthorizationRole struct {
 	Permissions []string `yaml:"permissions"`
 }
 
+type Endpoint struct {
+	Enabled    bool   `yaml:"enabled,omitempty"`
+	Qop        string `yaml:"qop,omitempty"`
+	ServerName string `yaml:"serverName,omitempty"`
+}
+
 type Endpoints struct {
-	Authenticate   bool   `yaml:"auth"`
-	DedicatedAdmin bool   `yaml:"dedicatedAdmin"`
-	ClientCert     string `yaml:"clientCert,omitempty"`
+	Enabled        bool     `yaml:"enabled,omitempty"`
+	Cors           bool     `yaml:"cors,omitempty"` // TODO: cors not implemented
+	Authenticate   bool     `yaml:"auth"`
+	DedicatedAdmin bool     `yaml:"dedicatedAdmin"`
+	ClientCert     string   `yaml:"clientCert,omitempty"`
+	Hotrod         Endpoint `yaml:"hotrod,omitempty"`
 }
 
 type Locks struct {
@@ -53,10 +69,12 @@ type Locks struct {
 
 // Keystore configuration info for endpoint encryption
 type Keystore struct {
-	Path     string
-	Password string
-	Alias    string
-	CrtPath  string `yaml:"crtPath,omitempty"`
+	Path         string
+	Password     string
+	Alias        string
+	CrtPath      string `yaml:"crtPath,omitempty"`
+	SelfSignCert string `yaml:"selfSignCert,omitempty"`
+	Type         string `yaml:"type,omitempty"`
 }
 
 // Truststore configuration info for endpoint encryption
@@ -69,23 +87,32 @@ type Truststore struct {
 
 // JGroups configures clustering layer
 type JGroups struct {
-	Transport   string
+	Transport   string  `yaml:"transport"`
 	DNSPing     DNSPing `yaml:"dnsPing"`
 	Diagnostics bool    `yaml:"diagnostics"`
+	BindPort    int32   `yaml:"bindPort"`
+}
+
+type Relay struct {
+	BindPort int32 `yaml:"bindPort"`
 }
 
 // DNSPing configures DNS cluster lookup settings
 type DNSPing struct {
-	Query string
+	Query      string `yaml:"query"`
+	Address    string `yaml:"address"`
+	RecordType string `yaml:"recordType"`
 }
 
 type XSite struct {
-	Address        string       `yaml:"address"`
-	Name           string       `yaml:"name"`
-	Port           int32        `yaml:"port"`
-	Transport      string       `yaml:"transport"`
-	MaxSiteMasters int32        `yaml:"maxSiteMasters"`
-	Backups        []BackupSite `yaml:"backups"`
+	Address            string       `yaml:"address"`
+	Name               string       `yaml:"name"`
+	Port               int32        `yaml:"port"`
+	Transport          string       `yaml:"transport"`
+	MaxRelayNodes      int32        `yaml:"maxRelayNodes"`
+	Backups            []BackupSite `yaml:"backups"`
+	RelayNodeCandidate bool         `yaml:"relayNodeCandidate"`
+	Relay              Relay        `yaml:"relay"`
 }
 
 type BackupSite struct {
@@ -95,7 +122,20 @@ type BackupSite struct {
 }
 
 type Logging struct {
+	Console    Console           `yaml:"console"`
+	File       File              `yaml:"file"`
 	Categories map[string]string `yaml:"categories,omitempty"`
+}
+
+type Console struct {
+	Level   string `yaml:"level"`
+	Pattern string `yaml:"pattern"`
+}
+
+type File struct {
+	Level   string `yaml:"level"`
+	Pattern string `yaml:"pattern"`
+	Path    string `yaml:"path"`
 }
 
 func (c *InfinispanConfiguration) Yaml() (string, error) {
@@ -112,4 +152,57 @@ func FromYaml(src string) (*InfinispanConfiguration, error) {
 		return nil, err
 	}
 	return config, nil
+}
+
+func (serverConf *InfinispanConfiguration) Xml() (infinispan string, logging string, err error) {
+	// Setup go template to process infinispan.xml
+	funcMap := template.FuncMap{
+		"UpperCase":    strings.ToUpper,
+		"LowerCase":    strings.ToLower,
+		"ServerRoot":   func() string { return consts.ServerRoot },
+		"ListAsString": func(elems []string) string { return strings.Join(elems, ",") },
+		"RemoteSites": func(elems []BackupSite) string {
+			var ret string
+			for i, bs := range elems {
+				ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
+				if i < len(elems)-1 {
+					ret += ","
+				}
+			}
+			return ret
+		},
+	}
+	var ispnXmlTemplate, loggingXmlTemplate string
+	if box, err := rice.FindBox("resources"); err != nil {
+		return "", "", err
+	} else {
+		if ispnXmlTemplate, err = box.String("infinispan.xmltmpl"); err != nil {
+			return "", "", err
+		}
+		if loggingXmlTemplate, err = box.String("log4j.xmltmpl"); err != nil {
+			return "", "", err
+		}
+	}
+
+	tIspn, err := template.New("infinispan.xml").Funcs(funcMap).Parse(ispnXmlTemplate)
+	if err != nil {
+		return "", "", err
+	}
+	buffIspn := new(bytes.Buffer)
+	err = tIspn.Execute(buffIspn, serverConf)
+	if err != nil {
+		return "", "", err
+	}
+
+	tLog4j, err := template.New("log4j.xml").Funcs(funcMap).Parse(loggingXmlTemplate)
+	if err != nil {
+		return "", "", err
+	}
+	buffLog4j := new(bytes.Buffer)
+	err = tLog4j.Execute(buffLog4j, serverConf)
+	if err != nil {
+		return "", "", err
+	}
+
+	return buffIspn.String(), buffLog4j.String(), nil
 }

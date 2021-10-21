@@ -21,6 +21,7 @@ type HTTPClient interface {
 	Delete(path string, headers map[string]string) (*http.Response, error)
 	Get(path string, headers map[string]string) (*http.Response, error)
 	Post(path, payload string, headers map[string]string) (*http.Response, error)
+	Quiet(quiet bool)
 }
 
 type authType int
@@ -41,6 +42,7 @@ type httpClientConfig struct {
 	password *string
 	protocol string
 	auth     authType
+	quiet    bool
 }
 
 // NewHTTPClient return a new HTTPClient
@@ -98,10 +100,16 @@ func (c *httpClientConfig) Post(path, payload string, headers map[string]string)
 	return c.exec("POST", path, payload, headers)
 }
 
+func (c *httpClientConfig) Quiet(quiet bool) {
+	c.quiet = quiet
+}
+
 func (c *httpClientConfig) exec(method, path, payload string, headers map[string]string) (*http.Response, error) {
 	httpURL, err := url.Parse(fmt.Sprintf("%s://%s", c.protocol, path))
 	ExpectNoError(err)
-	fmt.Printf("%s: %s\n", method, httpURL)
+	if !c.quiet {
+		fmt.Printf("%s: %s\n", method, httpURL)
+	}
 	rsp, err := c.request(httpURL, method, payload, headers)
 	if err != nil {
 		return nil, err
