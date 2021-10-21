@@ -344,7 +344,7 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 
 	configureNewKeystore := func(c *config.InfinispanConfiguration) {
 		c.Keystore.CrtPath = consts.ServerEncryptKeystoreRoot
-		c.Keystore.Path = OperatorSecurityMountPath + "/" + EncryptPemKeystoreName
+		c.Keystore.Path = consts.ServerOperatorSecurity + "/" + EncryptPemKeystoreName
 		c.Keystore.Password = ""
 		c.Keystore.Alias = ""
 		c.Keystore.Type = "pem"

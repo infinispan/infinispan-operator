@@ -327,7 +327,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 				Image: ispn.ImageName(),
 				Name:  name,
 				//				Env:   PodEnv(ispn, nil),
-				Env:            PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: OperatorSecurityMountPath + "/" + consts.ServerIdentitiesCliFilename}}),
+				Env:            PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesCliFilename}}),
 				LivenessProbe:  PodLivenessProbe(),
 				Ports:          PodPorts(),
 				ReadinessProbe: PodReadinessProbe(),
@@ -353,7 +353,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 						MountPath: zeroSpec.Volume.MountPath,
 					}, {
 						Name:      InfinispanSecurityVolumeName,
-						MountPath: OperatorSecurityMountPath,
+						MountPath: consts.ServerOperatorSecurity,
 					},
 				},
 			}},

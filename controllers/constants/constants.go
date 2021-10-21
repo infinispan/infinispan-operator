@@ -92,7 +92,7 @@ const (
 	ServerAdminIdentitiesPath           = ServerAdminIdentitiesRoot + "/" + ServerIdentitiesFilename
 	ServerUserIdentitiesRoot            = ServerSecurityRoot + "/user"
 	ServerUserIdentitiesPath            = ServerUserIdentitiesRoot + "/" + ServerIdentitiesFilename
-	OverlayConfigPath                   = "/etc"
+	ServerOperatorSecurity              = ServerSecurityRoot + "/conf/operator-security"
 	ServerRoot                          = "/opt/infinispan/server"
 
 	ServerHTTPBasePath         = "rest/v2"

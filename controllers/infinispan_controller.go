@@ -45,7 +45,6 @@ import (
 const (
 	DataMountPath                = consts.ServerRoot + "/data"
 	OperatorConfMountPath        = consts.ServerRoot + "/conf/operator"
-	OperatorSecurityMountPath    = consts.ServerRoot + "/conf/operator-security"
 	DataMountVolume              = "data-volume"
 	ConfigVolumeName             = "config-volume"
 	EncryptKeystoreVolumeName    = "encrypt-volume"
@@ -1075,7 +1074,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		MountPath: OperatorConfMountPath,
 	}, {
 		Name:      InfinispanSecurityVolumeName,
-		MountPath: OperatorSecurityMountPath,
+		MountPath: consts.ServerOperatorSecurity,
 	}, {
 		Name:      dataVolumeName,
 		MountPath: DataMountPath,
@@ -1160,7 +1159,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 						Env: PodEnv(ispn, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hash.HashString(configMap.Data[consts.ServerConfigFilename])},
 							{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])},
-							{Name: "IDENTITIES_BATCH", Value: OperatorSecurityMountPath + "/" + consts.ServerIdentitiesCliFilename},
+							{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesCliFilename},
 						}),
 						LivenessProbe:  PodLivenessProbe(),
 						Ports:          PodPortsWithXsite(ispn),
