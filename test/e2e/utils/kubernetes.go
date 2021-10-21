@@ -20,6 +20,7 @@ import (
 	launcher "github.com/infinispan/infinispan-operator/launcher"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -65,12 +66,12 @@ func init() {
 	addToScheme(&ispnv2.SchemeBuilder.SchemeBuilder, Scheme)
 	addToScheme(&appsv1.SchemeBuilder, Scheme)
 	addToScheme(&storagev1.SchemeBuilder, Scheme)
-	ExpectNoError(routev1.AddToScheme(Scheme))
+	PanicOnError(routev1.AddToScheme(Scheme))
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 	err := schemeBuilder.AddToScheme(scheme)
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 // NewKubernetesFromLocalConfig creates a new Kubernetes instance from configuration.
@@ -126,7 +127,7 @@ func resolveConfig(ctx string) *rest.Config {
 func NewTestKubernetes(ctx string) *TestKubernetes {
 	mapperProvider := apiutil.NewDynamicRESTMapper
 	kubernetes, err := NewKubernetesFromLocalConfig(Scheme, mapperProvider, ctx)
-	ExpectNoError(err)
+	PanicOnError(err)
 	return &TestKubernetes{Kubernetes: kubernetes}
 }
 
@@ -142,20 +143,20 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: namespace}, obj)
 	if err != nil && k8serrors.IsNotFound(err) {
 		err = k.Kubernetes.Client.Create(context.TODO(), obj)
-		ExpectNoError(err)
+		PanicOnError(err)
 		return
 	}
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
-func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, specLabel map[string]string) {
+func (k TestKubernetes) CleanNamespaceAndLogOnPanic(t *testing.T, namespace string) {
 	panicVal := recover()
-	k.CleanNamespaceAndLogWithPanic(namespace, specLabel, panicVal)
+	k.CleanNamespaceAndLogWithPanic(t, namespace, map[string]string{"test-name": t.Name()}, panicVal)
 }
 
-func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabel map[string]string, panicVal interface{}) {
-	// Print pod output if a panic has occurred
-	if panicVal != nil {
+func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace string, specLabel map[string]string, panicVal interface{}) {
+	// Print pod output if a panic has occurred of test failed
+	if panicVal != nil || t.Failed() {
 		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
 		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
 		k.PrintAllResources(namespace, &appsv1.StatefulSetList{}, map[string]string{})
@@ -166,7 +167,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabe
 		k.PrintAllResources(namespace, &ispnv2.CacheList{}, map[string]string{})
 	}
 
-	if CleanupInfinispan == "TRUE" || panicVal == nil {
+	if CleanupInfinispan == "TRUE" || panicVal == nil || !t.Failed() {
 		var opts []client.DeleteAllOfOption
 		ctx := context.TODO()
 		if specLabel != nil {
@@ -180,19 +181,19 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabe
 			}
 		}
 
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
-		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
-		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
-		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
-		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-router-pod"})}, nil)
+		ExpectMaybeNotFound(t, k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
+		ExpectMaybeNotFound(t, k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+		ExpectMaybeNotFound(t, k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
+		ExpectMaybeNotFound(t, k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
+		ExpectMaybeNotFound(t, k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
+		k.WaitForPods(t, 0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
+		k.WaitForPods(t, 0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
+		k.WaitForPods(t, 0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-router-pod"})}, nil)
 	}
 
 	if panicVal != nil {
-		// Throw the recovered panic values so the tests fail as expected
-		panic(panicVal)
+		// Fail the test and pass the panic value to the output if panic occurred
+		t.Fatal(fmt.Printf("panicVal: %v\n", panicVal))
 	}
 }
 
@@ -230,7 +231,7 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 		},
 	}
 	err := k.Kubernetes.Client.Delete(context.TODO(), obj, DeleteOpts...)
-	ExpectMaybeNotFound(err)
+	PanicOnErrorExpectNotFound(err)
 
 	fmt.Println("Waiting for the namespace to be removed")
 	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
@@ -240,7 +241,7 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 		}
 		return false, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 func (k TestKubernetes) GetBackup(name, namespace string) *ispnv2.Backup {
@@ -249,7 +250,7 @@ func (k TestKubernetes) GetBackup(name, namespace string) *ispnv2.Backup {
 		Namespace: namespace,
 		Name:      name,
 	}
-	ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, backup))
+	PanicOnErrorExpectNotFound(k.Kubernetes.Client.Get(context.TODO(), key, backup))
 	return backup
 }
 
@@ -259,7 +260,7 @@ func (k TestKubernetes) GetRestore(name, namespace string) *ispnv2.Restore {
 		Namespace: namespace,
 		Name:      name,
 	}
-	ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, restore))
+	PanicOnErrorExpectNotFound(k.Kubernetes.Client.Get(context.TODO(), key, restore))
 	return restore
 }
 
@@ -269,19 +270,19 @@ func (k TestKubernetes) GetBatch(name, namespace string) *ispnv2.Batch {
 		Namespace: namespace,
 		Name:      name,
 	}
-	ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, batch))
+	PanicOnErrorExpectNotFound(k.Kubernetes.Client.Get(context.TODO(), key, batch))
 	return batch
 }
 
 func (k TestKubernetes) Create(obj client.Object) {
-	ExpectNoError(k.Kubernetes.Client.Create(context.TODO(), obj))
+	PanicOnError(k.Kubernetes.Client.Create(context.TODO(), obj))
 }
 
 // CreateInfinispan creates an Infinispan resource in the given namespace
 func (k TestKubernetes) CreateInfinispan(infinispan *ispnv1.Infinispan, namespace string) {
 	infinispan.Namespace = namespace
 	err := k.Kubernetes.Client.Create(context.TODO(), infinispan)
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
@@ -307,7 +308,7 @@ func (k TestKubernetes) DeleteBatch(batch *ispnv2.Batch) {
 // DeleteResource deletes the k8 resource and waits that all the pods and pvs associated with that resource are gone
 func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selector, obj client.Object, timeout time.Duration) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), obj, DeleteOpts...)
-	ExpectMaybeNotFound(err)
+	PanicOnErrorExpectNotFound(err)
 
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: selector}
 	podList := &corev1.PodList{}
@@ -318,7 +319,7 @@ func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selecto
 		}
 		return true, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	// Check that PersistentVolumeClaims have been cleanup
 	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		pvc := &corev1.PersistentVolumeClaimList{}
@@ -328,7 +329,7 @@ func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selecto
 		}
 		return true, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 // GracefulShutdownInfinispan deletes the infinispan resource
@@ -337,7 +338,7 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 	err := k.UpdateInfinispan(infinispan, func() {
 		infinispan.Spec.Replicas = 0
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	k.WaitForInfinispanCondition(infinispan.Name, infinispan.Namespace, ispnv1.ConditionGracefulShutdown)
 }
 
@@ -354,7 +355,7 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 		}
 		return true, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	k.WaitForInfinispanCondition(infinispan.Name, infinispan.Namespace, ispnv1.ConditionWellFormed)
 }
@@ -396,7 +397,7 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1.CustomResource
 		customResourceObject.Spec = crd.Spec
 		return nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	k.WaitForCrd(crd)
 	fmt.Printf("CRD %s: %s\n", crd.Name, result)
 }
@@ -428,7 +429,7 @@ func (k TestKubernetes) WaitForCrd(crd *apiextv1.CustomResourceDefinition) {
 
 		return false, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	fmt.Printf("CRD %s established\n", crd.Name)
 }
 
@@ -440,13 +441,13 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 		case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
 			routeList := &corev1.ServiceList{}
 			err = k.Kubernetes.ResourcesList(ispn.Namespace, controllers.ExternalServiceLabels(ispn.Name), routeList, context.TODO())
-			ExpectNoError(err)
+			PanicOnError(err)
 
 			if len(routeList.Items) > 0 {
 				switch ispn.GetExposeType() {
 				case ispnv1.ExposeTypeNodePort:
 					host, err := k.Kubernetes.GetNodeHost(log, context.TODO())
-					ExpectNoError(err)
+					PanicOnError(err)
 					hostAndPort = fmt.Sprintf("%s:%d", host, getNodePort(&routeList.Items[0]))
 				case ispnv1.ExposeTypeLoadBalancer:
 					hostAndPort = k.Kubernetes.GetExternalAddress(&routeList.Items[0])
@@ -455,7 +456,7 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 		case ispnv1.ExposeTypeRoute:
 			routeList := &routev1.RouteList{}
 			err = k.Kubernetes.ResourcesList(ispn.Namespace, controllers.ExternalServiceLabels(ispn.Name), routeList, context.TODO())
-			ExpectNoError(err)
+			PanicOnError(err)
 			if len(routeList.Items) > 0 {
 				hostAndPort = routeList.Items[0].Spec.Host
 			}
@@ -465,7 +466,7 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 		}
 		return CheckExternalAddress(client, hostAndPort), nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	return hostAndPort
 }
 
@@ -479,7 +480,7 @@ func CheckExternalAddress(c HTTPClient, hostAndPort string) bool {
 	if isTemporary(err) {
 		return false
 	}
-	ExpectNoError(err)
+	PanicOnError(err)
 	defer LogError(resp.Body.Close())
 	log.Info("Received response for external address", "response code", resp.StatusCode)
 	return resp.StatusCode == http.StatusOK
@@ -501,15 +502,15 @@ func isTemporary(err error) bool {
 	return errors.As(err, &temporary) || errors.As(err, &timeout)
 }
 
-func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) {
-	k.WaitForPods(required, timeout, &client.ListOptions{
+func (k TestKubernetes) WaitForInfinispanPods(t *testing.T, required int, timeout time.Duration, cluster, namespace string) {
+	k.WaitForPods(t, required, timeout, &client.ListOptions{
 		Namespace:     namespace,
 		LabelSelector: labels.SelectorFromSet(controllers.PodLabels(cluster)),
 	}, nil)
 }
 
 // WaitForPods waits for pods with given ListOptions to reach the desired count in ContainersReady state
-func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps *client.ListOptions, callback func([]corev1.Pod) bool) {
+func (k TestKubernetes) WaitForPods(t *testing.T, required int, timeout time.Duration, listOps *client.ListOptions, callback func([]corev1.Pod) bool) {
 	podList := &corev1.PodList{}
 	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
@@ -540,7 +541,7 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps
 		return allReady, nil
 	})
 
-	ExpectNoError(err)
+	require.NoError(t, err)
 }
 
 func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace string, condition ispnv1.ConditionType, timeout time.Duration) *ispnv1.Infinispan {
@@ -559,7 +560,7 @@ func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace st
 		}
 		return false, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	return ispn
 }
 
@@ -576,7 +577,7 @@ func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
 		}
 		return len(curr.Status.Conditions) > 0, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	return curr.GetEndpointScheme()
 }
 
@@ -594,7 +595,7 @@ func (k TestKubernetes) getPorts(namespace, name string) []corev1.ServicePort {
 		Name:      name,
 	}
 	service := &corev1.Service{}
-	ExpectNoError(k.Kubernetes.Client.Get(context.TODO(), key, service))
+	PanicOnError(k.Kubernetes.Client.Get(context.TODO(), key, service))
 	return service.Spec.Ports
 }
 
@@ -613,7 +614,7 @@ func (k TestKubernetes) DeleteCRD(name string) {
 		},
 	}
 	err := k.Kubernetes.Client.Delete(context.TODO(), crd, DeleteOpts...)
-	ExpectMaybeNotFound(err)
+	PanicOnErrorExpectNotFound(err)
 
 	fmt.Println("Waiting for the CRD to be removed")
 	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
@@ -623,7 +624,7 @@ func (k TestKubernetes) DeleteCRD(name string) {
 		}
 		return false, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 // Nodes returns a list of running nodes in the cluster
@@ -631,7 +632,7 @@ func (k TestKubernetes) Nodes() []string {
 	nodes := &corev1.NodeList{}
 	listOps := &client.ListOptions{}
 	err := k.Kubernetes.Client.List(context.TODO(), nodes, listOps)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	var s []string
 	if nodes.Size() == 0 {
@@ -650,44 +651,44 @@ func (k TestKubernetes) GetSecret(name, namespace string) *corev1.Secret {
 		Namespace: namespace,
 		Name:      name,
 	}
-	ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, secret))
+	PanicOnErrorExpectNotFound(k.Kubernetes.Client.Get(context.TODO(), key, secret))
 	return secret
 }
 
 // UpdateSecret updates a secret
 func (k TestKubernetes) UpdateSecret(secret *corev1.Secret) {
 	err := k.Kubernetes.Client.Update(context.TODO(), secret)
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 // CreateSecret creates a secret
 func (k TestKubernetes) CreateSecret(secret *corev1.Secret) {
 	err := k.Kubernetes.Client.Create(context.TODO(), secret)
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 // DeleteSecret deletes a secret
 func (k TestKubernetes) DeleteSecret(secret *corev1.Secret) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), secret, DeleteOpts...)
-	ExpectMaybeNotFound(err)
+	PanicOnErrorExpectNotFound(err)
 }
 
 // CreateConfigMap creates a ConfigMap
 func (k TestKubernetes) CreateConfigMap(configMap *corev1.ConfigMap) {
 	err := k.Kubernetes.Client.Create(context.TODO(), configMap)
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 // DeleteConfigMap deletes a ConfigMap
 func (k TestKubernetes) DeleteConfigMap(configMap *corev1.ConfigMap) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), configMap, DeleteOpts...)
-	ExpectMaybeNotFound(err)
+	PanicOnError(err)
 }
 
 // UpdateSecret updates a ConfigMap
 func (k TestKubernetes) UpdateConfigMap(configMap *corev1.ConfigMap) {
 	err := k.Kubernetes.Client.Update(context.TODO(), configMap)
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 // RunOperator runs an operator on a Kubernetes cluster
@@ -710,14 +711,14 @@ func (k TestKubernetes) installCRD(path string) {
 
 func (k TestKubernetes) LoadResourceFromYaml(path string, obj runtime.Object) {
 	yamlReader, err := GetYamlReaderFromFile(path)
-	ExpectNoError(err)
+	PanicOnError(err)
 	// TODO: seems that new sdk puts a new line and a separator at the crd start
 	y, err := yamlReader.Read()
 	if y[0] == '\n' {
 		y, err = yamlReader.Read()
 	}
-	ExpectNoError(err)
-	ExpectNoError(k8syaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&obj))
+	PanicOnError(err)
+	PanicOnError(k8syaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&obj))
 }
 
 func RunOperator(m *testing.M, k *TestKubernetes) {
@@ -752,7 +753,7 @@ func runOperatorLocally(ctx context.Context, namespace string) {
 }
 func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), cache)
-	ExpectMaybeNotFound(err)
+	PanicOnErrorExpectNotFound(err)
 }
 
 func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition ispnv2.CacheCondition) {
@@ -773,7 +774,7 @@ func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition 
 		}
 		return false, nil
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 }
 
 func GetServerName(i *ispnv1.Infinispan) string {
@@ -784,7 +785,7 @@ func GetServerName(i *ispnv1.Infinispan) string {
 	clusterName := c.Contexts[c.CurrentContext].Cluster
 	cluster := c.Clusters[clusterName]
 	url, err := url.Parse(cluster.Server)
-	ExpectNoError(err)
+	PanicOnError(err)
 	hostname := strings.Split(strings.Replace(url.Host, "api.", "apps.", 1), ":")[0]
 	return fmt.Sprintf("%s-%s.%s", i.GetServiceExternalName(), i.GetNamespace(), hostname)
 }

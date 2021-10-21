@@ -22,6 +22,7 @@ import (
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -49,7 +50,7 @@ var (
 )
 
 func TestUpgrade(t *testing.T) {
-	printManifest()
+	printManifest(t)
 	name := strcase.ToKebab(t.Name())
 	labels := map[string]string{"test-name": name}
 
@@ -73,13 +74,13 @@ func TestUpgrade(t *testing.T) {
 		},
 	}
 
-	defer cleanup(labels)
-	testKube.CreateOperatorGroup(subName, tutils.Namespace, tutils.Namespace)
-	testKube.CreateSubscription(sub)
+	defer cleanup(t, labels)
+	testKube.CreateOperatorGroup(t, subName, tutils.Namespace, tutils.Namespace)
+	testKube.CreateSubscription(t, sub)
 
 	// Approve the initial startingCSV InstallPlan
-	testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
-	testKube.ApproveInstallPlan(sub)
+	testKube.WaitForSubscriptionState(t, coreos.SubscriptionStateUpgradePending, sub)
+	testKube.ApproveInstallPlan(t, sub)
 
 	testKube.WaitForCrd(&apiextv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
@@ -89,59 +90,57 @@ func TestUpgrade(t *testing.T) {
 
 	// Create the Infinispan CR
 	replicas := 2
-	spec := tutils.DefaultSpec(testKube)
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Name = name
 	spec.Labels = labels
 	spec.Spec.Replicas = int32(replicas)
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanPods(t, replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
 	numEntries := 100
 	hostAddr, client := tutils.HTTPClientAndHost(spec, testKube)
 	cacheName := "someCache"
-	populateCache(cacheName, hostAddr, numEntries, spec, client)
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+	populateCache(t, cacheName, hostAddr, numEntries, spec, client)
+	assertNumEntries(t, cacheName, hostAddr, numEntries, client)
 
 	// Upgrade the Subscription channel if required
 	if sourceChannel != targetChannel {
-		testKube.UpdateSubscriptionChannel(targetChannel.Name, sub)
+		testKube.UpdateSubscriptionChannel(t, targetChannel.Name, sub)
 	}
 
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
-	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
-		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
-		testKube.ApproveInstallPlan(sub)
+	for testKube.Subscription(t, sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
+		testKube.WaitForSubscriptionState(t, coreos.SubscriptionStateUpgradePending, sub)
+		testKube.ApproveInstallPlan(t, sub)
 
-		testKube.WaitForSubscription(sub, func() bool {
+		testKube.WaitForSubscription(t, sub, func() bool {
 			return sub.Status.InstalledCSV == sub.Status.CurrentCSV
 		})
 
 		// Ensure that the cluster is shutting down
 		testKube.WaitForInfinispanConditionWithTimeout(name, tutils.Namespace, ispnv1.ConditionStopping, conditionTimeout)
-		testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+		testKube.WaitForInfinispanPods(t, replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 		testKube.WaitForInfinispanConditionWithTimeout(name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 		// Validates that all pods are running with desired image
-		expectedImage := testKube.InstalledCSVServerImage(sub)
+		expectedImage := testKube.InstalledCSVServerImage(t, sub)
 		pods := &corev1.PodList{}
 		err := testKube.Kubernetes.ResourcesList(tutils.Namespace, controllers.PodLabels(spec.Name), pods, ctx)
-		tutils.ExpectNoError(err)
+		require.NoError(t, err)
 		for _, pod := range pods.Items {
-			if pod.Spec.Containers[0].Image != expectedImage {
-				tutils.ExpectNoError(fmt.Errorf("upgraded image [%v] in Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, expectedImage))
-			}
+			require.EqualValues(t, pod.Spec.Containers[0].Image, expectedImage, "upgraded image [%v] in Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, expectedImage)
 		}
 
 		// Ensure that persistent cache entries have survived the upgrade(s)
 		// Refresh the hostAddr and client as the url will change if NodePort is used.
 		hostAddr, client = tutils.HTTPClientAndHost(spec, testKube)
-		assertNumEntries(cacheName, hostAddr, numEntries, client)
+		assertNumEntries(t, cacheName, hostAddr, numEntries, client)
 	}
 
 	checkServicePorts(t, name)
-	checkBatch(name)
+	checkBatch(t, name)
 
 	// Kill the first pod to ensure that the cluster can recover from failover after upgrade
 	err := testKube.Kubernetes.Client.Delete(ctx, &corev1.Pod{
@@ -150,16 +149,16 @@ func TestUpgrade(t *testing.T) {
 			Namespace: tutils.Namespace,
 		},
 	})
-	tutils.ExpectNoError(err)
-	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	require.NoError(t, err)
+	testKube.WaitForInfinispanPods(t, replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanConditionWithTimeout(name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 	// Ensure that persistent cache entries still contain the expected numEntries
 	hostAddr, client = tutils.HTTPClientAndHost(spec, testKube)
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+	assertNumEntries(t, cacheName, hostAddr, numEntries, client)
 }
 
-func cleanup(specLabel map[string]string) {
+func cleanup(t *testing.T, specLabel map[string]string) {
 	panicVal := recover()
 
 	cleanupOlm := func() {
@@ -183,15 +182,15 @@ func cleanup(specLabel map[string]string) {
 		}
 
 		// Cleanup OLM resources
-		testKube.DeleteSubscription(subName, subNamespace)
-		testKube.DeleteOperatorGroup(subName, subNamespace)
-		tutils.ExpectMaybeNotFound(testKube.Kubernetes.Client.DeleteAllOf(ctx, &coreos.ClusterServiceVersion{}, opts...))
+		testKube.DeleteSubscription(t, subName, subNamespace)
+		testKube.DeleteOperatorGroup(t, subName, subNamespace)
+		tutils.ExpectMaybeNotFound(t, testKube.Kubernetes.Client.DeleteAllOf(ctx, &coreos.ClusterServiceVersion{}, opts...))
 	}
 	// We must cleanup OLM resources after any Infinispan CRs etc, otherwise the CRDs may have been removed from the cluster
 	defer cleanupOlm()
 
 	// Cleanup Infinispan resources
-	testKube.CleanNamespaceAndLogWithPanic(tutils.Namespace, specLabel, panicVal)
+	testKube.CleanNamespaceAndLogWithPanic(t, tutils.Namespace, specLabel, panicVal)
 }
 
 func checkServicePorts(t *testing.T, name string) {
@@ -205,12 +204,12 @@ func checkServicePorts(t *testing.T, name string) {
 	assert.Equal(t, constants.InfinispanAdminPort, int(adminPort[0].Port))
 }
 
-func checkBatch(name string) {
+func checkBatch(t *testing.T, name string) {
 	// Run a batch in the migrated cluster
 	batchHelper := batchtest.NewBatchHelper(testKube)
 	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
-	batchHelper.CreateBatch(name, name, &config, nil)
-	batchHelper.WaitForValidBatchPhase(name, v2alpha1.BatchSucceeded)
+	batchHelper.CreateBatch(t, name, name, &config, nil)
+	batchHelper.WaitForValidBatchPhase(t, name, v2alpha1.BatchSucceeded)
 }
 
 // Utilise the provided env variable for the channel string if it exists, otherwise retrieve the channel from the PackageManifest
@@ -238,23 +237,21 @@ func getChannel(env string, stackPos int, manifest *manifests.PackageManifest) m
 	return channels[semVerIndex-stackPos]
 }
 
-func printManifest() {
+func printManifest(t *testing.T) {
 	bytes, err := yaml.Marshal(packageManifest)
-	tutils.ExpectNoError(err)
+	require.NoError(t, err)
 	fmt.Println(string(bytes))
 	fmt.Println("Source channel: " + sourceChannel.Name)
 	fmt.Println("Target channel: " + targetChannel.Name)
 	fmt.Println("Starting CSV: " + subStartingCsv)
 }
 
-func populateCache(cacheName, host string, numEntries int, infinispan *ispnv1.Infinispan, client tutils.HTTPClient) {
+func populateCache(t *testing.T, cacheName, host string, numEntries int, infinispan *ispnv1.Infinispan, client tutils.HTTPClient) {
 	post := func(url, payload string, status int, headers map[string]string) {
 		rsp, err := client.Post(url, payload, headers)
-		tutils.ExpectNoError(err)
-		defer tutils.CloseHttpResponse(rsp)
-		if rsp.StatusCode != status {
-			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-		}
+		require.NoError(t, err)
+		defer tutils.CloseHttpResponse(t, rsp)
+		require.Equal(t, status, rsp.StatusCode, "Unexpected response code %d", rsp.StatusCode)
 	}
 
 	headers := map[string]string{"Content-Type": "application/json"}
@@ -269,20 +266,20 @@ func populateCache(cacheName, host string, numEntries int, infinispan *ispnv1.In
 	}
 }
 
-func assertNumEntries(cacheName, host string, expectedEntries int, client tutils.HTTPClient) {
+func assertNumEntries(t *testing.T, cacheName, host string, expectedEntries int, client tutils.HTTPClient) {
 	url := fmt.Sprintf("%s/rest/v2/caches/%s?action=size", host, cacheName)
 	var entries int
 	err := wait.Poll(tutils.DefaultPollPeriod, 30*time.Second, func() (done bool, err error) {
 		rsp, err := client.Get(url, nil)
-		tutils.ExpectNoError(err)
+		require.NoError(t, err)
 		if rsp.StatusCode != http.StatusOK {
 			body, _ := ioutil.ReadAll(rsp.Body)
-			panic(fmt.Sprintf("Unexpected response code %d, body='%s'", rsp.StatusCode, body))
+			assert.FailNow(t, "Unexpected response code %d, body='%s'", rsp.StatusCode, body)
 		}
 
 		body, err := ioutil.ReadAll(rsp.Body)
-		tutils.ExpectNoError(rsp.Body.Close())
-		tutils.ExpectNoError(err)
+		require.NoError(t, rsp.Body.Close())
+		require.NoError(t, err)
 		numRead, err := strconv.ParseInt(string(body), 10, 64)
 		entries = int(numRead)
 		return entries == expectedEntries, err
@@ -292,12 +289,12 @@ func assertNumEntries(cacheName, host string, expectedEntries int, client tutils
 		rsp, err := client.Get(url, map[string]string{"accept": "application/yaml"})
 		if err == nil {
 			body, err := ioutil.ReadAll(rsp.Body)
-			tutils.ExpectNoError(rsp.Body.Close())
-			tutils.ExpectNoError(err)
+			require.NoError(t, rsp.Body.Close())
+			require.NoError(t, err)
 			fmt.Printf("%s Config:\n%s", cacheName, string(body))
 		} else {
 			fmt.Printf("Encountered error when trying to retrieve '%s' config: %v", cacheName, err)
 		}
-		panic(fmt.Errorf("Expected %d entries found %d: %w", expectedEntries, entries, err))
+		assert.FailNow(t, "Expected %d entries found %d: %w", expectedEntries, entries, err)
 	}
 }

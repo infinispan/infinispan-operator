@@ -2,10 +2,12 @@ package batch
 
 import (
 	"fmt"
+	"testing"
 	"time"
 
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -20,7 +22,7 @@ func NewBatchHelper(testKube *tutils.TestKubernetes) *BatchHelper {
 	}
 }
 
-func (b BatchHelper) CreateBatch(name, cluster string, config, configMap *string) *v2.Batch {
+func (b BatchHelper) CreateBatch(t *testing.T, name, cluster string, config, configMap *string) *v2.Batch {
 	batch := &v2.Batch{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v2alpha1",
@@ -41,7 +43,7 @@ func (b BatchHelper) CreateBatch(name, cluster string, config, configMap *string
 	return batch
 }
 
-func (b BatchHelper) WaitForValidBatchPhase(name string, phase v2.BatchPhase) *v2.Batch {
+func (b BatchHelper) WaitForValidBatchPhase(t *testing.T, name string, phase v2.BatchPhase) *v2.Batch {
 	var batch *v2.Batch
 	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
 		batch = b.testKube.GetBatch(name, tutils.Namespace)
@@ -53,6 +55,6 @@ func (b BatchHelper) WaitForValidBatchPhase(name string, phase v2.BatchPhase) *v
 	if err != nil {
 		println(fmt.Sprintf("Expected Batch Phase %s, got %s:%s", phase, batch.Status.Phase, batch.Status.Reason))
 	}
-	tutils.ExpectNoError(err)
+	require.NoError(t, err)
 	return batch
 }

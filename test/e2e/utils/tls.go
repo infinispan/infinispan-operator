@@ -93,7 +93,7 @@ func CreateKeystoreAndClientCerts(serverName string) (keystore []byte, caPem []b
 // Returns a keystore & truststore using a self-signed certificate, and the corresponding tls.Config required by clients to connect to the server
 // If authenticate is true, then the returned truststore contains all client certificates, otherwise it simply contains the CA for validation
 func CreateKeyAndTruststore(serverName string, authenticate bool) (keystore []byte, truststore []byte, clientTLSConf *tls.Config) {
-	ExpectNoError(os.MkdirAll(tmpDir, 0777))
+	PanicOnError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
 	server := serverCert(serverName, ca)
 	keystore = createKeystore(ca, server)
@@ -116,7 +116,7 @@ func CreateKeyAndTruststore(serverName string, authenticate bool) (keystore []by
 }
 
 func CreateDefaultCrossSiteKeyAndTrustStore() (transportKeyStore, routerKeyStore, trustStore []byte) {
-	ExpectNoError(os.MkdirAll(tmpDir, 0777))
+	PanicOnError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
 	transportCert := createGenericCertificate(constants.DefaultSiteTransportKeyStoreAlias, nil, ca)
 	routerCert := createGenericCertificate(constants.DefaultSiteRouterKeyStoreAlias, nil, ca)
@@ -129,7 +129,7 @@ func CreateDefaultCrossSiteKeyAndTrustStore() (transportKeyStore, routerKeyStore
 }
 
 func CreateCrossSiteSingleKeyStoreAndTrustStore() (KeyStore, trustStore []byte) {
-	ExpectNoError(os.MkdirAll(tmpDir, 0777))
+	PanicOnError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
 
 	transportCert := createGenericCertificate("same", nil, ca)
@@ -141,7 +141,7 @@ func CreateCrossSiteSingleKeyStoreAndTrustStore() (KeyStore, trustStore []byte) 
 func ca() *certHolder {
 	// create our private and public key
 	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	// create the CA
 	ca := &x509.Certificate{
@@ -160,10 +160,10 @@ func ca() *certHolder {
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 	}
 	certBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	cert, err := x509.ParseCertificate(certBytes)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	return &certHolder{
 		privateKey: privateKey,
@@ -183,7 +183,7 @@ func clientCert(name string, ca *certHolder) *certHolder {
 func createGenericCertificate(name string, dnsName *string, ca *certHolder) *certHolder {
 	// create our private and public key
 	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	// set up our certificate
 	cert := &x509.Certificate{
@@ -209,10 +209,10 @@ func createGenericCertificate(name string, dnsName *string, ca *certHolder) *cer
 
 func createAndParseCert(c *x509.Certificate, privateKey *rsa.PrivateKey, ca *certHolder) *certHolder {
 	certBytes, err := x509.CreateCertificate(rand.Reader, c, ca.cert, &privateKey.PublicKey, ca.privateKey)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	cert, err := x509.ParseCertificate(certBytes)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	return &certHolder{
 		privateKey: privateKey,
@@ -226,7 +226,7 @@ func createKeystore(ca, server *certHolder) []byte {
 	// TLS handshake failed: javax.net.ssl.SSLException: error:1417A0C1:SSL routines:tls_post_process_client_hello:no shared cipher
 	// keystore, err := p12.Encode(rand.Reader, server.privateKey, server.cert, []*x509.Certificate{ca.cert}, KeystorePassword)
 	var fileMode os.FileMode = 0777
-	ExpectNoError(os.MkdirAll(tmpDir, fileMode))
+	PanicOnError(os.MkdirAll(tmpDir, fileMode))
 	defer os.RemoveAll(tmpDir)
 
 	privKeyFile := tmpFile("server_key.pem")
@@ -234,17 +234,17 @@ func createKeystore(ca, server *certHolder) []byte {
 	keystorefile := tmpFile("keystore.p12")
 
 	err := ioutil.WriteFile(privKeyFile, server.getPrivateKeyPEM(), fileMode)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	err = ioutil.WriteFile(certFile, append(server.getCertPEM(), ca.getCertPEM()...), fileMode)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	cmd := exec.Command("openssl", "pkcs12", "-export", "-in", certFile, "-inkey", privKeyFile,
 		"-name", server.cert.Subject.CommonName, "-out", keystorefile, "-password", "pass:"+KeystorePassword, "-noiter", "-nomaciter")
-	ExpectNoError(cmd.Run())
+	PanicOnError(cmd.Run())
 
 	keystore, err := ioutil.ReadFile(keystorefile)
-	ExpectNoError(err)
+	PanicOnError(err)
 	return keystore
 }
 
@@ -264,7 +264,7 @@ func createGenericTruststore(certs ...*certHolder) []byte {
 		trustCerts = append(trustCerts, cert.cert)
 	}
 	truststore, err := p12.EncodeTrustStore(rand.Reader, trustCerts, TruststorePassword)
-	ExpectNoError(err)
+	PanicOnError(err)
 	return truststore
 }
 
@@ -279,7 +279,7 @@ func (c *certHolder) getPrivateKeyPEM() []byte {
 		Type:  keyutil.RSAPrivateKeyBlockType,
 		Bytes: x509.MarshalPKCS1PrivateKey(c.privateKey),
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	return privKeyPEM.Bytes()
 }
 
@@ -290,6 +290,6 @@ func (c *certHolder) getCertPEM() []byte {
 		Type:  certUtil.CertificateBlockType,
 		Bytes: c.certBytes,
 	})
-	ExpectNoError(err)
+	PanicOnError(err)
 	return cert.Bytes()
 }

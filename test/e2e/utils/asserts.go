@@ -5,14 +5,16 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"testing"
 
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-func CloseHttpResponse(rsp *http.Response) {
+func CloseHttpResponse(t *testing.T, rsp *http.Response) {
 	_, err := io.Copy(ioutil.Discard, rsp.Body)
-	ExpectNoError(err)
-	ExpectNoError(rsp.Body.Close())
+	require.NoError(t, err)
+	require.NoError(t, rsp.Body.Close())
 }
 
 func LogError(err error) {
@@ -22,26 +24,29 @@ func LogError(err error) {
 }
 
 // ExpectNoError checks if an error exists, and if so halts execution
-func ExpectNoError(err error) {
+func PanicOnError(err error) {
 	if err != nil {
 		panic(err.Error())
 	}
 }
 
-// ExpectMaybeNotFound ignores errors related to a resource not being found.
-// Any other type of error halts execution.
-func ExpectMaybeNotFound(err error) {
+// PanicOnErrorExpectNotFound ignores errors related to a resource not being found.
+// Any other type of errors halts execution.
+func PanicOnErrorExpectNotFound(err error) {
 	if err != nil && !errors.IsNotFound(err) {
-		panic(err.Error())
+		panic(err)
 	}
 }
 
-func ExpectNotFound(err error) {
-	if err == nil {
-		panic("Expected NotFound error")
+// ExpectMaybeNotFound ignores errors related to a resource not being found.
+// Any other type of error fails test immediately.
+func ExpectMaybeNotFound(t *testing.T, err error) {
+	if err != nil {
+		require.True(t, errors.IsNotFound(err))
 	}
+}
 
-	if !errors.IsNotFound(err) {
-		panic(fmt.Errorf("unexpected error: %w", err))
-	}
+func ExpectNotFound(t *testing.T, err error) {
+	require.Error(t, err, "Expected NotFound error")
+	require.True(t, errors.IsNotFound(err), "Unexpected error: %w", err)
 }

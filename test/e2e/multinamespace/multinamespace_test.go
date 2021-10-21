@@ -61,7 +61,7 @@ func TestMultinamespaceNodeStartup(t *testing.T) {
 		defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
 		wg.Add(1)
 		go func() {
-			testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, spec.Namespace)
+			testKube.WaitForInfinispanPods(t, 1, tutils.SinglePodTimeout, spec.Name, spec.Namespace)
 			testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 			wg.Done()
 		}()

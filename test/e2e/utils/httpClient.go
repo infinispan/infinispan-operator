@@ -106,17 +106,19 @@ func (c *httpClientConfig) Quiet(quiet bool) {
 
 func (c *httpClientConfig) exec(method, path, payload string, headers map[string]string) (*http.Response, error) {
 	httpURL, err := url.Parse(fmt.Sprintf("%s://%s", c.protocol, path))
-	ExpectNoError(err)
+
+	PanicOnError(err)
 	if !c.quiet {
 		fmt.Printf("%s: %s\n", method, httpURL)
 	}
+
 	rsp, err := c.request(httpURL, method, payload, headers)
 	if err != nil {
 		return nil, err
 	}
 
 	if c.auth == authDigest && rsp.StatusCode == http.StatusUnauthorized {
-		ExpectNoError(rsp.Body.Close())
+		PanicOnError(rsp.Body.Close())
 		h := headers
 		if h == nil {
 			h = map[string]string{}
@@ -135,21 +137,21 @@ func (c *httpClientConfig) request(url *url.URL, method, payload string, headers
 		body = bytes.NewBuffer([]byte(payload))
 	}
 	req, err := http.NewRequest(method, url.String(), body)
-	ExpectNoError(err)
+	PanicOnError(err)
 	for header, value := range headers {
 		req.Header.Add(header, value)
 	}
 
 	if DEBUG {
 		dump, err := httputil.DumpRequestOut(req, true)
-		ExpectNoError(err)
+		PanicOnError(err)
 		fmt.Printf("Req>>>>>>>>>>>>>>>>\n%s\n\n", string(dump))
 	}
 
 	rsp, err := c.Do(req)
 	if DEBUG {
 		dump, err := httputil.DumpResponse(rsp, true)
-		ExpectNoError(err)
+		PanicOnError(err)
 		fmt.Printf("Rsp<<<<<<<<<<<<<<<<\n%s\n\n", string(dump))
 	}
 	return rsp, err
@@ -179,14 +181,14 @@ func getAuthString(auth *authenticationRealm, path, method string, nc int) strin
 	a1 := auth.Username + ":" + auth.Realm + ":" + auth.Password
 	h := md5.New()
 	_, err := io.WriteString(h, a1)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	ha1 := hex.EncodeToString(h.Sum(nil))
 
 	h = md5.New()
 	a2 := method + ":" + path
 	_, err = io.WriteString(h, a2)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	ha2 := hex.EncodeToString(h.Sum(nil))
 
@@ -196,7 +198,7 @@ func getAuthString(auth *authenticationRealm, path, method string, nc int) strin
 	respdig := fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, auth.NONCE, nc_str, hnc, auth.QOP, ha2)
 	h = md5.New()
 	_, err = io.WriteString(h, respdig)
-	ExpectNoError(err)
+	PanicOnError(err)
 
 	respdig = hex.EncodeToString(h.Sum(nil))
 
@@ -218,6 +220,6 @@ func getAuthString(auth *authenticationRealm, path, method string, nc int) strin
 func getCnonce() string {
 	b := make([]byte, 8)
 	_, err := io.ReadFull(rand.Reader, b)
-	ExpectNoError(err)
+	PanicOnError(err)
 	return fmt.Sprintf("%x", b)[:16]
 }

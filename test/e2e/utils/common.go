@@ -8,11 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 
+	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -109,12 +112,13 @@ var MinimalSpec = ispnv1.Infinispan{
 	},
 }
 
-func DefaultSpec(testKube *TestKubernetes) *ispnv1.Infinispan {
+func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
 	return &ispnv1.Infinispan{
 		TypeMeta: InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      DefaultClusterName,
+			Name:      strcase.ToKebab(t.Name()),
 			Namespace: Namespace,
+			Labels:    map[string]string{"test-name": t.Name()},
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Service: ispnv1.InfinispanServiceSpec{
@@ -125,7 +129,7 @@ func DefaultSpec(testKube *TestKubernetes) *ispnv1.Infinispan {
 				Memory: Memory,
 			},
 			Replicas: 1,
-			Expose:   ExposeServiceSpec(testKube),
+			Expose:   ExposeServiceSpec(t, testKube),
 		},
 	}
 }
@@ -204,19 +208,19 @@ func WebServerService(name, namespace string) *corev1.Service {
 	}
 }
 
-func ExposeServiceSpec(testKube *TestKubernetes) *ispnv1.ExposeSpec {
+func ExposeServiceSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.ExposeSpec {
 	return &ispnv1.ExposeSpec{
-		Type: exposeServiceType(testKube),
+		Type: exposeServiceType(t, testKube),
 	}
 }
 
-func exposeServiceType(testKube *TestKubernetes) ispnv1.ExposeType {
+func exposeServiceType(t *testing.T, testKube *TestKubernetes) ispnv1.ExposeType {
 	switch ispnv1.ExposeType(ExposeServiceType) {
 	case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
 		return ispnv1.ExposeType(ExposeServiceType)
 	case ispnv1.ExposeTypeRoute:
 		okRoute, err := testKube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
-		ExpectNoError(err)
+		require.NoError(t, err)
 		if okRoute {
 			return ispnv1.ExposeTypeRoute
 		}
@@ -254,7 +258,7 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 
 	user := constants.DefaultDeveloperUser
 	pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
-	ExpectNoError(err)
+	PanicOnError(err)
 	return NewHTTPClient(user, pass, protocol)
 }
 
@@ -269,7 +273,7 @@ func HTTPSClientAndHost(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *TestK
 	userAndPassword := func() (string, string) {
 		user := constants.DefaultDeveloperUser
 		pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
-		ExpectNoError(err)
+		PanicOnError(err)
 		return user, pass
 	}
 

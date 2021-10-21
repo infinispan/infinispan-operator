@@ -12,6 +12,7 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -237,7 +238,7 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, instance)
 			testKube.kube = tutils.NewTestKubernetes(testKube.context)
 			apiServerUrl, err := url.Parse(clientConfig.Clusters[testKube.context].Server)
-			tutils.ExpectNoError(err)
+			require.NoError(t, err)
 			testKube.apiServer = apiServerUrl.Host
 		}
 		if schemeType == ispnv1.CrossSiteSchemeTypeKubernetes {
@@ -248,9 +249,9 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
 		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
 			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret("xsite1", tesKubes["xsite1"].namespace, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
-			tutils.ExpectNoError(err)
+			require.NoError(t, err)
 			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret("xsite2", tesKubes["xsite2"].namespace, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
-			tutils.ExpectNoError(err)
+			require.NoError(t, err)
 
 			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, tokenSecretXsite2.Data["token"]))
 			tesKubes["xsite2"].kube.CreateSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, tokenSecretXsite1.Data["token"]))
@@ -355,11 +356,11 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
 	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
 
-	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(tesKubes["xsite1"].namespace, tesKubes["xsite1"].crossSite.Labels)
-	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(tesKubes["xsite2"].namespace, tesKubes["xsite2"].crossSite.Labels)
+	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite1"].namespace)
+	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite2"].namespace)
 
-	tesKubes["xsite1"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
-	tesKubes["xsite2"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)
+	tesKubes["xsite1"].kube.WaitForInfinispanPods(t, int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
+	tesKubes["xsite2"].kube.WaitForInfinispanPods(t, int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)
 
 	tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
 	tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionWellFormed)
