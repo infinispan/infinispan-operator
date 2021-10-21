@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	routev1 "github.com/openshift/api/route/v1"
@@ -27,14 +26,14 @@ const (
 
 func EndpointEncryption(name string) *ispnv1.EndpointEncryption {
 	return &ispnv1.EndpointEncryption{
-		Type:           v1.CertificateSourceTypeSecret,
+		Type:           ispnv1.CertificateSourceTypeSecret,
 		CertSecretName: fmt.Sprintf("%s-%s", name, keystoreSecretSuffix),
 	}
 }
 
-func EndpointEncryptionClientCert(name string, clientCert v1.ClientCertType) *v1.EndpointEncryption {
-	return &v1.EndpointEncryption{
-		Type:                 v1.CertificateSourceTypeSecret,
+func EndpointEncryptionClientCert(name string, clientCert ispnv1.ClientCertType) *ispnv1.EndpointEncryption {
+	return &ispnv1.EndpointEncryption{
+		Type:                 ispnv1.CertificateSourceTypeSecret,
 		CertSecretName:       fmt.Sprintf("%s-%s", name, keystoreSecretSuffix),
 		ClientCert:           clientCert,
 		ClientCertSecretName: fmt.Sprintf("%s-%s", name, truststoreSecretSuffix),
@@ -265,7 +264,7 @@ func HTTPClientAndHost(i *ispnv1.Infinispan, kube *TestKubernetes) (string, HTTP
 	return hostAddr, client
 }
 
-func HTTPSClientAndHost(i *v1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) (string, HTTPClient) {
+func HTTPSClientAndHost(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) (string, HTTPClient) {
 
 	userAndPassword := func() (string, string) {
 		user := constants.DefaultDeveloperUser

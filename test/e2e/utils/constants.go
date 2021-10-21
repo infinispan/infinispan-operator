@@ -18,8 +18,8 @@ const (
 	DefaultPollPeriod   = 1 * time.Second
 	ConditionPollPeriod = 1 * time.Second
 	// Maximum time to wait for resources
-	MaxWaitTimeout       = 120 * time.Second
-	ConditionWaitTimeout = 120 * time.Second
+	MaxWaitTimeout       = 3 * time.Minute
+	ConditionWaitTimeout = 3 * time.Minute
 	DefaultClusterName   = "test-node-startup"
 )
 
@@ -39,6 +39,8 @@ var (
 	WebServerImageName  = "quay.io/openshift-scale/nginx"
 	WebServerRootFolder = "/usr/share/nginx/html"
 	WebServerPortNumber = 8080
+
+	CleanupXSiteOnFinish = strings.ToUpper(constants.GetEnvWithDefault("TESTING_CLEANUP_XSITE_ON_FINISH", "TRUE")) == "TRUE"
 )
 
 // Options used when deleting resources

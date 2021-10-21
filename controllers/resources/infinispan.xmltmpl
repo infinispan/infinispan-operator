@@ -189,15 +189,15 @@
             <security-realm name="transport">
                 <server-identities>
                     <ssl>
-                        {{ if .Transport.TLS.KeyStore and .Transport.TLS.KeyStore.Path }}
+                        {{ if .Transport.TLS.KeyStore.Path }}
                         <keystore path="{{ .Transport.TLS.KeyStore.Path }}"
                                     keystore-password="{{ .Transport.TLS.KeyStore.Password }}"
                                     alias="{{ .Transport.TLS.KeyStore.Alias }}" />
                         {{ end }}
-                        {if .Transport.TLS.TrustStore and .Transport.TLS.TrustStore.Path }}
+                        {{ if .Transport.TLS.TrustStore.Path }}
                         <truststore path="{{ .Transport.TLS.TrustStore.Path }}"
                                     password="{{ .Transport.TLS.TrustStore.Password }}" />
-                        {/if}
+                        {{ end }}
                     </ssl>
                 </server-identities>
             </security-realm>

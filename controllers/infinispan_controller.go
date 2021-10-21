@@ -1299,7 +1299,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	}
 
 	if ispn.IsSiteTLSEnabled() {
-		AddSecretVolume(ispn.GetSiteTransportSecretName(), SiteRouterKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, spec)
+		AddSecretVolume(ispn.GetSiteTransportSecretName(), SiteTransportKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, spec)
 		secret, err := FindSiteTrustStoreSecret(ispn, r.Client, r.ctx)
 		if err != nil {
 			return nil, err
