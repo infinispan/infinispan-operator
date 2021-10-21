@@ -1674,9 +1674,9 @@ func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kuberne
 func buildStartupArgs(overlayConfigMapKey string, zeroCapacity string) []string {
 	var args []string
 	if overlayConfigMapKey != "" {
-		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-b", "0.0.0.0", "-c", "user/" + overlayConfigMapKey, "-c", "operator/infinispan.xml"}
+		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-c", "user/" + overlayConfigMapKey, "-c", "operator/infinispan.xml"}
 	} else {
-		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-b", "0.0.0.0", "-c", "operator/infinispan.xml"}
+		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-c", "operator/infinispan.xml"}
 	}
 	return args
 }
