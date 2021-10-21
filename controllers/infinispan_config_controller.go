@@ -127,16 +127,10 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		}
 	}
 
-	serverConf, result, err := r.computeAndReconcileConfigMap(xsite)
+	result, err := r.computeAndReconcileConfigMap(xsite)
 	if result != nil {
 		if err != nil {
 			reqLogger.Error(err, "Error while computing and reconciling ConfigMap")
-		}
-		return *result, err
-	}
-	if result, err := r.computeAndReconcileServerConf(serverConf, reqLogger); result != nil {
-		if err != nil {
-			reqLogger.Error(err, "Error while computing and reconciling server configuration")
 		}
 		return *result, err
 	}
@@ -144,41 +138,8 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 	return reconcile.Result{}, nil
 }
 
-func (r *configRequest) computeAndReconcileServerConf(serverConf *config.InfinispanConfiguration, reqLogger logr.Logger) (*reconcile.Result, error) {
-
-	ispnXml, log4jXml, err := serverConf.Xml()
-	if err != nil {
-		return &reconcile.Result{}, err
-	}
-
-	// Generate infinispan.xml
-	infinispanServerConf := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.infinispan.GetInfinispanServerConfigMapName(),
-			Namespace: r.infinispan.Namespace,
-		},
-	}
-
-	// Create configmap with all the objects to be mounted as "ServerRoot/conf/operator/"
-	result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, infinispanServerConf, func() error {
-		infinispanServerConf.Labels = LabelsResource(r.infinispan.Name, "infinispan-configmap-server-config")
-		infinispanServerConf.Data = map[string]string{"infinispan.xml": ispnXml}
-		infinispanServerConf.Data["log4j.xml"] = log4jXml
-
-		err = controllerutil.SetControllerReference(r.infinispan, infinispanServerConf, r.scheme)
-		return err
-	})
-	if err != nil {
-		return &reconcile.Result{}, err
-	}
-	if result != controllerutil.OperationResultNone {
-		r.reqLogger.Info(fmt.Sprintf("ConfigMap '%s' %s", r.infinispan.Name, result))
-	}
-	return nil, nil
-}
-
 // computeAndReconcileConfigMap computes, creates or updates the ConfigMap for the Infinispan
-func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*config.InfinispanConfiguration, *reconcile.Result, error) {
+func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*reconcile.Result, error) {
 	name := r.infinispan.Name
 	namespace := r.infinispan.Namespace
 
@@ -265,7 +226,7 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*confi
 		serverConf.XSite = xsite
 	}
 	if result, err := ConfigureServerEncryption(r.infinispan, &serverConf, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
-		return nil, result, err
+		return result, err
 	}
 	r.configureCloudEvent(&serverConf)
 
@@ -309,12 +270,12 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*confi
 		return nil
 	})
 	if err != nil {
-		return nil, &reconcile.Result{}, err
+		return &reconcile.Result{}, err
 	}
 	if result != controllerutil.OperationResultNone {
 		r.reqLogger.Info(fmt.Sprintf("ConfigMap '%s' %s", name, result))
 	}
-	return &serverConf, nil, err
+	return nil, err
 }
 
 func (r configRequest) configureCloudEvent(c *config.InfinispanConfiguration) {

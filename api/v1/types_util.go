@@ -368,11 +368,6 @@ func (ispn *Infinispan) GetConfigName() string {
 	return fmt.Sprintf("%v-configuration", ispn.Name)
 }
 
-// GetInfinispanServerConfigMapName returns the ConfigMap name for the cluster
-func (ispn *Infinispan) GetInfinispanServerConfigMapName() string {
-	return fmt.Sprintf("%v-infinispan-xml", ispn.Name)
-}
-
 // GetInfinispanSecuritySecretName returns the Secret containing the server certs and auth props
 func (ispn *Infinispan) GetInfinispanSecuritySecretName() string {
 	return fmt.Sprintf("%v-infinispan-security", ispn.Name)
