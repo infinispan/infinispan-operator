@@ -171,6 +171,7 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 				RecordType: "A",
 				Query:      fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
 			},
+			FastMerge: consts.JGroupsFastMerge,
 		},
 		Keystore: config.Keystore{
 			Password: "password",

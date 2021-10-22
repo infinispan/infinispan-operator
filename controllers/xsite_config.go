@@ -29,7 +29,7 @@ const (
 func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, service *corev1.Service, logger logr.Logger, eventRec record.EventRecorder, ctx context.Context) (*config.XSite, error) {
 	siteServiceName := infinispan.GetSiteServiceName()
 	// make sure the local service is up and running
-	localSiteHost, _, err := getCrossSiteServiceHostPort(service, kubernetes, logger, eventRec, "XSiteLocalServiceUnsupported", ctx)
+	localSiteHost, localPort, err := getCrossSiteServiceHostPort(service, kubernetes, logger, eventRec, "XSiteLocalServiceUnsupported", ctx)
 	if err != nil {
 		logger.Error(err, "error retrieving local x-site service information")
 		return nil, err
@@ -41,7 +41,12 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 		return nil, fmt.Errorf(msg)
 	}
 
-	logger.Info("local site service", "service name", siteServiceName, "host", siteServiceName, "port", consts.CrossSitePort)
+	if service.Spec.Type != corev1.ServiceTypeLoadBalancer {
+		// For load balancer service, we allow a custom port!
+		localPort = consts.CrossSitePort
+	}
+
+	logger.Info("local site service", "service name", siteServiceName, "host", siteServiceName, "port", localPort)
 
 	maxRelayNodes := infinispan.Spec.Service.Sites.Local.MaxRelayNodes
 	if maxRelayNodes <= 0 {
@@ -52,7 +57,7 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 	xsite := &config.XSite{
 		Address:       siteServiceName,
 		Name:          infinispan.Spec.Service.Sites.Local.Name,
-		Port:          consts.CrossSitePort,
+		Port:          localPort,
 		Transport:     "tunnel",
 		MaxRelayNodes: maxRelayNodes,
 	}

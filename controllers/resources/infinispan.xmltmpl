@@ -24,6 +24,9 @@
         {{ else }}
         <MPING bind_addr="${jgroups.bind.address:SITE_LOCAL}"/>
         {{ end }}
+        {{ if .JGroups.FastMerge }}
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
+        {{ end }}
     </stack>
     <stack name="image-udp" extends="udp">
         <UDP enable_diagnostics="{{ .JGroups.Diagnostics }}"
@@ -34,7 +37,9 @@
                       dns_record_type="{{ .JGroups.DNSPing.RecordType }}"
                       stack.combine="REPLACE" stack.position="PING"/>
         {{ end }}
-        <FD_SOCK client_bind_port="57600" start_port="57600"/>
+        {{ if .JGroups.FastMerge }}
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
+        {{ end }}
     </stack>
     {{ if .XSite }} {{ if .XSite.Backups }}
     <stack name="relay-tcp" extends="tcp">
@@ -54,11 +59,12 @@
             stack.combine="REPLACE"
             stack.position="MPING"
         />
-        <FD_SOCK
-            client_bind_port="57600"
-            start_port="57600"
-            stack.combine="COMBINE"
-        />
+        <!-- we are unable to use FD_SOCK with openshift -->
+        <!-- otherwise, we would need 1 external service per pod -->
+        <FD_SOCK stack.combine="REMOVE"/>
+        {{ if .JGroups.FastMerge }}
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
+        {{ end }}
     </stack>
     <stack name="relay-tunnel" extends="udp">
         <TUNNEL
@@ -66,15 +72,17 @@
             bind_port="${jgroups.relay.bind.port:{{.XSite.Relay.BindPort}} }"
             gossip_router_hosts="{{.XSite.Address}}[{{.XSite.Port}}],{{RemoteSites .XSite.Backups}}"
             enable_diagnostics="{{ .JGroups.Diagnostics }}"
+            {{ if .JGroups.FastMerge }} reconnect_interval="1000" {{ end }}
             port_range="0"
             stack.combine="REPLACE"
             stack.position="UDP"
         />
-        <FD_SOCK
-            client_bind_port="57600"
-            start_port="57600"
-            stack.combine="COMBINE"
-        />
+        <!-- we are unable to use FD_SOCK with openshift -->
+        <!-- otherwise, we would need 1 external service per pod -->
+        <FD_SOCK stack.combine="REMOVE"/>   
+        {{ if .JGroups.FastMerge }}
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
+        {{ end }}     
     </stack>
     <stack name="xsite" extends="image-{{ .JGroups.Transport }}">
         <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ .XSite.Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}"

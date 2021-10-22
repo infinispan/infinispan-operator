@@ -28,7 +28,7 @@ for INSTANCE_IDX in 1 2; do
 
   # Set the imagePullPolicy to Never so the loaded image is used
   kubectl -n ${TESTING_NAMESPACE_XSITE} patch deployment infinispan-operator-controller-manager -p \
-  '{"spec": {"template": {"spec":{"containers":[{"name":"manager","imagePullPolicy":"Never"}]}}}}'
+  '{"spec": {"template": {"spec":{"containers":[{"name":"manager","imagePullPolicy":"Never","env": [{"name": "TEST_ENVIRONMENT","value": "true"}]}]}}}}'
 
   # Creating service account for the cross cluster token based auth
   kubectl create clusterrole xsite-cluster-role --verb=get,list,watch --resource=nodes,services

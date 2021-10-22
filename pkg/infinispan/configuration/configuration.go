@@ -91,6 +91,7 @@ type JGroups struct {
 	DNSPing     DNSPing `yaml:"dnsPing"`
 	Diagnostics bool    `yaml:"diagnostics"`
 	BindPort    int32   `yaml:"bindPort"`
+	FastMerge   bool    `yaml:"fastMerge"`
 }
 
 type Relay struct {

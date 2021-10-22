@@ -9,7 +9,6 @@ import (
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -163,7 +162,7 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 func LookupResource(name, namespace string, resource, caller client.Object, client client.Client, logger logr.Logger, eventRec record.EventRecorder, ctx context.Context) (*reconcile.Result, error) {
 	err := client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, resource)
 	if err != nil {
-		if k8serrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			if eventRec != nil {
 				objMeta, err1 := meta.Accessor(resource)
 				if err1 == nil {

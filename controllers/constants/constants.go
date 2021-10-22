@@ -38,6 +38,8 @@ var (
 		appsv1.StatefulSetRevisionLabel: true,
 		StatefulSetPodLabel:             true,
 	}
+
+	JGroupsFastMerge = strings.ToUpper(GetEnvWithDefault("TEST_ENVIRONMENT", "false")) == "TRUE"
 )
 
 const (

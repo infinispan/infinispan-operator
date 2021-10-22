@@ -53,6 +53,9 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 						},
 					},
 				},
+				Container: &ispnv1.InfinispanServiceContainerSpec{
+					EphemeralStorage: true,
+				},
 			},
 			Container: ispnv1.InfinispanContainerSpec{
 				Memory: tutils.Memory,
@@ -104,32 +107,36 @@ func secretSiteName(siteName string) string {
 }
 
 func TestCrossSiteViewInternal(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1)
+}
+
+func TestCrossSiteViewInternalMultiPod(t *testing.T) {
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2)
 }
 
 func TestCrossSiteViewKubernetesNodePort(t *testing.T) {
 	// Cross-Site between clusters will need to setup two instances of the Kind for Travis CI
 	// Not be able to test on the separate OCP/OKD instance (probably with AWS/Azure LoadBalancer support only)
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1)
 }
 
 func TestCrossSiteViewOpenshiftNodePort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0, 1)
 }
 
 func TestCrossSiteViewKubernetesLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1)
 }
 
 func TestCrossSiteViewOpenshiftLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 0)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1)
 }
 
 func TestCrossSiteViewLoadBalancerWithPort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1)
 }
 
-func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort int32) {
+func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32) {
 	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
 	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
 
@@ -160,14 +167,14 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, []byte("")))
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, []byte("")))
 		}
-		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 2, "xsite1", "xsite2", tesKubes["xsite2"].namespace, exposeType, exposePort)
-		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 1, "xsite2", "xsite1", tesKubes["xsite1"].namespace, exposeType, exposePort)
+		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite1", "xsite2", tesKubes["xsite2"].namespace, exposeType, exposePort)
+		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite2", "xsite1", tesKubes["xsite1"].namespace, exposeType, exposePort)
 
 		tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, tesKubes["xsite2"].apiServer)
 		tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, tesKubes["xsite1"].apiServer)
 	} else {
-		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 2, "xsite1", "xsite2", "", exposeType, exposePort)
-		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), 1, "xsite2", "xsite1", "", exposeType, exposePort)
+		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite1", "xsite2", "", exposeType, exposePort)
+		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite2", "xsite1", "", exposeType, exposePort)
 		for _, testKube := range tesKubes {
 			testKube.context = clientConfig.CurrentContext
 			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, "xsite2")
@@ -181,11 +188,11 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
 	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
 
-	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(tutils.Namespace, tesKubes["xsite1"].crossSite.Labels)
-	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(tutils.Namespace, tesKubes["xsite2"].crossSite.Labels)
+	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(tesKubes["xsite1"].namespace, tesKubes["xsite1"].crossSite.Labels)
+	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(tesKubes["xsite2"].namespace, tesKubes["xsite2"].crossSite.Labels)
 
-	tesKubes["xsite1"].kube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
-	tesKubes["xsite2"].kube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)
+	tesKubes["xsite1"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
+	tesKubes["xsite2"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)
 
 	tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
 	tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionWellFormed)

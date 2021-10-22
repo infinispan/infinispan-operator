@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -183,7 +182,7 @@ func (k Kubernetes) GetServingCertsMode(ctx context.Context) string {
 	return ""
 }
 
-func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace string, logger logr.Logger, ctx context.Context) (*restclient.Config, error) {
+func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace string, logger logr.Logger, ctx context.Context) (*rest.Config, error) {
 	logger.Info("connect to backup Kubernetes cluster", "url", masterURL)
 
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
@@ -211,7 +210,7 @@ func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace str
 	return config, nil
 }
 
-func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr.Logger, ctx context.Context) (*restclient.Config, error) {
+func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr.Logger, ctx context.Context) (*rest.Config, error) {
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
 		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
@@ -310,7 +309,7 @@ func (k Kubernetes) GetExternalAddress(route *corev1.Service) string {
 func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime.Object, ctx context.Context) error {
 	objectList, ok := list.(client.ObjectList)
 	if !ok {
-		return fmt.Errorf("Argument of type %T is not an ObjectList", list)
+		return fmt.Errorf("argument of type %T is not an ObjectList", list)
 	}
 	labelSelector := labels.SelectorFromSet(set)
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
@@ -321,7 +320,7 @@ func (k Kubernetes) ResourcesList(namespace string, set labels.Set, list runtime
 func (k Kubernetes) ResourcesListByField(namespace, fieldName, fieldValue string, list runtime.Object, ctx context.Context) error {
 	objectList, ok := list.(client.ObjectList)
 	if !ok {
-		return fmt.Errorf("Argument of type %T is not an ObjectList", list)
+		return fmt.Errorf("argument of type %T is not an ObjectList", list)
 	}
 	fieldSelector := fields.OneTermEqualSelector(fieldName, fieldValue)
 	listOps := &client.ListOptions{Namespace: namespace, FieldSelector: fieldSelector}

@@ -167,16 +167,18 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabe
 		k.PrintAllResources(namespace, &ispnv2.BatchList{}, map[string]string{})
 		k.PrintAllResources(namespace, &ispnv2.CacheList{}, map[string]string{})
 	}
-	opts := []client.DeleteAllOfOption{
-		client.InNamespace(namespace),
-	}
 
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
+		var opts []client.DeleteAllOfOption
 		ctx := context.TODO()
 		if specLabel != nil {
 			opts = []client.DeleteAllOfOption{
 				client.InNamespace(namespace),
 				client.MatchingLabels(specLabel),
+			}
+		} else {
+			opts = []client.DeleteAllOfOption{
+				client.InNamespace(namespace),
 			}
 		}
 
@@ -187,6 +189,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabe
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod"})}, nil)
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
+		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-router-pod"})}, nil)
 	}
 
 	if panicVal != nil {
