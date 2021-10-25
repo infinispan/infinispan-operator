@@ -402,10 +402,20 @@ type InfinispanList struct {
 	Items           []Infinispan `json:"items"`
 }
 
+// TLSProtocol specifies the TLS protocol
+// +kubebuilder:validation:Enum=TLSv1.2;TLSv1.3
+type TLSProtocol string
+
+// Note: TLS v1.1 and older are not consider secure anymore
+const (
+	TLSVersion12 TLSProtocol = "TLSv1.2"
+	TLSVersion13 TLSProtocol = "TLSv1.3"
+)
+
 // EncryptionSiteSpec enables TLS for cross-site replication
 type EncryptionSiteSpec struct {
 	// +optional
-	Protocol          string            `json:"protocol,omitempty"`
+	Protocol          TLSProtocol       `json:"protocol,omitempty"`
 	TransportKeyStore CrossSiteKeyStore `json:"transportKeyStore"`
 	RouterKeyStore    CrossSiteKeyStore `json:"routerKeyStore"`
 	// +optional

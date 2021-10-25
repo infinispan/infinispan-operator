@@ -841,6 +841,10 @@ spec:
                               replication
                             properties:
                               protocol:
+                                description: TLSProtocol specifies the TLS protocol
+                                enum:
+                                - TLSv1.2
+                                - TLSv1.3
                                 type: string
                               routerKeyStore:
                                 description: CrossSiteKeyStore keystore configuration

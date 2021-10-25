@@ -166,7 +166,7 @@ func TestDefaultTLSInternal(t *testing.T) {
 
 // TestDefaultTLSInternalVersion3 tests if the TLSv1.3 connection works for internal cross-site communication
 func TestDefaultTLSInternalVersion3(t *testing.T) {
-	protocol := constants.TLS_1_3
+	protocol := ispnv1.TLSVersion13
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, &protocol)
 }
 
@@ -177,7 +177,7 @@ func TestSingleTLSInternal(t *testing.T) {
 
 // TestSingleTLSInternalVersion3 tests if the TLSv1.3 connection works for internal cross-site communication and custom keystore and truststore
 func TestSingleTLSInternalVersion3(t *testing.T) {
-	protocol := constants.TLS_1_3
+	protocol := ispnv1.TLSVersion13
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, &protocol)
 }
 
@@ -227,7 +227,7 @@ func TestDefaultTLSLoadBalancerWithPort(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, DefaultTLS, nil)
 }
 
-func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *string) {
+func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
 	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
 	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
 

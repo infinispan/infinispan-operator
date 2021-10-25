@@ -245,7 +245,7 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 	}
 
 	if r.infinispan.IsSiteTLSEnabled() {
-		if result, err := r.configureTransportTLS(&serverConf); result != nil || err != nil {
+		if result, err := r.configureXSiteTransportTLS(&serverConf); result != nil || err != nil {
 			return result, err
 		}
 	}
@@ -363,8 +363,8 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 	return nil, nil
 }
 
-// configureTransportTLS configures the keystore and truststore paths and password in Infinispan server for TLS cross-site communication
-func (r configRequest) configureTransportTLS(c *config.InfinispanConfiguration) (*reconcile.Result, error) {
+// configureXSiteTransportTLS configures the keystore and truststore paths and password in Infinispan server for TLS cross-site communication
+func (r configRequest) configureXSiteTransportTLS(c *config.InfinispanConfiguration) (*reconcile.Result, error) {
 	keyStoreSecret := &corev1.Secret{}
 	if result, err := kube.LookupResource(r.infinispan.GetSiteTransportSecretName(), r.infinispan.Namespace, keyStoreSecret, r.infinispan, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil || err != nil {
 		return result, err
