@@ -163,10 +163,12 @@ func TestCrossSiteViewInternal(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, NoTLS)
 }
 
+// TestDefaultTLSInternal tests if the TLS connection works for internal cross-site communication
 func TestDefaultTLSInternal(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS)
 }
 
+// TestSingleTLSInternal tests if the TLS connection works for internal cross-site communication and custom keystore and truststore
 func TestSingleTLSInternal(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS)
 }
@@ -175,6 +177,7 @@ func TestCrossSiteViewInternalMultiPod(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, NoTLS)
 }
 
+// TestDefaultTLSInternalMultiPod tests if the TLS connection works for internal cross-site communication and multi pod clusters
 func TestDefaultTLSInternalMultiPod(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, DefaultTLS)
 }
@@ -185,6 +188,7 @@ func TestCrossSiteViewKubernetesNodePort(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS)
 }
 
+// TestDefaultTLSKubernetesNodePort tests if the TLS connection works with NodePort.
 func TestDefaultTLSKubernetesNodePort(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, DefaultTLS)
 }
@@ -193,14 +197,11 @@ func TestCrossSiteViewOpenshiftNodePort(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS)
 }
 
-func TestDefaultTLSOpenshiftNodePort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, DefaultTLS)
-}
-
 func TestCrossSiteViewKubernetesLoadBalancer(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS)
 }
 
+// TestDefaultTLSKubernetesLoadBalancer tests if the TLS connection works with LoadBalancer.
 func TestDefaultTLSKubernetesLoadBalancer(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, DefaultTLS)
 }
@@ -209,14 +210,11 @@ func TestCrossSiteViewOpenshiftLoadBalancer(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS)
 }
 
-func TestDefaultTLSOpenshiftLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, DefaultTLS)
-}
-
 func TestCrossSiteViewLoadBalancerWithPort(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, NoTLS)
 }
 
+// TestDefaultTLSLoadBalancerWithPort tests if the TLS connection works with LoadBalancer and a custom port
 func TestDefaultTLSLoadBalancerWithPort(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, DefaultTLS)
 }
