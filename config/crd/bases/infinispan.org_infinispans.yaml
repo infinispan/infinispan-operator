@@ -834,7 +834,59 @@ spec:
                   sites:
                     properties:
                       local:
+                        description: InfinispanSitesLocalSpec enables cross-site replication
                         properties:
+                          encryption:
+                            description: EncryptionSiteSpec enables TLS for cross-site
+                              replication
+                            properties:
+                              protocol:
+                                description: TLSProtocol specifies the TLS protocol
+                                enum:
+                                - TLSv1.2
+                                - TLSv1.3
+                                type: string
+                              routerKeyStore:
+                                description: CrossSiteKeyStore keystore configuration
+                                  for cross-site replication with TLS
+                                properties:
+                                  alias:
+                                    type: string
+                                  filename:
+                                    type: string
+                                  secretName:
+                                    type: string
+                                required:
+                                - secretName
+                                type: object
+                              transportKeyStore:
+                                description: CrossSiteKeyStore keystore configuration
+                                  for cross-site replication with TLS
+                                properties:
+                                  alias:
+                                    type: string
+                                  filename:
+                                    type: string
+                                  secretName:
+                                    type: string
+                                required:
+                                - secretName
+                                type: object
+                              trustStore:
+                                description: CrossSiteTrustStore truststore configuration
+                                  for cross-site replication with TLS
+                                properties:
+                                  filename:
+                                    type: string
+                                  secretName:
+                                    type: string
+                                required:
+                                - secretName
+                                type: object
+                            required:
+                            - routerKeyStore
+                            - transportKeyStore
+                            type: object
                           expose:
                             description: CrossSiteExposeSpec describe how Infinispan
                               Cross-Site service will be exposed externally

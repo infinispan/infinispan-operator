@@ -127,11 +127,14 @@ type InfinispanContainerSpec struct {
 	CPU string `json:"cpu,omitempty"`
 }
 
+// InfinispanSitesLocalSpec enables cross-site replication
 type InfinispanSitesLocalSpec struct {
 	Name   string              `json:"name"`
 	Expose CrossSiteExposeSpec `json:"expose"`
 	// +optional
 	MaxRelayNodes int32 `json:"maxRelayNodes,omitempty"`
+	// +optional
+	Encryption EncryptionSiteSpec `json:"encryption,omitempty"`
 }
 
 type InfinispanSiteLocationSpec struct {
@@ -397,6 +400,42 @@ type InfinispanList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Infinispan `json:"items"`
+}
+
+// TLSProtocol specifies the TLS protocol
+// +kubebuilder:validation:Enum=TLSv1.2;TLSv1.3
+type TLSProtocol string
+
+// Note: TLS v1.1 and older are not consider secure anymore
+const (
+	TLSVersion12 TLSProtocol = "TLSv1.2"
+	TLSVersion13 TLSProtocol = "TLSv1.3"
+)
+
+// EncryptionSiteSpec enables TLS for cross-site replication
+type EncryptionSiteSpec struct {
+	// +optional
+	Protocol          TLSProtocol       `json:"protocol,omitempty"`
+	TransportKeyStore CrossSiteKeyStore `json:"transportKeyStore"`
+	RouterKeyStore    CrossSiteKeyStore `json:"routerKeyStore"`
+	// +optional
+	TrustStore *CrossSiteTrustStore `json:"trustStore,omitempty"`
+}
+
+// CrossSiteKeyStore keystore configuration for cross-site replication with TLS
+type CrossSiteKeyStore struct {
+	SecretName string `json:"secretName"`
+	// +optional
+	Alias string `json:"alias,omitempty"`
+	// +optional
+	Filename string `json:"filename,omitempty"`
+}
+
+// CrossSiteTrustStore truststore configuration for cross-site replication with TLS
+type CrossSiteTrustStore struct {
+	SecretName string `json:"secretName"`
+	// +optional
+	Filename string `json:"filename,omitempty"`
 }
 
 func init() {

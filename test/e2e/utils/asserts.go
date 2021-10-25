@@ -42,6 +42,6 @@ func ExpectNotFound(err error) {
 	}
 
 	if !errors.IsNotFound(err) {
-		panic(fmt.Errorf("Unexpected error: %w", err))
+		panic(fmt.Errorf("unexpected error: %w", err))
 	}
 }

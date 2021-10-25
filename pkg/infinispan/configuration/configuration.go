@@ -21,6 +21,19 @@ type InfinispanConfiguration struct {
 	Logging     Logging      `yaml:"logging,omitempty"`
 	Endpoints   Endpoints    `yaml:"endpoints"`
 	CloudEvents *CloudEvents `yaml:"cloudEvents,omitempty"`
+	Transport   Transport    `yaml:"transport,omitempty"`
+}
+
+// Transport configures the TLS for JGroups (Cross Site Replication)
+// Reusing the Keystore & Truststore struct although we don't need all the fields there.
+type Transport struct {
+	TLS TransportTLS `yaml:"tls,omitempty"`
+}
+
+type TransportTLS struct {
+	Enabled    bool       `yaml:"enabled"`
+	KeyStore   Keystore   `yaml:"keystore,omitempty"`
+	TrustStore Truststore `yaml:"truststore,omitempty"`
 }
 
 type CloudEvents struct {

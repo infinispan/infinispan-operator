@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/infinispan/infinispan-operator/controllers/constants"
 	certUtil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
 
@@ -114,6 +115,29 @@ func CreateKeyAndTruststore(serverName string, authenticate bool) (keystore []by
 	return
 }
 
+func CreateDefaultCrossSiteKeyAndTrustStore() (transportKeyStore, routerKeyStore, trustStore []byte) {
+	ExpectNoError(os.MkdirAll(tmpDir, 0777))
+	ca := ca()
+	transportCert := createGenericCertificate(constants.DefaultSiteTransportKeyStoreAlias, nil, ca)
+	routerCert := createGenericCertificate(constants.DefaultSiteRouterKeyStoreAlias, nil, ca)
+
+	transportKeyStore = createKeystore(ca, transportCert)
+	routerKeyStore = createKeystore(ca, routerCert)
+
+	trustStore = createGenericTruststore(ca)
+	return
+}
+
+func CreateCrossSiteSingleKeyStoreAndTrustStore() (KeyStore, trustStore []byte) {
+	ExpectNoError(os.MkdirAll(tmpDir, 0777))
+	ca := ca()
+
+	transportCert := createGenericCertificate("same", nil, ca)
+	KeyStore = createKeystore(ca, transportCert)
+	trustStore = createGenericTruststore(ca)
+	return
+}
+
 func ca() *certHolder {
 	// create our private and public key
 	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
@@ -149,31 +173,14 @@ func ca() *certHolder {
 }
 
 func serverCert(dnsName string, ca *certHolder) *certHolder {
-	// create our private and public key
-	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
-	ExpectNoError(err)
-
-	// set up our server certificate
-	server := &x509.Certificate{
-		SerialNumber: big.NewInt(serialNumber),
-		Subject: pkix.Name{
-			CommonName:         "server",
-			Organization:       []string{"JBoss"},
-			OrganizationalUnit: []string{"Infinispan"},
-			Locality:           []string{"Red Hat"},
-		},
-		DNSNames:           []string{dnsName},
-		Issuer:             ca.cert.Subject,
-		NotBefore:          time.Now(),
-		NotAfter:           time.Now().AddDate(10, 0, 0),
-		PublicKeyAlgorithm: x509.RSA,
-		SignatureAlgorithm: x509.SHA256WithRSA,
-	}
-	serialNumber++
-	return createAndParseCert(server, privateKey, ca)
+	return createGenericCertificate("server", &dnsName, ca)
 }
 
 func clientCert(name string, ca *certHolder) *certHolder {
+	return createGenericCertificate(name, nil, ca)
+}
+
+func createGenericCertificate(name string, dnsName *string, ca *certHolder) *certHolder {
 	// create our private and public key
 	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
 	ExpectNoError(err)
@@ -192,6 +199,9 @@ func clientCert(name string, ca *certHolder) *certHolder {
 		NotAfter:           time.Now().AddDate(10, 0, 0),
 		PublicKeyAlgorithm: x509.RSA,
 		SignatureAlgorithm: x509.SHA256WithRSA,
+	}
+	if dnsName != nil {
+		cert.DNSNames = []string{*dnsName}
 	}
 	serialNumber++
 	return createAndParseCert(cert, privateKey, ca)
@@ -239,12 +249,19 @@ func createKeystore(ca, server *certHolder) []byte {
 }
 
 func createTruststore(ca, client *certHolder, authenticate bool) []byte {
-	var trustCerts []*x509.Certificate
 	// Only add the client certificate to the truststore if we require authentication
 	if authenticate {
-		trustCerts = []*x509.Certificate{ca.cert, client.cert}
+		return createGenericTruststore(ca, client)
 	} else {
-		trustCerts = []*x509.Certificate{ca.cert}
+		return createGenericTruststore(ca)
+	}
+}
+
+func createGenericTruststore(certs ...*certHolder) []byte {
+	trustCerts := make([]*x509.Certificate, 0)
+
+	for _, cert := range certs {
+		trustCerts = append(trustCerts, cert.cert)
 	}
 	truststore, err := p12.EncodeTrustStore(rand.Reader, trustCerts, TruststorePassword)
 	ExpectNoError(err)

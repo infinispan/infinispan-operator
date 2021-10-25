@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	k8sctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -196,17 +195,17 @@ func (r secretRequest) computeAndReconcileAuthProps(serverConf *config.Infinispa
 	}
 
 	// Create secret with all the objects to be mounted as "ServerRoot/conf/operator/"
-	result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, infinispanServerSecurityConf, func() error {
+	result, err := k8sctrlutil.CreateOrUpdate(r.ctx, r.Client, infinispanServerSecurityConf, func() error {
 		infinispanServerSecurityConf.Labels = LabelsResource(r.infinispan.Name, "infinispan-secret-server-security")
 		infinispanServerSecurityConf.Data = map[string][]byte{consts.ServerIdentitiesCliFilename: []byte(cliBatch)}
 		infinispanServerSecurityConf.Data[EncryptPemKeystoreName] = []byte(pem)
-		err = controllerutil.SetControllerReference(r.infinispan, infinispanServerSecurityConf, r.scheme)
+		err = k8sctrlutil.SetControllerReference(r.infinispan, infinispanServerSecurityConf, r.scheme)
 		return err
 	})
 	if err != nil {
 		return &reconcile.Result{}, err
 	}
-	if result != controllerutil.OperationResultNone {
+	if result != k8sctrlutil.OperationResultNone {
 		r.reqLogger.Info(fmt.Sprintf("ConfigMap '%s' %s", r.infinispan.Name, result))
 	}
 	return nil, nil
