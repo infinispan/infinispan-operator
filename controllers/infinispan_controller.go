@@ -113,6 +113,12 @@ func (r *InfinispanReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	if err = mgr.GetFieldIndexer().IndexField(ctx, &infinispanv1.Infinispan{}, "spec.configMapName", func(obj client.Object) []string {
+		return []string{obj.(*infinispanv1.Infinispan).Spec.ConfigMapName}
+	}); err != nil {
+		return err
+	}
+
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&infinispanv1.Infinispan{})
 
@@ -169,6 +175,27 @@ func (r *InfinispanReconciler) SetupWithManager(mgr ctrl.Manager) error {
 						if len(requests) > 0 {
 							return requests
 						}
+					}
+				}
+				return nil
+			}),
+	)
+	builder.Watches(
+		&source.Kind{Type: &corev1.ConfigMap{}},
+		handler.EnqueueRequestsFromMapFunc(
+			func(a client.Object) []reconcile.Request {
+				var requests []reconcile.Request
+				// Lookup only ConfigMap not controlled by Infinispan CR GVK. This means it's a custom defined ConfigMap
+				if !kube.IsControlledByGVK(a.GetOwnerReferences(), infinispanv1.SchemeBuilder.GroupVersion.WithKind(reflect.TypeOf(infinispanv1.Infinispan{}).Name())) {
+					ispnList := &infinispanv1.InfinispanList{}
+					if err := r.kubernetes.ResourcesListByField(a.GetNamespace(), "spec.configMapName", a.GetName(), ispnList, ctx); err != nil {
+						log.Error(err, "failed to list Infinispan CR")
+					}
+					for _, item := range ispnList.Items {
+						requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}})
+					}
+					if len(requests) > 0 {
+						return requests
 					}
 				}
 				return nil
