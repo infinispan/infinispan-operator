@@ -836,38 +836,9 @@ spec:
                       local:
                         description: InfinispanSitesLocalSpec enables cross-site replication
                         properties:
-                          expose:
-                            description: CrossSiteExposeSpec describe how Infinispan
-                              Cross-Site service will be exposed externally
-                            properties:
-                              annotations:
-                                additionalProperties:
-                                  type: string
-                                type: object
-                              nodePort:
-                                format: int32
-                                type: integer
-                              port:
-                                format: int32
-                                type: integer
-                              type:
-                                description: Type specifies different exposition methods
-                                  for data grid
-                                enum:
-                                - NodePort
-                                - LoadBalancer
-                                - ClusterIP
-                                type: string
-                            required:
-                            - type
-                            type: object
-                          maxRelayNodes:
-                            format: int32
-                            type: integer
-                          name:
-                            type: string
-                          tls:
-                            description: TLSSiteSpec enables TLS for cross-site replication
+                          encryption:
+                            description: EncryptionSiteSpec enables TLS for cross-site
+                              replication
                             properties:
                               enabled:
                                 type: boolean
@@ -907,6 +878,36 @@ spec:
                             required:
                             - enabled
                             type: object
+                          expose:
+                            description: CrossSiteExposeSpec describe how Infinispan
+                              Cross-Site service will be exposed externally
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              nodePort:
+                                format: int32
+                                type: integer
+                              port:
+                                format: int32
+                                type: integer
+                              type:
+                                description: Type specifies different exposition methods
+                                  for data grid
+                                enum:
+                                - NodePort
+                                - LoadBalancer
+                                - ClusterIP
+                                type: string
+                            required:
+                            - type
+                            type: object
+                          maxRelayNodes:
+                            format: int32
+                            type: integer
+                          name:
+                            type: string
                         required:
                         - expose
                         - name

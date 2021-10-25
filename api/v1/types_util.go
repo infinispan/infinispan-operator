@@ -646,17 +646,17 @@ func (ispn *Infinispan) IsSiteTLSEnabled() bool {
 // GetSiteTLSProtocol returns the TLS protocol to be used to encrypt cross-site replication communication
 func (ispn *Infinispan) GetSiteTLSProtocol() string {
 	if !ispn.IsSiteTLSEnabled() {
-		return consts.DefaultSiteTLSProtocol
+		return ""
 	}
 	return consts.GetWithDefault(ispn.Spec.Service.Sites.Local.Encryption.Protocol, consts.DefaultSiteTLSProtocol)
 }
 
 // GetSiteTransportSecretName returns the secret name for the transport TLS keystore
 func (ispn *Infinispan) GetSiteTransportSecretName() string {
-	secretName := fmt.Sprintf("%s-transport-site-tls-secret", ispn.Name)
 	if !ispn.IsSiteTLSEnabled() {
-		return secretName
+		return ""
 	}
+	secretName := fmt.Sprintf("%s-transport-site-tls-secret", ispn.Name)
 	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.TransportKeyStore == nil {
 		return secretName
