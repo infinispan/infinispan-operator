@@ -840,8 +840,6 @@ spec:
                             description: EncryptionSiteSpec enables TLS for cross-site
                               replication
                             properties:
-                              enabled:
-                                type: boolean
                               protocol:
                                 type: string
                               routerKeyStore:
@@ -854,6 +852,8 @@ spec:
                                     type: string
                                   secretName:
                                     type: string
+                                required:
+                                - secretName
                                 type: object
                               transportKeyStore:
                                 description: CrossSiteKeyStore keystore configuration
@@ -865,6 +865,8 @@ spec:
                                     type: string
                                   secretName:
                                     type: string
+                                required:
+                                - secretName
                                 type: object
                               trustStore:
                                 description: CrossSiteTrustStore truststore configuration
@@ -874,9 +876,12 @@ spec:
                                     type: string
                                   secretName:
                                     type: string
+                                required:
+                                - secretName
                                 type: object
                             required:
-                            - enabled
+                            - routerKeyStore
+                            - transportKeyStore
                             type: object
                           expose:
                             description: CrossSiteExposeSpec describe how Infinispan

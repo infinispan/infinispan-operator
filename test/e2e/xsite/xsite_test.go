@@ -155,10 +155,6 @@ func createGenericTLSSecret(data []byte, secretName, namespace, password, filena
 	return secret
 }
 
-func defaultSecretName(name, secretType string) string {
-	return fmt.Sprintf("%s-%s-site-tls-secret", name, secretType)
-}
-
 func TestCrossSiteViewInternal(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, NoTLS, nil)
 }
@@ -281,16 +277,15 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 		transport, router, trust := tutils.CreateDefaultCrossSiteKeyAndTrustStore()
 
 		for site := range tesKubes {
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Enabled = true
-			if tlsProtocol != nil {
-				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
-			}
-			namespace := tesKubes[site].namespace
-			name := tesKubes[site].crossSite.Name
+			transportSecretName := fmt.Sprintf("%s-transport-tls-secret", site)
+			routerSecretName := fmt.Sprintf("%s-router-tls-secret", site)
+			trustSecretName := fmt.Sprintf("%s-trust-tls-secret", site)
 
-			transportSecret := createTLSKeysStoreSecret(transport, defaultSecretName(name, "transport"), namespace, tutils.KeystorePassword, nil)
-			routerSecret := createTLSKeysStoreSecret(router, defaultSecretName(name, "router"), namespace, tutils.KeystorePassword, nil)
-			trustSecret := createTLSTrustStoreSecret(trust, defaultSecretName(name, "truststore"), namespace, tutils.KeystorePassword, nil)
+			namespace := tesKubes[site].namespace
+
+			transportSecret := createTLSKeysStoreSecret(transport, transportSecretName, namespace, tutils.KeystorePassword, nil)
+			routerSecret := createTLSKeysStoreSecret(router, routerSecretName, namespace, tutils.KeystorePassword, nil)
+			trustSecret := createTLSTrustStoreSecret(trust, trustSecretName, namespace, tutils.TruststorePassword, nil)
 
 			tesKubes[site].kube.CreateSecret(transportSecret)
 			tesKubes[site].kube.CreateSecret(routerSecret)
@@ -300,6 +295,18 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 				defer tesKubes[site].kube.DeleteSecret(transportSecret)
 				defer tesKubes[site].kube.DeleteSecret(routerSecret)
 				defer tesKubes[site].kube.DeleteSecret(trustSecret)
+			}
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = ispnv1.CrossSiteKeyStore{
+				SecretName: transportSecretName,
+			}
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.RouterKeyStore = ispnv1.CrossSiteKeyStore{
+				SecretName: routerSecretName,
+			}
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TrustStore = &ispnv1.CrossSiteTrustStore{
+				SecretName: trustSecretName,
+			}
+			if tlsProtocol != nil {
+				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
 			}
 		}
 	} else if tlsMode == SingleKeyStoreTLS {
@@ -322,16 +329,15 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 				defer tesKubes[site].kube.DeleteSecret(trustSecret)
 			}
 
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Enabled = true
 			if tlsProtocol != nil {
 				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = &ispnv1.CrossSiteKeyStore{
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = ispnv1.CrossSiteKeyStore{
 				SecretName: keyStoreSecretName,
 				Filename:   keyStoreFileName,
 				Alias:      "same",
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.RouterKeyStore = &ispnv1.CrossSiteKeyStore{
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.RouterKeyStore = ispnv1.CrossSiteKeyStore{
 				SecretName: keyStoreSecretName,
 				Filename:   keyStoreFileName,
 				Alias:      "same",

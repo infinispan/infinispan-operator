@@ -404,28 +404,28 @@ type InfinispanList struct {
 
 // EncryptionSiteSpec enables TLS for cross-site replication
 type EncryptionSiteSpec struct {
-	Enabled bool `json:"enabled"`
 	// +optional
-	Protocol string `json:"protocol,omitempty"`
-	// +optional
-	TransportKeyStore *CrossSiteKeyStore `json:"transportKeyStore,omitempty"`
-	// +optional
-	RouterKeyStore *CrossSiteKeyStore `json:"routerKeyStore,omitempty"`
+	Protocol          string            `json:"protocol,omitempty"`
+	TransportKeyStore CrossSiteKeyStore `json:"transportKeyStore"`
+	RouterKeyStore    CrossSiteKeyStore `json:"routerKeyStore"`
 	// +optional
 	TrustStore *CrossSiteTrustStore `json:"trustStore,omitempty"`
 }
 
 // CrossSiteKeyStore keystore configuration for cross-site replication with TLS
 type CrossSiteKeyStore struct {
-	SecretName string `json:"secretName,omitempty"`
-	Alias      string `json:"alias,omitempty"`
-	Filename   string `json:"filename,omitempty"`
+	SecretName string `json:"secretName"`
+	// +optional
+	Alias string `json:"alias,omitempty"`
+	// +optional
+	Filename string `json:"filename,omitempty"`
 }
 
 // CrossSiteTrustStore truststore configuration for cross-site replication with TLS
 type CrossSiteTrustStore struct {
-	SecretName string `json:"secretName,omitempty"`
-	Filename   string `json:"filename,omitempty"`
+	SecretName string `json:"secretName"`
+	// +optional
+	Filename string `json:"filename,omitempty"`
 }
 
 func init() {
