@@ -160,66 +160,78 @@ func defaultSecretName(name, secretType string) string {
 }
 
 func TestCrossSiteViewInternal(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, NoTLS)
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSInternal tests if the TLS connection works for internal cross-site communication
 func TestDefaultTLSInternal(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS)
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, nil)
+}
+
+// TestDefaultTLSInternalVersion3 tests if the TLSv1.3 connection works for internal cross-site communication
+func TestDefaultTLSInternalVersion3(t *testing.T) {
+	protocol := constants.TLS_1_3
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, &protocol)
 }
 
 // TestSingleTLSInternal tests if the TLS connection works for internal cross-site communication and custom keystore and truststore
 func TestSingleTLSInternal(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS)
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, nil)
+}
+
+// TestSingleTLSInternalVersion3 tests if the TLSv1.3 connection works for internal cross-site communication and custom keystore and truststore
+func TestSingleTLSInternalVersion3(t *testing.T) {
+	protocol := constants.TLS_1_3
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, &protocol)
 }
 
 func TestCrossSiteViewInternalMultiPod(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, NoTLS)
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, NoTLS, nil)
 }
 
 // TestDefaultTLSInternalMultiPod tests if the TLS connection works for internal cross-site communication and multi pod clusters
 func TestDefaultTLSInternalMultiPod(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, DefaultTLS)
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, DefaultTLS, nil)
 }
 
 func TestCrossSiteViewKubernetesNodePort(t *testing.T) {
 	// Cross-Site between clusters will need to setup two instances of the Kind for Travis CI
 	// Not be able to test on the separate OCP/OKD instance (probably with AWS/Azure LoadBalancer support only)
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSKubernetesNodePort tests if the TLS connection works with NodePort.
 func TestDefaultTLSKubernetesNodePort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, DefaultTLS)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, DefaultTLS, nil)
 }
 
 func TestCrossSiteViewOpenshiftNodePort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS, nil)
 }
 
 func TestCrossSiteViewKubernetesLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSKubernetesLoadBalancer tests if the TLS connection works with LoadBalancer.
 func TestDefaultTLSKubernetesLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, DefaultTLS)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, DefaultTLS, nil)
 }
 
 func TestCrossSiteViewOpenshiftLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS, nil)
 }
 
 func TestCrossSiteViewLoadBalancerWithPort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, NoTLS)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSLoadBalancerWithPort tests if the TLS connection works with LoadBalancer and a custom port
 func TestDefaultTLSLoadBalancerWithPort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, DefaultTLS)
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, DefaultTLS, nil)
 }
 
-func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode) {
+func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *string) {
 	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
 	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
 
@@ -269,7 +281,10 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 		transport, router, trust := tutils.CreateDefaultCrossSiteKeyAndTrustStore()
 
 		for site := range tesKubes {
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.Enabled = true
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Enabled = true
+			if tlsProtocol != nil {
+				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
+			}
 			namespace := tesKubes[site].namespace
 			name := tesKubes[site].crossSite.Name
 
@@ -307,18 +322,21 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 				defer tesKubes[site].kube.DeleteSecret(trustSecret)
 			}
 
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.Enabled = true
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.TransportKeyStore = &ispnv1.CrossSiteKeyStore{
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Enabled = true
+			if tlsProtocol != nil {
+				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
+			}
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = &ispnv1.CrossSiteKeyStore{
 				SecretName: keyStoreSecretName,
 				Filename:   keyStoreFileName,
 				Alias:      "same",
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.RouterKeyStore = &ispnv1.CrossSiteKeyStore{
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.RouterKeyStore = &ispnv1.CrossSiteKeyStore{
 				SecretName: keyStoreSecretName,
 				Filename:   keyStoreFileName,
 				Alias:      "same",
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.TrustStore = &ispnv1.CrossSiteTrustStore{
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TrustStore = &ispnv1.CrossSiteTrustStore{
 				SecretName: trustStoreSecretName,
 				Filename:   trustStoreFileName,
 			}

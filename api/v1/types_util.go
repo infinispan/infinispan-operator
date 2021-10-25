@@ -50,10 +50,6 @@ const (
 	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
 
 	GossipRouterDeploymentNameTemplate = "%s-tunnel"
-
-	SiteTransportTLSSecretNameTemplate  = "%s-transport-site-tls-secret"
-	SiteRouterTLSSecretNameTemplate     = "%s-router-site-tls-secret"
-	SiteTruststoreTLSSecretNameTemplate = "%s-truststore-site-tls-secret"
 )
 
 type ExternalDependencyType string
@@ -644,7 +640,7 @@ func (ispn *Infinispan) GetGossipRouterDeploymentName() string {
 
 // IsSiteTLSEnabled returns true if the TLS is enabled for cross-site replication communicate
 func (ispn *Infinispan) IsSiteTLSEnabled() bool {
-	return ispn.HasSites() && ispn.Spec.Service.Sites.Local.TLS.Enabled
+	return ispn.HasSites() && ispn.Spec.Service.Sites.Local.Encryption.Enabled
 }
 
 // GetSiteTLSProtocol returns the TLS protocol to be used to encrypt cross-site replication communication
@@ -652,16 +648,16 @@ func (ispn *Infinispan) GetSiteTLSProtocol() string {
 	if !ispn.IsSiteTLSEnabled() {
 		return consts.DefaultSiteTLSProtocol
 	}
-	return consts.GetWithDefault(ispn.Spec.Service.Sites.Local.TLS.Protocol, consts.DefaultSiteTLSProtocol)
+	return consts.GetWithDefault(ispn.Spec.Service.Sites.Local.Encryption.Protocol, consts.DefaultSiteTLSProtocol)
 }
 
 // GetSiteTransportSecretName returns the secret name for the transport TLS keystore
 func (ispn *Infinispan) GetSiteTransportSecretName() string {
-	secretName := fmt.Sprintf(SiteTransportTLSSecretNameTemplate, ispn.Name)
+	secretName := fmt.Sprintf("%s-transport-site-tls-secret", ispn.Name)
 	if !ispn.IsSiteTLSEnabled() {
 		return secretName
 	}
-	tls := ispn.Spec.Service.Sites.Local.TLS
+	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.TransportKeyStore == nil {
 		return secretName
 	}
@@ -671,9 +667,9 @@ func (ispn *Infinispan) GetSiteTransportSecretName() string {
 // GetSiteTransportKeyStoreFileName returns the keystore filename for the transport TLS configuration
 func (ispn *Infinispan) GetSiteTransportKeyStoreFileName() string {
 	if !ispn.IsSiteTLSEnabled() {
-		return consts.DefaultSiteKeyStoreFileName
+		return ""
 	}
-	tls := ispn.Spec.Service.Sites.Local.TLS
+	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.TransportKeyStore == nil {
 		return consts.DefaultSiteKeyStoreFileName
 	}
@@ -683,9 +679,9 @@ func (ispn *Infinispan) GetSiteTransportKeyStoreFileName() string {
 // GetSiteTransportKeyStoreAlias return the key alias in the keystore for the transport TLS configuration
 func (ispn *Infinispan) GetSiteTransportKeyStoreAlias() string {
 	if !ispn.IsSiteTLSEnabled() {
-		return consts.DefaultSiteTransportKeyStoreAlias
+		return ""
 	}
-	tls := ispn.Spec.Service.Sites.Local.TLS
+	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.TransportKeyStore == nil {
 		return consts.DefaultSiteTransportKeyStoreAlias
 	}
@@ -694,11 +690,11 @@ func (ispn *Infinispan) GetSiteTransportKeyStoreAlias() string {
 
 // GetSiteRouterSecretName returns the secret name for the router TLS keystore
 func (ispn *Infinispan) GetSiteRouterSecretName() string {
-	secretName := fmt.Sprintf(SiteRouterTLSSecretNameTemplate, ispn.Name)
 	if !ispn.IsSiteTLSEnabled() {
-		return secretName
+		return ""
 	}
-	tls := ispn.Spec.Service.Sites.Local.TLS
+	secretName := fmt.Sprintf("%s-router-site-tls-secret", ispn.Name)
+	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.RouterKeyStore == nil {
 		return secretName
 	}
@@ -708,9 +704,9 @@ func (ispn *Infinispan) GetSiteRouterSecretName() string {
 // GetSiteRouterKeyStoreFileName returns the keystore filename for the router TLS configuration
 func (ispn *Infinispan) GetSiteRouterKeyStoreFileName() string {
 	if !ispn.IsSiteTLSEnabled() {
-		return consts.DefaultSiteKeyStoreFileName
+		return ""
 	}
-	tls := ispn.Spec.Service.Sites.Local.TLS
+	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.RouterKeyStore == nil {
 		return consts.DefaultSiteKeyStoreFileName
 	}
@@ -720,9 +716,9 @@ func (ispn *Infinispan) GetSiteRouterKeyStoreFileName() string {
 // GetSiteRouterKeyStoreAlias return the key alias in the keystore for the router TLS configuration
 func (ispn *Infinispan) GetSiteRouterKeyStoreAlias() string {
 	if !ispn.IsSiteTLSEnabled() {
-		return consts.DefaultSiteRouterKeyStoreAlias
+		return ""
 	}
-	tls := ispn.Spec.Service.Sites.Local.TLS
+	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.RouterKeyStore == nil {
 		return consts.DefaultSiteRouterKeyStoreAlias
 	}
@@ -731,11 +727,11 @@ func (ispn *Infinispan) GetSiteRouterKeyStoreAlias() string {
 
 // GetSiteTrustoreSecretName returns the secret name with the truststore for the transport and router TLS keystore
 func (ispn *Infinispan) GetSiteTrustoreSecretName() string {
-	secretName := fmt.Sprintf(SiteTruststoreTLSSecretNameTemplate, ispn.Name)
 	if !ispn.IsSiteTLSEnabled() {
-		return secretName
+		return ""
 	}
-	tls := ispn.Spec.Service.Sites.Local.TLS
+	secretName := fmt.Sprintf("%s-truststore-site-tls-secret", ispn.Name)
+	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.TrustStore == nil {
 		return secretName
 	}
@@ -745,9 +741,9 @@ func (ispn *Infinispan) GetSiteTrustoreSecretName() string {
 // GetSiteTrustStoreFileName returns the truststore filename for the transport and router TLS configuration
 func (ispn *Infinispan) GetSiteTrustStoreFileName() string {
 	if !ispn.IsSiteTLSEnabled() {
-		return consts.DefaultSiteTrustStoreFileName
+		return ""
 	}
-	tls := ispn.Spec.Service.Sites.Local.TLS
+	tls := ispn.Spec.Service.Sites.Local.Encryption
 	if tls.TrustStore == nil {
 		return consts.DefaultSiteTrustStoreFileName
 	}

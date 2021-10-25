@@ -134,7 +134,7 @@ type InfinispanSitesLocalSpec struct {
 	// +optional
 	MaxRelayNodes int32 `json:"maxRelayNodes,omitempty"`
 	// +optional
-	TLS TLSSiteSpec `json:"tls,omitempty"`
+	Encryption EncryptionSiteSpec `json:"encryption,omitempty"`
 }
 
 type InfinispanSiteLocationSpec struct {
@@ -402,8 +402,8 @@ type InfinispanList struct {
 	Items           []Infinispan `json:"items"`
 }
 
-// TLSSiteSpec enables TLS for cross-site replication
-type TLSSiteSpec struct {
+// EncryptionSiteSpec enables TLS for cross-site replication
+type EncryptionSiteSpec struct {
 	Enabled bool `json:"enabled"`
 	// +optional
 	Protocol string `json:"protocol,omitempty"`

@@ -150,7 +150,9 @@ const (
 const DefaultKubeConfig = "~/.kube/config"
 
 const (
-	DefaultSiteTLSProtocol            = "TLSv1.2"
+	TLS_1_2                           = "TLSv1.2"
+	TLS_1_3                           = "TLSv1.3"
+	DefaultSiteTLSProtocol            = TLS_1_2
 	DefaultSiteKeyStoreFileName       = "keystore.p12"
 	DefaultSiteTransportKeyStoreAlias = "transport"
 	DefaultSiteRouterKeyStoreAlias    = "router"

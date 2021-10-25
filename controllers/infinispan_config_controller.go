@@ -10,6 +10,7 @@ import (
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/prometheus/common/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -243,8 +244,8 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 		},
 	}
 
-	if serverConf.Transport.TLS.Enabled {
-		if result, err := ConfigureTransportTLS(r.infinispan, &serverConf, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil || err != nil {
+	if r.infinispan.IsSiteTLSEnabled() {
+		if result, err := r.configureTransportTLS(&serverConf); result != nil || err != nil {
 			return result, err
 		}
 	}
@@ -362,28 +363,19 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 	return nil, nil
 }
 
-// ConfigureTransportTLS configures the keystore and truststore paths and password in Infinispan server for TLS cross-site communication
-func ConfigureTransportTLS(i *v1.Infinispan, c *config.InfinispanConfiguration, client client.Client, log logr.Logger,
-	eventRec record.EventRecorder, ctx context.Context) (*reconcile.Result, error) {
+// configureTransportTLS configures the keystore and truststore paths and password in Infinispan server for TLS cross-site communication
+func (r configRequest) configureTransportTLS(c *config.InfinispanConfiguration) (*reconcile.Result, error) {
 	keyStoreSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(i.GetSiteTransportSecretName(), i.Namespace, keyStoreSecret, i, client, log, eventRec, ctx); result != nil || err != nil {
+	if result, err := kube.LookupResource(r.infinispan.GetSiteTransportSecretName(), r.infinispan.Namespace, keyStoreSecret, r.infinispan, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil || err != nil {
 		return result, err
 	}
 
-	keyStoreFileName := i.GetSiteTransportKeyStoreFileName()
-
-	if len(keyStoreFileName) == 0 {
-		return nil, fmt.Errorf("filename is required for Keystore stored in Secret %s", keyStoreSecret.Name)
-	}
-
+	keyStoreFileName := r.infinispan.GetSiteTransportKeyStoreFileName()
 	password := string(keyStoreSecret.Data["password"])
-	if len(password) == 0 {
-		return nil, fmt.Errorf("password is required for Keystore in Secret %s", keyStoreSecret.Name)
-	}
+	alias := r.infinispan.GetSiteTransportKeyStoreAlias()
 
-	alias := i.GetSiteTransportKeyStoreAlias()
-	if len(alias) == 0 {
-		return nil, fmt.Errorf("alias is required for Keystore stored in Secret %s", keyStoreSecret.Name)
+	if err := ValidaXSiteTLSKeyStore(keyStoreSecret.Name, keyStoreFileName, password, alias); err != nil {
+		return nil, err
 	}
 
 	log.Info("Transport TLS Configured.", "Keystore", keyStoreFileName, "Secret Name", keyStoreSecret.Name)
@@ -393,26 +385,21 @@ func ConfigureTransportTLS(i *v1.Infinispan, c *config.InfinispanConfiguration, 
 		Alias:    alias,
 	}
 
-	trustStoreSecret, err := FindSiteTrustStoreSecret(i, client, ctx)
-	if err != nil {
+	trustStoreSecret, err := FindSiteTrustStoreSecret(r.infinispan, r.Client, r.ctx)
+	if err != nil || trustStoreSecret == nil {
 		return nil, err
 	}
-	if trustStoreSecret != nil {
-		trustStoreFileName := i.GetSiteTrustStoreFileName()
-		if len(trustStoreFileName) == 0 {
-			return nil, fmt.Errorf("filename is required for TrustStore stored in Secret %s", trustStoreSecret.Name)
-		}
+	trustStoreFileName := r.infinispan.GetSiteTrustStoreFileName()
+	password = string(trustStoreSecret.Data["password"])
 
-		password := string(trustStoreSecret.Data["password"])
-		if len(password) == 0 {
-			return nil, fmt.Errorf("password is required for TrustStore in Secret %s", trustStoreSecret.Name)
-		}
+	if err := ValidaXSiteTLSTrustStore(trustStoreSecret.Name, trustStoreFileName, password); err != nil {
+		return nil, err
+	}
 
-		log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.ObjectMeta.Name)
-		c.Transport.TLS.TrustStore = config.Truststore{
-			Path:     fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, trustStoreFileName),
-			Password: password,
-		}
+	log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.ObjectMeta.Name)
+	c.Transport.TLS.TrustStore = config.Truststore{
+		Path:     fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, trustStoreFileName),
+		Password: password,
 	}
 	return nil, nil
 }

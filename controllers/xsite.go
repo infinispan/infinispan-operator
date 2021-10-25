@@ -64,8 +64,7 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keys
 	args = append(args, "-port", strconv.Itoa(consts.CrossSitePort))
 	args = append(args, "-dump_msgs", "registration")
 
-	addKeystoreVolume := false
-	addTruststoreVolume := false
+	var addKeystoreVolume, addTruststoreVolume bool
 
 	if m.IsSiteTLSEnabled() {
 		// Configure KeyStore
@@ -165,18 +164,11 @@ func configureKeyStore(args *[]string, infinispan *ispnv1.Infinispan, keystoreSe
 	*args = append(*args, "-nio", "false")
 
 	filename := infinispan.GetSiteRouterKeyStoreFileName()
-	if len(filename) == 0 {
-		return fmt.Errorf("filename is required for Keystore stored in Secret %s", keystoreSecret.Name)
-	}
-
 	password := string(keystoreSecret.Data["password"])
-	if len(password) == 0 {
-		return fmt.Errorf("password is required for Keystore stored in Secret %s", keystoreSecret.Name)
-	}
-
 	alias := infinispan.GetSiteRouterKeyStoreAlias()
-	if len(alias) == 0 {
-		return fmt.Errorf("alias is required for Keystore stored in Secret %s", keystoreSecret.Name)
+
+	if err := ValidaXSiteTLSKeyStore(keystoreSecret.Name, filename, password, alias); err != nil {
+		return err
 	}
 
 	log.Info("TLS Configured.", "Keystore", filename, "Secret Name", keystoreSecret.Name)
@@ -191,13 +183,10 @@ func configureKeyStore(args *[]string, infinispan *ispnv1.Infinispan, keystoreSe
 
 func configureTrustStore(args *[]string, infinispan *ispnv1.Infinispan, trustStoreSecret *corev1.Secret, log logr.Logger) error {
 	filename := infinispan.GetSiteTrustStoreFileName()
-	if len(filename) == 0 {
-		return fmt.Errorf("filename is required for TrustStore stored in Secret %s", trustStoreSecret.Name)
-	}
-
 	password := string(trustStoreSecret.Data["password"])
-	if len(password) == 0 {
-		return fmt.Errorf("password is required for TrustStore in Secret %s", trustStoreSecret.Name)
+
+	if err := ValidaXSiteTLSTrustStore(trustStoreSecret.Name, filename, password); err != nil {
+		return err
 	}
 
 	log.Info("Found Truststore.", "Truststore", filename, "Secret Name", trustStoreSecret.Name)
@@ -205,5 +194,28 @@ func configureTrustStore(args *[]string, infinispan *ispnv1.Infinispan, trustSto
 	*args = append(*args, "-tls_truststore_password", password)
 	*args = append(*args, "-tls_truststore_type", consts.GetWithDefault(string(trustStoreSecret.Data["type"]), "pkcs12"))
 	*args = append(*args, "-tls_truststore_path", fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, filename))
+	return nil
+}
+
+func ValidaXSiteTLSKeyStore(secretName, filename, password, alias string) error {
+	if len(filename) == 0 {
+		return fmt.Errorf("filename is required for Keystore stored in Secret %s", secretName)
+	}
+	if len(password) == 0 {
+		return fmt.Errorf("password is required for Keystore stored in Secret %s", secretName)
+	}
+	if len(alias) == 0 {
+		return fmt.Errorf("alias is required for Keystore stored in Secret %s", secretName)
+	}
+	return nil
+}
+
+func ValidaXSiteTLSTrustStore(secretName, filename, password string) error {
+	if len(filename) == 0 {
+		return fmt.Errorf("filename is required for KeyStore stored in Secret %s", secretName)
+	}
+	if len(password) == 0 {
+		return fmt.Errorf("password is required for Keystore stored in Secret %s", secretName)
+	}
 	return nil
 }
