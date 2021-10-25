@@ -26,8 +26,8 @@
             <AppenderRef ref="FILE" level="{{ .Logging.File.Level | UpperCase }}"/>
         </Root>
 
-        {{ range $it := .Logging.Categories }}
-        <Logger name="{{ $it.Key }}" level="{{ $it.Value | UpperCase }}"/>
+        {{ range $key, $value := .Logging.Categories }}
+        <Logger name="{{ $key }}" level="{{ $value | UpperCase }}"/>
         {{ end }}
     </Loggers>
 </Configuration>
