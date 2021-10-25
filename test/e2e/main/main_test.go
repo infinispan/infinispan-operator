@@ -1547,8 +1547,8 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
 }
 
-// TestUserCustomConfigUpdateOnChange tests that user custom config works well with user config update
-func TestUserCustomConfigUpdateOnChange(t *testing.T) {
+// TestUserCustomConfigUpdateOnNameChange tests that user custom config works well with user config update
+func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 	t.Parallel()
 	configMap := newCustomConfigMap(t.Name(), "xml")
 	testKube.Create(configMap)
@@ -1571,6 +1571,40 @@ func TestUserCustomConfigUpdateOnChange(t *testing.T) {
 		value := "test-operator"
 		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 		testBasicCacheUsage(key, value, t.Name()+"Changed", hostAddr, client)
+	}
+	ispn := tutils.DefaultSpec(testKube)
+	ispn.Name = strcase.ToKebab(t.Name())
+	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	ispn.Spec.ConfigMapName = configMap.Name
+	genericTestForContainerUpdated(*ispn, modifier, verifier)
+}
+
+func TestUserCustomConfigUpdateOnChange(t *testing.T) {
+	t.Parallel()
+	configMap := newCustomConfigMap(t.Name(), "xml")
+	testKube.Create(configMap)
+	defer testKube.DeleteConfigMap(configMap)
+
+	newCacheName := t.Name() + "Updated"
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		// testing cache pre update
+		key := "testkey"
+		value := "test-operator"
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+		testBasicCacheUsage(key, value, t.Name(), hostAddr, client)
+		configMapUpdated := newCustomConfigMap(newCacheName, "xml")
+		// Reuse old name to test CM in-place update
+		configMapUpdated.Name = strcase.ToKebab(t.Name())
+		testKube.UpdateConfigMap(configMapUpdated)
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+		// testing cache post update
+		key := "testkey"
+		value := "test-operator"
+		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+		testBasicCacheUsage(key, value, newCacheName, hostAddr, client)
 	}
 	ispn := tutils.DefaultSpec(testKube)
 	ispn.Name = strcase.ToKebab(t.Name())
