@@ -427,13 +427,10 @@ func (ispn *Infinispan) GetLogCategoriesForConfig() map[string]string {
 	}
 	copied := make(map[string]string, len(categories)+1)
 	copied["org.infinispan.server.core.backup"] = "debug"
-	if categories != nil {
-		for category, level := range categories {
-			copied[category] = string(level)
-		}
-		return copied
+	for category, level := range categories {
+		copied[category] = string(level)
 	}
-	return make(map[string]string)
+	return copied
 }
 
 // IsWellFormed return true if cluster is well formed
