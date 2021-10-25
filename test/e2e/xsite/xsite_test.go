@@ -25,6 +25,8 @@ const (
 	NoTLS = "none"
 	// enables TLS but uses the default value
 	DefaultTLS = "default"
+	// enables TLS and uses the same keystore for Gossip Router and Infinispan servers
+	SingleKeyStoreTLS = "single"
 )
 
 type crossSiteKubernetes struct {
@@ -116,23 +118,23 @@ func secretSiteName(siteName string) string {
 	return fmt.Sprintf("secret-%s", siteName)
 }
 
-func createTLSKeysStoreSecret(keyStore []byte, secretName, namespace, password string, storeType, filename *string) *corev1.Secret {
+func createTLSKeysStoreSecret(keyStore []byte, secretName, namespace, password string, filename *string) *corev1.Secret {
 	if filename == nil {
 		defaultFilename := constants.DefaultSiteKeyStoreFileName
 		filename = &defaultFilename
 	}
-	return createGenericTLSSecret(keyStore, secretName, namespace, password, *filename, storeType)
+	return createGenericTLSSecret(keyStore, secretName, namespace, password, *filename)
 }
 
-func createTLSTrustStoreSecret(trustStore []byte, secretName, namespace, password string, storeType, filename *string) *corev1.Secret {
+func createTLSTrustStoreSecret(trustStore []byte, secretName, namespace, password string, filename *string) *corev1.Secret {
 	if filename == nil {
 		defaultFilename := constants.DefaultSiteTrustStoreFileName
 		filename = &defaultFilename
 	}
-	return createGenericTLSSecret(trustStore, secretName, namespace, password, *filename, storeType)
+	return createGenericTLSSecret(trustStore, secretName, namespace, password, *filename)
 }
 
-func createGenericTLSSecret(data []byte, secretName, namespace, password, filename string, storeType *string) *corev1.Secret {
+func createGenericTLSSecret(data []byte, secretName, namespace, password, filename string) *corev1.Secret {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -150,9 +152,6 @@ func createGenericTLSSecret(data []byte, secretName, namespace, password, filena
 			filename: data,
 		},
 	}
-	if storeType != nil {
-		secret.StringData["type"] = *storeType
-	}
 	return secret
 }
 
@@ -168,11 +167,15 @@ func TestDefaultTLSInternal(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS)
 }
 
+func TestSingleTLSInternal(t *testing.T) {
+	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS)
+}
+
 func TestCrossSiteViewInternalMultiPod(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, NoTLS)
 }
 
-func TestDefaultTLSInternalMultuPod(t *testing.T) {
+func TestDefaultTLSInternalMultiPod(t *testing.T) {
 	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, DefaultTLS)
 }
 
@@ -272,9 +275,9 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			namespace := tesKubes[site].namespace
 			name := tesKubes[site].crossSite.Name
 
-			transportSecret := createTLSKeysStoreSecret(transport, defaultSecretName(name, "transport"), namespace, tutils.KeystorePassword, nil, nil)
-			routerSecret := createTLSKeysStoreSecret(router, defaultSecretName(name, "router"), namespace, tutils.KeystorePassword, nil, nil)
-			trustSecret := createTLSTrustStoreSecret(trust, defaultSecretName(name, "truststore"), namespace, tutils.KeystorePassword, nil, nil)
+			transportSecret := createTLSKeysStoreSecret(transport, defaultSecretName(name, "transport"), namespace, tutils.KeystorePassword, nil)
+			routerSecret := createTLSKeysStoreSecret(router, defaultSecretName(name, "router"), namespace, tutils.KeystorePassword, nil)
+			trustSecret := createTLSTrustStoreSecret(trust, defaultSecretName(name, "truststore"), namespace, tutils.KeystorePassword, nil)
 
 			tesKubes[site].kube.CreateSecret(transportSecret)
 			tesKubes[site].kube.CreateSecret(routerSecret)
@@ -284,6 +287,42 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 				defer tesKubes[site].kube.DeleteSecret(transportSecret)
 				defer tesKubes[site].kube.DeleteSecret(routerSecret)
 				defer tesKubes[site].kube.DeleteSecret(trustSecret)
+			}
+		}
+	} else if tlsMode == SingleKeyStoreTLS {
+		keystore, truststore := tutils.CreateCrossSiteSingleKeyStoreAndTrustStore()
+		for site := range tesKubes {
+			namespace := tesKubes[site].namespace
+			keyStoreFileName := "my-keystore.p12"
+			keyStoreSecretName := fmt.Sprintf("%s-my-keystore-secret", site)
+			trustStoreFileName := "my-truststore.p12"
+			trustStoreSecretName := fmt.Sprintf("%s-my-truststore-secret", site)
+
+			transportSecret := createTLSKeysStoreSecret(keystore, keyStoreSecretName, namespace, tutils.KeystorePassword, &keyStoreFileName)
+			trustSecret := createTLSTrustStoreSecret(truststore, trustStoreSecretName, namespace, tutils.KeystorePassword, &trustStoreFileName)
+
+			tesKubes[site].kube.CreateSecret(transportSecret)
+			tesKubes[site].kube.CreateSecret(trustSecret)
+
+			if tutils.CleanupXSiteOnFinish {
+				defer tesKubes[site].kube.DeleteSecret(transportSecret)
+				defer tesKubes[site].kube.DeleteSecret(trustSecret)
+			}
+
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.Enabled = true
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.TransportKeyStore = &ispnv1.CrossSiteKeyStore{
+				SecretName: keyStoreSecretName,
+				Filename:   keyStoreFileName,
+				Alias:      "same",
+			}
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.RouterKeyStore = &ispnv1.CrossSiteKeyStore{
+				SecretName: keyStoreSecretName,
+				Filename:   keyStoreFileName,
+				Alias:      "same",
+			}
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.TLS.TrustStore = &ispnv1.CrossSiteTrustStore{
+				SecretName: trustStoreSecretName,
+				Filename:   trustStoreFileName,
 			}
 		}
 	}

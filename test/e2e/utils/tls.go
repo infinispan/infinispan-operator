@@ -128,6 +128,16 @@ func CreateDefaultCrossSiteKeyAndTrustStore() (transportKeyStore, routerKeyStore
 	return
 }
 
+func CreateCrossSiteSingleKeyStoreAndTrustStore() (KeyStore, trustStore []byte) {
+	ExpectNoError(os.MkdirAll(tmpDir, 0777))
+	ca := ca()
+
+	transportCert := createGenericCertificate("same", nil, ca)
+	KeyStore = createKeystore(ca, transportCert)
+	trustStore = createGenericTruststore(ca)
+	return
+}
+
 func ca() *certHolder {
 	// create our private and public key
 	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
