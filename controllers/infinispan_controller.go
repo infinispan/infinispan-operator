@@ -208,25 +208,27 @@ func (r *InfinispanReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return builder.Complete(r)
 }
 
-// +kubebuilder:rbac:groups=infinispan.org,resources=infinispans;infinispans/status;infinispans/finalizers,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=infinispan.org,namespace=infinispan-operator-system,resources=infinispans;infinispans/status;infinispans/finalizers,verbs=get;list;watch;create;update;patch
 
-// +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims;services;services/finalizers;endpoints;configmaps;pods;secrets,verbs=get;list;watch;create;update;delete;patch;deletecollection
+// +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=persistentvolumeclaims;services;services/finalizers;endpoints;configmaps;pods;secrets,verbs=get;list;watch;create;update;delete;patch;deletecollection
+// +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=pods/logs,verbs=get
+// +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups=core;events.k8s.io,namespace=infinispan-operator-system,resources=events,verbs=create;patch
+
+// +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=deployments,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=replicasets,verbs=get
+// +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=deployments/finalizers;statefulsets,verbs=get;list;watch;create;update;delete
+
+// +kubebuilder:rbac:groups=networking.k8s.io,namespace=infinispan-operator-system,resources=ingresses,verbs=get;list;watch;create;delete;deletecollection;update
+// +kubebuilder:rbac:groups=networking.k8s.io,namespace=infinispan-operator-system,resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list
+
+// +kubebuilder:rbac:groups=route.openshift.io,namespace=infinispan-operator-system,resources=routes;routes/custom-host,verbs=get;list;watch;create;delete;deletecollection;update
+
+// +kubebuilder:rbac:groups=monitoring.coreos.com,namespace=infinispan-operator-system,resources=servicemonitors,verbs=get;list;watch;create;delete;update
+
 // +kubebuilder:rbac:groups=core,resources=nodes;serviceaccounts,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=pods/logs,verbs=get
-// +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
-// +kubebuilder:rbac:groups=core;events.k8s.io,resources=events,verbs=create;patch
-
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;delete
-// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get
-// +kubebuilder:rbac:groups=apps,resources=deployments/finalizers;statefulsets,verbs=get;list;watch;create;update;delete
-
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;delete;deletecollection;update
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
-
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/custom-host,verbs=get;list;watch;create;delete;deletecollection;update
-
-// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create;delete;update
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list;watch
 
 func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.Request) (ctrl.Result, error) {
 	reqLogger := reconciler.log.WithValues("Request.Namespace", ctrlRequest.Namespace, "Request.Name", ctrlRequest.Name)

@@ -6,14 +6,14 @@ Apply cluster roles and create site access secrets on {k8s} to use cross-site re
 
 .Procedure
 
-. Install `clusterrole.yaml` and `clusterrole_binding.yaml` if you install {ispn_operator} manually.
+. Install `role.yaml` and `role_binding.yaml` if you install {ispn_operator} manually.
 +
 During OLM installation, {ispn_operator} sets up cluster roles required for cross-site replication.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} config/rbac/clusterrole.yaml
-$ {oc_apply_cr} config/rbac/clusterrole_binding.yaml
+$ {oc_apply_cr} config/rbac/role.yaml
+$ {oc_apply_cr} config/rbac/role_binding.yaml
 ----
 
 . If you run {ispn_operator} in any Kubernetes deployment (Minikube, Kind, and so on), you should create secrets that contain the files that allow Kubernetes clusters to authenticate with each other.
