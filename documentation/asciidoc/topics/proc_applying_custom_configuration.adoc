@@ -7,14 +7,18 @@ Add {brandname} configuration to a `ConfigMap` and make it available to {ispn_op
 
 [IMPORTANT]
 ====
-You should not attempt to configure {brandname} Server instances running in the pods.
 {ispn_operator} applies default configuration on top of your custom configuration to ensure it can continue to manage your {brandname} clusters.
 
-You should use custom configuration with {ispn_operator} to configure the cache manager, `cache-container`, only.
-This allows you to add cache templates and configure transport characteristics.
-
-If you want to use fully configurable {brandname} Server instances on {openshiftshort}, you can deploy clusters with the {brandname} Helm chart.
+Be careful when applying custom configuration outside of the `cache-container` element or field.
+You can apply custom configuration to underlying {brandname} Server mechanisms such as endpoints, security realms, and cluster transport.
+Changing this configuration can result in error and result in service downtime for your {brandname} deployment.
 ====
+
+[TIP]
+====
+Use the the {brandname} Helm chart to deploy clusters of fully configurable {brandname} Server instances on {openshiftshort}.
+====
+
 
 .Prerequisites
 
