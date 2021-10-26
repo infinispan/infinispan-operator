@@ -220,7 +220,7 @@ const (
 )
 
 // CrossSiteExposeType describe different exposition methods for Infinispan Cross-Site service
-// +kubebuilder:validation:Enum=NodePort;LoadBalancer;ClusterIP
+// +kubebuilder:validation:Enum=NodePort;LoadBalancer;ClusterIP;Route
 type CrossSiteExposeType string
 
 const (
@@ -236,6 +236,9 @@ const (
 	// CrossSiteExposeTypeClusterIP means an internal 'ClusterIP'
 	// service will be created without external exposition
 	CrossSiteExposeTypeClusterIP = CrossSiteExposeType(corev1.ServiceTypeClusterIP)
+
+	// CrossSiteExposeTypeRoute route
+	CrossSiteExposeTypeRoute = "Route"
 )
 
 // CrossSiteSchemeType specifies the supported url scheme's allowed in InfinispanSiteLocationSpec.URL
@@ -271,6 +274,9 @@ type CrossSiteExposeSpec struct {
 	NodePort int32 `json:"nodePort,omitempty"`
 	// +optional
 	Port int32 `json:"port,omitempty"`
+	// RouteHostName optionally, specifies a custom hostname to be used by Openshift Route.
+	// +optional
+	RouteHostName string `json:"routeHostName,omitempty"`
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 }

@@ -47,6 +47,7 @@ const (
 	ServiceMonitoringAnnotation string = "infinispan.org/monitoring"
 
 	SiteServiceNameTemplate = "%v-site"
+	SiteRouteNameSuffix     = "-route-site"
 	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
 
 	GossipRouterDeploymentNameTemplate = "%s-tunnel"
@@ -284,6 +285,10 @@ func (ispn *Infinispan) HasSites() bool {
 	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil
 }
 
+func (ispn *Infinispan) GetCrossSiteExposeType() CrossSiteExposeType {
+	return ispn.Spec.Service.Sites.Local.Expose.Type
+}
+
 // GetRemoteSiteLocations returns remote site locations
 func (ispn *Infinispan) GetRemoteSiteLocations() (remoteLocations map[string]InfinispanSiteLocationSpec) {
 	remoteLocations = make(map[string]InfinispanSiteLocationSpec)
@@ -323,6 +328,26 @@ func (ispn *Infinispan) GetSiteServiceName() string {
 
 func (ispn *Infinispan) GetRemoteSiteServiceName(locationName string) string {
 	return fmt.Sprintf(SiteServiceNameTemplate, ispn.GetRemoteSiteClusterName(locationName))
+}
+
+// GetSiteRouteName returns the local Route name for cross-site replication
+func (ispn *Infinispan) GetSiteRouteName() string {
+	name := ispn.Name
+	maxNameLength := MaxRouteObjectNameLength - len(SiteRouteNameSuffix)
+	if len(name) >= maxNameLength {
+		name = name[0 : maxNameLength-1]
+	}
+	return name + SiteRouteNameSuffix
+}
+
+// GetRemoteSiteRouteName return the remote Route name for cross-site replication
+func (ispn *Infinispan) GetRemoteSiteRouteName(locationName string) string {
+	name := ispn.GetRemoteSiteClusterName(locationName)
+	maxNameLength := MaxRouteObjectNameLength - len(SiteRouteNameSuffix)
+	if len(name) >= maxNameLength {
+		name = name[0 : maxNameLength-1]
+	}
+	return name + SiteRouteNameSuffix
 }
 
 func (ispn *Infinispan) GetRemoteSiteServiceFQN(locationName string) string {

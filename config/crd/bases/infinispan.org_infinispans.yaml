@@ -921,6 +921,10 @@ spec:
                               port:
                                 format: int32
                                 type: integer
+                              routeHostName:
+                                description: RouteHostName optionally, specifies a
+                                  custom hostname to be used by Openshift Route.
+                                type: string
                               type:
                                 description: Type specifies different exposition methods
                                   for data grid
@@ -928,6 +932,7 @@ spec:
                                 - NodePort
                                 - LoadBalancer
                                 - ClusterIP
+                                - Route
                                 type: string
                             required:
                             - type
