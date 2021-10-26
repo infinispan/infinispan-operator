@@ -54,58 +54,10 @@ pipeline {
                     }
                 }
 
-                stage('Create k8s Cluster') {
-                    steps {
-                        sh 'scripts/ci/kind-with-olm.sh'
-                        writeFile file: "${KUBECONFIG}", text: sh(script: 'kind get kubeconfig', , returnStdout: true)
-
-                        script {
-                            env.TESTING_CONTEXT = sh(script: 'kubectl --insecure-skip-tls-verify config current-context', , returnStdout: true).trim()
-                        }
-
-                        sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
-                        sh 'scripts/ci/install-catalog-source.sh'
-                        sh 'make install'
-                    }
-                }
-
-                stage('Core') {
-                    steps {
-                        sh "make test PARALLEL_COUNT=2"
-                    }
-                }
-
-                stage('Batch') {
-                    steps {
-                        sh 'make batch-test PARALLEL_COUNT=2'
-                    }
-                }
-
-                stage('Multinamespace') {
-                    steps {
-                        sh "kubectl config use-context $TESTING_CONTEXT"
-                        sh 'make multinamespace-test'
-                    }
-                }
-
-                stage('Backup/Restore') {
-                    steps {
-                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                            sh 'make backuprestore-test'
-                        }
-                    }
-                }
-
-                stage('Upgrade') {
-                    steps {
-                        sh 'make upgrade-test'
-                    }
-                }
-
                 stage('Xsite') {
                     steps {
                         sh 'scripts/ci/configure-xsite.sh'
-                        sh 'INFINISPAN_MEMORY="1Gi" go test -v ./test/e2e/xsite/ -timeout 30m'
+                        sh 'INFINISPAN_MEMORY="2Gi" go test -v ./test/e2e/xsite/ -timeout 30m'
                     }
                 }
             }
