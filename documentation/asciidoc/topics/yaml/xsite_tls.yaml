@@ -1,0 +1,29 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+spec:
+  replicas: 2
+  expose:
+    type: LoadBalancer
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: SiteA
+        # ...
+        encryption:
+          protocol: TLSv1.3
+          transportKeyStore:
+            secretName: transport-tls-secret
+            alias: transport
+            filename: keystore.p12
+          routerKeyStore:
+            secretName: router-tls-secret
+            alias: router
+            filename: keystore.p12
+          trustStore:
+            secretName: truststore-tls-secret
+            filename: truststore.p12
+      locations:
+        # ...

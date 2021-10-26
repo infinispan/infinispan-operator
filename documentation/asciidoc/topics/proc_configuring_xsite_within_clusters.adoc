@@ -2,7 +2,7 @@
 = Configuring sites in the same {k8s} cluster
 
 [role="_abstract"]
-For evaluation and demonstration purposes, you can configure {brandname} to back up between nodes in the same {k8s} cluster.
+For evaluation and demonstration purposes, you can configure {brandname} to back up between pods in the same {k8s} cluster.
 
 .Procedure
 

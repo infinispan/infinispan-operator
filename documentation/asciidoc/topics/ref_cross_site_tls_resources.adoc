@@ -1,0 +1,81 @@
+[id='cross-site-encryption-resources_{context}']
+= Resources for configuring cross-site encryption
+
+[role="_abstract"]
+The following tables provides fields and descriptions for encrypting cross-site connections.
+
+.service.type.sites.local.encryption
+[%header,%autowidth,cols="1,1",stripes=even]
+|===
+|Field
+|Description
+
+|`service.type.sites.local.encryption.protocol`
+|Specifies the TLS protocol to use for cross-site connections. The default value is `TLSv1.2` but you can set `TLSv1.3` if required.
+
+|`service.type.sites.local.encryption.transportKeyStore`
+|Configures a keystore secret for relay pods.
+
+|`service.type.sites.local.encryption.routerKeyStore`
+|Configures a keystore secret for router pods.
+
+|`service.type.sites.local.encryption.trustStore`
+|Configures an optional trust store secret for relay pods and router pods.
+
+|===
+
+.service.type.sites.local.encryption.transportKeyStore
+[%header,%autowidth,cols="1,1",stripes=even]
+|===
+|Field
+|Description
+
+|`secretName`
+|Specifies the secret that contains a keystore that relay pods can use to encrypt and decrypt RELAY messages.
+This field is required.
+
+|`alias`
+|Optionally specifies the alias of the certificate in the keystore.
+The default value is `transport`.
+
+|`filename`
+|Optionally specifies the filename of the keystore.
+The default value is `keystore.p12`.
+
+|===
+
+.service.type.sites.local.encryption.routerKeyStore
+[%header,%autowidth,cols="1,1",stripes=even]
+|===
+|Field
+|Description
+
+|`secretName`
+|Specifies the secret that contains a keystore that router pods can use to encrypt and decrypt RELAY messages.
+This field is required.
+
+|`alias`
+|Optionally specifies the alias of the certificate in the keystore.
+The default value is `router`.
+
+|`filename`
+|Optionally specifies the filename of the keystore.
+The default value is `keystore.p12`.
+
+|===
+
+.service.type.sites.local.encryption.trustStore
+[%header,%autowidth,cols="1,1",stripes=even]
+|===
+|Field
+|Description
+
+|`secretName`
+|Optionally specifies the secret that contains a trust store to verify public certificates for relay pods and router pods.
+The default value is `<cluster-name>-truststore-site-tls-secret`.
+
+|`filename`
+|Optionally specifies the filename of the trust store.
+The default value is `truststore.p12`.
+
+|===
