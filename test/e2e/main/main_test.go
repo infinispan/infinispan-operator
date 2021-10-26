@@ -1033,7 +1033,12 @@ func TestAuthorizationWithCustomRoles(t *testing.T) {
 					Username: "monitor-user",
 					Password: "pass",
 					Roles:    []string{"monitor"},
-				}},
+				}, {
+					// #1296 Add a user with no Roles defined to ensure that IDENTITIES_BATCH works as expected
+					Username: "usr-no-role",
+					Password: "pass",
+				},
+			},
 		}
 	}
 
