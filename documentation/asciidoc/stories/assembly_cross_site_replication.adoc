@@ -1,7 +1,7 @@
 ifdef::context[:parent-context: {context}]
 [id='setting-up-xsite']
 :context: cross-site
-= Replicating data across clusters in multiple sites
+= Replicating data across clusters
 
 [role="_abstract"]
 Ensure availability with {ispn_operator} by configuring geographically distributed clusters as a unified service.
@@ -26,6 +26,9 @@ endif::community[]
 include::{topics}/proc_configuring_sites_automatically.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_sites_manually.adoc[leveloffset=+1]
 include::{topics}/ref_cross_site_resources.adoc[leveloffset=+1]
+include::{topics}/proc_securing_cross_site_connections.adoc[leveloffset=+1]
+include::{topics}/ref_cross_site_tls_resources.adoc[leveloffset=+2]
+include::{topics}/ref_cross_site_tls_secrets.adoc[leveloffset=+2]
 include::{topics}/proc_configuring_xsite_within_clusters.adoc[leveloffset=+1]
 
 // Restore the parent context.
