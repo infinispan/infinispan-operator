@@ -58,7 +58,7 @@ func (r *infinispanRequest) GetCrossSiteViewCondition(podList *corev1.PodList, s
 
 // GetGossipRouterDeployment returns the deployment for the Gossip Router pod
 func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keystoreSecret *corev1.Secret) (*appsv1.Deployment, error) {
-	lsTunnel := GossipRouterPodLabels(m.Name)
+	routerLabels := GossipRouterPodLabels(m.Name)
 	replicas := int32(1)
 
 	// if the user configures 0 replicas, shutdown the gossip router pod too.
@@ -105,17 +105,17 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keys
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      m.GetGossipRouterDeploymentName(),
 			Namespace: m.Namespace,
-			Labels:    lsTunnel,
+			Labels:    routerLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: lsTunnel,
+				MatchLabels: routerLabels,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      m.ObjectMeta.Name,
 					Namespace: m.ObjectMeta.Namespace,
-					Labels:    lsTunnel,
+					Labels:    routerLabels,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{

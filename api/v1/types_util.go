@@ -50,7 +50,7 @@ const (
 	SiteRouteNameSuffix     = "-route-site"
 	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
 
-	GossipRouterDeploymentNameTemplate = "%s-tunnel"
+	GossipRouterDeploymentNameTemplate = "%s-router"
 )
 
 type ExternalDependencyType string
