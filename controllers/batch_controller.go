@@ -61,9 +61,9 @@ func (r *BatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups=infinispan.org,resources=batches;batches/status;batches/finalizers,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=infinispan.org,namespace=infinispan-operator-system,resources=batches;batches/status;batches/finalizers,verbs=get;list;watch;create;update;patch
 
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=batch,namespace=infinispan-operator-system,resources=jobs,verbs=get;list;watch;create;update;delete
 
 func (reconciler *BatchReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.Request) (ctrl.Result, error) {
 	reqLogger := reconciler.log.WithValues("Request.Namespace", ctrlRequest.Namespace, "Request.Name", ctrlRequest.Name)

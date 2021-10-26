@@ -8,5 +8,18 @@ roleRef:
   name: manager-role
 subjects:
 - kind: ServiceAccount
-  name: default
+  name: infinispan-operator
+  namespace: system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: manager-role
+subjects:
+- kind: ServiceAccount
+  name: infinispan-operator
   namespace: system
