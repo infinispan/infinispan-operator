@@ -284,9 +284,9 @@ func (k TestKubernetes) CreateInfinispan(infinispan *ispnv1.Infinispan, namespac
 	ExpectNoError(err)
 }
 
-func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan, timeout time.Duration) {
+func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan) {
 	labelSelector := labels.SelectorFromSet(controllers.PodLabels(infinispan.Name))
-	k.DeleteResource(infinispan.Namespace, labelSelector, infinispan, timeout)
+	k.DeleteResource(infinispan.Namespace, labelSelector, infinispan, SinglePodTimeout)
 }
 
 func (k TestKubernetes) DeleteBackup(backup *ispnv2.Backup) {
