@@ -372,23 +372,33 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			}
 		}
 
-		tunnelDeployment := &appsv1.Deployment{
+		// remove old deployment to change the deployment name
+		// required for upgrades
+		oldRouterDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-tunnel", infinispan.Name),
+				Namespace: infinispan.Namespace,
+			},
+		}
+		if err := r.Client.Delete(r.ctx, oldRouterDeployment); err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+
+		routerDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetGossipRouterDeploymentName(),
 				Namespace: infinispan.Namespace,
 			},
 		}
-		result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, tunnelDeployment, func() error {
-			tunnel, err := r.GetGossipRouterDeployment(infinispan, gossipRouterTLSSecret)
+		result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, routerDeployment, func() error {
+			router, err := r.GetGossipRouterDeployment(infinispan, gossipRouterTLSSecret)
 			if err != nil {
 				return err
 			}
-			if tunnelDeployment.CreationTimestamp.IsZero() {
-				tunnelDeployment.Spec = tunnel.Spec
-				tunnelDeployment.Labels = tunnel.Labels
-				return controllerutil.SetControllerReference(r.infinispan, tunnelDeployment, r.scheme)
-			} else {
-				tunnelDeployment.Spec = tunnel.Spec
+			routerDeployment.Spec = router.Spec
+			routerDeployment.Labels = router.Labels
+			if routerDeployment.CreationTimestamp.IsZero() {
+				return controllerutil.SetControllerReference(r.infinispan, routerDeployment, r.scheme)
 			}
 			return nil
 		})
@@ -402,7 +412,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			}
 		}
 		if result != controllerutil.OperationResultNone {
-			reqLogger.Info(fmt.Sprintf("Cross-site deployment '%s' %s", tunnelDeployment.Name, string(result)))
+			reqLogger.Info(fmt.Sprintf("Cross-site deployment '%s' %s", routerDeployment.Name, string(result)))
 		}
 
 		gossipRouterPods, err := GossipRouterPodList(infinispan, r.kubernetes, r.ctx)
@@ -423,13 +433,13 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			return reconcile.Result{}, err
 		}
 	} else {
-		tunnelDeployment := &appsv1.Deployment{
+		routerDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetGossipRouterDeploymentName(),
 				Namespace: infinispan.Namespace,
 			},
 		}
-		if err := r.Client.Delete(r.ctx, tunnelDeployment); err != nil && !errors.IsNotFound(err) {
+		if err := r.Client.Delete(r.ctx, routerDeployment); err != nil && !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 	}
