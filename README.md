@@ -61,6 +61,19 @@ The bundle image can be created and pushed to a repository with:
 make bundle-build bundle-push VERSION=<latest-version> IMG=<operator-image> BUNDLE_IMG=<bundle-image>
 ```
 
+# Release
+To create an Operator release perform the following:
+
+1. Tag the release `git tag <x.y.z>`
+2. Create and push the image `make operator-build operator-push VERSION=<x.y.z>.Final IMG=quay.io/infinispan/operator:<x.y.z>.Final`
+3. Remove the old bundle from local `rm -rf bundle`
+4. Create OLM bundle `make bundle VERSION=<x.y.z> CHANNELS=2.2.x DEFAULT_CHANNEL=2.2.x IMG=quay.io/remerson/operator:<x.y.z>.Final`
+5. Copy contents of `bundle/` and issue PRs to:
+    - https://github.com/k8s-operatorhub/community-operators
+    - https://github.com/redhat-openshift-ecosystem/community-operators-prod
+6. Once PR in 5 has been merged and Operator has been released to OperatorHub, update the "replaces" field in `config/manifests/bases/infinispan-operator.clusterserviceversion.yaml`
+to `replaces: infinispan-operator.v<x.y.z>`
+
 # Testing
 
 ## Unit Tests
