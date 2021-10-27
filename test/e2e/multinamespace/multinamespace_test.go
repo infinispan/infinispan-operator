@@ -58,7 +58,7 @@ func TestMultinamespaceNodeStartup(t *testing.T) {
 		spec.Namespace = namespace
 		// Register it
 		testKube.CreateInfinispan(spec, namespace)
-		defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
+		defer testKube.DeleteInfinispan(spec)
 		wg.Add(1)
 		go func() {
 			testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, spec.Namespace)

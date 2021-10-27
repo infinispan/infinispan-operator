@@ -205,7 +205,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	tutils.LogError(testKube.Kubernetes.Client.Delete(context.TODO(), pod))
 
 	// 4. Delete the original cluster
-	testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
+	testKube.DeleteInfinispan(infinispan)
 	waitForNoCluster(sourceCluster)
 
 	// 5. Create a new cluster to restore the backup to
