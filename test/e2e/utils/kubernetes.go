@@ -156,6 +156,8 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, specLabel 
 func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabel map[string]string, panicVal interface{}) {
 	// Print pod output if a panic has occurred
 	if panicVal != nil {
+		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app": "infinispan-router-pod"})
 		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
 		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
 		k.PrintAllResources(namespace, &appsv1.StatefulSetList{}, map[string]string{})
