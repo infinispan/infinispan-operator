@@ -66,9 +66,10 @@ pipeline {
 
     post {
         failure {
-            sh "kubectl config use-context $TESTING_CONTEXT"
-            sh 'kubectl get events --all-namespaces'
-            sh 'kubectl cluster-info'
+            sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl get events --all-namespaces --context kind-xsite1'
+            sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl cluster-info --context kind-xsite1'
+            sh 'kubectl config get-contexts -o name | grep -q kind-xsite2 && kubectl get events --all-namespaces --context kind-xsite2'
+            sh 'kubectl config get-contexts -o name | grep -q kind-xsite2 && kubectl cluster-info --context kind-xsite2'
             sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl logs -l "app.kubernetes.io/name"="infinispan-operator" --tail=100 --context kind-xsite1 || true'
             sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl logs daemonset/speaker -n metallb-system --context kind-xsite1 || true'
             sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl logs daemonset/speaker -n metallb-system --context kind-xsite1 || true'
