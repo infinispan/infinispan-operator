@@ -27,7 +27,7 @@ for INSTANCE_IDX in 1 2; do
   make deploy IMG=$IMG DEPLOYMENT_NAMESPACE="${TESTING_NAMESPACE_XSITE}"
 
   # Set the imagePullPolicy to Never so the loaded image is used
-  kubectl -n ${TESTING_NAMESPACE_XSITE} patch deployment infinispan-operator-controller-manager -p \
+  kubectl -n ${TESTING_NAMESPACE_XSITE} patch deployment controller-manager -p \
   '{"spec": {"template": {"spec":{"containers":[{"name":"manager","imagePullPolicy":"Never","env": [{"name": "TEST_ENVIRONMENT","value": "true"}]}]}}}}'
 
   # Creating service account for the cross cluster token based auth
