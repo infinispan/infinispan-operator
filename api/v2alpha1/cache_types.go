@@ -10,8 +10,9 @@ import (
 
 // AdminAuth description of the auth info
 type AdminAuth struct {
-	// name of the secret containing both admin username and password
+	// The secret that contains user credentials.
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Authentication Secret",xDescriptors="urn:alm:descriptor:io.kubernetes:Secret"
 	SecretName string `json:"secretName,omitempty"`
 	// Secret and key containing the admin username for authentication.
 	// +optional
@@ -25,7 +26,8 @@ type AdminAuth struct {
 type CacheSpec struct {
 	// Deprecated. This no longer has any effect. The operator's admin credentials are now used to perform cache operations
 	AdminAuth *AdminAuth `json:"adminAuth,omitempty"`
-	// Name of the cluster where to create the cache
+	// Infinispan cluster name
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Cluster Name",xDescriptors="urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan"
 	ClusterName string `json:"clusterName"`
 	// Name of the cache to be created. If empty ObjectMeta.Name will be used
 	// +optional

@@ -111,6 +111,7 @@ undeploy:
 ## Generate manifests locally e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	operator-sdk generate kustomize manifests -q
 
 .PHONY: fmt
 ## Run go fmt against code
@@ -181,7 +182,6 @@ endef
 .PHONY: bundle
 ## Generate bundle manifests and metadata, then validate generated files.
 bundle: manifests kustomize
-	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite $(BUNDLE_METADATA_OPTS)
 # TODO is there a better way todo this with operator-sdk and/or kustomize. `commonAnnotations` adds annotations to all resources, not just CSV.

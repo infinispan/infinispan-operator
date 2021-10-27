@@ -37,8 +37,10 @@ spec:
             description: BackupSpec defines the desired state of Backup
             properties:
               backup:
+                description: The Infinispan Backup to restore
                 type: string
               cluster:
+                description: Infinispan cluster name
                 type: string
               container:
                 description: InfinispanContainerSpec specify resource requirements
@@ -94,10 +96,10 @@ spec:
             description: RestoreStatus defines the observed state of Restore
             properties:
               phase:
-                description: State indicates the current state of the restore operation
+                description: Current phase of the restore operation
                 type: string
               reason:
-                description: Reason indicates the reason for any Restore related failures.
+                description: Reason indicates the reason for any restore related failures.
                 type: string
             required:
             - phase
