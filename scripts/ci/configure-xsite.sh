@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-IMG=infinispan-operator:xsitetest
+IMG=infinispan-operator
 METALLB_ADDRESS_SHIFT=25
 METALLB_ADDRESS_START=200
 KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}

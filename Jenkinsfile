@@ -69,6 +69,38 @@ pipeline {
                     }
                 }
 
+                stage('Core') {
+                    steps {
+                        sh "make test PARALLEL_COUNT=2"
+                    }
+                }
+
+                stage('Batch') {
+                    steps {
+                        sh 'make batch-test PARALLEL_COUNT=2'
+                    }
+                }
+
+                stage('Multinamespace') {
+                    steps {
+                        sh "kubectl config use-context $TESTING_CONTEXT"
+                        sh 'make multinamespace-test'
+                    }
+                }
+
+                stage('Backup/Restore') {
+                    steps {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                            sh 'make backuprestore-test'
+                        }
+                    }
+                }
+
+                stage('Upgrade') {
+                    steps {
+                        sh 'make upgrade-test'
+                    }
+                }
                 stage('Xsite') {
                     steps {
                         sh 'kind delete clusters --all'
