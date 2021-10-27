@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
 - manager.yaml
+- service_account.yaml
 
 generatorOptions:
   disableNameSuffixHash: true

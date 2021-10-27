@@ -9,7 +9,6 @@ namespace: infinispan-operator-system
 # "wordpress" becomes "alices-wordpress".
 # Note that it should also match with the prefix (text before '-') of the namespace
 # field above.
-namePrefix: infinispan-operator-
 
 commonLabels:
   app.kubernetes.io/name: infinispan-operator
