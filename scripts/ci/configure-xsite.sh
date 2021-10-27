@@ -25,6 +25,7 @@ for INSTANCE_IDX in 1 2; do
   kubectl create namespace "${TESTING_NAMESPACE_XSITE}"
 
   make deploy IMG=$IMG DEPLOYMENT_NAMESPACE="${TESTING_NAMESPACE_XSITE}"
+  bin/kustomize build config/default
 
   # Set the imagePullPolicy to Never so the loaded image is used
   kubectl -n ${TESTING_NAMESPACE_XSITE} patch deployment controller-manager -p \
