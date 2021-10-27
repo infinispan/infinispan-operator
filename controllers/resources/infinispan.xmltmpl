@@ -41,20 +41,20 @@
         <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
         {{ end }}
     </stack>
-    {{ if .XSite }} {{ if .XSite.Backups }}
+    {{ if .XSite }} {{ if .XSite.Sites }}
     <stack name="relay-tcp" extends="tcp">
         <!-- overwrite bind address and port -->
         <TCP
             bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
             bind_port="${jgroups.relay.bind.port:{{.XSite.Relay.BindPort}} }"
             enable_diagnostics="{{.JGroups.Diagnostics}}"
-            external_addr="{{.XSite.Address}}"
-            external_port="{{.XSite.Port}}"
+            external_addr="{{ (index .XSite.Sites 0).Address }}"
+            external_port="{{ (index .XSite.Sites 0).Port }}"
             port_range="0"
             stack.combine="COMBINE"
         />
         <TCPPING
-            initial_hosts="{{.XSite.Address}}[{{.XSite.Port}}],{{RemoteSites .XSite.Backups}}"
+            initial_hosts="{{RemoteSites .XSite.Sites}}"
 	        port_range="0"
             stack.combine="REPLACE"
             stack.position="MPING"
@@ -69,11 +69,11 @@
     <stack name="relay-tunnel" extends="udp">
         <TUNNEL
             bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
-            bind_port="${jgroups.relay.bind.port:{{.XSite.Relay.BindPort}} }"
-            gossip_router_hosts="{{.XSite.Address}}[{{.XSite.Port}}],{{RemoteSites .XSite.Backups}}"
+            bind_port="${jgroups.relay.bind.port:{{.XSite.Relay.BindPort}}}"
+            gossip_router_hosts="{{RemoteSites .XSite.Sites}}"
             enable_diagnostics="{{ .JGroups.Diagnostics }}"
-            {{ if .JGroups.FastMerge }} reconnect_interval="1000" {{ end }}
             port_range="0"
+            {{ if .JGroups.FastMerge }}reconnect_interval="1000"{{ end }}
             stack.combine="REPLACE"
             stack.position="UDP"
         />
@@ -85,14 +85,11 @@
         {{ end }}     
     </stack>
     <stack name="xsite" extends="image-{{ .JGroups.Transport }}">
-        <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ .XSite.Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}"
+        <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ (index .XSite.Sites 0).Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}"
                       can_become_site_master="{{ .XSite.RelayNodeCandidate }}"/>
-        <remote-sites default-stack="relay-{{ .XSite.Transport }}">
-            <remote-site name="{{ .XSite.Name }}"/>
-            {{ range $it := .XSite.Backups }}
+        <remote-sites default-stack="relay-{{ .XSite.Transport }}">{{ range $it := .XSite.Sites }}
             <remote-site name="{{ $it.Name }}"/>
-            {{ end }}
-        </remote-sites>
+        {{ end }}</remote-sites>
     </stack>
     {{ end }} {{ end }}
 </jgroups>
@@ -114,8 +111,8 @@
     </security>
     {{ end }}
     <transport cluster="${infinispan.cluster.name:{{ .Infinispan.ClusterName }}}" node-name="${infinispan.node.name:}"
-    {{if .XSite }}{{if .XSite.Backups }}stack="xsite"{{ else }} stack="image-{{ .JGroups.Transport }}"{{ end }}{{ else }} stack="image-{{ .JGroups.Transport }}"{{ end }}
-    {{ if .Transport.TLS.Enabled }} server:security-realm="transport" {{ end }}
+    {{if .XSite }}{{if .XSite.Sites }}stack="xsite"{{ else }}stack="image-{{ .JGroups.Transport }}"{{ end }}{{ else }}stack="image-{{ .JGroups.Transport }}"{{ end }}
+    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}
     />
     {{ if .CloudEvents }}
         <ce:cloudevents bootstrap-servers="{{ .CloudEvents.BootstrapServers }}" {{if .CloudEvents.Acks }} acks="{{ .CloudEvents.Acks }}" {{ end }} {{if .CloudEvents.CacheEntriesTopic }} cache-entries-topic="{{ .CloudEvents.CacheEntriesTopic }}" {{ end }}/>

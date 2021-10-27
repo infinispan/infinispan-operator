@@ -255,7 +255,7 @@ func (ispn *Infinispan) IsCache() bool {
 }
 
 func (ispn *Infinispan) HasSites() bool {
-	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil && len(ispn.Spec.Service.Sites.Locations) > 0
+	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil
 }
 
 // GetRemoteSiteLocations returns remote site locations
