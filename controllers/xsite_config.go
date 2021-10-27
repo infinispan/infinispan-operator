@@ -55,12 +55,12 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 
 	// use the local/internal service host & port to avoid unecessary hops with external services
 	xsite := &config.XSite{
-		Address:       siteServiceName,
-		Name:          infinispan.Spec.Service.Sites.Local.Name,
-		Port:          localPort,
 		Transport:     "tunnel",
 		MaxRelayNodes: maxRelayNodes,
 	}
+
+	// add local site first
+	appendBackupSite(infinispan.Spec.Service.Sites.Local.Name, siteServiceName, localPort, xsite)
 
 	for _, remoteLocation := range infinispan.GetRemoteSiteLocations() {
 		backupSiteURL, err := url.Parse(remoteLocation.URL)
@@ -148,7 +148,7 @@ func appendBackupSite(name, host string, port int32, xsite *config.XSite) {
 		Port:    port,
 	}
 
-	xsite.Backups = append(xsite.Backups, backupSite)
+	xsite.Sites = append(xsite.Sites, backupSite)
 }
 
 func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kubernetes, logger logr.Logger, eventRec record.EventRecorder, reason string, ctx context.Context) (string, int32, error) {

@@ -119,12 +119,9 @@ type DNSPing struct {
 }
 
 type XSite struct {
-	Address            string       `yaml:"address"`
-	Name               string       `yaml:"name"`
-	Port               int32        `yaml:"port"`
 	Transport          string       `yaml:"transport"`
 	MaxRelayNodes      int32        `yaml:"maxRelayNodes"`
-	Backups            []BackupSite `yaml:"backups"`
+	Sites              []BackupSite `yaml:"sites"` // first backup site is the local site
 	RelayNodeCandidate bool         `yaml:"relayNodeCandidate"`
 	Relay              Relay        `yaml:"relay"`
 }

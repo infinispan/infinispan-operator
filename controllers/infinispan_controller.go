@@ -365,7 +365,6 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			}
 		}
 
-		reqLogger.Info("Checking the Cross-Site Deployment (Gossip Router)")
 		tunnelDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetGossipRouterDeploymentName(),
@@ -377,11 +376,12 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			if err != nil {
 				return err
 			}
-			tunnelDeployment.Spec = tunnel.Spec
-			tunnelDeployment.Labels = tunnel.Labels
 			if tunnelDeployment.CreationTimestamp.IsZero() {
-				reqLogger.Info("Creating the Cross-Site Deployment (Gossip Router)")
+				tunnelDeployment.Spec = tunnel.Spec
+				tunnelDeployment.Labels = tunnel.Labels
 				return controllerutil.SetControllerReference(r.infinispan, tunnelDeployment, r.scheme)
+			} else {
+				tunnelDeployment.Spec = tunnel.Spec
 			}
 			return nil
 		})
@@ -395,7 +395,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			}
 		}
 		if result != controllerutil.OperationResultNone {
-			reqLogger.Info(fmt.Sprintf("Cross-site deployment %s", string(result)))
+			reqLogger.Info(fmt.Sprintf("Cross-site deployment '%s' %s", tunnelDeployment.Name, string(result)))
 		}
 
 		gossipRouterPods, err := GossipRouterPodList(infinispan, r.kubernetes, r.ctx)
@@ -403,7 +403,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			reqLogger.Error(err, "Failed to fetch Gossip Router pod")
 			return reconcile.Result{}, err
 		}
-		if !kube.AreAllPodsReady(gossipRouterPods) {
+		if len(gossipRouterPods.Items) == 0 || !kube.AreAllPodsReady(gossipRouterPods) {
 			reqLogger.Info("Gossip Router pod is not ready")
 			return reconcile.Result{}, r.update(func() {
 				r.infinispan.SetCondition(infinispanv1.ConditionGossipRouterReady, metav1.ConditionFalse, "Gossip Router pod not ready")
