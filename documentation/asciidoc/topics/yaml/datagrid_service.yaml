@@ -43,6 +43,7 @@ spec:
       org.jgroups.protocols.relay.RELAY2: error
   expose:
     type: LoadBalancer
+  configMapName: "my-cluster-config"
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:

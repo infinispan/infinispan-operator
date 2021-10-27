@@ -1,0 +1,2 @@
+spec:
+  configMapName: "my-cluster-config"

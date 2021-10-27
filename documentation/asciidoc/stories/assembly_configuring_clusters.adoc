@@ -1,0 +1,14 @@
+ifdef::context[:parent-context: {context}]
+[id='configuring-clusters']
+:context: configuring-clusters
+= Configuring {brandname} clusters
+
+[role="_abstract"]
+Apply custom {brandname} configuration to clusters that {ispn_operator} manages.
+
+include::{topics}/proc_applying_custom_configuration.adoc[leveloffset=+1]
+include::{topics}/ref_infinispan_config.adoc[leveloffset=+2]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

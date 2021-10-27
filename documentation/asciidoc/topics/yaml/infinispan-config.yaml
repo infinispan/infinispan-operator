@@ -1,0 +1,18 @@
+infinispan:
+  cache-container:
+    name: "default"
+    statistics: "true"
+    transport:
+      stack: "tcp"
+    distributedCacheConfiguration:
+      name: "my-dist-template"
+      mode: "SYNC"
+      statistics: "true"
+      encoding:
+        mediaType: "application/x-protostream"
+      expiration:
+        lifespan: "5000"
+        maxIdle: "1000"
+      memory:
+        maxCount: "1000000"
+        whenFull: "REMOVE"
