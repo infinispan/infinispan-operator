@@ -21,4 +21,8 @@ public class Infinispans {
    public static Infinispan clientTlsValidation() {
       return new Infinispan("src/test/resources/infinispans/client_validation.yaml");
    }
+
+   public static Infinispan clientTlsAuthentication() {
+      return new Infinispan("src/test/resources/infinispans/client_authentication.yaml");
+   }
 }

@@ -11,7 +11,6 @@ import org.assertj.core.api.Assertions;
 import org.infinispan.Infinispan;
 import org.infinispan.Infinispans;
 import org.infinispan.TestServer;
-import org.infinispan.identities.Credentials;
 import org.infinispan.util.CleanUpValidator;
 import org.infinispan.util.KeystoreGenerator;
 import org.junit.jupiter.api.AfterAll;
@@ -19,27 +18,17 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 
-/**
- * ClientValidationIT tests if there is client validation strategy enabled. To validate client certificates,
- * Data Grid requires a trust store that contains any part of the certificate chain for the signing authority,
- * typically the root CA certificate. Any client that presents a certificate signed by the CA can connect to Data Grid.
- */
+
 @CleanBeforeAll
-class ClientValidationIT {
+class ClientAuthenticationIT {
    private static final OpenShift openShift = OpenShifts.master();
-   private static final Infinispan infinispan = Infinispans.clientTlsValidation();
-
+   private static final Infinispan infinispan = Infinispans.clientTlsAuthentication();
    private static final TestServer testServer = TestServer.get();
    private static final String testServerHost = testServer.host();
 
    private static String appName;
    private static final String testServerName = "test-server";
-   private static String user;
-   private static String pass;
 
    @BeforeAll
    static void deploy() throws IOException {
@@ -47,36 +36,38 @@ class ClientValidationIT {
       String hostName = openShift.generateHostname(appName + "-external");
       KeystoreGenerator.CertPaths ipsnCerts = KeystoreGenerator.generateCerts(hostName, new String[]{appName});
       KeystoreGenerator.CertPaths testServerCerts = KeystoreGenerator.generateCerts(testServerHost, new String[]{testServerName});
+      KeystoreGenerator.CertPaths unknownCerts = KeystoreGenerator.generateCerts("unknownHostname");
 
       Secret ispnEncryptionSecret = new SecretBuilder("encryption-secret")
               .addData("keystore.p12", ipsnCerts.keystore)
               .addData("alias", hostName.getBytes())
-              .addData("password", "password".getBytes()).build();
-      Secret ispnAuthSecret = new SecretBuilder("connect-secret")
-              .addData("identities.yaml", Paths.get("src/test/resources/secrets/identities.yaml")).build();
+              .addData("password", "password".getBytes())
+              .build();
       Secret ispnClientValidationSecret = new SecretBuilder(appName + "-client-cert-secret")
-              .addData("truststore.p12", KeystoreGenerator.getTruststore())
-              .addData("truststore-password", "password".getBytes()).build();
+              .addData("trust.ca", testServerCerts.caPem)
+              .addData("trust.cert.client", testServerCerts.certPem)
+              .build();
 
       Secret testServerEncryptionSecret = new SecretBuilder("test-server-cert-secret")
               .addData("keystore.p12", testServerCerts.keystore)
-              .addData("truststore.p12", KeystoreGenerator.getTruststore()).build();
+              .addData("truststore.p12", KeystoreGenerator.getTruststore())
+              .build();
+      Secret testServerUnknownByServerSecret = new SecretBuilder("unknown-cert-secret")
+              .addData("keystore.p12", unknownCerts.keystore)
+              .addData("truststore.p12", unknownCerts.truststore)
+              .build();
 
       openShift.secrets().create(ispnEncryptionSecret);
-      openShift.secrets().create(ispnAuthSecret);
       openShift.secrets().create(ispnClientValidationSecret);
       openShift.secrets().create(testServerEncryptionSecret);
+      openShift.secrets().create(testServerUnknownByServerSecret);
 
       infinispan.deploy();
-      testServer.withSecret("test-server-cert-secret").deploy();
+      testServer.withSecret("test-server-cert-secret")
+              .withSecret("unknown-cert-secret").deploy();
 
       infinispan.waitFor();
       testServer.waitFor();
-
-      Credentials developer = infinispan.getCredentials("testuser");
-      user = developer.getUsername();
-      pass = developer.getPassword();
-
       Https.doesUrlReturnOK("http://" + testServerHost + "/ping").waitFor();
    }
 
@@ -86,7 +77,6 @@ class ClientValidationIT {
 
       try{
          Assertions.assertThat(openShift.getSecret("encryption-secret")).isNotNull();
-         Assertions.assertThat(openShift.getSecret("connect-secret")).isNotNull();
          Assertions.assertThat(openShift.getSecret(appName + "-client-cert-secret")).isNotNull();
       } finally {
          new CleanUpValidator(openShift, appName).withExposedRoute().validate();
@@ -94,24 +84,20 @@ class ClientValidationIT {
    }
 
    @Test
-   void noCredentialsTest() throws Exception {
-      String noCredentialsGet = String.format("http://" + testServerHost + "/hotrod/client/validation?servicename=%s&useKeystores=%s", appName, "true");
-      Assertions.assertThat(Http.get(noCredentialsGet).execute().code()).isEqualTo(401);
-   }
-
-   @Test
    void noKeystoreTest() throws Exception {
-      String encodedPass = URLEncoder.encode(pass, StandardCharsets.UTF_8.toString());
-      String credentialsWithoutKeystore = String.format("http://" + testServerHost + "/hotrod/client/validation?username=%s&password=%s&servicename=%s",
-              user, encodedPass, appName);
+      String credentialsWithoutKeystore = String.format("http://" + testServerHost + "/hotrod/client/authentication?servicename=%s", appName);
       Assertions.assertThat(Http.get(credentialsWithoutKeystore).execute().code()).isEqualTo(401);
    }
 
    @Test
-   void hotrodValidationTest() throws Exception {
-      String encodedPass = URLEncoder.encode(pass, StandardCharsets.UTF_8.toString());
-      String authorizedGet = String.format("http://" + testServerHost + "/hotrod/client/validation?username=%s&password=%s&servicename=%s&useKeystores=%s",
-              user, encodedPass, appName, "true");
+   void hotrodAuthenticationTest() throws Exception {
+      String authorizedGet = String.format("http://" + testServerHost + "/hotrod/client/authentication?servicename=%s&secretName=%s", appName, "test-server-cert-secret");
       Assertions.assertThat(Http.get(authorizedGet).execute().code()).isEqualTo(200);
+   }
+
+   @Test
+   void hotrodUnknownClientCertTest() throws Exception {
+      String authorizedGet = String.format("http://" + testServerHost + "/hotrod/client/authentication?servicename=%s&secretName=%s", appName, "unknown-cert-secret");
+      Assertions.assertThat(Http.get(authorizedGet).execute().code()).isEqualTo(401);
    }
 }

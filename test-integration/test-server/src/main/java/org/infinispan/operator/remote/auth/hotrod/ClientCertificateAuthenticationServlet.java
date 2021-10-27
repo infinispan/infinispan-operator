@@ -15,11 +15,8 @@ import org.infinispan.client.hotrod.configuration.SaslQop;
 import org.infinispan.client.hotrod.exceptions.HotRodClientException;
 import org.infinispan.commons.marshall.ProtoStreamMarshaller;
 
-/**
- * Used by MinimalSetupIT with unencrypted endpoints.
- */
-@WebServlet("/hotrod/auth")
-public class HotRodServlet extends HttpServlet {
+@WebServlet("/hotrod/client/authentication")
+public class ClientCertificateAuthenticationServlet extends HttpServlet {
    private static final long serialVersionUID = 1L;
 
    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -27,19 +24,21 @@ public class HotRodServlet extends HttpServlet {
 
       try {
          String serviceName = request.getParameter("servicename");
-         String username = request.getParameter("username");
-         String password = request.getParameter("password");
-         String encrypted = request.getParameter("encrypted");
+         String secretName = request.getParameter("secretName");
 
          ConfigurationBuilder builder = new ConfigurationBuilder();
-         builder.addServer().host(serviceName).port(11222);
+         builder.addServer().host(serviceName).port(11222)
+                 .security().ssl().authentication().saslMechanism("EXTERNAL");
 
-         if(username != null || password != null) {
-            builder.security().authentication().realm("default").serverName("infinispan").username(username).password(password).enable();
-         }
+         builder.security().ssl()
+            .trustStoreFileName("/etc/test-server-cert-secret/truststore.p12")
+            .trustStorePassword("password".toCharArray());
 
-         if(encrypted != null) {
-            builder.security().ssl().trustStorePath("/etc/" + serviceName + "-cert-secret/tls.crt");
+         if(secretName != null) {
+            builder.security().ssl()
+               .keyStoreFileName("/etc/" + secretName + "/keystore.p12")
+               .keyStorePassword("password".toCharArray())
+               .keyStoreType("PKCS12");
          }
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());
