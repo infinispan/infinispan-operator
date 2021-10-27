@@ -1,4 +1,4 @@
-domain: infinispan.org
+domain: org
 layout: go.kubebuilder.io/v3
 projectName: infinispan-operator
 repo: github.com/infinispan/infinispan-operator
