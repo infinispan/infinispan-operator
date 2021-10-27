@@ -54,8 +54,24 @@ pipeline {
                     }
                 }
 
+                stage('Create k8s Cluster') {
+                    steps {
+                        sh 'scripts/ci/kind-with-olm.sh'
+                        writeFile file: "${KUBECONFIG}", text: sh(script: 'kind get kubeconfig', , returnStdout: true)
+
+                        script {
+                            env.TESTING_CONTEXT = sh(script: 'kubectl --insecure-skip-tls-verify config current-context', , returnStdout: true).trim()
+                        }
+
+                        sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
+                        sh 'scripts/ci/install-catalog-source.sh'
+                        sh 'make install'
+                    }
+                }
+
                 stage('Xsite') {
                     steps {
+                        sh 'kind delete clusters --all'
                         sh 'scripts/ci/configure-xsite.sh'
                         sh 'INFINISPAN_MEMORY="2Gi" go test -v ./test/e2e/xsite/ -timeout 30m'
                     }
@@ -66,6 +82,9 @@ pipeline {
 
     post {
         failure {
+            sh "kubectl config use-context $TESTING_CONTEXT"
+            sh 'kubectl get events --all-namespaces'
+            sh 'kubectl cluster-info'
             sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl get events --all-namespaces --context kind-xsite1'
             sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl cluster-info --context kind-xsite1'
             sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl logs -l "app.kubernetes.io/name"="infinispan-operator" -n namespace-for-testing-xsite1 --tail=100 --context kind-xsite1 || true'
