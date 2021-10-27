@@ -37,6 +37,7 @@ spec:
             description: BackupSpec defines the desired state of Backup
             properties:
               cluster:
+                description: Infinispan cluster name
                 type: string
               container:
                 description: InfinispanContainerSpec specify resource requirements
@@ -89,6 +90,8 @@ spec:
                   storage:
                     type: string
                   storageClassName:
+                    description: Names the storage class object for persistent volume
+                      claims.
                     type: string
                 type: object
             required:
@@ -98,7 +101,7 @@ spec:
             description: BackupStatus defines the observed state of Backup
             properties:
               phase:
-                description: State indicates the current state of the backup operation
+                description: Current phase of the backup operation
                 type: string
               pvc:
                 description: The name of the created PersistentVolumeClaim used to

@@ -60,8 +60,7 @@ spec:
                     - key
                     type: object
                   secretName:
-                    description: name of the secret containing both admin username
-                      and password
+                    description: The secret that contains user credentials.
                     type: string
                   username:
                     description: Secret and key containing the admin username for
@@ -84,7 +83,7 @@ spec:
                     type: object
                 type: object
               clusterName:
-                description: Name of the cluster where to create the cache
+                description: Infinispan cluster name
                 type: string
               name:
                 description: Name of the cache to be created. If empty ObjectMeta.Name

@@ -12,9 +12,13 @@ import (
 type InfinispanSecurity struct {
 	// +optional
 	Authorization *Authorization `json:"authorization,omitempty"`
+	// Enable or disable user authentication
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Authentication",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
 	EndpointAuthentication *bool `json:"endpointAuthentication,omitempty"`
+	// The secret that contains user credentials.
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Authentication Secret",xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:security.endpointAuthentication:true"}
 	EndpointSecretName string `json:"endpointSecretName,omitempty"`
 	// +optional
 	EndpointEncryption *EndpointEncryption `json:"endpointEncryption,omitempty"`
@@ -66,11 +70,17 @@ const (
 
 // EndpointEncryption configuration
 type EndpointEncryption struct {
+	// Disable or modify endpoint encryption.
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Configure Encryption",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:select:Service","urn:alm:descriptor:com.tectonic.ui:select:Secret","urn:alm:descriptor:com.tectonic.ui:select:None"}
 	Type CertificateSourceType `json:"type,omitempty"`
+	// A service that provides TLS certificates
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Encryption Service",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:security.endpointEncryption.type:Service"}
 	CertServiceName string `json:"certServiceName,omitempty"`
+	// The secret that contains TLS certificates
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Encryption Secret",xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:security.endpointEncryption.type:Secret"}
 	CertSecretName string `json:"certSecretName,omitempty"`
 	// +optional
 	ClientCert ClientCertType `json:"clientCert,omitempty"`
@@ -80,11 +90,17 @@ type EndpointEncryption struct {
 
 // InfinispanServiceContainerSpec resource requirements specific for service
 type InfinispanServiceContainerSpec struct {
+	// The amount of storage for the persistent volume claim.
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Size",xDescriptors="urn:alm:descriptor:text"
 	Storage *string `json:"storage,omitempty"`
+	// Enable/disable container ephemeral storage
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Container Ephemeral Storage",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
 	EphemeralStorage bool `json:"ephemeralStorage,omitempty"`
+	// The storage class object for persistent volume claims
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Class Name",xDescriptors={"urn:alm:descriptor:io.kubernetes:StorageClass", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:service.container.ephemeralStorage:false"}
 	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
@@ -108,12 +124,16 @@ const (
 
 // InfinispanServiceSpec specify configuration for specific service
 type InfinispanServiceSpec struct {
+	// The service type
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Service Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:select:Cache", "urn:alm:descriptor:com.tectonic.ui:select:DataGrid"}
 	Type ServiceType `json:"type,omitempty"`
 	// +optional
 	Container *InfinispanServiceContainerSpec `json:"container,omitempty"`
 	// +optional
 	Sites *InfinispanSitesSpec `json:"sites,omitempty"`
+	// Cache replication factor, or number of copies for each entry.
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Number of Owners",xDescriptors="urn:alm:descriptor:com.tectonic.ui:number"
 	ReplicationFactor int32 `json:"replicationFactor,omitempty"`
 }
 
@@ -148,11 +168,14 @@ type InfinispanSiteLocationSpec struct {
 	Host *string `json:"host,omitempty"`
 	// Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Node Port",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:service.sites.local.expose.type:NodePort"}
 	Port *int32 `json:"port,omitempty"`
 	// +kubebuilder:validation:Pattern=`(^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)+$)|(^(infinispan\+xsite):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)*$)`
 	// +optional
 	URL string `json:"url,omitempty"`
+	// The access secret that allows backups to a remote site
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Backup Location Secret",xDescriptors="urn:alm:descriptor:io.kubernetes:Secret"
 	SecretName string `json:"secretName,omitempty"`
 }
 
@@ -232,7 +255,9 @@ type ExposeSpec struct {
 	NodePort int32 `json:"nodePort,omitempty"`
 	// +optional
 	Port int32 `json:"port,omitempty"`
+	// The network hostname for your Infinispan cluster
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Route Hostname",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:expose.type:Route"}
 	Host string `json:"host,omitempty"`
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
@@ -263,8 +288,9 @@ type Autoscale struct {
 // InfinispanExternalDependencies describes all the external dependencies
 // used by the Infinispan cluster: i.e. lib folder with custom jar, maven artifact, images ...
 type InfinispanExternalDependencies struct {
-	// Name of the persistent volume claim with custom libraries
+	// The Persistent Volume Claim that holds custom libraries
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Persistent Volume Claim Name",xDescriptors="urn:alm:descriptor:io.kubernetes:PersistentVolumeClaim"
 	VolumeClaimName string `json:"volumeClaimName,omitempty"`
 	// +optional
 	Artifacts []InfinispanExternalArtifacts `json:"artifacts,omitempty"`
@@ -307,6 +333,8 @@ type InfinispanCloudEvents struct {
 
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
+	// The number of nodes in the Infinispan cluster.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:podCount"
 	Replicas int32 `json:"replicas"`
 	// +optional
 	Image *string `json:"image,omitempty"`
@@ -375,14 +403,19 @@ type InfinispanStatus struct {
 	Security *InfinispanSecurity `json:"security,omitempty"`
 	// +optional
 	ReplicasWantedAtRestart int32 `json:"replicasWantedAtRestart,omitempty"`
+	// The Pod's currently in the cluster
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Pod Status",xDescriptors="urn:alm:descriptor:com.tectonic.ui:podStatuses"
 	PodStatus DeploymentStatus `json:"podStatus,omitempty"`
+	// Infinispan Console URL
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Infinispan Console URL",xDescriptors="urn:alm:descriptor:org.w3:link"
 	ConsoleUrl *string `json:"consoleUrl,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +operator-sdk:csv:customresourcedefinitions:displayName="Infinispan Cluster"
 
 // Infinispan is the Schema for the infinispans API
 type Infinispan struct {

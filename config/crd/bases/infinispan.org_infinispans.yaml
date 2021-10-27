@@ -709,7 +709,7 @@ spec:
                       type: object
                     type: array
                   volumeClaimName:
-                    description: Name of the persistent volume claim with custom libraries
+                    description: The Persistent Volume Claim that holds custom libraries
                     type: string
                 type: object
               expose:
@@ -720,6 +720,7 @@ spec:
                       type: string
                     type: object
                   host:
+                    description: The network hostname for your Infinispan cluster
                     type: string
                   nodePort:
                     format: int32
@@ -756,6 +757,7 @@ spec:
                     type: object
                 type: object
               replicas:
+                description: The number of nodes in the Infinispan cluster.
                 format: int32
                 type: integer
               security:
@@ -781,13 +783,16 @@ spec:
                         type: array
                     type: object
                   endpointAuthentication:
+                    description: Enable or disable user authentication
                     type: boolean
                   endpointEncryption:
                     description: EndpointEncryption configuration
                     properties:
                       certSecretName:
+                        description: The secret that contains TLS certificates
                         type: string
                       certServiceName:
+                        description: A service that provides TLS certificates
                         type: string
                       clientCert:
                         description: ClientCertType specifies a client certificate
@@ -800,8 +805,7 @@ spec:
                       clientCertSecretName:
                         type: string
                       type:
-                        description: CertificateSourceType specifies all the possible
-                          sources for the encryption certificate
+                        description: Disable or modify endpoint encryption.
                         enum:
                         - Service
                         - service
@@ -811,6 +815,7 @@ spec:
                         type: string
                     type: object
                   endpointSecretName:
+                    description: The secret that contains user credentials.
                     type: string
                 type: object
               service:
@@ -822,13 +827,20 @@ spec:
                       specific for service
                     properties:
                       ephemeralStorage:
+                        description: Enable/disable container ephemeral storage
                         type: boolean
                       storage:
+                        description: The amount of storage for the persistent volume
+                          claim.
                         type: string
                       storageClassName:
+                        description: The storage class object for persistent volume
+                          claims
                         type: string
                     type: object
                   replicationFactor:
+                    description: Cache replication factor, or number of copies for
+                      each entry.
                     format: int32
                     type: integer
                   sites:
@@ -940,6 +952,8 @@ spec:
                               format: int32
                               type: integer
                             secretName:
+                              description: The access secret that allows backups to
+                                a remote site
                               type: string
                             url:
                               pattern: (^(kubernetes|minikube|openshift):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)+$)|(^(infinispan\+xsite):\/\/(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])*(:[0-9]+)*$)
@@ -952,6 +966,7 @@ spec:
                     - local
                     type: object
                   type:
+                    description: The service type
                     enum:
                     - DataGrid
                     - Cache
@@ -983,8 +998,10 @@ spec:
                   type: object
                 type: array
               consoleUrl:
+                description: Infinispan Console URL
                 type: string
               podStatus:
+                description: The Pod's currently in the cluster
                 properties:
                   ready:
                     description: Deployments are ready to serve requests
@@ -1029,13 +1046,16 @@ spec:
                         type: array
                     type: object
                   endpointAuthentication:
+                    description: Enable or disable user authentication
                     type: boolean
                   endpointEncryption:
                     description: EndpointEncryption configuration
                     properties:
                       certSecretName:
+                        description: The secret that contains TLS certificates
                         type: string
                       certServiceName:
+                        description: A service that provides TLS certificates
                         type: string
                       clientCert:
                         description: ClientCertType specifies a client certificate
@@ -1048,8 +1068,7 @@ spec:
                       clientCertSecretName:
                         type: string
                       type:
-                        description: CertificateSourceType specifies all the possible
-                          sources for the encryption certificate
+                        description: Disable or modify endpoint encryption.
                         enum:
                         - Service
                         - service
@@ -1059,6 +1078,7 @@ spec:
                         type: string
                     type: object
                   endpointSecretName:
+                    description: The secret that contains user credentials.
                     type: string
                 type: object
               statefulSetName:

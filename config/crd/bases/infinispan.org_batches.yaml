@@ -37,10 +37,14 @@ spec:
             description: BatchSpec defines the desired state of Batch
             properties:
               cluster:
+                description: Infinispan cluster name
                 type: string
               config:
+                description: Batch string to be executed
                 type: string
               configMap:
+                description: Name of the ConfigMap containing the batch and resource
+                  files to be executed
                 type: string
             required:
             - cluster
@@ -53,10 +57,10 @@ spec:
                   associated with
                 type: string
               phase:
-                description: State indicates the current state of the batch operation
+                description: Current phase of the batch operation
                 type: string
               reason:
-                description: Reason indicates the reason for any batch related failures.
+                description: The reason for any batch related failures
                 type: string
             required:
             - phase

@@ -7,6 +7,8 @@ import (
 
 // BackupSpec defines the desired state of Backup
 type BackupSpec struct {
+	// Infinispan cluster name
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Cluster Name",xDescriptors="urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan"
 	Cluster string `json:"cluster"`
 	// +optional
 	Volume BackupVolumeSpec `json:"volume,omitempty"`
@@ -20,6 +22,8 @@ type BackupVolumeSpec struct {
 	// +optional
 	Storage *string `json:"storage,omitempty"`
 	// +optional
+	// Names the storage class object for persistent volume claims.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Class Name",xDescriptors="urn:alm:descriptor:io.kubernetes:StorageClass"
 	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
@@ -64,19 +68,22 @@ const (
 
 // BackupStatus defines the observed state of Backup
 type BackupStatus struct {
-	// State indicates the current state of the backup operation
+	// Current phase of the backup operation
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Phase"
 	Phase BackupPhase `json:"phase"`
 	// Reason indicates the reason for any backup related failures.
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Reason"
 	Reason string `json:"reason,omitempty"`
 	// The name of the created PersistentVolumeClaim used to store the backup
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Persistent Volume Claim"
 	PVC string `json:"pvc,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// Backup is the Schema for the backups API
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=backups,scope=Namespaced
+// Backup is the Schema for the backups API
 type Backup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

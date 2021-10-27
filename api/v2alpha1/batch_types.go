@@ -7,8 +7,14 @@ import (
 
 // BatchSpec defines the desired state of Batch
 type BatchSpec struct {
-	Cluster   string  `json:"cluster"`
-	Config    *string `json:"config,omitempty"`
+	// Infinispan cluster name
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Cluster Name",xDescriptors="urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan"
+	Cluster string `json:"cluster"`
+	// Batch string to be executed
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Config Command"
+	Config *string `json:"config,omitempty"`
+	// Name of the ConfigMap containing the batch and resource files to be executed
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ConfigMap Name"
 	ConfigMap *string `json:"configMap,omitempty"`
 }
 
@@ -30,19 +36,22 @@ const (
 
 // BatchStatus defines the observed state of Batch
 type BatchStatus struct {
-	// State indicates the current state of the batch operation
+	// Current phase of the batch operation
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Phase"
 	Phase BatchPhase `json:"phase"`
-	// Reason indicates the reason for any batch related failures.
+	// The reason for any batch related failures
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Reason"
 	Reason string `json:"reason,omitempty"`
 	// The UUID of the Infinispan instance that the Batch is associated with
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Cluster UUID"
 	ClusterUID *types.UID `json:"clusterUID,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// Batch is the Schema for the batches API
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=batches,scope=Namespaced
+// Batch is the Schema for the batches API
 type Batch struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

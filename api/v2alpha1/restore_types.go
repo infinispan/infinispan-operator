@@ -7,8 +7,12 @@ import (
 
 // BackupSpec defines the desired state of Backup
 type RestoreSpec struct {
+	// Infinispan cluster name
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Cluster Name",xDescriptors="urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan"
 	Cluster string `json:"cluster"`
-	Backup  string `json:"backup"`
+	// The Infinispan Backup to restore
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Backup Name",xDescriptors="urn:alm:descriptor:io.kubernetes:infinispan.org:v2alpha1:Backup"
+	Backup string `json:"backup"`
 	// +optional
 	Resources *RestoreResources `json:"resources,omitempty"`
 	// +optional
@@ -56,9 +60,11 @@ const (
 
 // RestoreStatus defines the observed state of Restore
 type RestoreStatus struct {
-	// State indicates the current state of the restore operation
+	// Current phase of the restore operation
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Phase"
 	Phase RestorePhase `json:"phase"`
-	// Reason indicates the reason for any Restore related failures.
+	// Reason indicates the reason for any restore related failures.
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Reason"
 	Reason string `json:"reason,omitempty"`
 }
 
