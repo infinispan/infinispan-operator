@@ -49,6 +49,8 @@ pipeline {
                     steps{
                         sh 'kind delete clusters --all'
                         sh 'cleanup.sh'
+                        // Ensure that we always have the latest version of the server image locally
+                        sh 'docker pull quay.io/infinispan/server:13.0'
                     }
                 }
 
