@@ -182,6 +182,8 @@ endef
 .PHONY: bundle
 ## Generate bundle manifests and metadata, then validate generated files.
 bundle: manifests kustomize
+# Remove old bundle as old files aren't always cleaned up by operator-sdk
+	rm -rf bundle
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite $(BUNDLE_METADATA_OPTS)
 # TODO is there a better way todo this with operator-sdk and/or kustomize. `commonAnnotations` adds annotations to all resources, not just CSV.
