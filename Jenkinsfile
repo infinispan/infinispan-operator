@@ -131,6 +131,7 @@ pipeline {
             sh 'docker kill $(docker ps -q) || true'
             sh 'docker container prune -f'
             sh 'docker rmi $(docker images -f "dangling=true" -q) || true'
+            sh 'docker volume prune -f || true'
         }
     }
 }
