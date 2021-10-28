@@ -8,10 +8,10 @@
 
 Enable monitoring for user-defined projects on {ocp}.
 
-When the `ServiceMonitor` resource is detected, {ispn_operator} does the following:
+When the Operator detects an `Infinispan` CR with the monitoring annotation set to `true`, which is the default, {ispn_operator} does the following:
 
 * Creates a `ServiceMonitor` named `<cluster_name>-monitor`.
-* Adds the `infinispan.org/monitoring: 'true'` annotation to your `Infinispan` CR:
+* Adds the `infinispan.org/monitoring: 'true'` annotation to your `Infinispan` CR metadata, if the value is not already explicitly set:
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
