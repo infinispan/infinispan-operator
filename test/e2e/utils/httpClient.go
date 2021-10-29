@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -43,6 +44,19 @@ type httpClientConfig struct {
 	protocol string
 	auth     authType
 	quiet    bool
+}
+
+type HttpError struct {
+	Status int
+}
+
+func (e *HttpError) Error() string {
+	return fmt.Sprintf("unexpected response %v", e.Status)
+}
+
+func ThrowHTTPError(resp *http.Response) {
+	errorBytes, _ := ioutil.ReadAll(resp.Body)
+	panic(fmt.Errorf("unexpected HTTP status code (%d): %s", resp.StatusCode, string(errorBytes)))
 }
 
 // NewHTTPClient return a new HTTPClient

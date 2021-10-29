@@ -75,6 +75,12 @@ pipeline {
                     }
                 }
 
+                stage('Cache') {
+                    steps {
+                        sh "make cache-test PARALLEL_COUNT=2"
+                    }
+                }
+
                 stage('Batch') {
                     steps {
                         sh 'make batch-test PARALLEL_COUNT=2'
