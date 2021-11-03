@@ -1,83 +1,38 @@
 [id='connecting-cli_{context}']
-= Connecting the {brandname} CLI
+= Connecting to {brandname} clusters with remote shells
 
 [role="_abstract"]
-Use the command line interface (CLI) to connect to your {brandname} cluster and perform administrative operations.
+Start a remote shell session to {brandname} clusters and use the command line interface (CLI) to work with {brandname} resources and perform administrative operations.
 
 .Prerequisites
 
-* Download a CLI distribution so you can connect to {brandname} clusters on {openshiftshort}.
-
-//Community content
-ifdef::community[]
-The CLI is available as part of the server distribution.
-Alternatively, you can use the CLI container image available from link:https://infinispan.org/download/stable/cli-image.html[infinispan.org/download].
-endif::community[]
-
-//Downstream content
-ifdef::downstream[]
-The {brandname} CLI is available with the server distribution or as a native executable.
-
-Follow the instructions in _Getting Started with {brandname} Server_ for information on downloading and installing the CLI as part of the server distribution.
-For the native CLI, you should follow the installation instructions in the _README_ file that is included in the ZIP download.
-endif::downstream[]
-
-[NOTE]
-====
-It is possible to open a remote shell to a {brandname} node and access the CLI.
-
-[source,options="nowrap",subs=attributes+]
-----
-$ {kubectl_exec}
-----
-
-However using the CLI in this way consumes memory allocated to the container, which can lead to out of memory exceptions.
-====
+* Have `kubectl-infinispan` on your `PATH`.
+* Have valid {brandname} credentials.
 
 .Procedure
 
-. Create a CLI connection to your {brandname} cluster.
-+
-ifdef::downstream[]
-.Using the server distribution
-endif::downstream[]
-[source,bash,options="nowrap",subs=attributes+]
-----
-$ bin/cli.sh -c https://$SERVICE_HOSTNAME:$PORT --trustall
-----
-ifdef::downstream[]
-+
-.Using the native CLI
-[source,bash,options="nowrap",subs=attributes+]
-----
-$ ./redhat-datagrid-cli -c https://$SERVICE_HOSTNAME:$PORT --trustall
-----
-endif::downstream[]
-+
-Replace `$SERVICE_HOSTNAME:$PORT` with the hostname and port where {brandname} is available on the network.
-+
-. Enter your {brandname} credentials when prompted.
-. Perform CLI operations as required, for example:
-.. List caches configured on the cluster with the [command]`ls` command.
+. Run the [command]`infinispan shell` command to connect to your {brandname} cluster.
 +
 [source,bash,options="nowrap",subs=attributes+]
 ----
-[//containers/default]> ls caches
-mycache
+$ {kube_client} infinispan shell infinispan
 ----
 +
-.. View cache configuration with the [command]`describe` command.
+[NOTE]
+====
+The `kubectl-infinispan` plugin automatically detects the default `developer` credentials and uses them to authenticate to {brandname}.
+If you are using custom credentials, specify a {brandname} user with the `--username` argument and enter the corresponding password when prompted.
+====
 +
-[source,bash,options="nowrap",subs=attributes+]
-----
-[//containers/default]> describe caches/mycache
-----
+. Perform CLI operations as required.
++
+[TIP]
+====
+Press the tab key or use the [command]`help` command to view available options and command manpages.
+====
++
+. Use the [command]`quit` command to end the remote shell session.
 
 [role="_additional-resources"]
 .Additional resources
-* link:{server_docs}#start_server[Getting Started with {brandname} Server]
-//Downstream content
-ifdef::downstream[]
-* link:{download_url}[{ProductName} Software Downloads]
-endif::downstream[]
 * link:{cli_docs}[Using the {brandname} Command Line Interface]

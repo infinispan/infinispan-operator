@@ -1,10 +1,11 @@
 $ {oc_get_pods_w}
 
 NAME                        READY  STATUS              RESTARTS   AGE
+{example_crd_name}-0        0/1    ContainerCreating   0          4s
+{example_crd_name}-0        1/1    Running             0          17s
+{example_crd_name}-1        0/1    Pending             0          0s
 {example_crd_name}-1        0/1    ContainerCreating   0          4s
+{example_crd_name}-1        1/1    Running             0          20s
+{example_crd_name}-2        0/1    Pending             0          0s
 {example_crd_name}-2        0/1    ContainerCreating   0          4s
-{example_crd_name}-3        0/1    ContainerCreating   0          5s
-infinispan-operator-0       1/1    Running             0          3m
-{example_crd_name}-3        1/1    Running             0          8s
-{example_crd_name}-2        1/1    Running             0          8s
-{example_crd_name}-1        1/1    Running             0          8s
+{example_crd_name}-2        1/1    Running             0          32s

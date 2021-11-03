@@ -2,16 +2,11 @@
 = Infinispan custom resource (CR)
 
 [role="_abstract"]
-{ispn_operator} adds a new Custom Resource (CR) of type `Infinispan` that lets
-you handle {brandname} clusters as complex units on {k8s}.
+{ispn_operator} adds a new Custom Resource (CR) of type `Infinispan` that lets you handle {brandname} clusters as complex units on {k8s}.
 
-{ispn_operator} watches for `Infinispan` Custom Resources (CR) that you use to
-instantiate and configure {brandname} clusters and manage {k8s} resources, such
-as StatefulSets and Services. In this way, the `Infinispan` CR is your
-primary interface to {brandname} on {k8s}.
+{ispn_operator} watches for `Infinispan` Custom Resources (CR) that you use to instantiate and configure {brandname} clusters and manage {k8s} resources, such as StatefulSets and Services.
 
-The minimal `Infinispan` CR is as follows:
-
+.`Infinispan` CR
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/infinispan_cr.yaml[]
@@ -33,5 +28,8 @@ include::yaml/infinispan_cr.yaml[]
 
 |`spec.replicas`
 |Specifies the number of pods in your {brandname} cluster.
+
+|`spec.service.type`
+|Specifies the type of {brandname} service to create.
 
 |===

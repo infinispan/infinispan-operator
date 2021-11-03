@@ -2,7 +2,7 @@
 = Creating {brandname} clusters
 
 [role="_abstract"]
-Use {ispn_operator} to create clusters of two or more {brandname} pods.
+Use the `{kube_client}` to provide {ispn_operator} with custom `Infinispan` CR definitions for {brandname} clusters.
 
 .Prerequisites
 
@@ -18,10 +18,9 @@ endif::downstream[]
 
 .Procedure
 
-. Specify the number of {brandname} pods in the cluster with `spec.replicas`
-in your `Infinispan` CR.
+. Create a YAML file that defines your `Infinispan` CR.
 +
-For example, create a `cr_minimal.yaml` file as follows:
+For example, create a `cr_minimal.yaml` file that specifies the number of {brandname} pods as follows:
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -44,4 +43,4 @@ include::cmd_examples/oc_get_pods_w.adoc[]
 
 .Next Steps
 
-Try changing the value of `replicas:` and watching {ispn_operator} scale the cluster up or down.
+Modify the value of the `replicas` field in your `Infinispan` CR, apply the changes, and watch {ispn_operator} scale the cluster up or down.

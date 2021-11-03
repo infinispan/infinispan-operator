@@ -9,10 +9,6 @@ endif::community[]
 
 :link_tech_preview: https://access.redhat.com/support/offerings/techpreview/[Red Hat Technology Preview Features Support Scope]
 
-:link_olm: https://github.com/operator-framework/operator-lifecycle-manager[Operator Lifecycle Manager]
-
-:link_olm_arch: https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/design/architecture.md[OLM Architecture]
-
 :link_prometheus_operator: https://github.com/prometheus-operator/prometheus-operator[Prometheus Operator]
 
 //
@@ -35,22 +31,16 @@ endif::community[]
 
 :link_k8s_cluster_api: https://kubernetes.io/docs/tasks/administer-cluster/access-cluster-api/[Access Clusters Using the Kubernetes API]
 
+:link_k8s_plugins: https://kubernetes.io/docs/tasks/extend-kubectl/kubectl-plugins/#installing-kubectl-plugins[Installing kubectl plugins]
+
 //
 //OpenShift documentation
 //
 
-:link_os_node_port: https://docs.openshift.com/container-platform/4.7/networking/configuring_ingress_cluster_traffic/configuring-ingress-cluster-traffic-nodeport.html[Configuring ingress cluster traffic using a NodePort]
+:link_os_sa_tokens: https://docs.openshift.com/container-platform/4.9/authentication/using-service-accounts-in-applications.html[Using service accounts in applications]
 
-:link_os_load_balancer: https://docs.openshift.com/container-platform/4.7/networking/configuring_ingress_cluster_traffic/configuring-ingress-cluster-traffic-load-balancer.html[Configuring ingress cluster traffic using a load balancer]
+:link_os_monitoring: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.9/html-single/monitoring/index#enabling-monitoring-for-user-defined-projects[Enabling monitoring for user-defined projects]
 
-:link_os_sa_tokens: https://docs.openshift.com/container-platform/4.7/authentication/using-service-accounts-in-applications.html[Using service accounts in applications]
+:link_os_storage: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.9/html-single/storage/index#configuring-persistent-storage[Configuring persistent storage]
 
-:link_os_crds: https://docs.openshift.com/container-platform/4.7/operators/crds/crd-managing-resources-from-crds.html[Managing resources from Custom Resource Definitions]
-
-:link_os_olm: https://docs.openshift.com/container-platform/4.7/operators/understanding/olm-understanding-operatorhub.html[Understanding OperatorHub]
-
-:link_os_monitoring: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.7/html-single/monitoring/index#enabling-monitoring-for-user-defined-projects[Enabling monitoring for user-defined projects]
-
-:link_os_olm_adding: https://docs.openshift.com/container-platform/4.7/operators/olm-adding-operators-to-cluster.html#olm-installing-operators-from-operatorhub_olm-adding-operators-to-a-cluster[Approval Strategy]
-
-:link_os_storage: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.7/html-single/storage/index#configuring-persistent-storage[Configuring persistent storage]
+:link_os_plugins: https://docs.openshift.com/container-platform/4.9/cli_reference/openshift_cli/extending-cli-plugins.html[Extending the OpenShift CLI with plug-ins]

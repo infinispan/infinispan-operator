@@ -7,7 +7,6 @@ ifdef::context[:parent-context: {context}]
 Connect to {brandname} clusters from the {brandname} Console, Command Line Interface (CLI), and remote clients.
 
 include::{topics}/con_client_connection_details.adoc[leveloffset=+1]
-include::{topics}/con_caches.adoc[leveloffset=+1]
 
 //CLI
 include::{topics}/proc_connecting_cli.adoc[leveloffset=+1]
@@ -24,10 +23,6 @@ include::{topics}/proc_creating_caches_hotrod.adoc[leveloffset=+2]
 
 //REST
 include::{topics}/proc_connecting_rest.adoc[leveloffset=+1]
-
-//Cache Service
-include::{topics}/proc_creating_caches_cache_service.adoc[leveloffset=+1]
-include::{topics}/ref_default_cache_service_config.adoc[leveloffset=+2]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]
