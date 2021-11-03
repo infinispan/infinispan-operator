@@ -190,12 +190,12 @@ func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*recon
 		Logging: config.Logging{
 			Console: config.Console{
 				Level:   "trace",
-				Pattern: "'%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n'",
+				Pattern: "%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n",
 			},
 			File: config.File{
 				Level:   "trace",
-				Pattern: "'%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n'",
-				Path:    "'${sys:infinispan.server.log.path}/server.log'",
+				Pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n",
+				Path:    "${sys:infinispan.server.log.path}/server.log",
 			},
 			Categories: r.infinispan.GetLogCategoriesForConfig(),
 		},
