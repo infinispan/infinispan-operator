@@ -98,7 +98,7 @@ pipeline {
 
                 stage('Upgrade') {
                     steps {
-                        sh 'echo skipping make upgrade-test'
+                        sh 'make upgrade-test'
                     }
                 }
                 stage('Xsite') {
