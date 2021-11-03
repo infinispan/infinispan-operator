@@ -14,8 +14,5 @@ When using `Cache` CRs, the following rules apply:
 
 [NOTE]
 ====
-In previous versions, you need to add credentials to a secret so that {ispn_operator} can access your cluster when creating caches.
-
-That is no longer necessary.
 {ispn_operator} uses the **operator** user and corresponding password to perform cache operations.
 ====

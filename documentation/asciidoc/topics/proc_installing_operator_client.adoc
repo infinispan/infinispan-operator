@@ -1,8 +1,8 @@
-[id='install-command-line_{context}']
-= Installing {ispn_operator} from the command line
+[id='install-oc-client_{context}']
+= Installing {ispn_operator} with an {openshiftshort} client
 
 [role="_abstract"]
-As an alternative to installing {ispn_operator} through the **OperatorHub** on {openshiftshort}, use the `oc` client to create subscriptions.
+You can use the `oc` client to create {ispn_operator} subscriptions as an alternative to installing through the **OperatorHub** or with the native {brandname} CLI.
 
 .Prerequisites
 

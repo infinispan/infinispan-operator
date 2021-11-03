@@ -11,8 +11,14 @@
 // Operator resources
 //
 
-:example_crd_name: example-infinispan
+:example_crd_name: infinispan
 :example_namespace: rhdg-namespace
 :pv_path: /opt/infinispan/server/data
 :conf_path: /opt/infinispan/server/conf
 :backup_path: /opt/infinispan/backups
+
+//
+// Clients and CLI
+//
+:kube_client: oc
+:native_cli: redhat-datagrid-cli

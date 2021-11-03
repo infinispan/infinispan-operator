@@ -4,20 +4,19 @@ ifdef::context[:parent-context: {context}]
 = Installing {ispn_operator}
 
 [role="_abstract"]
-Install {ispn_operator} into a {k8s} namespace to create and manage {brandname}
-clusters.
+Install {ispn_operator} into a {k8s} namespace to create and manage {brandname} clusters.
 
-include::{topics}/proc_install_olm.adoc[leveloffset=+1]
-//Downstream only
+include::{topics}/proc_installing_operator_olm.adoc[leveloffset=+1]
+include::{topics}/proc_installing_operator_native_plugin.adoc[leveloffset=+1]
+//Downstream content
 ifdef::downstream[]
-include::{topics}/proc_install_command_line.adoc[leveloffset=+1]
+include::{topics}/proc_installing_operator_client.adoc[leveloffset=+1]
 endif::downstream[]
 //Community Only
 ifdef::community[]
-include::{topics}/proc_install_operatorhub.adoc[leveloffset=+1]
-include::{topics}/proc_install_manually.adoc[leveloffset=+1]
+include::{topics}/proc_installing_operator_hub.adoc[leveloffset=+1]
+include::{topics}/proc_installing_operator_manually.adoc[leveloffset=+1]
 endif::community[]
-include::{topics}/ref_upgrades.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

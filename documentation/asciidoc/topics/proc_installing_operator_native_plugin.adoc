@@ -1,0 +1,34 @@
+[id='install-native-cli_{context}']
+= Installing {ispn_operator} with the native CLI plugin
+
+[role="_abstract"]
+Install {ispn_operator} with the native {brandname} CLI plugin, `kubectl-infinispan`.
+
+.Prerequisites
+
+* Have `kubectl-infinispan` on your `PATH`.
+
+.Procedure
+
+. Run the [command]`oc infinispan install` command to create {ispn_operator} subscriptions, for example:
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+$ {kube_client} infinispan install --channel={operator_channel}
+                        --source=redhat-operators
+                        --source-namespace=openshift-marketplace
+----
++
+. Verify the installation.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_get_pods} -n openshift-operators | grep infinispan-operator
+NAME                                   READY   STATUS
+infinispan-operator-<id>               1/1     Running
+----
+
+[TIP]
+====
+Use `oc infinispan install --help` for command options and descriptions.
+====

@@ -4,3 +4,5 @@ metadata:
   name: {example_crd_name}
 spec:
   replicas: 2
+  service:
+    type: DataGrid

@@ -1,0 +1,54 @@
+[id='installing-native-cli_{context}']
+= Installing the native {brandname} CLI plugin
+
+[role="_abstract"]
+Install the native {brandname} Command Line Interface (CLI) as a plugin for `{kube_client}` clients.
+
+.Prerequisites
+
+//Community content
+ifdef::community[]
+* Have a `kubectl` or `oc` client.
+* Download the native {brandname} CLI distribution from link:https://github.com/infinispan/infinispan-quarkus/releases/[infinispan-quarkus releases].
+endif::community[]
+//Downstream content
+ifdef::downstream[]
+* Have an `oc` client.
+* Download the native {brandname} CLI distribution from the link:{download_url}[{brandname} software downloads].
+endif::downstream[]
+
+.Procedure
+
+. Extract the `.zip` archive for the native {brandname} CLI distribution.
+. Copy the native executable, or create a hard link, to a file named "kubectl-infinispan", for example:
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+$ cp {native_cli} kubectl-infinispan
+----
++
+. Add `kubectl-infinispan` to your `PATH`.
+. Verify that the CLI is installed.
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+$ {kube_client} plugin list
+
+The following compatible plugins are available:
+/path/to/kubectl-infinispan
+----
++
+. Use the [command]`infinispan --help` command to view available commands.
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+$ {kube_client} infinispan --help
+----
+
+[role="_additional-resources"]
+.Additional resources
+//Community content
+ifdef::community[]
+* link:{link_k8s_plugins}
+endif::community[]
+* link:{link_os_plugins}

@@ -1,0 +1,36 @@
+[id='native-cli-usage_{context}']
+= kubectl-infinispan command reference
+
+[role="_abstract"]
+This topic provides some details about the `kubectl-infinispan` plugin for clients.
+
+[TIP]
+====
+Use the `--help` argument to view the complete list of available options and descriptions for each command.
+
+For example, `{kube_client} infinispan create cluster --help` prints all command options for creating {brandname} clusters.
+====
+
+[%autowidth,cols="1,1",stripes=even]
+|===
+|Command
+|Description
+
+|`{kube_client} infinispan install`
+|Creates {ispn_operator} subscriptions and installs into the global namespace by default.
+
+|`{kube_client} infinispan create cluster`
+|Creates {brandname} clusters.
+
+|`{kube_client} infinispan get clusters`
+|Displays running {brandname} clusters.
+
+|`{kube_client} infinispan shell`
+|Starts an interactive remote shell session on a {brandname} cluster.
+
+|`{kube_client} infinispan delete cluster`
+|Removes {brandname} clusters.
+
+|`{kube_client} infinispan uninstall`
+|Removes {ispn_operator} installations and all managed resources.
+|===

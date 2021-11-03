@@ -15,7 +15,7 @@
 // Operator and Infinispan
 //
 
-:example_crd_name: example-infinispan
+:example_crd_name: infinispan
 :example_namespace: ispn-namespace
 :pv_path: /opt/infinispan/server/data
 :conf_path: /opt/infinispan/server/conf
@@ -26,12 +26,20 @@
 
 :ispn_operator: Infinispan Operator
 :ispn_operator_version: 2.2
+:operator_channel: 2.2
 :ispn_version: 13.0
 :schemaversion: 13.0
 :brandname: Infinispan
 :fullbrandname: Infinispan
 :datagridservice: Data Grid Service
 :cacheservice: Cache Service
+
+//
+// Clients and CLI
+//
+:kube_client: kubectl
+:native_cli: infinispan-cli
+
 
 //
 // OpenShift and Kubernetes
