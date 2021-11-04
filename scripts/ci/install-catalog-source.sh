@@ -31,6 +31,11 @@ BUNDLE_IMG_DIGEST=$(echo ${PUSH_OUTPUT} | awk '/:/ {print $3}')
 export BUNDLE_IMG=${IMG_REGISTRY}/${BUNDLE_IMG_NAME}@${BUNDLE_IMG_DIGEST}
 make catalog-build catalog-push
 
+cat <<EOF >> bundle/manifests/infinispan-operator.clusterserviceversion.yaml
+  skips:
+  - infinispan-operator.v2.2.0
+EOF
+
 # Create the namespace and CatalogSource
 kubectl create namespace ${TESTING_NAMESPACE} || true
 cat <<EOF | kubectl apply -f -
