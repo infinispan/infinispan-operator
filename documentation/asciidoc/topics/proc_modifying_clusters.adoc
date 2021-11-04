@@ -1,0 +1,43 @@
+[id='creating-minimal-clusters_{context}']
+= Modifying {brandname} clusters
+
+[role="_abstract"]
+Configure {brandname} clusters by providing {ispn_operator} with a custom `Infinispan` CR.
+
+.Prerequisites
+
+* Install {ispn_operator}.
+* Create at least one {brandname} cluster.
+//Community
+ifdef::community[]
+* Have an `oc` or a `kubectl` client.
+endif::community[]
+//Downstream
+ifdef::downstream[]
+* Have an `oc` client.
+endif::downstream[]
+
+.Procedure
+
+. Create a YAML file that defines your `Infinispan` CR.
++
+For example, create a `my_infinispan.yaml` file that changes the number of {brandname} pods to two:
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/cat_infinispan_cr.adoc[]
+----
++
+. Apply your `Infinispan` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} my_infinispan.yaml
+----
++
+. Watch {ispn_operator} scale the {brandname} pods.
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_get_pods_w}
+----

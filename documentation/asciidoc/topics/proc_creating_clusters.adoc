@@ -1,5 +1,5 @@
 [id='creating-clusters-native-cli_{context}']
-= Creating {brandname} clusters with the native CLI plugin
+= Creating {brandname} clusters
 
 [role="_abstract"]
 Create {brandname} clusters with the native CLI plugin, `kubectl-infinispan`.

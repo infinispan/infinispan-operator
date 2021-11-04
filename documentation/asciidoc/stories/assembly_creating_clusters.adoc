@@ -7,9 +7,9 @@ ifdef::context[:parent-context: {context}]
 Create {brandname} clusters running on {k8s} with the `Infinispan` CR or with the native {brandname} CLI plugin for `{kube_client}` clients.
 
 include::{topics}/con_infinispan_cr.adoc[leveloffset=+1]
-include::{topics}/proc_creating_clusters_client.adoc[leveloffset=+1]
-include::{topics}/proc_creating_clusters_native_plugin.adoc[leveloffset=+1]
+include::{topics}/proc_creating_clusters.adoc[leveloffset=+1]
 include::{topics}/proc_verifying_clusters.adoc[leveloffset=+1]
+include::{topics}/proc_modifying_clusters.adoc[leveloffset=+1]
 include::{topics}/proc_stopping_starting.adoc[leveloffset=+1]
 
 // Restore the parent context.
