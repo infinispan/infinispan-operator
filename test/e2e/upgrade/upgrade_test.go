@@ -111,6 +111,8 @@ func TestUpgrade(t *testing.T) {
 
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
 	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
+		fmt.Println("InstalledCSV: " + sub.Status.InstalledCSV)
+		fmt.Println("CurrentCSV: " + sub.Status.CurrentCSV)
 		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
 		testKube.ApproveInstallPlan(sub)
 
@@ -139,6 +141,9 @@ func TestUpgrade(t *testing.T) {
 		hostAddr, client = tutils.HTTPClientAndHost(spec, testKube)
 		assertNumEntries(cacheName, hostAddr, numEntries, client)
 	}
+
+	testKube.Subscription(sub)
+	fmt.Println("Final Subscription: " + sub.Status.InstalledCSV)
 
 	checkServicePorts(t, name)
 	checkBatch(name)
