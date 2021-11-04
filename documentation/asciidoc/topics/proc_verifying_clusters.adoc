@@ -1,8 +1,12 @@
 [id='verifying-clusters_{context}']
-= Verifying {brandname} clusters
+= Verifying {brandname} cluster views
 
 [role="_abstract"]
-Check that {brandname} pods have successfully formed clusters.
+Confirm that {brandname} pods have successfully formed clusters.
+
+.Prerequisites
+
+* Create at least one {brandname} cluster.
 
 .Procedure
 
