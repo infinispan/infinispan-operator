@@ -5,7 +5,7 @@ import (
 )
 
 // SetCondition set condition to status
-func (cache *Cache) SetCondition(condition string, status metav1.ConditionStatus, message string) bool {
+func (cache *Cache) SetCondition(condition CacheConditionType, status metav1.ConditionStatus, message string) bool {
 	changed := false
 	for idx := range cache.Status.Conditions {
 		c := &cache.Status.Conditions[idx]
@@ -27,9 +27,8 @@ func (cache *Cache) SetCondition(condition string, status metav1.ConditionStatus
 }
 
 func (cache *Cache) GetCacheName() string {
-	cacheName := cache.Name
 	if cache.Spec.Name != "" {
-		cacheName = cache.Spec.Name
+		return cache.Spec.Name
 	}
-	return cacheName
+	return cache.Name
 }

@@ -29,6 +29,8 @@ pipeline {
         PATH="/opt/go/bin:$PATH"
         RUN_SA_OPERATOR = 'true'
         MAKE_DATADIR_WRITABLE = 'true'
+        CONFIG_LISTENER_IMAGE = 'localhost:5000/infinispan-operator'
+        SERVER_IMAGE = 'quay.io/infinispan/server:13.0'
     }
 
     options {
@@ -66,7 +68,7 @@ pipeline {
                         sh 'kind delete clusters --all'
                         sh 'cleanup.sh'
                         // Ensure that we always have the latest version of the server image locally
-                        sh 'docker pull quay.io/infinispan/server:13.0'
+                        sh "docker pull $SERVER_IMAGE"
                     }
                 }
 
@@ -82,6 +84,8 @@ pipeline {
                         sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
                         sh 'scripts/ci/install-catalog-source.sh'
                         sh 'make install'
+                        // Create the Operator image so that it can be used for ConfigListener deployments
+                        sh "make operator-build operator-push IMG=$CONFIG_LISTENER_IMAGE"
                     }
                 }
 
@@ -91,9 +95,9 @@ pipeline {
                     }
                 }
 
-                stage('Hot Rod Rolling Upgrade') {
+                stage('Cache') {
                     steps {
-                         sh 'make hotrod-upgrade-test'
+                        sh "make cache-test PARALLEL_COUNT=2"
                     }
                 }
 
@@ -115,6 +119,12 @@ pipeline {
                         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                             sh 'make backuprestore-test'
                         }
+                    }
+                }
+
+                stage('Hot Rod Rolling Upgrade') {
+                    steps {
+                         sh 'make hotrod-upgrade-test'
                     }
                 }
 

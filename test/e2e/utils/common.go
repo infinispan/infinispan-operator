@@ -126,6 +126,9 @@ func DefaultSpec(testKube *TestKubernetes) *ispnv1.Infinispan {
 			},
 			Replicas: 1,
 			Expose:   ExposeServiceSpec(testKube),
+			ConfigListener: &ispnv1.ConfigListenerSpec{
+				Enabled: false,
+			},
 		},
 	}
 }

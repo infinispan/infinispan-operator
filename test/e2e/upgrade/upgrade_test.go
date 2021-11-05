@@ -16,6 +16,7 @@ import (
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"github.com/operator-framework/api/pkg/manifests"
@@ -261,7 +262,7 @@ func populateCache(cacheName, host string, numEntries int, infinispan *ispnv1.In
 		}
 	}
 
-	headers := map[string]string{"Content-Type": "application/json"}
+	headers := map[string]string{"Content-Type": string(mime.ApplicationJson)}
 	url := fmt.Sprintf("%s/rest/v2/caches/%s", host, cacheName)
 	config := `{"distributed-cache":{"mode":"SYNC", "encoding": {"media-type": "application/json"}, "persistence":{"file-store":{"fetch-state":true}}, "statistics":true}}`
 	post(url, config, http.StatusOK, headers)
@@ -293,7 +294,7 @@ func assertNumEntries(cacheName, host string, expectedEntries int, client tutils
 	})
 	if err != nil {
 		url := fmt.Sprintf("%s/rest/v2/caches/%s?action=config", host, cacheName)
-		rsp, err := client.Get(url, map[string]string{"accept": "application/yaml"})
+		rsp, err := client.Get(url, map[string]string{"accept": string(mime.ApplicationYaml)})
 		if err == nil {
 			body, err := ioutil.ReadAll(rsp.Body)
 			tutils.ExpectNoError(rsp.Body.Close())

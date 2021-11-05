@@ -331,6 +331,13 @@ type InfinispanCloudEvents struct {
 	CacheEntriesTopic string `json:"cacheEntriesTopic,omitempty"`
 }
 
+type ConfigListenerSpec struct {
+	// If true, a dedicated pod is used to ensure that all config resources created on the Infinispan server have a matching CR resource
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Config Listener",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	Enabled bool `json:"enabled"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	// The number of nodes in the Infinispan cluster.
@@ -361,6 +368,8 @@ type InfinispanSpec struct {
 	ConfigMapName string `json:"configMapName,omitempty"`
 	// Strategy to use when doing upgrades
 	Upgrades *InfinispanUpgradesSpec `json:"upgrades,omitempty"`
+	// +optional
+	ConfigListener *ConfigListenerSpec `json:"configListener,omitempty"`
 }
 
 // InfinispanUpgradesSpec defines the Infinispan upgrade strategy

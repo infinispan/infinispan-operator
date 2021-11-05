@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	client "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 )
 
 type BackupConfig struct {
@@ -109,7 +110,7 @@ func (manager *Manager) RestoreStatus(name string) (Status, error) {
 }
 
 func (manager *Manager) post(url, op string, config interface{}) (err error) {
-	headers := map[string]string{"Content-Type": "application/json"}
+	headers := map[string]string{"Content-Type": string(mime.ApplicationJson)}
 	json, err := json.Marshal(config)
 	if err != nil {
 		return

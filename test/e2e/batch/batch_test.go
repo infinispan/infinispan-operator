@@ -19,10 +19,8 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -168,7 +166,7 @@ func createCluster(name string) *v1.Infinispan {
 func waitForK8sResourceCleanup(name string) {
 	// Ensure that the created Job has completed and has been removed
 	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
-		return !assertK8ResourceExists(name, &batchv1.Job{}), nil
+		return !testKube.AssertK8ResourceExists(name, tutils.Namespace, &batchv1.Job{}), nil
 	})
 	tutils.ExpectNoError(err)
 
@@ -178,15 +176,6 @@ func waitForK8sResourceCleanup(name string) {
 		return e != nil, nil
 	})
 	tutils.ExpectNoError(err)
-}
-
-func assertK8ResourceExists(name string, obj client.Object) bool {
-	client := testKube.Kubernetes.Client
-	key := types.NamespacedName{
-		Name:      name,
-		Namespace: tutils.Namespace,
-	}
-	return client.Get(ctx, key, obj) == nil
 }
 
 func assertRestOk(url string, client tutils.HTTPClient) {

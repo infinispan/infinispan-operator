@@ -71,6 +71,16 @@ func (ispn *Infinispan) GetCondition(condition ConditionType) InfinispanConditio
 	return InfinispanCondition{Type: condition, Status: metav1.ConditionFalse}
 }
 
+// HasCondition return true if a given condition exists
+func (ispn *Infinispan) HasCondition(condition ConditionType) bool {
+	for _, c := range ispn.Status.Conditions {
+		if c.Type.equals(condition) {
+			return true
+		}
+	}
+	return false
+}
+
 // SetCondition set condition to status
 func (ispn *Infinispan) SetCondition(condition ConditionType, status metav1.ConditionStatus, message string) bool {
 	changed := false
@@ -163,7 +173,14 @@ func (ispn *Infinispan) ApplyDefaults() {
 		ispn.Spec.Security.EndpointSecretName = ""
 	}
 	if ispn.Spec.Upgrades == nil {
-		ispn.Spec.Upgrades = &InfinispanUpgradesSpec{Type: UpgradeTypeShutdown}
+		ispn.Spec.Upgrades = &InfinispanUpgradesSpec{
+			Type: UpgradeTypeShutdown,
+		}
+	}
+	if ispn.Spec.ConfigListener == nil {
+		ispn.Spec.ConfigListener = &ConfigListenerSpec{
+			Enabled: true,
+		}
 	}
 }
 
@@ -727,4 +744,12 @@ func (ispn *Infinispan) GetSiteTrustStoreFileName() string {
 		return consts.DefaultSiteTrustStoreFileName
 	}
 	return consts.GetWithDefault(tls.TrustStore.Filename, consts.DefaultSiteTrustStoreFileName)
+}
+
+func (ispn *Infinispan) IsConfigListenerEnabled() bool {
+	return ispn.Spec.ConfigListener != nil && ispn.Spec.ConfigListener.Enabled
+}
+
+func (ispn *Infinispan) GetConfigListenerName() string {
+	return fmt.Sprintf("%s-config-listener", ispn.Name)
 }

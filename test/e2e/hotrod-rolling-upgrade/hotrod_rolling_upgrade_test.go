@@ -60,7 +60,7 @@ func runOperatorSameProcess() context.CancelFunc {
 // runOperatorNewProcess Starts the operator in a new Process, as it's not possible to start it after stopping in the
 //same process due to several internal concurrency issues like https://github.com/kubernetes-sigs/controller-runtime/issues/1346
 func runOperatorNewProcess(image string) {
-	command = exec.Command("go", "run", mainPath)
+	command = exec.Command("go", "run", mainPath, "operator")
 
 	// Sets the gid since "go run" spawns a subprocess
 	command.SysProcAttr = &syscall.SysProcAttr{

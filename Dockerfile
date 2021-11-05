@@ -11,3 +11,4 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o /bin/inf
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal
 COPY --from=build /bin/infinispan-operator /usr/local/bin/infinispan-operator
+ENTRYPOINT [ "infinispan-operator" ]
