@@ -3,24 +3,32 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
-	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
-	infinispanv2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/iancoleman/strcase"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
-	caches "github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
+	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // CacheReconciler reconciles a Cache object
@@ -32,152 +40,455 @@ type CacheReconciler struct {
 	eventRec   record.EventRecorder
 }
 
+type CacheListener struct {
+	// The Infinispan cluster to listen to in the configured namespace
+	Infinispan *v1.Infinispan
+	Ctx        context.Context
+	Kubernetes *kube.Kubernetes
+	Log        *zap.SugaredLogger
+}
+
+type cacheRequest struct {
+	*CacheReconciler
+	ctx        context.Context
+	cache      *v2alpha1.Cache
+	infinispan *v1.Infinispan
+	reqLogger  logr.Logger
+}
+
 // SetupWithManager sets up the controller with the Manager.
-func (r *CacheReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 	r.log = ctrl.Log.WithName("controllers").WithName("Cache")
 	r.scheme = mgr.GetScheme()
 	r.kubernetes = kube.NewKubernetesFromController(mgr)
 	r.eventRec = mgr.GetEventRecorderFor("cache-controller")
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&infinispanv2alpha1.Cache{}).
-		Complete(r)
+
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2alpha1.Cache{}, "spec.clusterName", func(obj client.Object) []string {
+		return []string{obj.(*v2alpha1.Cache).Spec.ClusterName}
+	}); err != nil {
+		return err
+	}
+
+	builder := ctrl.NewControllerManagedBy(mgr).For(&v2alpha1.Cache{})
+	builder.Watches(
+		&source.Kind{Type: &v1.Infinispan{}},
+		handler.EnqueueRequestsFromMapFunc(
+			func(a client.Object) []reconcile.Request {
+				i := a.(*v1.Infinispan)
+				// Only enqueue requests once a Infinispan CR has the WellFormed condition or it has been deleted
+				if !i.HasCondition(v1.ConditionWellFormed) || !a.GetDeletionTimestamp().IsZero() {
+					return nil
+				}
+
+				var requests []reconcile.Request
+				cacheList := &v2alpha1.CacheList{}
+				if err := r.kubernetes.ResourcesListByField(a.GetNamespace(), "spec.clusterName", a.GetName(), cacheList, ctx); err != nil {
+					r.log.Error(err, "watches failed to list Cache CRs")
+				}
+
+				for _, item := range cacheList.Items {
+					requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}})
+				}
+				return requests
+			}),
+	)
+	return builder.Complete(r)
 }
 
 // +kubebuilder:rbac:groups=infinispan.org,namespace=infinispan-operator-system,resources=caches;caches/status;caches/finalizers,verbs=get;list;watch;create;update;patch
 
 func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
-
 	reqLogger := r.log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("+++++ Reconciling Cache.")
 	defer reqLogger.Info("----- End Reconciling Cache.")
 
 	// Fetch the Cache instance
-	instance := &infinispanv2alpha1.Cache{}
-	err := r.Client.Get(ctx, request.NamespacedName, instance)
-	if err != nil {
+	instance := &v2alpha1.Cache{}
+	if err := r.Client.Get(ctx, request.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
 			reqLogger.Info("Cache resource not found. Ignoring it since cache deletion is not supported")
-			return reconcile.Result{}, nil
+			return ctrl.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
-	if instance.Spec.AdminAuth != nil {
+	infinispan := &v1.Infinispan{}
+	cache := &cacheRequest{
+		CacheReconciler: r,
+		ctx:             ctx,
+		cache:           instance,
+		infinispan:      infinispan,
+		reqLogger:       reqLogger,
+	}
+
+	if cache.markedForDeletion() {
+		// The ConfigListener has marked this resource for deletion
+		// Remove finalizer and delete CR. No need to update the server as the cache has already been removed
+		if err := cache.removeFinalizer(); err != nil {
+			if errors.IsNotFound(err) {
+				return ctrl.Result{}, nil
+			}
+			return ctrl.Result{}, err
+		}
+		if err := cache.kubernetes.Client.Delete(ctx, instance); err != nil && errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	crDeleted := instance.GetDeletionTimestamp() != nil
+	if !crDeleted && instance.Spec.AdminAuth != nil {
 		reqLogger.Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
 		_, err := controllerutil.CreateOrUpdate(ctx, r.Client, instance, func() error {
 			instance.Spec.AdminAuth = nil
 			return nil
 		})
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
-	// Reconcile cache
-	reqLogger.Info("Identify the target cluster")
-	// Fetch the Infinispan cluster info
-	ispnInstance := &infinispanv1.Infinispan{}
-	nsName := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}
-	err = r.Client.Get(ctx, nsName, ispnInstance)
-	if err != nil {
+	// Fetch the Infinispan cluster
+	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}, infinispan); err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", ispnInstance.Name))
-			return reconcile.Result{RequeueAfter: constants.DefaultWaitOnCluster}, err
+			reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", instance.Spec.ClusterName))
+			if crDeleted {
+				return ctrl.Result{}, cache.removeFinalizer()
+			}
+			// No need to requeue request here as the Infinispan watch ensures that a request is queued when the cluster is updated
+			return ctrl.Result{}, cache.update(func() error {
+				// Set CacheConditionReady to false in case the cluster was previously WellFormed
+				instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionFalse, "")
+				return nil
+			})
 		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	// Cluster must be well formed
-	if !ispnInstance.IsWellFormed() {
-		reqLogger.Info(fmt.Sprintf("Infinispan cluster %s not well formed", ispnInstance.Name))
-		return reconcile.Result{RequeueAfter: constants.DefaultWaitOnCluster}, err
-	}
-	// List the pods for this infinispan's deployment
-	podList := &corev1.PodList{}
-	labelSelector := labels.SelectorFromSet(LabelsResource(ispnInstance.Name, ""))
-	listOps := &client.ListOptions{Namespace: ispnInstance.GetClusterName(), LabelSelector: labelSelector}
-	err = r.Client.List(ctx, podList, listOps)
-	if err != nil || (len(podList.Items) == 0) {
-		reqLogger.Error(err, "failed to list pods")
-		return reconcile.Result{}, err
-	} else if len(podList.Items) == 0 {
-		reqLogger.Error(err, "No Infinispan pods found")
-		return reconcile.Result{}, nil
+	if !infinispan.IsWellFormed() {
+		reqLogger.Info(fmt.Sprintf("Infinispan cluster %s not well formed", infinispan.Name))
+		// No need to requeue request here as the Infinispan watch ensures that a request is queued when the cluster is updated
+		return ctrl.Result{}, nil
 	}
 
-	cluster, err := NewCluster(ispnInstance, r.kubernetes, ctx)
-	if err != nil {
-		return reconcile.Result{}, err
+	if crDeleted {
+		if controllerutil.ContainsFinalizer(instance, constants.InfinispanFinalizer) {
+			// Remove Deleted caches from the server before removing the Finalizer
+			if err := cache.ispnDelete(); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, cache.removeFinalizer()
+		}
+		return ctrl.Result{}, nil
 	}
-	existsCache, err := cluster.ExistsCache(instance.GetCacheName(), podList.Items[0].Name)
-	if err == nil {
-		if existsCache {
-			reqLogger.Info(fmt.Sprintf("Cache %s already exists", instance.GetCacheName()))
-			// Check if template matches?
+
+	// Don't contact the Infinispan server for resources created by the ConfigListener
+	if cache.reconcileOnServer() {
+		if result, err := cache.ispnCreateOrUpdate(); result != nil {
+			if err != nil {
+				return *result, cache.update(func() error {
+					instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionFalse, err.Error())
+					return nil
+				})
+			}
+			return *result, err
+		}
+	}
+
+	err := cache.update(func() error {
+		instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionTrue, "")
+		// Add finalizer so that the Cache is removed on the server when the Cache CR is deleted
+		if !controllerutil.ContainsFinalizer(instance, constants.InfinispanFinalizer) {
+			controllerutil.AddFinalizer(instance, constants.InfinispanFinalizer)
+		}
+		return nil
+	})
+	return ctrl.Result{}, err
+}
+
+func (r *cacheRequest) update(mutate func() error) error {
+	cache := r.cache
+	_, err := kube.CreateOrPatch(r.ctx, r.Client, cache, func() error {
+		if cache.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(schema.ParseGroupResource("cache.infinispan.org"), cache.Name)
+		}
+		return mutate()
+	})
+	if err != nil {
+		return fmt.Errorf("unable to update cache %s: %w", cache.Name, err)
+	}
+	return nil
+}
+
+// Determine if reconciliation was triggered by the ConfigListener
+func (r *cacheRequest) reconcileOnServer() bool {
+	if val, exists := r.cache.ObjectMeta.Annotations[constants.ListenerAnnotationGeneration]; exists {
+		generation, _ := strconv.ParseInt(val, 10, 64)
+		return generation != r.cache.GetGeneration()
+	}
+	return true
+}
+
+func (r *cacheRequest) markedForDeletion() bool {
+	_, exists := r.cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete]
+	return exists
+}
+
+func (r *cacheRequest) removeFinalizer() error {
+	return r.update(func() error {
+		controllerutil.RemoveFinalizer(r.cache, constants.InfinispanFinalizer)
+		return nil
+	})
+}
+
+func (r *cacheRequest) ispnDelete() error {
+	cacheName := r.cache.GetCacheName()
+	podName, cluster, err := newClusterClient(r.ctx, r.infinispan, r.kubernetes)
+	if err != nil {
+		return fmt.Errorf("unable to create Cluster client: %w", err)
+	}
+
+	if err = cluster.DeleteCache(cacheName, podName); err != nil {
+		return fmt.Errorf("unable to delete Cache '%s' on the server: %w", cacheName, err)
+	}
+	return nil
+}
+
+func (r *cacheRequest) ispnCreateOrUpdate() (*ctrl.Result, error) {
+	podName, cluster, err := newClusterClient(r.ctx, r.infinispan, r.kubernetes)
+	if err != nil {
+		return &ctrl.Result{}, fmt.Errorf("unable to create Cluster client: %w", err)
+	}
+
+	cacheExists, err := cluster.ExistsCache(r.cache.GetCacheName(), podName)
+	if err != nil {
+		err := fmt.Errorf("unable to determine if cache exists: %w", err)
+		r.reqLogger.Error(err, "")
+		return &ctrl.Result{}, err
+	}
+
+	if r.infinispan.IsDataGrid() {
+		err = r.reconcileDataGrid(cacheExists, podName, cluster)
+	} else {
+		err = r.reconcileCacheService(cacheExists, podName, cluster)
+	}
+	if err != nil {
+		return &ctrl.Result{Requeue: true}, err
+	}
+	return nil, nil
+}
+
+func (r *cacheRequest) reconcileCacheService(cacheExists bool, podName string, cluster infinispan.ClusterInterface) error {
+	spec := r.cache.Spec
+	if cacheExists {
+		err := fmt.Errorf("cannot update an existing cache in a CacheService cluster")
+		r.reqLogger.Error(err, "Error updating cache")
+		return err
+	}
+
+	if spec.TemplateName != "" || spec.Template != "" {
+		err := fmt.Errorf("cannot create a cache with a template in a CacheService cluster")
+		r.reqLogger.Error(err, "Error creating cache")
+		return err
+	}
+
+	template, err := caches.DefaultCacheTemplateXML(podName, r.infinispan, cluster, r.reqLogger)
+	if err != nil {
+		err = fmt.Errorf("unable to obtain default cache template: %w", err)
+		r.reqLogger.Error(err, "Error getting default XML")
+		return err
+	}
+
+	err = cluster.CreateCacheWithConfiguration(r.cache.Spec.Name, template, podName, mime.ApplicationXml)
+	if err != nil {
+		err = fmt.Errorf("unable to create cache using default template: %w", err)
+		r.reqLogger.Error(err, "Error in creating cache")
+		return err
+	}
+	return nil
+}
+
+func (r *cacheRequest) reconcileDataGrid(cacheExists bool, podName string, cluster infinispan.ClusterInterface) error {
+	spec := r.cache.Spec
+	cacheName := r.cache.GetCacheName()
+	if cacheExists {
+		if spec.TemplateName != "" {
+			// TODO enforce with webhook validation when supported
+			r.log.Error(fmt.Errorf("updating an existing Cache's 'spec.TemplateName' field is not supported"), "")
 		} else {
-			reqLogger.Info(fmt.Sprintf("Cache %s doesn't exist, create it", instance.GetCacheName()))
-			podName := podList.Items[0].Name
-			templateName := instance.Spec.TemplateName
-			if ispnInstance.Spec.Service.Type == infinispanv1.ServiceTypeCache && (templateName != "" || instance.Spec.Template != "") {
-				errTemplate := fmt.Errorf("cannot create a cache with a template in a CacheService cluster")
-				reqLogger.Error(errTemplate, "Error creating cache")
-				return reconcile.Result{}, err
+			err := cluster.UpdateCacheWithConfiguration(cacheName, spec.Template, podName, mime.GuessMarkup(spec.Template))
+			if err != nil {
+				return fmt.Errorf("unable to update cache template: %w", err)
 			}
-			if templateName != "" {
-				err = cluster.CreateCacheWithTemplateName(instance.Spec.Name, templateName, podName)
-				if err != nil {
-					reqLogger.Error(err, "Error creating cache with template name")
-					return reconcile.Result{}, err
-				}
-			} else {
-				xmlTemplate := instance.Spec.Template
-				if xmlTemplate == "" {
-					xmlTemplate, err = caches.DefaultCacheTemplateXML(podName, ispnInstance, cluster, reqLogger)
-				}
-				if err != nil {
-					reqLogger.Error(err, "Error getting default XML")
-					return reconcile.Result{}, err
-				}
-				reqLogger.Info(xmlTemplate)
-				err = cluster.CreateCacheWithTemplate(instance.Spec.Name, xmlTemplate, podName)
-				if err != nil {
-					reqLogger.Error(err, "Error in creating cache")
-					return reconcile.Result{}, err
-				}
-			}
+		}
+		return nil
+	}
+
+	var err error
+	if spec.TemplateName != "" {
+		if err = cluster.CreateCacheWithTemplateName(cacheName, spec.TemplateName, podName); err != nil {
+			err = fmt.Errorf("unable to create cache with template name '%s': %w", spec.TemplateName, err)
 		}
 	} else {
-		reqLogger.Error(err, "Error validating cache exist")
-		return reconcile.Result{}, err
-	}
-
-	// Search the service associated to the cluster
-	serviceList := &corev1.ServiceList{}
-	labelSelector = labels.SelectorFromSet(LabelsResource(ispnInstance.Name, "infinispan-service"))
-	listOps = &client.ListOptions{Namespace: ispnInstance.Namespace, LabelSelector: labelSelector}
-	err = r.Client.List(ctx, serviceList, listOps)
-	if err != nil {
-		reqLogger.Error(err, "failed to select cluster service")
-		return reconcile.Result{}, err
-	}
-
-	statusUpdate := false
-	if instance.Status.ServiceName != serviceList.Items[0].Name {
-		instance.Status.ServiceName = serviceList.Items[0].Name
-		statusUpdate = true
-	}
-	statusUpdate = instance.SetCondition("Ready", metav1.ConditionTrue, "") || statusUpdate
-	if statusUpdate {
-		reqLogger.Info("Update CR status with connection info")
-		err = r.Client.Status().Update(ctx, instance)
-		if err != nil {
-			reqLogger.Error(err, fmt.Sprintf("Unable to update Cache %s status", instance.Name))
-			return reconcile.Result{}, err
+		if err = cluster.CreateCacheWithConfiguration(cacheName, spec.Template, podName, mime.GuessMarkup(spec.Template)); err != nil {
+			err = fmt.Errorf("unable to create cache with template: %w", err)
 		}
 	}
-	return ctrl.Result{}, nil
+
+	if err != nil {
+		r.reqLogger.Error(err, "Unable to create Cache")
+	}
+	return err
+}
+
+func (cl *CacheListener) CreateOrUpdate(data []byte) error {
+	cacheName, configYaml, err := unmarshallEventConfig(data)
+	if err != nil {
+		return err
+	}
+
+	if strings.HasPrefix(cacheName, "___") {
+		cl.Log.Debugf("Ignoring internal cache %s", cacheName)
+		return nil
+	}
+
+	cacheCrName := strcase.ToKebab(cacheName)
+	cache := &v2alpha1.Cache{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cacheCrName,
+			Namespace: cl.Infinispan.Namespace,
+		},
+	}
+	client := cl.Kubernetes.Client
+	maxRetries := 5
+	for i := 1; i <= maxRetries; i++ {
+		_, err = controllerutil.CreateOrPatch(cl.Ctx, client, cache, func() error {
+			var template string
+			if cache.CreationTimestamp.IsZero() {
+				cl.Log.Infof("Create Cache CR for '%s'\n%s", cacheCrName, configYaml)
+				if err := controllerutil.SetOwnerReference(cl.Infinispan, cache, client.Scheme()); err != nil {
+					return err
+				}
+				// Define template using YAML provided by the stream when Cache is being created for the first time
+				template = configYaml
+			} else {
+				cl.Log.Infof("Update Cache CR for '%s'\n%s", cacheCrName, configYaml)
+				// Determinate the original user markup format and convert stream configuration to that format if required
+				mediaType := mime.GuessMarkup(cache.Spec.Template)
+				if mediaType == mime.ApplicationYaml {
+					template = configYaml
+				} else {
+					podName, cluster, err := newClusterClient(cl.Ctx, cl.Infinispan, cl.Kubernetes)
+					if err != nil {
+						return err
+					}
+
+					template, err = cluster.ConvertCacheConfiguration(configYaml, podName, mime.ApplicationYaml, mediaType)
+					if err != nil {
+						return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationYaml, mediaType, err)
+					}
+				}
+			}
+			if cache.ObjectMeta.Annotations == nil {
+				cache.ObjectMeta.Annotations = make(map[string]string, 1)
+			}
+			controllerutil.AddFinalizer(cache, constants.InfinispanFinalizer)
+			cache.ObjectMeta.Annotations[constants.ListenerAnnotationGeneration] = strconv.FormatInt(cache.GetGeneration()+1, 10)
+			cache.Spec = v2alpha1.CacheSpec{
+				Name:        cacheName,
+				ClusterName: cl.Infinispan.Name,
+				Template:    template,
+			}
+			return nil
+		})
+
+		if err == nil {
+			break
+		}
+
+		if !errors.IsConflict(err) {
+			return fmt.Errorf("unable to CreateOrUpdate Cache CR: %w", err)
+		}
+		cl.Log.Errorf("Conflict encountered on Cache update. Retry %d..%d", i, maxRetries)
+	}
+
+	if err != nil {
+		return fmt.Errorf("unable to CreateOrPatch Cache CR %s after %d attempts", cacheCrName, maxRetries)
+	}
+	return nil
+}
+
+func (cl *CacheListener) Delete(data []byte) error {
+	cacheName := string(data)
+	crName := strcase.ToKebab(cacheName)
+	cl.Log.Infof("Remove cache %s, cr %s", cacheName, crName)
+
+	cache := &v2alpha1.Cache{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      crName,
+			Namespace: cl.Infinispan.Namespace,
+		},
+	}
+
+	_, err := kube.CreateOrPatch(cl.Ctx, cl.Kubernetes.Client, cache, func() error {
+		if cache.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(schema.ParseGroupResource("caches.infinispan.org"), crName)
+		}
+		if cache.ObjectMeta.Annotations == nil {
+			cache.ObjectMeta.Annotations = make(map[string]string, 1)
+		}
+		cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete] = "true"
+		return nil
+	})
+	// If the CR can't be found, do nothing
+	if !errors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+func newClusterClient(ctx context.Context, ispn *v1.Infinispan, kube *kube.Kubernetes) (string, infinispan.ClusterInterface, error) {
+	podList, err := PodsCreatedBy(ispn.Namespace, kube, ctx, ispn.GetStatefulSetName())
+	if err != nil {
+		return "", nil, err
+	} else if len(podList.Items) < 1 {
+		return "", nil, fmt.Errorf("no Infinispan pods available")
+	}
+
+	cluster, err := NewCluster(ispn, kube, ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	return podList.Items[0].Name, cluster, nil
+}
+
+func unmarshallEventConfig(data []byte) (string, string, error) {
+	type Config struct {
+		Infinispan struct {
+			CacheContainer struct {
+				Caches map[string]interface{}
+			} `yaml:"cacheContainer"`
+		}
+	}
+
+	config := &Config{}
+	if err := yaml.Unmarshal(data, config); err != nil {
+		return "", "", fmt.Errorf("unable to unmarshal event data: %w", err)
+	}
+
+	if len(config.Infinispan.CacheContainer.Caches) != 1 {
+		return "", "", fmt.Errorf("unexpected yaml format: %s", data)
+	}
+	var cacheName string
+	var cacheConfig interface{}
+	// Retrieve the first (and only) entry in the map
+	for cacheName, cacheConfig = range config.Infinispan.CacheContainer.Caches {
+		break
+	}
+
+	configYaml, err := yaml.Marshal(cacheConfig)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to marshall cache configuration: %w", err)
+	}
+	return cacheName, string(configYaml), nil
 }

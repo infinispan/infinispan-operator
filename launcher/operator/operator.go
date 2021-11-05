@@ -1,8 +1,7 @@
-package lancher
+package operator
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -33,8 +32,7 @@ import (
 const Version = "undefined"
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -50,29 +48,23 @@ func init() {
 }
 
 type Parameters struct {
-	// Cancelling the context won't work correctly until we upgrade to at least controller-runtime v0.9.0
-	// Known issues:
-	// - https://github.com/kubernetes-sigs/controller-runtime/pull/1428
-	Ctx context.Context
+	MetricsBindAddress     string
+	HealthProbeBindAddress string
+	LeaderElection         bool
+	ZapOptions             *zap.Options
 }
 
-func Launch(p Parameters) {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+func New(p Parameters) {
+	NewWithContext(ctrl.SetupSignalHandler(), p)
+}
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+// Cancelling the context won't work correctly until we upgrade to at least controller-runtime v0.9.0
+// Known issues:
+// - https://github.com/kubernetes-sigs/controller-runtime/pull/1428
+func NewWithContext(ctx context.Context, p Parameters) {
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(p.ZapOptions)))
 
+	setupLog := ctrl.Log.WithName("setup")
 	namespace, err := kubernetes.GetWatchNamespace()
 	if err != nil {
 		setupLog.Error(err, "failed to get watch namespace")
@@ -81,10 +73,10 @@ func Launch(p Parameters) {
 
 	options := ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
+		MetricsBindAddress:     p.MetricsBindAddress,
 		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
+		HealthProbeBindAddress: p.HealthProbeBindAddress,
+		LeaderElection:         p.LeaderElection,
 		LeaderElectionID:       "632512e4.infinispan.org",
 	}
 
@@ -116,7 +108,7 @@ func Launch(p Parameters) {
 		setupLog.Error(err, "unable to create controller", "controller", "Batch")
 		os.Exit(1)
 	}
-	if err = (&controllers.CacheReconciler{}).SetupWithManager(mgr); err != nil {
+	if err = (&controllers.CacheReconciler{}).SetupWithManager(ctx, mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Cache")
 		os.Exit(1)
 	}
@@ -156,12 +148,8 @@ func Launch(p Parameters) {
 		os.Exit(1)
 	}
 
-	if p.Ctx == nil {
-		p.Ctx = ctrl.SetupSignalHandler()
-	}
-
 	setupLog.Info(fmt.Sprintf("Starting Infinispan Operator Version: %s", Version))
-	if err := mgr.Start(p.Ctx); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

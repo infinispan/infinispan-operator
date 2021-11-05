@@ -14,7 +14,7 @@ import (
 func NewCluster(i *v1.Infinispan, kubernetes *kube.Kubernetes, ctx context.Context) (*ispn.Cluster, error) {
 	pass, err := users.AdminPassword(i.GetAdminSecretName(), i.Namespace, kubernetes, ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve opeator admin identities when creating Cluster instance: %w", err)
+		return nil, fmt.Errorf("unable to retrieve operator admin identities when creating Cluster instance: %w", err)
 	}
 	return ispn.NewCluster(consts.DefaultOperatorUser, pass, i.Namespace, "http", kubernetes), nil
 }

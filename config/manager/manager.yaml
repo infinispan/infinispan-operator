@@ -26,9 +26,8 @@ spec:
       containers:
       - name: manager
         image: controller:latest
-        command:
-        - infinispan-operator
         args:
+        - operator
         - --leader-elect
         imagePullPolicy: Always
         env:
@@ -42,3 +41,7 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: CONFIG_LISTENER_IMAGE
+            valueFrom:
+              fieldRef:
+                fieldPath: "metadata.labels['containerImage']"

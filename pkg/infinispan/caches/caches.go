@@ -8,6 +8,7 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 )
 
 // DefaultCacheTemplateXML return default template for cache
@@ -43,7 +44,7 @@ func CreateCacheFromDefault(podName string, infinispan *infinispanv1.Infinispan,
 	if err != nil {
 		return err
 	}
-	return cluster.CreateCacheWithTemplate(consts.DefaultCacheName, defaultCacheXML, podName)
+	return cluster.CreateCacheWithConfiguration(consts.DefaultCacheName, defaultCacheXML, podName, mime.ApplicationXml)
 }
 
 // ConnectCaches Connects caches from a cluster (target) to another (source) via Remote Stores. Caches are created in the target cluster if needed.

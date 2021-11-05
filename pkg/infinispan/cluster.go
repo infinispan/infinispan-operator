@@ -13,6 +13,7 @@ import (
 	ispnclient "github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http/curl"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 )
 
 // Cluster abstracts interaction with an Infinispan cluster
@@ -68,7 +69,9 @@ type ClusterInterface interface {
 	GracefulShutdownTask(podName string) error
 	GetClusterMembers(podName string) ([]string, error)
 	ExistsCache(cacheName, podName string) (bool, error)
-	CreateCacheWithTemplate(cacheName, cacheXML, podName string) error
+	DeleteCache(cacheName, podName string) error
+	UpdateCacheWithConfiguration(cacheName, config, podName string, mimeType mime.MimeType) error
+	CreateCacheWithConfiguration(cacheName, config, podName string, mimeType mime.MimeType) error
 	CreateCacheWithTemplateName(cacheName, templateName, podName string) error
 	CreateCache(cacheName, jsonConfig, podName string) error
 	GetCacheConfig(cacheName, podName string) (cacheConfig string, err error)
@@ -76,6 +79,7 @@ type ClusterInterface interface {
 	IsSourceConnected(cacheName, podName string) (bool, error)
 	DisconnectSource(cacheName, podName string) error
 	SyncData(cacheName, podName string) (string, error)
+	ConvertCacheConfiguration(config, podName string, contentType, reqType mime.MimeType) (string, error)
 	GetMemoryLimitBytes(podName string) (uint64, error)
 	GetMaxMemoryUnboundedBytes(podName string) (uint64, error)
 	CacheNames(podName string) ([]string, error)
@@ -135,7 +139,7 @@ func (c Cluster) GracefulShutdown(podName string) error {
 func (c Cluster) GracefulShutdownTask(podName string) error {
 	scriptName := "___org.infinispan.operator.gracefulshutdown.js"
 	url := fmt.Sprintf("%s/tasks/%s", consts.ServerHTTPBasePath, scriptName)
-	headers := map[string]string{"Content-Type": "text/plain"}
+	headers := map[string]string{"Content-Type": string(mime.TextPlain)}
 	task := `
 	/* mode=local,language=javascript */
 	print("Executing operator shutdown task");
@@ -239,17 +243,33 @@ func (c Cluster) CacheNames(podName string) (caches []string, err error) {
 	return
 }
 
-// CreateCacheWithTemplate create cluster cache on the pod `podName`
-func (c Cluster) CreateCacheWithTemplate(cacheName, cacheXML, podName string) error {
+func (c Cluster) DeleteCache(cacheName, podName string) error {
+	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Delete(podName, path, nil)
+	return validateResponse(rsp, reason, err, "deleting cache", http.StatusOK, http.StatusNotFound)
+}
+
+// UpdateCacheWithConfiguration update cache on the pod `podName`
+func (c Cluster) UpdateCacheWithConfiguration(cacheName, config, podName string, mimeType mime.MimeType) error {
 	headers := make(map[string]string)
-	headers["Content-Type"] = "application/xml"
+	headers["Content-Type"] = string(mimeType)
 
 	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
-	rsp, err, reason := c.Client.Post(podName, path, cacheXML, headers)
+	rsp, err, reason := c.Client.Put(podName, path, config, headers)
+	return validateResponse(rsp, reason, err, "updating cache", http.StatusOK)
+}
+
+// CreateCacheWithConfiguration create cache on the pod `podName`
+func (c Cluster) CreateCacheWithConfiguration(cacheName, config, podName string, mimeType mime.MimeType) error {
+	headers := make(map[string]string)
+	headers["Content-Type"] = string(mimeType)
+
+	path := fmt.Sprintf("%s/caches/%s", consts.ServerHTTPBasePath, cacheName)
+	rsp, err, reason := c.Client.Post(podName, path, config, headers)
 	return validateResponse(rsp, reason, err, "creating cache", http.StatusOK)
 }
 
-// CreateCacheWithTemplateName create cluster cache on the pod `podName`
+// CreateCacheWithTemplateName create cache on the pod `podName`
 func (c Cluster) CreateCacheWithTemplateName(cacheName, templateName, podName string) error {
 	path := fmt.Sprintf("%s/caches/%s?template=%s", consts.ServerHTTPBasePath, cacheName, templateName)
 	rsp, err, reason := c.Client.Post(podName, path, "", nil)
@@ -351,6 +371,24 @@ func (c Cluster) SyncData(cacheName, podName string) (string, error) {
 	return string(all), nil
 }
 
+func (c Cluster) ConvertCacheConfiguration(config, podName string, contentType, reqType mime.MimeType) (string, error) {
+	path := consts.ServerHTTPBasePath + "/caches?action=convert"
+	headers := map[string]string{
+		"Accept":       string(reqType),
+		"Content-Type": string(contentType),
+	}
+	rsp, err, reason := c.Client.Post(podName, path, config, headers)
+	err = validateResponse(rsp, reason, err, "creating cache with template", http.StatusOK)
+	if err != nil {
+		return "", err
+	}
+	responseBody, responseErr := ioutil.ReadAll(rsp.Body)
+	if responseErr != nil {
+		return "", fmt.Errorf("unable to read response body: %w", responseErr)
+	}
+	return string(responseBody), nil
+}
+
 func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
 	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
 	execOptions := kube.ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
@@ -397,7 +435,7 @@ func (c Cluster) GetMaxMemoryUnboundedBytes(podName string) (uint64, error) {
 // GetMetrics return pod metrics
 func (c Cluster) GetMetrics(podName, postfix string) (buf *bytes.Buffer, err error) {
 	headers := make(map[string]string)
-	headers["Accept"] = "application/json"
+	headers["Accept"] = string(mime.ApplicationJson)
 
 	path := fmt.Sprintf("metrics/%s", postfix)
 	rsp, err, reason := c.Client.Get(podName, path, headers)

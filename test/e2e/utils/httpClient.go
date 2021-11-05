@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -20,7 +21,9 @@ const DEBUG = false
 type HTTPClient interface {
 	Delete(path string, headers map[string]string) (*http.Response, error)
 	Get(path string, headers map[string]string) (*http.Response, error)
+	Head(path string, headers map[string]string) (*http.Response, error)
 	Post(path, payload string, headers map[string]string) (*http.Response, error)
+	Put(path, payload string, headers map[string]string) (*http.Response, error)
 	Quiet(quiet bool)
 }
 
@@ -43,6 +46,23 @@ type httpClientConfig struct {
 	protocol string
 	auth     authType
 	quiet    bool
+}
+
+type HttpError struct {
+	Status  int
+	Message string
+}
+
+func (e HttpError) Error() string {
+	return fmt.Sprintf("unexpected HTTP status code (%d): %s", e.Status, e.Message)
+}
+
+func ThrowHTTPError(resp *http.Response) {
+	errorBytes, _ := ioutil.ReadAll(resp.Body)
+	panic(HttpError{
+		Status:  resp.StatusCode,
+		Message: string(errorBytes),
+	})
 }
 
 // NewHTTPClient return a new HTTPClient
@@ -96,8 +116,16 @@ func (c *httpClientConfig) Get(path string, headers map[string]string) (*http.Re
 	return c.exec("GET", path, "", nil)
 }
 
+func (c *httpClientConfig) Head(path string, headers map[string]string) (*http.Response, error) {
+	return c.exec("HEAD", path, "", nil)
+}
+
 func (c *httpClientConfig) Post(path, payload string, headers map[string]string) (*http.Response, error) {
 	return c.exec("POST", path, payload, headers)
+}
+
+func (c *httpClientConfig) Put(path, payload string, headers map[string]string) (*http.Response, error) {
+	return c.exec("PUT", path, payload, headers)
 }
 
 func (c *httpClientConfig) Quiet(quiet bool) {

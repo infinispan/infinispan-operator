@@ -13,6 +13,7 @@ import (
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -317,7 +318,7 @@ func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infini
 		}
 	}
 
-	headers := map[string]string{"Content-Type": "application/json"}
+	headers := map[string]string{"Content-Type": string(mime.ApplicationJson)}
 	if infinispan.Spec.Service.Type == v1.ServiceTypeCache {
 		url := fmt.Sprintf("%s/rest/v2/caches/%s?template=default", host, cacheName)
 		post(url, "", http.StatusOK, nil)

@@ -47,3 +47,8 @@ func BatchLabels(name string) map[string]string {
 func GossipRouterPodLabels(name string) map[string]string {
 	return LabelsResource(name, "infinispan-router-pod")
 }
+
+// ConfigListenerPodLabels returns the labels to apply to ConfigListener pod
+func ConfigListenerPodLabels(name string) map[string]string {
+	return LabelsResource(name, "infinispan-config-listener-pod")
+}
