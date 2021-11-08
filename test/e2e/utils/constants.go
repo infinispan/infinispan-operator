@@ -14,10 +14,10 @@ const (
 	TestTimeout      = 5 * time.Minute
 	SinglePodTimeout = 5 * time.Minute
 	RouteTimeout     = 240 * time.Second
-	// Default retry time when waiting for resources
+	// DefaultPollPeriod is the default retry time when waiting for resources
 	DefaultPollPeriod   = 1 * time.Second
 	ConditionPollPeriod = 1 * time.Second
-	// Maximum time to wait for resources
+	// MaxWaitTimeout is the maximum time to wait for resources
 	MaxWaitTimeout       = 3 * time.Minute
 	ConditionWaitTimeout = 3 * time.Minute
 	DefaultClusterName   = "test-node-startup"
@@ -43,7 +43,7 @@ var (
 	CleanupXSiteOnFinish = strings.ToUpper(constants.GetEnvWithDefault("TESTING_CLEANUP_XSITE_ON_FINISH", "TRUE")) == "TRUE"
 )
 
-// Options used when deleting resources
+// DeleteOpts is used when deleting resources
 var DeleteOpts = []client.DeleteOption{
 	client.GracePeriodSeconds(int64(0)),
 	client.PropagationPolicy(metav1.DeletePropagationBackground),

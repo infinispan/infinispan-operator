@@ -44,7 +44,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// Runtime scheme
+// Scheme Runtime scheme
 var Scheme = runtime.NewScheme()
 
 var log = logf.Log.WithName("kubernetes_test")

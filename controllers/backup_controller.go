@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
