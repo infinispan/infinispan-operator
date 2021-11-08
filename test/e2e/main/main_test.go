@@ -21,7 +21,7 @@ import (
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers"
 	cconsts "github.com/infinispan/infinispan-operator/controllers/constants"
-	hash "github.com/infinispan/infinispan-operator/pkg/hash"
+	"github.com/infinispan/infinispan-operator/pkg/hash"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"

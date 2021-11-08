@@ -116,7 +116,7 @@ func (c Cluster) GracefulShutdown(podName string) error {
 	return validateResponse(rsp, reason, err, "during graceful shutdown", http.StatusNoContent)
 }
 
-// ISPN-13141 Upload custom task to perform graceful shutdown that does not fail on cache errors
+// GracefulShutdownTask (ISPN-13141) uploads custom task to perform graceful shutdown that does not fail on cache errors
 // This task calls Cache#shutdown which disables rebalancing on the cache before stopping it
 func (c Cluster) GracefulShutdownTask(podName string) error {
 	scriptName := "___org.infinispan.operator.gracefulshutdown.js"

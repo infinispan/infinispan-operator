@@ -37,7 +37,7 @@ type certHolder struct {
 	certBytes  []byte
 }
 
-// Returns the public and private keys o
+// CreateServerCertificates returns the public and private keys o
 func CreateServerCertificates(serverName string) (publicKey, privateKey []byte, clientTLSConf *tls.Config) {
 	ca := ca()
 	server := serverCert(serverName, ca)
@@ -53,7 +53,7 @@ func CreateServerCertificates(serverName string) (publicKey, privateKey []byte, 
 	return
 }
 
-// Returns a keystore using a self-signed certificate, and the corresponding tls.Config required by clients to connect to the server
+// CreateKeystore returns a keystore using a self-signed certificate, and the corresponding tls.Config required by clients to connect to the server
 func CreateKeystore(serverName string) (keystore []byte, clientTLSConf *tls.Config) {
 	ca := ca()
 	server := serverCert(serverName, ca)
@@ -90,7 +90,7 @@ func CreateKeystoreAndClientCerts(serverName string) (keystore []byte, caPem []b
 	return
 }
 
-// Returns a keystore & truststore using a self-signed certificate, and the corresponding tls.Config required by clients to connect to the server
+// CreateKeyAndTruststore returns a keystore & truststore using a self-signed certificate, and the corresponding tls.Config required by clients to connect to the server
 // If authenticate is true, then the returned truststore contains all client certificates, otherwise it simply contains the CA for validation
 func CreateKeyAndTruststore(serverName string, authenticate bool) (keystore []byte, truststore []byte, clientTLSConf *tls.Config) {
 	ExpectNoError(os.MkdirAll(tmpDir, 0777))
