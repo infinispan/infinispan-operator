@@ -11,8 +11,7 @@ import (
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"go.uber.org/zap"
@@ -53,6 +52,7 @@ type cacheRequest struct {
 	ctx        context.Context
 	cache      *v2alpha1.Cache
 	infinispan *v1.Infinispan
+	ispnClient api.Infinispan
 	reqLogger  logr.Logger
 }
 
@@ -171,10 +171,17 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
+	ispnClient, err := NewInfinispan(ctx, infinispan, r.kubernetes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to create Infinispan client: %w", err)
+	}
+	cache.ispnClient = ispnClient
+
 	if crDeleted {
 		if controllerutil.ContainsFinalizer(instance, constants.InfinispanFinalizer) {
 			// Remove Deleted caches from the server before removing the Finalizer
-			if err := cache.ispnDelete(); err != nil {
+			cacheName := instance.GetCacheName()
+			if err := ispnClient.Cache(cacheName).Delete(); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, cache.removeFinalizer()
@@ -195,7 +202,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 		}
 	}
 
-	err := cache.update(func() error {
+	err = cache.update(func() error {
 		instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionTrue, "")
 		// Add finalizer so that the Cache is removed on the server when the Cache CR is deleted
 		if !controllerutil.ContainsFinalizer(instance, constants.InfinispanFinalizer) {
@@ -241,26 +248,11 @@ func (r *cacheRequest) removeFinalizer() error {
 	})
 }
 
-func (r *cacheRequest) ispnDelete() error {
-	cacheName := r.cache.GetCacheName()
-	podName, cluster, err := newClusterClient(r.ctx, r.infinispan, r.kubernetes)
-	if err != nil {
-		return fmt.Errorf("unable to create Cluster client: %w", err)
-	}
-
-	if err = cluster.DeleteCache(cacheName, podName); err != nil {
-		return fmt.Errorf("unable to delete Cache '%s' on the server: %w", cacheName, err)
-	}
-	return nil
-}
-
 func (r *cacheRequest) ispnCreateOrUpdate() (*ctrl.Result, error) {
-	podName, cluster, err := newClusterClient(r.ctx, r.infinispan, r.kubernetes)
-	if err != nil {
-		return &ctrl.Result{}, fmt.Errorf("unable to create Cluster client: %w", err)
-	}
+	cacheName := r.cache.GetCacheName()
+	cacheClient := r.ispnClient.Cache(cacheName)
 
-	cacheExists, err := cluster.ExistsCache(r.cache.GetCacheName(), podName)
+	cacheExists, err := cacheClient.Exists()
 	if err != nil {
 		err := fmt.Errorf("unable to determine if cache exists: %w", err)
 		r.reqLogger.Error(err, "")
@@ -268,9 +260,9 @@ func (r *cacheRequest) ispnCreateOrUpdate() (*ctrl.Result, error) {
 	}
 
 	if r.infinispan.IsDataGrid() {
-		err = r.reconcileDataGrid(cacheExists, podName, cluster)
+		err = r.reconcileDataGrid(cacheExists, cacheClient)
 	} else {
-		err = r.reconcileCacheService(cacheExists, podName, cluster)
+		err = r.reconcileCacheService(cacheExists, cacheClient)
 	}
 	if err != nil {
 		return &ctrl.Result{Requeue: true}, err
@@ -278,7 +270,7 @@ func (r *cacheRequest) ispnCreateOrUpdate() (*ctrl.Result, error) {
 	return nil, nil
 }
 
-func (r *cacheRequest) reconcileCacheService(cacheExists bool, podName string, cluster infinispan.ClusterInterface) error {
+func (r *cacheRequest) reconcileCacheService(cacheExists bool, cache api.Cache) error {
 	spec := r.cache.Spec
 	if cacheExists {
 		err := fmt.Errorf("cannot update an existing cache in a CacheService cluster")
@@ -292,15 +284,19 @@ func (r *cacheRequest) reconcileCacheService(cacheExists bool, podName string, c
 		return err
 	}
 
-	template, err := caches.DefaultCacheTemplateXML(podName, r.infinispan, cluster, r.reqLogger)
+	podList, err := PodList(r.infinispan, r.kubernetes, r.ctx)
+	if err != nil {
+		r.reqLogger.Error(err, "failed to list pods")
+		return err
+	}
+
+	template, err := DefaultCacheTemplateXML(podList.Items[0].Name, r.infinispan, r.kubernetes, r.reqLogger)
 	if err != nil {
 		err = fmt.Errorf("unable to obtain default cache template: %w", err)
 		r.reqLogger.Error(err, "Error getting default XML")
 		return err
 	}
-
-	err = cluster.CreateCacheWithConfiguration(r.cache.Spec.Name, template, podName, mime.ApplicationXml)
-	if err != nil {
+	if err = cache.Create(template, mime.ApplicationXml); err != nil {
 		err = fmt.Errorf("unable to create cache using default template: %w", err)
 		r.reqLogger.Error(err, "Error in creating cache")
 		return err
@@ -308,15 +304,14 @@ func (r *cacheRequest) reconcileCacheService(cacheExists bool, podName string, c
 	return nil
 }
 
-func (r *cacheRequest) reconcileDataGrid(cacheExists bool, podName string, cluster infinispan.ClusterInterface) error {
+func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) error {
 	spec := r.cache.Spec
-	cacheName := r.cache.GetCacheName()
 	if cacheExists {
 		if spec.TemplateName != "" {
 			// TODO enforce with webhook validation when supported
 			r.log.Error(fmt.Errorf("updating an existing Cache's 'spec.TemplateName' field is not supported"), "")
 		} else {
-			err := cluster.UpdateCacheWithConfiguration(cacheName, spec.Template, podName, mime.GuessMarkup(spec.Template))
+			err := cache.UpdateConfig(spec.Template, mime.GuessMarkup(spec.Template))
 			if err != nil {
 				return fmt.Errorf("unable to update cache template: %w", err)
 			}
@@ -326,11 +321,11 @@ func (r *cacheRequest) reconcileDataGrid(cacheExists bool, podName string, clust
 
 	var err error
 	if spec.TemplateName != "" {
-		if err = cluster.CreateCacheWithTemplateName(cacheName, spec.TemplateName, podName); err != nil {
+		if err = cache.CreateWithTemplate(spec.TemplateName); err != nil {
 			err = fmt.Errorf("unable to create cache with template name '%s': %w", spec.TemplateName, err)
 		}
 	} else {
-		if err = cluster.CreateCacheWithConfiguration(cacheName, spec.Template, podName, mime.GuessMarkup(spec.Template)); err != nil {
+		if err = cache.Create(spec.Template, mime.GuessMarkup(spec.Template)); err != nil {
 			err = fmt.Errorf("unable to create cache with template: %w", err)
 		}
 	}
@@ -359,6 +354,7 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 			Namespace: cl.Infinispan.Namespace,
 		},
 	}
+
 	client := cl.Kubernetes.Client
 	maxRetries := 5
 	for i := 1; i <= maxRetries; i++ {
@@ -378,13 +374,11 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 				if mediaType == mime.ApplicationYaml {
 					template = configYaml
 				} else {
-					podName, cluster, err := newClusterClient(cl.Ctx, cl.Infinispan, cl.Kubernetes)
+					ispnClient, err := NewInfinispan(cl.Ctx, cl.Infinispan, cl.Kubernetes)
 					if err != nil {
-						return err
+						return fmt.Errorf("unable to create Infinispan client: %w", err)
 					}
-
-					template, err = cluster.ConvertCacheConfiguration(configYaml, podName, mime.ApplicationYaml, mediaType)
-					if err != nil {
+					if template, err = ispnClient.Caches().ConvertConfiguration(configYaml, mime.ApplicationYaml, mediaType); err != nil {
 						return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationYaml, mediaType, err)
 					}
 				}
@@ -447,21 +441,6 @@ func (cl *CacheListener) Delete(data []byte) error {
 	return nil
 }
 
-func newClusterClient(ctx context.Context, ispn *v1.Infinispan, kube *kube.Kubernetes) (string, infinispan.ClusterInterface, error) {
-	podList, err := PodsCreatedBy(ispn.Namespace, kube, ctx, ispn.GetStatefulSetName())
-	if err != nil {
-		return "", nil, err
-	} else if len(podList.Items) < 1 {
-		return "", nil, fmt.Errorf("no Infinispan pods available")
-	}
-
-	cluster, err := NewCluster(ispn, kube, ctx)
-	if err != nil {
-		return "", nil, err
-	}
-	return podList.Items[0].Name, cluster, nil
-}
-
 func unmarshallEventConfig(data []byte) (string, string, error) {
 	type Config struct {
 		Infinispan struct {
@@ -491,4 +470,32 @@ func unmarshallEventConfig(data []byte) (string, string, error) {
 		return "", "", fmt.Errorf("unable to marshall cache configuration: %w", err)
 	}
 	return cacheName, string(configYaml), nil
+}
+
+func DefaultCacheTemplateXML(podName string, infinispan *v1.Infinispan, k8 *kube.Kubernetes, logger logr.Logger) (string, error) {
+	namespace := infinispan.Namespace
+	memoryLimitBytes, err := GetPodMemoryLimitBytes(podName, namespace, k8)
+	if err != nil {
+		logger.Error(err, "unable to extract memory limit (bytes) from pod")
+		return "", err
+	}
+
+	maxUnboundedMemory, err := GetPodMaxMemoryUnboundedBytes(podName, namespace, k8)
+	if err != nil {
+		logger.Error(err, "unable to extract max memory unbounded from pod")
+		return "", err
+	}
+
+	containerMaxMemory := maxUnboundedMemory
+	if memoryLimitBytes < maxUnboundedMemory {
+		containerMaxMemory = memoryLimitBytes
+	}
+
+	nativeMemoryOverhead := containerMaxMemory * (constants.CacheServiceJvmNativePercentageOverhead / 100)
+	evictTotalMemoryBytes := containerMaxMemory - (constants.CacheServiceJvmNativeMb * 1024 * 1024) - (constants.CacheServiceFixedMemoryXmxMb * 1024 * 1024) - nativeMemoryOverhead
+	replicationFactor := infinispan.Spec.Service.ReplicationFactor
+
+	logger.Info("calculated maximum off-heap size", "size", evictTotalMemoryBytes, "container max memory", containerMaxMemory, "memory limit (bytes)", memoryLimitBytes, "max memory bound", maxUnboundedMemory)
+
+	return fmt.Sprintf(constants.DefaultCacheTemplate, constants.DefaultCacheName, replicationFactor, evictTotalMemoryBytes), nil
 }

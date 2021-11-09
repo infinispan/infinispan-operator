@@ -10,6 +10,7 @@ import (
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,8 +53,8 @@ func TestCacheCR(t *testing.T) {
 	test := func(cache *v2alpha1.Cache) {
 		testKube.Create(cache)
 		testKube.WaitForCacheConditionReady(cache.Spec.Name, cache.Namespace)
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(cache.Spec.Name, hostAddr, client)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(cache.Spec.Name, client)
 		cacheHelper.WaitForCacheToExist()
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 		testKube.DeleteCache(cache)
@@ -123,9 +124,9 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	originalConfig := fmt.Sprintf(yamlTemplate, 100)
 
 	// Create cache via REST
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
-	cacheHelper.CreateWithYaml(originalConfig)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
+	cacheHelper.Create(originalConfig, mime.ApplicationYaml)
 
 	// Assert CR created and ready
 	cr := testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
@@ -137,7 +138,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 
 	// Update cache configuration via REST
 	updatedConfig := fmt.Sprintf(yamlTemplate, 50)
-	cacheHelper.UpdateWithYaml(updatedConfig)
+	cacheHelper.Update(updatedConfig, mime.ApplicationYaml)
 
 	// Assert CR spec.Template updated
 	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
@@ -189,12 +190,10 @@ func TestStaticServerCache(t *testing.T) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, v1.ConditionWellFormed)
 
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
 
-	if !cacheHelper.Exists() {
-		panic("Static cache doesn't exist")
-	}
+	cacheHelper.AssertCacheExists()
 
 	// Assert CR created for static cache and is in the Ready state
 	cr := testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
@@ -242,10 +241,10 @@ func TestCacheWithXML(t *testing.T) {
 	}
 
 	// Update cache via REST
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
 	updatedXml := strings.Replace(cr.Spec.Template, "100", "50", 1)
-	cacheHelper.UpdateWithXML(updatedXml)
+	cacheHelper.Update(updatedXml, mime.ApplicationXml)
 
 	// Assert CR spec.Template updated and returned template is in the XML format
 	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
@@ -281,10 +280,10 @@ func TestCacheWithJSON(t *testing.T) {
 	}
 
 	// Update cache via REST
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
 	updatedJson := strings.Replace(cr.Spec.Template, "100", "50", 1)
-	cacheHelper.UpdateWithJSON(updatedJson)
+	cacheHelper.Update(updatedJson, mime.ApplicationJson)
 
 	// Assert CR spec.Template updated and returned template is in the JSON format
 	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
@@ -305,8 +304,8 @@ func TestCacheClusterRecreate(t *testing.T) {
 	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
 
 	// Assert that the cache exists on the server
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
 	cacheHelper.WaitForCacheToExist()
 
 	// Delete the original cluster
@@ -325,8 +324,8 @@ func TestCacheClusterRecreate(t *testing.T) {
 	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
 
 	// Assert that the cache exists on the server
-	hostAddr, client = tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper = tutils.NewCacheHelper(cacheName, hostAddr, client)
+	client = tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper = tutils.NewCacheHelper(cacheName, client)
 	cacheHelper.WaitForCacheToExist()
 
 }
@@ -347,8 +346,8 @@ func TestCacheClusterNameChange(t *testing.T) {
 	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
 
 	// Assert that the cache exists on the original cluster
-	hostAddr, client := tutils.HTTPClientAndHost(originalCluster, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
+	client := tutils.HTTPClientForCluster(originalCluster, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
 	cacheHelper.WaitForCacheToExist()
 
 	// Update Cache CR to point to new cluster
@@ -358,8 +357,8 @@ func TestCacheClusterNameChange(t *testing.T) {
 	testKube.Update(cr)
 
 	// Assert that the cache exists on the new cluster
-	hostAddr, client = tutils.HTTPClientAndHost(newCluster, testKube)
-	cacheHelper = tutils.NewCacheHelper(cacheName, hostAddr, client)
+	client = tutils.HTTPClientForCluster(newCluster, testKube)
+	cacheHelper = tutils.NewCacheHelper(cacheName, client)
 	cacheHelper.WaitForCacheToExist()
 }
 

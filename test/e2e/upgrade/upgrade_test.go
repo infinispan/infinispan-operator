@@ -3,13 +3,9 @@ package upgrade
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -27,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -103,10 +98,14 @@ func TestUpgrade(t *testing.T) {
 
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
 	numEntries := 100
-	hostAddr, client := tutils.HTTPClientAndHost(spec, testKube)
+	client := tutils.HTTPClientForCluster(spec, testKube)
 	cacheName := "someCache"
-	populateCache(cacheName, hostAddr, numEntries, spec, client)
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+
+	cache := tutils.NewCacheHelper(cacheName, client)
+	config := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}}}`
+	cache.Create(config, mime.ApplicationJson)
+	cache.Populate(numEntries)
+	cache.AssertSize(numEntries)
 
 	// Upgrade the Subscription channel if required
 	if sourceChannel != targetChannel {
@@ -141,8 +140,8 @@ func TestUpgrade(t *testing.T) {
 
 		// Ensure that persistent cache entries have survived the upgrade(s)
 		// Refresh the hostAddr and client as the url will change if NodePort is used.
-		hostAddr, client = tutils.HTTPClientAndHost(spec, testKube)
-		assertNumEntries(cacheName, hostAddr, numEntries, client)
+		client = tutils.HTTPClientForCluster(spec, testKube)
+		tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
 	}
 
 	checkServicePorts(t, name)
@@ -160,8 +159,8 @@ func TestUpgrade(t *testing.T) {
 	testKube.WaitForInfinispanConditionWithTimeout(name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 	// Ensure that persistent cache entries still contain the expected numEntries
-	hostAddr, client = tutils.HTTPClientAndHost(spec, testKube)
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+	client = tutils.HTTPClientForCluster(spec, testKube)
+	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
 }
 
 func cleanup(specLabel map[string]string) {
@@ -250,59 +249,4 @@ func printManifest() {
 	fmt.Println("Source channel: " + sourceChannel.Name)
 	fmt.Println("Target channel: " + targetChannel.Name)
 	fmt.Println("Starting CSV: " + subStartingCsv)
-}
-
-func populateCache(cacheName, host string, numEntries int, infinispan *ispnv1.Infinispan, client tutils.HTTPClient) {
-	post := func(url, payload string, status int, headers map[string]string) {
-		rsp, err := client.Post(url, payload, headers)
-		tutils.ExpectNoError(err)
-		defer tutils.CloseHttpResponse(rsp)
-		if rsp.StatusCode != status {
-			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-		}
-	}
-
-	headers := map[string]string{"Content-Type": string(mime.ApplicationJson)}
-	url := fmt.Sprintf("%s/rest/v2/caches/%s", host, cacheName)
-	config := `{"distributed-cache":{"mode":"SYNC", "encoding": {"media-type": "application/json"}, "persistence":{"file-store":{"fetch-state":true}}, "statistics":true}}`
-	post(url, config, http.StatusOK, headers)
-
-	for i := 0; i < numEntries; i++ {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s/%d", host, cacheName, i)
-		value := fmt.Sprintf("{\"value\":\"%d\"}", i)
-		post(url, value, http.StatusNoContent, headers)
-	}
-}
-
-func assertNumEntries(cacheName, host string, expectedEntries int, client tutils.HTTPClient) {
-	url := fmt.Sprintf("%s/rest/v2/caches/%s?action=size", host, cacheName)
-	var entries int
-	err := wait.Poll(tutils.DefaultPollPeriod, 30*time.Second, func() (done bool, err error) {
-		rsp, err := client.Get(url, nil)
-		tutils.ExpectNoError(err)
-		if rsp.StatusCode != http.StatusOK {
-			body, _ := ioutil.ReadAll(rsp.Body)
-			panic(fmt.Sprintf("Unexpected response code %d, body='%s'", rsp.StatusCode, body))
-		}
-
-		body, err := ioutil.ReadAll(rsp.Body)
-		tutils.ExpectNoError(rsp.Body.Close())
-		tutils.ExpectNoError(err)
-		numRead, err := strconv.ParseInt(string(body), 10, 64)
-		entries = int(numRead)
-		return entries == expectedEntries, err
-	})
-	if err != nil {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s?action=config", host, cacheName)
-		rsp, err := client.Get(url, map[string]string{"accept": string(mime.ApplicationYaml)})
-		if err == nil {
-			body, err := ioutil.ReadAll(rsp.Body)
-			tutils.ExpectNoError(rsp.Body.Close())
-			tutils.ExpectNoError(err)
-			fmt.Printf("%s Config:\n%s", cacheName, string(body))
-		} else {
-			fmt.Printf("Encountered error when trying to retrieve '%s' config: %v", cacheName, err)
-		}
-		panic(fmt.Errorf("Expected %d entries found %d: %w", expectedEntries, entries, err))
-	}
 }
