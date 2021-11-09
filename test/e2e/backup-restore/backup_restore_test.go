@@ -3,10 +3,7 @@ package backup_restore
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -130,10 +127,18 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
 
 	// 2. Populate the cluster with some data to backup
-	hostAddr, client := utils.HTTPClientAndHost(infinispan, testKube)
+	client := utils.HTTPClientForCluster(infinispan, testKube)
 	cacheName := "someCache"
-	populateCache(cacheName, hostAddr, numEntries, infinispan, client)
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+
+	cache := tutils.NewCacheHelper(cacheName, client)
+	if infinispan.Spec.Service.Type == v1.ServiceTypeCache {
+		cache.CreateWithDefault()
+	} else {
+		config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
+		cache.Create(config, mime.ApplicationJson)
+	}
+	cache.Populate(numEntries)
+	cache.AssertSize(numEntries)
 
 	// 3. Backup the cluster's content
 	backupName := "backup"
@@ -217,9 +222,6 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(targetCluster, namespace, v1.ConditionWellFormed)
 
-	// Recreate the cluster instance to use the credentials of the new cluster
-	hostAddr, client = utils.HTTPClientAndHost(infinispan, testKube)
-
 	// 6. Restore the backed up data from the volume to the target cluster
 	restoreName := "restore"
 	restoreSpec := &v2.Restore{
@@ -245,8 +247,11 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	// Ensure that the restore pod has left the cluster, by checking a cluster pod's size
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
+	// Recreate the cluster instance to use the credentials of the new cluster
+	client = utils.HTTPClientForCluster(infinispan, testKube)
+
 	// 7. Ensure that all data is in the target cluster
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
 }
 
 func waitForValidBackupPhase(name, namespace string, phase v2.BackupPhase) {
@@ -306,53 +311,6 @@ func cacheService(name, namespace string, replicas int) *v1.Infinispan {
 			Expose:   tutils.ExposeServiceSpec(testKube),
 		},
 	}
-}
-
-func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infinispan, client tutils.HTTPClient) {
-	post := func(url, payload string, status int, headers map[string]string) {
-		rsp, err := client.Post(url, payload, headers)
-		tutils.ExpectNoError(err)
-		defer tutils.CloseHttpResponse(rsp)
-		if rsp.StatusCode != status {
-			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-		}
-	}
-
-	headers := map[string]string{"Content-Type": string(mime.ApplicationJson)}
-	if infinispan.Spec.Service.Type == v1.ServiceTypeCache {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s?template=default", host, cacheName)
-		post(url, "", http.StatusOK, nil)
-	} else {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s", host, cacheName)
-		config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
-		post(url, config, http.StatusOK, headers)
-	}
-
-	client.Quiet(true)
-	for i := 0; i < numEntries; i++ {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s/%d", host, cacheName, i)
-		value := fmt.Sprintf("{\"value\":\"%d\"}", i)
-		post(url, value, http.StatusNoContent, headers)
-	}
-	client.Quiet(false)
-}
-
-func assertNumEntries(cacheName, host string, numEntries int, client tutils.HTTPClient) {
-	url := fmt.Sprintf("%s/rest/v2/caches/%s?action=size", host, cacheName)
-	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		rsp, err := client.Get(url, nil)
-		tutils.ExpectNoError(err)
-		if rsp.StatusCode != http.StatusOK {
-			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-		}
-
-		body, err := ioutil.ReadAll(rsp.Body)
-		tutils.ExpectNoError(rsp.Body.Close())
-		tutils.ExpectNoError(err)
-		numRead, err := strconv.ParseInt(string(body), 10, 64)
-		return int(numRead) == numEntries, err
-	})
-	tutils.ExpectNoError(err)
 }
 
 func waitForNoCluster(infinispan *v1.Infinispan) {

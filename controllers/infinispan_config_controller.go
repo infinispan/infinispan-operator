@@ -8,7 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/prometheus/common/log"
 	corev1 "k8s.io/api/core/v1"

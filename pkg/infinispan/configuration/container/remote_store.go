@@ -1,7 +1,8 @@
-package caches
+package container
 
 import (
 	"encoding/json"
+
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 )
 

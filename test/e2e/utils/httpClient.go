@@ -13,18 +13,18 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+
+	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 )
 
 const DEBUG = false
 
 // HTTPClient can perform HTTP operations
 type HTTPClient interface {
-	Delete(path string, headers map[string]string) (*http.Response, error)
-	Get(path string, headers map[string]string) (*http.Response, error)
-	Head(path string, headers map[string]string) (*http.Response, error)
-	Post(path, payload string, headers map[string]string) (*http.Response, error)
-	Put(path, payload string, headers map[string]string) (*http.Response, error)
+	httpClient.HttpClient
 	Quiet(quiet bool)
+	SetHostAndPort(hostAndPort string)
+	GetHostAndPort() string
 }
 
 type authType int
@@ -41,60 +41,36 @@ type authenticationRealm struct {
 
 type httpClientConfig struct {
 	*http.Client
-	username *string
-	password *string
-	protocol string
-	auth     authType
-	quiet    bool
+	hostAndPort string
+	username    *string
+	password    *string
+	protocol    string
+	auth        authType
+	quiet       bool
 }
 
-type HttpError struct {
-	Status  int
-	Message string
-}
-
-func (e HttpError) Error() string {
-	return fmt.Sprintf("unexpected HTTP status code (%d): %s", e.Status, e.Message)
-}
-
-func ThrowHTTPError(resp *http.Response) {
-	errorBytes, _ := ioutil.ReadAll(resp.Body)
-	panic(HttpError{
-		Status:  resp.StatusCode,
+func ThrowHTTPError(rsp *http.Response) {
+	errorBytes, _ := ioutil.ReadAll(rsp.Body)
+	panic(httpClient.HttpError{
+		Status:  rsp.StatusCode,
 		Message: string(errorBytes),
 	})
 }
 
 // NewHTTPClient return a new HTTPClient
 func NewHTTPClient(username, password, protocol string) HTTPClient {
-	return newClient(authDigest, &username, &password, protocol, &tls.Config{
+	return NewClient(authDigest, &username, &password, protocol, &tls.Config{
 		InsecureSkipVerify: true,
 	})
 }
 
 func NewHTTPClientNoAuth(protocol string) HTTPClient {
-	return newClient(authNone, nil, nil, protocol, &tls.Config{
+	return NewClient(authNone, nil, nil, protocol, &tls.Config{
 		InsecureSkipVerify: true,
 	})
 }
 
-func NewHTTPSClientNoAuth(tlsConfig *tls.Config) HTTPClient {
-	return newClient(authNone, nil, nil, "https", tlsConfig)
-}
-
-func NewHTTPSClientCert(tlsConfig *tls.Config) HTTPClient {
-	return newClient(authCert, nil, nil, "https", tlsConfig)
-}
-
-func NewHTTPSClientCertWithDigestAuth(username, password string, tlsConfig *tls.Config) HTTPClient {
-	return newClient(authDigest, &username, &password, "https", tlsConfig)
-}
-
-func NewHTTPSClient(username, password string, tlsConfig *tls.Config) HTTPClient {
-	return newClient(authDigest, &username, &password, "https", tlsConfig)
-}
-
-func newClient(auth authType, username, password *string, protocol string, tlsConfig *tls.Config) HTTPClient {
+func NewClient(auth authType, username, password *string, protocol string, tlsConfig *tls.Config) HTTPClient {
 	return &httpClientConfig{
 		username: username,
 		password: password,
@@ -128,12 +104,20 @@ func (c *httpClientConfig) Put(path, payload string, headers map[string]string) 
 	return c.exec("PUT", path, payload, headers)
 }
 
+func (c *httpClientConfig) SetHostAndPort(hostAndPort string) {
+	c.hostAndPort = hostAndPort
+}
+
+func (c *httpClientConfig) GetHostAndPort() string {
+	return c.hostAndPort
+}
+
 func (c *httpClientConfig) Quiet(quiet bool) {
 	c.quiet = quiet
 }
 
 func (c *httpClientConfig) exec(method, path, payload string, headers map[string]string) (*http.Response, error) {
-	httpURL, err := url.Parse(fmt.Sprintf("%s://%s", c.protocol, path))
+	httpURL, err := url.Parse(fmt.Sprintf("%s://%s/%s", c.protocol, c.hostAndPort, path))
 	ExpectNoError(err)
 	if !c.quiet {
 		fmt.Printf("%s: %s\n", method, httpURL)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"reflect"
@@ -14,11 +13,11 @@ import (
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	ispnv2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/launcher/operator"
+	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
 	"gopkg.in/yaml.v2"
@@ -450,9 +449,10 @@ func (k TestKubernetes) WaitForCrd(crd *apiextv1.CustomResourceDefinition) {
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
-func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout time.Duration, client HTTPClient) string {
-	var hostAndPort string
+// The HostAndPort of the provided HTTPClient is updated to use the external service when available
+func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout time.Duration, client HTTPClient) HTTPClient {
 	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
+		var hostAndPort string
 		switch ispn.GetExposeType() {
 		case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
 			routeList := &corev1.ServiceList{}
@@ -480,26 +480,25 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 		if hostAndPort == "" {
 			return false, nil
 		}
-		return CheckExternalAddress(client, hostAndPort), nil
+		client.SetHostAndPort(hostAndPort)
+		return CheckExternalAddress(client), nil
 	})
 	ExpectNoError(err)
-	return hostAndPort
+	return client
 }
 
 func getNodePort(service *corev1.Service) int32 {
 	return service.Spec.Ports[0].NodePort
 }
 
-func CheckExternalAddress(c HTTPClient, hostAndPort string) bool {
-	httpURL := fmt.Sprintf("%s/%s", hostAndPort, consts.ServerHTTPHealthPath)
-	resp, err := c.Get(httpURL, nil)
+func CheckExternalAddress(client HTTPClient) bool {
+	status, err := ispnClient.New(client).Container().HealthStatus()
 	if isTemporary(err) {
 		return false
 	}
 	ExpectNoError(err)
-	defer LogError(resp.Body.Close())
-	log.Info("Received response for external address", "response code", resp.StatusCode)
-	return resp.StatusCode == http.StatusOK
+	log.Info("Received response for external address", "status", status)
+	return status != ""
 }
 
 func isTemporary(err error) bool {
@@ -783,7 +782,7 @@ func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {
 	ExpectMaybeNotFound(err)
 }
 
-func (k TestKubernetes) WaitForCacheState(name, namespace string, predicate func(*v2alpha1.Cache) bool) *v2alpha1.Cache {
+func (k TestKubernetes) WaitForCacheState(name, namespace string, predicate func(*ispnv2.Cache) bool) *ispnv2.Cache {
 	cache := &ispnv2.Cache{}
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, cache)
@@ -799,15 +798,15 @@ func (k TestKubernetes) WaitForCacheState(name, namespace string, predicate func
 	return cache
 }
 
-func (k TestKubernetes) WaitForCacheConditionReady(name, namespace string) *v2alpha1.Cache {
-	return k.WaitForCacheCondition(name, namespace, v2alpha1.CacheCondition{
-		Type:   v2alpha1.CacheConditionReady,
+func (k TestKubernetes) WaitForCacheConditionReady(name, namespace string) *ispnv2.Cache {
+	return k.WaitForCacheCondition(name, namespace, ispnv2.CacheCondition{
+		Type:   ispnv2.CacheConditionReady,
 		Status: metav1.ConditionTrue,
 	})
 }
 
-func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition ispnv2.CacheCondition) *v2alpha1.Cache {
-	return k.WaitForCacheState(name, namespace, func(cache *v2alpha1.Cache) bool {
+func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition ispnv2.CacheCondition) *ispnv2.Cache {
+	return k.WaitForCacheState(name, namespace, func(cache *ispnv2.Cache) bool {
 		for _, c := range cache.Status.Conditions {
 			if c.Type == condition.Type && c.Status == condition.Status {
 				log.Info("Cache condition met", "condition", condition)

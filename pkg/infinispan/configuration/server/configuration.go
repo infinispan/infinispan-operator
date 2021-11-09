@@ -1,4 +1,4 @@
-package configuration
+package server
 
 import (
 	"bytes"

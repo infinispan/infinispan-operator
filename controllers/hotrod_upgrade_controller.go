@@ -12,10 +12,11 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	. "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/hash"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	"github.com/infinispan/infinispan-operator/pkg/http/curl"
+	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/upgrades"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -42,10 +43,11 @@ type HotRodRollingUpgradeReconciler struct {
 
 type HotRodRollingUpgradeRequest struct {
 	*HotRodRollingUpgradeReconciler
-	ctx                context.Context
-	infinispan         *ispnv1.Infinispan
-	reqLogger          logr.Logger
-	cluster            infinispan.ClusterInterface
+	ctx        context.Context
+	infinispan *ispnv1.Infinispan
+	reqLogger  logr.Logger
+	// Curl client for the source statefulset
+	curl               *curl.Client
 	currentStatefulSet string
 }
 
@@ -143,10 +145,9 @@ func (r *HotRodRollingUpgradeReconciler) Reconcile(ctx context.Context, request 
 		}
 	}
 
-	// Populate a request object to handle the rolling upgrade
-	cluster, err := NewCluster(ispn, r.kubernetes, ctx)
+	curl, err := NewCurlClient(ctx, podList.Items[0].Name, ispn, r.kubernetes)
 	if err != nil {
-		return ctrl.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("unable to create curl client: %w", err)
 	}
 
 	req := HotRodRollingUpgradeRequest{
@@ -154,7 +155,7 @@ func (r *HotRodRollingUpgradeReconciler) Reconcile(ctx context.Context, request 
 		ctx:                            ctx,
 		infinispan:                     ispn,
 		reqLogger:                      reqLogger,
-		cluster:                        cluster,
+		curl:                           curl,
 		currentStatefulSet:             podList.Items[0].Labels[StatefulSetPodLabel],
 	}
 
@@ -322,7 +323,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 	}
 
 	// Check if cluster is well-formed
-	conditions := getInfinispanConditions(podList.Items, r.infinispan.Spec.Replicas, r.cluster)
+	conditions := getInfinispanConditions(podList.Items, r.infinispan, r.curl)
 	r.reqLogger.Info(fmt.Sprintf("Cluster conditions: %v", conditions))
 	for _, condition := range conditions {
 		if condition.Type == ispnv1.ConditionWellFormed {
@@ -340,12 +341,6 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 func (r *HotRodRollingUpgradeRequest) prepare() (ctrl.Result, error) {
 	ispn := r.infinispan
 	targetStatefulSetName := getOrCreateTargetStatefulSetName(ispn)
-	// Obtain the podName from the source cluster to invoke requests
-	podListSource, err := PodList(ispn, r.kubernetes, r.ctx)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to obtain pods from source cluster: %w", err)
-	}
-	podNameSource := podListSource.Items[0].Name
 
 	// Obtain the podName from the new statefulSet to invoke requests
 	targetStatefulSet := &appsv1.StatefulSet{}
@@ -357,23 +352,26 @@ func (r *HotRodRollingUpgradeRequest) prepare() (ctrl.Result, error) {
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to find the pods from the new statefulSet : %w", err)
 	}
-	podName := podList.Items[0].Name
+	podNameTarget := podList.Items[0].Name
 
 	// Obtain the admin service in the source cluster to create the remote store config
 	sourceClusterService := &corev1.Service{}
 	res, err := kube.LookupResource(ispn.GetAdminServiceName(), ispn.GetNamespace(), sourceClusterService, r.infinispan, r.Client, r.reqLogger, r.eventRec, r.ctx)
-
 	if res != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get service admin to connect to source cluster : %w", err)
 	}
 
-	adminPassword, err := users.AdminPassword(ispn.GetAdminSecretName(), ispn.Namespace, r.kubernetes, r.ctx)
+	pass, err := users.AdminPassword(ispn.GetAdminSecretName(), ispn.Namespace, r.kubernetes, r.ctx)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
+	sourceClient := ispnClient.New(r.curl)
+	// Clone the source curl client as the credentials are the same, updating the pod to one from the target statefulset
+	targetClient := InfinispanForPod(podNameTarget, r.curl)
+
 	ip := sourceClusterService.Spec.ClusterIP
-	if err = caches.ConnectCaches(podName, podNameSource, adminPassword, ip, r.reqLogger, r.cluster); err != nil {
+	if err = upgrades.ConnectCaches(pass, ip, sourceClient, targetClient, r.reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -402,15 +400,15 @@ func (r *HotRodRollingUpgradeRequest) syncData() (ctrl.Result, error) {
 	if result, err := kube.LookupResource(targetStatefulSetName, r.infinispan.GetNamespace(), targetStatefulSet, r.infinispan, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
 		return *result, err
 	}
-	podList, err := PodsCreatedBy(targetStatefulSet.GetNamespace(), r.kubernetes, r.ctx, targetStatefulSetName)
 
+	podList, err := PodsCreatedBy(targetStatefulSet.GetNamespace(), r.kubernetes, r.ctx, targetStatefulSetName)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to obtain pods from the target cluster: %w", err)
 	}
 
-	podName := podList.Items[0].Name
-
-	if err = caches.SyncCaches(podName, r.reqLogger, r.cluster); err != nil {
+	// Clone the source curl client as the credentials are the same, updating the pod to one from the target statefulset
+	targetClient := InfinispanForPod(podList.Items[0].Name, r.curl)
+	if err = upgrades.SyncCaches(targetClient, r.reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
 

@@ -5,12 +5,14 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -23,12 +25,13 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -38,6 +41,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
+	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
@@ -112,8 +118,8 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
-	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
-	checkRestConnection(host, client)
+	client := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
+	checkRestConnection(client)
 
 	namespacedName := types.NamespacedName{Namespace: spec.Namespace, Name: spec.GetStatefulSetName()}
 	// Get the cluster's StatefulSet and current generation
@@ -150,8 +156,8 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	tutils.ExpectNoError(err)
 
 	// Ensure that we can connect to the endpoint with the new TLS settings
-	host, client = tutils.HTTPSClientAndHost(spec, newTlsConfig, testKube)
-	checkRestConnection(host, client)
+	client = tutils.HTTPSClientForCluster(spec, newTlsConfig, testKube)
+	checkRestConnection(client)
 }
 
 // Test if single node working correctly
@@ -274,7 +280,7 @@ func TestRolesSynthetic(t *testing.T) {
 	tutils.ExpectNoError(err)
 
 	_, err = kube.FindStorageClass("not-present-storage-class", serviceAccountKube.Kubernetes.Client, context.TODO())
-	if !errors.IsNotFound(err) {
+	if !k8sErrors.IsNotFound(err) {
 		tutils.ExpectNoError(err)
 	}
 }
@@ -346,8 +352,8 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
-	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
-	checkRestConnection(host, client)
+	client := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
+	checkRestConnection(client)
 }
 
 // Test if the cluster is working correctly
@@ -375,18 +381,13 @@ func TestTLSWithExistingKeystore(t *testing.T) {
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
-	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
-	checkRestConnection(host, client)
+	client := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
+	checkRestConnection(client)
 }
 
-func checkRestConnection(hostAddr string, client tutils.HTTPClient) {
-	url := fmt.Sprintf("%v/rest/v2/cache-managers/default", hostAddr)
-	rsp, err := client.Get(url, nil)
+func checkRestConnection(client tutils.HTTPClient) {
+	_, err := ispnClient.New(client).Container().Members()
 	tutils.ExpectNoError(err)
-	defer tutils.CloseHttpResponse(rsp)
-	if rsp.StatusCode != http.StatusOK {
-		tutils.ThrowHTTPError(rsp)
-	}
 }
 
 func TestClientCertValidate(t *testing.T) {
@@ -510,8 +511,8 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
-	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
-	tutils.NewCacheHelper("test", host, client).CreateWithDefault("")
+	client := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
+	tutils.NewCacheHelper("test", client).CreateWithDefault()
 }
 
 // Test if spec.container.cpu update is handled
@@ -618,8 +619,8 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 		// Ensure that we can connect to the endpoint with TLS
-		host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
-		checkRestConnection(host, client)
+		client := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
+		checkRestConnection(client)
 	}
 
 	genericTestForContainerUpdated(*spec, modifier, verifier)
@@ -682,8 +683,8 @@ func testCacheService(testName string) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper("default", hostAddr, client)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper("default", client)
 	cacheHelper.WaitForCacheToExist()
 	cacheHelper.TestBasicUsage("test", "test-operator")
 }
@@ -696,15 +697,15 @@ func TestPermanentCache(t *testing.T) {
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		tutils.NewCacheHelper(cacheName, hostAddr, client).CreateWithDefault("PERMANENT")
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		tutils.NewCacheHelper(cacheName, client).CreateWithDefault("PERMANENT")
 	}
 
 	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
 		key := "test"
 		value := "test-operator"
-		cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
+		cacheHelper := tutils.NewCacheHelper(cacheName, client)
 		cacheHelper.TestBasicUsage(key, value)
 		cacheHelper.Delete()
 	}
@@ -725,16 +726,16 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 
 	// Define function for the generic stop/start test procedure
 	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
-		cacheHelper.CreateWithXML(template)
-		cacheHelper.PutWithPlainText(key, value)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(cacheName, client)
+		cacheHelper.Create(template, mime.ApplicationXml)
+		cacheHelper.Put(key, value, mime.TextPlain)
 	}
 
 	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
-		actual := cacheHelper.Get(key)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(cacheName, client)
+		actual, _ := cacheHelper.Get(key)
 		if actual != value {
 			panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
 		}
@@ -794,9 +795,9 @@ func TestExternalService(t *testing.T) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper("test-cache", hostAddr, client)
-	cacheHelper.CreateWithDefault("")
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper("test-cache", client)
+	cacheHelper.CreateWithDefault()
 	cacheHelper.TestBasicUsage("test", "test-operator")
 }
 
@@ -902,14 +903,14 @@ func TestExternalServiceWithAuth(t *testing.T) {
 }
 
 func testAuthentication(ispn *ispnv1.Infinispan, schema, usr, pass string) {
+	client := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, tutils.NewHTTPClient(usr, pass, schema))
 	badClient := tutils.NewHTTPClient("badUser", "badPass", schema)
-	client := tutils.NewHTTPClient(usr, pass, schema)
-	hostAddr := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, client)
+	badClient.SetHostAndPort(client.GetHostAndPort())
 
 	cacheName := "test"
-	createCacheBadCreds(cacheName, hostAddr, badClient)
-	cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
-	cacheHelper.CreateWithDefault("")
+	createCacheBadCreds(cacheName, badClient)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
+	cacheHelper.CreateWithDefault()
 	defer cacheHelper.Delete()
 	cacheHelper.TestBasicUsage("test", "test-operator")
 }
@@ -939,10 +940,9 @@ func TestAuthenticationDisabled(t *testing.T) {
 	tutils.ExpectNotFound(testKube.Kubernetes.Client.Get(context.TODO(), key, secret))
 
 	// Ensure that rest requests do not require authentication
-	client := tutils.NewHTTPClientNoAuth(testKube.GetSchemaForRest(spec))
-	hostAddr := testKube.WaitForExternalService(spec, tutils.RouteTimeout, client)
-	url := fmt.Sprintf("%v/rest/v2/caches", hostAddr)
-	rsp, err := client.Get(url, nil)
+	schema := testKube.GetSchemaForRest(spec)
+	client := testKube.WaitForExternalService(spec, tutils.RouteTimeout, tutils.NewHTTPClientNoAuth(schema))
+	rsp, err := client.Get("rest/v2/caches", nil)
 	tutils.ExpectNoError(err)
 	if rsp.StatusCode != http.StatusOK {
 		tutils.ThrowHTTPError(rsp)
@@ -966,13 +966,9 @@ func TestAuthorizationDisabledByDefault(t *testing.T) {
 		}
 	}
 
-	verify := func(hostAddr string, client tutils.HTTPClient) {
-		url := fmt.Sprintf("%v/rest/v2/caches", hostAddr)
-		rsp, err := client.Get(url, nil)
+	verify := func(client tutils.HTTPClient) {
+		_, err := ispnClient.New(client).Caches().Names()
 		tutils.ExpectNoError(err)
-		if rsp.StatusCode != http.StatusOK {
-			tutils.ThrowHTTPError(rsp)
-		}
 	}
 	testAuthorization(ispn, identities, verify)
 }
@@ -1013,12 +1009,12 @@ func TestAuthorizationWithCustomRoles(t *testing.T) {
 		}
 	}
 
-	verify := func(hostAddr string, failClient tutils.HTTPClient) {
-		tutils.NewCacheHelper("succeed-cache", hostAddr, failClient).CreateWithDefault("")
+	verify := func(client tutils.HTTPClient) {
+		tutils.NewCacheHelper("succeed-cache", client).CreateWithDefault()
 		schema := testKube.GetSchemaForRest(ispn)
-		failClient = tutils.NewHTTPClient("monitor-user", "pass", schema)
-		httpURL := tutils.CacheURL("fail-cache", hostAddr, "")
-		rsp, err := failClient.Post(httpURL, "", nil)
+		failClient := tutils.NewHTTPClient("monitor-user", "pass", schema)
+		failClient.SetHostAndPort(client.GetHostAndPort())
+		rsp, err := failClient.Post("rest/v2/caches/fail-cache", "", nil)
 		tutils.ExpectNoError(err)
 		if rsp.StatusCode != http.StatusForbidden {
 			tutils.ThrowHTTPError(rsp)
@@ -1027,7 +1023,7 @@ func TestAuthorizationWithCustomRoles(t *testing.T) {
 	testAuthorization(ispn, identities, verify)
 }
 
-func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identities, verify func(string, tutils.HTTPClient)) {
+func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identities, verify func(tutils.HTTPClient)) {
 	namespace := tutils.Namespace
 	secretName := ispn.Name + "-id-secret"
 	ispn.Spec.Security.EndpointSecretName = secretName
@@ -1061,11 +1057,10 @@ func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identi
 	schema := testKube.GetSchemaForRest(ispn)
 	user := identities.Credentials[0].Username
 	pass := identities.Credentials[0].Password
-	client := tutils.NewHTTPClient(user, pass, schema)
-	hostAddr := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, client)
+	client := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, tutils.NewHTTPClient(user, pass, schema))
 
 	// Verify authorization works as expected
-	verify(hostAddr, client)
+	verify(client)
 }
 
 func TestExternalDependenciesHttp(t *testing.T) {
@@ -1093,10 +1088,10 @@ func TestExternalDependenciesHttp(t *testing.T) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, name, namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
 
 	validateTaskExecution := func(task, param string, status int, result string) {
-		url := fmt.Sprintf("%s/rest/v2/tasks/%s?action=exec&param.name=%s", hostAddr, task, param)
+		url := fmt.Sprintf("rest/v2/tasks/%s?action=exec&param.name=%s", task, param)
 		resp, err := client.Post(url, "", nil)
 		tutils.ExpectNoError(err)
 		defer func(Body io.ReadCloser) {
@@ -1200,18 +1195,18 @@ func prepareWebServer() *corev1.ConfigMap {
 	return webServerConfig
 }
 
-func createCacheBadCreds(cacheName, hostAddr string, client tutils.HTTPClient) {
-	defer func() {
-		data := recover()
-		if data == nil {
-			panic("createCacheBadCred should fail, but it doesn't")
-		}
-		err := data.(tutils.HttpError)
-		if err.Status != http.StatusUnauthorized {
-			panic(err)
-		}
-	}()
-	tutils.NewCacheHelper(cacheName, hostAddr, client).CreateWithDefault("")
+func createCacheBadCreds(cacheName string, client tutils.HTTPClient) {
+	err := ispnClient.New(client).Cache(cacheName).Create("", mime.ApplicationYaml)
+	if err == nil {
+		panic("Cache creation should fail")
+	}
+	var httpErr *httpClient.HttpError
+	if !errors.As(err, &httpErr) {
+		panic("Unexpected error type")
+	}
+	if httpErr.Status != http.StatusUnauthorized {
+		panic(httpErr)
+	}
 }
 
 func TestPodDegradationAfterOOM(t *testing.T) {
@@ -1234,21 +1229,20 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	cacheName := "failover-cache"
 	template := `<replicated-cache name ="` + cacheName + `"><encoding media-type="text/plain"/></replicated-cache>`
 	veryLongValue := GenerateStringWithCharset(100000)
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, hostAddr, client)
-	cacheHelper.CreateWithXML(template)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
+	cacheHelper.Create(template, mime.ApplicationXml)
 
+	client.Quiet(true)
 	//Generate tons of random entries
 	for key := 1; key < 50000; key++ {
-		keyURL := tutils.CacheURL(cacheName, hostAddr, fmt.Sprint(key))
-		headers := map[string]string{"Content-Type": "text/plain"}
-		_, error := client.Post(keyURL, veryLongValue, headers)
-
-		if error != nil {
-			fmt.Printf("ERROR for key=%d, Description=%s\n", key, error)
+		strKey := strconv.Itoa(key)
+		if err := cacheHelper.CacheClient.Put(strKey, veryLongValue, mime.TextPlain); err != nil {
+			fmt.Printf("ERROR for key=%d, Description=%s\n", key, err)
 			break
 		}
 	}
+	client.Quiet(false)
 
 	//Check if all pods are running and they are not degraded
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
@@ -1330,8 +1324,8 @@ func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 
-	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(t.Name(), hostAddr, client)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(t.Name(), client)
 	cacheHelper.TestBasicUsage("testkey", "test-operator")
 }
 
@@ -1345,16 +1339,16 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		// testing cache pre update
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), hostAddr, client)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(t.Name(), client)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 		// testing cache post update
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), hostAddr, client)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(t.Name(), client)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(testKube)
@@ -1377,16 +1371,16 @@ func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		// testing cache pre update
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), hostAddr, client)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(t.Name(), client)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 		ispn.Spec.ConfigMapName = configMapChanged.Name
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 		// testing cache post update
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name()+"Changed", hostAddr, client)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(t.Name()+"Changed", client)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(testKube)
@@ -1406,8 +1400,8 @@ func TestUserCustomConfigUpdateOnChange(t *testing.T) {
 	newCacheName := t.Name() + "Updated"
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		// testing cache pre update
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), hostAddr, client)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(t.Name(), client)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 		configMapUpdated := newCustomConfigMap(newCacheName, "xml")
 		// Reuse old name to test CM in-place update
@@ -1417,8 +1411,8 @@ func TestUserCustomConfigUpdateOnChange(t *testing.T) {
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 		// testing cache post update
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(newCacheName, hostAddr, client)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(newCacheName, client)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(testKube)
@@ -1444,8 +1438,8 @@ func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 		// testing cache post update
-		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), hostAddr, client)
+		client := tutils.HTTPClientForCluster(ispn, testKube)
+		cacheHelper := tutils.NewCacheHelper(t.Name(), client)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(testKube)

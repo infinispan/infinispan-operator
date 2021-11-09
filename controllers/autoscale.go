@@ -9,7 +9,7 @@ import (
 
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
-	ispnutil "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/prometheus/common/log"
 	corev1 "k8s.io/api/core/v1"
@@ -76,37 +76,42 @@ func (r *infinispanRequest) autoscalerLoop() {
 		// Data memory percent usage array, one value per pod
 		metricDataMemoryPercentUsed := map[string]int{}
 		podList := &corev1.PodList{}
-		err = r.kubernetes.ResourcesList(ispn.Namespace, LabelsResource(ispn.Name, ""), podList, r.ctx)
-		if err != nil {
+		if err = r.kubernetes.ResourcesList(ispn.Namespace, LabelsResource(ispn.Name, ""), podList, r.ctx); err != nil {
 			continue
 		}
 
-		cluster, err := NewCluster(&ispn, r.kubernetes, r.ctx)
-		if err != nil {
-			continue
-		}
-
+		var skipAutoscale bool
 		for _, pItem := range podList.Items {
 			podName := pItem.Name
-			// time.Sleep(time.Duration(10000/len(podList.Items)) * time.Millisecond)
+
+			ispnClient, err := NewInfinispanForPod(r.ctx, podName, &ispn, r.kubernetes)
+			if err != nil {
+				log.Error(err, "unable to create Infinispan client", "podName", podName)
+				skipAutoscale = true
+				break
+			}
+
 			if metricMinPodNum == 0 {
-				metricMinPodNum, err = getMetricMinPodNum(podName, cluster)
+				metricMinPodNum, err = getMetricMinPodNum(podName, ispnClient.Metrics())
 				if err != nil {
 					log.Error(err, "Unable to get metricMinPodNum for pod", "podName", podName)
 				}
 			}
-			err = getMetricDataMemoryPercentUsage(&metricDataMemoryPercentUsed, podName, cluster)
+			err = getMetricDataMemoryPercentUsage(&metricDataMemoryPercentUsed, podName, ispnClient.Metrics())
 			if err != nil {
 				log.Error(err, "Unable to get DataMemoryUsed for pod", "podName", podName)
 			}
 		}
-		autoscaleOnPercentUsage(r.ctx, &metricDataMemoryPercentUsed, metricMinPodNum, &ispn, r.kubernetes)
+
+		if !skipAutoscale {
+			autoscaleOnPercentUsage(r.ctx, &metricDataMemoryPercentUsed, metricMinPodNum, &ispn, r.kubernetes)
+		}
 	}
 }
 
 // getMetricMinPodNum get the minimum number of nodes required to avoid data lost
-func getMetricMinPodNum(podName string, cluster *ispnutil.Cluster) (int32, error) {
-	res, err := cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_default_cluster_cache_stats_required_minimum_number_of_nodes")
+func getMetricMinPodNum(podName string, metrics api.Metrics) (int32, error) {
+	res, err := metrics.Get("vendor/cache_manager_default_cache_default_cluster_cache_stats_required_minimum_number_of_nodes")
 	if err != nil {
 		return 0, err
 	}
@@ -127,8 +132,8 @@ func getMetricMinPodNum(podName string, cluster *ispnutil.Cluster) (int32, error
 	return ret, nil
 }
 
-func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster *ispnutil.Cluster) error {
-	res, err := cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_container_stats_data_memory_used")
+func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, metrics api.Metrics) error {
+	res, err := metrics.Get("vendor/cache_manager_default_cache_container_stats_data_memory_used")
 	if err != nil {
 		return err
 	}
@@ -144,7 +149,7 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, cluster 
 		break
 	}
 
-	res, err = cluster.GetMetrics(podName, "vendor/cache_manager_default_cache_default_configuration_eviction_size")
+	res, err = metrics.Get("vendor/cache_manager_default_cache_default_configuration_eviction_size")
 	if err != nil {
 		return err
 	}

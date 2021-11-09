@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -13,7 +11,7 @@ import (
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	"github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,14 +29,6 @@ var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 
 // command Pointer to the spawned operator process
 var command *exec.Cmd
-
-func cacheUrl(cacheName, hostAddr string) string {
-	return fmt.Sprintf("%s/rest/v2/caches/%s", hostAddr, cacheName)
-}
-
-func cacheSizeUrl(cacheName, hostAddr string) string {
-	return cacheUrl(cacheName, hostAddr) + "?action=size"
-}
 
 // initialize Prepares namespaces and CRD installations
 func initialize() {
@@ -130,17 +120,17 @@ func TestRollingUpgrade(t *testing.T) {
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(numPods, tutils.SinglePodTimeout, clusterName, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(clusterName, tutils.Namespace, ispnv1.ConditionWellFormed)
-	hostAddr, client := utils.HTTPClientAndHost(infinispan, testKube)
+	client := tutils.HTTPClientForCluster(infinispan, testKube)
 
 	// Create caches
-	createCache("textCache", "text/plain", hostAddr, client)
-	createCache("jsonCache", "application/json", hostAddr, client)
-	createCache("javaCache", "application/x-java-object", hostAddr, client)
-	createCache("indexedCache", "application/x-protostream", hostAddr, client)
+	createCache("textCache", mime.TextPlain, client)
+	createCache("jsonCache", mime.ApplicationJson, client)
+	createCache("javaCache", mime.ApplicationJavaObject, client)
+	createCache("indexedCache", mime.ApplicationProtostream, client)
 
 	// Add data to some caches
-	addData("textCache", hostAddr, entriesPerCache, client)
-	addData("indexedCache", hostAddr, entriesPerCache, client)
+	addData("textCache", entriesPerCache, client)
+	addData("indexedCache", entriesPerCache, client)
 
 	// Kill the operator
 	killOperator()
@@ -157,59 +147,32 @@ func TestRollingUpgrade(t *testing.T) {
 	testKube.WaitForInfinispanPodsCreatedBy(numPods, tutils.SinglePodTimeout, newStatefulSetName, tutils.Namespace)
 	testKube.WaitForInfinispanPodsCreatedBy(0, tutils.SinglePodTimeout, currentStatefulSetName, tutils.Namespace)
 
+	if !tutils.CheckExternalAddress(client) {
+		panic("Error contacting server")
+	}
+
 	// Check data
-	assert.Equal(t, entriesPerCache, cacheSize("textCache", hostAddr, client))
-	assert.Equal(t, entriesPerCache, cacheSize("indexedCache", hostAddr, client))
-	assert.Equal(t, 0, cacheSize("jsonCache", hostAddr, client))
-	assert.Equal(t, 0, cacheSize("javaCache", hostAddr, client))
+	assert.Equal(t, entriesPerCache, cacheSize("textCache", client))
+	assert.Equal(t, entriesPerCache, cacheSize("indexedCache", client))
+	assert.Equal(t, 0, cacheSize("jsonCache", client))
+	assert.Equal(t, 0, cacheSize("javaCache", client))
 }
 
-func cacheSize(cacheName, hostAddr string, client utils.HTTPClient) int {
-	url := cacheSizeUrl(cacheName, hostAddr)
-	resp, err := client.Get(url, nil)
-	defer tutils.CloseHttpResponse(resp)
-	tutils.ExpectNoError(err)
-	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Sprintf("Error getting cache size, status %d", resp.StatusCode))
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	tutils.ExpectNoError(err)
-	size, err := strconv.Atoi(string(body))
-	tutils.ExpectNoError(err)
-	return size
+func cacheSize(cacheName string, client tutils.HTTPClient) int {
+	return tutils.NewCacheHelper(cacheName, client).Size()
 }
 
-func createCache(cacheName, mediaType, hostAddr string, client utils.HTTPClient) {
-	url := cacheUrl(cacheName, hostAddr)
-	var config string
-	if mediaType == "" {
-		config = "{\"distributed-cache\":{\"mode\":\"SYNC\", \"remote-timeout\": 60000}}"
-	} else {
-		config = fmt.Sprintf("{\"distributed-cache\":{\"mode\":\"SYNC\",\"remote-timeout\": 60000,\"encoding\":{\"media-type\":\"%s\"}}}", mediaType)
-	}
-	resp, err := client.Post(url, config, map[string]string{"Content-Type": "application/json"})
-	defer tutils.CloseHttpResponse(resp)
-	tutils.ExpectNoError(err)
-	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Sprintf("Error creating cache, status %d", resp.StatusCode))
-	}
+func createCache(cacheName string, encoding mime.MimeType, client tutils.HTTPClient) {
+	config := fmt.Sprintf("{\"distributed-cache\":{\"mode\":\"SYNC\",\"remote-timeout\": 60000,\"encoding\":{\"media-type\":\"%s\"}}}", encoding)
+	tutils.NewCacheHelper(cacheName, client).Create(config, mime.ApplicationJson)
 }
 
 // addData Populates a cache with bounded parallelism
-func addData(cacheName, hostAddr string, entries int, client utils.HTTPClient) {
-	write := func(key, value string) {
-		url := cacheUrl(cacheName, hostAddr) + "/" + key
-		resp, err := client.Post(url, value, nil)
-		defer tutils.CloseHttpResponse(resp)
-		tutils.ExpectNoError(err)
-		if resp.StatusCode != http.StatusNoContent {
-			panic(fmt.Sprintf("Error populating cache, status %d", resp.StatusCode))
-		}
-	}
+func addData(cacheName string, entries int, client tutils.HTTPClient) {
+	cache := tutils.NewCacheHelper(cacheName, client)
 	for i := 0; i < entries; i++ {
 		data := strconv.Itoa(i)
-		write(data, data)
+		cache.Put(data, data, mime.TextPlain)
 	}
-
 	fmt.Printf("Populated cache %s with %d entries", cacheName, entries)
 }

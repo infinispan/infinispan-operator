@@ -108,9 +108,18 @@ type ExecOptions struct {
 	PodName   string
 }
 
+type execError struct {
+	err    error
+	stdErr string
+}
+
+func (e *execError) Error() string {
+	return fmt.Sprintf("stderr: %s, err: %s", e.stdErr, e.err.Error())
+}
+
 // ExecWithOptions executes command on pod
 // command example { "/usr/bin/ls", "folderName" }
-func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, error) {
+func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, error) {
 	// Create a POST request
 	execRequest := k.RestClient.Post().
 		Resource("pods").
@@ -128,7 +137,7 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 	// Create an executor
 	exec, err := remotecommand.NewSPDYExecutor(k.RestConfig, "POST", execRequest.URL())
 	if err != nil {
-		return execOut, "", err
+		return execOut, err
 	}
 	// Run the command
 	err = exec.Stream(remotecommand.StreamOptions{
@@ -138,10 +147,9 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, string, 
 		Tty:    false,
 	})
 	if err != nil {
-		return execOut, execErr.String(), err
+		return execOut, &execError{err, execErr.String()}
 	}
-
-	return execOut, "", err
+	return execOut, err
 }
 
 // FindKubeConfig returns local Kubernetes configuration
