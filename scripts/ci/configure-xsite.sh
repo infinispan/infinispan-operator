@@ -31,8 +31,7 @@ for INSTANCE_IDX in 1 2; do
 
   # Creating service account for the cross cluster token based auth
   kubectl create clusterrole xsite-cluster-role --verb=get,list,watch --resource=nodes,services
-  kubectl create serviceaccount "${INSTANCE}" -n "${TESTING_NAMESPACE_XSITE}"
-  kubectl create clusterrolebinding xsite-cluster-role-binding --clusterrole=xsite-cluster-role --serviceaccount="${TESTING_NAMESPACE_XSITE}":"${INSTANCE}"
+  kubectl create clusterrolebinding xsite-cluster-role-binding --clusterrole=xsite-cluster-role --serviceaccount=infinispan-operator-controller-manager
 
   # Configuring MetalLB (https://metallb.universe.tf/) for real LoadBalancer setup on Kind
   KIND_SUBNET=$(docker network inspect -f '{{ (index .IPAM.Config 0).Subnet }}' kind | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}")

@@ -247,9 +247,10 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
 		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
-			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret("xsite1", tesKubes["xsite1"].namespace, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
+			serviceAccount := "infinispan-operator-controller-manager"
+			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret(serviceAccount, tesKubes["xsite1"].namespace, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
 			tutils.ExpectNoError(err)
-			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret("xsite2", tesKubes["xsite2"].namespace, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
+			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret(serviceAccount, tesKubes["xsite2"].namespace, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
 			tutils.ExpectNoError(err)
 
 			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, tokenSecretXsite2.Data["token"]))
