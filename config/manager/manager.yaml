@@ -22,7 +22,7 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
-      serviceAccountName: infinispan-operator
+      serviceAccountName: controller-manager
       containers:
       - name: manager
         image: controller:latest
