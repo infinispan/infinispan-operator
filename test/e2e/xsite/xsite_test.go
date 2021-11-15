@@ -296,6 +296,7 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 				defer tesKubes[site].kube.DeleteSecret(routerSecret)
 				defer tesKubes[site].kube.DeleteSecret(trustSecret)
 			}
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption = &ispnv1.EncryptionSiteSpec{}
 			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = ispnv1.CrossSiteKeyStore{
 				SecretName: transportSecretName,
 			}
@@ -329,6 +330,7 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 				defer tesKubes[site].kube.DeleteSecret(trustSecret)
 			}
 
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption = &ispnv1.EncryptionSiteSpec{}
 			if tlsProtocol != nil {
 				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
 			}
