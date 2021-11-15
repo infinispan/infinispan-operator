@@ -16,7 +16,7 @@ pipeline {
     }
 
     options {
-        timeout(time: 90, unit: 'MINUTES')
+        timeout(time: 120, unit: 'MINUTES')
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: '100', daysToKeepStr: '61'))
     }
@@ -105,7 +105,7 @@ pipeline {
                 stage('Xsite') {
                     steps {
                         sh 'scripts/ci/configure-xsite.sh'
-                        sh 'INFINISPAN_MEMORY="1Gi" go test -v ./test/e2e/xsite/ -timeout 30m'
+                        sh 'INFINISPAN_MEMORY="1Gi" go test -v ./test/e2e/xsite/ -timeout 45m'
                     }
                 }
             }
