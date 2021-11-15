@@ -29,10 +29,6 @@ for INSTANCE_IDX in 1 2; do
   kubectl -n ${TESTING_NAMESPACE_XSITE} patch deployment infinispan-operator-controller-manager -p \
   '{"spec": {"template": {"spec":{"containers":[{"name":"manager","imagePullPolicy":"Never","env": [{"name": "TEST_ENVIRONMENT","value": "true"}]}]}}}}'
 
-  # Creating service account for the cross cluster token based auth
-  kubectl create clusterrole xsite-cluster-role --verb=get,list,watch --resource=nodes,services
-  kubectl create clusterrolebinding xsite-cluster-role-binding --clusterrole=xsite-cluster-role --serviceaccount=infinispan-operator-controller-manager
-
   # Configuring MetalLB (https://metallb.universe.tf/) for real LoadBalancer setup on Kind
   KIND_SUBNET=$(docker network inspect -f '{{ (index .IPAM.Config 0).Subnet }}' kind | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}")
   echo "Using Kind Subnet '${KIND_SUBNET}' in MetalLB"
