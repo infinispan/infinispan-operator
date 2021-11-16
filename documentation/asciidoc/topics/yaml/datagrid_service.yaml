@@ -6,6 +6,8 @@ metadata:
     infinispan.org/monitoring: 'true'
 spec:
   replicas: 6
+  upgrades:
+    type: Shutdown
   service:
     type: DataGrid
     container:

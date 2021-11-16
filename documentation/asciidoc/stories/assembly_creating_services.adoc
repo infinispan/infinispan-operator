@@ -28,7 +28,6 @@ include::{topics}/ref_cache_service_resources.adoc[leveloffset=+2]
 include::{topics}/con_automatic_scaling.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
 
-
 //Container resources and storage
 include::{topics}/proc_allocating_storage.adoc[leveloffset=+1]
 include::{topics}/ref_persistent_cache_store.adoc[leveloffset=+2]

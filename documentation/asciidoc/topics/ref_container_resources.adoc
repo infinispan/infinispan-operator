@@ -9,7 +9,7 @@ You can set JVM options in `Infinispan` CR as well as CPU and memory allocation.
 include::yaml/container_resources.yaml[]
 ----
 
-[%header,cols=2*]
+[%header,%autowidth,cols="1,1",stripes=even]
 |===
 |Field
 |Description
