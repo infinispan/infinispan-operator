@@ -75,6 +75,12 @@ pipeline {
                     }
                 }
 
+                stage('Hot Rod Rolling Upgrade') {
+                    steps {
+                         sh 'make hotrod-upgrade-test'
+                    }
+                }
+
                 stage('Batch') {
                     steps {
                         sh 'make batch-test PARALLEL_COUNT=2'

@@ -115,7 +115,7 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	host, client := tutils.HTTPSClientAndHost(spec, tlsConfig, testKube)
 	checkRestConnection(host, client)
 
-	namespacedName := types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}
+	namespacedName := types.NamespacedName{Namespace: spec.Namespace, Name: spec.GetStatefulSetName()}
 	// Get the cluster's StatefulSet and current generation
 	ss := appsv1.StatefulSet{}
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
@@ -635,7 +635,7 @@ func verifyStatefulSetUpdate(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infin
 	// Get the associate StatefulSet
 	ss := appsv1.StatefulSet{}
 	// Get the current generation
-	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss))
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetStatefulSetName()}, &ss))
 	generation := ss.Status.ObservedGeneration
 
 	tutils.ExpectNoError(testKube.UpdateInfinispan(&ispn, func() {
@@ -898,7 +898,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	ss := appsv1.StatefulSet{}
 
 	// Get the current generation
-	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss))
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.GetStatefulSetName()}, &ss))
 	generation := ss.Status.ObservedGeneration
 
 	err = testKube.UpdateInfinispan(&spec, func() {

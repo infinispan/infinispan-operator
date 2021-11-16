@@ -508,6 +508,13 @@ func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duratio
 	}, nil)
 }
 
+func (k TestKubernetes) WaitForInfinispanPodsCreatedBy(required int, timeout time.Duration, createdByLabel string, namespace string) {
+	k.WaitForPods(required, timeout, &client.ListOptions{
+		Namespace:     namespace,
+		LabelSelector: labels.SelectorFromSet(map[string]string{consts.StatefulSetPodLabel: createdByLabel}),
+	}, nil)
+}
+
 // WaitForPods waits for pods with given ListOptions to reach the desired count in ContainersReady state
 func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps *client.ListOptions, callback func([]corev1.Pod) bool) {
 	podList := &corev1.PodList{}
@@ -774,6 +781,36 @@ func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition 
 		return false, nil
 	})
 	ExpectNoError(err)
+}
+
+func (k TestKubernetes) WaitForStateFulSetRemoval(name string, namespace string) {
+	statefulSet := &appsv1.StatefulSet{}
+	err := wait.Poll(ConditionPollPeriod, 2*ConditionWaitTimeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, statefulSet)
+		if err != nil && k8serrors.IsNotFound(err) {
+			return true, err
+		}
+		if err != nil {
+			return false, nil
+		}
+		return false, nil
+	})
+	ExpectMaybeNotFound(err)
+}
+
+func (k TestKubernetes) WaitForStateFulSet(name string, namespace string) {
+	statefulSet := &appsv1.StatefulSet{}
+	err := wait.Poll(ConditionPollPeriod, 2*ConditionWaitTimeout, func() (done bool, err error) {
+		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, statefulSet)
+		if err != nil && k8serrors.IsNotFound(err) {
+			return false, err
+		}
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+	ExpectMaybeNotFound(err)
 }
 
 func GetServerName(i *ispnv1.Infinispan) string {

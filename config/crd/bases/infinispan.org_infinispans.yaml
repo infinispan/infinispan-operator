@@ -972,6 +972,14 @@ spec:
                     - Cache
                     type: string
                 type: object
+              upgrades:
+                description: Strategy to use when doing upgrades
+                properties:
+                  type:
+                    type: string
+                required:
+                - type
+                type: object
             required:
             - replicas
             type: object
@@ -1000,6 +1008,15 @@ spec:
               consoleUrl:
                 description: Infinispan Console URL
                 type: string
+              hotRodRollingUpgradeStatus:
+                properties:
+                  SourceStatefulSetName:
+                    type: string
+                  TargetStatefulSetName:
+                    type: string
+                  stage:
+                    type: string
+                type: object
               podStatus:
                 description: The Pod's currently in the cluster
                 properties:
