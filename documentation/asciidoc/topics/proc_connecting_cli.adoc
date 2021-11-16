@@ -15,20 +15,20 @@ Start a remote shell session to {brandname} clusters and use the command line in
 +
 [source,bash,options="nowrap",subs=attributes+]
 ----
-$ {kube_client} infinispan shell infinispan
+$ {kube_client} infinispan shell <cluster_name>
 ----
 +
 [NOTE]
 ====
-The `kubectl-infinispan` plugin automatically detects the default `developer` credentials and uses them to authenticate to {brandname}.
-If you are using custom credentials, specify a {brandname} user with the `--username` argument and enter the corresponding password when prompted.
+If you have access to authentication secrets and there is only one {brandname} user the `kubectl-infinispan` plugin automatically detects your credentials and authenticates to {brandname}.
+If your deployment has multiple {brandname} credentials, specify a user with the `--username` argument and enter the corresponding password when prompted.
 ====
 +
 . Perform CLI operations as required.
 +
 [TIP]
 ====
-Press the tab key or use the [command]`help` command to view available options and command manpages.
+Press the tab key or use the [command]`--help` argument to view available options and help text.
 ====
 +
 . Use the [command]`quit` command to end the remote shell session.
