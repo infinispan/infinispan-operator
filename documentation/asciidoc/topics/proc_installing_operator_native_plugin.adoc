@@ -15,8 +15,8 @@ Install {ispn_operator} with the native {brandname} CLI plugin, `kubectl-infinis
 [source,bash,options="nowrap",subs=attributes+]
 ----
 $ {kube_client} infinispan install --channel={operator_channel}
-                        --source=redhat-operators
-                        --source-namespace=openshift-marketplace
+                             --source=redhat-operators
+                             --source-namespace=openshift-marketplace
 ----
 +
 . Verify the installation.
