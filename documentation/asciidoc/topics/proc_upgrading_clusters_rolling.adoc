@@ -7,11 +7,13 @@ However, this upgrade type requires additional capacity and temporarily results 
 
 .Prerequisites
 
-* Disable passivation for any caches that use persistent cache store configuration, if necessary.
+* Ensure that caches do not use passivation with persistent cache stores during the upgrade.
++
+If necessary you should recreate caches and disable passivation before proceeding with the upgrade.
 +
 [IMPORTANT]
 ====
-During a Hot Rod rolling upgrade passivation can result in unnecessary write operations to persistent storage.
+In the event that the upgrade does not complete successfully, passivation can result in data loss when {ispn_operator} rolls back the target cluster.
 ====
 
 .Procedure
