@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	. "github.com/infinispan/infinispan-operator/controllers/constants"
@@ -21,15 +25,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	"regexp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"strconv"
-	"strings"
 )
 
 type HotRodRollingUpgradeReconciler struct {
@@ -429,7 +429,7 @@ func (r *HotRodRollingUpgradeRequest) replaceStatefulSet() (ctrl.Result, error) 
 	}
 
 	// Change statefulSet reference in the Infinispan resource and move to next stage
-	_, err := controllerutil.CreateOrPatch(r.ctx, r, ispn, func() error {
+	_, err := kube.CreateOrPatch(r.ctx, r, ispn, func() error {
 		if ispn.CreationTimestamp.IsZero() {
 			return kerrors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), ispn.Name)
 		}
@@ -505,7 +505,7 @@ func (r *HotRodRollingUpgradeRequest) cleanup(statefulSetName string, rollback b
 	}
 
 	// Remove HotRodRollingUpgradeStatus status from the Infinispan CR
-	_, err = controllerutil.CreateOrPatch(r.ctx, r, ispn, func() error {
+	_, err = kube.CreateOrPatch(r.ctx, r, ispn, func() error {
 		rollingUpgradeStatus := ispn.Status.HotRodRollingUpgradeStatus
 		if rollback {
 			ispn.Status.StatefulSetName = rollingUpgradeStatus.SourceStatefulSetName
@@ -542,7 +542,7 @@ func (r *HotRodRollingUpgradeRequest) changeSelector(serviceName string, selecto
 	if result, err := kube.LookupResource(serviceName, namespace, service, r.infinispan, r, r.log, r.eventRec, r.ctx); result != nil {
 		return *result, err
 	}
-	_, err := controllerutil.CreateOrPatch(r.ctx, r, service, func() error {
+	_, err := kube.CreateOrPatch(r.ctx, r, service, func() error {
 		if r.infinispan.CreationTimestamp.IsZero() {
 			return kerrors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), r.infinispan.Name)
 		}
@@ -576,7 +576,7 @@ func (r *HotRodRollingUpgradeRequest) redirectServices(statefulSet string) (ctrl
 }
 
 func (r *HotRodRollingUpgradeRequest) updateInfinispan(updateFunc func(ispn *ispnv1.Infinispan)) (reconcile.Result, error) {
-	_, err := controllerutil.CreateOrPatch(r.ctx, r, r.infinispan, func() error {
+	_, err := kube.CreateOrPatch(r.ctx, r, r.infinispan, func() error {
 		if r.infinispan.CreationTimestamp.IsZero() {
 			return kerrors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), r.infinispan.Name)
 		}
