@@ -72,7 +72,7 @@ public class Infinispan {
          }
       };
 
-      new SimpleWaiter(bs).timeout(TimeUnit.MINUTES, 3).waitFor();
+      new SimpleWaiter(bs).timeout(TimeUnit.MINUTES, 5).waitFor();
 
       if(openShift.getLabeledPods("clusterName", clusterName).size() != infinispanObject.getSpec().getReplicas()) {
          throw new IllegalStateException(clusterName + " is WellFormed but cluster pod count doesn't match expected replicas!");
