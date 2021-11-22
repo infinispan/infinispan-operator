@@ -7,6 +7,7 @@ import cz.xtf.core.openshift.*;
 import cz.xtf.core.waiting.SimpleWaiter;
 import cz.xtf.core.waiting.Waiters;
 import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.rbac.*;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.openshift.api.model.operatorhub.v1.OperatorGroup;
@@ -71,14 +72,14 @@ public class MonitoringStackIT {
         grafanaShift.recreateProject();
         grafanaShift.operatorHub().operatorGroups().create(operatorGroup);
         grafanaShift.operatorHub().subscriptions().create(grafanaSubscription);
-        grafanaWaiter.areExactlyNPodsRunning(1, "name", "grafana-operator").waitFor();
+        grafanaWaiter.areExactlyNPodsRunning(1, "control-plane", "controller-manager").waitFor();
 
         // Deploy Grafana server and Datasource
         String grafanaPath = "src/test/resources/monitoring/grafana.yaml";
         Map<String, Object> grafana = new ObjectMapper(new YAMLFactory()).readValue(new File(grafanaPath), Map.class);
 
         grafanaShift.customResource(gcp).create(grafanaNamespace, grafana);
-        grafanaShift.addRoleToServiceAccount("cluster-monitoring-view", "ClusterRole","grafana-serviceaccount", grafanaNamespace);
+        createClusterRoleBindingForGrafana();
         grafanaWaiter.areExactlyNPodsRunning(1, "app", "grafana").waitFor();
 
         ServiceAccount grafanaSA = grafanaShift.getServiceAccount("grafana-serviceaccount");
@@ -95,6 +96,20 @@ public class MonitoringStackIT {
 
         // Restart the Operator to recreate the Dashboard in the Grafana namespace
         operatorShift.pods().withLabel("name", "infinispan-operator").delete();
+    }
+
+    static void createClusterRoleBindingForGrafana() {
+        Subject subject = new SubjectBuilder()
+                .withKind("ServiceAccount")
+                .withName("grafana-serviceaccount")
+                .withNamespace("grafana").build();
+
+        ClusterRoleBinding crb = new ClusterRoleBindingBuilder()
+                .withNewMetadata().withName("grafana-monitor").endMetadata()
+                .withNewRoleRef().withKind("ClusterRole").withName("cluster-monitoring-view").endRoleRef()
+                .build();
+        crb.getSubjects().add(subject);
+        grafanaShift.rbac().clusterRoleBindings().createOrReplace(crb);
     }
 
     /**
