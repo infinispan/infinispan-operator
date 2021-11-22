@@ -14,7 +14,7 @@ a load balancer service.
 
 . Include `spec.expose` in your `Infinispan` CR.
 . Specify `LoadBalancer` as the service type with the `spec.expose.type` field.
-. Optionally specify the network port where the service is exposed with the `spec.expose.port` field. The default port is `7900`.
+. Optionally specify the network port where the service is exposed with the `spec.expose.port` field.
 +
 [source,options="nowrap",subs=attributes+]
 ----
