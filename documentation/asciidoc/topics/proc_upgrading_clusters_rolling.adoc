@@ -5,17 +5,6 @@
 Performing Hot Rod rolling upgrades lets you move to a new {brandname} version without service disruption.
 However, this upgrade type requires additional capacity and temporarily results in two {brandname} clusters with different versions running concurrently.
 
-.Prerequisites
-
-* Ensure that caches do not use passivation with persistent cache stores during the upgrade.
-+
-If necessary you should recreate caches and disable passivation before proceeding with the upgrade.
-+
-[IMPORTANT]
-====
-In the event that the upgrade does not complete successfully, passivation can result in data loss when {ispn_operator} rolls back the target cluster.
-====
-
 .Procedure
 
 . Specify `HotRodRolling` as the value for the `spec.upgrades.type` field.
