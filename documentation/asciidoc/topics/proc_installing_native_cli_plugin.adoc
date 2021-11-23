@@ -49,6 +49,6 @@ $ {kube_client} infinispan --help
 .Additional resources
 //Community content
 ifdef::community[]
-* link:{link_k8s_plugins}
+* {link_k8s_plugins}
 endif::community[]
-* link:{link_os_plugins}
+* {link_os_plugins}
