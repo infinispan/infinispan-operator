@@ -236,7 +236,8 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			testKube.context = fmt.Sprintf("kind-%s", instance)
 			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, instance)
 			testKube.kube = tutils.NewTestKubernetes(testKube.context)
-			apiServerUrl, err := url.Parse(clientConfig.Clusters[testKube.context].Server)
+			clusterContextName := clientConfig.Contexts[testKube.context].Cluster
+			apiServerUrl, err := url.Parse(clientConfig.Clusters[clusterContextName].Server)
 			tutils.ExpectNoError(err)
 			testKube.apiServer = apiServerUrl.Host
 		}
@@ -247,10 +248,12 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
 		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
-			serviceAccount := "infinispan-operator-controller-manager"
-			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret(serviceAccount, tesKubes["xsite1"].namespace, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
+			serviceAccount := tutils.OperatorSAName
+			operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite1"].namespace)
+			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite1, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
 			tutils.ExpectNoError(err)
-			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret(serviceAccount, tesKubes["xsite2"].namespace, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
+			operatorNamespaceSite2 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite2"].namespace)
+			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite2, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
 			tutils.ExpectNoError(err)
 
 			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, tokenSecretXsite2.Data["token"]))
