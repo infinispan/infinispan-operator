@@ -8,7 +8,7 @@ metadata:
     certified: "false"
     containerImage: <IMAGE>
     description: Create and manage Infinispan clusters.
-    olm.skipRange: '>= 2.2.0 <2.2.1'
+    olm.skipRange: '>=2.1.x <2.2.1'
     repository: https://github.com/infinispan/infinispan-operator
   name: infinispan-operator.v0.0.0
   namespace: placeholder
@@ -269,5 +269,5 @@ spec:
   maturity: alpha
   provider:
     name: Infinispan
-  replaces: infinispan-operator.v2.1.5
+  replaces: infinispan-operator.v2.2.0
   version: 0.0.0
