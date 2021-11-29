@@ -242,9 +242,7 @@ endif
 .PHONY: catalog-build
 ## Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
 catalog-build: opm ## Build a catalog image.
-## Command has to be executed as sudo to overcome https://github.com/operator-framework/operator-registry/issues/870
-## that is being encountered with the latest quay.io/operatorhubio/catalog releases
-	sudo $(OPM) index add --container-tool $(CONTAINER_TOOL) --mode replaces --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	$(OPM) index add --container-tool $(CONTAINER_TOOL) --mode replaces --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 .PHONY: catalog-push
 ## Push the catalog image.
