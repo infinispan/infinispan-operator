@@ -30,6 +30,7 @@ var (
 	MultiNamespace    = strings.ToLower(constants.GetEnvWithDefault("TESTING_MULTINAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
 	OperatorNamespace = strings.ToLower(constants.GetEnvWithDefault("TESTING_OPERATOR_NAMESPACE", ""))
 	OperatorName      = "infinispan-operator"
+	OperatorSAName    = strings.ToLower(constants.GetEnvWithDefault("OPERATOR_SA_NAME", "infinispan-operator-controller-manager"))
 	RunLocalOperator  = strings.ToUpper(constants.GetEnvWithDefault("RUN_LOCAL_OPERATOR", "true"))
 	RunSaOperator     = strings.ToUpper(constants.GetEnvWithDefault("RUN_SA_OPERATOR", "false"))
 	CleanupInfinispan = strings.ToUpper(constants.GetEnvWithDefault("CLEANUP_INFINISPAN_ON_FINISH", "true"))
