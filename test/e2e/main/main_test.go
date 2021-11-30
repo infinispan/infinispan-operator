@@ -1095,6 +1095,9 @@ func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identi
 }
 
 func TestExternalDependenciesHttp(t *testing.T) {
+	if os.Getenv("NO_NGINX") != "" {
+		t.Skip("Skipping test, no Nginx available.")
+	}
 	webServerConfig := prepareWebServer()
 	defer testKube.DeleteResource(tutils.Namespace, labels.SelectorFromSet(map[string]string{"app": tutils.WebServerName}), webServerConfig, tutils.SinglePodTimeout)
 
