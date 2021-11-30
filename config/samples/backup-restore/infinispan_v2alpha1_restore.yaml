@@ -3,7 +3,6 @@ kind: Restore
 metadata:
   name: example-restore
 spec:
-  path: asdasd
   cluster: example-infinispan
   container:
     extraJvmOpts: "-Djava.property=me"
