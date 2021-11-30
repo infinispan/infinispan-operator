@@ -6,6 +6,8 @@ metadata:
     infinispan.org/monitoring: 'true'
 spec:
   replicas: 2
+  upgrades:
+    type: Shutdown
   service:
     type: Cache
     replicationFactor: 2

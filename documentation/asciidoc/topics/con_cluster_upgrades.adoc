@@ -1,0 +1,36 @@
+[id='cluster-upgrades_{context}']
+= {brandname} cluster upgrades
+
+[role="_abstract"]
+The `spec.upgrades.type` field controls how {ispn_operator} upgrades your {brandname} cluster when new versions become available.
+There are two types of cluster upgrade:
+
+`Shutdown`:: Upgrades {brandname} clusters with service downtime. This is the default upgrade type.
+`HotRodRolling`:: Upgrades {brandname} clusters without service downtime.
+
+[discrete]
+== Shutdown upgrades
+
+To perform a shutdown upgrade, {ispn_operator} does the following:
+
+. Gracefully shuts down the existing cluster.
+. Removes the existing cluster.
+. Creates a new cluster with the target version.
+
+[discrete]
+== Hot Rod rolling upgrades
+
+To perform a Hot Rod rolling upgrade, {ispn_operator} does the following:
+
+. Creates a new {brandname} cluster with the target version that runs alongside your existing cluster.
+. Creates a remote cache store to transfer data from the existing cluster to the new cluster.
+. Redirects all clients to the new cluster.
+. Removes the existing cluster when all data and client connections are transferred to the new cluster.
+
+[IMPORTANT]
+====
+You should not perform Hot Rod rolling upgrades with caches that enable passivation with persistent cache stores.
+In the event that the upgrade does not complete successfully, passivation can result in data loss when {ispn_operator} rolls back the target cluster.
+
+If your cache configuration enables passivation you should perform a shutdown upgrade.
+====
