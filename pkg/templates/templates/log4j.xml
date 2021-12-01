@@ -1,20 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration
-        name="InfinispanServerConfig" monitorInterval="60" shutdownHook="disable">
+<Configuration name="InfinispanServerConfig" monitorInterval="60" shutdownHook="disable">
     <Appenders>
         <!-- Colored output on the console -->
         <Console name="STDOUT">
-            <PatternLayout pattern="{{ .Logging.Console.Pattern }}"/>
+            <PatternLayout pattern="%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n"/>
         </Console>
     </Appenders>
 
     <Loggers>
         <Root level="INFO">
-            <AppenderRef ref="STDOUT" level="{{ .Logging.Console.Level | UpperCase }}"/>
+            <AppenderRef ref="STDOUT" level="TRACE"/>
         </Root>
 
-        {{ range $key, $value := .Logging.Categories }}
+        {{- range $key, $value := .Categories }}
         <Logger name="{{ $key }}" level="{{ $value | UpperCase }}"/>
-        {{ end }}
+        {{- end }}
     </Loggers>
 </Configuration>

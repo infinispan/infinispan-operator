@@ -55,7 +55,6 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 
 	// use the local/internal service host & port to avoid unecessary hops with external services
 	xsite := &config.XSite{
-		Transport:     "tunnel",
 		MaxRelayNodes: maxRelayNodes,
 	}
 
