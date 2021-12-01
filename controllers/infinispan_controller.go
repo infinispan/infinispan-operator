@@ -14,12 +14,10 @@ import (
 	hash "github.com/infinispan/infinispan-operator/pkg/hash"
 	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus/common/log"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	ingressv1 "k8s.io/api/networking/v1"
@@ -1178,10 +1176,6 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 
 	podResources, err := PodResources(ispn.Spec.Container)
 	if err != nil {
-		return nil, err
-	}
-	serverConf := &config.InfinispanConfiguration{}
-	if err = yaml.Unmarshal([]byte(configMap.Data[consts.ServerConfigFilename]), serverConf); err != nil {
 		return nil, err
 	}
 	dep := &appsv1.StatefulSet{
