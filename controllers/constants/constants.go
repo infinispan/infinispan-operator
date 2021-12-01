@@ -85,7 +85,7 @@ const (
 	SiteRouterKeyStoreRoot              = ServerEncryptRoot + "/router-site-tls"
 	SiteTrustStoreRoot                  = ServerEncryptRoot + "/truststore-site-tls"
 	ServerSecurityRoot                  = "/etc/security"
-	ServerConfigFilename                = "infinispan.yaml"
+	ServerConfigFilename                = "infinispan.xml"
 	ServerConfigPath                    = ServerConfigRoot + "/" + ServerConfigFilename
 	ServerIdentitiesFilename            = "identities.yaml"
 	ServerAdminUsersPropertiesFilename  = "admin-users.properties"

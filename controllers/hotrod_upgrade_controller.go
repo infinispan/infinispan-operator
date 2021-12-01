@@ -14,7 +14,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	"github.com/infinispan/infinispan-operator/pkg/http/curl"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/logging"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/upgrades"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -222,9 +222,9 @@ func getSourceStatefulSetName(ispn *ispnv1.Infinispan) string {
 // createNewStatefulSet Creates a new statefulSet to migrate the existing cluster to
 func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error) {
 	// Reconcile configmap with new DNS query
-	configMap, err := r.reconcileNewConfigMap()
+	configMap, result, err := r.reconcileNewConfigMap()
 	if err != nil {
-		return reconcile.Result{}, err
+		return result, err
 	}
 
 	// Reconcile ping service with new DNS query
@@ -241,7 +241,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 	}
 
 	// Redirect the admin service to the current statefulSet
-	result, err := r.redirectServiceToStatefulSet(r.infinispan.GetAdminServiceName(), r.currentStatefulSet)
+	result, err = r.redirectServiceToStatefulSet(r.infinispan.GetAdminServiceName(), r.currentStatefulSet)
 	if err != nil {
 		return result, err
 	}
@@ -636,52 +636,40 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewPingService() error {
 }
 
 // reconcileNewConfigMap Creates a new configMap based on the existing (but with different ping discovery) for the new statefulSet
-func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap, error) {
+func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap, reconcile.Result, error) {
 	namespace := r.infinispan.GetNamespace()
 	targetStatefulSetName := getOrCreateTargetStatefulSetName(r.infinispan)
 	newConfigName := fmt.Sprintf("%v-configuration", targetStatefulSetName)
 
 	// Check if it was already created
-	newConfigMap := &corev1.ConfigMap{}
-	err := r.Get(r.ctx, types.NamespacedName{Namespace: namespace, Name: newConfigName}, newConfigMap)
-	if err == nil || !kerrors.IsNotFound(err) {
-		return newConfigMap, err
-	}
-
-	name := r.infinispan.GetConfigName()
-	configMapObject := &corev1.ConfigMap{
+	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      newConfigName,
+			Namespace: r.infinispan.Namespace,
 		},
 	}
-	// If not, obtain the existing configmap
-	err = r.Get(r.ctx, types.NamespacedName{Namespace: namespace, Name: name}, configMapObject)
-	if err != nil {
-		return nil, fmt.Errorf("error obtaining the configMap '%s': %w", name, err)
-	}
-	// Modify the DNS Ping name in the config
-	cfg, err := config.FromYaml(configMapObject.Data[ServerConfigFilename])
-	if err != nil {
-		return nil, err
-	}
-	cfg.JGroups.DNSPing.Query = fmt.Sprintf("%s-ping.%s.svc.cluster.local", targetStatefulSetName, namespace)
-	yaml, err := cfg.Yaml()
-	if err != nil {
-		return nil, fmt.Errorf("error converting current config to Yaml : %w", err)
-	}
-	// Save modified config
-	xmlConfig, loggingConfig, err := cfg.Xml()
-	if err != nil {
-		return nil, fmt.Errorf("error converting modified config to xml : %w", err)
+	err := r.Get(r.ctx, types.NamespacedName{Namespace: namespace, Name: newConfigName}, configMap)
+	if err == nil || !kerrors.IsNotFound(err) {
+		return configMap, reconcile.Result{}, err
 	}
 
-	// Clone existing configMap changing the inner data
-	newConfig := configMapObject.DeepCopy()
-	newConfig.Data = map[string]string{ServerConfigFilename: yaml, "infinispan.xml": xmlConfig, "log4j.xml": loggingConfig}
-	newConfig.Name = newConfigName
-	newConfig.ObjectMeta.ResourceVersion = ""
-	return newConfig, r.Create(r.ctx, newConfig)
+	serverConfig, result, err := GenerateServerConfig(targetStatefulSetName, r.infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
+	if result != nil {
+		return nil, *result, err
+	}
+
+	loggingConfig := &logging.Spec{
+		Categories: r.infinispan.GetLogCategoriesForConfig(),
+	}
+
+	// TODO utilise the version of the server being upgraded to once server/operator versions decoupled
+	log4jXml, err := logging.Generate(nil, loggingConfig)
+	if err != nil {
+		return nil, reconcile.Result{}, err
+	}
+	InitServerConfigMap(configMap, r.infinispan, serverConfig, log4jXml)
+
+	return configMap, reconcile.Result{}, r.Create(r.ctx, configMap)
 }
 
 // rollback Undo changes of a partial upgrade
