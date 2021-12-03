@@ -1,5 +1,21 @@
 #!/usr/bin/env groovy
 
+void debugKind(boolean xsite, String... contexts) {
+    for (String context : contexts) {
+        sh "kubectl config use-context ${context}"
+        sh 'kubectl get events --all-namespaces'
+        sh 'kubectl cluster-info'
+        if (xsite) {
+            sh "kubectl config get-contexts -o name | grep -q ${context} && kubectl logs daemonset/speaker -n metallb-system --context ${context} || true"
+            sh "kubectl config get-contexts -o name | grep -q ${context} && kubectl logs deployment/controller -n metallb-system --context ${context} || true"
+        }
+    }
+    sh 'df -h'
+    sh 'docker ps -a'
+    sh 'for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done'
+}
+
+
 pipeline {
     agent {
         label 'slave-group-k8s'
@@ -113,6 +129,12 @@ pipeline {
                         sh 'scripts/ci/configure-xsite.sh'
                         sh 'INFINISPAN_MEMORY="1Gi" go test -v ./test/e2e/xsite/ -timeout 45m'
                     }
+
+                    post {
+                        failure {
+                            debugKind(true, 'kind-xsite1', 'kind-xsite2')
+                        }
+                    }
                 }
             }
         }
@@ -120,16 +142,7 @@ pipeline {
 
     post {
         failure {
-            sh "kubectl config use-context $TESTING_CONTEXT"
-            sh 'kubectl get events --all-namespaces'
-            sh 'kubectl cluster-info'
-            sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl logs daemonset/speaker -n metallb-system --context kind-xsite1 || true'
-            sh 'kubectl config get-contexts -o name | grep -q kind-xsite1 && kubectl logs deployment/controller -n metallb-system --context kind-xsite1 || true'
-            sh 'kubectl config get-contexts -o name | grep -q kind-xsite2 && kubectl logs daemonset/speaker -n metallb-system --context kind-xsite2 || true'
-            sh 'kubectl config get-contexts -o name | grep -q kind-xsite2 && kubectl logs deployment/controller -n metallb-system --context kind-xsite2 || true'
-            sh 'df -h'
-            sh 'docker ps -a'
-            sh 'for log in $(docker ps -qa | xargs); do docker logs --tail 500 $log; done'
+            debugKind(false, env.TESTING_CONTEXT)
         }
 
         cleanup {
@@ -138,6 +151,7 @@ pipeline {
             sh 'docker container prune -f'
             sh 'docker rmi $(docker images -f "dangling=true" -q) || true'
             sh 'docker volume prune -f || true'
+            sh 'docker network prune -f || true'
         }
     }
 }
