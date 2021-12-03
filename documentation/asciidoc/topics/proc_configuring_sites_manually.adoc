@@ -1,5 +1,5 @@
 [id='configuring-sites-manually_{context}']
-= Configuring cross-site connections manually
+= Manually configuring cross-site connections
 
 [role="_abstract"]
 You can specify static network connection details to perform cross-site replication with {brandname} clusters running outside {k8s}.

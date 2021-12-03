@@ -1,45 +1,20 @@
 [id='managed-cross-site-connections_{context}']
-= Managed cross-site connections
+= Managed cross-site replication
 
 [role="_abstract"]
 {ispn_operator} can discover {brandname} clusters running in different data centers to form global clusters.
 
-The following diagram illustrates two separate {brandname} clusters running in New York City, **NYC**, and London, **LON** that exchange JGroups `RELAY` messages to perform cross-site replication:
+When you configure managed cross-site connections, {ispn_operator} creates router pods in each {brandname} cluster.
+{brandname} pods use the `<cluster_name>-site` service to connect to these router pods and send backup requests.
 
-.Managed cross-site connections
-ifdef::community[]
-image::operator-cross-site.svg[This diagram depicts two clusters in separate data centers that use RELAY messages for cross-site replication.]
-endif::community[]
-ifdef::downstream[]
-image::operator-cross-site.png[This diagram depicts two clusters in separate data centers that use RELAY messages for cross-site replication.]
-endif::downstream[]
+Router pods maintain a record of all pod IP addresses and parse RELAY message headers to forward backup requests to the correct {brandname} cluster.
+If a router pod crashes then all {brandname} pods start using any other available router pod until {k8s} restores it.
 
-Managed cross-site connections use router pods to send RELAY messages to the correct cluster.
-These router pods are GossipRouter instances that keep a record of all IP addresses for pods in the cluster.
-
-To manage cross-site connections, {ispn_operator}:
-
-. Creates a router pod for each cluster.
-. Uses the Kubernetes API to retrieve IP addresses for the `<cluster_name>-site` service at each cluster.
-+
 [IMPORTANT]
 ====
-{ispn_operator} in each {openshiftshort} cluster must have network access to the remote Kubernetes API.
+To manage cross-site connections, {ispn_operator} uses the Kubernetes API.
+Each {openshiftshort} cluster must have network access to the remote Kubernetes API and a service account token for each backup cluster.
 ====
-+
-. Provides the `<cluster_name>-site` service details to all pods that send RELAY messages for cross-site replication.
-
-Relay pods can then connect to router pods through the `<cluster_name>-site` service and perform cross-site replication.
-
-[discrete]
-== How managed cross-site connections work
-
-You configure the number of pods in each cluster that can send RELAY messages for cross-site replication with the `sites.local.maxRelayNodes` field.
-Those relay pods send RELAY messages to router pods at random.
-The router pods then parse the RELAY message headers to forward cross-site replication requests to the correct backup cluster.
-
-If a router pod crashes then all relay pods send RELAY messages to any other available router pod because {ispn_operator} provides the IP addresses for all router pods to all clusters.
-When this happens {k8s} automatically creates a new router pod in the cluster to handle RELAY messages.
 
 [NOTE]
 ====
