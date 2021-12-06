@@ -554,11 +554,11 @@ func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace st
 	ispn := &ispnv1.Infinispan{}
 	err := wait.Poll(ConditionPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
-		if err != nil && k8serrors.IsNotFound(err) {
-			return false, err
-		}
 		if err != nil {
-			return false, nil
+			if k8serrors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
 		}
 		if ispn.IsConditionTrue(condition) {
 			log.Info("infinispan condition met", "condition", condition, "status", metav1.ConditionTrue)
@@ -766,11 +766,11 @@ func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition 
 	cache := &ispnv2.Cache{}
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, cache)
-		if err != nil && k8serrors.IsNotFound(err) {
-			return false, err
-		}
 		if err != nil {
-			return false, nil
+			if k8serrors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
 		}
 		for _, c := range cache.Status.Conditions {
 			if strings.EqualFold(c.Type, condition.Type) && (c.Status == condition.Status) {
@@ -787,11 +787,11 @@ func (k TestKubernetes) WaitForStateFulSetRemoval(name string, namespace string)
 	statefulSet := &appsv1.StatefulSet{}
 	err := wait.Poll(ConditionPollPeriod, 2*ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, statefulSet)
-		if err != nil && k8serrors.IsNotFound(err) {
-			return true, err
-		}
 		if err != nil {
-			return false, nil
+			if k8serrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
 		}
 		return false, nil
 	})
@@ -802,11 +802,11 @@ func (k TestKubernetes) WaitForStateFulSet(name string, namespace string) {
 	statefulSet := &appsv1.StatefulSet{}
 	err := wait.Poll(ConditionPollPeriod, 2*ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, statefulSet)
-		if err != nil && k8serrors.IsNotFound(err) {
-			return false, err
-		}
 		if err != nil {
-			return false, nil
+			if k8serrors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
 		}
 		return true, nil
 	})
