@@ -2,6 +2,9 @@
 # Modified version of the script found at https://kind.sigs.k8s.io/docs/user/local-registry/#create-a-cluster-and-registry
 set -o errexit
 
+SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:13.0'}
+KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.17.17'}
+
 # create registry container unless it already exists
 reg_name='kind-registry'
 reg_port=${KIND_PORT-'5000'}
@@ -22,7 +25,7 @@ containerdConfigPatches:
     endpoint = ["http://${reg_name}:${reg_port}"]
 nodes:
   - role: control-plane
-    image: quay.io/infinispan-test/kindest-node:v1.17.17
+    image: quay.io/infinispan-test/kindest-node:${KINDEST_NODE_VERSION}
     extraPortMappings:
       - containerPort: 30222
         hostPort: 11222
@@ -31,6 +34,9 @@ EOF
 # connect the registry to the cluster network
 # (the network may already be connected)
 docker network connect "kind" "${reg_name}" || true
+
+# Attempt to load the server image to prevent it being pulled again
+kind load docker-image $SERVER_IMAGE
 
 # Document the local registry
 # https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
