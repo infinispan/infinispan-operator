@@ -112,7 +112,7 @@ func (c Cluster) GetClusterSize(podName string) (int, error) {
 
 // GracefulShutdown performs clean cluster shutdown
 func (c Cluster) GracefulShutdown(podName string) error {
-	rsp, err, reason := c.Client.Post(podName, consts.ServerHTTPClusterStop, "", nil)
+	rsp, err, reason := c.Client.Post(podName, consts.ServerHTTPContainerShutdown, "", nil)
 	return validateResponse(rsp, reason, err, "during graceful shutdown", http.StatusNoContent)
 }
 
@@ -127,34 +127,35 @@ func (c Cluster) GracefulShutdownTask(podName string) error {
 	print("Executing operator shutdown task");
 	var System = Java.type("java.lang.System");
 	var HashSet = Java.type("java.util.HashSet");
-	var InternalCacheRegistry = Java.type("org.infinispan.registry.InternalCacheRegistry");
+	var LinkedHashSet = Java.type("java.util.LinkedHashSet");
 
 	var stdErr = System.err;
-	var icr = cacheManager.getGlobalComponentRegistry().getComponent(InternalCacheRegistry.class);
+	var gcr = cacheManager.getGlobalComponentRegistry();
+	var icr = gcr.getComponent("org.infinispan.registry.InternalCacheRegistry");
+	var cacheDependencyGraph = gcr.getComponent("org.infinispan.CacheDependencyGraph");
 
-	var cacheNames = cacheManager.getCacheNames();
-	shutdown(cacheNames);
+	var cachesToShutdown = new LinkedHashSet();
+	cachesToShutdown.addAll(cacheDependencyGraph.topologicalSort());
 
-	var internalCaches = new HashSet(icr.getInternalCacheNames());
-	/* The ___script_cache is included in both getCacheNames() and getInternalCacheNames so prevent repeated shutdown calls */
-	internalCaches.removeAll(cacheNames);
-	shutdown(internalCaches);
+	cachesToShutdown.addAll(icr.getInternalCacheNames());
+	cachesToShutdown.addAll(cacheManager.getCacheNames());
+	shutdown(cachesToShutdown);
 
 	function shutdown(cacheNames) {
-	   var it = cacheNames.iterator();
-	   while (it.hasNext()) {
-			 name = it.next();
-			 print("Shutting down cache " + name);
-			 try {
+		var it = cacheNames.iterator();
+		while (it.hasNext()) {
+			name = it.next();
+			print("Shutting down cache " + name);
+			try {
 				cacheManager.getCache(name).shutdown();
-			 } catch (err) {
+			} catch (err) {
 				stdErr.println("Encountered error trying to shutdown cache " + name + ": " + err);
-			 }
-	   }
-	}
-	`
+			}
+		}
+	}`
 	// Remove all new lines to prevent a "100 continue" response
 	task = strings.ReplaceAll(task, "\n", "")
+	task = strings.ReplaceAll(task, "\t", "")
 
 	rsp, err, reason := c.Client.Post(podName, url, task, headers)
 	if err := validateResponse(rsp, reason, err, "Uploading GracefulShutdownTask", http.StatusOK); err != nil {

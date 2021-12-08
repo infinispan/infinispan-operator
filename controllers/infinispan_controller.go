@@ -551,7 +551,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 
 	if !kube.ArePodIPsReady(podList) {
 		reqLogger.Info("Pods IPs are not ready yet")
-		return ctrl.Result{}, r.update(func() {
+		return ctrl.Result{Requeue: true, RequeueAfter: consts.DefaultWaitClusterPodsNotReady}, r.update(func() {
 			infinispan.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready")
 			infinispan.RemoveCondition(infinispanv1.ConditionCrossSiteViewFormed)
 			infinispan.Status.StatefulSetName = statefulSet.Name
@@ -1404,23 +1404,10 @@ func (r *infinispanRequest) reconcileGracefulShutdown(statefulSet *appsv1.Statef
 			logger.Info("StatefulSet.Spec.Replicas!=0")
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
 			if !ispn.IsConditionTrue(infinispanv1.ConditionStopping) {
-				res, err := r.gracefulShutdownReq(podList, logger, cluster)
-				if res != nil {
-					return res, err
-				}
-			} else {
-				// cluster has a `stopping` wait for all the pods becomes unready
-				logger.Info("Waiting that all the pods become unready")
-				for _, pod := range podList.Items {
-					if kube.IsPodReady(pod) {
-						logger.Info("One or more pods still ready", "Pod.Name", pod.Name)
-						// Stop the work and requeue until cluster is down
-						return &ctrl.Result{Requeue: true, RequeueAfter: time.Second}, nil
-					}
-				}
+				return r.gracefulShutdownReq(podList, logger, cluster)
 			}
 
-			// If here all the pods are unready, set statefulset replicas and ispn.replicas to 0
+			// If the cluster is stopping, then set statefulset replicas and ispn.replicas to 0
 			if err := r.update(func() {
 				ispn.Status.ReplicasWantedAtRestart = *statefulSet.Spec.Replicas
 			}); err != nil {
@@ -1468,35 +1455,37 @@ func (r *infinispanRequest) gracefulShutdownReq(podList *corev1.PodList, logger 
 	ispn := r.infinispan
 	logger.Info("Sending graceful shutdown request")
 	// Send a graceful shutdown to the first ready pod. If no pods are ready, then there's nothing to shutdown
+	var shutdownExecuted bool
 	for _, pod := range podList.Items {
 		if kube.IsPodReady(pod) {
 			if err := cluster.GracefulShutdown(pod.GetName()); err != nil {
 				logger.Error(err, "Error encountered on cluster shutdown")
 
-				// ISPN-13141 causes GracefulShutdown to fail if there are issues with the server
-				logger.Info("Cluster Shutdown failed. Attempting to execute GracefulShutdownTask")
+				// Calls to /container?action=shutdown will fail on 12.x servers as the method does not exist
+				logger.Info("Container Shutdown failed. Attempting to execute GracefulShutdownTask")
 				if err := cluster.GracefulShutdownTask(pod.GetName()); err != nil {
 					logger.Error(err, fmt.Sprintf("Error encountered using GracefulShutdownTask on pod %s", pod.Name))
 					continue
+				} else {
+					shutdownExecuted = true
+					break
 				}
 			} else {
+				shutdownExecuted = true
 				logger.Info("Executed graceful shutdown on pod: ", "Pod.Name", pod.Name)
 				break
 			}
 		}
 	}
 
-	logger.Info("GracefulShutdown executed. Deleting all pods")
-	deleteOptions := []client.DeleteAllOfOption{client.MatchingLabels(PodLabels(ispn.Name)), client.InNamespace(ispn.Namespace)}
-	if err := r.Client.DeleteAllOf(r.ctx, &corev1.Pod{}, deleteOptions...); err != nil && !errors.IsNotFound(err) {
-		logger.Error(err, "Error encountered deleting all Pods on GracefulShutdown")
-	}
-
-	if err := r.update(func() {
-		ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionTrue, "")
-		ispn.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionFalse, "")
-	}); err != nil {
-		return &ctrl.Result{}, err
+	if shutdownExecuted {
+		logger.Info("GracefulShutdown executed")
+		if err := r.update(func() {
+			ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionTrue, "")
+			ispn.SetCondition(infinispanv1.ConditionWellFormed, metav1.ConditionFalse, "")
+		}); err != nil {
+			return &ctrl.Result{}, err
+		}
 	}
 	// Stop the work and requeue until cluster is down
 	return &ctrl.Result{Requeue: true, RequeueAfter: time.Second}, nil

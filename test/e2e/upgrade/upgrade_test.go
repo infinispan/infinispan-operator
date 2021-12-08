@@ -114,6 +114,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
 	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
+		fmt.Printf("Installed csv: %s, Current CSV: %s", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
 		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
 		testKube.ApproveInstallPlan(sub)
 

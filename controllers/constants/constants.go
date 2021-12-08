@@ -100,15 +100,16 @@ const (
 	ServerOperatorSecurity              = ServerSecurityRoot + "/conf/operator-security"
 	ServerRoot                          = "/opt/infinispan/server"
 
-	ServerHTTPBasePath         = "rest/v2"
-	ServerHTTPCacheManagerPath = ServerHTTPBasePath + "/cache-managers/" + DefaultCacheManagerName
-	ServerHTTPHealthPath       = ServerHTTPCacheManagerPath + "/health"
-	ServerHTTPServerStop       = ServerHTTPBasePath + "/server?action=stop"
-	ServerHTTPClusterStop      = ServerHTTPBasePath + "/cluster?action=stop"
-	ServerHTTPHealthStatusPath = ServerHTTPHealthPath + "/status"
-	ServerHTTPLoggersPath      = ServerHTTPBasePath + "/logging/loggers"
-	ServerHTTPModifyLoggerPath = ServerHTTPLoggersPath + "/%s?level=%s"
-	ServerHTTPXSitePath        = ServerHTTPCacheManagerPath + "/x-site/backups"
+	ServerHTTPBasePath          = "rest/v2"
+	ServerHTTPCacheManagerPath  = ServerHTTPBasePath + "/cache-managers/" + DefaultCacheManagerName
+	ServerHTTPHealthPath        = ServerHTTPCacheManagerPath + "/health"
+	ServerHTTPServerStop        = ServerHTTPBasePath + "/server?action=stop"
+	ServerHTTPClusterStop       = ServerHTTPBasePath + "/cluster?action=stop"
+	ServerHTTPContainerShutdown = ServerHTTPBasePath + "/container?action=shutdown"
+	ServerHTTPHealthStatusPath  = ServerHTTPHealthPath + "/status"
+	ServerHTTPLoggersPath       = ServerHTTPBasePath + "/logging/loggers"
+	ServerHTTPModifyLoggerPath  = ServerHTTPLoggersPath + "/%s?level=%s"
+	ServerHTTPXSitePath         = ServerHTTPCacheManagerPath + "/x-site/backups"
 
 	EncryptTruststoreKey         = "truststore.p12"
 	EncryptTruststorePasswordKey = "truststore-password"
@@ -138,6 +139,8 @@ const (
 	DefaultLongWaitOnCreateResource = 60 * time.Second
 	//DefaultWaitClusterNotWellFormed wait delay until cluster is not well formed
 	DefaultWaitClusterNotWellFormed = 15 * time.Second
+	// DefaultWaitPodsNotReady wait delay until cluster pods are ready
+	DefaultWaitClusterPodsNotReady = 2 * time.Second
 )
 
 const (
