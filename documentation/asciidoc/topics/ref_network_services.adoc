@@ -54,7 +54,7 @@ by default.
 
 == Cross-site service
 
-Allows {brandname} to back up data between clusters in different locations.
+Allows {brandname} to back up data between clusters.
 
 [%header,cols=4*]
 |===

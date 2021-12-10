@@ -4,6 +4,12 @@
 [role="_abstract"]
 For evaluation and demonstration purposes, you can configure {brandname} to back up between pods in the same {k8s} cluster.
 
+[IMPORTANT]
+====
+Using `ClusterIP` as the expose type for cross-site replication is intended for demonstration purposes only.
+It would be appropriate to use this expose type only to perform a temporary proof-of-concept deployment on a laptop or something of that nature.
+====
+
 .Procedure
 
 . Create an `Infinispan` CR for each {brandname} cluster.

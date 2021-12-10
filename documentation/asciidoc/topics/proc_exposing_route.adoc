@@ -1,17 +1,15 @@
 [id='exposing-routes_{context}']
-= Exposing {brandname} through routes
+= Exposing {brandname} through a Route
 
 //Community
 ifdef::community[]
 [role="_abstract"]
-Use a {k8s} Ingress or an {openshiftshort} Route with passthrough encryption to
-make {brandname} clusters available on the network.
+Use a {k8s} Ingress or an {openshiftshort} `Route` with passthrough encryption to make {brandname} clusters available on the network.
 endif::community[]
 //Downstream
 ifdef::downstream[]
 [role="_abstract"]
-Use an {openshiftshort} Route with passthrough encryption to make {brandname}
-clusters available on the network.
+Use an {openshiftshort} `Route` with passthrough encryption to make {brandname} clusters available on the network.
 endif::downstream[]
 
 .Procedure
@@ -36,10 +34,10 @@ NAME                 CLASS    HOSTS   ADDRESS   PORTS   AGE
 {example_crd_name}   <none>   *                 443     73s
 ----
 
-.Route ports
-When you create a route, it exposes a port on the network that accepts client connections and redirects traffic to {brandname} services that listen on port `11222`.
+.`Route` ports
+When you create a `Route`, it exposes a port on the network that accepts client connections and redirects traffic to {brandname} services that listen on port `11222`.
 
-The port where the route is available depends on whether you use encryption or not.
+The port where the `Route` is available depends on whether you use encryption or not.
 
 [%header,cols=2*]
 |===

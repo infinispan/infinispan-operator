@@ -7,7 +7,7 @@
 .Prerequisites
 
 * Expose {brandname} on the network so you can access the REST API. +
-For example, configure a load balancer service or create a route.
+For example, configure a `LoadBalancer` service or create a `Route`.
 
 .Procedure
 

@@ -7,7 +7,7 @@ Access the console to create caches, perform adminstrative operations, and monit
 .Prerequisites
 
 * Expose {brandname} on the network so you can access the console through a browser. +
-For example, configure a load balancer service or create a route.
+For example, configure a `LoadBalancer` service or create a `Route`.
 
 .Procedure
 

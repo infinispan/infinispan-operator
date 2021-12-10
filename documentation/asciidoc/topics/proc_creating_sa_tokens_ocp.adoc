@@ -14,6 +14,12 @@ endif::community[]
 
 * Ensure all {openshiftshort} clusters have access to the Kubernetes API. +
 {ispn_operator} uses this API to manage cross-site connections.
++
+[NOTE]
+====
+{ispn_operator} does not modify remote {brandname} clusters.
+The service account tokens provide read only access through the Kubernetes API.
+====
 
 .Procedure
 
@@ -35,7 +41,7 @@ serviceaccount/lon created
 $ oc policy add-role-to-user view system:serviceaccount:<namespace>:lon
 ----
 +
-. If you use a node port service to expose {brandname} clusters on the network, you must also add the `cluster-reader` role to the service account:
+. If you use a `NodePort` service to expose {brandname} clusters on the network, you must also add the `cluster-reader` role to the service account:
 +
 [source,options="nowrap",subs=attributes+]
 ----
