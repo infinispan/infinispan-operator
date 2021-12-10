@@ -6,11 +6,13 @@ Configure {ispn_operator} to establish cross-site views with {brandname} cluster
 
 .Prerequisites
 
+* Determine a suitable expose type for cross-site replication.
 ifdef::community[]
-* Set up {openshiftshort} or {k8s} for cross-site replication.
+* Create and exchange {openshift} service account tokens for each {brandname} cluster. +
+Or, if you are using {k8s}, apply cluster roles and create site access secrets.
 endif::community[]
 ifdef::downstream[]
-* Set up {openshift} for cross-site replication.
+* Create and exchange {openshift} service account tokens for each {brandname} cluster.
 endif::downstream[]
 
 .Procedure
@@ -20,8 +22,8 @@ endif::downstream[]
 . Set the value of the `spec.service.sites.local.expose.type` field to either `NodePort` or `LoadBalancer`.
 . Optionally configure ports with the following fields:
 +
-* `spec.service.sites.local.expose.nodePort` if you use `NodePort`.
-* `spec.service.sites.local.expose.port` if you use `LoadBalancer`.
+* `spec.service.sites.local.expose.nodePort` if you use a `NodePort` service.
+* `spec.service.sites.local.expose.port` if you use a `LoadBalancer` service.
 +
 . Specify the number of pods that can send RELAY messages with the `service.sites.local.maxRelayNodes` field.
 +

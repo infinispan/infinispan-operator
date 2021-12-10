@@ -1,0 +1,29 @@
+[id='cross-site-expose-types_{context}']
+= Cross-site replication expose types
+
+[role="_abstract"]
+You can use a `NodePort` service or a `LoadBalancer` service to handle network traffic for backup operations between {brandname} clusters.
+Before you start setting up cross-site replication you should determine what expose type is available for your {openshift} cluster.
+In some cases you may require an administrator to provision services before you can configure an expose type.
+
+.`NodePort`
+
+A `NodePort` is a service that accepts network traffic at a static port, in the `30000` to `32767` range, on an IP address that is available externally to the {openshiftshort} cluster.
+
+To use a `NodePort` as the expose type for cross-site replication, an administrator must provision external IP addresses for each {openshiftshort} node.
+In most cases, an administrator must also configure DNS routing for those external IP addresses.
+
+.`LoadBalancer`
+
+A `LoadBalancer` is service that directs network traffic to the correct node in the {openshiftshort} cluster.
+
+Whether you can use a `LoadBalancer` as the expose type for cross-site replication depends on the host platform.
+AWS supports network load balancers (NLB) while some other cloud platforms do not.
+To use a `LoadBalancer` service, an administrator must first create an ingress controller backed by an NLB.
+
+[role="_additional-resources"]
+.Additional resources
+ifdef::community[]
+* link:{link_k8s_publishing_services}
+endif::community[]
+* link:{link_os_ingress_overview}
