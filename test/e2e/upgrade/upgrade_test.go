@@ -74,7 +74,10 @@ func TestUpgrade(t *testing.T) {
 	}
 
 	defer cleanup(labels)
-	testKube.CreateOperatorGroup(subName, tutils.Namespace, tutils.Namespace)
+	// Create OperatorGroup only if Subscription is created in non-global namespace
+	if subNamespace != "openshift-operators" && subNamespace != "operators" {
+		testKube.CreateOperatorGroup(subName, subNamespace, subNamespace)
+	}
 	testKube.CreateSubscription(sub)
 
 	// Approve the initial startingCSV InstallPlan
@@ -259,7 +262,7 @@ func populateCache(cacheName, host string, numEntries int, infinispan *ispnv1.In
 
 	headers := map[string]string{"Content-Type": "application/json"}
 	url := fmt.Sprintf("%s/rest/v2/caches/%s", host, cacheName)
-	config := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}}}`
+	config := `{"distributed-cache":{"mode":"SYNC", "encoding": {"media-type": "application/json"}, "persistence":{"file-store":{"fetch-state":true}}, "statistics":true}}`
 	post(url, config, http.StatusOK, headers)
 
 	for i := 0; i < numEntries; i++ {
