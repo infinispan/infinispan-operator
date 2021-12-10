@@ -19,6 +19,8 @@ endif::community[]
 
 :link_k8s_node_port: https://kubernetes.io/docs/concepts/services-networking/service/#nodeport[Type NodePort]
 
+:link_k8s_publishing_services: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types[Publishing Services (ServiceTypes)]
+
 :link_k8s_labels: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/[Labels and Selectors]
 
 :link_k8s_labels_guide: https://github.com/kubernetes/kubernetes/blob/release-1.0/docs/user-guide/labels.md[Labels: Kubernetes User Guide]
@@ -44,3 +46,5 @@ endif::community[]
 :link_os_storage: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.9/html-single/storage/index#configuring-persistent-storage[Configuring persistent storage]
 
 :link_os_plugins: https://docs.openshift.com/container-platform/4.9/cli_reference/openshift_cli/extending-cli-plugins.html[Extending the OpenShift CLI with plug-ins]
+
+:link_os_ingress_overview: https://docs.openshift.com/container-platform/4.9/networking/configuring_ingress_cluster_traffic/overview-traffic.html[Configuring ingress cluster traffic overview]

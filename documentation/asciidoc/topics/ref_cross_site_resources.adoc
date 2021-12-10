@@ -30,7 +30,7 @@ The following tables provides fields and descriptions for cross-site resources.
 |Specifies a static port within the default range of `30000` to `32767` if you expose {brandname} through a `NodePort` service. If you do not specify a port, the platform selects an available one.
 
 |`service.sites.local.expose.port`
-|Specifies the network port for the service if you expose {brandname} through a `LoadBalancer`. The default port is `7900`.
+|Specifies the network port for the service if you expose {brandname} through a `LoadBalancer` service. The default port is `7900`.
 
 |`service.sites.local.maxRelayNodes`
 |Specifies the maximum number of pods that can send RELAY messages for cross-site replication. The default value is `1`.
@@ -54,9 +54,12 @@ The following tables provides fields and descriptions for cross-site resources.
 
 ifdef::community[]
 Use `kubernetes://` if the backup location is a {k8s} instance.
-
-Use `openshift://` if the backup location is an {openshiftshort} cluster. You should specify the URL of the Kubernetes API.
 endif::community[]
+
+Use `openshift://` to specify the URL of the Kubernetes API for an {openshiftshort} cluster.
+
+Note that the `openshift://` URL must present a valid, CA-signed certificate.
+You cannot use self-signed certificates.
 
 Use the `infinispan+xsite://<hostname>:<port>` format for static hostnames and ports. The default port is `7900`.
 

@@ -17,6 +17,7 @@ You can use both managed and manual connections for {brandname} clusters in the 
 You must ensure that {brandname} clusters establish connections in the same way at each site.
 ====
 
+include::{topics}/con_cross_site_expose_types.adoc[leveloffset=+1]
 include::{topics}/con_managed_cross_site_connections.adoc[leveloffset=+1]
 include::{topics}/proc_creating_sa_tokens_ocp.adoc[leveloffset=+2]
 include::{topics}/proc_exchanging_sa_tokens.adoc[leveloffset=+2]
