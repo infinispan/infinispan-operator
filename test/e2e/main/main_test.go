@@ -605,6 +605,7 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 	cert, privKey, tlsConfig := tutils.CreateServerCertificates(serverName)
 	secret := tutils.EncryptionSecret(spec.Name, tutils.Namespace, privKey, cert)
 	testKube.CreateSecret(secret)
+	defer testKube.DeleteSecret(secret)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Security = ispnv1.InfinispanSecurity{
@@ -1413,9 +1414,8 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 
 	//Creating cache
 	cacheName := "failover-cache"
-	template := `<infinispan><cache-container><replicated-cache name ="` + cacheName +
-		`"><encoding media-type="text/plain"/></replicated-cache></cache-container></infinispan>`
-	veryLongValue := GenerateStringWithCharset(6000)
+	template := `<replicated-cache name ="` + cacheName + `"><encoding media-type="text/plain"/></replicated-cache>`
+	veryLongValue := GenerateStringWithCharset(100000)
 	hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 	createCacheWithXMLTemplate(cacheName, hostAddr, template, client)
 
@@ -1498,6 +1498,8 @@ func TestUserJsonCustomConfig(t *testing.T) {
 
 func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
 	testKube.Create(configMap)
+	defer testKube.DeleteConfigMap(configMap)
+
 	// Create a resource without passing any config
 	ispn := tutils.DefaultSpec(testKube)
 	ispn.Spec.ConfigMapName = configMap.Name
@@ -1530,6 +1532,7 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 	t.Parallel()
 	configMap := newCustomConfigMap(t.Name(), "xml")
 	testKube.Create(configMap)
+	defer testKube.DeleteConfigMap(configMap)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		// testing cache pre update
@@ -1561,6 +1564,9 @@ func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 	configMap := newCustomConfigMap(t.Name(), "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
+	configMapChanged := newCustomConfigMap(t.Name()+"Changed", "xml")
+	testKube.Create(configMapChanged)
+	defer testKube.DeleteConfigMap(configMapChanged)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		// testing cache pre update
@@ -1568,8 +1574,6 @@ func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 		value := "test-operator"
 		hostAddr, client := tutils.HTTPClientAndHost(ispn, testKube)
 		testBasicCacheUsage(key, value, t.Name(), hostAddr, client)
-		configMapChanged := newCustomConfigMap(t.Name()+"Changed", "xml")
-		testKube.Create(configMapChanged)
 		ispn.Spec.ConfigMapName = configMapChanged.Name
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
@@ -1627,6 +1631,7 @@ func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
 	t.Parallel()
 	configMap := newCustomConfigMap(t.Name(), "xml")
 	testKube.Create(configMap)
+	defer testKube.DeleteConfigMap(configMap)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		tutils.ExpectNoError(testKube.UpdateInfinispan(ispn, func() {
