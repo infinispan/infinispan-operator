@@ -6,5 +6,5 @@ COPY . .
 RUN rm -rf ./build/_output
 RUN ./build/build.sh linux /bin
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.4
+FROM registry.access.redhat.com/ubi8/ubi-minimal
 COPY --from=build /bin/infinispan-operator /usr/local/bin/infinispan-operator
