@@ -8,9 +8,8 @@ to create caches.
 
 [NOTE]
 ====
-Because the default cache provides recommended settings, you should create
-caches only as copies of the default. If you want multiple custom caches you
-should create {datagridservice} pods instead of {cacheservice} pods.
+Because the default cache provides recommended settings, you should create caches only as copies of the default.
+If you want multiple custom caches you should create {datagridservice} pods instead of {cacheservice} pods.
 ====
 
 .Procedure
