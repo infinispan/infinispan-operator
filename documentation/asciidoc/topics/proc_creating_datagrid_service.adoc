@@ -13,4 +13,9 @@ To use custom cache definitions along with {brandname} capabilities such as cros
 include::yaml/service_type_datagrid.yaml[]
 ----
 +
+[IMPORTANT]
+====
+You cannot change the `spec.service.type` field after you create pods.
+To change the service type, you must delete the existing pods and create new ones.
+====
 . Apply your `Infinispan` CR to create the cluster.
