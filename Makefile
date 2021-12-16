@@ -139,7 +139,7 @@ generate: controller-gen rice
 .PHONY: operator-build
 ## Build the operator image
 operator-build: manager
-	$(CONTAINER_TOOL) build -t $(IMG) .
+	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMG) .
 
 .PHONY: operator-push
 ## Push the operator image
