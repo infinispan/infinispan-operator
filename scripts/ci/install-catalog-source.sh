@@ -33,6 +33,7 @@ make catalog-build catalog-push
 
 # Create the namespace and CatalogSource
 kubectl create namespace ${TESTING_NAMESPACE} || true
+kubectl delete CatalogSource test-catalog -n ${TESTING_NAMESPACE} || true
 cat <<EOF | kubectl apply -f -
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
