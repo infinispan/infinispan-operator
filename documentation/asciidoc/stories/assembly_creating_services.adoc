@@ -6,28 +6,11 @@ ifdef::context[:parent-context: {context}]
 [role="_abstract"]
 Use {ispn_operator} to create clusters of either {cacheservice} or {datagridservice} pods.
 
-[IMPORTANT]
-====
-If you do not specify a value for the `spec.service.type` field, {ispn_operator} creates {cacheservice} pods by default.
-
-You cannot change the `spec.service.type` field after you create pods.
-To change the service type, you must delete the existing pods and create new ones.
-====
-
 include::{topics}/con_services.adoc[leveloffset=+1]
 
 //Data Grid Service
 include::{topics}/proc_creating_datagrid_service.adoc[leveloffset=+1]
 include::{topics}/ref_datagrid_service_resources.adoc[leveloffset=+2]
-
-//Cache Service
-include::{topics}/proc_creating_cache_service.adoc[leveloffset=+1]
-include::{topics}/ref_cache_service_resources.adoc[leveloffset=+2]
-
-//Automatic scaling
-include::{topics}/con_automatic_scaling.adoc[leveloffset=+1]
-include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
-
 
 //Container resources and storage
 include::{topics}/proc_allocating_storage.adoc[leveloffset=+1]
@@ -42,6 +25,14 @@ include::{topics}/ref_logging.adoc[leveloffset=+2]
 ifdef::community[]
 include::{topics}/proc_specifying_server_image.adoc[leveloffset=+1]
 endif::community[]
+
+//Cache Service
+include::{topics}/proc_creating_cache_service.adoc[leveloffset=+1]
+include::{topics}/ref_cache_service_resources.adoc[leveloffset=+2]
+
+//Automatic scaling
+include::{topics}/con_automatic_scaling.adoc[leveloffset=+1]
+include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
 
 //Labeling
 include::{topics}/proc_adding_custom_labels.adoc[leveloffset=+1]

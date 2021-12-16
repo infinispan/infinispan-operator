@@ -3,10 +3,19 @@
 
 [role="_abstract"]
 Services are stateful applications, based on the {brandname} Server image, that provide flexible and robust in-memory data storage.
+When you create {brandname} clusters you specify either `DataGrid` or `Cache` as the service type with the `spec.service.type` field.
 
-== {datagridservice}
+`DataGrid` service type:: Deploy {brandname} clusters with full configuration and capabilities.
+`Cache` service type:: Deploy {brandname} clusters with minimal configuration.
 
-Deploy clusters of {datagridservice} pods if you want to:
+//Community content
+ifdef::community[]
+The {brandname} team recommends the `DataGrid` service type for clusters because it lets you:
+endif::community[]
+//Downstream content
+ifdef::downstream[]
+Red Hat recommends recommends the `DataGrid` service type for clusters because it lets you:
+endif::downstream[]
 
 * Back up data across global clusters with cross-site replication.
 * Create caches with any valid configuration.
@@ -14,30 +23,11 @@ Deploy clusters of {datagridservice} pods if you want to:
 * Query values across caches using the {brandname} Query API.
 * Use advanced {brandname} features and capabilities.
 
-== {cacheservice}
-
-Deploy clusters of {cacheservice} pods if you want a low-latency data store with minimal configuration.
-
-{cacheservice} pods provide volatile storage only, which means you lose all data when you modify your `Infinispan` CR or update the version of your {brandname} cluster.
-However, if you only want to quickly provide applications with high-performance caching without the overhead of configuration then you can use {cacheservice} pods to:
-
-* Automatically scale to meet capacity when data storage demands go up or down.
-* Synchronously distribute data to ensure consistency.
-* Replicates each entry in the cache across the cluster.
-* Store cache entries off-heap and use eviction for JVM efficiency.
-* Ensure data consistency with a default partition handling configuration.
-
 [IMPORTANT]
 ====
-//Community content
-ifdef::community[]
-The {brandname} team recommend that you deploy {datagridservice} pods instead of {cacheservice} pods.
-endif::community[]
-//Downstream content
-ifdef::downstream[]
-Red Hat recommends that you deploy {datagridservice} pods instead of {cacheservice} pods.
-endif::downstream[]
+The `Cache` service type was designed to provide a convenient way to create a low-latency data store with minimal configuration.
+Additional development on the `Infinispan` CRD has shown that the `Cache` CR offers a better approach to achieving this goal, ultimately giving users more choice and less deployment overhead.
+For this reason, the `Cache` service type is planned for removal in the next version of the `Infinispan` CRD and is no longer under active development.
 
-{cacheservice} is planned for removal in the next version of the `Infinispan` CRD.
-{datagridservice} remains under active development and will continue to benefit from new features and improved tooling to automate complex operations such as upgrading clusters and migrating data.
+The `DataGrid` service type continues to benefit from new features and improved tooling to automate complex operations such as cluster upgrades and data migration.
 ====
