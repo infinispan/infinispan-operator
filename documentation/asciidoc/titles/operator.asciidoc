@@ -3,6 +3,7 @@
 :icons: font
 :toclevels: 4
 :sectnums:
+:sectanchors:
 :docinfo: private-head,private-footer
 
 //Avoid symlinks in community docs
