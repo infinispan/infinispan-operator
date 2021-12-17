@@ -40,7 +40,7 @@ var (
 	subPackage            = constants.GetEnvWithDefault("SUBSCRIPTION_PACKAGE", "infinispan")
 
 	packageManifest = testKube.PackageManifest(subPackage, catalogSource)
-	sourceChannel   = getChannel("SUBSCRIPTION_CHANNEL_SOURCE", 1, packageManifest)
+	sourceChannel   = getChannel("SUBSCRIPTION_CHANNEL_SOURCE", 0, packageManifest)
 	targetChannel   = getChannel("SUBSCRIPTION_CHANNEL_TARGET", 0, packageManifest)
 
 	subStartingCsv = constants.GetEnvWithDefault("SUBSCRIPTION_STARTING_CSV", sourceChannel.CurrentCSVName)

@@ -120,7 +120,7 @@ pipeline {
 
                 stage('Upgrade') {
                     steps {
-                        sh 'make upgrade-test'
+                        sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
                     }
                 }
 
