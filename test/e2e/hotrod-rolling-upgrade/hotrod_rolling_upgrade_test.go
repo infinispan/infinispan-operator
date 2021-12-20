@@ -4,18 +4,19 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	"github.com/infinispan/infinispan-operator/test/e2e/utils"
-	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"syscall"
 	"testing"
+
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/test/e2e/utils"
+	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -100,7 +101,7 @@ func TestRollingUpgrade(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, nil)
 	initialize()
 	// TODO This should always trigger a rolling upgrade since the operator uses aliases by default. Make it an environment variable to test upgrade from different versions
-	go runOperatorNewProcess("quay.io/infinispan/server:13.0.0.Final-3")
+	go runOperatorNewProcess("quay.io/infinispan/server")
 
 	infinispan := &ispnv1.Infinispan{
 		TypeMeta: tutils.InfinispanTypeMeta,
