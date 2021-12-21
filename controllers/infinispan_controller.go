@@ -22,6 +22,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	ingressv1 "k8s.io/api/networking/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1309,7 +1310,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
 		// Set a storage class if it specified
 		if storageClassName := ispn.StorageClassName(); storageClassName != "" {
-			if _, err := kube.FindStorageClass(storageClassName, r.Client, r.ctx); err != nil {
+			if _, err := kube.LookupResource(storageClassName, ispn.Namespace, &storagev1.StorageClass{}, ispn, r.Client, reqLogger, r.eventRec, r.ctx); err != nil {
 				return nil, err
 			}
 			pvc.Spec.StorageClassName = &storageClassName
