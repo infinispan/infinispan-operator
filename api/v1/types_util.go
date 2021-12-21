@@ -549,7 +549,7 @@ func toMilliDecimalQuantity(value int64) resource.Quantity {
 	return *resource.NewMilliQuantity(value, resource.DecimalSI)
 }
 
-// IsEphemeralStorage
+// IsEphemeralStorage returns the value of ephemeralStorage if it is defined.
 func (ispn *Infinispan) IsEphemeralStorage() bool {
 	cont := ispn.Spec.Service.Container
 	if cont != nil {
