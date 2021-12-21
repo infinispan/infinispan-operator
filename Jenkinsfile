@@ -75,11 +75,11 @@ pipeline {
                     }
                 }
 
-                // stage('Batch') {
-                //     steps {
-                //         sh 'make batch-test PARALLEL_COUNT=2'
-                //     }
-                // }
+                stage('Batch') {
+                    steps {
+                        sh 'make batch-test PARALLEL_COUNT=2'
+                    }
+                }
 
                 stage('Multinamespace') {
                     steps {
