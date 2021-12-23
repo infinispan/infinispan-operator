@@ -76,6 +76,8 @@ To create an Operator release perform the following:
 8. Once PR in 5 has been merged and Operator has been released to OperatorHub, update the "replaces" field in `config/manifests/bases/infinispan-operator.clusterserviceversion.yaml`
 to `replaces: infinispan-operator.v<x.y.z>`
 9. Update the `RELATED_IMAGE_OPENJDK` field in `config/manager/manager.yaml` to use the required floating tag, e.g. `13.0`
+10. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
+11. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
 
 # Testing
 
