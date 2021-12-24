@@ -423,14 +423,39 @@ func (ispn *Infinispan) GetTruststoreSecretName() string {
 	return ispn.Spec.Security.EndpointEncryption.ClientCertSecretName
 }
 
-func (spec *InfinispanContainerSpec) GetCpuResources() (*resource.Quantity, *resource.Quantity, error) {
-	cpuLimits, err := resource.ParseQuantity(spec.CPU)
-	if err != nil {
-		return nil, nil, err
+// GetCpuResources returns the CPU request and limit values to be used by pods
+func (spec *InfinispanContainerSpec) GetCpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+	return getRequestLimits(spec.CPU)
+}
+
+// GetMemoryResources returns the Memory request and limit values to be used by pods
+func (spec *InfinispanContainerSpec) GetMemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+	return getRequestLimits(spec.Memory)
+}
+
+func getRequestLimits(str string) (requests resource.Quantity, limits resource.Quantity, err error) {
+	parts := strings.Split(str, ":")
+
+	if len(parts) > 2 {
+		err = fmt.Errorf("unexpected resource format. Expected a string of '<limit>:<request>' or '<limit>', received: '%s'", str)
+		return
 	}
-	cpuRequestsMillis := cpuLimits.MilliValue()
-	cpuRequests := toMilliDecimalQuantity(cpuRequestsMillis)
-	return &cpuRequests, &cpuLimits, nil
+
+	limits, err = resource.ParseQuantity(parts[0])
+	if err != nil {
+		return
+	}
+
+	if len(parts) > 1 {
+		requests, err = resource.ParseQuantity(parts[1])
+		if err != nil {
+			return
+		}
+
+	} else {
+		requests = limits
+	}
+	return
 }
 
 func (ispn *Infinispan) GetJavaOptions() string {
