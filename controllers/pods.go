@@ -8,7 +8,6 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -86,22 +85,23 @@ func TcpProbe(port, failureThreshold, initialDelay, period, successThreshold, ti
 }
 
 func PodResources(spec infinispanv1.InfinispanContainerSpec) (*corev1.ResourceRequirements, error) {
-	memory, err := resource.ParseQuantity(spec.Memory)
+	memRequests, memLimits, err := spec.GetMemoryResources()
 	if err != nil {
 		return nil, err
 	}
+
 	cpuRequests, cpuLimits, err := spec.GetCpuResources()
 	if err != nil {
 		return nil, err
 	}
 	return &corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    *cpuRequests,
-			corev1.ResourceMemory: memory,
+			corev1.ResourceCPU:    cpuRequests,
+			corev1.ResourceMemory: memRequests,
 		},
 		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    *cpuLimits,
-			corev1.ResourceMemory: memory,
+			corev1.ResourceCPU:    cpuLimits,
+			corev1.ResourceMemory: memLimits,
 		},
 	}, nil
 }
