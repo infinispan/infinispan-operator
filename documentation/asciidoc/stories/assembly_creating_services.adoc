@@ -15,7 +15,8 @@ include::{topics}/ref_datagrid_service_resources.adoc[leveloffset=+2]
 //Container resources and storage
 include::{topics}/proc_allocating_storage.adoc[leveloffset=+1]
 include::{topics}/ref_persistent_cache_store.adoc[leveloffset=+2]
-include::{topics}/ref_container_resources.adoc[leveloffset=+1]
+include::{topics}/proc_allocating_cpu_memory.adoc[leveloffset=+1]
+include::{topics}/proc_setting_jvm_options.adoc[leveloffset=+1]
 
 //Logging
 include::{topics}/proc_configuring_logging.adoc[leveloffset=+1]
