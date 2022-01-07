@@ -1,0 +1,17 @@
+[id='setting-jvm-options_{context}']
+= Setting JVM options
+
+[role="_abstract"]
+Pass additional JVM options to {brandname} pods at startup.
+
+.Procedure
+
+. Specify JVM options with the `spec.container.extraJvmOpts` field.
+. Apply your `Infinispan` CR.
++
+If your cluster is running, {ispn_operator} restarts the {brandname} pods so changes take effect.
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/container_extra_jvm_opts.yaml[]
+----
