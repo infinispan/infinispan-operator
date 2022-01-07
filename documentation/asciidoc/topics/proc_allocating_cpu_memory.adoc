@@ -1,0 +1,28 @@
+[id='allocating-cpu-and-memory_{context}']
+= Allocating CPU and memory
+
+[role="_abstract"]
+Allocate CPU and memory resources to {brandname} pods with the `Infinispan` CR.
+
+[NOTE]
+====
+By default, {ispn_operator} requests **512Mi** of `memory` and **0.5** `cpu` from the {k8s} scheduler when creating {brandname} pods.
+====
+
+.Procedure
+
+. Allocate the number of CPU units with the `spec.container.cpu` field.
+. Allocate the amount of memory, in bytes, with the `spec.container.memory` field.
++
+The `cpu` and `memory` fields have values in the format of `<limit>:<requests>`.
+For example, `cpu: "2000m:1000m"` limits pods to a maximum of `2000m` of CPU and requests `1000m` of CPU for each pod at startup.
+Specifying a single value sets both the limit and request.
++
+. Apply your `Infinispan` CR.
++
+If your cluster is running, {ispn_operator} restarts the {brandname} pods so changes take effect.
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/container_resources.yaml[]
+----
