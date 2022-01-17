@@ -7,17 +7,12 @@ KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}
 KIND_KUBEAPI_PORT=6443
 METALLB_VERSION=v0.9.6
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
-KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
 
 # Cleanup any existing clusters
 kind delete clusters --all
 
 # Common part for both nodes
 make operator-build IMG=$IMG
-
-# Create the Kind network with subnet.
-docker network rm kind || true
-docker network create kind --subnet "${KIND_SUBNET}/16"
 
 for INSTANCE_IDX in 1 2; do
   INSTANCE="xsite"${INSTANCE_IDX}
@@ -35,6 +30,7 @@ for INSTANCE_IDX in 1 2; do
   '{"spec": {"template": {"spec":{"containers":[{"name":"manager","imagePullPolicy":"Never","env": [{"name": "TEST_ENVIRONMENT","value": "true"}]}]}}}}'
 
   # Configuring MetalLB (https://metallb.universe.tf/) for real LoadBalancer setup on Kind
+  KIND_SUBNET=$(docker network inspect -f '{{ (index .IPAM.Config 0).Subnet }}' kind | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}")
   echo "Using Kind Subnet '${KIND_SUBNET}' in MetalLB"
   KIND_SUBNET_BASE=$(echo "${KIND_SUBNET}" | sed -E 's|([0-9]+\.[0-9]+\.)[0-9]+\.[0-9]+|\1255.|')
   METALLB_ADDRESSES_RANGE="${KIND_SUBNET_BASE}"$(("${METALLB_ADDRESS_START}" + ("${INSTANCE_IDX}" - 1) * ("${METALLB_ADDRESS_SHIFT}" + 1)))-"${KIND_SUBNET_BASE}"$(("${METALLB_ADDRESS_START}" + "${METALLB_ADDRESS_SHIFT}" + ("${INSTANCE_IDX}" - 1) * "${METALLB_ADDRESS_SHIFT}"))
