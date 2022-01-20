@@ -23,6 +23,8 @@ import (
 	"github.com/infinispan/infinispan-operator/controllers"
 	cconsts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/hash"
+	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
+	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
@@ -31,7 +33,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -40,10 +41,6 @@ import (
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-
-	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
-	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
@@ -270,17 +267,6 @@ func areOperatorLabelsPropagated(namespace, varName string, labels map[string]st
 	return true
 }
 
-// Run some functions for testing rights not covered by integration tests
-func TestRolesSynthetic(t *testing.T) {
-	_, err := serviceAccountKube.Kubernetes.GetNodeHost(log, context.TODO())
-	tutils.ExpectNoError(err)
-
-	_, err = kube.FindStorageClass("not-present-storage-class", serviceAccountKube.Kubernetes.Client, context.TODO())
-	if !k8sErrors.IsNotFound(err) {
-		tutils.ExpectNoError(err)
-	}
-}
-
 // Test if single node with n ephemeral storage
 func TestNodeWithEphemeralStorage(t *testing.T) {
 	t.Parallel()
@@ -302,6 +288,34 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 	tutils.ExpectNoError(err)
 	if len(pvcs.Items) > 0 {
 		tutils.ExpectNoError(fmt.Errorf("persistent volume claims were found (count = %d) but not expected for ephemeral storage configuration", len(pvcs.Items)))
+	}
+}
+
+// Test if single node with a storage class
+func TestNodeWithStorageClass(t *testing.T) {
+	t.Parallel()
+
+	// Create a resource without passing any config
+	spec := tutils.DefaultSpec(testKube)
+	name := strcase.ToKebab(t.Name())
+	spec.Name = name
+
+	// Get the default StorageClasses name in cluster
+	defaultStorageClass := testKube.GetDefaultStorageClass()
+	spec.Spec.Service.Container = &ispnv1.InfinispanServiceContainerSpec{StorageClassName: defaultStorageClass}
+
+	// Register above created resource
+	spec.Labels = map[string]string{"test-name": t.Name()}
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	// Ensure a PVCs is bound from defaultStorageClass
+	pvcName := "data-volume-test-node-with-storage-class-0"
+	if *testKube.GetPVC(pvcName, spec.Namespace).Spec.StorageClassName != defaultStorageClass {
+		tutils.ExpectNoError(fmt.Errorf("persistent volume claim (%s) was created, but not bound to the cluster's default storage class (%s)",
+			pvcName, defaultStorageClass))
 	}
 }
 
@@ -890,8 +904,6 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	tutils.ExpectNoError(err)
 
 	// Sleep for a while to be sure that the old pods are gone
-	// The restart is ongoing, and it would that more than 10 sec,
-	// so we're not introducing any delay
 	time.Sleep(10 * time.Second)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -1277,7 +1289,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 
 func GenerateStringWithCharset(length int) string {
 	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	b := make([]byte, length)
 	for i := range b {

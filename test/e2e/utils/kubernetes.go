@@ -209,7 +209,7 @@ func (k TestKubernetes) PrintAllResources(namespace string, list runtime.Object,
 	unstructuredResourceList.SetUnstructuredContent(unstructuredResource)
 
 	for _, item := range unstructuredResourceList.Items {
-		yaml, err := yaml.Marshal(item)
+		yaml_, err := yaml.Marshal(item)
 		LogError(err)
 		if strings.Contains(reflect.TypeOf(list).String(), "PodList") {
 			fmt.Println(strings.Repeat("-", 30))
@@ -219,7 +219,7 @@ func (k TestKubernetes) PrintAllResources(namespace string, list runtime.Object,
 		}
 
 		fmt.Println(strings.Repeat("-", 30))
-		fmt.Println(string(yaml))
+		fmt.Println(string(yaml_))
 	}
 }
 
@@ -487,6 +487,34 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 	return client
 }
 
+// GetPVC returns a PVC bound with given PVC name.
+func (k TestKubernetes) GetPVC(pvcName, namespace string) *corev1.PersistentVolumeClaim {
+	pvc := &corev1.PersistentVolumeClaim{}
+	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: pvcName}, pvc)
+	ExpectNoError(err)
+	return pvc
+}
+
+// GetDefaultStorageClass returns the default StorageClasses name in cluster.
+func (k TestKubernetes) GetDefaultStorageClass() string {
+	// Get the list of StorageClasses in cluster.
+	scList := &storagev1.StorageClassList{}
+	err := k.Kubernetes.Client.List(context.TODO(), scList, &client.ListOptions{})
+	ExpectNoError(err)
+
+	// Identify the default StorageClass in the cluster. There's only one that contains the
+	// following annotation {"storageclass.kubernetes.io/is-default-class":"true"}, for more info
+	// check https://kubernetes.io/docs/tasks/administer-cluster/change-default-storage-class/.
+	for _, sc := range scList.Items {
+		for key, value := range sc.Annotations {
+			if key == "storageclass.kubernetes.io/is-default-class" && value == "true" {
+				return sc.Name
+			}
+		}
+	}
+	return ""
+}
+
 func getNodePort(service *corev1.Service) int32 {
 	return service.Spec.Ports[0].NodePort
 }
@@ -707,7 +735,7 @@ func (k TestKubernetes) DeleteConfigMap(configMap *corev1.ConfigMap) {
 	ExpectMaybeNotFound(err)
 }
 
-// UpdateSecret updates a ConfigMap
+// UpdateConfigMap updates a ConfigMap
 func (k TestKubernetes) UpdateConfigMap(configMap *corev1.ConfigMap) {
 	err := k.Kubernetes.Client.Update(context.TODO(), configMap)
 	ExpectNoError(err)
@@ -885,7 +913,7 @@ func (k *TestKubernetes) AssertK8ResourceExists(name, namespace string, obj clie
 	client := k.Kubernetes.Client
 	key := types.NamespacedName{
 		Name:      name,
-		Namespace: Namespace,
+		Namespace: namespace,
 	}
 	return client.Get(context.TODO(), key, obj) == nil
 }
