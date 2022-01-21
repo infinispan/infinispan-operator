@@ -95,13 +95,10 @@ func New(ctx context.Context, p Parameters) {
 			event := string(msg.Event)
 			log.Debugf("ConfigListener received event '%s':\n---\n%s\n---\n", event, msg.Data)
 			switch event {
-			// ISPN-13491 must handle "cache-create" as well. Can be removed from Infinispan 13.0.3.Final
-			case "cache-create", "create-cache", "update-cache":
+			case "create-cache", "update-cache":
 				err = cacheListener.CreateOrUpdate(msg.Data)
 			case "remove-cache":
 				err = cacheListener.Delete(msg.Data)
-			default:
-				err = fmt.Errorf("unknown msg.Event: %s", event)
 			}
 			if err != nil {
 				log.Errorf("Error encountered for event '%s': %w", event, err)
