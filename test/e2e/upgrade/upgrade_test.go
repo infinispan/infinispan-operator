@@ -51,7 +51,6 @@ var (
 func TestUpgrade(t *testing.T) {
 	printManifest()
 	name := strcase.ToKebab(t.Name())
-	labels := map[string]string{"test-name": name}
 
 	testKube.NewNamespace(tutils.Namespace)
 	sub := &coreos.Subscription{
@@ -73,7 +72,7 @@ func TestUpgrade(t *testing.T) {
 		},
 	}
 
-	defer cleanup(labels)
+	defer cleanup(t)
 	// Create OperatorGroup only if Subscription is created in non-global namespace
 	if subNamespace != "openshift-operators" && subNamespace != "operators" {
 		testKube.CreateOperatorGroup(subName, subNamespace, subNamespace)
@@ -92,9 +91,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Create the Infinispan CR
 	replicas := 2
-	spec := tutils.DefaultSpec(testKube)
-	spec.Name = name
-	spec.Labels = labels
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Replicas = int32(replicas)
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
@@ -145,7 +142,7 @@ func TestUpgrade(t *testing.T) {
 	}
 
 	checkServicePorts(t, name)
-	checkBatch(name)
+	checkBatch(t, name)
 
 	// Kill the first pod to ensure that the cluster can recover from failover after upgrade
 	err := testKube.Kubernetes.Client.Delete(ctx, &corev1.Pod{
@@ -163,7 +160,7 @@ func TestUpgrade(t *testing.T) {
 	assertNumEntries(cacheName, hostAddr, numEntries, client)
 }
 
-func cleanup(specLabel map[string]string) {
+func cleanup(t *testing.T) {
 	panicVal := recover()
 
 	cleanupOlm := func() {
@@ -195,7 +192,7 @@ func cleanup(specLabel map[string]string) {
 	defer cleanupOlm()
 
 	// Cleanup Infinispan resources
-	testKube.CleanNamespaceAndLogWithPanic(tutils.Namespace, specLabel, panicVal)
+	testKube.CleanNamespaceAndLogWithPanic(t, tutils.Namespace, panicVal)
 }
 
 func checkServicePorts(t *testing.T, name string) {
@@ -209,11 +206,11 @@ func checkServicePorts(t *testing.T, name string) {
 	assert.Equal(t, constants.InfinispanAdminPort, int(adminPort[0].Port))
 }
 
-func checkBatch(name string) {
+func checkBatch(t *testing.T, name string) {
 	// Run a batch in the migrated cluster
 	batchHelper := batchtest.NewBatchHelper(testKube)
 	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
-	batchHelper.CreateBatch(name, name, &config, nil)
+	batchHelper.CreateBatch(t, name, name, &config, nil)
 	batchHelper.WaitForValidBatchPhase(name, v2alpha1.BatchSucceeded)
 }
 
