@@ -148,12 +148,14 @@ func (k TestKubernetes) NewNamespace(namespace string) {
 	ExpectNoError(err)
 }
 
-func (k TestKubernetes) CleanNamespaceAndLogOnPanic(namespace string, specLabel map[string]string) {
+func (k TestKubernetes) CleanNamespaceAndLogOnPanic(t *testing.T, namespace string) {
 	panicVal := recover()
-	k.CleanNamespaceAndLogWithPanic(namespace, specLabel, panicVal)
+	k.CleanNamespaceAndLogWithPanic(t, namespace, panicVal)
 }
 
-func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabel map[string]string, panicVal interface{}) {
+func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace string, panicVal interface{}) {
+	specLabel := map[string]string{"test-name": t.Name()}
+
 	// Print pod output if a panic has occurred
 	if panicVal != nil {
 		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
@@ -169,15 +171,9 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabe
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
 		var opts []client.DeleteAllOfOption
 		ctx := context.TODO()
-		if specLabel != nil {
-			opts = []client.DeleteAllOfOption{
-				client.InNamespace(namespace),
-				client.MatchingLabels(specLabel),
-			}
-		} else {
-			opts = []client.DeleteAllOfOption{
-				client.InNamespace(namespace),
-			}
+		opts = []client.DeleteAllOfOption{
+			client.InNamespace(namespace),
+			client.MatchingLabels(specLabel),
 		}
 
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
@@ -191,8 +187,8 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(namespace string, specLabe
 	}
 
 	if panicVal != nil {
-		// Throw the recovered panic values so the tests fail as expected
-		panic(panicVal)
+		// Fail the test and pass the panic value to the output if panic occurred
+		t.Fatal(fmt.Printf("panicVal: %v\n", panicVal))
 	}
 }
 

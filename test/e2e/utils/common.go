@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 
+	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
@@ -109,12 +111,13 @@ var MinimalSpec = ispnv1.Infinispan{
 	},
 }
 
-func DefaultSpec(testKube *TestKubernetes) *ispnv1.Infinispan {
+func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
 	return &ispnv1.Infinispan{
 		TypeMeta: InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      DefaultClusterName,
+			Name:      strcase.ToKebab(t.Name()),
 			Namespace: Namespace,
+			Labels:    map[string]string{"test-name": t.Name()},
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Service: ispnv1.InfinispanServiceSpec{

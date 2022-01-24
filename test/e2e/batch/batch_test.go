@@ -37,16 +37,16 @@ func TestMain(m *testing.M) {
 
 func TestBatchInlineConfig(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
-	infinispan := createCluster(name)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, infinispan.Labels)
-	testBatchInlineConfig(infinispan)
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	infinispan := createCluster(t)
+	testBatchInlineConfig(t, infinispan)
 }
 
-func testBatchInlineConfig(infinispan *v1.Infinispan) {
+func testBatchInlineConfig(t *testing.T, infinispan *v1.Infinispan) {
 	name := infinispan.Name
 	batchScript := batchString()
-	batch := helper.CreateBatch(name, name, &batchScript, nil)
+	batch := helper.CreateBatch(t, name, name, &batchScript, nil)
 
 	helper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 
@@ -60,11 +60,11 @@ func testBatchInlineConfig(infinispan *v1.Infinispan) {
 
 func TestBatchConfigMap(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
-	infinispan := createCluster(name)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, infinispan.Labels)
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	configMapName := name + "-cm"
+	infinispan := createCluster(t)
+
+	configMapName := infinispan.Name + "-cm"
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      configMapName,
@@ -78,11 +78,11 @@ func TestBatchConfigMap(t *testing.T) {
 	testKube.CreateConfigMap(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
-	batch := helper.CreateBatch(name, name, nil, &configMapName)
+	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, nil, &configMapName)
 
-	helper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
+	helper.WaitForValidBatchPhase(infinispan.Name, v2.BatchSucceeded)
 	testKube.DeleteBatch(batch)
-	waitForK8sResourceCleanup(name)
+	waitForK8sResourceCleanup(infinispan.Name)
 
 	client := httpClient(infinispan)
 	hostAddr := hostAddr(client, infinispan)
@@ -93,7 +93,7 @@ func TestBatchConfigMap(t *testing.T) {
 func TestBatchNoConfigOrConfigMap(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	helper.CreateBatch(name, "doesn't exist", nil, nil)
+	helper.CreateBatch(t, name, "doesn't exist", nil, nil)
 
 	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
 	if batch.Status.Reason != "'Spec.config' OR 'spec.ConfigMap' must be configured" {
@@ -106,7 +106,7 @@ func TestBatchNoConfigOrConfigMap(t *testing.T) {
 func TestBatchConfigAndConfigMap(t *testing.T) {
 	t.Parallel()
 	name := strcase.ToKebab(t.Name())
-	helper.CreateBatch(name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
+	helper.CreateBatch(t, name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
 
 	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
 	if batch.Status.Reason != "at most one of ['Spec.config', 'spec.ConfigMap'] must be configured" {
@@ -118,12 +118,14 @@ func TestBatchConfigAndConfigMap(t *testing.T) {
 
 func TestBatchFail(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	name := strcase.ToKebab(t.Name())
-	infinispan := createCluster(name)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, infinispan.Labels)
+
+	createCluster(t)
 
 	batchScript := "SOME INVALID BATCH CMD!"
-	batch := helper.CreateBatch(name, name, &batchScript, nil)
+	batch := helper.CreateBatch(t, name, name, &batchScript, nil)
 
 	helper.WaitForValidBatchPhase(name, v2.BatchFailed)
 	testKube.DeleteBatch(batch)
@@ -156,10 +158,8 @@ func hostAddr(client tutils.HTTPClient, infinispan *v1.Infinispan) string {
 	return testKube.WaitForExternalService(infinispan, tutils.RouteTimeout, client)
 }
 
-func createCluster(name string) *v1.Infinispan {
-	infinispan := tutils.DefaultSpec(testKube)
-	infinispan.Name = name
-	infinispan.Labels = map[string]string{"test-name": name}
+func createCluster(t *testing.T) *v1.Infinispan {
+	infinispan := tutils.DefaultSpec(t, testKube)
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	return infinispan
