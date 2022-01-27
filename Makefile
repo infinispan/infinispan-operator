@@ -23,7 +23,7 @@ IMG ?= quay.io/infinispan/operator:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
-CONTAINER_TOOL ?= docker
+export CONTAINER_TOOL ?= docker
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -214,7 +214,7 @@ bundle-push:
 	$(CONTAINER_TOOL) push $(BUNDLE_IMG)
 
 .PHONY: opm
-OPM = ./bin/opm
+export OPM = ./bin/opm
 opm: ## Download opm locally if necessary.
 ifeq (,$(wildcard $(OPM)))
 ifeq (,$(shell which opm 2>/dev/null))
@@ -222,7 +222,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.19.5/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.21.0/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -230,12 +230,28 @@ OPM = $(shell which opm)
 endif
 endif
 
+.PHONY: jq
+export JQ = ./bin/jq
+jq: ## Download opm locally if necessary.
+ifeq (,$(wildcard $(JQ)))
+ifeq (,$(shell which jq 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(JQ)) ;\
+	curl -sSLo $(JQ) https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 ;\
+	chmod +x $(JQ) ;\
+	}
+else
+JQ = $(shell which jq)
+endif
+endif
+
 # A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
 # These images MUST exist in a registry and be pull-able.
-BUNDLE_IMGS ?= $(BUNDLE_IMG)
+export BUNDLE_IMGS ?= $(BUNDLE_IMG)
 
 # The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+export CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
 
 # Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
 ifneq ($(origin CATALOG_BASE_IMG), undefined)
@@ -246,8 +262,8 @@ endif
 ## https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 ## Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
-catalog-build: opm ## Build a catalog image.
-	sudo $(OPM) index add --container-tool $(CONTAINER_TOOL) --mode replaces --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+catalog-build: opm jq ## Build a catalog image.
+	./scripts/create-olm-catalog.sh
 
 .PHONY: catalog-push
 ## Push the catalog image.

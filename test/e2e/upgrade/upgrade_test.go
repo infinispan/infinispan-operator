@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -35,8 +34,8 @@ var (
 	subPackage            = constants.GetEnvWithDefault("SUBSCRIPTION_PACKAGE", "infinispan")
 
 	packageManifest = testKube.PackageManifest(subPackage, catalogSource)
-	sourceChannel   = getChannel("SUBSCRIPTION_CHANNEL_SOURCE", 0, packageManifest)
-	targetChannel   = getChannel("SUBSCRIPTION_CHANNEL_TARGET", 0, packageManifest)
+	sourceChannel   = getChannel("SUBSCRIPTION_CHANNEL_SOURCE", packageManifest)
+	targetChannel   = getChannel("SUBSCRIPTION_CHANNEL_TARGET", packageManifest)
 
 	subStartingCsv = constants.GetEnvWithDefault("SUBSCRIPTION_STARTING_CSV", sourceChannel.CurrentCSVName)
 
@@ -214,7 +213,7 @@ func checkBatch(t *testing.T, name string) {
 }
 
 // Utilise the provided env variable for the channel string if it exists, otherwise retrieve the channel from the PackageManifest
-func getChannel(env string, stackPos int, manifest *manifests.PackageManifest) manifests.PackageChannel {
+func getChannel(env string, manifest *manifests.PackageManifest) manifests.PackageChannel {
 	channels := manifest.Channels
 
 	// If an env variable exists, then return the PackageChannel with that name
@@ -227,15 +226,12 @@ func getChannel(env string, stackPos int, manifest *manifests.PackageManifest) m
 		panic(fmt.Errorf("unable to find channel with name '%s' in PackageManifest", env))
 	}
 
-	semVerIndex := -1
-	for i := len(channels) - 1; i >= 0; i-- {
-		// Hack to find the first channel that uses semantic versioning names. Required for upstream, as old non-sem versioned channels exist, e.g. "stable", "alpha".
-		if strings.ContainsAny(channels[i].Name, ".") {
-			semVerIndex = i
-			break
+	for _, channel := range channels {
+		if channel.Name == manifest.DefaultChannelName {
+			return channel
 		}
 	}
-	return channels[semVerIndex-stackPos]
+	return manifests.PackageChannel{}
 }
 
 func printManifest() {
