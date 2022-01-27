@@ -281,6 +281,9 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 		}
 	}
 
+	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite1"].namespace)
+	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite2"].namespace)
+
 	if tlsMode == DefaultTLS {
 		transport, router, trust := tutils.CreateDefaultCrossSiteKeyAndTrustStore()
 
@@ -364,9 +367,6 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 
 	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
 	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
-
-	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(tesKubes["xsite1"].namespace, tesKubes["xsite1"].crossSite.Labels)
-	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(tesKubes["xsite2"].namespace, tesKubes["xsite2"].crossSite.Labels)
 
 	tesKubes["xsite1"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
 	tesKubes["xsite2"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)

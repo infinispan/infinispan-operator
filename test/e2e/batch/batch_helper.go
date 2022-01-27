@@ -2,6 +2,7 @@ package batch
 
 import (
 	"fmt"
+	"testing"
 	"time"
 
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -20,7 +21,7 @@ func NewBatchHelper(testKube *tutils.TestKubernetes) *BatchHelper {
 	}
 }
 
-func (b BatchHelper) CreateBatch(name, cluster string, config, configMap *string) *v2.Batch {
+func (b BatchHelper) CreateBatch(t *testing.T, name, cluster string, config, configMap *string) *v2.Batch {
 	batch := &v2.Batch{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v2alpha1",
@@ -29,6 +30,7 @@ func (b BatchHelper) CreateBatch(name, cluster string, config, configMap *string
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: tutils.Namespace,
+			Labels:    map[string]string{"test-name": t.Name()},
 		},
 		Spec: v2.BatchSpec{
 			Cluster:   cluster,
@@ -36,7 +38,6 @@ func (b BatchHelper) CreateBatch(name, cluster string, config, configMap *string
 			ConfigMap: configMap,
 		},
 	}
-	batch.Labels = map[string]string{"test-name": name}
 	b.testKube.Create(batch)
 	return batch
 }

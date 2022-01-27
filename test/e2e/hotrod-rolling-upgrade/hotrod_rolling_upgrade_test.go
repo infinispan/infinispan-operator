@@ -88,7 +88,8 @@ func TestMain(t *testing.M) {
 }
 
 func TestRollingUpgrade(t *testing.T) {
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, nil)
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	initialize()
 	// TODO This should always trigger a rolling upgrade since the operator uses aliases by default. Make it an environment variable to test upgrade from different versions
 	go runOperatorNewProcess("quay.io/infinispan/server")
@@ -98,6 +99,7 @@ func TestRollingUpgrade(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: tutils.Namespace,
+			Labels:    map[string]string{"test-name": t.Name()},
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas: int32(numPods),
