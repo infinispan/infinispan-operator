@@ -51,14 +51,11 @@ func TestMain(m *testing.M) {
 
 func TestUpdateOperatorPassword(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
-	// Register it
-	spec.Labels = map[string]string{"test-name": t.Name()}
+	spec := tutils.DefaultSpec(t, testKube)
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -85,10 +82,10 @@ func TestUpdateOperatorPassword(t *testing.T) {
 
 func TestUpdateEncryptionSecrets(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Replicas = 1
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
 		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
@@ -105,9 +102,7 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	defer testKube.DeleteSecret(truststoreSecret)
 
 	// Create Cluster
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -156,11 +151,12 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 
 // Test if single node working correctly
 func TestNodeStartup(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(testKube)
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Annotations = make(map[string]string)
 	spec.Annotations[v1.TargetLabels] = "my-svc-label"
-	spec.Labels = make(map[string]string)
 	spec.Labels["my-svc-label"] = "my-svc-value"
 	tutils.ExpectNoError(os.Setenv(v1.OperatorTargetLabelsEnvVarName, "{\"operator-svc-label\":\"operator-svc-value\"}"))
 	defer os.Unsetenv(v1.OperatorTargetLabelsEnvVarName)
@@ -169,10 +165,9 @@ func TestNodeStartup(t *testing.T) {
 	spec.Labels["my-pod-label"] = "my-pod-value"
 	tutils.ExpectNoError(os.Setenv(v1.OperatorPodTargetLabelsEnvVarName, "{\"operator-pod-label\":\"operator-pod-value\"}"))
 	defer os.Unsetenv(v1.OperatorPodTargetLabelsEnvVarName)
+
 	// Register it
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -270,15 +265,14 @@ func areOperatorLabelsPropagated(namespace, varName string, labels map[string]st
 // Test if single node with n ephemeral storage
 func TestNodeWithEphemeralStorage(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Service.Container = &ispnv1.InfinispanServiceContainerSpec{EphemeralStorage: true}
+
 	// Register it
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -294,20 +288,17 @@ func TestNodeWithEphemeralStorage(t *testing.T) {
 // Test if single node with a storage class
 func TestNodeWithStorageClass(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec := tutils.DefaultSpec(t, testKube)
 
 	// Get the default StorageClasses name in cluster
 	defaultStorageClass := testKube.GetDefaultStorageClass()
 	spec.Spec.Service.Container = &ispnv1.InfinispanServiceContainerSpec{StorageClassName: defaultStorageClass}
 
 	// Register above created resource
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -322,15 +313,14 @@ func TestNodeWithStorageClass(t *testing.T) {
 // Test if the cluster is working correctly
 func TestClusterFormation(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Replicas = 2
+
 	// Register it
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 }
@@ -338,11 +328,10 @@ func TestClusterFormation(t *testing.T) {
 // Test if the cluster is working correctly
 func TestClusterFormationWithTLS(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Replicas = 2
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
 		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
@@ -354,10 +343,9 @@ func TestClusterFormationWithTLS(t *testing.T) {
 	secret := tutils.EncryptionSecret(spec.Name, tutils.Namespace, privKey, cert)
 	testKube.CreateSecret(secret)
 	defer testKube.DeleteSecret(secret)
+
 	// Register it
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -369,10 +357,10 @@ func TestClusterFormationWithTLS(t *testing.T) {
 // Test if the cluster is working correctly
 func TestTLSWithExistingKeystore(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Replicas = 1
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
 		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
@@ -383,10 +371,9 @@ func TestTLSWithExistingKeystore(t *testing.T) {
 	secret := tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
 	testKube.CreateSecret(secret)
 	defer testKube.DeleteSecret(secret)
+
 	// Register it
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -498,9 +485,9 @@ func TestClientCertGeneratedTruststoreValidate(t *testing.T) {
 
 func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCertType, *corev1.Secret, *corev1.Secret, *tls.Config)) {
 	t.Parallel()
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Replicas = 1
 
 	// Create the keystore & truststore for the server with a compatible client tls configuration
@@ -514,9 +501,7 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	defer testKube.DeleteSecret(truststoreSecret)
 
 	// Register it
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -527,6 +512,8 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 
 // Test if spec.container.cpu update is handled
 func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.CPU = "900m:550m"
 	}
@@ -547,6 +534,8 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 // Test if spec.container.memory update is handled
 func TestContainerMemoryUpdate(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.Memory = "512Mi:256Mi"
 	}
@@ -558,14 +547,14 @@ func TestContainerMemoryUpdate(t *testing.T) {
 			panic("Memory field not updated")
 		}
 	}
-	spec := tutils.DefaultSpec(testKube)
-	spec.Name = strcase.ToKebab(t.Name())
-	spec.Labels = map[string]string{"test-name": t.Name()}
+	spec := tutils.DefaultSpec(t, testKube)
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
 func TestContainerJavaOptsUpdate(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Container.ExtraJvmOpts = "-XX:NativeMemoryTracking=summary"
 	}
@@ -582,32 +571,30 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 		}
 		panic("JAVA_OPTIONS not updated")
 	}
-	spec := tutils.DefaultSpec(testKube)
-	spec.Name = strcase.ToKebab(t.Name())
-	spec.Labels = map[string]string{"test-name": t.Name()}
+	spec := tutils.DefaultSpec(t, testKube)
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
 func TestEndpointAuthenticationUpdate(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 	}
-	spec := tutils.DefaultSpec(testKube)
-	spec.Name = strcase.ToKebab(t.Name())
-	spec.Labels = map[string]string{"test-name": t.Name()}
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
 func TestEndpointEncryptionUpdate(t *testing.T) {
 	t.Parallel()
-	spec := tutils.DefaultSpec(testKube)
-	spec.Name = strcase.ToKebab(t.Name())
-	spec.Labels = map[string]string{"test-name": t.Name()}
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
 		EndpointEncryption: &ispnv1.EndpointEncryption{
 			Type: ispnv1.CertificateSourceTypeNoneNoEncryption,
@@ -639,7 +626,6 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 // Test if single node working correctly
 func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan, *appsv1.StatefulSet)) {
 	testKube.CreateInfinispan(&ispn, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, ispn.Labels)
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 
@@ -678,18 +664,13 @@ func verifyStatefulSetUpdate(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infin
 
 func TestCacheService(t *testing.T) {
 	t.Parallel()
-	testCacheService(t.Name())
-}
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-func testCacheService(testName string) {
-	spec := tutils.DefaultSpec(testKube)
-	spec.Name = strcase.ToKebab(testName)
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Service.Type = ispnv1.ServiceTypeCache
 	spec.Spec.Expose = tutils.ExposeServiceSpec(testKube)
 
-	spec.Labels = map[string]string{"test-name": testName}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -703,7 +684,8 @@ func testCacheService(testName string) {
 // the cluster and checks that the cache is still there
 func TestPermanentCache(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	cacheName := "test"
 	// Define function for the generic stop/start test procedure
 	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
@@ -720,14 +702,15 @@ func TestPermanentCache(t *testing.T) {
 		cacheHelper.Delete()
 	}
 
-	genericTestForGracefulShutdown(name, createPermanentCache, usePermanentCache)
+	genericTestForGracefulShutdown(t, createPermanentCache, usePermanentCache)
 }
 
 // TestCheckDataSurviveToShutdown creates a cache with file-store the stop/start
 // the cluster and checks that the cache and the data are still there
 func TestCheckDataSurviveToShutdown(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	cacheName := "test"
 	template := `<infinispan><cache-container><distributed-cache name ="` + cacheName +
 		`"><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan>`
@@ -752,17 +735,14 @@ func TestCheckDataSurviveToShutdown(t *testing.T) {
 		cacheHelper.Delete()
 	}
 
-	genericTestForGracefulShutdown(name, createCacheWithFileStore, useCacheWithFileStore)
+	genericTestForGracefulShutdown(t, createCacheWithFileStore, useCacheWithFileStore)
 }
 
-func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan)) {
+func genericTestForGracefulShutdown(t *testing.T, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan)) {
 	// Create a resource without passing any config
 	// Register it
-	spec := tutils.DefaultSpec(testKube)
-	spec.Name = clusterName
-	spec.Labels = map[string]string{"test-name": clusterName}
+	spec := tutils.DefaultSpec(t, testKube)
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -779,13 +759,14 @@ func genericTestForGracefulShutdown(clusterName string, modifier func(*ispnv1.In
 
 func TestExternalService(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
 	spec := ispnv1.Infinispan{
 		TypeMeta: tutils.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:   strcase.ToKebab(t.Name()),
+			Labels: map[string]string{"test-name": t.Name()},
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Container: ispnv1.InfinispanContainerSpec{
@@ -798,10 +779,7 @@ func TestExternalService(t *testing.T) {
 	}
 
 	// Register it
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(&spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
-
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -815,6 +793,8 @@ func TestExternalService(t *testing.T) {
 // and management connection with authentication
 func TestExternalServiceWithAuth(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	usr := "connectorusr"
 	pass := "connectorpass"
 	newpass := "connectornewpass"
@@ -837,13 +817,12 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	testKube.CreateSecret(&secret)
 	defer testKube.DeleteSecret(&secret)
 
-	name := strcase.ToKebab(t.Name())
-
 	// Create Infinispan
 	spec := ispnv1.Infinispan{
 		TypeMeta: tutils.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:   strcase.ToKebab(t.Name()),
+			Labels: map[string]string{"test-name": t.Name()},
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Security: ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"},
@@ -855,10 +834,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 			Expose:   tutils.ExposeServiceSpec(testKube),
 		},
 	}
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(&spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
-
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -925,24 +901,22 @@ func testAuthentication(ispn *ispnv1.Infinispan, schema, usr, pass string) {
 
 func TestAuthenticationDisabled(t *testing.T) {
 	t.Parallel()
-	namespace := tutils.Namespace
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	// Create a resource without passing any config
-	name := strcase.ToKebab(t.Name())
-	spec := tutils.DefaultSpec(testKube)
-	spec.Name = name
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 
 	// Create the cluster
 	spec.Labels = map[string]string{"test-name": t.Name()}
-	testKube.CreateInfinispan(spec, namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, name, namespace)
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure the identities secret is not created
 	secret := &corev1.Secret{}
 	key := types.NamespacedName{
-		Namespace: namespace,
+		Namespace: tutils.Namespace,
 		Name:      spec.GetSecretName(),
 	}
 	tutils.ExpectNotFound(testKube.Kubernetes.Client.Get(context.TODO(), key, secret))
@@ -959,11 +933,9 @@ func TestAuthenticationDisabled(t *testing.T) {
 
 func TestAuthorizationDisabledByDefault(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
-	ispn := tutils.DefaultSpec(testKube)
-	ispn.Name = name
-	ispn.Labels = map[string]string{"test-name": t.Name()}
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
+	ispn := tutils.DefaultSpec(t, testKube)
 	identities := func() users.Identities {
 		return users.Identities{
 			Credentials: []users.Credentials{{
@@ -983,12 +955,11 @@ func TestAuthorizationDisabledByDefault(t *testing.T) {
 
 func TestAuthorizationWithCustomRoles(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
-	ispn := tutils.DefaultSpec(testKube)
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := tutils.DefaultSpec(t, testKube)
 
 	customRoleName := "custom-role"
-	ispn.Name = name
-	ispn.Labels = map[string]string{"test-name": t.Name()}
 	ispn.Spec.Security.Authorization = &v1.Authorization{
 		Enabled: true,
 		Roles: []ispnv1.AuthorizationRole{{
@@ -1058,7 +1029,6 @@ func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identi
 
 	// Create the cluster
 	testKube.CreateInfinispan(ispn, namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, ispn.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 
@@ -1075,14 +1045,13 @@ func TestExternalDependenciesHttp(t *testing.T) {
 	if os.Getenv("NO_NGINX") != "" {
 		t.Skip("Skipping test, no Nginx available.")
 	}
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	webServerConfig := prepareWebServer()
 	defer testKube.DeleteResource(tutils.Namespace, labels.SelectorFromSet(map[string]string{"app": tutils.WebServerName}), webServerConfig, tutils.SinglePodTimeout)
 
 	namespace := tutils.Namespace
-	spec := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	spec.Name = name
-	spec.Labels = map[string]string{"test-name": t.Name()}
+	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Dependencies = &ispnv1.InfinispanExternalDependencies{
 		Artifacts: []ispnv1.InfinispanExternalArtifacts{
 			{Url: fmt.Sprintf("http://%s:%d/task01-1.0.0.jar", tutils.WebServerName, tutils.WebServerPortNumber)},
@@ -1092,8 +1061,7 @@ func TestExternalDependenciesHttp(t *testing.T) {
 
 	// Create the cluster
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, name, namespace)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	client_ := tutils.HTTPClientForCluster(ispn, testKube)
@@ -1219,17 +1187,14 @@ func createCacheBadCreds(cacheName string, client tutils.HTTPClient) {
 
 func TestPodDegradationAfterOOM(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	//Creating Infinispan cluster
-	ispn := tutils.DefaultSpec(testKube)
-	name := strcase.ToKebab(t.Name())
-	ispn.Name = name
-	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.Replicas = 2
 	ispn.Spec.Container.Memory = "256Mi"
 
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, ispn.Labels)
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 
@@ -1318,17 +1283,17 @@ func TestUserJsonCustomConfig(t *testing.T) {
 }
 
 func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
 	// Create a resource without passing any config
-	ispn := tutils.DefaultSpec(testKube)
+	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.ConfigMapName = configMap.Name
-	ispn.Name = strcase.ToKebab(t.Name())
+
 	// Register it
-	ispn.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, ispn.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 
@@ -1341,6 +1306,8 @@ func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
 // using authentication update to trigger a cluster update
 func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	configMap := newCustomConfigMap(t.Name(), "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
@@ -1359,9 +1326,7 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 		cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
-	ispn := tutils.DefaultSpec(testKube)
-	ispn.Name = strcase.ToKebab(t.Name())
-	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	ispn.Spec.ConfigMapName = configMap.Name
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
@@ -1370,6 +1335,8 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 // TestUserCustomConfigUpdateOnNameChange tests that user custom config works well with user config update
 func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	configMap := newCustomConfigMap(t.Name(), "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
@@ -1391,9 +1358,7 @@ func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 		cacheHelper := tutils.NewCacheHelper(t.Name()+"Changed", client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
-	ispn := tutils.DefaultSpec(testKube)
-	ispn.Name = strcase.ToKebab(t.Name())
-	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	ispn.Spec.ConfigMapName = configMap.Name
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
@@ -1401,6 +1366,8 @@ func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 
 func TestUserCustomConfigUpdateOnChange(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	configMap := newCustomConfigMap(t.Name(), "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
@@ -1423,9 +1390,7 @@ func TestUserCustomConfigUpdateOnChange(t *testing.T) {
 		cacheHelper := tutils.NewCacheHelper(newCacheName, client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
-	ispn := tutils.DefaultSpec(testKube)
-	ispn.Name = strcase.ToKebab(t.Name())
-	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	ispn.Spec.ConfigMapName = configMap.Name
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
@@ -1434,6 +1399,8 @@ func TestUserCustomConfigUpdateOnChange(t *testing.T) {
 // TestUserCustomConfigUpdateOnAdd tests that user custom config works well with user config update
 func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	configMap := newCustomConfigMap(t.Name(), "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
@@ -1450,9 +1417,7 @@ func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
 		cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
-	ispn := tutils.DefaultSpec(testKube)
-	ispn.Name = strcase.ToKebab(t.Name())
-	ispn.Labels = map[string]string{"test-name": t.Name()}
+	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
 }
@@ -1489,15 +1454,14 @@ xmlns:server="urn:infinispan:server:13.0">
 
 func TestConfigListenerDeployment(t *testing.T) {
 	// t.Parallel()
-	ispn := tutils.DefaultSpec(testKube)
-	ispn.Name = strcase.ToKebab(t.Name())
-	ispn.Labels = map[string]string{"test-name": t.Name()}
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
 		Enabled: true,
 	}
 
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(ispn.Namespace, ispn.Labels)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 
 	// Wait for ConfigListener Deployment to be created

@@ -23,32 +23,32 @@ func TestMain(m *testing.M) {
 	tutils.RunOperator(m, testKube)
 }
 
-func initCluster(name string, configListener bool) (*v1.Infinispan, func()) {
-	spec := tutils.DefaultSpec(testKube)
+func initCluster(t *testing.T, configListener bool) *v1.Infinispan {
+	return initClusterWithSuffix(t, "", configListener)
+}
+
+func initClusterWithSuffix(t *testing.T, suffix string, configListener bool) *v1.Infinispan {
+	spec := tutils.DefaultSpec(t, testKube)
+	spec.Name = spec.Name + suffix
 	spec.Spec.ConfigListener = &v1.ConfigListenerSpec{
 		Enabled: configListener,
 	}
-	name = strcase.ToKebab(name)
-	spec.Name = name
-	spec.Labels = map[string]string{"test-name": name}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, v1.ConditionWellFormed)
-	cleanup := func() {
-		testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, spec.Labels)
-	}
 
 	if configListener {
 		testKube.WaitForDeployment(spec.GetConfigListenerName(), tutils.Namespace)
 	}
-	return ispn, cleanup
+	return ispn
 }
 
 func TestCacheCR(t *testing.T) {
 	t.Parallel()
-	ispn, cleanup := initCluster(t.Name(), false)
-	defer cleanup()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, false)
 
 	test := func(cache *v2alpha1.Cache) {
 		testKube.Create(cache)
@@ -75,8 +75,9 @@ func TestCacheCR(t *testing.T) {
 
 func TestUpdateCacheCR(t *testing.T) {
 	t.Parallel()
-	ispn, cleanup := initCluster(t.Name(), false)
-	defer cleanup()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, false)
 	cacheName := ispn.Name
 	originalYaml := "localCache:\n  memory:\n    maxCount: 10\n"
 
@@ -116,9 +117,9 @@ func TestUpdateCacheCR(t *testing.T) {
 
 func TestCacheWithServerLifecycle(t *testing.T) {
 	t.Parallel()
-	ispn, cleanup := initCluster(t.Name(), true)
-	defer cleanup()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
+	ispn := initCluster(t, true)
 	cacheName := ispn.Name
 	yamlTemplate := "localCache:\n  memory:\n    maxCount: \"%d\"\n"
 	originalConfig := fmt.Sprintf(yamlTemplate, 100)
@@ -157,6 +158,8 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 
 func TestStaticServerCache(t *testing.T) {
 	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	name := strcase.ToKebab(t.Name())
 	cacheName := "static-cache"
 
@@ -177,16 +180,13 @@ func TestStaticServerCache(t *testing.T) {
 	}
 	testKube.CreateConfigMap(configMap)
 
-	ispn := tutils.DefaultSpec(testKube)
+	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.ConfigMapName = configMap.Name
 	ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
 		Enabled: true,
 	}
-	ispn.Name = strcase.ToKebab(t.Name())
-	ispn.Labels = map[string]string{"test-name": t.Name()}
 
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
-	defer testKube.CleanNamespaceAndLogOnPanic(tutils.Namespace, ispn.Labels)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, v1.ConditionWellFormed)
 
@@ -215,8 +215,9 @@ func TestStaticServerCache(t *testing.T) {
 
 func TestCacheWithXML(t *testing.T) {
 	t.Parallel()
-	ispn, cleanup := initCluster(t.Name(), true)
-	defer cleanup()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, true)
 	cacheName := ispn.Name
 	originalXml := `<local-cache><memory max-count="100"/></local-cache>`
 
@@ -254,8 +255,9 @@ func TestCacheWithXML(t *testing.T) {
 
 func TestCacheWithJSON(t *testing.T) {
 	t.Parallel()
-	ispn, cleanup := initCluster(t.Name(), true)
-	defer cleanup()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, true)
 	cacheName := ispn.Name
 	originalJson := `{"local-cache":{"memory":{"max-count":"100"}}}`
 
@@ -293,8 +295,9 @@ func TestCacheWithJSON(t *testing.T) {
 
 func TestCacheClusterRecreate(t *testing.T) {
 	t.Parallel()
-	ispn, cleanup := initCluster(t.Name(), false)
-	defer cleanup()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, false)
 
 	// Create Cache CR
 	cacheName := ispn.Name
@@ -318,7 +321,7 @@ func TestCacheClusterRecreate(t *testing.T) {
 	})
 
 	// Recreate the cluster
-	ispn, _ = initCluster(t.Name(), false)
+	ispn = initCluster(t, false)
 
 	// Assert that the cache is recreated and the CR has the ready status
 	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
@@ -331,12 +334,10 @@ func TestCacheClusterRecreate(t *testing.T) {
 }
 
 func TestCacheClusterNameChange(t *testing.T) {
-	originalCluster, cleanupOriginal := initCluster(t.Name()+"-original-cluster", false)
-	newCluster, cleanupNew := initCluster(t.Name()+"-new-cluster", false)
-	defer func() {
-		cleanupOriginal()
-		cleanupNew()
-	}()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	originalCluster := initClusterWithSuffix(t, "-original-cluster", false)
+	newCluster := initClusterWithSuffix(t, "-new-cluster", false)
 
 	// Create Cache CR
 	cacheName := "some-cache"
