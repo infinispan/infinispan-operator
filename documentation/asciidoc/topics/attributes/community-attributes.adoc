@@ -49,7 +49,7 @@
 :openshiftshort: OpenShift
 :openshiftplatform: Red Hat OpenShift Container Platform
 :ocp: OpenShift Container Platform
-:osweb: OpenShift Web Console
+:osweb: Kubernetes Dashboard
 :k8s: Kubernetes
 :okd: OKD
 
