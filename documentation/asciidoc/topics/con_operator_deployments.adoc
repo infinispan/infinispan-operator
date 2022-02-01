@@ -1,23 +1,39 @@
-//This topic is intended as downstream content.
 [id='infinispan-operator-deployments_{context}']
 = {ispn_operator} deployments
 
 When you install {ispn_operator}, it extends the Kubernetes API with Custom Resource Definitions (CRDs) for deploying and managing {brandname} clusters on {openshift}.
 
-To interact with {ispn_operator}, {openshiftshort} users apply Custom Resources (CRs) through the {osweb} or `oc` client.
+To interact with {ispn_operator}, {k8s} users apply Custom Resources (CRs) through the {osweb} or `{kube_client}` client.
 {ispn_operator} listens for `Infinispan` CRs and automatically provisions native resources, such as StatefulSets and Secrets, that your {brandname} deployment requires.
 {ispn_operator} also configures {brandname} services according to the specifications in `Infinispan` CRs, including the number of pods for the cluster and backup locations for cross-site replication.
 
 .Custom resources
-image::custom-resources.png[This illustration depicts how an {openshiftshort} user can pass custom resources to {ispn_operator}.]
+//Community content
+ifdef::community[]
+image::custom-resources-ispn.png[This illustration depicts how {k8s} users pass custom resources to {ispn_operator}.]
+endif::community[]
+//Downstream content
+ifdef::downstream[]
+image::custom-resources.png[This illustration depicts how {k8s} users pass custom resources to {ispn_operator}.]
+endif::downstream[]
 
 A single {ispn_operator} installation can manage multiple {brandname} clusters in separate namespaces.
-Each time an {openshiftshort} user applies CRs to modify the deployment, {ispn_operator} applies the changes globally to all {brandname} clusters.
+Each time a user applies CRs to modify the deployment, {ispn_operator} applies the changes globally to all {brandname} clusters.
 
 .Operator-managed clusters
+//Community content
+ifdef::community[]
+image::operator-managed-clusters-ispn.png[This illustration depicts how {ispn_operator} manages multiple clusters on {k8s}.]
+endif::community[]
+//Downstream content
+ifdef::downstream[]
 image::operator-managed-clusters.png[This illustration depicts how {ispn_operator} manages multiple clusters on {openshiftshort}.]
+endif::downstream[]
 
+//Downstream content
+ifdef::downstream[]
 [NOTE]
 ====
 Select **All** as the installation mode to install {ispn_operator} in the `openshift-operators` namespace.
 ====
+endif::downstream[]
