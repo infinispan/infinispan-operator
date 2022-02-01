@@ -4,7 +4,7 @@
 [role="_abstract"]
 {ispn_operator} adds a new Custom Resource (CR) of type `Infinispan` that lets you handle {brandname} clusters as complex units on {k8s}.
 
-{ispn_operator} watches for `Infinispan` Custom Resources (CR) that you use to instantiate and configure {brandname} clusters and manage {k8s} resources, such as StatefulSets and Services.
+{ispn_operator} listens for `Infinispan` Custom Resources (CR) that you use to instantiate and configure {brandname} clusters and manage {k8s} resources, such as StatefulSets and Services.
 
 .`Infinispan` CR
 [source,options="nowrap",subs=attributes+]

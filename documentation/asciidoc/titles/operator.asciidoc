@@ -19,8 +19,7 @@ include::{topics}/attributes/links.adoc[]
 [id='infinispan_operator']
 = {ispn_operator} {ispn_operator_version} Guide
 
-The {ispn_operator} provides operational intelligence and reduces management
-complexity for deploying {brandname} on {k8s} and {openshift}.
+The {ispn_operator} provides operational intelligence and reduces management complexity for deploying {brandname} on {k8s} and {openshift}.
 
 {ispn_operator} {ispn_operator_version} corresponds to {brandname} {ispn_version}.
 

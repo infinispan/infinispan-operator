@@ -6,6 +6,10 @@ ifdef::context[:parent-context: {context}]
 [role="_abstract"]
 Install {ispn_operator} into a {k8s} namespace to create and manage {brandname} clusters.
 
+//Downstream content
+ifdef::downstream[]
+include::{topics}/con_operator_deployments.adoc[leveloffset=+1]
+endif::downstream[]
 include::{topics}/proc_installing_operator_olm.adoc[leveloffset=+1]
 include::{topics}/proc_installing_operator_native_plugin.adoc[leveloffset=+1]
 //Downstream content
