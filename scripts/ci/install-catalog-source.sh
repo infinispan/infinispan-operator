@@ -14,7 +14,7 @@ BUNDLE_IMG_NAME=infinispan-operator-bundle
 export IMG=${IMG_REGISTRY}/infinispan-operator
 export BUNDLE_IMG=${IMG_REGISTRY}/${BUNDLE_IMG_NAME}:v${VERSION}
 export CATALOG_IMG=${IMG_REGISTRY}/infinispan-test-catalog
-export CATALOG_BASE_IMG=${CATALOG_BASE_IMG-"quay.io/operatorhubio/catalog_tmp"}
+export CATALOG_BASE_IMG=${CATALOG_BASE_IMG-"quay.io/operatorhubio/catalog:tmp_latest_sql"}
 
 # Create the operator image
 make operator-build operator-push
