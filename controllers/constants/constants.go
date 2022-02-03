@@ -40,6 +40,7 @@ var (
 )
 
 const (
+	InfinispanContainer = "infinispan"
 	// DefaultOperatorUser users to access the cluster rest API
 	DefaultOperatorUser = "operator"
 	// DefaultDeveloperUser users to access the cluster rest API

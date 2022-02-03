@@ -244,7 +244,7 @@ func (c Cluster) CreateCacheWithTemplateName(cacheName, templateName, podName st
 
 func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
 	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
-	execOptions := kube.ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
+	execOptions := kube.ExecOptions{Container: consts.InfinispanContainer, Command: command, PodName: podName, Namespace: c.Namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {
@@ -262,7 +262,7 @@ func (c Cluster) GetMemoryLimitBytes(podName string) (uint64, error) {
 
 func (c Cluster) GetMaxMemoryUnboundedBytes(podName string) (uint64, error) {
 	command := []string{"cat", "/proc/meminfo"}
-	execOptions := kube.ExecOptions{Command: command, PodName: podName, Namespace: c.Namespace}
+	execOptions := kube.ExecOptions{Container: consts.InfinispanContainer, Command: command, PodName: podName, Namespace: c.Namespace}
 	execOut, execErr, err := c.Kubernetes.ExecWithOptions(execOptions)
 
 	if err != nil {

@@ -43,6 +43,7 @@ import (
 )
 
 const (
+	InfinispanContainer          = consts.InfinispanContainer
 	DataMountPath                = consts.ServerRoot + "/data"
 	OperatorConfMountPath        = consts.ServerRoot + "/conf/operator"
 	DataMountVolume              = "data-volume"
@@ -1207,7 +1208,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 					Affinity: ispn.Spec.Affinity,
 					Containers: []corev1.Container{{
 						Image: ispn.ImageName(),
-						Name:  "infinispan",
+						Name:  InfinispanContainer,
 						Env: PodEnv(ispn, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hash.HashString(configMap.Data[consts.ServerConfigFilename])},
 							{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])},
