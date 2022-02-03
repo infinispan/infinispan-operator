@@ -237,7 +237,7 @@ endif
 .PHONY: catalog-build
 ## Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
 catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool $(CONTAINER_TOOL) --mode replaces --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	sudo $(OPM) index add --container-tool $(CONTAINER_TOOL) --mode replaces --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 .PHONY: catalog-push
 ## Push the catalog image.
