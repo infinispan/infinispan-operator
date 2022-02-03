@@ -152,10 +152,6 @@ func (ispn *Infinispan) ApplyDefaults() {
 	if ispn.Spec.Container.Memory == "" {
 		ispn.Spec.Container.Memory = consts.DefaultMemorySize.String()
 	}
-	if ispn.Spec.Container.CPU == "" {
-		cpuLimitString := toMilliDecimalQuantity(consts.DefaultCPULimit)
-		ispn.Spec.Container.CPU = cpuLimitString.String()
-	}
 	if ispn.IsDataGrid() {
 		if ispn.Spec.Service.Container == nil {
 			ispn.Spec.Service.Container = &InfinispanServiceContainerSpec{}
@@ -434,8 +430,12 @@ func (spec *InfinispanContainerSpec) GetMemoryResources() (requests resource.Qua
 }
 
 func getRequestLimits(str string) (requests resource.Quantity, limits resource.Quantity, err error) {
-	parts := strings.Split(str, ":")
+	if str == "" {
+		err = fmt.Errorf("resource string cannot be empty")
+		return
+	}
 
+	parts := strings.Split(str, ":")
 	if len(parts) > 2 {
 		err = fmt.Errorf("unexpected resource format. Expected a string of '<limit>:<request>' or '<limit>', received: '%s'", str)
 		return
@@ -543,10 +543,6 @@ func (ispn *Infinispan) IsEncryptionCertFromService() bool {
 func (ispn *Infinispan) IsEncryptionCertSourceDefined() bool {
 	ee := ispn.Spec.Security.EndpointEncryption
 	return ee != nil && ee.Type != ""
-}
-
-func toMilliDecimalQuantity(value int64) resource.Quantity {
-	return *resource.NewMilliQuantity(value, resource.DecimalSI)
 }
 
 // IsEphemeralStorage returns the value of ephemeralStorage if it is defined.

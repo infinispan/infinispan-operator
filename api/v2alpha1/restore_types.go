@@ -93,18 +93,3 @@ type RestoreList struct {
 func init() {
 	SchemeBuilder.Register(&Restore{}, &RestoreList{})
 }
-
-const (
-	DefaultRestoreCpuLimit = "500m"
-	DefaultRestoreMemory   = "512Mi"
-)
-
-func (s *RestoreSpec) ApplyDefaults() {
-	if s.Container.CPU == "" {
-		s.Container.CPU = DefaultRestoreCpuLimit
-	}
-
-	if s.Container.Memory == "" {
-		s.Container.Memory = DefaultRestoreMemory
-	}
-}
