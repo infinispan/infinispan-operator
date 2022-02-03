@@ -93,7 +93,7 @@ manager: generate fmt vet
 .PHONY: run
 ## Run the operator against the configured Kubernetes cluster in ~/.kube/config
 run: manager manifests
-	OSDK_FORCE_RUN_MODE=local go run ./main.go
+	OSDK_FORCE_RUN_MODE=local go run ./main.go operator
 
 .PHONY: install
 ## Install CRDs into a cluster
