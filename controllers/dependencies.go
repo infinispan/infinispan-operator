@@ -22,8 +22,9 @@ const (
 )
 
 func applyExternalDependenciesVolume(ispn *infinispanv1.Infinispan, spec *corev1.PodSpec) (updated bool) {
+	ispnContainer := GetContainer(InfinispanContainer, spec)
 	volumes := &spec.Volumes
-	volumeMounts := &spec.Containers[0].VolumeMounts
+	volumeMounts := &ispnContainer.VolumeMounts
 	volumePosition := findVolume(*volumes, CustomLibrariesVolumeName)
 	if ispn.HasDependenciesVolume() && volumePosition < 0 {
 		*volumeMounts = append(*volumeMounts, corev1.VolumeMount{Name: CustomLibrariesVolumeName, MountPath: CustomLibrariesMountPath, ReadOnly: true})
@@ -32,17 +33,18 @@ func applyExternalDependenciesVolume(ispn *infinispanv1.Infinispan, spec *corev1
 	} else if !ispn.HasDependenciesVolume() && volumePosition >= 0 {
 		volumeMountPosition := findVolumeMount(*volumeMounts, CustomLibrariesVolumeName)
 		*volumes = append(spec.Volumes[:volumePosition], spec.Volumes[volumePosition+1:]...)
-		*volumeMounts = append(spec.Containers[0].VolumeMounts[:volumeMountPosition], spec.Containers[0].VolumeMounts[volumeMountPosition+1:]...)
+		*volumeMounts = append((*volumeMounts)[:volumeMountPosition], (*volumeMounts)[volumeMountPosition+1:]...)
 		updated = true
 	}
 	return
 }
 
 func applyExternalArtifactsDownload(ispn *infinispanv1.Infinispan, spec *corev1.PodSpec) (updated bool, retErr error) {
-	c := &spec.InitContainers
+	initContainers := &spec.InitContainers
+	ispnContainer := GetContainer(InfinispanContainer, spec)
 	volumes := &spec.Volumes
-	volumeMounts := &spec.Containers[0].VolumeMounts
-	containerPosition := kube.ContainerIndex(*c, ExternalArtifactsDownloadInitContainer)
+	volumeMounts := &ispnContainer.VolumeMounts
+	containerPosition := kube.ContainerIndex(*initContainers, ExternalArtifactsDownloadInitContainer)
 	if ispn.HasExternalArtifacts() {
 		extractCommands, err := externalArtifactsExtractCommand(ispn)
 		if err != nil {
@@ -55,7 +57,7 @@ func applyExternalArtifactsDownload(ispn *infinispanv1.Infinispan, spec *corev1.
 				updated = true
 			}
 		} else {
-			*c = append(*c, corev1.Container{
+			*initContainers = append(*initContainers, corev1.Container{
 				Image:   ispn.ImageName(),
 				Name:    ExternalArtifactsDownloadInitContainer,
 				Command: []string{"sh", "-c"},
@@ -72,9 +74,9 @@ func applyExternalArtifactsDownload(ispn *infinispanv1.Infinispan, spec *corev1.
 	} else if containerPosition >= 0 {
 		volumePosition := findVolume(*volumes, ExternalArtifactsVolumeName)
 		volumeMountPosition := findVolumeMount(*volumeMounts, ExternalArtifactsVolumeName)
-		*c = append(spec.InitContainers[:containerPosition], spec.InitContainers[containerPosition+1:]...)
+		*initContainers = append((*initContainers)[:containerPosition], (*initContainers)[containerPosition+1:]...)
 		*volumes = append(spec.Volumes[:volumePosition], spec.Volumes[volumePosition+1:]...)
-		*volumeMounts = append(spec.Containers[0].VolumeMounts[:volumeMountPosition], spec.Containers[0].VolumeMounts[volumeMountPosition+1:]...)
+		*volumeMounts = append((*volumeMounts)[:volumeMountPosition], (*volumeMounts)[volumeMountPosition+1:]...)
 		updated = true
 	}
 	return

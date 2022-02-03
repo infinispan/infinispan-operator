@@ -157,7 +157,7 @@ func AddVolumeForUserAuthentication(i *infinispanv1.Infinispan, spec *corev1.Pod
 		},
 	})
 
-	vm := &spec.Containers[0].VolumeMounts
+	vm := &GetContainer(InfinispanContainer, spec).VolumeMounts
 	*vm = append(*vm, corev1.VolumeMount{
 		Name:      IdentitiesVolumeName,
 		MountPath: consts.ServerUserIdentitiesRoot,
@@ -213,7 +213,7 @@ func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodS
 	}
 
 	index := -1
-	volumeMounts := &spec.Containers[0].VolumeMounts
+	volumeMounts := &GetContainer(InfinispanContainer, spec).VolumeMounts
 	for i, vm := range *volumeMounts {
 		if vm.Name == volumeName {
 			index = i
@@ -226,4 +226,13 @@ func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodS
 	} else {
 		(*volumeMounts)[index] = volumeMount
 	}
+}
+
+func GetContainer(name string, spec *corev1.PodSpec) *corev1.Container {
+	for i, c := range spec.Containers {
+		if c.Name == name {
+			return &spec.Containers[i]
+		}
+	}
+	return nil
 }

@@ -950,7 +950,7 @@ func (r *infinispanRequest) scheduleUpgradeIfNeeded(podList *corev1.PodList) (*c
 	infinispan := r.infinispan
 	if upgrade, err := upgradeRequired(infinispan, podList); upgrade || err != nil {
 		if err := r.update(func() {
-			podDefaultImage := kube.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
+			podDefaultImage := kube.GetPodDefaultImage(*GetContainer(InfinispanContainer, &podList.Items[0].Spec))
 			r.reqLogger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", consts.DefaultImageName)
 			infinispan.SetCondition(infinispanv1.ConditionUpgrade, metav1.ConditionTrue, "")
 			infinispan.Spec.Replicas = 0
@@ -978,7 +978,7 @@ func upgradeRequired(infinispan *infinispanv1.Infinispan, podList *corev1.PodLis
 	}
 
 	// Get default Infinispan image for a running Infinispan pod
-	podDefaultImage := kube.GetPodDefaultImage(podList.Items[0].Spec.Containers[0])
+	podDefaultImage := kube.GetPodDefaultImage(*GetContainer(InfinispanContainer, &podList.Items[0].Spec))
 
 	// Get Infinispan image that the operator creates
 	desiredImage := consts.DefaultImageName
@@ -1230,8 +1230,9 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 
 	// Only append IDENTITIES_HASH and secret volume if authentication is enabled
 	spec := &dep.Spec.Template.Spec
+	ispnContainer := GetContainer(InfinispanContainer, spec)
 	if AddVolumeForUserAuthentication(ispn, spec) {
-		spec.Containers[0].Env = append(spec.Containers[0].Env,
+		ispnContainer.Env = append(ispnContainer.Env,
 			corev1.EnvVar{
 				Name:  "IDENTITIES_HASH",
 				Value: hash.HashByte(userSecret.Data[consts.ServerIdentitiesFilename]),
@@ -1313,14 +1314,14 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	applyExternalDependenciesVolume(ispn, &dep.Spec.Template.Spec)
 	if ispn.IsEncryptionEnabled() {
 		AddVolumesForEncryption(ispn, &dep.Spec.Template.Spec)
-		spec.Containers[0].Env = append(spec.Containers[0].Env,
+		ispnContainer.Env = append(ispnContainer.Env,
 			corev1.EnvVar{
 				Name:  "KEYSTORE_HASH",
 				Value: hash.HashMap(keystoreSecret.Data),
 			})
 
 		if ispn.IsClientCertEnabled() {
-			spec.Containers[0].Env = append(spec.Containers[0].Env,
+			ispnContainer.Env = append(ispnContainer.Env,
 				corev1.EnvVar{
 					Name:  "TRUSTSTORE_HASH",
 					Value: hash.HashMap(trustSecret.Data),
@@ -1510,7 +1511,8 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 
 	// Changes to statefulset.spec.template.spec.containers[].resources
 	spec := &statefulSet.Spec.Template.Spec
-	res := spec.Containers[0].Resources
+	ispnContainer := GetContainer(InfinispanContainer, spec)
+	res := ispnContainer.Resources
 	ispnContr := &ispn.Spec.Container
 	if ispnContr.Memory != "" {
 		memRequests, memLimits, err := ispn.Spec.Container.GetMemoryResources()
@@ -1584,7 +1586,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 			if userSecret == nil {
 				return &ctrl.Result{}, fmt.Errorf("user secret is nil. Requeueing")
 			}
-			spec.Containers[0].Env = append(spec.Containers[0].Env,
+			ispnContainer.Env = append(ispnContainer.Env,
 				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: hash.HashByte(userSecret.Data[consts.ServerIdentitiesFilename])},
 			)
 			updateNeeded = true
@@ -1641,11 +1643,12 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 }
 
 func updateStatefulSetEnv(statefulSet *appsv1.StatefulSet, envName, newValue string) bool {
-	env := &statefulSet.Spec.Template.Spec.Containers[0].Env
+	ispnContainer := GetContainer(InfinispanContainer, &statefulSet.Spec.Template.Spec)
+	env := &ispnContainer.Env
 	envIndex := kube.GetEnvVarIndex(envName, env)
 	if envIndex < 0 {
 		// The env variable previously didn't exist, so append newValue to the end of the []EnvVar
-		statefulSet.Spec.Template.Spec.Containers[0].Env = append(*env, corev1.EnvVar{
+		*env = append(*env, corev1.EnvVar{
 			Name:  envName,
 			Value: newValue,
 		})
@@ -1738,10 +1741,11 @@ func buildStartupArgs(overlayConfigMapKey string, zeroCapacity string) []string 
 
 func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey, zeroCapacity string) (bool, error) {
 	newArgs := buildStartupArgs(overlayConfigMapKey, zeroCapacity)
-	if len(newArgs) == len(statefulSet.Spec.Template.Spec.Containers[0].Args) {
+	ispnContainer := GetContainer(InfinispanContainer, &statefulSet.Spec.Template.Spec)
+	if len(newArgs) == len(ispnContainer.Args) {
 		var changed bool
 		for i := range newArgs {
-			if newArgs[i] != statefulSet.Spec.Template.Spec.Containers[0].Args[i] {
+			if newArgs[i] != ispnContainer.Args[i] {
 				changed = true
 				break
 			}
@@ -1750,13 +1754,13 @@ func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey, zer
 			return false, nil
 		}
 	}
-	statefulSet.Spec.Template.Spec.Containers[0].Args = newArgs
+	ispnContainer.Args = newArgs
 	return true, nil
 }
 
 func applyOverlayConfigVolume(configMap *corev1.ConfigMap, spec *corev1.PodSpec) bool {
 	volumes := &spec.Volumes
-	volumeMounts := &spec.Containers[0].VolumeMounts
+	volumeMounts := &GetContainer(InfinispanContainer, spec).VolumeMounts
 	volumePosition := findVolume(*volumes, UserConfVolumeName)
 	if configMap.Name != "" {
 		// Add the overlay volume if needed
@@ -1781,7 +1785,7 @@ func applyOverlayConfigVolume(configMap *corev1.ConfigMap, spec *corev1.PodSpec)
 	if configMap.Name == "" && volumePosition >= 0 {
 		volumeMountPosition := findVolumeMount(*volumeMounts, UserConfVolumeName)
 		*volumes = append(spec.Volumes[:volumePosition], spec.Volumes[volumePosition+1:]...)
-		*volumeMounts = append(spec.Containers[0].VolumeMounts[:volumeMountPosition], spec.Containers[0].VolumeMounts[volumeMountPosition+1:]...)
+		*volumeMounts = append((*volumeMounts)[:volumeMountPosition], (*volumeMounts)[volumeMountPosition+1:]...)
 		return true
 	}
 	return false
