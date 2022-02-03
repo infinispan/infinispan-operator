@@ -780,7 +780,6 @@ func TestExternalService(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Container: ispnv1.InfinispanContainerSpec{
-				CPU:    tutils.CPU,
 				Memory: tutils.Memory,
 			},
 			Replicas: 1,
@@ -850,7 +849,6 @@ func TestExternalServiceWithAuth(t *testing.T) {
 		Spec: ispnv1.InfinispanSpec{
 			Security: ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"},
 			Container: ispnv1.InfinispanContainerSpec{
-				CPU:    tutils.CPU,
 				Memory: tutils.Memory,
 			},
 			Replicas: 1,
