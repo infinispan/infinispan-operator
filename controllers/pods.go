@@ -30,16 +30,16 @@ func PodPortsWithXsite(i *infinispanv1.Infinispan) []corev1.ContainerPort {
 }
 
 func PodLivenessProbe() *corev1.Probe {
-	return probe(5, 10, 10, 1, 80)
+	return probe(5, 0, 10, 1, 80)
 }
 
 func PodReadinessProbe() *corev1.Probe {
-	return probe(5, 10, 10, 1, 80)
+	return probe(5, 0, 10, 1, 80)
 }
 
 func PodStartupProbe() *corev1.Probe {
-	// Maximum 10 minutes (60 * 10s) to finish startup
-	return probe(60, 10, 10, 1, 80)
+	// Maximum 10 minutes (600 * 1s) to finish startup
+	return probe(600, 1, 1, 1, 80)
 }
 
 func probe(failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
@@ -59,15 +59,15 @@ func probe(failureThreshold, initialDelay, period, successThreshold, timeout int
 }
 
 func GossipRouterLivenessProbe() *corev1.Probe {
-	return TcpProbe(consts.CrossSitePort, 5, 5, 10, 1, 60)
+	return TcpProbe(consts.CrossSitePort, 5, 5, 0, 1, 60)
 }
 
 func GossipRouterReadinessProbe() *corev1.Probe {
-	return TcpProbe(consts.CrossSitePort, 5, 5, 10, 1, 60)
+	return TcpProbe(consts.CrossSitePort, 5, 5, 0, 1, 60)
 }
 
 func GossipRouterStartupProbe() *corev1.Probe {
-	return TcpProbe(consts.CrossSitePort, 5, 5, 10, 1, 60)
+	return TcpProbe(consts.CrossSitePort, 5, 1, 1, 1, 60)
 }
 
 func TcpProbe(port, failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
