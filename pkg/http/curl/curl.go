@@ -20,6 +20,7 @@ type Credentials struct {
 
 type Config struct {
 	Credentials *Credentials
+	Container   string
 	Podname     string
 	Namespace   string
 	Protocol    string
@@ -120,6 +121,7 @@ func (c *Client) executeCurlNoAuth(httpURL, headers, args string) (*http.Respons
 func (c *Client) exec(cmd string) (bytes.Buffer, error) {
 	return c.Kubernetes.ExecWithOptions(
 		kube.ExecOptions{
+			Container: c.Config.Container,
 			Command:   []string{"bash", "-c", cmd},
 			PodName:   c.Config.Podname,
 			Namespace: c.Config.Namespace,

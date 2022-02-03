@@ -276,9 +276,12 @@ func PodList(infinispan *infinispanv1.Infinispan, kube *kubernetes.Kubernetes, c
 }
 
 func GetPodMemoryLimitBytes(podName, namespace string, kube *kubernetes.Kubernetes) (uint64, error) {
-	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
-	execOptions := kubernetes.ExecOptions{Command: command, PodName: podName, Namespace: namespace}
-	execOut, err := kube.ExecWithOptions(execOptions)
+	execOut, err := kube.ExecWithOptions(kubernetes.ExecOptions{
+		Container: InfinispanContainer,
+		Command:   []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"},
+		PodName:   podName,
+		Namespace: namespace,
+	})
 
 	if err != nil {
 		return 0, fmt.Errorf("unexpected error getting memory limit bytes, err: %w", err)
@@ -293,9 +296,12 @@ func GetPodMemoryLimitBytes(podName, namespace string, kube *kubernetes.Kubernet
 }
 
 func GetPodMaxMemoryUnboundedBytes(podName, namespace string, kube *kubernetes.Kubernetes) (uint64, error) {
-	command := []string{"cat", "/proc/meminfo"}
-	execOptions := kubernetes.ExecOptions{Command: command, PodName: podName, Namespace: namespace}
-	execOut, err := kube.ExecWithOptions(execOptions)
+	execOut, err := kube.ExecWithOptions(kubernetes.ExecOptions{
+		Container: InfinispanContainer,
+		Command:   []string{"cat", "/proc/meminfo"},
+		PodName:   podName,
+		Namespace: namespace,
+	})
 
 	if err != nil {
 		return 0, fmt.Errorf("unexpected error getting max unbounded memory, err: %w", err)

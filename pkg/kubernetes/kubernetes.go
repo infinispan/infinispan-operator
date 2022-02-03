@@ -103,6 +103,7 @@ func (k Kubernetes) GetSecret(secretName, namespace string, ctx context.Context)
 
 // ExecOptions specify execution options
 type ExecOptions struct {
+	Container string
 	Command   []string
 	Namespace string
 	PodName   string
@@ -127,11 +128,12 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, error) {
 		Namespace(options.Namespace).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
-			Command: options.Command,
-			Stdin:   false,
-			Stdout:  true,
-			Stderr:  true,
-			TTY:     false,
+			Container: options.Container,
+			Command:   options.Command,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
 		}, scheme.ParameterCodec)
 	var execOut, execErr bytes.Buffer
 	// Create an executor
