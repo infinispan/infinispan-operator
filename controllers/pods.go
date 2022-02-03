@@ -90,20 +90,24 @@ func PodResources(spec infinispanv1.InfinispanContainerSpec) (*corev1.ResourceRe
 		return nil, err
 	}
 
-	cpuRequests, cpuLimits, err := spec.GetCpuResources()
-	if err != nil {
-		return nil, err
-	}
-	return &corev1.ResourceRequirements{
+	req := &corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuRequests,
 			corev1.ResourceMemory: memRequests,
 		},
 		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    cpuLimits,
 			corev1.ResourceMemory: memLimits,
 		},
-	}, nil
+	}
+
+	if spec.CPU != "" {
+		cpuRequests, cpuLimits, err := spec.GetCpuResources()
+		if err != nil {
+			return nil, err
+		}
+		req.Requests[corev1.ResourceCPU] = cpuRequests
+		req.Limits[corev1.ResourceCPU] = cpuLimits
+	}
+	return req, nil
 }
 
 func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {

@@ -104,18 +104,3 @@ type BackupList struct {
 func init() {
 	SchemeBuilder.Register(&Backup{}, &BackupList{})
 }
-
-const (
-	DefaultBackupCpuLimit = "500m"
-	DefaultBackupMemory   = "512Mi"
-)
-
-func (s *BackupSpec) ApplyDefaults() {
-	if s.Container.CPU == "" {
-		s.Container.CPU = DefaultBackupCpuLimit
-	}
-
-	if s.Container.Memory == "" {
-		s.Container.Memory = DefaultBackupMemory
-	}
-}
