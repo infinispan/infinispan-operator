@@ -29,11 +29,3 @@ endif::community[]
 ifdef::downstream[]
 image::operator-managed-clusters.png[This illustration depicts how {ispn_operator} manages multiple clusters on {openshiftshort}.]
 endif::downstream[]
-
-//Downstream content
-ifdef::downstream[]
-[NOTE]
-====
-Select **All** as the installation mode to install {ispn_operator} in the `openshift-operators` namespace.
-====
-endif::downstream[]
