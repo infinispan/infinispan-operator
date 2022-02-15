@@ -121,7 +121,7 @@ public class MonitoringStackIT {
         Waiters.sleep(TimeUnit.SECONDS, 60);
 
         // Check ServiceMonitor targets
-        Pod prometheus = monitoringShift.getAnyPod("app", "prometheus");
+        Pod prometheus = monitoringShift.getAnyPod("prometheus", "user-workload");
         PodShell shell = new PodShell(monitoringShift, prometheus, "prometheus");
         String targets = shell.executeWithBash("curl http://localhost:9090/api/v1/targets?state=active").getOutput();
         JsonNode activeTargets = new ObjectMapper().readTree(targets).get("data").get("activeTargets");
