@@ -9,6 +9,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -51,23 +52,10 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	testKube.WaitForInfinispanCondition(infinispan.Name, namespace, v1.ConditionWellFormed)
 
 	backupName := "backup"
-	backupSpec := &v2.Backup{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v2alpha1",
-			Kind:       "Backup",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      backupName,
-			Namespace: namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
-		},
-		Spec: v2.BackupSpec{
-			Cluster: clusterName,
-			Resources: &v2.BackupResources{
-				CacheConfigs: []string{"some-config"},
-				Scripts:      []string{"some-script"},
-			},
-		},
+	backupSpec := backupSpec(t, backupName, namespace, clusterName)
+	backupSpec.Spec.Resources = &v2.BackupResources{
+		CacheConfigs: []string{"some-config"},
+		Scripts:      []string{"some-script"},
 	}
 
 	testKube.Create(backupSpec)
@@ -83,27 +71,13 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	}))
 
 	restoreName := "restore"
-	restoreSpec := &v2.Restore{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v2alpha1",
-			Kind:       "Restore",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      restoreName,
-			Namespace: namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
-		},
-		Spec: v2.RestoreSpec{
-			Backup:  backupName,
-			Cluster: clusterName,
-			Resources: &v2.RestoreResources{
-				CacheConfigs: []string{"some-config"},
-				Scripts:      []string{"some-script"},
-			},
-		},
+	restoreSpec := restoreSpec(t, restoreName, namespace, backupName, clusterName)
+	restoreSpec.Spec.Resources = &v2.RestoreResources{
+		CacheConfigs: []string{"some-config"},
+		Scripts:      []string{"some-script"},
 	}
-
 	testKube.Create(restoreSpec)
+
 	tutils.ExpectNoError(wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
 		restore := testKube.GetRestore(restoreName, namespace)
 
@@ -146,20 +120,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 
 	// 3. Backup the cluster's content
 	backupName := "backup"
-	backupSpec := &v2.Backup{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v2alpha1",
-			Kind:       "Backup",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      backupName,
-			Namespace: namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
-		},
-		Spec: v2.BackupSpec{
-			Cluster: sourceCluster,
-		},
-	}
+	backupSpec := backupSpec(t, backupName, namespace, sourceCluster)
 	testKube.Create(backupSpec)
 
 	// Ensure the backup pod has joined the cluster
@@ -230,22 +191,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 
 	// 6. Restore the backed up data from the volume to the target cluster
 	restoreName := "restore"
-	restoreSpec := &v2.Restore{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "infinispan.org/v2alpha1",
-			Kind:       "Restore",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      restoreName,
-			Labels:    map[string]string{"test-name": t.Name()},
-		},
-		Spec: v2.RestoreSpec{
-			Cluster: targetCluster,
-			Backup:  backupName,
-		},
-	}
-
+	restoreSpec := restoreSpec(t, restoreName, namespace, backupName, targetCluster)
 	testKube.Create(restoreSpec)
 
 	// Ensure the restore pod hased joined the cluster
@@ -306,7 +252,7 @@ func datagridService(t *testing.T, name, namespace string, replicas int) *v1.Inf
 }
 
 func cacheService(t *testing.T, name, namespace string, replicas int) *v1.Infinispan {
-	return &v1.Infinispan{
+	spec := &v1.Infinispan{
 		TypeMeta: tutils.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -318,6 +264,54 @@ func cacheService(t *testing.T, name, namespace string, replicas int) *v1.Infini
 			Expose:   tutils.ExposeServiceSpec(testKube),
 		},
 	}
+
+	if tutils.CPU != "" {
+		spec.Spec.Container.CPU = tutils.CPU
+	}
+	return spec
+}
+
+func backupSpec(t *testing.T, name, namespace, cluster string) *v2alpha1.Backup {
+	spec := &v2.Backup{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v2alpha1",
+			Kind:       "Backup",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    map[string]string{"test-name": t.Name()},
+		},
+		Spec: v2.BackupSpec{
+			Cluster: cluster,
+		},
+	}
+	if tutils.CPU != "" {
+		spec.Spec.Container.CPU = tutils.CPU
+	}
+	return spec
+}
+
+func restoreSpec(t *testing.T, name, namespace, backup, cluster string) *v2alpha1.Restore {
+	spec := &v2.Restore{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v2alpha1",
+			Kind:       "Restore",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    map[string]string{"test-name": t.Name()},
+		},
+		Spec: v2.RestoreSpec{
+			Backup:  backup,
+			Cluster: cluster,
+		},
+	}
+	if tutils.CPU != "" {
+		spec.Spec.Container.CPU = tutils.CPU
+	}
+	return spec
 }
 
 func waitForNoCluster(infinispan *v1.Infinispan) {
