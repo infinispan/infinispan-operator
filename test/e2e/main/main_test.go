@@ -510,10 +510,10 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
-		ispn.Spec.Container.CPU = "900m:550m"
+		ispn.Spec.Container.CPU = "550m"
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
-		limit := resource.MustParse("900m")
+		limit := resource.MustParse("550m")
 		request := resource.MustParse("550m")
 		if limit.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"]) != 0 ||
 			request.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"]) != 0 {
@@ -532,13 +532,10 @@ func TestContainerMemoryUpdate(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
-		ispn.Spec.Container.Memory = "512Mi:256Mi"
+		ispn.Spec.Container.Memory = "256Mi"
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
-		limit := resource.MustParse("512Mi")
-		request := resource.MustParse("256Mi")
-		if limit.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Limits["memory"]) != 0 ||
-			request.Cmp(ss.Spec.Template.Spec.Containers[0].Resources.Requests["memory"]) != 0 {
+		if resource.MustParse("256Mi") != ss.Spec.Template.Spec.Containers[0].Resources.Requests["memory"] {
 			panic("Memory field not updated")
 		}
 	}

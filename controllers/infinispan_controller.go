@@ -694,7 +694,7 @@ func (r *infinispanRequest) preliminaryChecks() (*ctrl.Result, error) {
 	// If a CacheService is requested, checks that the pods have enough memory
 	spec := r.infinispan.Spec
 	if spec.Service.Type == infinispanv1.ServiceTypeCache {
-		_, memoryQ, err := spec.Container.GetMemoryResources()
+		memoryQ, err := resource.ParseQuantity(spec.Container.Memory)
 		if err != nil {
 			return &ctrl.Result{
 				Requeue:      false,
@@ -1512,16 +1512,15 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 	res := spec.Containers[0].Resources
 	ispnContr := &ispn.Spec.Container
 	if ispnContr.Memory != "" {
-		memRequests, memLimits, err := ispn.Spec.Container.GetMemoryResources()
+		quantity, err := resource.ParseQuantity(ispnContr.Memory)
 		if err != nil {
 			return &ctrl.Result{}, err
 		}
-		previousMemRequests := res.Requests["memory"]
-		previousMemLimits := res.Limits["memory"]
-		if memRequests.Cmp(previousMemRequests) != 0 || memLimits.Cmp(previousMemLimits) != 0 {
-			res.Requests["memory"] = memRequests
-			res.Limits["memory"] = memLimits
-			r.reqLogger.Info("memory changed, update infinispan", "memLim", memLimits, "cpuReq", memRequests, "previous cpuLim", previousMemLimits, "previous cpuReq", previousMemRequests)
+		previousMemory := res.Requests["memory"]
+		if quantity.Cmp(previousMemory) != 0 {
+			res.Requests["memory"] = quantity
+			res.Limits["memory"] = quantity
+			r.reqLogger.Info("memory changed, update infinispan", "memory", quantity, "previous memory", previousMemory)
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateNeeded = true
 		}
@@ -1534,8 +1533,8 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 		previousCPUReq := res.Requests["cpu"]
 		previousCPULim := res.Limits["cpu"]
 		if cpuReq.Cmp(previousCPUReq) != 0 || cpuLim.Cmp(previousCPULim) != 0 {
-			res.Requests["cpu"] = cpuReq
-			res.Limits["cpu"] = cpuLim
+			res.Requests["cpu"] = *cpuReq
+			res.Limits["cpu"] = *cpuLim
 			r.reqLogger.Info("cpu changed, update infinispan", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateNeeded = true
