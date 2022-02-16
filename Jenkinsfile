@@ -90,9 +90,7 @@ pipeline {
 
                 stage('Backup/Restore') {
                     steps {
-                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                            sh 'make backuprestore-test'
-                        }
+                        sh 'make backuprestore-test INFINISPAN_CPU=500m'
                     }
                 }
 
