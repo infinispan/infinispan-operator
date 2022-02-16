@@ -20,10 +20,13 @@ var (
 	JGroupsDiagnosticsFlag = strings.ToUpper(GetEnvWithDefault("JGROUPS_DIAGNOSTICS", "FALSE"))
 
 	// DefaultMemorySize string with default size for memory
-	DefaultMemorySize = resource.MustParse("1Gi")
+	DefaultMemorySize = resource.MustParse("512Mi")
 
 	// DefaultPVSize default size for persistent volume
 	DefaultPVSize = resource.MustParse("1Gi")
+
+	// DefaultCPULimit string with default size for CPU
+	DefaultCPULimit int64 = 500
 
 	DeploymentAnnotations = map[string]string{
 		"openshift.io/display-name":      "Infinispan Cluster",

@@ -24,7 +24,8 @@ const (
 )
 
 var (
-	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "1Gi")
+	CPU               = constants.GetEnvWithDefault("INFINISPAN_CPU", "500m")
+	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "512Mi")
 	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
 	MultiNamespace    = strings.ToLower(constants.GetEnvWithDefault("TESTING_MULTINAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
 	OperatorNamespace = strings.ToLower(constants.GetEnvWithDefault("TESTING_OPERATOR_NAMESPACE", ""))

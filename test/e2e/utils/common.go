@@ -124,6 +124,7 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
 				Type: ispnv1.ServiceTypeDataGrid,
 			},
 			Container: ispnv1.InfinispanContainerSpec{
+				CPU:    CPU,
 				Memory: Memory,
 			},
 			Replicas: 1,

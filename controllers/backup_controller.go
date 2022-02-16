@@ -90,9 +90,7 @@ func (r *backupResource) UpdatePhase(phase zeroCapacityPhase, phaseErr error) er
 func (r *backupResource) Transform() (bool, error) {
 	return r.update(func() {
 		backup := r.instance
-		if backup.Spec.Container.Memory == "" {
-			backup.Spec.Container.Memory = constants.DefaultMemorySize.String()
-		}
+		backup.Spec.ApplyDefaults()
 		resources := backup.Spec.Resources
 		if resources == nil {
 			return

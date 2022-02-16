@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
-	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -86,9 +85,7 @@ func (r *restore) UpdatePhase(phase zeroCapacityPhase, phaseErr error) error {
 func (r *restore) Transform() (bool, error) {
 	return r.update(func() {
 		restore := r.instance
-		if restore.Spec.Container.Memory == "" {
-			restore.Spec.Container.Memory = constants.DefaultMemorySize.String()
-		}
+		restore.Spec.ApplyDefaults()
 		resources := restore.Spec.Resources
 		if resources == nil {
 			return
