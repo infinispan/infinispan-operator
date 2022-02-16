@@ -69,45 +69,43 @@ pipeline {
                     }
                 }
 
-                stage('Core') {
-                    steps {
-                        sh "make test PARALLEL_COUNT=2"
-                    }
-                }
+                // stage('Core') {
+                //     steps {
+                //         sh "make test PARALLEL_COUNT=2"
+                //     }
+                // }
 
-                stage('Batch') {
-                    steps {
-                        sh 'make batch-test PARALLEL_COUNT=2'
-                    }
-                }
+                // stage('Batch') {
+                //     steps {
+                //         sh 'make batch-test PARALLEL_COUNT=2'
+                //     }
+                // }
 
-                stage('Multinamespace') {
-                    steps {
-                        sh "kubectl config use-context $TESTING_CONTEXT"
-                        sh 'make multinamespace-test'
-                    }
-                }
+                // stage('Multinamespace') {
+                //     steps {
+                //         sh "kubectl config use-context $TESTING_CONTEXT"
+                //         sh 'make multinamespace-test'
+                //     }
+                // }
 
                 stage('Backup/Restore') {
                     steps {
-                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                            sh 'make backuprestore-test'
-                        }
+                        sh 'make backuprestore-test'
                     }
                 }
 
-                stage('Upgrade') {
-                    steps {
-                        sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
-                    }
-                }
+                // stage('Upgrade') {
+                //     steps {
+                //         sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
+                //     }
+                // }
 
-                stage('Xsite') {
-                    steps {
-                        sh 'scripts/ci/configure-xsite.sh'
-                        sh 'INFINISPAN_MEMORY="1Gi" go test -v ./test/e2e/xsite/ -timeout 45m'
-                    }
-                }
+                // stage('Xsite') {
+                //     steps {
+                //         sh 'scripts/ci/configure-xsite.sh'
+                //         sh 'INFINISPAN_MEMORY="1Gi" go test -v ./test/e2e/xsite/ -timeout 45m'
+                //     }
+                // }
             }
         }
     }
