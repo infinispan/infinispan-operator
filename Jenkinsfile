@@ -90,7 +90,7 @@ pipeline {
 
                 stage('Backup/Restore') {
                     steps {
-                        sh 'make backuprestore-test'
+                        sh 'make backuprestore-test INFINISPAN_CPU=500m'
                     }
                 }
 
