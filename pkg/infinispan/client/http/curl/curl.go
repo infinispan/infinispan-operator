@@ -100,6 +100,7 @@ func (c *CurlClient) executeCurlNoAuth(httpURL, headers, args, podName string) (
 func (c *CurlClient) exec(cmd, podName string) (bytes.Buffer, string, error) {
 	return c.Kubernetes.ExecWithOptions(
 		kube.ExecOptions{
+			Container: consts.InfinispanContainer,
 			Command:   []string{"bash", "-c", cmd},
 			PodName:   podName,
 			Namespace: c.config.Namespace,
