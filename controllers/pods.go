@@ -164,7 +164,7 @@ func AddVolumeForUserAuthentication(i *infinispanv1.Infinispan, spec *corev1.Pod
 		},
 	})
 
-	vm := &spec.Containers[0].VolumeMounts
+	vm := &GetContainer(InfinispanContainer, spec).VolumeMounts
 	*vm = append(*vm, corev1.VolumeMount{
 		Name:      IdentitiesVolumeName,
 		MountPath: consts.ServerUserIdentitiesRoot,
@@ -220,7 +220,7 @@ func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodS
 	}
 
 	index := -1
-	volumeMounts := &spec.Containers[0].VolumeMounts
+	volumeMounts := &GetContainer(InfinispanContainer, spec).VolumeMounts
 	for i, vm := range *volumeMounts {
 		if vm.Name == volumeName {
 			index = i
@@ -276,9 +276,12 @@ func PodList(infinispan *infinispanv1.Infinispan, kube *kubernetes.Kubernetes, c
 }
 
 func GetPodMemoryLimitBytes(podName, namespace string, kube *kubernetes.Kubernetes) (uint64, error) {
-	command := []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"}
-	execOptions := kubernetes.ExecOptions{Command: command, PodName: podName, Namespace: namespace}
-	execOut, err := kube.ExecWithOptions(execOptions)
+	execOut, err := kube.ExecWithOptions(kubernetes.ExecOptions{
+		Container: InfinispanContainer,
+		Command:   []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"},
+		PodName:   podName,
+		Namespace: namespace,
+	})
 
 	if err != nil {
 		return 0, fmt.Errorf("unexpected error getting memory limit bytes, err: %w", err)
@@ -293,9 +296,12 @@ func GetPodMemoryLimitBytes(podName, namespace string, kube *kubernetes.Kubernet
 }
 
 func GetPodMaxMemoryUnboundedBytes(podName, namespace string, kube *kubernetes.Kubernetes) (uint64, error) {
-	command := []string{"cat", "/proc/meminfo"}
-	execOptions := kubernetes.ExecOptions{Command: command, PodName: podName, Namespace: namespace}
-	execOut, err := kube.ExecWithOptions(execOptions)
+	execOut, err := kube.ExecWithOptions(kubernetes.ExecOptions{
+		Container: InfinispanContainer,
+		Command:   []string{"cat", "/proc/meminfo"},
+		PodName:   podName,
+		Namespace: namespace,
+	})
 
 	if err != nil {
 		return 0, fmt.Errorf("unexpected error getting max unbounded memory, err: %w", err)
@@ -312,4 +318,13 @@ func GetPodMaxMemoryUnboundedBytes(podName, namespace string, kube *kubernetes.K
 		}
 	}
 	return 0, fmt.Errorf("meminfo lacking MemTotal information")
+}
+
+func GetContainer(name string, spec *corev1.PodSpec) *corev1.Container {
+	for i, c := range spec.Containers {
+		if c.Name == name {
+			return &spec.Containers[i]
+		}
+	}
+	return nil
 }

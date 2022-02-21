@@ -284,7 +284,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 		targetStatefulSet.ObjectMeta.ResourceVersion = ""
 		targetStatefulSet.Spec.Template.ObjectMeta.Labels[StatefulSetPodLabel] = targetStatefulSetName
 		targetStatefulSet.Spec.Selector.MatchLabels[StatefulSetPodLabel] = targetStatefulSetName
-		container := &targetStatefulSet.Spec.Template.Spec.Containers[0]
+		container := GetContainer(InfinispanContainer, &targetStatefulSet.Spec.Template.Spec)
 		container.Image = DefaultImageName
 		for o, envVar := range container.Env {
 			if envVar.Name == "DEFAULT_IMAGE" {

@@ -42,6 +42,7 @@ func NewCurlClient(ctx context.Context, podName string, i *v1.Infinispan, kubern
 			Username: consts.DefaultOperatorUser,
 			Password: pass,
 		},
+		Container: InfinispanContainer,
 		Podname:   podName,
 		Namespace: i.Namespace,
 		Protocol:  "http",

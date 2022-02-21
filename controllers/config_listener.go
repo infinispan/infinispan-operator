@@ -15,6 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const InfinispanListenerContainer = "infinispan-listener"
+
 func (r *infinispanRequest) ReconcileConfigListener() error {
 	if constants.ConfigListenerImageName == "" {
 		err := fmt.Errorf("'%s' has not been defined", constants.ConfigListenerEnvName)
@@ -30,9 +32,12 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 	}
 
 	listenerExists := r.Client.Get(r.ctx, types.NamespacedName{Namespace: namespace, Name: name}, deployment) == nil
-	if listenerExists && deployment.Spec.Template.Spec.Containers[0].Image == constants.ConfigListenerImageName {
-		// The Deployment already exists with the expected image, do nothing
-		return nil
+	if listenerExists {
+		container := GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
+		if container != nil && container.Image == constants.ConfigListenerImageName {
+			// The Deployment already exists with the expected image, do nothing
+			return nil
+		}
 	}
 
 	createOrUpdate := func(obj client.Object) error {
@@ -113,7 +118,7 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "listener",
+							Name:  InfinispanListenerContainer,
 							Image: constants.ConfigListenerImageName,
 							Args: []string{
 								"listener",
