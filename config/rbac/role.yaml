@@ -39,6 +39,7 @@ rules:
   verbs:
   - create
   - delete
+  - update
 - apiGroups:
   - storage.k8s.io
   resources:
@@ -169,6 +170,7 @@ rules:
   - caches/status
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
