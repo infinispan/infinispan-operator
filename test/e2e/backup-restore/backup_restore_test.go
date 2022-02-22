@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -74,7 +73,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	testKube.Create(backupSpec)
 
 	// Ensure the backup pod has joined the cluster
-	waitForValidBackupPhase(backupName, namespace, v2.BackupSucceeded)
+	testKube.WaitForValidBackupPhase(backupName, namespace, v2.BackupSucceeded)
 
 	// Ensure that the backup pod has left the cluster, by checking a cluster pod's size
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
@@ -159,8 +158,8 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	restoreSpec := restoreSpec(testName, restoreName, namespace, backupName, targetCluster)
 	testKube.Create(restoreSpec)
 
-	// Ensure the restore pod hased joined the cluster
-	waitForValidRestorePhase(restoreName, namespace, v2.RestoreSucceeded)
+	// Ensure the restore pod has joined the cluster
+	testKube.WaitForValidRestorePhase(restoreName, namespace, v2.RestoreSucceeded)
 
 	// Ensure that the restore pod has left the cluster, by checking a cluster pod's size
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
@@ -170,36 +169,6 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 
 	// 7. Ensure that all data is in the target cluster
 	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
-}
-
-func waitForValidBackupPhase(name, namespace string, phase v2.BackupPhase) {
-	var backup *v2.Backup
-	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
-		backup = testKube.GetBackup(name, namespace)
-		if backup.Status.Phase == v2.BackupFailed && phase != v2.BackupFailed {
-			return true, fmt.Errorf("backup failed. Reason: %s", backup.Status.Reason)
-		}
-		return phase == backup.Status.Phase, nil
-	})
-	if err != nil {
-		println(fmt.Sprintf("Expected Backup Phase %s, got %s:%s", phase, backup.Status.Phase, backup.Status.Reason))
-	}
-	tutils.ExpectNoError(err)
-}
-
-func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) {
-	var restore *v2.Restore
-	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
-		restore = testKube.GetRestore(name, namespace)
-		if restore.Status.Phase == v2.RestoreFailed {
-			return true, fmt.Errorf("restore failed. Reason: %s", restore.Status.Reason)
-		}
-		return phase == restore.Status.Phase, nil
-	})
-	if err != nil {
-		println(fmt.Sprintf("Expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason))
-	}
-	tutils.ExpectNoError(err)
 }
 
 func datagridServiceNoAuth(t *testing.T, name string, replicas int) *v1.Infinispan {
