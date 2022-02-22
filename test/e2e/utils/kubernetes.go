@@ -981,3 +981,33 @@ func (k TestKubernetes) WaitForResourceRemoval(name, namespace string, obj clien
 		}),
 	)
 }
+
+func (k TestKubernetes) WaitForValidBackupPhase(name, namespace string, phase ispnv2.BackupPhase) {
+	var backup *ispnv2.Backup
+	err := wait.Poll(10*time.Millisecond, TestTimeout, func() (bool, error) {
+		backup = k.GetBackup(name, namespace)
+		if backup.Status.Phase == ispnv2.BackupFailed && phase != ispnv2.BackupFailed {
+			return true, fmt.Errorf("backup failed. Reason: %s", backup.Status.Reason)
+		}
+		return phase == backup.Status.Phase, nil
+	})
+	if err != nil {
+		println(fmt.Sprintf("Expected Backup Phase %s, got %s:%s", phase, backup.Status.Phase, backup.Status.Reason))
+	}
+	ExpectNoError(err)
+}
+
+func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase ispnv2.RestorePhase) {
+	var restore *ispnv2.Restore
+	err := wait.Poll(10*time.Millisecond, TestTimeout, func() (bool, error) {
+		restore = k.GetRestore(name, namespace)
+		if restore.Status.Phase == ispnv2.RestoreFailed {
+			return true, fmt.Errorf("restore failed. Reason: %s", restore.Status.Reason)
+		}
+		return phase == restore.Status.Phase, nil
+	})
+	if err != nil {
+		println(fmt.Sprintf("Expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason))
+	}
+	ExpectNoError(err)
+}
