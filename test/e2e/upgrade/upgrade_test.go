@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	"github.com/infinispan/infinispan-operator/api/v2alpha1"
+	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
@@ -74,13 +75,38 @@ func TestUpgrade(t *testing.T) {
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
 	numEntries := 100
 	client := tutils.HTTPClientForCluster(spec, testKube)
-	cacheName := "someCache"
 
-	cache := tutils.NewCacheHelper(cacheName, client)
+	peristentCache := "persistentCache"
+	cache := tutils.NewCacheHelper(peristentCache, client)
 	config := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}}}`
 	cache.Create(config, mime.ApplicationJson)
 	cache.Populate(numEntries)
 	cache.AssertSize(numEntries)
+
+	// Add a volatile cache with data to ensure contents can be backed up and then restored after upgrade(s)
+	volatileCache := "volatileCache"
+	cache = tutils.NewCacheHelper(volatileCache, client)
+	cache.Create(`{"distributed-cache":{"mode":"SYNC"}}`, mime.ApplicationJson)
+	cache.Populate(numEntries)
+	cache.AssertSize(numEntries)
+
+	// Create Backup
+	backup := &v2.Backup{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v2alpha1",
+			Kind:       "Backup",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "upgrade-backup",
+			Namespace: tutils.Namespace,
+			Labels:    map[string]string{"test-name": t.Name()},
+		},
+		Spec: v2.BackupSpec{
+			Cluster: spec.Name,
+		},
+	}
+	testKube.Create(backup)
+	testKube.WaitForValidBackupPhase(backup.Name, backup.Namespace, v2.BackupSucceeded)
 
 	// Upgrade the Subscription channel if required
 	if sourceChannel != targetChannel {
@@ -137,7 +163,7 @@ func TestUpgrade(t *testing.T) {
 				// image has been installed on all pods
 				assertOperandImage(relatedImageJdk)
 				client = tutils.HTTPClientForCluster(spec, testKube)
-				tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
+				tutils.NewCacheHelper(peristentCache, client).AssertSize(numEntries)
 				continue
 			}
 
@@ -180,7 +206,27 @@ func TestUpgrade(t *testing.T) {
 		// Ensure that persistent cache entries have survived the upgrade(s)
 		// Refresh the hostAddr and client as the url will change if NodePort is used.
 		client = tutils.HTTPClientForCluster(spec, testKube)
-		tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
+		tutils.NewCacheHelper(peristentCache, client).AssertSize(numEntries)
+
+		// Restore the backup and ensure that the cache exists with the expected number of entries
+		restore := &v2.Restore{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "infinispan.org/v2alpha1",
+				Kind:       "Restore",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "upgrade-restore-" + strings.ReplaceAll(strings.TrimLeft(sub.Status.CurrentCSV, olm.SubName+".v"), ".", "-"),
+				Namespace: tutils.Namespace,
+				Labels:    map[string]string{"test-name": t.Name()},
+			},
+			Spec: v2.RestoreSpec{
+				Backup:  backup.Name,
+				Cluster: spec.Name,
+			},
+		}
+		testKube.Create(restore)
+		testKube.WaitForValidRestorePhase(restore.Name, restore.Namespace, v2.RestoreSucceeded)
+		tutils.NewCacheHelper(volatileCache, client).AssertSize(numEntries)
 	}
 
 	checkServicePorts(t, spec.Name)
@@ -199,7 +245,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Ensure that persistent cache entries still contain the expected numEntries
 	client = tutils.HTTPClientForCluster(spec, testKube)
-	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
+	tutils.NewCacheHelper(peristentCache, client).AssertSize(numEntries)
 }
 
 func checkServicePorts(t *testing.T, name string) {
@@ -218,5 +264,5 @@ func checkBatch(t *testing.T, name string) {
 	batchHelper := batchtest.NewBatchHelper(testKube)
 	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
 	batchHelper.CreateBatch(t, name, name, &config, nil)
-	batchHelper.WaitForValidBatchPhase(name, v2alpha1.BatchSucceeded)
+	batchHelper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 }
