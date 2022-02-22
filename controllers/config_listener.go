@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	appsv1 "k8s.io/api/apps/v1"
@@ -65,11 +66,19 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 			{
 				APIGroups: []string{v2alpha1.GroupVersion.Group},
 				Resources: []string{"caches"},
-				Verbs:     []string{rbacv1.VerbAll},
+				Verbs: []string{
+					"create",
+					"delete",
+					"get",
+					"list",
+					"patch",
+					"update",
+					"watch",
+				},
 			},
 			{
-				APIGroups: []string{"", v2alpha1.GroupVersion.Group},
-				Resources: []string{"infinispans", "secrets"},
+				APIGroups: []string{v1.GroupVersion.Group},
+				Resources: []string{"infinispans"},
 				Verbs:     []string{"get"},
 			}, {
 				APIGroups: []string{""},
@@ -79,6 +88,11 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 				APIGroups: []string{""},
 				Resources: []string{"pods/exec"},
 				Verbs:     []string{"create"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"secrets"},
+				Verbs:     []string{"get"},
 			},
 		},
 	}
