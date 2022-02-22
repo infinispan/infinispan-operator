@@ -6,22 +6,30 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
+	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
+	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"github.com/operator-framework/api/pkg/manifests"
 	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -158,6 +166,135 @@ func TestUpgrade(t *testing.T) {
 	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
 }
 
+func TestUpgradeOperatorAndRestorePreviousBackup(t *testing.T) {
+	printManifest()
+	defer cleanup(t)
+
+	testKube.NewNamespace(tutils.Namespace)
+	subscription := &coreos.Subscription{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: coreos.SubscriptionCRDAPIVersion,
+			Kind:       coreos.SubscriptionKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      subName,
+			Namespace: subNamespace,
+		},
+		Spec: &coreos.SubscriptionSpec{
+			Channel:                sourceChannel.Name,
+			CatalogSource:          catalogSource,
+			CatalogSourceNamespace: catalogSourcNamespace,
+			InstallPlanApproval:    coreos.ApprovalManual,
+			Package:                subPackage,
+			StartingCSV:            subStartingCsv,
+		},
+	}
+
+	if subNamespace != "openshift-operators" && subNamespace != "operators" {
+		testKube.CreateOperatorGroup(subName, subNamespace, subNamespace)
+	}
+	testKube.CreateSubscription(subscription)
+	testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, subscription)
+	testKube.ApproveInstallPlan(subscription)
+	testKube.WaitForCrd(&apiextv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "infinispans.infinispan.org",
+		},
+	})
+
+	fmt.Printf("Creating infinispan source cluster\n")
+	infinispan := tutils.DefaultSpec(t, testKube)
+	infinispan.Name = "upgrade-operator-test"
+	testKube.Create(infinispan)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(infinispan.Name, tutils.Namespace, v1.ConditionWellFormed)
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	fmt.Printf("Creating cache\n")
+	numEntries := 100
+	cacheName := "someCache"
+	cache := tutils.NewCacheHelper(cacheName, utils.HTTPClientForCluster(infinispan, testKube))
+	cache.Create(`{"distributed-cache":{"mode":"SYNC", "statistics":"true"}}`, mime.ApplicationJson)
+	fmt.Printf("Populating the cluster with some data\n")
+	cache.Populate(numEntries)
+	cache.AssertSize(numEntries)
+
+	fmt.Printf("Backup the source infinispan cluster\n")
+	backupName := infinispan.Name + "-backup"
+	backupSpec := &v2.Backup{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v2alpha1",
+			Kind:       "Backup",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      backupName,
+			Namespace: tutils.Namespace,
+		},
+		Spec: v2.BackupSpec{
+			Cluster: infinispan.Name,
+		},
+	}
+	testKube.Create(backupSpec)
+	defer testKube.DeleteBackup(backupSpec)
+
+	fmt.Printf("Ensure that the backup pod has left the cluster by checking a cluster pod's size\n")
+	waitForValidBackupPhase(backupName, tutils.Namespace, v2.BackupSucceeded)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
+
+	fmt.Printf("Upgrading the operator using channels. targetChannel: %s\n", targetChannel.Name)
+	testKube.UpdateSubscriptionChannel(targetChannel.Name, subscription)
+
+	for testKube.Subscription(subscription); subscription.Status.InstalledCSV != targetChannel.CurrentCSVName; {
+		fmt.Printf("Installed CSV: %s, Current CSV: %s\n", subscription.Status.InstalledCSV, targetChannel.CurrentCSVName)
+		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, subscription)
+		testKube.ApproveInstallPlan(subscription)
+
+		testKube.WaitForSubscription(subscription, func() bool {
+			return subscription.Status.InstalledCSV == subscription.Status.CurrentCSV
+		})
+		testKube.WaitForInfinispanConditionWithTimeout(infinispan.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+	}
+
+	fmt.Printf("Deleting the previous infinispan cluster\n")
+	testKube.DeleteInfinispan(infinispan)
+	waitForNoCluster(infinispan)
+
+	fmt.Printf("Creating a new fresh infinispan cluster\n")
+	newInfinispan := tutils.DefaultSpec(t, testKube)
+	newInfinispan.Name = infinispan.Name + "-new"
+	testKube.Create(newInfinispan)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, newInfinispan.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(newInfinispan.Name, tutils.Namespace, v1.ConditionWellFormed)
+
+	fmt.Printf("Restore the previous data using the backup\n")
+	restoreName := infinispan.Name + "-restore"
+	restoreSpec := &v2.Restore{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v2alpha1",
+			Kind:       "Restore",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: tutils.Namespace,
+			Name:      restoreName,
+		},
+		Spec: v2.RestoreSpec{
+			Cluster: newInfinispan.Name,
+			Backup:  backupName,
+		},
+	}
+	testKube.Create(restoreSpec)
+	defer testKube.DeleteRestore(restoreSpec)
+
+	fmt.Printf("Ensure the restore pod has joined the cluster\n")
+	waitForValidRestorePhase(restoreName, tutils.Namespace, v2.RestoreSucceeded)
+
+	fmt.Printf("Ensure that the restore pod has left the cluster, by checking a cluster pod's size\n")
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, newInfinispan.Name, tutils.Namespace)
+
+	fmt.Printf("Check whether all data are available in the cluster\n")
+	tutils.NewCacheHelper(cacheName, utils.HTTPClientForCluster(newInfinispan, testKube)).AssertSize(numEntries)
+}
+
 func cleanup(t *testing.T) {
 	panicVal := recover()
 
@@ -244,4 +381,44 @@ func printManifest() {
 	fmt.Println("Source channel: " + sourceChannel.Name)
 	fmt.Println("Target channel: " + targetChannel.Name)
 	fmt.Println("Starting CSV: " + subStartingCsv)
+}
+
+func waitForNoCluster(infinispan *v1.Infinispan) {
+	statefulSet := &appsv1.StatefulSet{}
+	namespacedName := types.NamespacedName{Namespace: tutils.Namespace, Name: infinispan.GetStatefulSetName()}
+	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+		e := testKube.Kubernetes.Client.Get(context.Background(), namespacedName, statefulSet)
+		return e != nil && k8errors.IsNotFound(e), nil
+	})
+	tutils.ExpectNoError(err)
+}
+
+func waitForValidBackupPhase(name, namespace string, phase v2.BackupPhase) {
+	var backup *v2.Backup
+	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
+		backup = testKube.GetBackup(name, namespace)
+		if backup.Status.Phase == v2.BackupFailed && phase != v2.BackupFailed {
+			return true, fmt.Errorf("backup failed. Reason: %s", backup.Status.Reason)
+		}
+		return phase == backup.Status.Phase, nil
+	})
+	if err != nil {
+		println(fmt.Sprintf("Expected Backup Phase %s, got %s:%s", phase, backup.Status.Phase, backup.Status.Reason))
+	}
+	tutils.ExpectNoError(err)
+}
+
+func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) {
+	var restore *v2.Restore
+	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
+		restore = testKube.GetRestore(name, namespace)
+		if restore.Status.Phase == v2.RestoreFailed {
+			return true, fmt.Errorf("restore failed. Reason: %s", restore.Status.Reason)
+		}
+		return phase == restore.Status.Phase, nil
+	})
+	if err != nil {
+		println(fmt.Sprintf("Expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason))
+	}
+	tutils.ExpectNoError(err)
 }
