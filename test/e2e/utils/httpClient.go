@@ -13,6 +13,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 )
@@ -77,6 +78,7 @@ func NewClient(auth authType, username, password *string, protocol string, tlsCo
 		protocol: protocol,
 		auth:     auth,
 		Client: &http.Client{
+			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
 				TLSClientConfig: tlsConfig,
 			},
@@ -163,7 +165,7 @@ func (c *httpClientConfig) request(url *url.URL, method, payload string, headers
 	}
 
 	rsp, err := c.Do(req)
-	if DEBUG {
+	if DEBUG && rsp != nil {
 		dump, err := httputil.DumpResponse(rsp, true)
 		ExpectNoError(err)
 		fmt.Printf("Rsp<<<<<<<<<<<<<<<<\n%s\n\n", string(dump))
