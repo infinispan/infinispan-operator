@@ -17,7 +17,7 @@ const (
 	RouteTimeout     = 240 * time.Second
 	// DefaultPollPeriod is the default retry time when waiting for resources
 	DefaultPollPeriod   = 1 * time.Second
-	ConditionPollPeriod = 1 * time.Second
+	ConditionPollPeriod = 100 * time.Millisecond
 	// MaxWaitTimeout is the maximum time to wait for resources
 	MaxWaitTimeout       = 3 * time.Minute
 	ConditionWaitTimeout = 3 * time.Minute
