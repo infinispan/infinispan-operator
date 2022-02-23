@@ -6,7 +6,8 @@ Allocate CPU and memory resources to {brandname} pods with the `Infinispan` CR.
 
 [NOTE]
 ====
-By default, {ispn_operator} requests **512Mi** of `memory` and **0.5** `cpu` from the {k8s} scheduler when creating {brandname} pods.
+{ispn_operator} requests **1Gi** of memory from the {k8s} scheduler when creating {brandname} pods.
+CPU requests are unbounded by default.
 ====
 
 .Procedure
