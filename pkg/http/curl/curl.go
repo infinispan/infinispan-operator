@@ -101,7 +101,7 @@ func (c *Client) executeCurlWithAuth(httpURL, headers, args string) (*http.Respo
 	}
 
 	if rsp.StatusCode != http.StatusUnauthorized {
-		return rsp, fmt.Errorf("expected 401 DIGEST response before content")
+		return rsp, fmt.Errorf("expected 401 DIGEST response before content. Received '%s'", rsp.Status)
 	}
 
 	return handleContent(reader)
