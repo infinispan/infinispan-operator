@@ -6,7 +6,7 @@ import (
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 )
 
-const ServerPath = BasePath + "/servers"
+const ServerPath = BasePath + "/server"
 
 type server struct {
 	httpClient.HttpClient
