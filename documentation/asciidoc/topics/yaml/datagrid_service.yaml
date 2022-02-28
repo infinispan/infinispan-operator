@@ -33,8 +33,8 @@ spec:
         certSecretName: tls-secret
   container:
     extraJvmOpts: "-XX:NativeMemoryTracking=summary"
-    cpu: "1000m"
-    memory: 1Gi
+    cpu: "2000m:1000m"
+    memory: "2Gi:1Gi"
   logging:
     categories:
       org.infinispan: debug
