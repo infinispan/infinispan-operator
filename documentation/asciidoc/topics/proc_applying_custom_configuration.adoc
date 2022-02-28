@@ -9,14 +9,14 @@ Add {brandname} configuration to a `ConfigMap` and make it available to {ispn_op
 ====
 {ispn_operator} applies default configuration on top of your custom configuration to ensure it can continue to manage your {brandname} clusters.
 
-Be careful when applying custom configuration outside of the `cache-container` element or field.
+Be careful when applying custom configuration outside the `cache-container` element or field.
 You can apply custom configuration to underlying {brandname} Server mechanisms such as endpoints, security realms, and cluster transport.
 Changing this configuration can result in error and result in service downtime for your {brandname} deployment.
 ====
 
 [TIP]
 ====
-Use the the {brandname} Helm chart to deploy clusters of fully configurable {brandname} Server instances on {openshiftshort}.
+Use the {brandname} Helm chart to deploy clusters of fully configurable {brandname} Server instances on {openshiftshort}.
 ====
 
 
@@ -32,6 +32,8 @@ Use the the {brandname} Helm chart to deploy clusters of fully configurable {bra
 ----
 include::yaml/config-map-cluster-configuration.yaml[]
 ----
+
+As shown in the above example, optionally, you may add your `log4j.xml` configuration to the same configuration `ConfigMap`.
 
 . Create the `ConfigMap`.
 +

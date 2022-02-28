@@ -1,0 +1,11 @@
+[id='infinispan-configuration_{context}']
+= {brandname} configuration for `log4j` logging
+
+You can add {brandname} configuration for `log4j` logging to a `ConfigMap` in XML format.
+
+.XML
+
+[source,xml,options="nowrap",subs=attributes+]
+----
+include::xml/log4j.xml[]
+----
