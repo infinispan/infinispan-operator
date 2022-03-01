@@ -8,6 +8,7 @@ Use the command line to install {ispn_operator} from https://operatorhub.io/oper
 
 * {okd} 3.11 or later.
 * {k8s} 1.11 or later.
+* Ensure the Operator Lifecycle Manager (OLM) is installed.
 * Have administrator access on the {k8s} cluster.
 * Have a `kubectl` or `oc` client.
 
