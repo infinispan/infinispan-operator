@@ -7,6 +7,9 @@ Install {ispn_operator} with the native {brandname} CLI plugin, `kubectl-infinis
 .Prerequisites
 
 * Have `kubectl-infinispan` on your `PATH`.
+ifdef::community[]
+* Ensure the Operator Lifecycle Manager (OLM) is installed.
+endif::community[]
 
 .Procedure
 

@@ -10,6 +10,9 @@ Automatic updates apply to {ispn_operator} first and then for each {brandname} n
 .Prerequisites
 
 * Access to **OperatorHub** running on {openshiftshort}. Some {openshiftshort} environments, such as {ocp}, can require administrator credentials.
+ifdef::community[]
+* Ensure the Operator Lifecycle Manager (OLM) is installed.
+endif::community[]
 * Have an {openshiftshort} project for {ispn_operator} if you plan to install it into a specific namespace.
 
 .Procedure
