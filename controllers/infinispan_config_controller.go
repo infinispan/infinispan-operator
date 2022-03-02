@@ -379,6 +379,7 @@ func (r configRequest) configureXSiteTransportTLS(c *config.InfinispanConfigurat
 	}
 
 	log.Info("Transport TLS Configured.", "Keystore", keyStoreFileName, "Secret Name", keyStoreSecret.Name)
+	c.Transport.TLS.Enabled = true
 	c.Transport.TLS.KeyStore = config.Keystore{
 		Path:     fmt.Sprintf("%s/%s", consts.SiteTransportKeyStoreRoot, keyStoreFileName),
 		Password: password,
