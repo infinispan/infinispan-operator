@@ -101,16 +101,6 @@ func encryptionSecret(name, namespace string) *corev1.Secret {
 	}
 }
 
-var MinimalSpec = ispnv1.Infinispan{
-	TypeMeta: InfinispanTypeMeta,
-	ObjectMeta: metav1.ObjectMeta{
-		Name: DefaultClusterName,
-	},
-	Spec: ispnv1.InfinispanSpec{
-		Replicas: 2,
-	},
-}
-
 func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
 	return &ispnv1.Infinispan{
 		TypeMeta: InfinispanTypeMeta,
@@ -122,6 +112,9 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
 		Spec: ispnv1.InfinispanSpec{
 			Service: ispnv1.InfinispanServiceSpec{
 				Type: ispnv1.ServiceTypeDataGrid,
+				Container: &ispnv1.InfinispanServiceContainerSpec{
+					EphemeralStorage: true,
+				},
 			},
 			Container: ispnv1.InfinispanContainerSpec{
 				Memory: Memory,

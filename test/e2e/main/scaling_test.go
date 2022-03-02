@@ -71,6 +71,8 @@ func genericTestForGracefulShutdown(t *testing.T, modifier func(*ispnv1.Infinisp
 	// Create a resource without passing any config
 	// Register it
 	spec := tutils.DefaultSpec(t, testKube)
+	spec.Spec.Service.Container.EphemeralStorage = false
+
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
