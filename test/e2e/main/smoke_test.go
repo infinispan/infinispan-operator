@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -19,6 +20,8 @@ func TestNodeStartup(t *testing.T) {
 
 	// Create a resource without passing any config
 	spec := tutils.DefaultSpec(t, testKube)
+	// Ensure that cluster creation using the limit:request format works on initial creation
+	spec.Spec.Container.Memory = fmt.Sprintf("%s:%s", tutils.Memory, tutils.Memory)
 	spec.Annotations = make(map[string]string)
 	spec.Annotations[v1.TargetLabels] = "my-svc-label"
 	spec.Labels["my-svc-label"] = "my-svc-value"

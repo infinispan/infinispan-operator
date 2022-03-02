@@ -1146,12 +1146,6 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		}
 	}
 
-	memory, err := resource.ParseQuantity(ispn.Spec.Container.Memory)
-	if err != nil {
-		r.eventRec.Event(ispn, corev1.EventTypeWarning, EventReasonParseValueProblem, err.Error())
-		reqLogger.Info(err.Error())
-		return nil, err
-	}
 	replicas := ispn.Spec.Replicas
 	volumeMounts := []corev1.VolumeMount{{
 		Name:      ConfigVolumeName,
@@ -1270,11 +1264,18 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		dep.Annotations["checksum/overlayConfig"] = hash.HashString(overlayConfigMap.Data[overlayConfigMapKey])
 	}
 	if !ispn.IsEphemeralStorage() {
+		_, memLimit, err := ispn.Spec.Container.GetMemoryResources()
+		if err != nil {
+			r.eventRec.Event(ispn, corev1.EventTypeWarning, EventReasonParseValueProblem, err.Error())
+			reqLogger.Info(err.Error())
+			return nil, err
+		}
+
 		// Persistent vol size must exceed memory size
 		// so that it can contain all the in memory data
 		pvSize := consts.DefaultPVSize
-		if pvSize.Cmp(memory) < 0 {
-			pvSize = memory
+		if pvSize.Cmp(memLimit) < 0 {
+			pvSize = memLimit
 		}
 
 		if ispn.IsDataGrid() && ispn.StorageSize() != "" {
@@ -1283,10 +1284,10 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 			if pvErr != nil {
 				return nil, pvErr
 			}
-			if pvSize.Cmp(memory) < 0 {
+			if pvSize.Cmp(memLimit) < 0 {
 				errMsg := "Persistent volume size is less than memory size. Graceful shutdown may not work."
 				r.eventRec.Event(ispn, corev1.EventTypeWarning, EventReasonLowPersistenceStorage, errMsg)
-				reqLogger.Info(errMsg, "Volume Size", pvSize, "Memory", memory)
+				reqLogger.Info(errMsg, "Volume Size", pvSize, "Memory", memLimit)
 			}
 		}
 
