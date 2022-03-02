@@ -193,15 +193,15 @@ func chmodInitContainer(containerName, volumeName, mountPath string) corev1.Cont
 }
 
 func AddVolumesForEncryption(i *infinispanv1.Infinispan, spec *corev1.PodSpec) {
-	AddSecretVolume(i.GetKeystoreSecretName(), EncryptKeystoreVolumeName, consts.ServerEncryptKeystoreRoot, spec)
+	AddSecretVolume(i.GetKeystoreSecretName(), EncryptKeystoreVolumeName, consts.ServerEncryptKeystoreRoot, spec, InfinispanContainer)
 
 	if i.IsClientCertEnabled() {
-		AddSecretVolume(i.GetTruststoreSecretName(), EncryptTruststoreVolumeName, consts.ServerEncryptTruststoreRoot, spec)
+		AddSecretVolume(i.GetTruststoreSecretName(), EncryptTruststoreVolumeName, consts.ServerEncryptTruststoreRoot, spec, InfinispanContainer)
 	}
 }
 
 // AddSecretVolume creates a volume to a secret
-func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodSpec) {
+func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodSpec, containerName string) {
 	v := &spec.Volumes
 
 	if _, index := findSecretInVolume(spec, volumeName); index < 0 {
@@ -220,7 +220,7 @@ func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodS
 	}
 
 	index := -1
-	volumeMounts := &GetContainer(InfinispanContainer, spec).VolumeMounts
+	volumeMounts := &GetContainer(containerName, spec).VolumeMounts
 	for i, vm := range *volumeMounts {
 		if vm.Name == volumeName {
 			index = i
