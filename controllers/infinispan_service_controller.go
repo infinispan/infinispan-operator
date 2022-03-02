@@ -122,6 +122,12 @@ func (reconciler *ServiceReconciler) Reconcile(ctx context.Context, request reco
 		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
 	}
 
+	// Don't reconcile Infinispan CRs marked for deletion
+	if infinispan.GetDeletionTimestamp() != nil {
+		reqLogger.Info(fmt.Sprintf("Ignoring Infinispan CR '%s:%s' marked for deletion", infinispan.Namespace, infinispan.Name))
+		return reconcile.Result{}, nil
+	}
+
 	// Validate that Infinispan CR passed all preliminary checks
 	if !infinispan.IsConditionTrue(ispnv1.ConditionPrelimChecksPassed) {
 		reqLogger.Info("Infinispan CR not ready")
