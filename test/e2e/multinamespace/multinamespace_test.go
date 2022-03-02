@@ -20,6 +20,11 @@ var MinimalSpec = ispnv1.Infinispan{
 	},
 	Spec: ispnv1.InfinispanSpec{
 		Replicas: 1,
+		Service: ispnv1.InfinispanServiceSpec{
+			Container: &ispnv1.InfinispanServiceContainerSpec{
+				EphemeralStorage: true,
+			},
+		},
 	},
 }
 

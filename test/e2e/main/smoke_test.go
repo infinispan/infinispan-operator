@@ -9,6 +9,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/controllers"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,6 +38,14 @@ func TestNodeStartup(t *testing.T) {
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	// Make sure no PVCs were created
+	pvcs := &corev1.PersistentVolumeClaimList{}
+	err := testKube.Kubernetes.ResourcesList(spec.Namespace, controllers.PodLabels(spec.Name), pvcs, context.TODO())
+	tutils.ExpectNoError(err)
+	if len(pvcs.Items) > 0 {
+		tutils.ExpectNoError(fmt.Errorf("persistent volume claims were found (count = %d) but not expected for ephemeral storage configuration", len(pvcs.Items)))
+	}
 
 	pod := corev1.Pod{}
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: spec.Name + "-0", Namespace: tutils.Namespace}, &pod))

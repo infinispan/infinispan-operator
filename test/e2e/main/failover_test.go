@@ -24,6 +24,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.Replicas = 2
 	ispn.Spec.Container.Memory = "256Mi"
+	ispn.Spec.Service.Container.EphemeralStorage = false
 
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)

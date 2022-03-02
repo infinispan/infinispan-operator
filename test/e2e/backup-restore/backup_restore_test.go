@@ -25,7 +25,7 @@ import (
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 
-type clusterSpec func(t *testing.T, name, namespace string, clusterSize int) *v1.Infinispan
+type clusterSpec func(t *testing.T, name string, clusterSize int) *v1.Infinispan
 
 func TestMain(m *testing.M) {
 	tutils.RunOperator(m, testKube)
@@ -46,7 +46,7 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	clusterName := strcase.ToKebab(t.Name())
 	namespace := tutils.Namespace
 
-	infinispan := datagridService(t, clusterName, namespace, 1)
+	infinispan := datagridService(t, clusterName, 1)
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(infinispan.Name, namespace, v1.ConditionWellFormed)
@@ -99,7 +99,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 
 	// 1. Create initial source cluster
 	sourceCluster := name + "-source"
-	infinispan := clusterSpec(t, sourceCluster, namespace, clusterSize)
+	infinispan := clusterSpec(t, sourceCluster, clusterSize)
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
@@ -183,7 +183,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 
 	// 5. Create a new cluster to restore the backup to
 	targetCluster := name + "-target"
-	infinispan = clusterSpec(t, targetCluster, namespace, clusterSize)
+	infinispan = clusterSpec(t, targetCluster, clusterSize)
 	testKube.Create(infinispan)
 
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
@@ -237,38 +237,21 @@ func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) {
 	tutils.ExpectNoError(err)
 }
 
-func datagridServiceNoAuth(t *testing.T, name, namespace string, replicas int) *v1.Infinispan {
-	infinispan := datagridService(t, name, namespace, replicas)
+func datagridServiceNoAuth(t *testing.T, name string, replicas int) *v1.Infinispan {
+	infinispan := datagridService(t, name, replicas)
 	infinispan.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	return infinispan
 }
 
-func datagridService(t *testing.T, name, namespace string, replicas int) *v1.Infinispan {
-	infinispan := cacheService(t, name, namespace, replicas)
-	infinispan.Spec.Service = v1.InfinispanServiceSpec{
-		Type: v1.ServiceTypeDataGrid,
-	}
-	return infinispan
-}
-
-func cacheService(t *testing.T, name, namespace string, replicas int) *v1.Infinispan {
-	spec := &v1.Infinispan{
-		TypeMeta: tutils.InfinispanTypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
-		},
-		Spec: v1.InfinispanSpec{
-			Replicas: int32(replicas),
-			Expose:   tutils.ExposeServiceSpec(testKube),
-		},
-	}
+func datagridService(t *testing.T, name string, replicas int) *v1.Infinispan {
+	infinispan := tutils.DefaultSpec(t, testKube)
+	infinispan.Name = name
+	infinispan.Spec.Replicas = int32(replicas)
 
 	if tutils.CPU != "" {
-		spec.Spec.Container.CPU = tutils.CPU
+		infinispan.Spec.Container.CPU = tutils.CPU
 	}
-	return spec
+	return infinispan
 }
 
 func backupSpec(t *testing.T, name, namespace, cluster string) *v2alpha1.Backup {

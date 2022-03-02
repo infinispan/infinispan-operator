@@ -87,6 +87,7 @@ func TestUpgrade(t *testing.T) {
 	replicas := 2
 	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Replicas = int32(replicas)
+	spec.Spec.Service.Container.EphemeralStorage = false
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)

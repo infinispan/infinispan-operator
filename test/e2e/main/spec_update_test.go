@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -28,10 +27,9 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 			panic("CPU field not updated")
 		}
 	}
-	spec := tutils.MinimalSpec
-	spec.Name = strcase.ToKebab(t.Name())
-	spec.Labels = map[string]string{"test-name": t.Name()}
-	genericTestForContainerUpdated(spec, modifier, verifier)
+	spec := tutils.DefaultSpec(t, testKube)
+	spec.Spec.Service.Container.EphemeralStorage = false
+	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
 // Test if spec.container.memory update is handled
