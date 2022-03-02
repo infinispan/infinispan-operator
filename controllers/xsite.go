@@ -119,7 +119,7 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keys
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Name:    "gossiprouter",
+						Name:    GossipRouterContainer,
 						Image:   m.ImageName(),
 						Command: []string{"/opt/gossiprouter/bin/launch.sh"},
 						Args:    args,
@@ -141,10 +141,10 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keys
 	}
 
 	if addKeystoreVolume {
-		AddSecretVolume(m.GetSiteRouterSecretName(), SiteRouterKeystoreVolumeName, consts.SiteRouterKeyStoreRoot, &deployment.Spec.Template.Spec)
+		AddSecretVolume(m.GetSiteRouterSecretName(), SiteRouterKeystoreVolumeName, consts.SiteRouterKeyStoreRoot, &deployment.Spec.Template.Spec, GossipRouterContainer)
 	}
 	if addTruststoreVolume {
-		AddSecretVolume(m.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, &deployment.Spec.Template.Spec)
+		AddSecretVolume(m.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, &deployment.Spec.Template.Spec, GossipRouterContainer)
 	}
 
 	return deployment, nil

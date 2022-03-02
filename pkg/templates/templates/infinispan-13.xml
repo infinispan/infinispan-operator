@@ -25,34 +25,10 @@
         {{ end }}
     </stack>
     {{ if .XSite }} {{ if .XSite.Sites }}
-    <stack name="relay-tcp" extends="tcp">
-        <!-- overwrite bind address and port -->
-        <TCP
-            bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
-            bind_port="${jgroups.relay.bind.port:{{.XSite.Relay.BindPort}} }"
-            enable_diagnostics="{{.JGroups.Diagnostics}}"
-            external_addr="{{ (index .XSite.Sites 0).Address }}"
-            external_port="{{ (index .XSite.Sites 0).Port }}"
-            port_range="0"
-            stack.combine="COMBINE"
-        />
-        <TCPPING
-            initial_hosts="{{RemoteSites .XSite.Sites}}"
-	        port_range="0"
-            stack.combine="REPLACE"
-            stack.position="MPING"
-        />
-        <!-- we are unable to use FD_SOCK with openshift -->
-        <!-- otherwise, we would need 1 external service per pod -->
-        <FD_SOCK stack.combine="REMOVE"/>
-        {{ if .JGroups.FastMerge }}
-        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
-        {{ end }}
-    </stack>
     <stack name="relay-tunnel" extends="udp">
         <TUNNEL
             bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
-            bind_port="${jgroups.relay.bind.port:{{.XSite.Relay.BindPort}}}"
+            bind_port="${jgroups.relay.bind.port:0}"
             gossip_router_hosts="{{RemoteSites .XSite.Sites}}"
             enable_diagnostics="{{ .JGroups.Diagnostics }}"
             port_range="0"
@@ -68,9 +44,8 @@
         {{ end }}     
     </stack>
     <stack name="xsite" extends="image-tcp">
-        <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ (index .XSite.Sites 0).Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}"
-                      can_become_site_master="{{ .XSite.RelayNodeCandidate }}"/>
-        <remote-sites default-stack="relay-{{ .XSite.Transport }}">{{ range $it := .XSite.Sites }}
+        <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ (index .XSite.Sites 0).Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}" />
+        <remote-sites default-stack="relay-tunnel">{{ range $it := .XSite.Sites }}
             <remote-site name="{{ $it.Name }}"/>
         {{ end }}</remote-sites>
     </stack>
