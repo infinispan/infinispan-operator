@@ -12,6 +12,7 @@ html/
 target/
 log/
 tmp/
+test/reports/
 log.txt
 test.properties
 *.iml
