@@ -1738,7 +1738,7 @@ type UpdateFn func()
 func (r *infinispanRequest) update(update UpdateFn, ignoreNotFound ...bool) error {
 	ispn := r.infinispan
 	_, err := kube.CreateOrPatch(r.ctx, r.Client, ispn, func() error {
-		if ispn.CreationTimestamp.IsZero() {
+		if ispn.CreationTimestamp.IsZero() || ispn.GetDeletionTimestamp() != nil {
 			return errors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), ispn.Name)
 		}
 		if update != nil {
