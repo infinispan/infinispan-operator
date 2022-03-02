@@ -85,6 +85,11 @@ upgrade-test: manager manifests
 hotrod-upgrade-test: manager manifests
 	scripts/run-tests.sh hotrod-rolling-upgrade
 
+.PHONY: xsite-test
+## Execute end to end (e2e) tests for XSite functionality
+xsite-test: manager manifests
+	scripts/run-tests.sh xsite 45m
+
 .PHONY: manager
 ## Build manager binary
 manager: generate fmt vet
@@ -174,6 +179,12 @@ GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 ## Download golanci-lint locally if necessary
 golangci-lint:
 	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.39.0)
+
+export GO_JUNIT_REPORT = $(shell pwd)/bin/go-junit-report
+.PHONY: GO_JUNIT_REPORT
+## Download go-junit-report locally if necessary
+go-junit-report:
+	$(call go-get-tool,$(GO_JUNIT_REPORT),github.com/jstemmer/go-junit-report@latest)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

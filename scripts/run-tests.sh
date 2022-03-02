@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 TEST_BUNDLE=${1-main}
+TIMEOUT=${2-90m}
 
 echo "Using KUBECONFIG '${KUBECONFIG}'"
 echo "Using test bundle '${TEST_BUNDLE}'"
@@ -12,8 +13,15 @@ GO_LDFLAGS="-X github.com/infinispan/infinispan-operator/launcher.Version=${VERS
 
 go clean -testcache ./test/e2e
 if [ -z "${TEST_NAME}" ]; then
-  go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout 90m -ldflags "${GO_LDFLAGS}" -parallel "${PARALLEL_COUNT}"
+  go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout ${TIMEOUT} -ldflags "${GO_LDFLAGS}" -parallel "${PARALLEL_COUNT}" 2>&1 | tee /tmp/testOutput
+  testExitCode=${PIPESTATUS[0]}
+  if [ ! -z ${TEST_REPORT_DIR} ]; then
+    mkdir -p ${TEST_REPORT_DIR}
+    cat /tmp/testOutput | ${GO_JUNIT_REPORT} > ${TEST_REPORT_DIR}/${TEST_BUNDLE}.xml
+  fi
+  rm /tmp/testOutput
+  exit $testExitCode
 else
   echo "Running test '${TEST_NAME}'"
-  go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout 90m -ldflags "${GO_LDFLAGS}" -run "${TEST_NAME}"
+  go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout ${TIMEOUT} -ldflags "${GO_LDFLAGS}" -run "${TEST_NAME}"
 fi

@@ -31,6 +31,7 @@ pipeline {
         MAKE_DATADIR_WRITABLE = 'true'
         CONFIG_LISTENER_IMAGE = 'localhost:5000/infinispan-operator'
         SERVER_IMAGE = 'quay.io/infinispan/server:13.0'
+        TEST_REPORT_DIR = "$WORKSPACE/test/reports"
     }
 
     options {
@@ -69,6 +70,7 @@ pipeline {
                         sh 'cleanup.sh'
                         // Ensure that we always have the latest version of the server image locally
                         sh "docker pull $SERVER_IMAGE"
+                        sh 'make go-junit-report'
                     }
                 }
 
@@ -91,57 +93,79 @@ pipeline {
 
                 stage('Core') {
                     steps {
-                        sh "make test PARALLEL_COUNT=5"
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh "make test PARALLEL_COUNT=5"
+                        }
                     }
                 }
 
                 stage('Cache') {
                     steps {
-                        sh "make cache-test PARALLEL_COUNT=5"
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh "make cache-test PARALLEL_COUNT=5"
+                        }
                     }
                 }
 
                 stage('Batch') {
                     steps {
-                        sh 'make batch-test PARALLEL_COUNT=5'
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh 'make batch-test PARALLEL_COUNT=5'
+                        }
                     }
                 }
 
                 stage('Multinamespace') {
                     steps {
-                        sh "kubectl config use-context $TESTING_CONTEXT"
-                        sh 'make multinamespace-test'
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh "kubectl config use-context $TESTING_CONTEXT"
+                            sh 'make multinamespace-test'
+                        }
                     }
                 }
 
                 stage('Backup/Restore') {
                     steps {
-                        sh 'make backuprestore-test INFINISPAN_CPU=500m'
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh 'make backuprestore-test INFINISPAN_CPU=500m'
+                        }
                     }
                 }
 
                 stage('Hot Rod Rolling Upgrade') {
                     steps {
-                         sh 'make hotrod-upgrade-test'
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh 'make hotrod-upgrade-test'
+                        }
                     }
                 }
 
                 stage('Upgrade') {
                     steps {
-                        sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
+                        }
                     }
                 }
 
                 stage('Xsite') {
                     steps {
-                        sh 'scripts/ci/configure-xsite.sh'
-                        sh 'INFINISPAN_MEMORY="1Gi" go test -v ./test/e2e/xsite/ -timeout 45m'
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh 'scripts/ci/configure-xsite.sh'
+                            sh 'make xsite-test'
+                        }
                     }
 
                     post {
                         failure {
                             debugKind(true, 'kind-xsite1', 'kind-xsite2')
                         }
+                    }
+                }
+
+                stage('Publish test results') {
+                    steps {
+                        junit testResults: 'test/reports/*.xml', skipPublishingChecks: true
                     }
                 }
             }
