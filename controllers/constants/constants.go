@@ -40,7 +40,8 @@ var (
 )
 
 const (
-	InfinispanContainer = "infinispan"
+	InfinispanContainer   = "infinispan"
+	GossipRouterContainer = "gossiprouter"
 	// DefaultOperatorUser users to access the cluster rest API
 	DefaultOperatorUser = "operator"
 	// DefaultDeveloperUser users to access the cluster rest API
