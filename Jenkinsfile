@@ -91,19 +91,19 @@ pipeline {
 
                 stage('Core') {
                     steps {
-                        sh "make test PARALLEL_COUNT=2"
+                        sh "make test PARALLEL_COUNT=5"
                     }
                 }
 
                 stage('Cache') {
                     steps {
-                        sh "make cache-test PARALLEL_COUNT=2"
+                        sh "make cache-test PARALLEL_COUNT=5"
                     }
                 }
 
                 stage('Batch') {
                     steps {
-                        sh 'make batch-test PARALLEL_COUNT=2'
+                        sh 'make batch-test PARALLEL_COUNT=5'
                     }
                 }
 

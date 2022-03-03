@@ -17,7 +17,6 @@ import (
 )
 
 func TestPodDegradationAfterOOM(t *testing.T) {
-	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	//Creating Infinispan cluster
