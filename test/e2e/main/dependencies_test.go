@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,10 +13,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/pkg/hash"
-	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
-	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -155,18 +151,4 @@ func prepareWebServer() *corev1.ConfigMap {
 
 	testKube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{Namespace: tutils.Namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": tutils.WebServerName})}, nil)
 	return webServerConfig
-}
-
-func createCacheBadCreds(cacheName string, client tutils.HTTPClient) {
-	err := ispnClient.New(client).Cache(cacheName).Create("", mime.ApplicationYaml)
-	if err == nil {
-		panic("Cache creation should fail")
-	}
-	var httpErr *httpClient.HttpError
-	if !errors.As(err, &httpErr) {
-		panic("Unexpected error type")
-	}
-	if httpErr.Status != http.StatusUnauthorized {
-		panic(httpErr)
-	}
 }

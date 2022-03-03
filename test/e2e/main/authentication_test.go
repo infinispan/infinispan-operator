@@ -2,16 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	cconsts "github.com/infinispan/infinispan-operator/controllers/constants"
+	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
+	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -21,40 +24,9 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-func TestExternalService(t *testing.T) {
-	t.Parallel()
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	// Create a resource without passing any config
-	spec := ispnv1.Infinispan{
-		TypeMeta: tutils.InfinispanTypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   strcase.ToKebab(t.Name()),
-			Labels: map[string]string{"test-name": t.Name()},
-		},
-		Spec: ispnv1.InfinispanSpec{
-			Container: ispnv1.InfinispanContainerSpec{
-				Memory: tutils.Memory,
-			},
-			Replicas: 1,
-			Expose:   tutils.ExposeServiceSpec(testKube),
-		},
-	}
-
-	// Register it
-	testKube.CreateInfinispan(&spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-
-	client_ := tutils.HTTPClientForCluster(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper("test-cache", client_)
-	cacheHelper.CreateWithDefault()
-	cacheHelper.TestBasicUsage("test", "test-operator")
-}
-
 // TestExternalServiceWithAuth starts a cluster and checks application
 // and management connection with authentication
-func TestExternalServiceWithAuth(t *testing.T) {
+func TestExplicitCredentials(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
@@ -81,22 +53,10 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	defer testKube.DeleteSecret(&secret)
 
 	// Create Infinispan
-	spec := ispnv1.Infinispan{
-		TypeMeta: tutils.InfinispanTypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   strcase.ToKebab(t.Name()),
-			Labels: map[string]string{"test-name": t.Name()},
-		},
-		Spec: ispnv1.InfinispanSpec{
-			Security: ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"},
-			Container: ispnv1.InfinispanContainerSpec{
-				Memory: tutils.Memory,
-			},
-			Replicas: 1,
-			Expose:   tutils.ExposeServiceSpec(testKube),
-		},
-	}
-	testKube.CreateInfinispan(&spec, tutils.Namespace)
+	spec := tutils.DefaultSpec(t, testKube)
+	spec.Spec.Security = ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"}
+
+	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
@@ -129,7 +89,7 @@ func TestExternalServiceWithAuth(t *testing.T) {
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.GetStatefulSetName()}, &ss))
 	generation := ss.Status.ObservedGeneration
 
-	err = testKube.UpdateInfinispan(&spec, func() {
+	err = testKube.UpdateInfinispan(spec, func() {
 		spec.Spec.Security.EndpointSecretName = "conn-secret-test-1"
 	})
 	tutils.ExpectNoError(err)
@@ -150,15 +110,36 @@ func TestExternalServiceWithAuth(t *testing.T) {
 
 func testAuthentication(ispn *ispnv1.Infinispan, schema, usr, pass string) {
 	client_ := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, tutils.NewHTTPClient(usr, pass, schema))
-	badClient := tutils.NewHTTPClient("badUser", "badPass", schema)
-	badClient.SetHostAndPort(client_.GetHostAndPort())
+
+	badCredClient := tutils.NewHTTPClient("badUser", "badPass", schema)
+	badCredClient.SetHostAndPort(client_.GetHostAndPort())
+
+	noCredClient := tutils.NewHTTPClientNoAuth(schema)
+	noCredClient.SetHostAndPort(client_.GetHostAndPort())
 
 	cacheName := "test"
-	createCacheBadCreds(cacheName, badClient)
+
+	createCacheBadCreds(cacheName, badCredClient)
+	createCacheBadCreds(cacheName, noCredClient)
+
 	cacheHelper := tutils.NewCacheHelper(cacheName, client_)
 	cacheHelper.CreateWithDefault()
 	defer cacheHelper.Delete()
 	cacheHelper.TestBasicUsage("test", "test-operator")
+}
+
+func createCacheBadCreds(cacheName string, client tutils.HTTPClient) {
+	err := ispnClient.New(client).Cache(cacheName).Create("", mime.ApplicationYaml)
+	if err == nil {
+		panic("Cache creation should fail")
+	}
+	var httpErr *httpClient.HttpError
+	if !errors.As(err, &httpErr) {
+		panic("Unexpected error type")
+	}
+	if httpErr.Status != http.StatusUnauthorized {
+		panic(httpErr)
+	}
 }
 
 func TestAuthenticationDisabled(t *testing.T) {

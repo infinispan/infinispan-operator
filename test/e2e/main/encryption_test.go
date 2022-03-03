@@ -16,42 +16,14 @@ import (
 )
 
 // Test if the cluster is working correctly
-func TestClusterFormationWithTLS(t *testing.T) {
-	t.Parallel()
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Replicas = 2
-	spec.Spec.Security = ispnv1.InfinispanSecurity{
-		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
-	}
-
-	// Create secret with server certificates
-	serverName := tutils.GetServerName(spec)
-	cert, privKey, tlsConfig := tutils.CreateServerCertificates(serverName)
-	secret := tutils.EncryptionSecret(spec.Name, tutils.Namespace, privKey, cert)
-	testKube.CreateSecret(secret)
-	defer testKube.DeleteSecret(secret)
-
-	// Register it
-	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-
-	// Ensure that we can connect to the endpoint with TLS
-	client_ := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
-	checkRestConnection(client_)
-}
-
-// Test if the cluster is working correctly
 func TestTLSWithExistingKeystore(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
+	replicas := 2
 	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Replicas = 1
+	spec.Spec.Replicas = int32(replicas)
 	spec.Spec.Security = ispnv1.InfinispanSecurity{
 		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
 	}
@@ -64,7 +36,7 @@ func TestTLSWithExistingKeystore(t *testing.T) {
 
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
