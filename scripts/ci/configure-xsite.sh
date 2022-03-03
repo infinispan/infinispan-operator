@@ -9,6 +9,7 @@ METALLB_VERSION=v0.9.6
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
 SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:13.0'}
+KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.17.17'}
 
 # Cleanup any existing clusters
 kind delete clusters --all
@@ -23,7 +24,16 @@ docker network create kind --subnet "${KIND_SUBNET}/16"
 for INSTANCE_IDX in 1 2; do
   INSTANCE="xsite"${INSTANCE_IDX}
 
-  kind create cluster --config kind-config-xsite.yaml --name "${INSTANCE}"
+  # create a cluster with the local registry enabled in containerd
+  cat <<EOF | kind create cluster --name "${INSTANCE}" --config=-
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    image: quay.io/infinispan-test/kindest-node:${KINDEST_NODE_VERSION}
+  - role: worker
+    image: quay.io/infinispan-test/kindest-node:${KINDEST_NODE_VERSION}
+EOF
   kind load docker-image $IMG --name "${INSTANCE}"
   kind load docker-image ${SERVER_IMAGE} --name "${INSTANCE}"
 
