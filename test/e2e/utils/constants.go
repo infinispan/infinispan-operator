@@ -12,19 +12,18 @@ import (
 )
 
 const (
-	TestTimeout      = 5 * time.Minute
-	SinglePodTimeout = 5 * time.Minute
-	RouteTimeout     = 240 * time.Second
-	// DefaultPollPeriod is the default retry time when waiting for resources
-	DefaultPollPeriod   = 1 * time.Second
-	ConditionPollPeriod = 1 * time.Second
-	// MaxWaitTimeout is the maximum time to wait for resources
-	MaxWaitTimeout       = 3 * time.Minute
-	ConditionWaitTimeout = 3 * time.Minute
-	DefaultClusterName   = "test-node-startup"
+	DefaultClusterName = "test-node-startup"
 )
 
 var (
+	TestTimeout          = timeout("TEST_TIMEOUT", "5m")
+	SinglePodTimeout     = timeout("TEST_SINGLE_POD_TIMEOUT", "5m")
+	RouteTimeout         = timeout("TEST_ROUTE_TIMEOUT", "4m")
+	DefaultPollPeriod    = timeout("TEST_DEFAULT_POLL_PERIOD", "1s") // DefaultPollPeriod is the default retry time when waiting for resources
+	ConditionPollPeriod  = timeout("TEST_CONDITION_POLL_PERIOD", "1s")
+	MaxWaitTimeout       = timeout("TEST_MAX_WAIT_TIMEOUT", "3m") // MaxWaitTimeout is the maximum time to wait for resources
+	ConditionWaitTimeout = timeout("TEST_CONDITION_WAIT_TIMEOUT", "3m")
+
 	CPU               = os.Getenv("INFINISPAN_CPU")
 	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "1Gi")
 	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
@@ -54,4 +53,10 @@ var DeleteOpts = []client.DeleteOption{
 var InfinispanTypeMeta = metav1.TypeMeta{
 	APIVersion: "infinispan.org/v1",
 	Kind:       "Infinispan",
+}
+
+func timeout(env, defVal string) time.Duration {
+	duration, err := time.ParseDuration(constants.GetEnvWithDefault(env, defVal))
+	ExpectNoError(err)
+	return duration
 }
