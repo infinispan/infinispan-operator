@@ -32,11 +32,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestBackupRestore(t *testing.T) {
-	testBackupRestore(t, datagridService, 2)
+	testBackupRestore(t, datagridService, 2, 1000)
 }
 
 func TestBackupRestoreNoAuth(t *testing.T) {
-	testBackupRestore(t, datagridServiceNoAuth, 1)
+	testBackupRestore(t, datagridServiceNoAuth, 1, 1)
 }
 
 func TestBackupRestoreTransformations(t *testing.T) {
@@ -89,13 +89,12 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	}))
 }
 
-func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
+func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEntries int) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
 	name := strcase.ToKebab(t.Name())
 	namespace := tutils.Namespace
-	numEntries := 10000
 
 	// 1. Create initial source cluster
 	sourceCluster := name + "-source"

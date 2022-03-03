@@ -9,81 +9,61 @@ import (
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 )
 
-// TestPermanentCache creates a permanent cache the stop/start
-// the cluster and checks that the cache is still there
-func TestPermanentCache(t *testing.T) {
+// TestGracefulShutdownWithTwoReplicas creates a permanent cache with file-store and any entry,
+// shutdowns the cluster and checks that the cache and the data are still there
+func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	cacheName := "test"
-	// Define function for the generic stop/start test procedure
-	var createPermanentCache = func(ispn *ispnv1.Infinispan) {
-		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		tutils.NewCacheHelper(cacheName, client_).CreateWithDefault("PERMANENT")
-	}
+	// Cache definitions
+	volatileCache := "volatile-cache"
+	volatileCacheConfig := `<distributed-cache name="` + volatileCache + `"/>`
+	filestoreCache := "filestore-cache"
+	filestoreCacheConfig := `<distributed-cache name ="` + filestoreCache + `"><persistence><file-store/></persistence></distributed-cache>`
 
-	var usePermanentCache = func(ispn *ispnv1.Infinispan) {
-		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		key := "test"
-		value := "test-operator"
-		cacheHelper := tutils.NewCacheHelper(cacheName, client_)
-		cacheHelper.TestBasicUsage(key, value)
-		cacheHelper.Delete()
-	}
-
-	genericTestForGracefulShutdown(t, createPermanentCache, usePermanentCache)
-}
-
-// TestCheckDataSurviveToShutdown creates a cache with file-store the stop/start
-// the cluster and checks that the cache and the data are still there
-func TestCheckDataSurviveToShutdown(t *testing.T) {
-	t.Parallel()
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	cacheName := "test"
-	template := `<infinispan><cache-container><distributed-cache name ="` + cacheName +
-		`"><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan>`
-	key := "test"
-	value := "test-operator"
-
-	// Define function for the generic stop/start test procedure
-	var createCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(cacheName, client_)
-		cacheHelper.Create(template, mime.ApplicationXml)
-		cacheHelper.Put(key, value, mime.TextPlain)
-	}
-
-	var useCacheWithFileStore = func(ispn *ispnv1.Infinispan) {
-		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(cacheName, client_)
-		actual, _ := cacheHelper.Get(key)
-		if actual != value {
-			panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
-		}
-		cacheHelper.Delete()
-	}
-
-	genericTestForGracefulShutdown(t, createCacheWithFileStore, useCacheWithFileStore)
-}
-
-func genericTestForGracefulShutdown(t *testing.T, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan)) {
-	// Create a resource without passing any config
-	// Register it
+	// Create Infinispan
+	replicas := 2
 	spec := tutils.DefaultSpec(t, testKube)
+	spec.Spec.Replicas = int32(replicas)
 	spec.Spec.Service.Container.EphemeralStorage = false
 
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	client_ := tutils.HTTPClientForCluster(ispn, testKube)
 
-	// Do something that needs to be permanent
-	modifier(ispn)
+	// Create non-persisted cache
+	volatileCacheHelper := tutils.NewCacheHelper(volatileCache, client_)
+	volatileCacheHelper.Create(volatileCacheConfig, mime.ApplicationXml)
 
-	// Delete the cluster
+	// Create persisted cache with an entry
+	filestoreKey := "testFilestoreKey"
+	filestoreValue := "testFilestoreValue"
+
+	filestoreCacheHelper := tutils.NewCacheHelper(filestoreCache, client_)
+	filestoreCacheHelper.Create(filestoreCacheConfig, mime.ApplicationXml)
+	filestoreCacheHelper.Put(filestoreKey, filestoreValue, mime.TextPlain)
+
+	// Shutdown/bring back the cluster
 	testKube.GracefulShutdownInfinispan(spec)
-	testKube.GracefulRestartInfinispan(spec, 1, tutils.SinglePodTimeout)
+	testKube.GracefulRestartInfinispan(spec, int32(replicas), tutils.SinglePodTimeout)
 
-	// Do something that checks that permanent changes are there again
-	verifier(ispn)
+	// Verify non-persisted cache usability
+	volatileKey := "volatileKey"
+	volatileValue := "volatileValue"
+
+	volatileCacheHelper.TestBasicUsage(volatileKey, volatileValue)
+
+	// [ISPN-13740] Server may return 500 upon deleting cache after graceful shutdown of a cluster
+	// defaultCacheHelper.Delete()
+
+	// Verify persisted cache usability and data presence
+	actual, _ := filestoreCacheHelper.Get(filestoreKey)
+	if actual != filestoreValue {
+		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, filestoreValue))
+	}
+
+	// [ISPN-13740] Server may return 500 upon deleting cache after graceful shutdown of a cluster
+	// filestoreCacheHelper.Delete()
 }
