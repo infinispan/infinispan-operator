@@ -4,6 +4,9 @@ set -o errexit
 
 SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:13.0'}
 KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.17.17'}
+KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
+
+docker network create kind --subnet "${KIND_SUBNET}/16" || true
 
 # create registry container unless it already exists
 reg_name='kind-registry'

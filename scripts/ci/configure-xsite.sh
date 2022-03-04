@@ -8,6 +8,7 @@ KIND_KUBEAPI_PORT=6443
 METALLB_VERSION=v0.9.6
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
+SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:13.0'}
 
 # Cleanup any existing clusters
 kind delete clusters --all
@@ -24,6 +25,7 @@ for INSTANCE_IDX in 1 2; do
 
   kind create cluster --config kind-config-xsite.yaml --name "${INSTANCE}"
   kind load docker-image $IMG --name "${INSTANCE}"
+  kind load docker-image ${SERVER_IMAGE} --name "${INSTANCE}"
 
   TESTING_NAMESPACE_XSITE="${TESTING_NAMESPACE}-${INSTANCE}"
   kubectl create namespace "${TESTING_NAMESPACE_XSITE}"
