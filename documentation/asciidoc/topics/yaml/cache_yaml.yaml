@@ -1,0 +1,16 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Cache
+metadata:
+  name: mycachedefinition
+spec:
+  clusterName: {example_crd_name}
+  name: myYAMLcache
+  template: |
+  distributedCache:
+    mode: "SYNC"
+    owners: "2"
+    statistics: "true"
+    encoding:
+      mediaType: "application/x-protostream"
+    persistence:
+      fileStore: ~

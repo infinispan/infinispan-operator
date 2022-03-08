@@ -1,9 +1,7 @@
 infinispan:
-  cache-container:
+  cacheContainer:
     name: "default"
     statistics: "true"
-    transport:
-      stack: "tcp"
     distributedCacheConfiguration:
       name: "my-dist-template"
       mode: "SYNC"

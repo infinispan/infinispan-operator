@@ -1,0 +1,41 @@
+[id='creating-caches_{context}']
+= Creating caches with the Cache CR
+
+[role="_abstract"]
+Complete the following steps to create caches on {datagridservice} clusters using valid configuration in XML or YAML format.
+
+.Procedure
+
+. Create a `Cache` CR with a unique value in the `metadata.name` field.
+. Specify the target {brandname} cluster with the `spec.clusterName` field.
+. Name your cache with the `spec.name` field.
++
+[NOTE]
+====
+The `name` attribute in the cache configuration does not take effect.
+If you do not specify a name with the `spec.name` field then the cache uses the value of the `metadata.name` field.
+====
++
+. Add a cache configuration with the `spec.template` field.
+. Apply the `Cache` CR, for example:
++
+[source,options="nowrap",subs=attributes+]
+----
+$ {oc_apply_cr} mycache.yaml
+cache.infinispan.org/mycachedefinition created
+----
+
+[discrete]
+== Cache CR examples
+
+.XML
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/cache_xml.yaml[]
+----
+
+.YAML
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/cache_yaml.yaml[]
+----
