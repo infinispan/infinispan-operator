@@ -4,22 +4,40 @@
 You can add {brandname} configuration to a `ConfigMap` in XML, YAML, or JSON format.
 
 .XML
-
 [source,xml,options="nowrap",subs=attributes+]
 ----
-include::xml/infinispan-config.xml[]
+include::xml/infinispan_cache_template.xml[]
 ----
 
 .YAML
-
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-include::yaml/infinispan-config.yaml[]
+include::yaml/infinispan_cache_template.yaml[]
 ----
 
 .JSON
-
 [source,json,options="nowrap",subs=attributes+]
 ----
-include::json/infinispan-config.json[]
+include::json/infinispan_cache_template.json[]
+----
+
+[discrete]
+== Multiple caches
+
+.XML
+[source,xml,options="nowrap",subs=attributes+]
+----
+include::xml/infinispan_caches.xml[]
+----
+
+.YAML
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/infinispan_caches.yaml[]
+----
+
+.JSON
+[source,json,options="nowrap",subs=attributes+]
+----
+include::json/infinispan_caches.json[]
 ----
