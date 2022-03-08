@@ -316,7 +316,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 				ReadinessProbe: PodReadinessProbe(),
 				Resources:      *podResources,
 				StartupProbe:   PodStartupProbe(),
-				Args:           buildStartupArgs("", "true"),
+				Args:           buildStartupArgs("", false, "true"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      ConfigVolumeName,

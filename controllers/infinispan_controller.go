@@ -302,20 +302,22 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	// If an overlay configuration is specified wait for the related ConfigMap
 	overlayConfigMap := &corev1.ConfigMap{}
 	var overlayConfigMapKey string
+	var overlayLog4jConfig bool
 	if infinispan.Spec.ConfigMapName != "" {
 		if result, err := kube.LookupResource(infinispan.Spec.ConfigMapName, infinispan.Namespace, overlayConfigMap, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 			return *result, err
 		}
-		var foundKey bool
-		// Loop through the data looking for something like xml,json or yaml
+		// Loop through the data looking for something like xml, json or yaml
 		for overlayConfigMapKey = range overlayConfigMap.Data {
 			if overlayConfigMapKey == "infinispan-config.xml" || overlayConfigMapKey == "infinispan-config.json" || overlayConfigMapKey == "infinispan-config.yaml" {
-				foundKey = true
 				break
 			}
 		}
-		if !foundKey {
-			err := fmt.Errorf("infinispan-copnfig.[xml|yaml|json] configuration not found in ConfigMap: %s", overlayConfigMap.Name)
+		// Check if the user added a custom log4j.xml config
+		_, overlayLog4jConfig = overlayConfigMap.Data["log4j.xml"]
+
+		if overlayConfigMapKey == "" && !overlayLog4jConfig {
+			err := fmt.Errorf("infinispan-config.[xml|yaml|json] or log4j.xml configuration not found in ConfigMap: %s", overlayConfigMap.Name)
 			return reconcile.Result{}, err
 		}
 	}
@@ -439,7 +441,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		reqLogger.Info("Configuring the StatefulSet")
 
 		// Define a new StatefulSet
-		statefulSet, err = r.statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret, configMap, overlayConfigMap, overlayConfigMapKey)
+		statefulSet, err = r.statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret, configMap, overlayConfigMap, overlayConfigMapKey, overlayLog4jConfig)
 		if err != nil {
 			reqLogger.Error(err, "failed to configure new StatefulSet")
 			return ctrl.Result{}, err
@@ -539,7 +541,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 
 	// Here where to reconcile with spec updates that reflect into
 	// changes to statefulset.spec.container.
-	res, err = r.reconcileContainerConf(statefulSet, configMap, overlayConfigMap, overlayConfigMapKey, adminSecret, userSecret, keystoreSecret, trustSecret)
+	res, err = r.reconcileContainerConf(statefulSet, configMap, overlayConfigMap, overlayConfigMapKey, overlayLog4jConfig, adminSecret, userSecret, keystoreSecret, trustSecret)
 	if res != nil {
 		return *res, err
 	}
@@ -1125,7 +1127,7 @@ func (r *infinispanRequest) updatePodsLabels(podList *corev1.PodList) error {
 
 // statefulSetForInfinispan returns an infinispan StatefulSet object
 func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret *corev1.Secret,
-	configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string) (*appsv1.StatefulSet, error) {
+	configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string, overlayLog4jConfig bool) (*appsv1.StatefulSet, error) {
 	ispn := r.infinispan
 	reqLogger := r.log.WithValues("Request.Namespace", ispn.Namespace, "Request.Name", ispn.Name)
 	lsPod := PodLabels(ispn.Name)
@@ -1242,7 +1244,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 						StartupProbe:   PodStartupProbe(),
 						Resources:      *podResources,
 						VolumeMounts:   volumeMounts,
-						Args:           buildStartupArgs(overlayConfigMapKey, "false"),
+						Args:           buildStartupArgs(overlayConfigMapKey, overlayLog4jConfig, "false"),
 					}},
 					Volumes: volumes,
 				},
@@ -1527,7 +1529,7 @@ func (r *infinispanRequest) gracefulShutdownReq(podList *corev1.PodList, logger 
 }
 
 // reconcileContainerConf reconcile the .Container struct is changed in .Spec. This needs a cluster restart
-func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulSet, configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string, adminSecret,
+func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulSet, configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string, overlayLog4jConfig bool, adminSecret,
 	userSecret, keystoreSecret, trustSecret *corev1.Secret) (*ctrl.Result, error) {
 	ispn := r.infinispan
 	updateNeeded := false
@@ -1587,7 +1589,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hash.HashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
 	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])) || updateNeeded
 
-	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey, "false"); err != nil {
+	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey, overlayLog4jConfig, "false"); err != nil {
 		return &ctrl.Result{}, err
 	} else {
 		updateNeeded = updateCmdArgs || updateNeeded
@@ -1762,18 +1764,35 @@ func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kuberne
 	return podList, kube.ResourcesList(infinispan.Namespace, GossipRouterPodLabels(infinispan.Name), podList, ctx)
 }
 
-func buildStartupArgs(overlayConfigMapKey string, zeroCapacity string) []string {
-	var args []string
-	if overlayConfigMapKey != "" {
-		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-c", "user/" + overlayConfigMapKey, "-c", "operator/infinispan.xml"}
+func buildStartupArgs(overlayConfigMapKey string, overlayLog4jConfig bool, zeroCapacity string) []string {
+	var args strings.Builder
+
+	// Preallocate a buffer to speed up string building (saves code from growing the memory dynamically)
+	args.Grow(110)
+	args.WriteString("-Dinfinispan.zero-capacity-node=")
+	args.WriteString(zeroCapacity)
+
+	// Check if the user defined a custom log4j config
+	args.WriteString(" -l ")
+	if overlayLog4jConfig {
+		args.WriteString("user/log4j.xml")
 	} else {
-		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-c", "operator/infinispan.xml"}
+		args.WriteString(OperatorConfMountPath)
+		args.WriteString("/log4j.xml")
 	}
-	return args
+
+	// Check if the user defined an overlay operator config
+	if overlayConfigMapKey != "" {
+		args.WriteString(" -c user/")
+		args.WriteString(overlayConfigMapKey)
+	}
+	args.WriteString(" -c operator/infinispan.xml")
+
+	return strings.Fields(args.String())
 }
 
-func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey, zeroCapacity string) (bool, error) {
-	newArgs := buildStartupArgs(overlayConfigMapKey, zeroCapacity)
+func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey string, overlayLog4jConfig bool, zeroCapacity string) (bool, error) {
+	newArgs := buildStartupArgs(overlayConfigMapKey, overlayLog4jConfig, zeroCapacity)
 	ispnContainer := GetContainer(InfinispanContainer, &statefulSet.Spec.Template.Spec)
 	if len(newArgs) == len(ispnContainer.Args) {
 		var changed bool
