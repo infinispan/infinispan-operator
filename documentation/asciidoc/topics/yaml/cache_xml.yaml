@@ -4,5 +4,5 @@ metadata:
   name: mycachedefinition
 spec:
   clusterName: {example_crd_name}
-  name: mycache
-  template: <distributed-cache name="mycache" mode="SYNC"><persistence><file-store/></persistence></distributed-cache>
+  name: myXMLcache
+  template: <distributed-cache mode="SYNC" statistics="true"><encoding media-type="application/x-protostream"/><persistence><file-store/></persistence></distributed-cache>
