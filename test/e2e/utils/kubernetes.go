@@ -841,6 +841,17 @@ func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition 
 	})
 }
 
+// GetStatefulSet gets an Infinispan resource in the given namespace
+func (k TestKubernetes) GetStatefulSet(name, namespace string) *appsv1.StatefulSet {
+	infinispan := &appsv1.StatefulSet{}
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+	ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, infinispan))
+	return infinispan
+}
+
 func (k TestKubernetes) WaitForStateFulSetRemoval(name string, namespace string) {
 	statefulSet := &appsv1.StatefulSet{}
 	err := wait.Poll(ConditionPollPeriod, 2*ConditionWaitTimeout, func() (done bool, err error) {

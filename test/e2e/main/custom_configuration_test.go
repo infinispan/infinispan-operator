@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/iancoleman/strcase"
@@ -34,6 +35,7 @@ func TestUserJsonCustomConfig(t *testing.T) {
 func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
+	addLog4jToCustomConfigMap(configMap)
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
@@ -49,6 +51,12 @@ func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
 	client_ := tutils.HTTPClientForCluster(ispn, testKube)
 	cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
 	cacheHelper.TestBasicUsage("testkey", "test-operator")
+
+	sts := testKube.GetStatefulSet(ispn.Name, ispn.Namespace)
+	if sts.Spec.Template.Spec.Containers[0].Args[2] != "user/log4j.xml" {
+		tutils.ExpectNoError(fmt.Errorf("failed to pass the custom log4j.xml logging config as an argument "+
+			"of the Infinispan server (%s)", sts.Name))
+	}
 }
 
 // TestUserCustomConfigWithAuthUpdate tests that user custom config works well with update
@@ -199,4 +207,24 @@ xmlns:server="urn:infinispan:server:13.0">
 		Namespace: tutils.Namespace},
 		Data: map[string]string{"infinispan-config." + format: userCacheContainer},
 	}
+}
+
+func addLog4jToCustomConfigMap(customConfigMap *corev1.ConfigMap) {
+	// Add overlay Log4j config to custom ConfigMap
+	customConfigMap.Data["log4j.xml"] = `<?xml version="1.0" encoding="UTF-8"?>
+<Configuration name="InfinispanServerConfig" monitorInterval="60" shutdownHook="disable">
+    <Appenders>
+        <!-- Colored output on the console -->
+        <Console name="STDOUT">
+            <PatternLayout pattern="%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="STDOUT" level="TRACE"/>
+        </Root>
+        <Logger name="org.infinispan" level="TRACE"/>
+    </Loggers>
+</Configuration>`
 }
