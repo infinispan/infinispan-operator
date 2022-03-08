@@ -10,6 +10,7 @@ spec:
     type: DataGrid
     container:
       storage: 2Gi
+      # The ephemeralStorage and storageClassName fields are mutually exclusive.
       ephemeralStorage: false
       storageClassName: my-storage-class
     sites:
