@@ -15,14 +15,26 @@ If available container storage is less than the amount of available memory, data
 .Procedure
 
 . Allocate storage resources with the `spec.service.container.storage` field.
-. Optionally configure the `ephemeralStorage` and `storageClassName` fields as required.
+. Configure either the `ephemeralStorage` field or the `storageClassName` field as required.
 +
+[NOTE]
+====
+These fields are mutually exclusive.
+Add only one of them to your `Infinispan` CR.
+====
+. Apply the changes.
+
+.Ephemeral storage
 [source,options="nowrap",subs=attributes+]
 ----
-include::yaml/container_storage.yaml[]
+include::yaml/container_storage_ephemeral.yaml[]
 ----
-+
-. Apply the changes.
+
+.Name of a `StorageClass` object
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/container_storage_class_name.yaml[]
+----
 
 [%header,cols=2*]
 |===
