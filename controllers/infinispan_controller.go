@@ -308,8 +308,9 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			return *result, err
 		}
 		// Loop through the data looking for something like xml, json or yaml
-		for overlayConfigMapKey = range overlayConfigMap.Data {
-			if overlayConfigMapKey == "infinispan-config.xml" || overlayConfigMapKey == "infinispan-config.json" || overlayConfigMapKey == "infinispan-config.yaml" {
+		for configMapKey := range overlayConfigMap.Data {
+			if configMapKey == "infinispan-config.xml" || configMapKey == "infinispan-config.json" || configMapKey == "infinispan-config.yaml" {
+				overlayConfigMapKey = configMapKey
 				break
 			}
 		}
@@ -317,7 +318,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		_, overlayLog4jConfig = overlayConfigMap.Data["log4j.xml"]
 
 		if overlayConfigMapKey == "" && !overlayLog4jConfig {
-			err := fmt.Errorf("infinispan-config.[xml|yaml|json] or log4j.xml configuration not found in ConfigMap: %s", overlayConfigMap.Name)
+			err := fmt.Errorf("one of infinispan-config.[xml|yaml|json] or log4j.xml must be present in the provided ConfigMap: %s", overlayConfigMap.Name)
 			return reconcile.Result{}, err
 		}
 	}
