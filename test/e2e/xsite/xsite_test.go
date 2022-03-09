@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/iancoleman/strcase"
@@ -38,7 +39,7 @@ type crossSiteKubernetes struct {
 	apiServer string
 }
 
-func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNamespace string, exposeType ispnv1.CrossSiteExposeType, exposePort int32) *ispnv1.Infinispan {
+func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNamespace, xsiteSecretName string, exposeType ispnv1.CrossSiteExposeType, exposePort int32) *ispnv1.Infinispan {
 	return &ispnv1.Infinispan{
 		TypeMeta: tutils.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
@@ -61,7 +62,7 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 						{
 							Name:        backupSite,
 							Namespace:   siteNamespace,
-							SecretName:  secretSiteName(backupSite),
+							SecretName:  xsiteSecretName,
 							ClusterName: fmt.Sprintf("%s-%s", name, backupSite),
 						},
 					},
@@ -81,7 +82,7 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 	}
 }
 
-func crossSiteCertificateSecret(siteName, namespace string, clientConfig *api.Config, ctx string) *corev1.Secret {
+func crossSiteCertificateSecret(secretName, namespace string, clientConfig *api.Config, ctx string) *corev1.Secret {
 	clusterKey := clientConfig.Contexts[ctx].Cluster
 	authInfoKey := clientConfig.Contexts[ctx].AuthInfo
 	return &corev1.Secret{
@@ -90,7 +91,7 @@ func crossSiteCertificateSecret(siteName, namespace string, clientConfig *api.Co
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretSiteName(siteName),
+			Name:      secretName,
 			Namespace: namespace,
 		},
 		Type: corev1.SecretTypeOpaque,
@@ -102,14 +103,14 @@ func crossSiteCertificateSecret(siteName, namespace string, clientConfig *api.Co
 	}
 }
 
-func crossSiteTokenSecret(siteName, namespace string, token []byte) *corev1.Secret {
+func crossSiteTokenSecret(secretName, namespace string, token []byte) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretSiteName(siteName),
+			Name:      secretName,
 			Namespace: namespace,
 		},
 		Type: corev1.SecretTypeOpaque,
@@ -117,10 +118,6 @@ func crossSiteTokenSecret(siteName, namespace string, token []byte) *corev1.Secr
 			"token": token,
 		},
 	}
-}
-
-func secretSiteName(siteName string) string {
-	return fmt.Sprintf("secret-%s", siteName)
 }
 
 func createTLSKeysStoreSecret(keyStore []byte, secretName, namespace, password string, filename *string) *corev1.Secret {
@@ -236,67 +233,188 @@ func TestDefaultTLSOpenshiftRoute(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeRoute, 0, 1, DefaultTLS, nil)
 }
 
-func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
-	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
+var multiSite = map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
+var singleSite = map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
+
+func TestMain(m *testing.M) {
+	setUpSingleSite()
+
+	for _, s := range setUpMultipleSites() {
+		defer multiSite["xsite1"].kube.DeleteSecret(s)
+		defer multiSite["xsite2"].kube.DeleteSecret(s)
+		defer singleSite["xsite1"].kube.DeleteSecret(s)
+		defer singleSite["xsite2"].kube.DeleteSecret(s)
+	}
+
+	for _, s := range setUpDefaultTLSSecrets() {
+		defer multiSite["xsite1"].kube.DeleteSecret(s)
+		defer multiSite["xsite2"].kube.DeleteSecret(s)
+		defer singleSite["xsite1"].kube.DeleteSecret(s)
+		defer singleSite["xsite2"].kube.DeleteSecret(s)
+	}
+
+	for _, s := range setUpSingleTLSKeystoreSecrets() {
+		defer multiSite["xsite1"].kube.DeleteSecret(s)
+		defer multiSite["xsite2"].kube.DeleteSecret(s)
+		defer singleSite["xsite1"].kube.DeleteSecret(s)
+		defer singleSite["xsite2"].kube.DeleteSecret(s)
+	}
+
+	// exec test and this returns an exit code to pass to os
+	os.Exit(m.Run())
+}
+
+func setUpMultipleSites() []*corev1.Secret {
 	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	for instance, testKube := range multiSite {
+		testKube.context = fmt.Sprintf("kind-%s", instance)
+		testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, instance)
+		testKube.kube = tutils.NewTestKubernetes(testKube.context)
+		clusterContextName := clientConfig.Contexts[testKube.context].Cluster
+		apiServerUrl, err := url.Parse(clientConfig.Clusters[clusterContextName].Server)
+		tutils.ExpectNoError(err)
+		testKube.apiServer = apiServerUrl.Host
+	}
 
-	if isMultiCluster {
-		for instance, testKube := range tesKubes {
-			testKube.context = fmt.Sprintf("kind-%s", instance)
-			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, instance)
-			testKube.kube = tutils.NewTestKubernetes(testKube.context)
-			clusterContextName := clientConfig.Contexts[testKube.context].Cluster
-			apiServerUrl, err := url.Parse(clientConfig.Clusters[clusterContextName].Server)
-			tutils.ExpectNoError(err)
-			testKube.apiServer = apiServerUrl.Host
+	// Kubernetes secrets
+	kubeSite1Secret := crossSiteCertificateSecret("secret-kube-xsite2", multiSite["xsite1"].namespace, clientConfig, multiSite["xsite2"].context)
+	kubeSite2Secret := crossSiteCertificateSecret("secret-kube-xsite1", multiSite["xsite2"].namespace, clientConfig, multiSite["xsite1"].context)
+	multiSite["xsite1"].kube.CreateSecret(kubeSite1Secret)
+	multiSite["xsite2"].kube.CreateSecret(kubeSite2Secret)
+
+	// Openshift secrets
+	serviceAccount := tutils.OperatorSAName
+	operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, multiSite["xsite1"].namespace)
+	tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite1, multiSite["xsite1"].kube.Kubernetes.Client, context.TODO())
+	tutils.ExpectNoError(err)
+
+	operatorNamespaceSite2 := constants.GetWithDefault(tutils.OperatorNamespace, multiSite["xsite2"].namespace)
+	tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite2, multiSite["xsite2"].kube.Kubernetes.Client, context.TODO())
+	tutils.ExpectNoError(err)
+
+	osSite1Secret := crossSiteTokenSecret("secret-openshift-xsite2", multiSite["xsite1"].namespace, tokenSecretXsite2.Data["token"])
+	osSite2Secret := crossSiteTokenSecret("secret-openshift-xsite1", multiSite["xsite2"].namespace, tokenSecretXsite1.Data["token"])
+	multiSite["xsite1"].kube.CreateSecret(osSite1Secret)
+	multiSite["xsite2"].kube.CreateSecret(osSite2Secret)
+
+	return []*corev1.Secret{kubeSite1Secret, kubeSite2Secret, osSite1Secret, osSite2Secret}
+}
+
+func setUpSingleSite() {
+	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	for _, testKube := range singleSite {
+		testKube.context = clientConfig.CurrentContext
+		testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, "xsite2")
+		testKube.kube = tutils.NewTestKubernetes(testKube.context)
+	}
+}
+
+func setUpDefaultTLSSecrets() []*corev1.Secret {
+	transport, router, trust := tutils.CreateDefaultCrossSiteKeyAndTrustStore()
+	secrets := make([]*corev1.Secret, 0)
+	for site := range multiSite {
+		transportSecretName := fmt.Sprintf("%s-transport-tls-secret", site)
+		routerSecretName := fmt.Sprintf("%s-router-tls-secret", site)
+		trustSecretName := fmt.Sprintf("%s-trust-tls-secret", site)
+
+		namespace := multiSite[site].namespace
+
+		transportSecret := createTLSKeysStoreSecret(transport, transportSecretName, namespace, tutils.KeystorePassword, nil)
+		routerSecret := createTLSKeysStoreSecret(router, routerSecretName, namespace, tutils.KeystorePassword, nil)
+		trustSecret := createTLSTrustStoreSecret(trust, trustSecretName, namespace, tutils.TruststorePassword, nil)
+
+		multiSite[site].kube.CreateSecret(transportSecret)
+		multiSite[site].kube.CreateSecret(routerSecret)
+		multiSite[site].kube.CreateSecret(trustSecret)
+
+		secrets = append(secrets, transportSecret, routerSecret, trustSecret)
+
+		// single site tests use cross-site in the same namespace (xsite2) so we need to create the xsite1 secrets in xsite2 namespace
+		if site == "xsite1" {
+			transportSecret = createTLSKeysStoreSecret(transport, transportSecretName, singleSite["xsite2"].namespace, tutils.KeystorePassword, nil)
+			routerSecret = createTLSKeysStoreSecret(router, routerSecretName, singleSite["xsite2"].namespace, tutils.KeystorePassword, nil)
+			trustSecret = createTLSTrustStoreSecret(trust, trustSecretName, singleSite["xsite2"].namespace, tutils.TruststorePassword, nil)
+
+			singleSite["xsite2"].kube.CreateSecret(transportSecret)
+			singleSite["xsite2"].kube.CreateSecret(routerSecret)
+			singleSite["xsite2"].kube.CreateSecret(trustSecret)
+
+			secrets = append(secrets, transportSecret, routerSecret, trustSecret)
 		}
-		if schemeType == ispnv1.CrossSiteSchemeTypeKubernetes {
-			tesKubes["xsite1"].kube.CreateSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
-			tesKubes["xsite2"].kube.CreateSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
+	}
+	return secrets
+}
 
-			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
-			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
-		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
-			serviceAccount := tutils.OperatorSAName
-			operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite1"].namespace)
-			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite1, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
-			tutils.ExpectNoError(err)
-			operatorNamespaceSite2 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite2"].namespace)
-			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite2, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
-			tutils.ExpectNoError(err)
+func setUpSingleTLSKeystoreSecrets() []*corev1.Secret {
+	keystore, truststore := tutils.CreateCrossSiteSingleKeyStoreAndTrustStore()
+	secrets := make([]*corev1.Secret, 0)
+	for site := range multiSite {
+		namespace := multiSite[site].namespace
+		keyStoreFileName := "my-keystore.p12"
+		keyStoreSecretName := fmt.Sprintf("%s-my-keystore-secret", site)
+		trustStoreFileName := "my-truststore.p12"
+		trustStoreSecretName := fmt.Sprintf("%s-my-truststore-secret", site)
 
-			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, tokenSecretXsite2.Data["token"]))
-			tesKubes["xsite2"].kube.CreateSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, tokenSecretXsite1.Data["token"]))
+		transportSecret := createTLSKeysStoreSecret(keystore, keyStoreSecretName, namespace, tutils.KeystorePassword, &keyStoreFileName)
+		trustSecret := createTLSTrustStoreSecret(truststore, trustStoreSecretName, namespace, tutils.KeystorePassword, &trustStoreFileName)
 
-			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, []byte("")))
-			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, []byte("")))
-		}
-		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite1", "xsite2", tesKubes["xsite2"].namespace, exposeType, exposePort)
-		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite2", "xsite1", tesKubes["xsite1"].namespace, exposeType, exposePort)
+		multiSite[site].kube.CreateSecret(transportSecret)
+		multiSite[site].kube.CreateSecret(trustSecret)
 
-		tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, tesKubes["xsite2"].apiServer)
-		tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, tesKubes["xsite1"].apiServer)
-	} else {
-		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite1", "xsite2", "", exposeType, exposePort)
-		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite2", "xsite1", "", exposeType, exposePort)
-		for _, testKube := range tesKubes {
-			testKube.context = clientConfig.CurrentContext
-			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, "xsite2")
-			testKube.kube = tutils.NewTestKubernetes(testKube.context)
+		secrets = append(secrets, transportSecret, trustSecret)
+
+		// single site tests use cross-site in the same namespace (xsite2) so we need to create the xsite1 secrets in xsite2 namespace
+		if site == "xsite1" {
+			transportSecret = createTLSKeysStoreSecret(keystore, keyStoreSecretName, singleSite["xsite2"].namespace, tutils.KeystorePassword, &keyStoreFileName)
+			trustSecret = createTLSTrustStoreSecret(truststore, trustStoreSecretName, singleSite["xsite2"].namespace, tutils.KeystorePassword, &trustStoreFileName)
+
+			singleSite["xsite2"].kube.CreateSecret(transportSecret)
+			singleSite["xsite2"].kube.CreateSecret(trustSecret)
+
+			secrets = append(secrets, transportSecret, trustSecret)
 		}
 	}
 
-	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite1"].namespace)
-	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite2"].namespace)
+	return secrets
+}
+
+func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
+	t.Parallel()
+	var testKubes map[string]*crossSiteKubernetes
+
+	if isMultiCluster {
+		var site1SecretName, site2SecretName string
+		testKubes = multiSite
+		if schemeType == ispnv1.CrossSiteSchemeTypeKubernetes {
+			site1SecretName = "secret-kube-xsite1"
+			site2SecretName = "secret-kube-xsite2"
+		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
+			site1SecretName = "secret-openshift-xsite1"
+			site2SecretName = "secret-openshift-xsite2"
+		}
+		testKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite1", "xsite2", testKubes["xsite2"].namespace, site2SecretName, exposeType, exposePort)
+		testKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite2", "xsite1", testKubes["xsite1"].namespace, site1SecretName, exposeType, exposePort)
+
+		testKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, testKubes["xsite2"].apiServer)
+		testKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, testKubes["xsite1"].apiServer)
+	} else {
+		testKubes = singleSite
+		testKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite1", "xsite2", "", "", exposeType, exposePort)
+		testKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(t.Name()), podsPerSite, "xsite2", "xsite1", "", "", exposeType, exposePort)
+
+	}
+
+	defer testKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, testKubes["xsite1"].namespace)
+	defer testKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, testKubes["xsite2"].namespace)
 
 	// Check if Route is available
 	if exposeType == ispnv1.CrossSiteExposeTypeRoute {
-		okRoute, err := tesKubes["xsite1"].kube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
+		okRoute, err := testKubes["xsite1"].kube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
 		tutils.ExpectNoError(err)
 		if !okRoute {
 			t.Skip("Route not available. Skipping test")
 		}
-		okRoute, err = tesKubes["xsite2"].kube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
+		okRoute, err = testKubes["xsite2"].kube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
 		tutils.ExpectNoError(err)
 		if !okRoute {
 			t.Skip("Route not available. Skipping test")
@@ -304,97 +422,66 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 	}
 
 	if tlsMode == DefaultTLS {
-		transport, router, trust := tutils.CreateDefaultCrossSiteKeyAndTrustStore()
-
-		for site := range tesKubes {
+		for site := range testKubes {
 			transportSecretName := fmt.Sprintf("%s-transport-tls-secret", site)
 			routerSecretName := fmt.Sprintf("%s-router-tls-secret", site)
 			trustSecretName := fmt.Sprintf("%s-trust-tls-secret", site)
-
-			namespace := tesKubes[site].namespace
-
-			transportSecret := createTLSKeysStoreSecret(transport, transportSecretName, namespace, tutils.KeystorePassword, nil)
-			routerSecret := createTLSKeysStoreSecret(router, routerSecretName, namespace, tutils.KeystorePassword, nil)
-			trustSecret := createTLSTrustStoreSecret(trust, trustSecretName, namespace, tutils.TruststorePassword, nil)
-
-			tesKubes[site].kube.CreateSecret(transportSecret)
-			tesKubes[site].kube.CreateSecret(routerSecret)
-			tesKubes[site].kube.CreateSecret(trustSecret)
-
-			if tutils.CleanupXSiteOnFinish {
-				defer tesKubes[site].kube.DeleteSecret(transportSecret)
-				defer tesKubes[site].kube.DeleteSecret(routerSecret)
-				defer tesKubes[site].kube.DeleteSecret(trustSecret)
-			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption = &ispnv1.EncryptionSiteSpec{}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = ispnv1.CrossSiteKeyStore{
+			testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption = &ispnv1.EncryptionSiteSpec{}
+			testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = ispnv1.CrossSiteKeyStore{
 				SecretName: transportSecretName,
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.RouterKeyStore = ispnv1.CrossSiteKeyStore{
+			testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.RouterKeyStore = ispnv1.CrossSiteKeyStore{
 				SecretName: routerSecretName,
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TrustStore = &ispnv1.CrossSiteTrustStore{
+			testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TrustStore = &ispnv1.CrossSiteTrustStore{
 				SecretName: trustSecretName,
 			}
 			if tlsProtocol != nil {
-				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
+				testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
 			}
 		}
 	} else if tlsMode == SingleKeyStoreTLS {
-		keystore, truststore := tutils.CreateCrossSiteSingleKeyStoreAndTrustStore()
-		for site := range tesKubes {
-			namespace := tesKubes[site].namespace
+		for site := range testKubes {
 			keyStoreFileName := "my-keystore.p12"
 			keyStoreSecretName := fmt.Sprintf("%s-my-keystore-secret", site)
 			trustStoreFileName := "my-truststore.p12"
 			trustStoreSecretName := fmt.Sprintf("%s-my-truststore-secret", site)
 
-			transportSecret := createTLSKeysStoreSecret(keystore, keyStoreSecretName, namespace, tutils.KeystorePassword, &keyStoreFileName)
-			trustSecret := createTLSTrustStoreSecret(truststore, trustStoreSecretName, namespace, tutils.KeystorePassword, &trustStoreFileName)
-
-			tesKubes[site].kube.CreateSecret(transportSecret)
-			tesKubes[site].kube.CreateSecret(trustSecret)
-
-			if tutils.CleanupXSiteOnFinish {
-				defer tesKubes[site].kube.DeleteSecret(transportSecret)
-				defer tesKubes[site].kube.DeleteSecret(trustSecret)
-			}
-
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption = &ispnv1.EncryptionSiteSpec{}
+			testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption = &ispnv1.EncryptionSiteSpec{}
 			if tlsProtocol != nil {
-				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
+				testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = ispnv1.CrossSiteKeyStore{
+			testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = ispnv1.CrossSiteKeyStore{
 				SecretName: keyStoreSecretName,
 				Filename:   keyStoreFileName,
 				Alias:      "same",
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.RouterKeyStore = ispnv1.CrossSiteKeyStore{
+			testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.RouterKeyStore = ispnv1.CrossSiteKeyStore{
 				SecretName: keyStoreSecretName,
 				Filename:   keyStoreFileName,
 				Alias:      "same",
 			}
-			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TrustStore = &ispnv1.CrossSiteTrustStore{
+			testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TrustStore = &ispnv1.CrossSiteTrustStore{
 				SecretName: trustStoreSecretName,
 				Filename:   trustStoreFileName,
 			}
 		}
 	}
 
-	tesKubes["xsite1"].crossSite.Labels = map[string]string{"test-name": t.Name()}
-	tesKubes["xsite2"].crossSite.Labels = map[string]string{"test-name": t.Name()}
+	testKubes["xsite1"].crossSite.Labels = map[string]string{"test-name": t.Name()}
+	testKubes["xsite2"].crossSite.Labels = map[string]string{"test-name": t.Name()}
 
-	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
-	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
+	testKubes["xsite1"].kube.CreateInfinispan(&testKubes["xsite1"].crossSite, testKubes["xsite1"].namespace)
+	testKubes["xsite2"].kube.CreateInfinispan(&testKubes["xsite2"].crossSite, testKubes["xsite2"].namespace)
 
-	tesKubes["xsite1"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
-	tesKubes["xsite2"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)
+	testKubes["xsite1"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, testKubes["xsite1"].crossSite.Name, testKubes["xsite1"].namespace)
+	testKubes["xsite2"].kube.WaitForInfinispanPods(int(podsPerSite), tutils.SinglePodTimeout, testKubes["xsite2"].crossSite.Name, testKubes["xsite2"].namespace)
 
-	tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
-	tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionWellFormed)
+	testKubes["xsite1"].kube.WaitForInfinispanCondition(testKubes["xsite1"].crossSite.Name, testKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
+	testKubes["xsite2"].kube.WaitForInfinispanCondition(testKubes["xsite2"].crossSite.Name, testKubes["xsite2"].namespace, ispnv1.ConditionWellFormed)
 
-	ispnXSite1 := tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionCrossSiteViewFormed)
-	ispnXSite2 := tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+	ispnXSite1 := testKubes["xsite1"].kube.WaitForInfinispanCondition(testKubes["xsite1"].crossSite.Name, testKubes["xsite1"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+	ispnXSite2 := testKubes["xsite2"].kube.WaitForInfinispanCondition(testKubes["xsite2"].crossSite.Name, testKubes["xsite2"].namespace, ispnv1.ConditionCrossSiteViewFormed)
 
 	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
 	assert.Contains(t, ispnXSite2.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
