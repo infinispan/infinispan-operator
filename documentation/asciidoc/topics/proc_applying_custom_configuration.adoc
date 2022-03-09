@@ -19,21 +19,19 @@ Changing this configuration can result in error and result in service downtime f
 Use the {brandname} Helm chart to deploy clusters of fully configurable {brandname} Server instances on {openshiftshort}.
 ====
 
-
 .Prerequisites
 
 * Have valid {brandname} configuration in XML, YAML, or JSON format.
 
 .Procedure
 
-. Add your {brandname} configuration to the `data` field of a `ConfigMap` as `infinispan-config.[xml|yaml|json]`, as in the following example:
+. Add your {brandname} configuration to the `data` field of a `ConfigMap` as `infinispan-config.[xml|yaml|json]`.
+. Optionally include `log4j.xml` logging configuration.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/config-map-cluster-configuration.yaml[]
 ----
-
-As shown in the above example, optionally, you may add your `log4j.xml` configuration to the same configuration `ConfigMap`.
 
 . Create the `ConfigMap`.
 +

@@ -1,0 +1,14 @@
+[id='infinispan-logging-configuration_{context}']
+= {brandname} logging configuration
+
+{brandname} uses Apache Log4j to provide configurable logging mechanisms that capture details about the environment and record cache operations for troubleshooting purposes and root cause analysis.
+You can add logging configuration for {brandname} clusters to a `ConfigMap` in XML format.
+
+[source,xml,options="nowrap",subs=attributes+]
+----
+include::xml/log4j.xml[]
+----
+
+[role="_additional-resources"]
+.Additional resources
+* link:{server_docs}#configuring-server-logging[Configuring {brandname} Server logging]
