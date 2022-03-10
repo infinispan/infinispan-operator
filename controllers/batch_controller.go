@@ -94,7 +94,7 @@ func (reconciler *BatchReconciler) Reconcile(ctx context.Context, ctrlRequest ct
 	phase := instance.Status.Phase
 	switch phase {
 	case "":
-		return batch.validate()
+		return reconcile.Result{}, batch.UpdatePhase(v2.BatchInitializing, nil)
 	case v2.BatchInitializing:
 		return batch.initializeResources()
 	case v2.BatchInitialized:
@@ -105,21 +105,6 @@ func (reconciler *BatchReconciler) Reconcile(ctx context.Context, ctrlRequest ct
 		// Backup either succeeded or failed
 		return ctrl.Result{}, nil
 	}
-}
-
-func (r *batchRequest) validate() (reconcile.Result, error) {
-	spec := r.batch.Spec
-
-	if spec.ConfigMap == nil && spec.Config == nil {
-		return reconcile.Result{},
-			r.UpdatePhase(v2.BatchFailed, fmt.Errorf("'Spec.config' OR 'spec.ConfigMap' must be configured"))
-	}
-
-	if spec.ConfigMap != nil && spec.Config != nil {
-		return reconcile.Result{},
-			r.UpdatePhase(v2.BatchFailed, fmt.Errorf("at most one of ['Spec.config', 'spec.ConfigMap'] must be configured"))
-	}
-	return reconcile.Result{}, r.UpdatePhase(v2.BatchInitializing, nil)
 }
 
 func (r *batchRequest) initializeResources() (reconcile.Result, error) {
@@ -152,20 +137,8 @@ func (r *batchRequest) initializeResources() (reconcile.Result, error) {
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to create ConfigMap '%s': %w", configMap.Name, err)
 		}
-
-		updated, err := r.update(func() error {
-			batch.Spec.ConfigMap = &batch.Name
-			return nil
-		})
-		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("unable to update Batch .Spec: %w", err)
-		}
-		if updated {
-			return reconcile.Result{}, nil
-		}
 	}
 
-	// We update the phase separately to the spec as the status update is ignored when in the update mutate function
 	_, err := r.update(func() error {
 		batch.Status.ClusterUID = &infinispan.UID
 		batch.Status.Phase = v2.BatchInitialized
@@ -229,7 +202,7 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 							Name: BatchVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{Name: *batch.Spec.ConfigMap},
+									LocalObjectReference: corev1.LocalObjectReference{Name: batch.ConfigMapName()},
 								},
 							},
 						},
