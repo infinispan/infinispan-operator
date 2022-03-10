@@ -25,7 +25,7 @@ require (
 	k8s.io/client-go v0.19.4
 	k8s.io/cloud-provider v0.19.4
 	k8s.io/utils v0.0.0-20210722164352-7f3ee0f31471
-	sigs.k8s.io/controller-runtime v0.7.0
+	sigs.k8s.io/controller-runtime v0.7.2
 	software.sslmate.com/src/go-pkcs12 v0.0.0-20210415151418-c5206de65a78
 )
 
@@ -35,5 +35,5 @@ replace (
 	k8s.io/apimachinery => k8s.io/apimachinery v0.19.4
 	k8s.io/client-go => k8s.io/client-go v0.19.4
 	k8s.io/client-go/plugin => k8s.io/client-go/plugin v0.19.4
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.7.0
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.7.2
 )
