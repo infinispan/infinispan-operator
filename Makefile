@@ -45,15 +45,15 @@ lint: golangci-lint
 	$(GOLANGCI_LINT) run --disable-all --enable bodyclose --skip-dirs test
 
 .PHONY: unit-test
-## Execute unit tests
-unit-test: manager
+## Execute tests
+test: manager
 	go test ./api/... -v
 	go test ./controllers/... -v
 
 .PHONY: test
-## Execute end to end (e2e) tests on running clusters.
-test: manager manifests
-	scripts/run-tests.sh main
+## Execute end to end (e2e) tests for Infinispan CRs
+infinispan-test: manager manifests
+	scripts/run-tests.sh infinispan
 
 .PHONY: cache-test
 ## Execute end to end (e2e) tests for Cache CRs

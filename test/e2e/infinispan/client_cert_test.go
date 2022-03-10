@@ -1,4 +1,4 @@
-package main
+package infinispan
 
 import (
 	"crypto/tls"
