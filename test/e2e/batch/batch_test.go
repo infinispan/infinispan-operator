@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
@@ -19,7 +18,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/pointer"
 )
 
 var (
@@ -85,32 +83,6 @@ func TestBatchConfigMap(t *testing.T) {
 	ispn := ispnClient.New(httpClient)
 	assertCacheExists("batch-cache", ispn)
 	assertCounterExists("batch-counter", ispn)
-}
-
-func TestBatchNoConfigOrConfigMap(t *testing.T) {
-	t.Parallel()
-	name := strcase.ToKebab(tutils.TestName(t))
-	helper.CreateBatch(t, name, "doesn't exist", nil, nil)
-
-	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
-	if batch.Status.Reason != "'Spec.config' OR 'spec.ConfigMap' must be configured" {
-		panic(fmt.Errorf("Unexpected 'Status.Reason': %s", batch.Status.Reason))
-	}
-	testKube.DeleteBatch(batch)
-	waitForK8sResourceCleanup(name)
-}
-
-func TestBatchConfigAndConfigMap(t *testing.T) {
-	t.Parallel()
-	name := strcase.ToKebab(tutils.TestName(t))
-	helper.CreateBatch(t, name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
-
-	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
-	if batch.Status.Reason != "at most one of ['Spec.config', 'spec.ConfigMap'] must be configured" {
-		panic(fmt.Errorf("Unexpected 'Status.Reason': %s", batch.Status.Reason))
-	}
-	testKube.DeleteBatch(batch)
-	waitForK8sResourceCleanup(name)
 }
 
 func TestBatchFail(t *testing.T) {
