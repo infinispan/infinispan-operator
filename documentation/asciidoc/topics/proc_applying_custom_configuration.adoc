@@ -26,7 +26,6 @@ Use the {brandname} Helm chart to deploy clusters of fully configurable {brandna
 .Procedure
 
 . Add your {brandname} configuration to the `data` field of a `ConfigMap` as `infinispan-config.[xml|yaml|json]`.
-. Optionally include `log4j.xml` logging configuration.
 +
 [source,options="nowrap",subs=attributes+]
 ----
