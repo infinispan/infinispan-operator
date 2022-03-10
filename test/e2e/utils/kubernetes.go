@@ -809,6 +809,7 @@ func runOperatorLocally(ctx context.Context, namespace string) {
 	_ = os.Setenv("KUBECONFIG", kube.FindKubeConfig())
 	_ = os.Setenv("OSDK_FORCE_RUN_MODE", "local")
 	_ = os.Setenv("OPERATOR_NAME", OperatorName)
+	_ = os.Setenv("ENABLE_WEBHOOKS", "false")
 	operator.NewWithContext(ctx, operator.Parameters{
 		ZapOptions: &zap.Options{
 			Development: true,

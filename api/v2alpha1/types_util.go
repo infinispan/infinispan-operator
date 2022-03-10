@@ -32,3 +32,10 @@ func (cache *Cache) GetCacheName() string {
 	}
 	return cache.Name
 }
+
+func (b *Batch) ConfigMapName() string {
+	if b.Spec.ConfigMap != nil {
+		return *b.Spec.ConfigMap
+	}
+	return b.Name
+}

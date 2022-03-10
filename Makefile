@@ -23,6 +23,9 @@ IMG ?= quay.io/infinispan/operator:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.19
+
 export CONTAINER_TOOL ?= docker
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -46,9 +49,9 @@ lint: golangci-lint
 
 .PHONY: test
 ## Execute tests
-test: manager
-	go test ./api/... -v
-	go test ./controllers/... -v
+test: manager manifests envtest
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./api/... -coverprofile cover.out
+	go test ./controllers/...
 
 .PHONY: infinispan-test
 ## Execute end to end (e2e) tests for Infinispan CRs
@@ -112,10 +115,16 @@ uninstall: manifests kustomize
 
 .PHONY: deploy
 ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests kustomize
+deploy: manifests kustomize deploy-cert-manager
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	cd config/default && $(KUSTOMIZE) edit set namespace $(DEPLOYMENT_NAMESPACE)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+.PHONY: deploy-cert-manager
+## Deploy cert-manager so that webhooks can be utilised by the operator deployment
+deploy-cert-manager:
+	kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.0/cert-manager.yaml
+	kubectl rollout status -n cert-manager deploy/cert-manager-webhook -w --timeout=120s
 
 .PHONY: undeploy
 ## Undeploy controller from the configured Kubernetes cluster in ~/.kube/config
@@ -186,6 +195,12 @@ export GO_JUNIT_REPORT = $(shell pwd)/bin/go-junit-report
 go-junit-report:
 	$(call go-get-tool,$(GO_JUNIT_REPORT),github.com/jstemmer/go-junit-report@latest)
 
+ENVTEST = $(shell pwd)/bin/setup-envtest
+.PHONY: envtest
+## Download envtest-setup locally if necessary.
+envtest:
+	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-get-tool
@@ -213,6 +228,7 @@ bundle: manifests kustomize
 # changes the csv name from  infinispan-operator.v0.0.0 -> infinispan.v0.0.0
 	sed -i -e 's/infinispan-operator/infinispan/' bundle/metadata/annotations.yaml bundle.Dockerfile
 	rm bundle/manifests/infinispan-operator-controller-manager_v1_serviceaccount.yaml
+	rm bundle/manifests/infinispan-operator-webhook-service_v1_service.yaml
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
