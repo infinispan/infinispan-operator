@@ -89,12 +89,13 @@ to `replaces: infinispan-operator.v<x.y.z>`
 
 The different categories of integration tests can be executed with the following commands:
 
-- `make test`
+- `make infinispan-test`
+- `make cache-test`
 - `make batch-test`
 - `make multinamespace-test`
 - `make backuprestore-test`
 
-The target cluster should be specified by exporting or explicitly providing `KUBECONFIG`, e.g. `make test KUBECONFIG=/path/to/admin.kubeconfig`.
+The target cluster should be specified by exporting or explicitly providing `KUBECONFIG`, e.g. `make infinispan-test KUBECONFIG=/path/to/admin.kubeconfig`.
 
 ### Env Variables
 The following variables can be exported or provided as part of the `make *test` call.

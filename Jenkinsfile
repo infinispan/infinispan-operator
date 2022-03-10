@@ -48,9 +48,9 @@ pipeline {
             }
         }
 
-        stage('Unit') {
+        stage('Test') {
             steps {
-                sh 'make unit-test'
+                sh 'make test'
             }
         }
 
@@ -91,10 +91,10 @@ pipeline {
                     }
                 }
 
-                stage('Core') {
+                stage('Infinispan') {
                     steps {
                         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh "make test PARALLEL_COUNT=5"
+                            sh "make infinispan-test PARALLEL_COUNT=5"
                         }
                     }
                 }
