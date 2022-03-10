@@ -1,7 +1,10 @@
 [id='infinispan-configuration_{context}']
-= {brandname} configuration
+= Custom {brandname} configuration
 
 You can add {brandname} configuration to a `ConfigMap` in XML, YAML, or JSON format.
+
+[discrete]
+== Cache template
 
 .XML
 [source,xml,options="nowrap",subs=attributes+]
@@ -40,4 +43,20 @@ include::yaml/infinispan_caches.yaml[]
 [source,json,options="nowrap",subs=attributes+]
 ----
 include::json/infinispan_caches.json[]
+----
+
+[discrete]
+== Logging configuration
+
+You can also include Apache Log4j configuration in XML format as part of your `ConfigMap`.
+
+[NOTE]
+====
+Use the `spec.logging.categories` field in your `Infinispan` CR to adjust logging levels for {brandname} clusters.
+Add Apache Log4j configuration only if you require advanced file-based logging capabilities.
+====
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/config-map-logging-configuration.yaml[]
 ----

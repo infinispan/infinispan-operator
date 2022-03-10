@@ -8,8 +8,3 @@ data:
      <infinispan>
        <!-- Custom configuration. -->
      </infinispan>
-
-   log4j.xml: >
-     <Configuration>
-       <!-- Custom configuration. -->
-     </Configuration>
