@@ -44,13 +44,13 @@ lint: golangci-lint
 	$(GOLANGCI_LINT) run --enable errorlint
 	$(GOLANGCI_LINT) run --disable-all --enable bodyclose --skip-dirs test
 
-.PHONY: unit-test
+.PHONY: test
 ## Execute tests
 test: manager
 	go test ./api/... -v
 	go test ./controllers/... -v
 
-.PHONY: test
+.PHONY: infinispan-test
 ## Execute end to end (e2e) tests for Infinispan CRs
 infinispan-test: manager manifests
 	scripts/run-tests.sh infinispan
