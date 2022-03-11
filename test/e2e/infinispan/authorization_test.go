@@ -19,7 +19,7 @@ func TestAuthorizationDisabledByDefault(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	ispn := tutils.DefaultSpec(t, testKube)
+	ispn := tutils.DefaultSpec(t, testKube, nil)
 	identities := func() users.Identities {
 		return users.Identities{
 			Credentials: []users.Credentials{{
@@ -41,16 +41,16 @@ func TestAuthorizationWithCustomRoles(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	ispn := tutils.DefaultSpec(t, testKube)
-
 	customRoleName := "custom-role"
-	ispn.Spec.Security.Authorization = &v1.Authorization{
-		Enabled: true,
-		Roles: []ispnv1.AuthorizationRole{{
-			Name:        customRoleName,
-			Permissions: []string{"ALL"},
-		}},
-	}
+	ispn := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Spec.Security.Authorization = &v1.Authorization{
+			Enabled: true,
+			Roles: []ispnv1.AuthorizationRole{{
+				Name:        customRoleName,
+				Permissions: []string{"ALL"},
+			}},
+		}
+	})
 
 	identities := func() users.Identities {
 		return users.Identities{

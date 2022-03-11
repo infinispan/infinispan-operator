@@ -27,8 +27,9 @@ func TestContainerCPUUpdateWithTwoReplicas(t *testing.T) {
 			panic("CPU field not updated")
 		}
 	}
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Service.Container.EphemeralStorage = false
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Service.Container.EphemeralStorage = false
+	})
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -48,7 +49,7 @@ func TestContainerMemoryUpdate(t *testing.T) {
 			panic("Memory field not updated")
 		}
 	}
-	spec := tutils.DefaultSpec(t, testKube)
+	spec := tutils.DefaultSpec(t, testKube, nil)
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -72,7 +73,7 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 		}
 		panic("JAVA_OPTIONS not updated")
 	}
-	spec := tutils.DefaultSpec(t, testKube)
+	spec := tutils.DefaultSpec(t, testKube, nil)
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -93,6 +94,8 @@ func verifyStatefulSetUpdate(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infin
 
 	tutils.ExpectNoError(testKube.UpdateInfinispan(&ispn, func() {
 		modifier(&ispn)
+		// Explicitly call Default to replicate the defaulting webhook
+		ispn.Default()
 	}))
 
 	// Wait for a new generation to appear

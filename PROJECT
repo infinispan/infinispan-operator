@@ -7,6 +7,7 @@ resources:
   group: infinispan
   kind: Infinispan
   version: v1
+  webhookVersion: v1
 - crdVersion: v1
   group: infinispan
   kind: Backup

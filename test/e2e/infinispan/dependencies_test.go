@@ -32,13 +32,14 @@ func TestExternalDependenciesHttp(t *testing.T) {
 	defer testKube.DeleteResource(tutils.Namespace, labels.SelectorFromSet(map[string]string{"app": tutils.WebServerName}), webServerConfig, tutils.SinglePodTimeout)
 
 	namespace := tutils.Namespace
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Dependencies = &ispnv1.InfinispanExternalDependencies{
-		Artifacts: []ispnv1.InfinispanExternalArtifacts{
-			{Url: fmt.Sprintf("http://%s:%d/task01-1.0.0.jar", tutils.WebServerName, tutils.WebServerPortNumber)},
-			{Url: fmt.Sprintf("http://%s:%d/task02-1.0.0.zip", tutils.WebServerName, tutils.WebServerPortNumber)},
-		},
-	}
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Dependencies = &ispnv1.InfinispanExternalDependencies{
+			Artifacts: []ispnv1.InfinispanExternalArtifacts{
+				{Url: fmt.Sprintf("http://%s:%d/task01-1.0.0.jar", tutils.WebServerName, tutils.WebServerPortNumber)},
+				{Url: fmt.Sprintf("http://%s:%d/task02-1.0.0.zip", tutils.WebServerName, tutils.WebServerPortNumber)},
+			},
+		}
+	})
 
 	// Create the cluster
 	testKube.CreateInfinispan(spec, tutils.Namespace)

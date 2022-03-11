@@ -245,14 +245,14 @@ func datagridServiceNoAuth(t *testing.T, name string, replicas int) *v1.Infinisp
 }
 
 func datagridService(t *testing.T, name string, replicas int) *v1.Infinispan {
-	infinispan := tutils.DefaultSpec(t, testKube)
-	infinispan.Name = name
-	infinispan.Spec.Replicas = int32(replicas)
+	return tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Name = name
+		i.Spec.Replicas = int32(replicas)
 
-	if tutils.CPU != "" {
-		infinispan.Spec.Container.CPU = tutils.CPU
-	}
-	return infinispan
+		if tutils.CPU != "" {
+			i.Spec.Container.CPU = tutils.CPU
+		}
+	})
 }
 
 func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {

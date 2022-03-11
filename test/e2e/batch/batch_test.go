@@ -106,7 +106,7 @@ func batchString() string {
 }
 
 func createCluster(t *testing.T) *v1.Infinispan {
-	infinispan := tutils.DefaultSpec(t, testKube)
+	infinispan := tutils.DefaultSpec(t, testKube, nil)
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	return infinispan
