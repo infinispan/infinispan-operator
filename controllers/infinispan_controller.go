@@ -57,16 +57,15 @@ const (
 	InfinispanSecurityVolumeName = "infinispan-security-volume"
 	OverlayConfigMountPath       = consts.ServerRoot + "/conf/user"
 
-	EventReasonPrelimChecksFailed    = "PrelimChecksFailed"
-	EventReasonLowPersistenceStorage = "LowPersistenceStorage"
-	EventReasonEphemeralStorage      = "EphemeralStorageEnables"
-	EventReasonParseValueProblem     = "ParseValueProblem"
-	EventLoadBalancerUnsupported     = "LoadBalancerUnsupported"
+	EventReasonEphemeralStorage  = "EphemeralStorageEnables"
+	EventLoadBalancerUnsupported = "LoadBalancerUnsupported"
 
 	SiteTransportKeystoreVolumeName = "encrypt-transport-site-tls-volume"
 	SiteRouterKeystoreVolumeName    = "encrypt-router-site-tls-volume"
 	SiteTruststoreVolumeName        = "encrypt-truststore-site-tls-volume"
 )
+
+var defaultLabels, defaultAnnotations map[string]string
 
 // InfinispanReconciler reconciles a Infinispan object
 type InfinispanReconciler struct {
@@ -137,6 +136,12 @@ func (r *InfinispanReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 		obj.GroupVersionSupported = ok
 	}
+
+	// Initialize default operator labels and annotations
+	if defaultLabels, defaultAnnotations, err = infinispanv1.LoadDefaultLabelsAndAnnotations(); err != nil {
+		return err
+	}
+	r.log.Info("Defaults:", "Annotations", defaultAnnotations, "Labels", defaultLabels)
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Infinispan
@@ -241,8 +246,6 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 
 	// Fetch the Infinispan instance
 	infinispan := &infinispanv1.Infinispan{}
-	infinispan.Name = ctrlRequest.Name
-	infinispan.Namespace = ctrlRequest.Namespace
 
 	r := &infinispanRequest{
 		InfinispanReconciler: reconciler,
@@ -252,45 +255,32 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		reqLogger:            reqLogger,
 	}
 
-	var preliminaryChecksResult *ctrl.Result
-	var preliminaryChecksError error
-	err := r.update(func() {
-		// Apply defaults and endpoint encryption settings if not already set
-		infinispan.ApplyDefaults()
-		if r.isTypeSupported(consts.ServiceMonitorType) {
-			infinispan.ApplyMonitoringAnnotation()
-		}
-		infinispan.Spec.Affinity = podAffinity(infinispan, infinispan.PodSelectorLabels())
-		errLabel := infinispan.ApplyOperatorMeta()
-		if errLabel != nil {
-			reqLogger.Error(errLabel, "Error applying operator label")
-		}
-		infinispan.ApplyEndpointEncryptionSettings(r.kubernetes.GetServingCertsMode(ctx), reqLogger)
-
-		// Perform all the possible preliminary checks before go on
-		preliminaryChecksResult, preliminaryChecksError = r.preliminaryChecks()
-		if preliminaryChecksError != nil {
-			r.eventRec.Event(infinispan, corev1.EventTypeWarning, EventReasonPrelimChecksFailed, preliminaryChecksError.Error())
-			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionFalse, preliminaryChecksError.Error())
-		} else {
-			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
-		}
-	}, false)
-	if err != nil {
+	if err := reconciler.Get(ctx, ctrlRequest.NamespacedName, infinispan); err != nil {
 		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
-			reqLogger.Info("Infinispan resource not found. Ignoring since object must be deleted")
-			return ctrl.Result{}, nil
+			reqLogger.Info("Infinispan CR not found")
+			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		reqLogger.Info("Error reading the object")
-		return ctrl.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
 	}
 
-	if preliminaryChecksResult != nil {
-		return *preliminaryChecksResult, preliminaryChecksError
+	// Don't reconcile Infinispan CRs marked for deletion
+	if infinispan.GetDeletionTimestamp() != nil {
+		reqLogger.Info(fmt.Sprintf("Ignoring Infinispan CR '%s:%s' marked for deletion", infinispan.Namespace, infinispan.Name))
+		return reconcile.Result{}, nil
+	}
+
+	if infinispan.GetCondition(infinispanv1.ConditionPrelimChecksPassed).Status == metav1.ConditionFalse {
+		err := r.update(func() {
+			infinispan.ApplyOperatorMeta(defaultLabels, defaultAnnotations)
+			if r.isTypeSupported(consts.ServiceMonitorType) {
+				infinispan.ApplyMonitoringAnnotation()
+			}
+			infinispan.SetCondition(infinispanv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
+		})
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("unable to apply annotation and label defaults: %w", err)
+		}
 	}
 
 	// Wait for the ConfigMap to be created by config-controller
@@ -339,9 +329,6 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 
 	var keystoreSecret *corev1.Secret
 	if infinispan.IsEncryptionEnabled() {
-		if infinispan.Spec.Security.EndpointEncryption.CertSecretName == "" {
-			return ctrl.Result{}, fmt.Errorf("field 'certSecretName' must be provided for certificateSourceType=%s to be configured", infinispanv1.CertificateSourceTypeSecret)
-		}
 		keystoreSecret = &corev1.Secret{}
 		if result, err := kube.LookupResource(infinispan.GetKeystoreSecretName(), infinispan.Namespace, keystoreSecret, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 			return *result, err
@@ -376,7 +363,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	// Reconcile the StatefulSet
 	// Check if the StatefulSet already exists, if not create a new one
 	statefulSet := &appsv1.StatefulSet{}
-	err = r.Client.Get(ctx, types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.GetStatefulSetName()}, statefulSet)
+	err := r.Client.Get(ctx, types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.GetStatefulSetName()}, statefulSet)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Configuring the StatefulSet")
 
@@ -651,33 +638,6 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	}
 
 	return ctrl.Result{}, nil
-}
-
-// PreliminaryChecks performs all the possible initial checks
-func (r *infinispanRequest) preliminaryChecks() (*ctrl.Result, error) {
-	// If a CacheService is requested, checks that the pods have enough memory
-	spec := r.infinispan.Spec
-	if spec.Service.Type == infinispanv1.ServiceTypeCache {
-		_, memoryQ, err := spec.Container.GetMemoryResources()
-		if err != nil {
-			return &ctrl.Result{
-				Requeue:      false,
-				RequeueAfter: consts.DefaultRequeueOnWrongSpec,
-			}, err
-		}
-		memory := memoryQ.Value()
-		nativeMemoryOverhead := (memory * consts.CacheServiceJvmNativePercentageOverhead) / 100
-		occupiedMemory := (consts.CacheServiceJvmNativeMb * 1024 * 1024) +
-			(consts.CacheServiceFixedMemoryXmxMb * 1024 * 1024) +
-			nativeMemoryOverhead
-		if memory < occupiedMemory {
-			return &ctrl.Result{
-				Requeue:      false,
-				RequeueAfter: consts.DefaultRequeueOnWrongSpec,
-			}, fmt.Errorf("not enough memory. Increase infinispan.spec.container.memory. Now is %s, needed at least %d", memoryQ.String(), occupiedMemory)
-		}
-	}
-	return nil, nil
 }
 
 func configureLoggers(pods *corev1.PodList, infinispan *infinispanv1.Infinispan, curl *curl.Client) error {
@@ -975,26 +935,6 @@ func IsUpgradeRequired(infinispan *infinispanv1.Infinispan, kube *kube.Kubernete
 	return shutdownUpgradeRequired(infinispan, podList), nil
 }
 
-func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *corev1.Affinity {
-	// The user hasn't configured Affinity, so we utilise the default strategy of preferring pods are deployed on distinct nodes
-	if i.Spec.Affinity == nil {
-		return &corev1.Affinity{
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
-					Weight: 100,
-					PodAffinityTerm: corev1.PodAffinityTerm{
-						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: matchLabels,
-						},
-						TopologyKey: "r.kubernetes.io/hostname",
-					},
-				}},
-			},
-		}
-	}
-	return i.Spec.Affinity
-}
-
 func GetSingleStatefulSetStatus(ss appsv1.StatefulSet) infinispanv1.DeploymentStatus {
 	return getSingleDeploymentStatus(ss.Name, getInt32(ss.Spec.Replicas), ss.Status.Replicas, ss.Status.ReadyReplicas)
 }
@@ -1205,30 +1145,16 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		dep.Annotations["checksum/overlayConfig"] = hash.HashString(overlayConfigMap.Data[overlayConfigMapKey])
 	}
 	if !ispn.IsEphemeralStorage() {
-		_, memLimit, err := ispn.Spec.Container.GetMemoryResources()
-		if err != nil {
-			r.eventRec.Event(ispn, corev1.EventTypeWarning, EventReasonParseValueProblem, err.Error())
-			reqLogger.Info(err.Error())
-			return nil, err
-		}
+		_, memLimit, _ := ispn.Spec.Container.GetMemoryResources()
 
-		// Persistent vol size must exceed memory size
-		// so that it can contain all the in memory data
-		pvSize := consts.DefaultPVSize
-		if pvSize.Cmp(memLimit) < 0 {
-			pvSize = memLimit
-		}
-
+		var pvSize resource.Quantity
 		if ispn.IsDataGrid() && ispn.StorageSize() != "" {
-			var pvErr error
-			pvSize, pvErr = resource.ParseQuantity(ispn.StorageSize())
-			if pvErr != nil {
-				return nil, pvErr
-			}
-			if pvSize.Cmp(memLimit) < 0 {
-				errMsg := "Persistent volume size is less than memory size. Graceful shutdown may not work."
-				r.eventRec.Event(ispn, corev1.EventTypeWarning, EventReasonLowPersistenceStorage, errMsg)
-				reqLogger.Info(errMsg, "Volume Size", pvSize, "Memory", memLimit)
+			pvSize, _ = resource.ParseQuantity(ispn.StorageSize())
+		} else {
+			if consts.DefaultPVSize.Cmp(memLimit) < 0 {
+				pvSize = memLimit
+			} else {
+				pvSize = consts.DefaultPVSize
 			}
 		}
 
@@ -1488,10 +1414,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 	res := ispnContainer.Resources
 	ispnContr := &ispn.Spec.Container
 	if ispnContr.Memory != "" {
-		memRequests, memLimits, err := ispn.Spec.Container.GetMemoryResources()
-		if err != nil {
-			return &ctrl.Result{}, err
-		}
+		memRequests, memLimits, _ := ispn.Spec.Container.GetMemoryResources()
 		previousMemRequests := res.Requests["memory"]
 		previousMemLimits := res.Limits["memory"]
 		if memRequests.Cmp(previousMemRequests) != 0 || memLimits.Cmp(previousMemLimits) != 0 {
@@ -1503,10 +1426,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 		}
 	}
 	if ispnContr.CPU != "" {
-		cpuReq, cpuLim, err := ispn.Spec.Container.GetCpuResources()
-		if err != nil {
-			return &ctrl.Result{}, err
-		}
+		cpuReq, cpuLim, _ := ispn.Spec.Container.GetCpuResources()
 		previousCPUReq := res.Requests["cpu"]
 		previousCPULim := res.Limits["cpu"]
 		if cpuReq.Cmp(previousCPUReq) != 0 || cpuLim.Cmp(previousCPULim) != 0 {

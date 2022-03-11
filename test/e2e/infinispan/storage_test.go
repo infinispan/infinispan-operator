@@ -13,13 +13,14 @@ func TestNodeWithStorageClass(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(t, testKube)
-
 	// Get the default StorageClasses name in cluster
 	defaultStorageClass := testKube.GetDefaultStorageClass()
-	spec.Spec.Service.Container.EphemeralStorage = false
-	spec.Spec.Service.Container.StorageClassName = defaultStorageClass
+
+	// Create a resource without passing any config
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Service.Container.EphemeralStorage = false
+		i.Spec.Service.Container.StorageClassName = defaultStorageClass
+	})
 
 	// Register above created resource
 	testKube.CreateInfinispan(spec, tutils.Namespace)

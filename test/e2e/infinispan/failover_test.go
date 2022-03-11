@@ -19,11 +19,11 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	//Creating Infinispan cluster
-	ispn := tutils.DefaultSpec(t, testKube)
-	ispn.Spec.Replicas = 2
-	ispn.Spec.Container.Memory = "256Mi"
-	ispn.Spec.Service.Container.EphemeralStorage = false
-
+	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = 2
+		i.Spec.Container.Memory = "256Mi"
+		i.Spec.Service.Container.EphemeralStorage = false
+	})
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)

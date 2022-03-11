@@ -85,25 +85,9 @@ func (r *HotRodRollingUpgradeReconciler) Reconcile(ctx context.Context, request 
 		}
 		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
 	}
-
-	// Skip if defaults haven't been applied to the CR yet
-	if ispn.Spec.Upgrades == nil {
-		return ctrl.Result{}, nil
-	}
-
 	// Check if the CR is configured to do Hot Rod rolling upgrades
 	if ispn.Spec.Upgrades.Type != ispnv1.UpgradeTypeHotRodRolling {
 		return reconcile.Result{}, nil
-	}
-
-	// Skip for x-site
-	if ispn.HasSites() {
-		return reconcile.Result{}, errors.New("hot rod rolling upgrades not supported for clusters with X-Site")
-	}
-
-	// Skip for non-datagrid
-	if ispn.Spec.Service.Type != ispnv1.ServiceTypeDataGrid {
-		return reconcile.Result{}, errors.New("hot rod rolling upgrades only supported for ServiceTypeDataGrid")
 	}
 
 	// Check if the running pod is running a container with a different image
