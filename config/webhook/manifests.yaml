@@ -1,11 +1,61 @@
 
 ---
 apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-infinispan-org-v1-infinispan
+  failurePolicy: Fail
+  name: minfinispan.kb.io
+  rules:
+  - apiGroups:
+    - infinispan.org
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - infinispans
+  sideEffects: None
+
+---
+apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   creationTimestamp: null
   name: validating-webhook-configuration
 webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-infinispan-org-v1-infinispan
+  failurePolicy: Fail
+  name: vinfinispan.kb.io
+  rules:
+  - apiGroups:
+    - infinispan.org
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - infinispans
+  sideEffects: None
 - admissionReviewVersions:
   - v1
   - v1beta1

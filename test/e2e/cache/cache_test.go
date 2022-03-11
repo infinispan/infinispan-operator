@@ -39,11 +39,12 @@ func initCluster(t *testing.T, configListener bool) *v1.Infinispan {
 }
 
 func initClusterWithSuffix(t *testing.T, suffix string, configListener bool) *v1.Infinispan {
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Name = spec.Name + suffix
-	spec.Spec.ConfigListener = &v1.ConfigListenerSpec{
-		Enabled: configListener,
-	}
+	spec := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Name = i.Name + suffix
+		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
+			Enabled: configListener,
+		}
+	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 
@@ -223,11 +224,12 @@ func TestStaticServerCache(t *testing.T) {
 	testKube.CreateConfigMap(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
-	ispn := tutils.DefaultSpec(t, testKube)
-	ispn.Spec.ConfigMapName = configMap.Name
-	ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
-		Enabled: true,
-	}
+	ispn := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Spec.ConfigMapName = configMap.Name
+		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
+			Enabled: true,
+		}
+	})
 
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)

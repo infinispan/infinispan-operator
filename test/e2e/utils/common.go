@@ -106,10 +106,12 @@ func TestName(t *testing.T) string {
 	return regexp.MustCompile(".*/").ReplaceAllString(t.Name(), "")
 }
 
-func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
+// DefaultSpec creates a default Infinispan spec for tests. Consumers should utilise the initializer function to modify
+// the spec before the resource is created. This allows for the webhook defaulting behaviour to be applied without
+// deploying the webhooks
+func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv1.Infinispan)) *ispnv1.Infinispan {
 	testName := TestName(t)
-
-	return &ispnv1.Infinispan{
+	infinispan := &ispnv1.Infinispan{
 		TypeMeta: InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      strcase.ToKebab(testName),
@@ -133,6 +135,11 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
 			},
 		},
 	}
+	if initializer != nil {
+		initializer(infinispan)
+	}
+	infinispan.Default()
+	return infinispan
 }
 
 func WebServerPod(name, namespace, configName, mountPath, imageName string) *corev1.Pod {

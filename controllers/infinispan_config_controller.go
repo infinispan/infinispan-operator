@@ -88,12 +88,6 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{}, nil
 	}
 
-	// Validate that Infinispan CR passed all preliminary checks
-	if !infinispan.IsConditionTrue(v1.ConditionPrelimChecksPassed) {
-		reqLogger.Info("Infinispan CR not ready")
-		return reconcile.Result{}, nil
-	}
-
 	r := &configRequest{
 		ConfigReconciler: reconciler,
 		infinispan:       infinispan,

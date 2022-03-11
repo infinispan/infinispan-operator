@@ -14,7 +14,6 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -60,6 +59,7 @@ func runOperatorNewProcess(image string) {
 	command.Env = append(command.Env, "RELATED_IMAGE_OPENJDK="+image)
 	command.Env = append(command.Env, "OSDK_FORCE_RUN_MODE=local")
 	command.Env = append(command.Env, "WATCH_NAMESPACE="+tutils.Namespace)
+	command.Env = append(command.Env, "ENABLE_WEBHOOKS=false")
 
 	stdoutPipe, _ := command.StdoutPipe()
 	command.Stderr = command.Stdout
@@ -94,31 +94,20 @@ func TestRollingUpgrade(t *testing.T) {
 	// TODO This should always trigger a rolling upgrade since the operator uses aliases by default. Make it an environment variable to test upgrade from different versions
 	go runOperatorNewProcess("quay.io/infinispan/server")
 
-	infinispan := &ispnv1.Infinispan{
-		TypeMeta: tutils.InfinispanTypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterName,
-			Namespace: tutils.Namespace,
-			Labels:    map[string]string{"test-name": tutils.TestName(t)},
-		},
-		Spec: ispnv1.InfinispanSpec{
-			Replicas: int32(numPods),
-			Service: ispnv1.InfinispanServiceSpec{
-				Type: ispnv1.ServiceTypeDataGrid,
-			},
-			Expose: &ispnv1.ExposeSpec{
-				Type:     ispnv1.ExposeTypeNodePort,
-				NodePort: 30000,
-			},
-			Container: ispnv1.InfinispanContainerSpec{
-				CPU:    "1000m",
-				Memory: "1Gi",
-			},
-			Upgrades: &ispnv1.InfinispanUpgradesSpec{
-				Type: ispnv1.UpgradeTypeHotRodRolling,
-			},
-		},
-	}
+	infinispan := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Name = clusterName
+		i.Spec.Replicas = int32(numPods)
+		i.Spec.Container.CPU = "1000m"
+		i.Spec.Service.Container.EphemeralStorage = false
+		i.Spec.Expose = &ispnv1.ExposeSpec{
+			Type:     ispnv1.ExposeTypeNodePort,
+			NodePort: 30000,
+		}
+		i.Spec.Upgrades = &ispnv1.InfinispanUpgradesSpec{
+			Type: ispnv1.UpgradeTypeHotRodRolling,
+		}
+	})
+
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(numPods, tutils.SinglePodTimeout, clusterName, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(clusterName, tutils.Namespace, ispnv1.ConditionWellFormed)

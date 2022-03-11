@@ -122,8 +122,7 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Replicas = 1
+	spec := tutils.DefaultSpec(t, testKube, nil)
 
 	// Create the keystore & truststore for the server with a compatible client tls configuration
 	authType, keystoreSecret, truststoreSecret, tlsConfig := initializer(spec)
