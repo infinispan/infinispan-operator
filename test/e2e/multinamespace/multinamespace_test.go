@@ -8,25 +8,9 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
-
-var MinimalSpec = ispnv1.Infinispan{
-	TypeMeta: tutils.InfinispanTypeMeta,
-	ObjectMeta: metav1.ObjectMeta{
-		Name: tutils.DefaultClusterName,
-	},
-	Spec: ispnv1.InfinispanSpec{
-		Replicas: 1,
-		Service: ispnv1.InfinispanServiceSpec{
-			Container: &ispnv1.InfinispanServiceContainerSpec{
-				EphemeralStorage: true,
-			},
-		},
-	},
-}
 
 func TestMain(m *testing.M) {
 	nsAsString := strings.ToLower(tutils.MultiNamespace)
@@ -59,8 +43,9 @@ func TestMultinamespaceNodeStartup(t *testing.T) {
 	namespaces := strings.Split(nsAsString, ",")
 	var wg sync.WaitGroup
 	for _, namespace := range namespaces {
-		spec := MinimalSpec.DeepCopy()
-		spec.Namespace = namespace
+		spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+			i.Namespace = namespace
+		})
 		// Register it
 		testKube.CreateInfinispan(spec, namespace)
 		defer testKube.DeleteInfinispan(spec)

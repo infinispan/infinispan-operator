@@ -395,6 +395,7 @@ const (
 type ConditionType string
 
 const (
+	// Deprecated and no longer used
 	ConditionPrelimChecksPassed  ConditionType = "PreliminaryChecksPassed"
 	ConditionGracefulShutdown    ConditionType = "GracefulShutdown"
 	ConditionStopping            ConditionType = "Stopping"

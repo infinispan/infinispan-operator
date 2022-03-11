@@ -51,8 +51,12 @@ func TestApplyOperatorLabels(t *testing.T) {
 		assert.Nil(t, err)
 		err = os.Setenv("INFINISPAN_OPERATOR_POD_TARGET_LABELS", testItem.PodLabels)
 		assert.Nil(t, err)
+
+		defaultLabels, defaultAnnotations, err := LoadDefaultLabelsAndAnnotations()
+		assert.Nil(t, err)
+
 		ispn := exposeRouteInfinispan.DeepCopy()
-		err = ispn.ApplyOperatorMeta()
+		ispn.ApplyOperatorMeta(defaultLabels, defaultAnnotations)
 		assert.Nil(t, err)
 		assert.Equal(t, ispn.Annotations[OperatorTargetLabels], testItem.ExpectedLabels)
 		assert.Equal(t, ispn.Annotations[OperatorPodTargetLabels], testItem.ExpectedPodLabels)
@@ -95,9 +99,11 @@ func TestApplyOperatorAnnotations(t *testing.T) {
 		err = os.Setenv("INFINISPAN_OPERATOR_POD_TARGET_ANNOTATIONS", testItem.PodAnnotations)
 		assert.Nil(t, err)
 
-		ispn := exposeRouteInfinispan.DeepCopy()
-		err = ispn.ApplyOperatorMeta()
+		defaultLabels, defaultAnnotations, err := LoadDefaultLabelsAndAnnotations()
 		assert.Nil(t, err)
+
+		ispn := exposeRouteInfinispan.DeepCopy()
+		ispn.ApplyOperatorMeta(defaultLabels, defaultAnnotations)
 		assert.Equal(t, ispn.Annotations[OperatorTargetAnnotations], testItem.ExpectedAnnotations)
 		assert.Equal(t, ispn.Annotations[OperatorPodTargetAnnotations], testItem.ExpectedPodAnnotations)
 
