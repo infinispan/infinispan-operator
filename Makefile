@@ -212,6 +212,7 @@ bundle: manifests kustomize
 # Hack to set the metadata package name to "infinispan". `operator-sdk --package infinispan` can't be used as it
 # changes the csv name from  infinispan-operator.v0.0.0 -> infinispan.v0.0.0
 	sed -i -e 's/infinispan-operator/infinispan/' bundle/metadata/annotations.yaml bundle.Dockerfile
+	rm bundle/manifests/infinispan-operator-controller-manager_v1_serviceaccount.yaml
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
