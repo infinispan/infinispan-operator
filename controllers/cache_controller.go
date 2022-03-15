@@ -147,14 +147,6 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 	}
 
 	crDeleted := instance.GetDeletionTimestamp() != nil
-	if !crDeleted && instance.Spec.AdminAuth != nil {
-		reqLogger.Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
-		_, err := controllerutil.CreateOrUpdate(ctx, r.Client, instance, func() error {
-			instance.Spec.AdminAuth = nil
-			return nil
-		})
-		return ctrl.Result{}, err
-	}
 
 	// Fetch the Infinispan cluster
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}, infinispan); err != nil {
