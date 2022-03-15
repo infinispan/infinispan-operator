@@ -34,6 +34,27 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /mutate-infinispan-org-v2alpha1-backup
+  failurePolicy: Fail
+  name: mbackup.kb.io
+  rules:
+  - apiGroups:
+    - infinispan.org
+    apiVersions:
+    - v2alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - backups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /mutate-infinispan-org-v2alpha1-cache
   failurePolicy: Fail
   name: mcache.kb.io
@@ -47,6 +68,27 @@ webhooks:
     - UPDATE
     resources:
     - caches
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-infinispan-org-v2alpha1-restore
+  failurePolicy: Fail
+  name: mrestore.kb.io
+  rules:
+  - apiGroups:
+    - infinispan.org
+    apiVersions:
+    - v2alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - restores
   sideEffects: None
 
 ---
@@ -76,6 +118,27 @@ webhooks:
     - UPDATE
     resources:
     - infinispans
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-infinispan-org-v2alpha1-backup
+  failurePolicy: Fail
+  name: vbackup.kb.io
+  rules:
+  - apiGroups:
+    - infinispan.org
+    apiVersions:
+    - v2alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - backups
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -118,4 +181,25 @@ webhooks:
     - UPDATE
     resources:
     - caches
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-infinispan-org-v2alpha1-restore
+  failurePolicy: Fail
+  name: vrestore.kb.io
+  rules:
+  - apiGroups:
+    - infinispan.org
+    apiVersions:
+    - v2alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - restores
   sideEffects: None
