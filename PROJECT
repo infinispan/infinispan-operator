@@ -12,10 +12,12 @@ resources:
   group: infinispan
   kind: Backup
   version: v2alpha1
+  webhookVersion: v1
 - crdVersion: v1
   group: infinispan
   kind: Restore
   version: v2alpha1
+  webhookVersion: v1
 - crdVersion: v1
   group: infinispan
   kind: Batch
