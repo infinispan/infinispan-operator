@@ -33,8 +33,6 @@ type zeroCapacityResource interface {
 	Phase() zeroCapacityPhase
 	// Update the current state of the resource to reflect the most recent Phase
 	UpdatePhase(phase zeroCapacityPhase, phaseErr error) error
-	// Transform any CR resources, adding defaults or updating fields for backwards-compatibility if required
-	Transform() (bool, error)
 	// Ensure that all prerequisite resources are av¬ailable and create any required resources before returning the zero spec
 	Init() (*zeroCapacitySpec, error)
 	// Perform the operation(s) that are required on the zero-capacity pod
@@ -141,10 +139,6 @@ func (z *zeroCapacityController) Reconcile(ctx context.Context, request reconcil
 	phase := instance.Phase()
 	switch phase {
 	case "":
-		// Perform any transformations required on the CR for backwards-compatibility. Returning if a tranformation or error occurs
-		if transformed, err := instance.Transform(); transformed || err != nil {
-			return reconcile.Result{}, err
-		}
 		return reconcile.Result{}, instance.UpdatePhase(ZeroInitializing, nil)
 	case ZeroInitializing:
 		return z.initializeResources(request, instance, ctx)
