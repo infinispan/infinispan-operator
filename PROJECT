@@ -24,6 +24,7 @@ resources:
   group: infinispan
   kind: Cache
   version: v2alpha1
+  webhookVersion: v1
 version: 3-alpha
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
