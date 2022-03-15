@@ -86,29 +86,6 @@ func (r *backupResource) UpdatePhase(phase zeroCapacityPhase, phaseErr error) er
 	return err
 }
 
-func (r *backupResource) Transform() (bool, error) {
-	return r.update(func() {
-		backup := r.instance
-		if backup.Spec.Container.Memory == "" {
-			backup.Spec.Container.Memory = constants.DefaultMemorySize.String()
-		}
-		resources := backup.Spec.Resources
-		if resources == nil {
-			return
-		}
-
-		if len(resources.CacheConfigs) > 0 {
-			resources.Templates = resources.CacheConfigs
-			resources.CacheConfigs = nil
-		}
-
-		if len(resources.Scripts) > 0 {
-			resources.Tasks = resources.Scripts
-			resources.Scripts = nil
-		}
-	})
-}
-
 func (r *backupResource) update(mutate func()) (bool, error) {
 	backup := r.instance
 	res, err := kube.CreateOrPatch(r.ctx, r.client, backup, func() error {

@@ -155,6 +155,16 @@ func NewWithContext(ctx context.Context, p Parameters) {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Cache")
 			os.Exit(1)
 		}
+
+		if err = (&infinispanv2alpha1.Backup{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Backup")
+			os.Exit(1)
+		}
+
+		if err = (&infinispanv2alpha1.Restore{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Restore")
+			os.Exit(1)
+		}
 	}
 
 	if err := mgr.AddHealthzCheck("health", healthz.Ping); err != nil {
