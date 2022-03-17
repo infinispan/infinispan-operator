@@ -155,8 +155,10 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(t *testing.T, namespace stri
 }
 
 func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace string, panicVal interface{}) {
-	testName := TestName(t)
-	specLabel := map[string]string{"test-name": testName}
+	specLabel := make(map[string]string)
+	if t != nil {
+		specLabel["test-name"] = TestName(t)
+	}
 
 	// Print pod output if a panic has occurred
 	if panicVal != nil {
@@ -189,7 +191,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-router-pod"})}, nil)
 	}
 
-	if panicVal != nil {
+	if t != nil && panicVal != nil {
 		// Fail the test and pass the panic value to the output if panic occurred
 		fmt.Println(string(debug.Stack()))
 		t.Fatal(panicVal, "\n")
@@ -903,10 +905,10 @@ func (k *TestKubernetes) WaitForDeployment(name, namespace string) {
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, deployment)
 		if err != nil && k8serrors.IsNotFound(err) {
-			return false, err
+			return false, nil
 		}
 		if err != nil {
-			return false, nil
+			return false, err
 		}
 
 		for _, condition := range deployment.Status.Conditions {

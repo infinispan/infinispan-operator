@@ -78,6 +78,11 @@ backuprestore-test: manager manifests
 batch-test: manager manifests
 	scripts/run-tests.sh batch
 
+.PHONY: webhook-test
+## Execute end to end (e2e) tests for Webhook OLM integration
+webhook-test: manager manifests
+	scripts/run-tests.sh webhook
+
 .PHONY: upgrade-test
 ## Execute end to end (e2e) tests for OLM upgrades.
 upgrade-test: manager manifests
