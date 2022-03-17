@@ -132,6 +132,14 @@ pipeline {
                     }
                 }
 
+                stage('Webhook') {
+                    steps {
+                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            sh 'make webhook-test PARALLEL_COUNT=5'
+                        }
+                    }
+                }
+
                 stage('Hot Rod Rolling Upgrade') {
                     steps {
                         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
