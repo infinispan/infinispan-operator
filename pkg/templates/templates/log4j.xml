@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration name="InfinispanServerConfig" monitorInterval="60" shutdownHook="disable">
+    <Appenders>
+        <!-- Colored output on the console -->
+        <Console name="STDOUT">
+            <PatternLayout pattern="%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="STDOUT" level="TRACE"/>
+        </Root>
+
+        {{- range $key, $value := .Categories }}
+        <Logger name="{{ $key }}" level="{{ $value | UpperCase }}"/>
+        {{- end }}
+    </Loggers>
+</Configuration>

@@ -5,9 +5,11 @@ METALLB_ADDRESS_SHIFT=25
 METALLB_ADDRESS_START=200
 KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}
 KIND_KUBEAPI_PORT=6443
-KIND_VERSION=v0.11.0
 METALLB_VERSION=v0.9.6
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
+KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
+SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:13.0'}
+KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.17.17'}
 
 # Cleanup any existing clusters
 kind delete clusters --all
@@ -15,11 +17,25 @@ kind delete clusters --all
 # Common part for both nodes
 make operator-build IMG=$IMG
 
+# Create the Kind network with subnet.
+docker network rm kind || true
+docker network create kind --subnet "${KIND_SUBNET}/16"
+
 for INSTANCE_IDX in 1 2; do
   INSTANCE="xsite"${INSTANCE_IDX}
 
-  kind create cluster --config kind-config-xsite.yaml --name "${INSTANCE}"
+  # create a cluster with the local registry enabled in containerd
+  cat <<EOF | kind create cluster --name "${INSTANCE}" --config=-
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    image: quay.io/infinispan-test/kindest-node:${KINDEST_NODE_VERSION}
+  - role: worker
+    image: quay.io/infinispan-test/kindest-node:${KINDEST_NODE_VERSION}
+EOF
   kind load docker-image $IMG --name "${INSTANCE}"
+  kind load docker-image ${SERVER_IMAGE} --name "${INSTANCE}"
 
   TESTING_NAMESPACE_XSITE="${TESTING_NAMESPACE}-${INSTANCE}"
   kubectl create namespace "${TESTING_NAMESPACE_XSITE}"
@@ -30,12 +46,7 @@ for INSTANCE_IDX in 1 2; do
   kubectl -n ${TESTING_NAMESPACE_XSITE} patch deployment infinispan-operator-controller-manager -p \
   '{"spec": {"template": {"spec":{"containers":[{"name":"manager","imagePullPolicy":"Never","env": [{"name": "TEST_ENVIRONMENT","value": "true"}]}]}}}}'
 
-  # Creating service account for the cross cluster token based auth
-  kubectl create clusterrole xsite-cluster-role --verb=get,list,watch --resource=nodes,services
-  kubectl create clusterrolebinding xsite-cluster-role-binding --clusterrole=xsite-cluster-role --serviceaccount=infinispan-operator-controller-manager
-
   # Configuring MetalLB (https://metallb.universe.tf/) for real LoadBalancer setup on Kind
-  KIND_SUBNET=$(docker network inspect -f '{{ (index .IPAM.Config 0).Subnet }}' kind | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}")
   echo "Using Kind Subnet '${KIND_SUBNET}' in MetalLB"
   KIND_SUBNET_BASE=$(echo "${KIND_SUBNET}" | sed -E 's|([0-9]+\.[0-9]+\.)[0-9]+\.[0-9]+|\1255.|')
   METALLB_ADDRESSES_RANGE="${KIND_SUBNET_BASE}"$(("${METALLB_ADDRESS_START}" + ("${INSTANCE_IDX}" - 1) * ("${METALLB_ADDRESS_SHIFT}" + 1)))-"${KIND_SUBNET_BASE}"$(("${METALLB_ADDRESS_START}" + "${METALLB_ADDRESS_SHIFT}" + ("${INSTANCE_IDX}" - 1) * "${METALLB_ADDRESS_SHIFT}"))
@@ -51,7 +62,7 @@ for INSTANCE_IDX in 1 2; do
 
   # Update Kubernetes API with Kind docker network address
   NODE_INTERNAL_IP=$(kubectl get node "${INSTANCE}"-control-plane -o jsonpath="{.status.addresses[?(@.type=='InternalIP')].address}")
-  export KIND_SERVER_KUBEAPI_URL="    server: https://"${NODE_INTERNAL_IP}":"${KIND_KUBEAPI_PORT}
+  export KIND_SERVER_KUBEAPI_URL="    server: https://${NODE_INTERNAL_IP}:"${KIND_KUBEAPI_PORT}
   SERVER_URL=$(kind get kubeconfig --name ${INSTANCE} | grep "https://127.0.0.1")
   sed -i "s,${SERVER_URL},${KIND_SERVER_KUBEAPI_URL},g" "${KUBECONFIG}"
 done

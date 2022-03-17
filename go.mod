@@ -13,7 +13,10 @@ require (
 	github.com/operator-framework/api v0.4.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.0
 	github.com/prometheus/common v0.26.0
+	github.com/r3labs/sse/v2 v2.3.6
 	github.com/stretchr/testify v1.7.0
+	go.uber.org/zap v1.15.0
+	gopkg.in/cenkalti/backoff.v1 v1.1.0
 	gopkg.in/yaml.v2 v2.4.0
 	honnef.co/go/tools v0.0.1-2020.1.3 // indirect
 	k8s.io/api v0.19.4

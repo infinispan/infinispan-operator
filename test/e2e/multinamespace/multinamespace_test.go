@@ -20,6 +20,11 @@ var MinimalSpec = ispnv1.Infinispan{
 	},
 	Spec: ispnv1.InfinispanSpec{
 		Replicas: 1,
+		Service: ispnv1.InfinispanServiceSpec{
+			Container: &ispnv1.InfinispanServiceContainerSpec{
+				EphemeralStorage: true,
+			},
+		},
 	},
 }
 
@@ -58,7 +63,7 @@ func TestMultinamespaceNodeStartup(t *testing.T) {
 		spec.Namespace = namespace
 		// Register it
 		testKube.CreateInfinispan(spec, namespace)
-		defer testKube.DeleteInfinispan(spec, tutils.SinglePodTimeout)
+		defer testKube.DeleteInfinispan(spec)
 		wg.Add(1)
 		go func() {
 			testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, spec.Namespace)

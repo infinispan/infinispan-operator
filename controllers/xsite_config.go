@@ -10,9 +10,11 @@ import (
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -55,22 +57,28 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 
 	// use the local/internal service host & port to avoid unecessary hops with external services
 	xsite := &config.XSite{
-		Address:       siteServiceName,
-		Name:          infinispan.Spec.Service.Sites.Local.Name,
-		Port:          localPort,
-		Transport:     "tunnel",
 		MaxRelayNodes: maxRelayNodes,
 	}
 
+	// add local site first
+	appendBackupSite(infinispan.Spec.Service.Sites.Local.Name, siteServiceName, localPort, xsite)
+
+	err = searchRemoteSites(infinispan, kubernetes, xsite, logger, eventRec, ctx)
+
+	logger.Info("x-site configured", "configuration", xsite)
+	return xsite, err
+}
+
+func searchRemoteSites(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, xsite *config.XSite, logger logr.Logger, eventRec record.EventRecorder, ctx context.Context) error {
 	for _, remoteLocation := range infinispan.GetRemoteSiteLocations() {
 		backupSiteURL, err := url.Parse(remoteLocation.URL)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if backupSiteURL.Scheme == "" || (backupSiteURL.Scheme == consts.StaticCrossSiteUriSchema && backupSiteURL.Hostname() == "") {
 			// No static location provided. Try to resolve internal cluster service
 			if infinispan.GetRemoteSiteClusterName(remoteLocation.Name) == infinispan.Name && infinispan.GetRemoteSiteNamespace(remoteLocation.Name) == infinispan.Namespace {
-				return nil, fmt.Errorf("unable to link the cross-site service with itself. clusterName '%s' or namespace '%s' for remote location '%s' should be different from the original cluster name or namespace",
+				return fmt.Errorf("unable to link the cross-site service with itself. clusterName '%s' or namespace '%s' for remote location '%s' should be different from the original cluster name or namespace",
 					infinispan.GetRemoteSiteClusterName(remoteLocation.Name), infinispan.GetRemoteSiteNamespace(remoteLocation.Name), remoteLocation.Name)
 			}
 			// Add cross-site FQN service name inside the same k8s cluster
@@ -81,13 +89,11 @@ func ComputeXSite(infinispan *ispnv1.Infinispan, kubernetes *kube.Kubernetes, se
 		} else {
 			// lookup remote service via kubernetes API
 			if err = appendRemoteLocation(ctx, infinispan, &remoteLocation, kubernetes, logger, eventRec, xsite); err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-
-	logger.Info("x-site configured", "configuration", xsite)
-	return xsite, nil
+	return nil
 }
 
 func appendRemoteLocation(ctx context.Context, infinispan *ispnv1.Infinispan, remoteLocation *ispnv1.InfinispanSiteLocationSpec, kubernetes *kube.Kubernetes,
@@ -112,18 +118,40 @@ func appendRemoteLocation(ctx context.Context, infinispan *ispnv1.Infinispan, re
 func appendKubernetesRemoteLocation(ctx context.Context, infinispan *ispnv1.Infinispan, remoteLocationName string, remoteKubernetes *kube.Kubernetes, logger logr.Logger, eventRec record.EventRecorder, xsite *config.XSite) error {
 	remoteNamespace := infinispan.GetRemoteSiteNamespace(remoteLocationName)
 	remoteServiceName := infinispan.GetRemoteSiteServiceName(remoteLocationName)
+	remoteRouteName := infinispan.GetRemoteSiteRouteName(remoteLocationName)
 
+	var host string
+	var port int32
+	var err error
+
+	// Try to find the service first
 	siteService := &corev1.Service{}
-	err := remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteServiceName, Namespace: remoteNamespace}, siteService)
+	err = remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteServiceName, Namespace: remoteNamespace}, siteService)
 	if err != nil {
 		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
-		return err
+		if !errors.IsNotFound(err) {
+			// another error
+			return err
+		}
 	}
 
-	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger, eventRec, "XSiteRemoteServiceUnsupported", ctx)
-	if err != nil {
-		logger.Error(err, "error retrieving remote x-site service information")
-		return err
+	// service found
+	if err == nil {
+		host, port, err = getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger, eventRec, "XSiteRemoteServiceUnsupported", ctx)
+		if err != nil {
+			logger.Error(err, "error retrieving remote x-site service information")
+			return err
+		}
+	} else {
+		// Try searching for the Route
+		siteRoute := &routev1.Route{}
+		err = remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteRouteName, Namespace: remoteNamespace}, siteRoute)
+		if err != nil {
+			logger.Error(err, "could not get x-site Route in remote cluster", "site route name", remoteRouteName, "site namespace", remoteNamespace)
+			return err
+		}
+		host = siteRoute.Spec.Host
+		port = 443 // TLS port
 	}
 
 	if host == "" {
@@ -132,7 +160,7 @@ func appendKubernetesRemoteLocation(ctx context.Context, infinispan *ispnv1.Infi
 		return fmt.Errorf(msg)
 	}
 
-	logger.Info("remote site service", "service name", remoteServiceName, "host", host, "port", port)
+	logger.Info("remote site service", "host", host, "port", port)
 	appendBackupSite(remoteLocationName, host, port, xsite)
 	return nil
 }
@@ -148,7 +176,7 @@ func appendBackupSite(name, host string, port int32, xsite *config.XSite) {
 		Port:    port,
 	}
 
-	xsite.Backups = append(xsite.Backups, backupSite)
+	xsite.Sites = append(xsite.Sites, backupSite)
 }
 
 func getCrossSiteServiceHostPort(service *corev1.Service, kubernetes *kube.Kubernetes, logger logr.Logger, eventRec record.EventRecorder, reason string, ctx context.Context) (string, int32, error) {

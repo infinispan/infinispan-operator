@@ -90,6 +90,11 @@ spec:
       kind: Infinispan
       name: infinispans.infinispan.org
       specDescriptors:
+      - description: If true, a dedicated pod is used to ensure that all config resources created on the Infinispan server have a matching CR resource
+        displayName: Toggle Config Listener
+        path: configListener.enabled
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
       - description: The Persistent Volume Claim that holds custom libraries
         displayName: Persistent Volume Claim Name
         path: dependencies.volumeClaimName
@@ -269,5 +274,5 @@ spec:
   maturity: alpha
   provider:
     name: Infinispan
-  replaces: infinispan-operator.v2.2.3
+  replaces: infinispan-operator.v2.2.4
   version: 0.0.0

@@ -33,7 +33,7 @@ func applyExternalDependenciesVolume(ispn *infinispanv1.Infinispan, spec *corev1
 	} else if !ispn.HasDependenciesVolume() && volumePosition >= 0 {
 		volumeMountPosition := findVolumeMount(*volumeMounts, CustomLibrariesVolumeName)
 		*volumes = append(spec.Volumes[:volumePosition], spec.Volumes[volumePosition+1:]...)
-		*volumeMounts = append((*volumeMounts)[:volumeMountPosition], (*volumeMounts)[volumeMountPosition+1:]...)
+		*volumeMounts = append(ispnContainer.VolumeMounts[:volumeMountPosition], ispnContainer.VolumeMounts[volumeMountPosition+1:]...)
 		updated = true
 	}
 	return

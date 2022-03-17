@@ -154,7 +154,7 @@ type InfinispanSitesLocalSpec struct {
 	// +optional
 	MaxRelayNodes int32 `json:"maxRelayNodes,omitempty"`
 	// +optional
-	Encryption EncryptionSiteSpec `json:"encryption,omitempty"`
+	Encryption *EncryptionSiteSpec `json:"encryption,omitempty"`
 }
 
 type InfinispanSiteLocationSpec struct {
@@ -220,7 +220,7 @@ const (
 )
 
 // CrossSiteExposeType describe different exposition methods for Infinispan Cross-Site service
-// +kubebuilder:validation:Enum=NodePort;LoadBalancer;ClusterIP
+// +kubebuilder:validation:Enum=NodePort;LoadBalancer;ClusterIP;Route
 type CrossSiteExposeType string
 
 const (
@@ -236,6 +236,9 @@ const (
 	// CrossSiteExposeTypeClusterIP means an internal 'ClusterIP'
 	// service will be created without external exposition
 	CrossSiteExposeTypeClusterIP = CrossSiteExposeType(corev1.ServiceTypeClusterIP)
+
+	// CrossSiteExposeTypeRoute route
+	CrossSiteExposeTypeRoute = "Route"
 )
 
 // CrossSiteSchemeType specifies the supported url scheme's allowed in InfinispanSiteLocationSpec.URL
@@ -271,6 +274,9 @@ type CrossSiteExposeSpec struct {
 	NodePort int32 `json:"nodePort,omitempty"`
 	// +optional
 	Port int32 `json:"port,omitempty"`
+	// RouteHostName optionally, specifies a custom hostname to be used by Openshift Route.
+	// +optional
+	RouteHostName string `json:"routeHostName,omitempty"`
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
@@ -331,6 +337,13 @@ type InfinispanCloudEvents struct {
 	CacheEntriesTopic string `json:"cacheEntriesTopic,omitempty"`
 }
 
+type ConfigListenerSpec struct {
+	// If true, a dedicated pod is used to ensure that all config resources created on the Infinispan server have a matching CR resource
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Config Listener",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	Enabled bool `json:"enabled"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	// The number of nodes in the Infinispan cluster.
@@ -359,7 +372,25 @@ type InfinispanSpec struct {
 	Dependencies *InfinispanExternalDependencies `json:"dependencies,omitempty"`
 	// +optional
 	ConfigMapName string `json:"configMapName,omitempty"`
+	// Strategy to use when doing upgrades
+	Upgrades *InfinispanUpgradesSpec `json:"upgrades,omitempty"`
+	// +optional
+	ConfigListener *ConfigListenerSpec `json:"configListener,omitempty"`
 }
+
+// InfinispanUpgradesSpec defines the Infinispan upgrade strategy
+type InfinispanUpgradesSpec struct {
+	Type UpgradeType `json:"type"`
+}
+
+type UpgradeType string
+
+const (
+	// UpgradeTypeHotRodRolling Upgrade with no downtime and data copied over Hot Rod
+	UpgradeTypeHotRodRolling UpgradeType = "HotRodRolling"
+	// UpgradeTypeShutdown Upgrade requires downtime and data persisted in cache stores
+	UpgradeTypeShutdown UpgradeType = "Shutdown"
+)
 
 type ConditionType string
 
@@ -411,7 +442,26 @@ type InfinispanStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Infinispan Console URL",xDescriptors="urn:alm:descriptor:org.w3:link"
 	ConsoleUrl *string `json:"consoleUrl,omitempty"`
+	// +optional
+	HotRodRollingUpgradeStatus *HotRodRollingUpgradeStatus `json:"hotRodRollingUpgradeStatus,omitempty"`
 }
+
+type HotRodRollingUpgradeStatus struct {
+	Stage                 HotRodRollingUpgradeStage `json:"stage,omitempty"`
+	SourceStatefulSetName string                    `json:"SourceStatefulSetName,omitempty"`
+	TargetStatefulSetName string                    `json:"TargetStatefulSetName,omitempty"`
+}
+
+type HotRodRollingUpgradeStage string
+
+const (
+	HotRodRollingStageStart              HotRodRollingUpgradeStage = "HotRodRollingStageStart"
+	HotRodRollingStagePrepare            HotRodRollingUpgradeStage = "HotRodRollingStagePrepare"
+	HotRodRollingStageRedirect           HotRodRollingUpgradeStage = "HotRodRollingStageRedirect"
+	HotRodRollingStageSync               HotRodRollingUpgradeStage = "HotRodRollingStageSync"
+	HotRodRollingStageStatefulSetReplace HotRodRollingUpgradeStage = "HotRodRollingStageStatefulSetReplace"
+	HotRodRollingStageCleanup            HotRodRollingUpgradeStage = "HotRodRollingStageCleanup"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

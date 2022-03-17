@@ -23,7 +23,7 @@ IMG ?= quay.io/infinispan/operator:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
-CONTAINER_TOOL ?= docker
+export CONTAINER_TOOL ?= docker
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -44,16 +44,21 @@ lint: golangci-lint
 	$(GOLANGCI_LINT) run --enable errorlint
 	$(GOLANGCI_LINT) run --disable-all --enable bodyclose --skip-dirs test
 
-.PHONY: unit-test
-## Execute unit tests
-unit-test: manager
+.PHONY: test
+## Execute tests
+test: manager
 	go test ./api/... -v
 	go test ./controllers/... -v
 
-.PHONY: test
-## Execute end to end (e2e) tests on running clusters.
-test: manager manifests
-	scripts/run-tests.sh main
+.PHONY: infinispan-test
+## Execute end to end (e2e) tests for Infinispan CRs
+infinispan-test: manager manifests
+	scripts/run-tests.sh infinispan
+
+.PHONY: cache-test
+## Execute end to end (e2e) tests for Cache CRs
+cache-test: manager manifests
+	scripts/run-tests.sh cache
 
 .PHONY: multinamespace-test
 ## Execute end to end (e2e) tests in multinamespace mode
@@ -75,6 +80,16 @@ batch-test: manager manifests
 upgrade-test: manager manifests
 	scripts/run-tests.sh upgrade
 
+.PHONY: hotrod-rolling-upgrade-test
+## Execute end to end (e2e) tests for Hot Rod Rolling upgrades.
+hotrod-upgrade-test: manager manifests
+	scripts/run-tests.sh hotrod-rolling-upgrade
+
+.PHONY: xsite-test
+## Execute end to end (e2e) tests for XSite functionality
+xsite-test: manager manifests
+	scripts/run-tests.sh xsite 45m
+
 .PHONY: manager
 ## Build manager binary
 manager: generate fmt vet
@@ -83,7 +98,7 @@ manager: generate fmt vet
 .PHONY: run
 ## Run the operator against the configured Kubernetes cluster in ~/.kube/config
 run: manager manifests
-	OSDK_FORCE_RUN_MODE=local go run ./main.go
+	OSDK_FORCE_RUN_MODE=local go run ./main.go operator
 
 .PHONY: install
 ## Install CRDs into a cluster
@@ -128,7 +143,7 @@ vet:
 generate: controller-gen rice
 	$(CONTROLLER_GEN) object paths="./..."
 # Generate rice-box files and fix timestamp value
-	$(RICE) embed-go -i controllers/dependencies.go -i controllers/grafana.go
+	$(RICE) embed-go -i controllers/dependencies.go -i controllers/grafana.go -i pkg/templates/templates.go
 	find . -type f -name 'rice-box.go' -exec sed -i "s|time.Unix(.*, 0)|time.Unix(1620137619, 0)|" {} \;
 
 .PHONY: operator-build
@@ -165,6 +180,12 @@ GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 golangci-lint:
 	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.39.0)
 
+export GO_JUNIT_REPORT = $(shell pwd)/bin/go-junit-report
+.PHONY: GO_JUNIT_REPORT
+## Download go-junit-report locally if necessary
+go-junit-report:
+	$(call go-get-tool,$(GO_JUNIT_REPORT),github.com/jstemmer/go-junit-report@latest)
+
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-get-tool
@@ -191,6 +212,7 @@ bundle: manifests kustomize
 # Hack to set the metadata package name to "infinispan". `operator-sdk --package infinispan` can't be used as it
 # changes the csv name from  infinispan-operator.v0.0.0 -> infinispan.v0.0.0
 	sed -i -e 's/infinispan-operator/infinispan/' bundle/metadata/annotations.yaml bundle.Dockerfile
+	rm bundle/manifests/infinispan-operator-controller-manager_v1_serviceaccount.yaml
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
@@ -204,7 +226,7 @@ bundle-push:
 	$(CONTAINER_TOOL) push $(BUNDLE_IMG)
 
 .PHONY: opm
-OPM = ./bin/opm
+export OPM = ./bin/opm
 opm: ## Download opm locally if necessary.
 ifeq (,$(wildcard $(OPM)))
 ifeq (,$(shell which opm 2>/dev/null))
@@ -212,7 +234,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.18.0/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.21.0/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -220,12 +242,28 @@ OPM = $(shell which opm)
 endif
 endif
 
+.PHONY: jq
+export JQ = ./bin/jq
+jq: ## Download opm locally if necessary.
+ifeq (,$(wildcard $(JQ)))
+ifeq (,$(shell which jq 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(JQ)) ;\
+	curl -sSLo $(JQ) https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 ;\
+	chmod +x $(JQ) ;\
+	}
+else
+JQ = $(shell which jq)
+endif
+endif
+
 # A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
 # These images MUST exist in a registry and be pull-able.
-BUNDLE_IMGS ?= $(BUNDLE_IMG)
+export BUNDLE_IMGS ?= $(BUNDLE_IMG)
 
 # The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+export CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
 
 # Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
 ifneq ($(origin CATALOG_BASE_IMG), undefined)
@@ -236,8 +274,8 @@ endif
 ## https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 ## Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
-catalog-build: opm ## Build a catalog image.
-	sudo $(OPM) index add --container-tool $(CONTAINER_TOOL) --mode replaces --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+catalog-build: opm jq ## Build a catalog image.
+	./scripts/create-olm-catalog.sh
 
 .PHONY: catalog-push
 ## Push the catalog image.

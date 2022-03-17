@@ -25,7 +25,7 @@ To create a container and push to a remote repository execute:
 
 `make operator-build operator-push IMG=<image_name:tag>`
 
-> By default the Makefile uses `docker` to create images. If another container tool is desired, this can be configured
+> By default, the Makefile uses `docker` to create images. If another container tool is desired, this can be configured
 by setting `CONTAINER_TOOL=podman`.
 
 ## Running the Operator
@@ -52,7 +52,7 @@ resources on the kubernetes cluster in the `$DEPLOYMENT_NAMESPACE` namespace.
 # OLM Bundle
 The OLM bundle manifests are created by executing `make bundle VERSION=<latest-version>`.
 
-This will create a `bundle/` dir in your local repositoray containing the bundle metadata and manifests, as well as a
+This will create a `bundle/` dir in your local repository containing the bundle metadata and manifests, as well as a
 `bundle.Dockerfile` for generating the image.
 
 The bundle image can be created and pushed to a repository with:
@@ -76,6 +76,8 @@ To create an Operator release perform the following:
 8. Once PR in 5 has been merged and Operator has been released to OperatorHub, update the "replaces" field in `config/manifests/bases/infinispan-operator.clusterserviceversion.yaml`
 to `replaces: infinispan-operator.v<x.y.z>`
 9. Update the `RELATED_IMAGE_OPENJDK` field in `config/manager/manager.yaml` to use the required floating tag, e.g. `13.0`
+10. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
+11. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
 
 # Testing
 
@@ -87,15 +89,16 @@ to `replaces: infinispan-operator.v<x.y.z>`
 
 The different categories of integration tests can be executed with the following commands:
 
-- `make test`
+- `make infinispan-test`
+- `make cache-test`
 - `make batch-test`
 - `make multinamespace-test`
 - `make backuprestore-test`
 
-The target cluster should be specified by exporting or explicitly providing `KUBECONFIG`, e.g. `make test KUBECONFIG=/path/to/admin.kubeconfig`.
+The target cluster should be specified by exporting or explicitly providing `KUBECONFIG`, e.g. `make infinispan-test KUBECONFIG=/path/to/admin.kubeconfig`.
 
 ### Env Variables
-The followin variables can be exported or provided as part of the `make *test` call.
+The following variables can be exported or provided as part of the `make *test` call.
 
 | Variable              | Purpose                                                                              |
 |-----------------------|--------------------------------------------------------------------------------------|

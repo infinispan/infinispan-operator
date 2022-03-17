@@ -7,7 +7,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	configuration "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -153,22 +153,22 @@ func TestComputeXSiteStatic(t *testing.T) {
 	xsite, err := ComputeXSite(staticXSiteInfinispan, nil, staticSiteService, logger, nil, context.TODO())
 	assert.Nil(t, err)
 
-	assert.Equal(t, staticXSiteInfinispan.Spec.Service.Sites.Local.Name, xsite.Name, "Local site name")
-	assert.Equal(t, staticXSiteInfinispan.GetSiteServiceName(), xsite.Address, "Local site address")
-	assert.Equal(t, int32(consts.CrossSitePort), xsite.Port, "Local site port")
+	assert.Equal(t, staticXSiteInfinispan.Spec.Service.Sites.Local.Name, xsite.Sites[0].Name, "Local site name")
+	assert.Equal(t, staticXSiteInfinispan.GetSiteServiceName(), xsite.Sites[0].Address, "Local site address")
+	assert.Equal(t, int32(consts.CrossSitePort), xsite.Sites[0].Port, "Local site port")
 
-	assert.Equal(t, 2, len(xsite.Backups), "Backup sites number")
-	assert.Contains(t, xsite.Backups, configuration.BackupSite{Address: "example-clusterb-site", Name: "SiteB", Port: int32(consts.CrossSitePort)}, "Backup SiteB contains")
-	assert.Contains(t, xsite.Backups, configuration.BackupSite{Address: "example-clusterc-site", Name: "SiteC", Port: int32(consts.CrossSitePort + 1)}, "Backup SiteC contains")
+	assert.Equal(t, 3, len(xsite.Sites), "Backup sites number")
+	assert.Contains(t, xsite.Sites, configuration.BackupSite{Address: "example-clusterb-site", Name: "SiteB", Port: int32(consts.CrossSitePort)}, "Backup SiteB contains")
+	assert.Contains(t, xsite.Sites, configuration.BackupSite{Address: "example-clusterc-site", Name: "SiteC", Port: int32(consts.CrossSitePort + 1)}, "Backup SiteC contains")
 }
 
 func TestComputeXSiteSelfStatic(t *testing.T) {
 	xsite, err := ComputeXSite(selfStaticXSiteInfinispan, nil, staticSiteService, logger, nil, context.TODO())
 	assert.Nil(t, err)
 
-	assert.Equal(t, 1, len(xsite.Backups), "Backup sites number")
-	assert.Equal(t, fmt.Sprintf("%s.%s.svc.cluster.local", "example-clusterb-site", namespace), xsite.Backups[0].Address, "Backup site address")
-	assert.Equal(t, int32(consts.CrossSitePort), xsite.Backups[0].Port, "Backup site port")
+	assert.Equal(t, 2, len(xsite.Sites), "Backup sites number")
+	assert.Equal(t, fmt.Sprintf("%s.%s.svc.cluster.local", "example-clusterb-site", namespace), xsite.Sites[1].Address, "Backup site address")
+	assert.Equal(t, int32(consts.CrossSitePort), xsite.Sites[1].Port, "Backup site port")
 }
 
 func TestComputeXSiteSelfStaticError(t *testing.T) {

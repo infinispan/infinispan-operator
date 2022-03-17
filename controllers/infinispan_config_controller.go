@@ -8,9 +8,9 @@ import (
 	"github.com/go-logr/logr"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/logging"
+	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	"github.com/prometheus/common/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,6 +82,12 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
 	}
 
+	// Don't reconcile Infinispan CRs marked for deletion
+	if infinispan.GetDeletionTimestamp() != nil {
+		reqLogger.Info(fmt.Sprintf("Ignoring Infinispan CR '%s:%s' marked for deletion", infinispan.Namespace, infinispan.Name))
+		return reconcile.Result{}, nil
+	}
+
 	// Validate that Infinispan CR passed all preliminary checks
 	if !infinispan.IsConditionTrue(v1.ConditionPrelimChecksPassed) {
 		reqLogger.Info("Infinispan CR not ready")
@@ -107,8 +113,61 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 	}
 
+	serverConfig, result, err := GenerateServerConfig(infinispan.GetStatefulSetName(), infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
+	if result != nil {
+		return *result, err
+	}
+
+	loggingSpec := &logging.Spec{
+		Categories: infinispan.GetLogCategoriesForConfig(),
+	}
+
+	// TODO utilise a version specific logging once server/operator versions decoupled
+	log4jXml, err := logging.Generate(nil, loggingSpec)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      infinispan.GetConfigName(),
+			Namespace: infinispan.Namespace,
+		},
+	}
+
+	createOrUpdate, err := controllerutil.CreateOrUpdate(ctx, r.Client, configMap, func() error {
+		if configMap.CreationTimestamp.IsZero() {
+			if err = controllerutil.SetControllerReference(r.infinispan, configMap, r.scheme); err != nil {
+				return err
+			}
+		}
+		InitServerConfigMap(configMap, infinispan, serverConfig, log4jXml)
+		return nil
+	})
+	if err != nil {
+		reqLogger.Error(err, "Error while computing and reconciling ConfigMap")
+		return reconcile.Result{}, err
+	}
+	if createOrUpdate != controllerutil.OperationResultNone {
+		r.reqLogger.Info(fmt.Sprintf("ConfigMap '%s' %s", configMap.Name, createOrUpdate))
+	}
+	return reconcile.Result{}, nil
+}
+
+func InitServerConfigMap(configMapObject *corev1.ConfigMap, i *v1.Infinispan, serverConfig, log4jXml string) {
+	configMapObject.Data = map[string]string{
+		"infinispan.xml": serverConfig,
+		"log4j.xml":      log4jXml,
+	}
+	configMapObject.Data["infinispan.xml"] = serverConfig
+	configMapObject.Data["log4j.xml"] = log4jXml
+	configMapObject.Labels = LabelsResource(i.Name, "infinispan-configmap-configuration")
+}
+
+func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube.Kubernetes, c client.Client, log logr.Logger,
+	eventRec record.EventRecorder, ctx context.Context) (string, *reconcile.Result, error) {
 	var xsite *config.XSite
-	if infinispan.HasSites() {
+	if i.HasSites() {
 		// Check x-site configuration first.
 		// Must be done before creating any Infinispan resources,
 		// because remote site host:port combinations need to be injected into Infinispan.
@@ -116,212 +175,105 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		// For cross site, reconcile must come before compute, because
 		// we need xsite service details to compute xsite struct
 		siteService := &corev1.Service{}
-		if result, err := kube.LookupResource(infinispan.GetSiteServiceName(), infinispan.Namespace, siteService, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
-			return *result, err
+		svcName := i.GetSiteServiceName()
+		if result, err := kube.LookupResource(svcName, i.Namespace, siteService, i, c, log, eventRec, ctx); result != nil {
+			return "", result, err
 		}
 
 		var err error
-		xsite, err = ComputeXSite(infinispan, r.kubernetes, siteService, reqLogger, r.eventRec, r.ctx)
+		xsite, err = ComputeXSite(i, kubernetes, siteService, log, eventRec, ctx)
 		if err != nil {
-			reqLogger.Error(err, "Error in computeXSite configuration")
-			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
+			log.Error(err, "Error in computeXSite configuration")
+			return "", &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 		}
 	}
-
-	result, err := r.computeAndReconcileConfigMap(xsite)
-	if result != nil {
-		if err != nil {
-			reqLogger.Error(err, "Error while computing and reconciling ConfigMap")
-		}
-		return *result, err
-	}
-
-	return reconcile.Result{}, nil
-}
-
-// computeAndReconcileConfigMap computes, creates or updates the ConfigMap for the Infinispan
-func (r configRequest) computeAndReconcileConfigMap(xsite *config.XSite) (*reconcile.Result, error) {
-	name := r.infinispan.Name
-	namespace := r.infinispan.Namespace
-
-	lsConfigMap := LabelsResource(name, "infinispan-configmap-configuration")
 
 	var roleMapper string
-	if r.infinispan.IsClientCertEnabled() && r.infinispan.Spec.Security.EndpointEncryption.ClientCert == v1.ClientCertAuthenticate {
+	if i.IsClientCertEnabled() && i.Spec.Security.EndpointEncryption.ClientCert == v1.ClientCertAuthenticate {
 		roleMapper = "commonName"
 	} else {
 		roleMapper = "cluster"
 	}
-	serverConf := config.InfinispanConfiguration{
+
+	configSpec := &config.Spec{
+		ClusterName:     i.Name,
+		Namespace:       i.Namespace,
+		StatefulSetName: statefulSet,
 		Infinispan: config.Infinispan{
-			Authorization: config.Authorization{
-				Enabled:    r.infinispan.IsAuthorizationEnabled(),
+			Authorization: &config.Authorization{
+				Enabled:    i.IsAuthorizationEnabled(),
 				RoleMapper: roleMapper,
-			},
-			ClusterName: name,
-			Locks: config.Locks{
-				Owners:      -1,
-				Reliability: "consistent",
 			},
 		},
 		JGroups: config.JGroups{
-			Transport:   "tcp",
-			BindPort:    7800,
 			Diagnostics: consts.JGroupsDiagnosticsFlag == "TRUE",
-			DNSPing: config.DNSPing{
-				RecordType: "A",
-				Query:      fmt.Sprintf("%s-ping.%s.svc.cluster.local", name, namespace),
-			},
-			FastMerge: consts.JGroupsFastMerge,
-		},
-		Keystore: config.Keystore{
-			Password: "password",
-			Alias:    "server",
-			Type:     "pkcs12",
-		},
-		XSite: &config.XSite{
-			RelayNodeCandidate: true,
-			MaxRelayNodes:      1,
-			Transport:          "tunnel",
-			Relay: config.Relay{
-				BindPort: 0,
-			},
-		},
-		Logging: config.Logging{
-			Console: config.Console{
-				Level:   "trace",
-				Pattern: "%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n",
-			},
-			File: config.File{
-				Level:   "trace",
-				Pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n",
-				Path:    "${sys:infinispan.server.log.path}/server.log",
-			},
-			Categories: r.infinispan.GetLogCategoriesForConfig(),
+			FastMerge:   consts.JGroupsFastMerge,
 		},
 		Endpoints: config.Endpoints{
-			Authenticate:   r.infinispan.IsAuthenticationEnabled(),
-			ClientCert:     "none",
-			DedicatedAdmin: true,
-			Hotrod: config.Endpoint{
-				Enabled:    true,
-				Qop:        "auth",
-				ServerName: "infinispan",
-			},
-			Enabled: true,
+			Authenticate: i.IsAuthenticationEnabled(),
+			ClientCert:   string(v1.ClientCertNone),
 		},
-		CloudEvents: &config.CloudEvents{},
-		Transport: config.Transport{
-			TLS: config.TransportTLS{
-				Enabled: r.infinispan.IsSiteTLSEnabled(),
-			},
-		},
+		XSite: xsite,
 	}
 
 	// Apply settings for authentication and roles
-	specRoles := r.infinispan.GetAuthorizationRoles()
+	specRoles := i.GetAuthorizationRoles()
 	if len(specRoles) > 0 {
 		confRoles := make([]config.AuthorizationRole, len(specRoles))
 		for i, role := range specRoles {
-			confRoles[i] = config.AuthorizationRole(role)
-		}
-		serverConf.Infinispan.Authorization.Roles = confRoles
-	}
-
-	// Apply settings for cross site
-	if xsite != nil {
-		serverConf.XSite = xsite
-	}
-	if result, err := ConfigureServerEncryption(r.infinispan, &serverConf, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
-		return result, err
-	}
-	r.configureCloudEvent(&serverConf)
-
-	configMapObject := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.infinispan.GetConfigName(),
-			Namespace: namespace,
-		},
-	}
-
-	if r.infinispan.IsSiteTLSEnabled() {
-		if result, err := r.configureXSiteTransportTLS(&serverConf); result != nil || err != nil {
-			return result, err
-		}
-	}
-
-	result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, configMapObject, func() error {
-		configYaml, err := serverConf.Yaml()
-		if err != nil {
-			return err
-		}
-
-		ispnXml, log4jXml, err := serverConf.Xml()
-		if err != nil {
-			return err
-		}
-
-		if configMapObject.CreationTimestamp.IsZero() {
-			configMapObject.Data = map[string]string{consts.ServerConfigFilename: configYaml}
-			configMapObject.Data["infinispan.xml"] = ispnXml
-			configMapObject.Data["log4j.xml"] = log4jXml
-			configMapObject.Labels = lsConfigMap
-			// Set Infinispan instance as the owner and controller
-			if err = controllerutil.SetControllerReference(r.infinispan, configMapObject, r.scheme); err != nil {
-				return err
+			confRoles[i] = config.AuthorizationRole{
+				Name:        role.Name,
+				Permissions: strings.Join(role.Permissions, ","),
 			}
-		} else {
-			previousConfig, err := config.FromYaml(configMapObject.Data[consts.ServerConfigFilename])
-			if err == nil {
-				// Protecting Logging configuration from changes
-				serverConf.Logging = previousConfig.Logging
-			}
-			configMapObject.Data[consts.ServerConfigFilename] = configYaml
-			configMapObject.Data["infinispan.xml"] = ispnXml
-			configMapObject.Data["log4j.xml"] = log4jXml
 		}
-		return nil
-	})
+		configSpec.Infinispan.Authorization.Roles = confRoles
+	}
+
+	if i.Spec.CloudEvents != nil {
+		configSpec.CloudEvents = &config.CloudEvents{
+			Acks:              i.Spec.CloudEvents.Acks,
+			BootstrapServers:  i.Spec.CloudEvents.BootstrapServers,
+			CacheEntriesTopic: i.Spec.CloudEvents.CacheEntriesTopic,
+		}
+	}
+
+	if result, err := ConfigureServerEncryption(i, configSpec, c, log, eventRec, ctx); result != nil {
+		return "", result, err
+	}
+
+	if i.IsSiteTLSEnabled() {
+		if result, err := configureXSiteTransportTLS(i, configSpec, c, log, eventRec, ctx); result != nil || err != nil {
+			return "", result, err
+		}
+	}
+
+	// TODO utilise a version specific configurator once server/operator versions decoupled
+	config, err := config.Generate(nil, configSpec)
 	if err != nil {
-		return &reconcile.Result{}, err
+		return "", &reconcile.Result{}, err
 	}
-	if result != controllerutil.OperationResultNone {
-		r.reqLogger.Info(fmt.Sprintf("ConfigMap '%s' %s", name, result))
-	}
-	return nil, err
+	return config, nil, nil
 }
 
-func (r configRequest) configureCloudEvent(c *config.InfinispanConfiguration) {
-	spec := r.infinispan.Spec
-	if spec.CloudEvents != nil {
-		c.CloudEvents = &config.CloudEvents{}
-		c.CloudEvents.Acks = spec.CloudEvents.Acks
-		c.CloudEvents.BootstrapServers = spec.CloudEvents.BootstrapServers
-		c.CloudEvents.CacheEntriesTopic = spec.CloudEvents.CacheEntriesTopic
-	}
+func IsUserProvidedKeystore(secret *corev1.Secret) bool {
+	_, userKeystore := secret.Data["keystore.p12"]
+	return userKeystore
 }
 
-func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfiguration, client client.Client, log logr.Logger,
+func IsUserProvidedPrivateKey(secret *corev1.Secret) bool {
+	for _, k := range []string{corev1.TLSPrivateKeyKey, corev1.TLSCertKey} {
+		if _, ok := secret.Data[k]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func ConfigureServerEncryption(i *v1.Infinispan, c *config.Spec, client client.Client, log logr.Logger,
 	eventRec record.EventRecorder, ctx context.Context) (*reconcile.Result, error) {
+
 	if !i.IsEncryptionEnabled() {
 		return nil, nil
-	}
-
-	secretContains := func(secret *corev1.Secret, keys ...string) bool {
-		for _, k := range keys {
-			if _, ok := secret.Data[k]; !ok {
-				return false
-			}
-		}
-		return true
-	}
-
-	configureNewKeystore := func(c *config.InfinispanConfiguration) {
-		c.Keystore.CrtPath = consts.ServerEncryptKeystoreRoot
-		c.Keystore.Path = consts.ServerOperatorSecurity + "/" + EncryptPemKeystoreName
-		c.Keystore.Password = ""
-		c.Keystore.Alias = ""
-		c.Keystore.Type = "pem"
 	}
 
 	// Configure Keystore
@@ -329,18 +281,22 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 	if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, i, client, log, eventRec, ctx); result != nil {
 		return result, err
 	}
+
 	if i.IsEncryptionCertFromService() {
 		if strings.Contains(i.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
-			configureNewKeystore(c)
+			c.Keystore.CrtPath = consts.ServerEncryptKeystoreRoot
+			c.Keystore.Path = consts.ServerOperatorSecurity + "/" + EncryptPemKeystoreName
 		}
 	} else {
-		if secretContains(keystoreSecret, EncryptPkcs12KeystoreName) {
+		if IsUserProvidedKeystore(keystoreSecret) {
 			// If user provide a keystore in secret then use it ...
 			c.Keystore.Path = fmt.Sprintf("%s/%s", consts.ServerEncryptKeystoreRoot, EncryptPkcs12KeystoreName)
-			c.Keystore.Password = string(keystoreSecret.Data["password"])
 			c.Keystore.Alias = string(keystoreSecret.Data["alias"])
-		} else if secretContains(keystoreSecret, corev1.TLSPrivateKeyKey, corev1.TLSCertKey) {
-			configureNewKeystore(c)
+			// Actual value is not used by template, but required to show that a credential ref is required
+			c.Keystore.Password = string(keystoreSecret.Data["password"])
+		} else if IsUserProvidedPrivateKey(keystoreSecret) {
+			c.Keystore.CrtPath = consts.ServerEncryptKeystoreRoot
+			c.Keystore.Path = consts.ServerOperatorSecurity + "/" + EncryptPemKeystoreName
 		}
 	}
 
@@ -353,26 +309,20 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.InfinispanConfigurati
 
 		c.Endpoints.ClientCert = string(i.Spec.Security.EndpointEncryption.ClientCert)
 		c.Truststore.Path = fmt.Sprintf("%s/%s", consts.ServerEncryptTruststoreRoot, consts.EncryptTruststoreKey)
-
-		if userPass, ok := trustSecret.Data[consts.EncryptTruststorePasswordKey]; ok {
-			c.Truststore.Password = string(userPass)
-		} else {
-			c.Truststore.Password = "password"
-		}
 	}
 	return nil, nil
 }
 
-// configureXSiteTransportTLS configures the keystore and truststore paths and password in Infinispan server for TLS cross-site communication
-func (r configRequest) configureXSiteTransportTLS(c *config.InfinispanConfiguration) (*reconcile.Result, error) {
+func configureXSiteTransportTLS(i *v1.Infinispan, c *config.Spec, client client.Client, log logr.Logger,
+	eventRec record.EventRecorder, ctx context.Context) (*reconcile.Result, error) {
 	keyStoreSecret := &corev1.Secret{}
-	if result, err := kube.LookupResource(r.infinispan.GetSiteTransportSecretName(), r.infinispan.Namespace, keyStoreSecret, r.infinispan, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil || err != nil {
+	if result, err := kube.LookupResource(i.GetSiteTransportSecretName(), i.Namespace, keyStoreSecret, i, client, log, eventRec, ctx); result != nil || err != nil {
 		return result, err
 	}
 
-	keyStoreFileName := r.infinispan.GetSiteTransportKeyStoreFileName()
+	keyStoreFileName := i.GetSiteTransportKeyStoreFileName()
 	password := string(keyStoreSecret.Data["password"])
-	alias := r.infinispan.GetSiteTransportKeyStoreAlias()
+	alias := i.GetSiteTransportKeyStoreAlias()
 
 	if err := ValidaXSiteTLSKeyStore(keyStoreSecret.Name, keyStoreFileName, password, alias); err != nil {
 		return nil, err
@@ -386,11 +336,11 @@ func (r configRequest) configureXSiteTransportTLS(c *config.InfinispanConfigurat
 		Alias:    alias,
 	}
 
-	trustStoreSecret, err := FindSiteTrustStoreSecret(r.infinispan, r.Client, r.ctx)
+	trustStoreSecret, err := FindSiteTrustStoreSecret(i, client, ctx)
 	if err != nil || trustStoreSecret == nil {
 		return nil, err
 	}
-	trustStoreFileName := r.infinispan.GetSiteTrustStoreFileName()
+	trustStoreFileName := i.GetSiteTrustStoreFileName()
 	password = string(trustStoreSecret.Data["password"])
 
 	if err := ValidaXSiteTLSTrustStore(trustStoreSecret.Name, trustStoreFileName, password); err != nil {

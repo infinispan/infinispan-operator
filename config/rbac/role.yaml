@@ -25,6 +25,22 @@ rules:
   - list
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - update
+- apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses
@@ -154,6 +170,7 @@ rules:
   - caches/status
   verbs:
   - create
+  - delete
   - get
   - list
   - patch

@@ -16,6 +16,10 @@ var (
 	// InitContainerImageName allows a custom initContainer image to be used
 	InitContainerImageName = GetEnvWithDefault("INITCONTAINER_IMAGE", "registry.access.redhat.com/ubi8-micro")
 
+	// ConfigListenerImageName is the image used by the ConfigListener Deployment
+	ConfigListenerImageName = os.Getenv(ConfigListenerEnvName)
+	ConfigListenerEnvName   = "CONFIG_LISTENER_IMAGE"
+
 	// JGroupsDiagnosticsFlag is used to enable traces for JGroups
 	JGroupsDiagnosticsFlag = strings.ToUpper(GetEnvWithDefault("JGROUPS_DIAGNOSTICS", "FALSE"))
 
@@ -40,8 +44,6 @@ var (
 )
 
 const (
-	InfinispanContainer   = "infinispan"
-	GossipRouterContainer = "gossiprouter"
 	// DefaultOperatorUser users to access the cluster rest API
 	DefaultOperatorUser = "operator"
 	// DefaultDeveloperUser users to access the cluster rest API
@@ -83,7 +85,7 @@ const (
 	SiteRouterKeyStoreRoot              = ServerEncryptRoot + "/router-site-tls"
 	SiteTrustStoreRoot                  = ServerEncryptRoot + "/truststore-site-tls"
 	ServerSecurityRoot                  = "/etc/security"
-	ServerConfigFilename                = "infinispan.yaml"
+	ServerConfigFilename                = "infinispan.xml"
 	ServerConfigPath                    = ServerConfigRoot + "/" + ServerConfigFilename
 	ServerIdentitiesFilename            = "identities.yaml"
 	ServerAdminUsersPropertiesFilename  = "admin-users.properties"
@@ -98,17 +100,6 @@ const (
 	ServerUserIdentitiesPath            = ServerUserIdentitiesRoot + "/" + ServerIdentitiesFilename
 	ServerOperatorSecurity              = ServerSecurityRoot + "/conf/operator-security"
 	ServerRoot                          = "/opt/infinispan/server"
-
-	ServerHTTPBasePath          = "rest/v2"
-	ServerHTTPCacheManagerPath  = ServerHTTPBasePath + "/cache-managers/" + DefaultCacheManagerName
-	ServerHTTPHealthPath        = ServerHTTPCacheManagerPath + "/health"
-	ServerHTTPServerStop        = ServerHTTPBasePath + "/server?action=stop"
-	ServerHTTPClusterStop       = ServerHTTPBasePath + "/cluster?action=stop"
-	ServerHTTPContainerShutdown = ServerHTTPBasePath + "/container?action=shutdown"
-	ServerHTTPHealthStatusPath  = ServerHTTPHealthPath + "/status"
-	ServerHTTPLoggersPath       = ServerHTTPBasePath + "/logging/loggers"
-	ServerHTTPModifyLoggerPath  = ServerHTTPLoggersPath + "/%s?level=%s"
-	ServerHTTPXSitePath         = ServerHTTPCacheManagerPath + "/x-site/backups"
 
 	EncryptTruststoreKey         = "truststore.p12"
 	EncryptTruststorePasswordKey = "truststore-password"
@@ -156,6 +147,12 @@ const (
 	DefaultSiteTransportKeyStoreAlias = "transport"
 	DefaultSiteRouterKeyStoreAlias    = "router"
 	DefaultSiteTrustStoreFileName     = "truststore.p12"
+)
+
+const (
+	AnnotationDomain             = "infinispan.org/"
+	ListenerAnnotationGeneration = AnnotationDomain + "listener-generation"
+	ListenerAnnotationDelete     = AnnotationDomain + "listener-delete"
 )
 
 // GetWithDefault return value if not empty else return defValue

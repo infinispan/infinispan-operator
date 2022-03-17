@@ -9,7 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
-	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/http/curl"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -19,14 +19,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *infinispanRequest) GetCrossSiteViewCondition(podList *corev1.PodList, siteLocations []string, cluster ispn.ClusterInterface) (*ispnv1.InfinispanCondition, error) {
+func (r *infinispanRequest) GetCrossSiteViewCondition(podList *corev1.PodList, siteLocations []string, curl *curl.Client) (*ispnv1.InfinispanCondition, error) {
 	for _, item := range podList.Items {
-		cacheManagerInfo, err := cluster.GetCacheManagerInfo(consts.DefaultCacheManagerName, item.Name)
+		cacheManager, err := InfinispanForPod(item.Name, curl).Container().Info()
 		if err == nil {
-			if cacheManagerInfo.Coordinator {
+			if cacheManager.Coordinator {
 				// Perform cross-site view validation
 				crossSiteViewFormed := &ispnv1.InfinispanCondition{Type: ispnv1.ConditionCrossSiteViewFormed, Status: metav1.ConditionTrue}
-				sitesView, err := cacheManagerInfo.GetSitesView()
+				sitesView := make(map[string]bool)
+				var err error
+				if cacheManager.SitesView == nil {
+					err = fmt.Errorf("retrieving the cross-site view is not supported with the server image you are using")
+				}
+				for _, site := range *cacheManager.SitesView {
+					sitesView[site.(string)] = true
+				}
 				if err == nil {
 					for _, location := range siteLocations {
 						if !sitesView[location] {
@@ -51,7 +58,7 @@ func (r *infinispanRequest) GetCrossSiteViewCondition(podList *corev1.PodList, s
 
 // GetGossipRouterDeployment returns the deployment for the Gossip Router pod
 func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keystoreSecret *corev1.Secret) (*appsv1.Deployment, error) {
-	lsTunnel := GossipRouterPodLabels(m.Name)
+	routerLabels := GossipRouterPodLabels(m.Name)
 	replicas := int32(1)
 
 	// if the user configures 0 replicas, shutdown the gossip router pod too.
@@ -98,17 +105,17 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keys
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      m.GetGossipRouterDeploymentName(),
 			Namespace: m.Namespace,
-			Labels:    lsTunnel,
+			Labels:    routerLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: lsTunnel,
+				MatchLabels: routerLabels,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      m.ObjectMeta.Name,
 					Namespace: m.ObjectMeta.Namespace,
-					Labels:    lsTunnel,
+					Labels:    routerLabels,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{

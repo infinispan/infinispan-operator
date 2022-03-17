@@ -47,9 +47,10 @@ const (
 	ServiceMonitoringAnnotation string = "infinispan.org/monitoring"
 
 	SiteServiceNameTemplate = "%v-site"
+	SiteRouteNameSuffix     = "-route-site"
 	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
 
-	GossipRouterDeploymentNameTemplate = "%s-tunnel"
+	GossipRouterDeploymentNameTemplate = "%s-router"
 )
 
 type ExternalDependencyType string
@@ -69,6 +70,16 @@ func (ispn *Infinispan) GetCondition(condition ConditionType) InfinispanConditio
 	}
 	// Absence of condition means `False` value
 	return InfinispanCondition{Type: condition, Status: metav1.ConditionFalse}
+}
+
+// HasCondition return true if a given condition exists
+func (ispn *Infinispan) HasCondition(condition ConditionType) bool {
+	for _, c := range ispn.Status.Conditions {
+		if c.Type.equals(condition) {
+			return true
+		}
+	}
+	return false
 }
 
 // SetCondition set condition to status
@@ -158,6 +169,16 @@ func (ispn *Infinispan) ApplyDefaults() {
 	} else if ispn.IsGeneratedSecret() {
 		ispn.Spec.Security.EndpointSecretName = ""
 	}
+	if ispn.Spec.Upgrades == nil {
+		ispn.Spec.Upgrades = &InfinispanUpgradesSpec{
+			Type: UpgradeTypeShutdown,
+		}
+	}
+	if ispn.Spec.ConfigListener == nil {
+		ispn.Spec.ConfigListener = &ConfigListenerSpec{
+			Enabled: true,
+		}
+	}
 }
 
 func (ispn *Infinispan) ApplyMonitoringAnnotation() {
@@ -243,7 +264,17 @@ func (ispn *Infinispan) GetAdminServiceName() string {
 }
 
 func (ispn *Infinispan) GetPingServiceName() string {
-	return fmt.Sprintf("%s-ping", ispn.Name)
+	return fmt.Sprintf("%s-ping", ispn.GetStatefulSetName())
+}
+
+// GetStatefulSetName returns the name of the StatefulSet associated with the CRD. After one or more live migrations,
+// the name can change
+func (ispn *Infinispan) GetStatefulSetName() string {
+	statefulSetName := ispn.Status.StatefulSetName
+	if statefulSetName != "" {
+		return statefulSetName
+	}
+	return ispn.Name
 }
 
 func (ispn *Infinispan) IsCache() bool {
@@ -251,7 +282,11 @@ func (ispn *Infinispan) IsCache() bool {
 }
 
 func (ispn *Infinispan) HasSites() bool {
-	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil && len(ispn.Spec.Service.Sites.Locations) > 0
+	return ispn.IsDataGrid() && ispn.Spec.Service.Sites != nil
+}
+
+func (ispn *Infinispan) GetCrossSiteExposeType() CrossSiteExposeType {
+	return ispn.Spec.Service.Sites.Local.Expose.Type
 }
 
 // GetRemoteSiteLocations returns remote site locations
@@ -293,6 +328,26 @@ func (ispn *Infinispan) GetSiteServiceName() string {
 
 func (ispn *Infinispan) GetRemoteSiteServiceName(locationName string) string {
 	return fmt.Sprintf(SiteServiceNameTemplate, ispn.GetRemoteSiteClusterName(locationName))
+}
+
+// GetSiteRouteName returns the local Route name for cross-site replication
+func (ispn *Infinispan) GetSiteRouteName() string {
+	name := ispn.Name
+	maxNameLength := MaxRouteObjectNameLength - len(SiteRouteNameSuffix)
+	if len(name) >= maxNameLength {
+		name = name[0 : maxNameLength-1]
+	}
+	return name + SiteRouteNameSuffix
+}
+
+// GetRemoteSiteRouteName return the remote Route name for cross-site replication
+func (ispn *Infinispan) GetRemoteSiteRouteName(locationName string) string {
+	name := ispn.GetRemoteSiteClusterName(locationName)
+	maxNameLength := MaxRouteObjectNameLength - len(SiteRouteNameSuffix)
+	if len(name) >= maxNameLength {
+		name = name[0 : maxNameLength-1]
+	}
+	return name + SiteRouteNameSuffix
 }
 
 func (ispn *Infinispan) GetRemoteSiteServiceFQN(locationName string) string {
@@ -359,9 +414,9 @@ func (ispn *Infinispan) IsGeneratedSecret() bool {
 	return ispn.Spec.Security.EndpointSecretName == ispn.GenerateSecretName()
 }
 
-// GetConfigName returns the ConfigMap name for the cluster
+// GetConfigName returns the ConfigMap name for the cluster. It follows the StatefulSetName instead of the CRD name to support live migrations
 func (ispn *Infinispan) GetConfigName() string {
-	return fmt.Sprintf("%v-configuration", ispn.Name)
+	return fmt.Sprintf("%v-configuration", ispn.GetStatefulSetName())
 }
 
 // GetInfinispanSecuritySecretName returns the Secret containing the server certs and auth props
@@ -658,7 +713,7 @@ func (ispn *Infinispan) GetGossipRouterDeploymentName() string {
 
 // IsSiteTLSEnabled returns true if the TLS is enabled for cross-site replication communicate
 func (ispn *Infinispan) IsSiteTLSEnabled() bool {
-	return ispn.HasSites() && ispn.Spec.Service.Sites.Local.Encryption.TransportKeyStore != CrossSiteKeyStore{}
+	return ispn.HasSites() && ispn.Spec.Service.Sites.Local.Encryption != nil && ispn.Spec.Service.Sites.Local.Encryption.TransportKeyStore != CrossSiteKeyStore{}
 }
 
 // GetSiteTLSProtocol returns the TLS protocol to be used to encrypt cross-site replication communication
@@ -735,4 +790,12 @@ func (ispn *Infinispan) GetSiteTrustStoreFileName() string {
 		return consts.DefaultSiteTrustStoreFileName
 	}
 	return consts.GetWithDefault(tls.TrustStore.Filename, consts.DefaultSiteTrustStoreFileName)
+}
+
+func (ispn *Infinispan) IsConfigListenerEnabled() bool {
+	return ispn.Spec.ConfigListener != nil && ispn.Spec.ConfigListener.Enabled
+}
+
+func (ispn *Infinispan) GetConfigListenerName() string {
+	return fmt.Sprintf("%s-config-listener", ispn.Name)
 }

@@ -122,6 +122,12 @@ func (reconciler *ServiceReconciler) Reconcile(ctx context.Context, request reco
 		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
 	}
 
+	// Don't reconcile Infinispan CRs marked for deletion
+	if infinispan.GetDeletionTimestamp() != nil {
+		reqLogger.Info(fmt.Sprintf("Ignoring Infinispan CR '%s:%s' marked for deletion", infinispan.Namespace, infinispan.Name))
+		return reconcile.Result{}, nil
+	}
+
 	// Validate that Infinispan CR passed all preliminary checks
 	if !infinispan.IsConditionTrue(ispnv1.ConditionPrelimChecksPassed) {
 		reqLogger.Info("Infinispan CR not ready")
@@ -136,8 +142,24 @@ func (reconciler *ServiceReconciler) Reconcile(ctx context.Context, request reco
 	}
 
 	if s.infinispan.HasSites() {
-		if err := s.reconcileResource(computeSiteService(s.infinispan)); err != nil {
-			return reconcile.Result{}, err
+		switch s.infinispan.GetCrossSiteExposeType() {
+		case ispnv1.CrossSiteExposeTypeClusterIP, ispnv1.CrossSiteExposeTypeNodePort, ispnv1.CrossSiteExposeTypeLoadBalancer:
+			// just a single external service
+			if err := s.reconcileResource(computeSiteService(s.infinispan, s.infinispan.GetCrossSiteExposeType())); err != nil {
+				return reconcile.Result{}, err
+			}
+		case ispnv1.CrossSiteExposeTypeRoute:
+			if s.isTypeSupported(consts.ExternalTypeRoute) {
+				// create internal service
+				if err := s.reconcileResource(computeSiteService(s.infinispan, ispnv1.CrossSiteExposeTypeClusterIP)); err != nil {
+					return reconcile.Result{}, err
+				}
+				if err := s.reconcileResource(computeSiteRoute(s.infinispan)); err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
+				return reconcile.Result{}, fmt.Errorf("route cross-site expose type is not supported")
+			}
 		}
 	} else {
 		siteService := &corev1.Service{
@@ -474,14 +496,14 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 }
 
 // computeSiteService compute the XSite service
-func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
+func computeSiteService(ispn *ispnv1.Infinispan, exposeType ispnv1.CrossSiteExposeType) *corev1.Service {
 	lsPodSelector := GossipRouterPodLabels(ispn.Name)
 
 	exposeSpec := corev1.ServiceSpec{}
 	exposeConf := ispn.Spec.Service.Sites.Local.Expose
 	exposeSpec.Selector = lsPodSelector
 
-	switch exposeConf.Type {
+	switch exposeType {
 	case ispnv1.CrossSiteExposeTypeNodePort:
 		exposeSpec.Type = corev1.ServiceTypeNodePort
 		exposeSpec.Ports = []corev1.ServicePort{
@@ -536,6 +558,39 @@ func computeSiteService(ispn *ispnv1.Infinispan) *corev1.Service {
 	ispn.AddOperatorLabelsForServices(siteService.Labels)
 	ispn.AddLabelsForServices(siteService.Labels)
 	return &siteService
+}
+
+func computeSiteRoute(ispn *ispnv1.Infinispan) *routev1.Route {
+	host := strings.TrimSpace(ispn.Spec.Service.Sites.Local.Expose.RouteHostName)
+	route := routev1.Route{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "route.openshift.io/v1",
+			Kind:       "Route",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ispn.GetSiteRouteName(),
+			Namespace: ispn.Namespace,
+			Labels:    LabelsResource(ispn.Name, "infinispan-route-xsite"),
+		},
+		Spec: routev1.RouteSpec{
+			Host: host,
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.IntOrString{IntVal: consts.CrossSitePort},
+			},
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: ispn.GetSiteServiceName(),
+			},
+			TLS: &routev1.TLSConfig{
+				Termination: routev1.TLSTerminationPassthrough,
+			},
+		},
+	}
+
+	// This way CR labels will override operator labels with same name
+	ispn.AddOperatorLabelsForServices(route.Labels)
+	ispn.AddLabelsForServices(route.Labels)
+	return &route
 }
 
 // computeRoute compute the Route object

@@ -3,10 +3,7 @@ package backup_restore
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -14,6 +11,7 @@ import (
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -27,18 +25,18 @@ import (
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 
-type clusterSpec func(t *testing.T, name, namespace string, clusterSize int) *v1.Infinispan
+type clusterSpec func(t *testing.T, name string, clusterSize int) *v1.Infinispan
 
 func TestMain(m *testing.M) {
 	tutils.RunOperator(m, testKube)
 }
 
 func TestBackupRestore(t *testing.T) {
-	testBackupRestore(t, datagridService, 2)
+	testBackupRestore(t, datagridService, 2, 1000)
 }
 
 func TestBackupRestoreNoAuth(t *testing.T) {
-	testBackupRestore(t, datagridServiceNoAuth, 1)
+	testBackupRestore(t, datagridServiceNoAuth, 1, 1)
 }
 
 func TestBackupRestoreTransformations(t *testing.T) {
@@ -48,7 +46,7 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	clusterName := strcase.ToKebab(t.Name())
 	namespace := tutils.Namespace
 
-	infinispan := datagridService(t, clusterName, namespace, 1)
+	infinispan := datagridService(t, clusterName, 1)
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(infinispan.Name, namespace, v1.ConditionWellFormed)
@@ -91,26 +89,33 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	}))
 }
 
-func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
+func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEntries int) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
 	name := strcase.ToKebab(t.Name())
 	namespace := tutils.Namespace
-	numEntries := 10000
 
 	// 1. Create initial source cluster
 	sourceCluster := name + "-source"
-	infinispan := clusterSpec(t, sourceCluster, namespace, clusterSize)
+	infinispan := clusterSpec(t, sourceCluster, clusterSize)
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
 
 	// 2. Populate the cluster with some data to backup
-	hostAddr, client := utils.HTTPClientAndHost(infinispan, testKube)
+	client := utils.HTTPClientForCluster(infinispan, testKube)
 	cacheName := "someCache"
-	populateCache(cacheName, hostAddr, numEntries, infinispan, client)
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+
+	cache := tutils.NewCacheHelper(cacheName, client)
+	if infinispan.Spec.Service.Type == v1.ServiceTypeCache {
+		cache.CreateWithDefault()
+	} else {
+		config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
+		cache.Create(config, mime.ApplicationJson)
+	}
+	cache.Populate(numEntries)
+	cache.AssertSize(numEntries)
 
 	// 3. Backup the cluster's content
 	backupName := "backup"
@@ -129,6 +134,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "verify-backup-pod",
 			Namespace: namespace,
+			Labels:    map[string]string{"test-name": t.Name()},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
@@ -171,19 +177,16 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	tutils.LogError(testKube.Kubernetes.Client.Delete(context.TODO(), pod))
 
 	// 4. Delete the original cluster
-	testKube.DeleteInfinispan(infinispan, tutils.SinglePodTimeout)
-	waitForNoCluster(sourceCluster)
+	testKube.DeleteInfinispan(infinispan)
+	waitForNoCluster(infinispan)
 
 	// 5. Create a new cluster to restore the backup to
 	targetCluster := name + "-target"
-	infinispan = clusterSpec(t, targetCluster, namespace, clusterSize)
+	infinispan = clusterSpec(t, targetCluster, clusterSize)
 	testKube.Create(infinispan)
 
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(targetCluster, namespace, v1.ConditionWellFormed)
-
-	// Recreate the cluster instance to use the credentials of the new cluster
-	hostAddr, client = utils.HTTPClientAndHost(infinispan, testKube)
 
 	// 6. Restore the backed up data from the volume to the target cluster
 	restoreName := "restore"
@@ -196,8 +199,11 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize int) {
 	// Ensure that the restore pod has left the cluster, by checking a cluster pod's size
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
+	// Recreate the cluster instance to use the credentials of the new cluster
+	client = utils.HTTPClientForCluster(infinispan, testKube)
+
 	// 7. Ensure that all data is in the target cluster
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
 }
 
 func waitForValidBackupPhase(name, namespace string, phase v2.BackupPhase) {
@@ -230,38 +236,21 @@ func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) {
 	tutils.ExpectNoError(err)
 }
 
-func datagridServiceNoAuth(t *testing.T, name, namespace string, replicas int) *v1.Infinispan {
-	infinispan := datagridService(t, name, namespace, replicas)
+func datagridServiceNoAuth(t *testing.T, name string, replicas int) *v1.Infinispan {
+	infinispan := datagridService(t, name, replicas)
 	infinispan.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 	return infinispan
 }
 
-func datagridService(t *testing.T, name, namespace string, replicas int) *v1.Infinispan {
-	infinispan := cacheService(t, name, namespace, replicas)
-	infinispan.Spec.Service = v1.InfinispanServiceSpec{
-		Type: v1.ServiceTypeDataGrid,
-	}
-	return infinispan
-}
-
-func cacheService(t *testing.T, name, namespace string, replicas int) *v1.Infinispan {
-	spec := &v1.Infinispan{
-		TypeMeta: tutils.InfinispanTypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
-		},
-		Spec: v1.InfinispanSpec{
-			Replicas: int32(replicas),
-			Expose:   tutils.ExposeServiceSpec(testKube),
-		},
-	}
+func datagridService(t *testing.T, name string, replicas int) *v1.Infinispan {
+	infinispan := tutils.DefaultSpec(t, testKube)
+	infinispan.Name = name
+	infinispan.Spec.Replicas = int32(replicas)
 
 	if tutils.CPU != "" {
-		spec.Spec.Container.CPU = tutils.CPU
+		infinispan.Spec.Container.CPU = tutils.CPU
 	}
-	return spec
+	return infinispan
 }
 
 func backupSpec(t *testing.T, name, namespace, cluster string) *v2alpha1.Backup {
@@ -307,56 +296,9 @@ func restoreSpec(t *testing.T, name, namespace, backup, cluster string) *v2alpha
 	return spec
 }
 
-func populateCache(cacheName, host string, numEntries int, infinispan *v1.Infinispan, client tutils.HTTPClient) {
-	post := func(url, payload string, status int, headers map[string]string) {
-		rsp, err := client.Post(url, payload, headers)
-		tutils.ExpectNoError(err)
-		defer tutils.CloseHttpResponse(rsp)
-		if rsp.StatusCode != status {
-			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-		}
-	}
-
-	headers := map[string]string{"Content-Type": "application/json"}
-	if infinispan.Spec.Service.Type == v1.ServiceTypeCache {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s?template=default", host, cacheName)
-		post(url, "", http.StatusOK, nil)
-	} else {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s", host, cacheName)
-		config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
-		post(url, config, http.StatusOK, headers)
-	}
-
-	client.Quiet(true)
-	for i := 0; i < numEntries; i++ {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s/%d", host, cacheName, i)
-		value := fmt.Sprintf("{\"value\":\"%d\"}", i)
-		post(url, value, http.StatusNoContent, headers)
-	}
-	client.Quiet(false)
-}
-
-func assertNumEntries(cacheName, host string, numEntries int, client tutils.HTTPClient) {
-	url := fmt.Sprintf("%s/rest/v2/caches/%s?action=size", host, cacheName)
-	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		rsp, err := client.Get(url, nil)
-		tutils.ExpectNoError(err)
-		if rsp.StatusCode != http.StatusOK {
-			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-		}
-
-		body, err := ioutil.ReadAll(rsp.Body)
-		tutils.ExpectNoError(rsp.Body.Close())
-		tutils.ExpectNoError(err)
-		numRead, err := strconv.ParseInt(string(body), 10, 64)
-		return int(numRead) == numEntries, err
-	})
-	tutils.ExpectNoError(err)
-}
-
-func waitForNoCluster(name string) {
+func waitForNoCluster(infinispan *v1.Infinispan) {
 	statefulSet := &appsv1.StatefulSet{}
-	namespacedName := types.NamespacedName{Namespace: tutils.Namespace, Name: name}
+	namespacedName := types.NamespacedName{Namespace: tutils.Namespace, Name: infinispan.GetStatefulSetName()}
 	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
 		e := testKube.Kubernetes.Client.Get(context.Background(), namespacedName, statefulSet)
 		return e != nil && k8errors.IsNotFound(e), nil

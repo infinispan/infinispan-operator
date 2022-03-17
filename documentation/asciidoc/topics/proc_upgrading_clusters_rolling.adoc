@@ -1,0 +1,19 @@
+[id='upgrading-clusters-rolling_{context}']
+= Performing Hot Rod rolling upgrades for {brandname} clusters
+
+[role="_abstract"]
+Performing Hot Rod rolling upgrades lets you move to a new {brandname} version without service disruption.
+However, this upgrade type requires additional capacity and temporarily results in two {brandname} clusters with different versions running concurrently.
+
+.Procedure
+
+. Specify `HotRodRolling` as the value for the `spec.upgrades.type` field.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/upgrade_type_hotrodrolling.yaml[]
+----
++
+. Apply your changes.
+
+When it detects a new {brandname} version, {ispn_operator} automatically upgrades your cluster or prompts you to manually approve the upgrade before proceeding.

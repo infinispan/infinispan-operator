@@ -1,0 +1,28 @@
+[id='upgrading-clusters-downtime_{context}']
+= Upgrading {brandname} clusters with downtime
+
+[role="_abstract"]
+Upgrading {brandname} clusters with downtime results in service disruption but does not require any additional capacity.
+
+.Prerequisites
+
+* If required, configure a persistent cache store to preserve your data during the upgrade.
++
+[IMPORTANT]
+====
+At the start of the upgrade process {ispn_operator} shuts down your existing cluster.
+This results in data loss if you do not configure a persistent cache store.
+====
+
+.Procedure
+
+. Ensure that `Shutdown` is set as the value for the `spec.upgrades.type` field, which is the default.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/upgrade_type_shutdown.yaml[]
+----
++
+. Apply your changes, if necessary.
+
+When it detects a new {brandname} version, {ispn_operator} automatically upgrades your cluster or prompts you to manually approve the upgrade before proceeding.

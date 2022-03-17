@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+   name: my-cluster-config
+   namespace: {example_namespace}
+data:
+   infinispan-config.xml: >
+     <infinispan>
+       <!-- Add custom {brandname} configuration if required. -->
+       <!-- You can provide either {brandname} configuration, logging configuration, or both. -->
+     </infinispan>
+
+   log4j.xml: >
+     <?xml version="1.0" encoding="UTF-8"?>
+     <Configuration name="ServerConfig" monitorInterval="60" shutdownHook="disable">
+         <Appenders>
+             <!-- Colored output on the console -->
+             <Console name="STDOUT">
+                 <PatternLayout pattern="%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n"/>
+             </Console>
+         </Appenders>
+
+         <Loggers>
+             <Root level="INFO">
+                 <AppenderRef ref="STDOUT" level="TRACE"/>
+             </Root>
+             <Logger name="org.infinispan" level="TRACE"/>
+         </Loggers>
+     </Configuration>

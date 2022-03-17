@@ -101,16 +101,6 @@ func encryptionSecret(name, namespace string) *corev1.Secret {
 	}
 }
 
-var MinimalSpec = ispnv1.Infinispan{
-	TypeMeta: InfinispanTypeMeta,
-	ObjectMeta: metav1.ObjectMeta{
-		Name: DefaultClusterName,
-	},
-	Spec: ispnv1.InfinispanSpec{
-		Replicas: 2,
-	},
-}
-
 func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
 	return &ispnv1.Infinispan{
 		TypeMeta: InfinispanTypeMeta,
@@ -122,12 +112,18 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
 		Spec: ispnv1.InfinispanSpec{
 			Service: ispnv1.InfinispanServiceSpec{
 				Type: ispnv1.ServiceTypeDataGrid,
+				Container: &ispnv1.InfinispanServiceContainerSpec{
+					EphemeralStorage: true,
+				},
 			},
 			Container: ispnv1.InfinispanContainerSpec{
 				Memory: Memory,
 			},
 			Replicas: 1,
 			Expose:   ExposeServiceSpec(testKube),
+			ConfigListener: &ispnv1.ConfigListenerSpec{
+				Enabled: false,
+			},
 		},
 	}
 }
@@ -260,39 +256,35 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 	return NewHTTPClient(user, pass, protocol)
 }
 
-func HTTPClientAndHost(i *ispnv1.Infinispan, kube *TestKubernetes) (string, HTTPClient) {
-	client := clientForCluster(i, kube)
-	hostAddr := kube.WaitForExternalService(i, RouteTimeout, client)
-	return hostAddr, client
+func HTTPClientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
+	return kube.WaitForExternalService(i, RouteTimeout, clientForCluster(i, kube))
 }
 
-func HTTPSClientAndHost(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) (string, HTTPClient) {
+func HTTPSClientForCluster(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) HTTPClient {
 
-	userAndPassword := func() (string, string) {
+	userAndPassword := func() (*string, *string) {
 		user := constants.DefaultDeveloperUser
 		pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
 		ExpectNoError(err)
-		return user, pass
+		return &user, &pass
 	}
 
 	var client HTTPClient
 	clientCert := i.Spec.Security.EndpointEncryption.ClientCert
 	if clientCert != "" && clientCert != ispnv1.ClientCertNone {
 		if clientCert == ispnv1.ClientCertAuthenticate || !i.IsAuthenticationEnabled() {
-			client = NewHTTPSClientCert(tlsConfig)
+			client = NewClient(authCert, nil, nil, "https", tlsConfig)
 		} else {
 			user, pass := userAndPassword()
-			client = NewHTTPSClientCertWithDigestAuth(user, pass, tlsConfig)
+			client = NewClient(authDigest, user, pass, "https", tlsConfig)
 		}
 	} else {
 		if i.IsAuthenticationEnabled() {
 			user, pass := userAndPassword()
-			client = NewHTTPSClient(user, pass, tlsConfig)
+			client = NewClient(authDigest, user, pass, "https", tlsConfig)
 		} else {
-			client = NewHTTPSClientNoAuth(tlsConfig)
+			client = NewClient(authNone, nil, nil, "https", tlsConfig)
 		}
 	}
-
-	hostAddr := kube.WaitForExternalService(i, RouteTimeout, client)
-	return hostAddr, client
+	return kube.WaitForExternalService(i, RouteTimeout, client)
 }

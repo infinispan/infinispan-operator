@@ -11,6 +11,7 @@ import (
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,6 +72,10 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 			},
 			Container: ispnv1.InfinispanContainerSpec{
 				Memory: tutils.Memory,
+			},
+			ConfigListener: &ispnv1.ConfigListenerSpec{
+				// Disable the ConfigListener to reduce the total number of resources required
+				Enabled: false,
 			},
 		},
 	}
@@ -227,6 +232,10 @@ func TestDefaultTLSLoadBalancerWithPort(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, DefaultTLS, nil)
 }
 
+func TestDefaultTLSOpenshiftRoute(t *testing.T) {
+	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeRoute, 0, 1, DefaultTLS, nil)
+}
+
 func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
 	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
 	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
@@ -248,7 +257,7 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
 		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
-			serviceAccount := "infinispan-operator-controller-manager"
+			serviceAccount := tutils.OperatorSAName
 			operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite1"].namespace)
 			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite1, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
 			tutils.ExpectNoError(err)
@@ -280,6 +289,20 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite1"].namespace)
 	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite2"].namespace)
 
+	// Check if Route is available
+	if exposeType == ispnv1.CrossSiteExposeTypeRoute {
+		okRoute, err := tesKubes["xsite1"].kube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
+		tutils.ExpectNoError(err)
+		if !okRoute {
+			t.Skip("Route not available. Skipping test")
+		}
+		okRoute, err = tesKubes["xsite2"].kube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
+		tutils.ExpectNoError(err)
+		if !okRoute {
+			t.Skip("Route not available. Skipping test")
+		}
+	}
+
 	if tlsMode == DefaultTLS {
 		transport, router, trust := tutils.CreateDefaultCrossSiteKeyAndTrustStore()
 
@@ -303,6 +326,7 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 				defer tesKubes[site].kube.DeleteSecret(routerSecret)
 				defer tesKubes[site].kube.DeleteSecret(trustSecret)
 			}
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption = &ispnv1.EncryptionSiteSpec{}
 			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.TransportKeyStore = ispnv1.CrossSiteKeyStore{
 				SecretName: transportSecretName,
 			}
@@ -336,6 +360,7 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 				defer tesKubes[site].kube.DeleteSecret(trustSecret)
 			}
 
+			tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption = &ispnv1.EncryptionSiteSpec{}
 			if tlsProtocol != nil {
 				tesKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
 			}

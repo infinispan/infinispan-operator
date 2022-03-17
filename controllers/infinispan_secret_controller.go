@@ -6,13 +6,14 @@ import (
 	"net/url"
 	"strings"
 
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,8 +23,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -93,6 +92,12 @@ func (reconciler *SecretReconciler) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
 	}
 
+	// Don't reconcile Infinispan CRs marked for deletion
+	if infinispan.GetDeletionTimestamp() != nil {
+		reqLogger.Info(fmt.Sprintf("Ignoring Infinispan CR '%s:%s' marked for deletion", infinispan.Namespace, infinispan.Name))
+		return reconcile.Result{}, nil
+	}
+
 	// Validate that Infinispan CR passed all preliminary checks
 	if !infinispan.IsConditionTrue(ispnv1.ConditionPrelimChecksPassed) {
 		reqLogger.Info("Infinispan CR not ready")
@@ -134,26 +139,14 @@ func (reconciler *SecretReconciler) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{}, err
 	}
 
-	// Wait for the ConfigMap to be created by config-controller
-	configMap := &corev1.ConfigMap{}
-	if result, err := kube.LookupResource(infinispan.GetConfigName(), infinispan.Namespace, configMap, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
-		return *result, err
-	}
-
-	// turn yaml into var
-	serverConf := &config.InfinispanConfiguration{}
-	if err = yaml.Unmarshal([]byte(configMap.Data[consts.ServerConfigFilename]), serverConf); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if result, err := r.computeAndReconcileAuthProps(serverConf, userCredSecret, adminCredSecret, reqLogger); result != nil {
+	if result, err := r.computeAndReconcileAuthProps(userCredSecret, adminCredSecret, reqLogger); result != nil {
 		return *result, err
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (r secretRequest) computeAndReconcileAuthProps(serverConf *config.InfinispanConfiguration, userPropSecret, adminPropSecret *corev1.Secret, reqLogger logr.Logger) (*reconcile.Result, error) {
+func (r secretRequest) computeAndReconcileAuthProps(userPropSecret, adminPropSecret *corev1.Secret, reqLogger logr.Logger) (*reconcile.Result, error) {
 
 	// Create admin and user identity properties from secrets
 	adminCliBatch, err := security.IdentitiesCliFileFromSecret(adminPropSecret.Data[consts.ServerIdentitiesFilename], "admin", "cli-admin-users.properties", "cli-admin-groups.properties")
@@ -168,25 +161,38 @@ func (r secretRequest) computeAndReconcileAuthProps(serverConf *config.Infinispa
 		}
 	}
 	cliBatch := adminCliBatch + usersCliBatch
-	if serverConf.Keystore.Password != "" {
-		cliBatch += "credentials add keystore -c \"" + serverConf.Keystore.Password + "\" -p secret\n"
-	}
 
-	if serverConf.Truststore.Password != "" {
-		cliBatch += "credentials add truststore -c \"" + serverConf.Truststore.Password + "\" -p secret\n"
-	}
-
-	// PEM certs need to be loaded and merget to be used by Infinispan
 	var pem []byte
-	if serverConf.Keystore.Type == "pem" {
+	if r.infinispan.IsEncryptionEnabled() {
 		keystoreSecret := &corev1.Secret{}
 		if result, err := kube.LookupResource(r.infinispan.GetKeystoreSecretName(), r.infinispan.Namespace, keystoreSecret, r.infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 			return &reconcile.Result{}, err
 		}
-		pem = append(keystoreSecret.Data["tls.key"], keystoreSecret.Data["tls.crt"]...)
+
+		// Add the keystore credential if the user has provided their own keystore
+		if IsUserProvidedKeystore(keystoreSecret) {
+			if password, ok := keystoreSecret.Data["password"]; ok {
+				cliBatch += fmt.Sprintf("credentials add keystore -c \"%s\" -p secret\n", string(password))
+			}
+		} else {
+			pem = append(keystoreSecret.Data["tls.key"], keystoreSecret.Data["tls.crt"]...)
+		}
+
+		if r.infinispan.IsClientCertEnabled() {
+			trustSecret := &corev1.Secret{}
+			if result, err := kube.LookupResource(r.infinispan.GetTruststoreSecretName(), r.infinispan.Namespace, trustSecret, r.infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
+				return &reconcile.Result{}, err
+			}
+			var password string
+			if userPass, ok := trustSecret.Data[consts.EncryptTruststorePasswordKey]; ok {
+				password = string(userPass)
+			} else {
+				password = "password"
+			}
+			cliBatch += fmt.Sprintf("credentials add truststore -c \"%s\" -p secret\n", password)
+		}
 	}
 
-	// Generate infinispan.xml
 	infinispanServerSecurityConf := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.infinispan.GetInfinispanSecuritySecretName(),
@@ -194,7 +200,7 @@ func (r secretRequest) computeAndReconcileAuthProps(serverConf *config.Infinispa
 		},
 	}
 
-	// Create secret with all the objects to be mounted as "ServerRoot/conf/operator/"
+	// Create secret with all the objects to be mounted as "/etc/security/conf/operator-security"
 	result, err := k8sctrlutil.CreateOrUpdate(r.ctx, r.Client, infinispanServerSecurityConf, func() error {
 		infinispanServerSecurityConf.Labels = LabelsResource(r.infinispan.Name, "infinispan-secret-server-security")
 		infinispanServerSecurityConf.Data = map[string][]byte{consts.ServerIdentitiesCliFilename: []byte(cliBatch)}

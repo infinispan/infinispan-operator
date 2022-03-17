@@ -667,6 +667,14 @@ spec:
                 required:
                 - bootstrapServers
                 type: object
+              configListener:
+                properties:
+                  enabled:
+                    description: If true, a dedicated pod is used to ensure that all
+                      config resources created on the Infinispan server have a matching
+                      CR resource
+                    type: boolean
+                type: object
               configMapName:
                 type: string
               container:
@@ -913,6 +921,10 @@ spec:
                               port:
                                 format: int32
                                 type: integer
+                              routeHostName:
+                                description: RouteHostName optionally, specifies a
+                                  custom hostname to be used by Openshift Route.
+                                type: string
                               type:
                                 description: Type specifies different exposition methods
                                   for data grid
@@ -920,6 +932,7 @@ spec:
                                 - NodePort
                                 - LoadBalancer
                                 - ClusterIP
+                                - Route
                                 type: string
                             required:
                             - type
@@ -972,6 +985,14 @@ spec:
                     - Cache
                     type: string
                 type: object
+              upgrades:
+                description: Strategy to use when doing upgrades
+                properties:
+                  type:
+                    type: string
+                required:
+                - type
+                type: object
             required:
             - replicas
             type: object
@@ -1000,6 +1021,15 @@ spec:
               consoleUrl:
                 description: Infinispan Console URL
                 type: string
+              hotRodRollingUpgradeStatus:
+                properties:
+                  SourceStatefulSetName:
+                    type: string
+                  TargetStatefulSetName:
+                    type: string
+                  stage:
+                    type: string
+                type: object
               podStatus:
                 description: The Pod's currently in the cluster
                 properties:

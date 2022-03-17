@@ -3,7 +3,6 @@ package batch
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -13,16 +12,14 @@ import (
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
-	consts "github.com/infinispan/infinispan-operator/controllers/constants"
-	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
+	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -50,10 +47,10 @@ func testBatchInlineConfig(t *testing.T, infinispan *v1.Infinispan) {
 
 	helper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 
-	client := httpClient(infinispan)
-	hostAddr := hostAddr(client, infinispan)
-	assertRestOk(cachesURL("batch-cache", hostAddr), client)
-	assertRestOk(countersURL("batch-counter", hostAddr), client)
+	httpClient := tutils.HTTPClientForCluster(infinispan, testKube)
+	ispn := ispnClient.New(httpClient)
+	assertCacheExists("batch-cache", ispn)
+	assertCounterExists("batch-counter", ispn)
 	testKube.DeleteBatch(batch)
 	waitForK8sResourceCleanup(name)
 }
@@ -84,10 +81,10 @@ func TestBatchConfigMap(t *testing.T) {
 	testKube.DeleteBatch(batch)
 	waitForK8sResourceCleanup(infinispan.Name)
 
-	client := httpClient(infinispan)
-	hostAddr := hostAddr(client, infinispan)
-	assertRestOk(cachesURL("batch-cache", hostAddr), client)
-	assertRestOk(countersURL("batch-counter", hostAddr), client)
+	httpClient := tutils.HTTPClientForCluster(infinispan, testKube)
+	ispn := ispnClient.New(httpClient)
+	assertCacheExists("batch-cache", ispn)
+	assertCounterExists("batch-counter", ispn)
 }
 
 func TestBatchNoConfigOrConfigMap(t *testing.T) {
@@ -120,42 +117,20 @@ func TestBatchFail(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	name := strcase.ToKebab(t.Name())
-
-	createCluster(t)
+	infinispan := createCluster(t)
 
 	batchScript := "SOME INVALID BATCH CMD!"
-	batch := helper.CreateBatch(t, name, name, &batchScript, nil)
+	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, &batchScript, nil)
 
-	helper.WaitForValidBatchPhase(name, v2.BatchFailed)
+	helper.WaitForValidBatchPhase(infinispan.Name, v2.BatchFailed)
 	testKube.DeleteBatch(batch)
-	waitForK8sResourceCleanup(name)
+	waitForK8sResourceCleanup(infinispan.Name)
 }
 
 func batchString() string {
 	batchScript := `create cache --template=org.infinispan.DIST_SYNC batch-cache
 	create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter`
 	return strings.ReplaceAll(batchScript, "\t", "")
-}
-
-func httpClient(infinispan *v1.Infinispan) tutils.HTTPClient {
-	user := consts.DefaultDeveloperUser
-	password, err := users.UserPassword(user, infinispan.GetSecretName(), tutils.Namespace, testKube.Kubernetes, context.TODO())
-	tutils.ExpectNoError(err)
-	protocol := testKube.GetSchemaForRest(infinispan)
-	return tutils.NewHTTPClient(user, password, protocol)
-}
-
-func cachesURL(cacheName, hostAddr string) string {
-	return fmt.Sprintf("%v/rest/v2/caches/%s", hostAddr, cacheName)
-}
-
-func countersURL(counterName, hostAddr string) string {
-	return fmt.Sprintf("%v/rest/v2/counters/%s", hostAddr, counterName)
-}
-
-func hostAddr(client tutils.HTTPClient, infinispan *v1.Infinispan) string {
-	return testKube.WaitForExternalService(infinispan, tutils.RouteTimeout, client)
 }
 
 func createCluster(t *testing.T) *v1.Infinispan {
@@ -168,7 +143,7 @@ func createCluster(t *testing.T) *v1.Infinispan {
 func waitForK8sResourceCleanup(name string) {
 	// Ensure that the created Job has completed and has been removed
 	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
-		return !assertK8ResourceExists(name, &batchv1.Job{}), nil
+		return !testKube.AssertK8ResourceExists(name, tutils.Namespace, &batchv1.Job{}), nil
 	})
 	tutils.ExpectNoError(err)
 
@@ -180,20 +155,19 @@ func waitForK8sResourceCleanup(name string) {
 	tutils.ExpectNoError(err)
 }
 
-func assertK8ResourceExists(name string, obj client.Object) bool {
-	client := testKube.Kubernetes.Client
-	key := types.NamespacedName{
-		Name:      name,
-		Namespace: tutils.Namespace,
+func assertCacheExists(cacheName string, i api.Infinispan) {
+	exists, err := i.Cache(cacheName).Exists()
+	tutils.ExpectNoError(err)
+	if !exists {
+		panic(fmt.Sprintf("Caches %s does not exist", cacheName))
 	}
-	return client.Get(ctx, key, obj) == nil
 }
 
-func assertRestOk(url string, client tutils.HTTPClient) {
-	rsp, err := client.Get(url, nil)
-	tutils.ExpectNoError(err)
-	defer tutils.CloseHttpResponse(rsp)
-	if rsp.StatusCode != http.StatusOK {
-		panic(fmt.Sprintf("Expected Status Code 200, received %d", rsp.StatusCode))
-	}
+func assertCounterExists(cacheName string, i api.Infinispan) {
+	// TODO once Counters added to API
+	// exists, err :=
+	// tutils.ExpectNoError(err)
+	// if !exists {
+	// 	panic(fmt.Sprintf("Caches %s does not exist", cacheName))
+	// }
 }

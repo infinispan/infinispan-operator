@@ -6,8 +6,7 @@ import (
 
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -144,14 +143,13 @@ func (r *restore) Init() (*zeroCapacitySpec, error) {
 	}, nil
 }
 
-func (r *restore) Exec(client http.HttpClient) error {
+func (r *restore) Exec(client api.Infinispan) error {
 	instance := r.instance
-	backupManager := backup.NewManager(instance.Name, client)
-	var resources backup.Resources
+	var resources api.BackupRestoreResources
 	if instance.Spec.Resources == nil {
-		resources = backup.Resources{}
+		resources = api.BackupRestoreResources{}
 	} else {
-		resources = backup.Resources{
+		resources = api.BackupRestoreResources{
 			Caches:       instance.Spec.Resources.Caches,
 			Counters:     instance.Spec.Resources.Counters,
 			ProtoSchemas: instance.Spec.Resources.ProtoSchemas,
@@ -159,18 +157,17 @@ func (r *restore) Exec(client http.HttpClient) error {
 			Tasks:        instance.Spec.Resources.Tasks,
 		}
 	}
-	config := &backup.RestoreConfig{
+	config := &api.RestoreConfig{
 		Location:  fmt.Sprintf("%[1]s/%[2]s/%[2]s.zip", BackupDataMountPath, instance.Spec.Backup),
 		Resources: resources,
 	}
-	return backupManager.Restore(instance.Name, config)
+	return client.Container().Restores().Create(instance.Name, config)
 }
 
-func (r *restore) ExecStatus(client http.HttpClient) (zeroCapacityPhase, error) {
+func (r *restore) ExecStatus(client api.Infinispan) (zeroCapacityPhase, error) {
 	name := r.instance.Name
-	backupManager := backup.NewManager(name, client)
 
-	status, err := backupManager.RestoreStatus(name)
+	status, err := client.Container().Restores().Status(name)
 	if err != nil {
 		return ZeroUnknown, err
 	}

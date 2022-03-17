@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/backup"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/http"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -201,14 +200,13 @@ func (r *backupResource) getOrCreatePvc() error {
 	return nil
 }
 
-func (r *backupResource) Exec(client http.HttpClient) error {
+func (r *backupResource) Exec(client api.Infinispan) error {
 	instance := r.instance
-	backupManager := backup.NewManager(instance.Name, client)
-	var resources backup.Resources
+	var resources api.BackupRestoreResources
 	if instance.Spec.Resources == nil {
-		resources = backup.Resources{}
+		resources = api.BackupRestoreResources{}
 	} else {
-		resources = backup.Resources{
+		resources = api.BackupRestoreResources{
 			Caches:       instance.Spec.Resources.Caches,
 			Counters:     instance.Spec.Resources.Counters,
 			ProtoSchemas: instance.Spec.Resources.ProtoSchemas,
@@ -216,17 +214,19 @@ func (r *backupResource) Exec(client http.HttpClient) error {
 			Tasks:        instance.Spec.Resources.Tasks,
 		}
 	}
-	config := &backup.BackupConfig{
+	config := &api.BackupConfig{
 		Directory: BackupDataMountPath,
 		Resources: resources,
 	}
-	return backupManager.Backup(instance.Name, config)
+	return client.Container().Backups().Create(instance.Name, config)
 }
 
-func (r *backupResource) ExecStatus(client http.HttpClient) (zeroCapacityPhase, error) {
+func (r *backupResource) ExecStatus(client api.Infinispan) (zeroCapacityPhase, error) {
 	name := r.instance.Name
-	backupManager := backup.NewManager(name, client)
 
-	status, err := backupManager.BackupStatus(name)
-	return zeroCapacityPhase(status), err
+	status, err := client.Container().Backups().Status(name)
+	if err != nil {
+		return ZeroUnknown, err
+	}
+	return zeroCapacityPhase(status), nil
 }

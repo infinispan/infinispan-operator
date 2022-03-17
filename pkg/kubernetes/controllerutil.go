@@ -30,7 +30,7 @@ const (
 	EventReasonResourceNotReady = "ResourceNotReady"
 )
 
-// DO NOT REMOVE UNTIL controller-runtime v0.9.0
+// CreateOrPatch DO NOT REMOVE UNTIL controller-runtime v0.9.0
 // https://github.com/kubernetes-sigs/controller-runtime/pull/1403
 //
 // CreateOrPatch creates or patches the given object in the Kubernetes

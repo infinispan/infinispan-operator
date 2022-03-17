@@ -1,13 +1,20 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 
+	"strconv"
+	"strings"
+
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -46,7 +53,7 @@ func probe(failureThreshold, initialDelay, period, successThreshold, timeout int
 		Handler: corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Scheme: corev1.URISchemeHTTP,
-				Path:   consts.ServerHTTPHealthStatusPath,
+				Path:   "rest/v2/cache-managers/default/health/status",
 				Port:   intstr.FromInt(consts.InfinispanAdminPort)},
 		},
 		FailureThreshold:    failureThreshold,
@@ -226,6 +233,91 @@ func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodS
 	} else {
 		(*volumeMounts)[index] = volumeMount
 	}
+}
+
+// PodsCreatedBy Obtain pods created by a certain statefulSet
+func PodsCreatedBy(namespace string, kube *kubernetes.Kubernetes, ctx context.Context, statefulSetName string) (*corev1.PodList, error) {
+	podList := &corev1.PodList{}
+	err := kube.ResourcesList(namespace, map[string]string{consts.StatefulSetPodLabel: statefulSetName}, podList, ctx)
+	if err != nil {
+		return podList, err
+	}
+	return podList, nil
+}
+
+// PodList Obtain list of pods associated with the supplied Infinispan cluster
+func PodList(infinispan *infinispanv1.Infinispan, kube *kubernetes.Kubernetes, ctx context.Context) (*corev1.PodList, error) {
+	podList := &corev1.PodList{}
+	stateFulSet := &appsv1.StatefulSet{}
+	namespace := infinispan.GetNamespace()
+	err := kube.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: infinispan.GetStatefulSetName()}, stateFulSet)
+	if err != nil {
+		return podList, nil
+	}
+	// Obtain pod list associated with the cluster
+	err = kube.ResourcesList(namespace, PodLabels(infinispan.GetName()), podList, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter out pods not owned by the statefulSet
+	ownerId := stateFulSet.GetUID()
+	pos := 0
+	for _, item := range podList.Items {
+		for _, reference := range item.GetOwnerReferences() {
+			if reference.UID == ownerId {
+				podList.Items[pos] = item
+				pos++
+			}
+		}
+	}
+	podList.Items = podList.Items[:pos]
+	return podList, nil
+}
+
+func GetPodMemoryLimitBytes(podName, namespace string, kube *kubernetes.Kubernetes) (uint64, error) {
+	execOut, err := kube.ExecWithOptions(kubernetes.ExecOptions{
+		Container: InfinispanContainer,
+		Command:   []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"},
+		PodName:   podName,
+		Namespace: namespace,
+	})
+
+	if err != nil {
+		return 0, fmt.Errorf("unexpected error getting memory limit bytes, err: %w", err)
+	}
+
+	result := strings.TrimSuffix(execOut.String(), "\n")
+	limitBytes, err := strconv.ParseUint(result, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return limitBytes, nil
+}
+
+func GetPodMaxMemoryUnboundedBytes(podName, namespace string, kube *kubernetes.Kubernetes) (uint64, error) {
+	execOut, err := kube.ExecWithOptions(kubernetes.ExecOptions{
+		Container: InfinispanContainer,
+		Command:   []string{"cat", "/proc/meminfo"},
+		PodName:   podName,
+		Namespace: namespace,
+	})
+
+	if err != nil {
+		return 0, fmt.Errorf("unexpected error getting max unbounded memory, err: %w", err)
+	}
+
+	for _, line := range strings.Split(execOut.String(), "\n") {
+		if strings.Contains(line, "MemTotal:") {
+			tokens := strings.Fields(line)
+			maxUnboundKb, err := strconv.ParseUint(tokens[1], 10, 64)
+			if err != nil {
+				return 0, err
+			}
+			return maxUnboundKb * 1024, nil
+		}
+	}
+	return 0, fmt.Errorf("meminfo lacking MemTotal information")
 }
 
 func GetContainer(name string, spec *corev1.PodSpec) *corev1.Container {

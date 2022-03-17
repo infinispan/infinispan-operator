@@ -122,7 +122,8 @@ spec:
                   type: object
                 type: array
               serviceName:
-                description: Service name that exposes the cache inside the cluster
+                description: Deprecated. This is no longer set. Service name that
+                  exposes the cache inside the cluster
                 type: string
             type: object
         type: object

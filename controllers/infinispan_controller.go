@@ -12,17 +12,17 @@ import (
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	hash "github.com/infinispan/infinispan-operator/pkg/hash"
-	ispn "github.com/infinispan/infinispan-operator/pkg/infinispan"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/caches"
-	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration"
+	"github.com/infinispan/infinispan-operator/pkg/http/curl"
+	ispnApi "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	routev1 "github.com/openshift/api/route/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus/common/log"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	ingressv1 "k8s.io/api/networking/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,8 +43,8 @@ import (
 )
 
 const (
-	InfinispanContainer          = consts.InfinispanContainer
-	GossipRouterContainer        = consts.GossipRouterContainer
+	InfinispanContainer          = "infinispan"
+	GossipRouterContainer        = "gossiprouter"
 	DataMountPath                = consts.ServerRoot + "/data"
 	OperatorConfMountPath        = consts.ServerRoot + "/conf/operator"
 	DataMountVolume              = "data-volume"
@@ -216,6 +216,8 @@ func (r *InfinispanReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=pods/logs,verbs=get
 // +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=core;events.k8s.io,namespace=infinispan-operator-system,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=create;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=create;delete;update
 
 // +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=deployments,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=replicasets,verbs=get
@@ -300,20 +302,23 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	// If an overlay configuration is specified wait for the related ConfigMap
 	overlayConfigMap := &corev1.ConfigMap{}
 	var overlayConfigMapKey string
+	var overlayLog4jConfig bool
 	if infinispan.Spec.ConfigMapName != "" {
 		if result, err := kube.LookupResource(infinispan.Spec.ConfigMapName, infinispan.Namespace, overlayConfigMap, infinispan, r.Client, reqLogger, r.eventRec, r.ctx); result != nil {
 			return *result, err
 		}
-		var foundKey bool
-		// Loop through the data looking for something like xml,json or yaml
-		for overlayConfigMapKey = range overlayConfigMap.Data {
-			if overlayConfigMapKey == "infinispan-config.xml" || overlayConfigMapKey == "infinispan-config.json" || overlayConfigMapKey == "infinispan-config.yaml" {
-				foundKey = true
+		// Loop through the data looking for something like xml, json or yaml
+		for configMapKey := range overlayConfigMap.Data {
+			if configMapKey == "infinispan-config.xml" || configMapKey == "infinispan-config.json" || configMapKey == "infinispan-config.yaml" {
+				overlayConfigMapKey = configMapKey
 				break
 			}
 		}
-		if !foundKey {
-			err := fmt.Errorf("infinispan-copnfig.[xml|yaml|json] configuration not found in ConfigMap: %s", overlayConfigMap.Name)
+		// Check if the user added a custom log4j.xml config
+		_, overlayLog4jConfig = overlayConfigMap.Data["log4j.xml"]
+
+		if overlayConfigMapKey == "" && !overlayLog4jConfig {
+			err := fmt.Errorf("one of infinispan-config.[xml|yaml|json] or log4j.xml must be present in the provided ConfigMap: %s", overlayConfigMap.Name)
 			return reconcile.Result{}, err
 		}
 	}
@@ -367,23 +372,33 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			}
 		}
 
-		reqLogger.Info("Checking the Cross-Site Deployment (Gossip Router)")
-		tunnelDeployment := &appsv1.Deployment{
+		// remove old deployment to change the deployment name
+		// required for upgrades
+		oldRouterDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-tunnel", infinispan.Name),
+				Namespace: infinispan.Namespace,
+			},
+		}
+		if err := r.Client.Delete(r.ctx, oldRouterDeployment); err != nil && !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+
+		routerDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetGossipRouterDeploymentName(),
 				Namespace: infinispan.Namespace,
 			},
 		}
-		result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, tunnelDeployment, func() error {
-			tunnel, err := r.GetGossipRouterDeployment(infinispan, gossipRouterTLSSecret)
+		result, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, routerDeployment, func() error {
+			router, err := r.GetGossipRouterDeployment(infinispan, gossipRouterTLSSecret)
 			if err != nil {
 				return err
 			}
-			tunnelDeployment.Spec = tunnel.Spec
-			tunnelDeployment.Labels = tunnel.Labels
-			if tunnelDeployment.CreationTimestamp.IsZero() {
-				reqLogger.Info("Creating the Cross-Site Deployment (Gossip Router)")
-				return controllerutil.SetControllerReference(r.infinispan, tunnelDeployment, r.scheme)
+			routerDeployment.Spec = router.Spec
+			routerDeployment.Labels = router.Labels
+			if routerDeployment.CreationTimestamp.IsZero() {
+				return controllerutil.SetControllerReference(r.infinispan, routerDeployment, r.scheme)
 			}
 			return nil
 		})
@@ -397,7 +412,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			}
 		}
 		if result != controllerutil.OperationResultNone {
-			reqLogger.Info(fmt.Sprintf("Cross-site deployment %s", string(result)))
+			reqLogger.Info(fmt.Sprintf("Cross-site deployment '%s' %s", routerDeployment.Name, string(result)))
 		}
 
 		gossipRouterPods, err := GossipRouterPodList(infinispan, r.kubernetes, r.ctx)
@@ -405,7 +420,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			reqLogger.Error(err, "Failed to fetch Gossip Router pod")
 			return reconcile.Result{}, err
 		}
-		if !kube.AreAllPodsReady(gossipRouterPods) {
+		if len(gossipRouterPods.Items) == 0 || !kube.AreAllPodsReady(gossipRouterPods) {
 			reqLogger.Info("Gossip Router pod is not ready")
 			return reconcile.Result{}, r.update(func() {
 				r.infinispan.SetCondition(infinispanv1.ConditionGossipRouterReady, metav1.ConditionFalse, "Gossip Router pod not ready")
@@ -418,13 +433,13 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			return reconcile.Result{}, err
 		}
 	} else {
-		tunnelDeployment := &appsv1.Deployment{
+		routerDeployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      infinispan.GetGossipRouterDeploymentName(),
 				Namespace: infinispan.Namespace,
 			},
 		}
-		if err := r.Client.Delete(r.ctx, tunnelDeployment); err != nil && !errors.IsNotFound(err) {
+		if err := r.Client.Delete(r.ctx, routerDeployment); err != nil && !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 	}
@@ -432,12 +447,12 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	// Reconcile the StatefulSet
 	// Check if the StatefulSet already exists, if not create a new one
 	statefulSet := &appsv1.StatefulSet{}
-	err = r.Client.Get(ctx, types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.Name}, statefulSet)
+	err = r.Client.Get(ctx, types.NamespacedName{Namespace: infinispan.Namespace, Name: infinispan.GetStatefulSetName()}, statefulSet)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Configuring the StatefulSet")
 
 		// Define a new StatefulSet
-		statefulSet, err = r.statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret, configMap, overlayConfigMap, overlayConfigMapKey)
+		statefulSet, err = r.statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret, configMap, overlayConfigMap, overlayConfigMapKey, overlayLog4jConfig)
 		if err != nil {
 			reqLogger.Error(err, "failed to configure new StatefulSet")
 			return ctrl.Result{}, err
@@ -448,7 +463,6 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 			reqLogger.Error(err, "failed to create new StatefulSet", "StatefulSet.Name", statefulSet.Name)
 			return ctrl.Result{}, err
 		}
-
 		// StatefulSet created successfully
 		reqLogger.Info("End of the StatefulSet creation")
 	}
@@ -457,8 +471,9 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		return ctrl.Result{}, err
 	}
 
-	// Update Pod's status for the OLM
+	// Update Pod's status for the OLM and the statefulSet name
 	if err := r.update(func() {
+		infinispan.Status.StatefulSetName = statefulSet.Name
 		infinispan.Status.PodStatus = GetSingleStatefulSetStatus(*statefulSet)
 	}); err != nil {
 		return ctrl.Result{}, err
@@ -522,15 +537,10 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		return *result, err
 	}
 
-	cluster, err := NewCluster(infinispan, r.kubernetes, r.ctx)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
 	// If user set Spec.replicas=0 we need to perform a graceful shutdown
 	// to preserve the data
 	var res *ctrl.Result
-	res, err = r.reconcileGracefulShutdown(statefulSet, podList, reqLogger, cluster)
+	res, err = r.reconcileGracefulShutdown(statefulSet, podList, reqLogger)
 	if res != nil {
 		return *res, err
 	}
@@ -542,7 +552,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 
 	// Here where to reconcile with spec updates that reflect into
 	// changes to statefulset.spec.container.
-	res, err = r.reconcileContainerConf(statefulSet, configMap, overlayConfigMap, overlayConfigMapKey, adminSecret, userSecret, keystoreSecret, trustSecret)
+	res, err = r.reconcileContainerConf(statefulSet, configMap, overlayConfigMap, overlayConfigMapKey, overlayLog4jConfig, adminSecret, userSecret, keystoreSecret, trustSecret)
 	if res != nil {
 		return *res, err
 	}
@@ -564,8 +574,14 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	if infinispan.Spec.Autoscale != nil && infinispan.IsCache() {
 		r.addAutoscalingEquipment()
 	}
+
+	curl, err := NewCurlClient(ctx, podList.Items[0].Name, infinispan, r.kubernetes)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Inspect the system and get the current Infinispan conditions
-	currConds := getInfinispanConditions(podList.Items, infinispan, cluster)
+	currConds := getInfinispanConditions(podList.Items, infinispan, curl)
 
 	// Update the Infinispan status with the pod status
 	if err := r.update(func() {
@@ -581,19 +597,36 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	}
 
 	// Below the code for a wellFormed cluster
-	err = configureLoggers(podList, cluster, infinispan)
-	if err != nil {
+	if err = configureLoggers(podList, infinispan, curl); err != nil {
 		return ctrl.Result{}, err
 	}
 
+	// Create the ConfigListener Deployment if enabled
+	if infinispan.IsConfigListenerEnabled() {
+		if err := r.ReconcileConfigListener(); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else {
+		if err := r.DeleteConfigListener(); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	ispnClient := ispnApi.New(curl)
 	// Create default cache if it doesn't exists.
 	if infinispan.IsCache() {
-		if existsCache, err := cluster.ExistsCache(consts.DefaultCacheName, podList.Items[0].Name); err != nil {
+		cacheClient := ispnClient.Cache(consts.DefaultCacheName)
+		if existsCache, err := cacheClient.Exists(); err != nil {
 			reqLogger.Error(err, "failed to validate default cache for cache service")
 			return ctrl.Result{}, err
 		} else if !existsCache {
 			reqLogger.Info("createDefaultCache")
-			if err = caches.CreateCacheFromDefault(podList.Items[0].Name, infinispan, cluster, reqLogger); err != nil {
+			defaultXml, err := DefaultCacheTemplateXML(podList.Items[0].Name, infinispan, r.kubernetes, reqLogger)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			if err = cacheClient.Create(defaultXml, mime.ApplicationXml); err != nil {
 				reqLogger.Error(err, "failed to create default cache for cache service")
 				return ctrl.Result{}, err
 			}
@@ -663,7 +696,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 	}
 
 	if infinispan.HasSites() {
-		crossSiteViewCondition, err := r.GetCrossSiteViewCondition(podList, infinispan.GetSiteLocationsName(), cluster)
+		crossSiteViewCondition, err := r.GetCrossSiteViewCondition(podList, infinispan.GetSiteLocationsName(), curl)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -675,7 +708,7 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 				log.Error(err, fmt.Sprintf("Unable to retrive logs for infinispan pod %s", podName))
 			}
 			if strings.Contains(logs, "ISPN000643") {
-				if err := cluster.XsitePushAllState(podName); err != nil {
+				if err := InfinispanForPod(podName, curl).Container().Xsite().PushAllState(); err != nil {
 					log.Error(err, "Unable to push xsite state after SFS data recovery")
 				}
 			}
@@ -718,19 +751,21 @@ func (r *infinispanRequest) preliminaryChecks() (*ctrl.Result, error) {
 	return nil, nil
 }
 
-func configureLoggers(pods *corev1.PodList, cluster ispn.ClusterInterface, infinispan *infinispanv1.Infinispan) error {
+func configureLoggers(pods *corev1.PodList, infinispan *infinispanv1.Infinispan, curl *curl.Client) error {
 	if infinispan.Spec.Logging == nil || len(infinispan.Spec.Logging.Categories) == 0 {
 		return nil
 	}
+
 	for _, pod := range pods.Items {
-		serverLoggers, err := cluster.GetLoggers(pod.Name)
+		logging := InfinispanForPod(pod.Name, curl).Logging()
+		serverLoggers, err := logging.GetLoggers()
 		if err != nil {
 			return err
 		}
 		for category, level := range infinispan.Spec.Logging.Categories {
 			serverLevel, ok := serverLoggers[category]
 			if !(ok && string(level) == serverLevel) {
-				if err := cluster.SetLogger(pod.Name, category, string(level)); err != nil {
+				if err := logging.SetLogger(category, string(level)); err != nil {
 					return err
 				}
 			}
@@ -754,10 +789,16 @@ func (r *infinispanRequest) destroyResources() error {
 		return err
 	}
 
+	if r.infinispan.IsConfigListenerEnabled() {
+		if err = r.DeleteConfigListener(); err != nil {
+			return err
+		}
+	}
+
 	err = r.Client.Delete(r.ctx,
 		&appsv1.StatefulSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      infinispan.Name,
+				Name:      infinispan.GetStatefulSetName(),
 				Namespace: infinispan.Namespace,
 			},
 		})
@@ -949,7 +990,7 @@ func (r *infinispanRequest) dropSecretOwnerReference(secretName string) error {
 
 func (r *infinispanRequest) scheduleUpgradeIfNeeded(podList *corev1.PodList) (*ctrl.Result, error) {
 	infinispan := r.infinispan
-	if upgrade, err := upgradeRequired(infinispan, podList); upgrade || err != nil {
+	if shutdownUpgradeRequired(infinispan, podList) {
 		if err := r.update(func() {
 			podDefaultImage := kube.GetPodDefaultImage(*GetContainer(InfinispanContainer, &podList.Items[0].Spec))
 			r.reqLogger.Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", consts.DefaultImageName)
@@ -962,22 +1003,30 @@ func (r *infinispanRequest) scheduleUpgradeIfNeeded(podList *corev1.PodList) (*c
 	return nil, nil
 }
 
-func upgradeRequired(infinispan *infinispanv1.Infinispan, podList *corev1.PodList) (bool, error) {
+func shutdownUpgradeRequired(infinispan *infinispanv1.Infinispan, podList *corev1.PodList) bool {
 	if len(podList.Items) == 0 {
-		return false, nil
+		return false
 	}
 	if infinispan.IsUpgradeCondition() {
-		return false, nil
+		return false
+	}
+
+	if infinispan.Spec.Upgrades != nil && infinispan.Spec.Upgrades.Type != infinispanv1.UpgradeTypeShutdown {
+		return false
 	}
 
 	// All pods need to be ready for the upgrade to be scheduled
-	// Handles brief window during whichstatefulSetForInfinispan resources have been removed,
+	// Handles brief window during which statefulSetForInfinispan resources have been removed,
 	//and old ones terminating while new ones are being created.
 	// We don't want yet another upgrade to be scheduled then.
 	if !kube.AreAllPodsReady(podList) {
-		return false, nil
+		return false
 	}
 
+	return isImageOutdated(podList)
+}
+
+func isImageOutdated(podList *corev1.PodList) bool {
 	// Get default Infinispan image for a running Infinispan pod
 	podDefaultImage := kube.GetPodDefaultImage(*GetContainer(InfinispanContainer, &podList.Items[0].Spec))
 
@@ -986,7 +1035,7 @@ func upgradeRequired(infinispan *infinispanv1.Infinispan, podList *corev1.PodLis
 
 	// If the operator's default image differs from the pod's default image,
 	// schedule an upgrade by gracefully shutting down the current cluster.
-	return podDefaultImage != desiredImage, nil
+	return podDefaultImage != desiredImage
 }
 
 func IsUpgradeRequired(infinispan *infinispanv1.Infinispan, kube *kube.Kubernetes, ctx context.Context) (bool, error) {
@@ -994,12 +1043,7 @@ func IsUpgradeRequired(infinispan *infinispanv1.Infinispan, kube *kube.Kubernete
 	if err != nil {
 		return false, err
 	}
-	return upgradeRequired(infinispan, podList)
-}
-
-func PodList(infinispan *infinispanv1.Infinispan, kube *kube.Kubernetes, ctx context.Context) (*corev1.PodList, error) {
-	podList := &corev1.PodList{}
-	return podList, kube.ResourcesList(infinispan.Namespace, PodLabels(infinispan.Name), podList, ctx)
+	return shutdownUpgradeRequired(infinispan, podList), nil
 }
 
 func podAffinity(i *infinispanv1.Infinispan, matchLabels map[string]string) *corev1.Affinity {
@@ -1094,7 +1138,7 @@ func (r *infinispanRequest) updatePodsLabels(podList *corev1.PodList) error {
 
 // statefulSetForInfinispan returns an infinispan StatefulSet object
 func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret *corev1.Secret,
-	configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string) (*appsv1.StatefulSet, error) {
+	configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string, overlayLog4jConfig bool) (*appsv1.StatefulSet, error) {
 	ispn := r.infinispan
 	reqLogger := r.log.WithValues("Request.Namespace", ispn.Namespace, "Request.Name", ispn.Name)
 	lsPod := PodLabels(ispn.Name)
@@ -1173,17 +1217,13 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	if err != nil {
 		return nil, err
 	}
-	serverConf := &config.InfinispanConfiguration{}
-	if err = yaml.Unmarshal([]byte(configMap.Data[consts.ServerConfigFilename]), serverConf); err != nil {
-		return nil, err
-	}
 	dep := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        ispn.Name,
+			Name:        ispn.GetStatefulSetName(),
 			Namespace:   ispn.Namespace,
 			Annotations: consts.DeploymentAnnotations,
 			Labels:      map[string]string{},
@@ -1215,7 +1255,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 						StartupProbe:   PodStartupProbe(),
 						Resources:      *podResources,
 						VolumeMounts:   volumeMounts,
-						Args:           buildStartupArgs(overlayConfigMapKey, "false"),
+						Args:           buildStartupArgs(overlayConfigMapKey, overlayLog4jConfig, "false"),
 					}},
 					Volumes: volumes,
 				},
@@ -1287,7 +1327,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
 		// Set a storage class if it specified
 		if storageClassName := ispn.StorageClassName(); storageClassName != "" {
-			if _, err := kube.FindStorageClass(storageClassName, r.Client, r.ctx); err != nil {
+			if _, err := kube.LookupResource(storageClassName, ispn.Namespace, &storagev1.StorageClass{}, ispn, r.Client, reqLogger, r.eventRec, r.ctx); err != nil {
 				return nil, err
 			}
 			pvc.Spec.StorageClassName = &storageClassName
@@ -1350,7 +1390,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 }
 
 // getInfinispanConditions returns the pods status and a summary status for the cluster
-func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, cluster ispn.ClusterInterface) []infinispanv1.InfinispanCondition {
+func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, curl *curl.Client) []infinispanv1.InfinispanCondition {
 	var status []infinispanv1.InfinispanCondition
 	clusterViews := make(map[string]bool)
 	var errors []string
@@ -1360,8 +1400,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, clus
 	} else {
 		for _, pod := range pods {
 			if kube.IsPodReady(pod) {
-				members, err := cluster.GetClusterMembers(pod.Name)
-				if err == nil {
+				if members, err := InfinispanForPod(pod.Name, curl).Container().Members(); err == nil {
 					sort.Strings(members)
 					clusterView := strings.Join(members, ",")
 					clusterViews[clusterView] = true
@@ -1374,6 +1413,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, clus
 			}
 		}
 	}
+
 	// Evaluating WellFormed condition
 	wellformed := infinispanv1.InfinispanCondition{Type: infinispanv1.ConditionWellFormed}
 	views := make([]string, len(clusterViews))
@@ -1400,7 +1440,7 @@ func getInfinispanConditions(pods []corev1.Pod, m *infinispanv1.Infinispan, clus
 }
 
 func (r *infinispanRequest) reconcileGracefulShutdown(statefulSet *appsv1.StatefulSet, podList *corev1.PodList,
-	logger logr.Logger, cluster ispn.ClusterInterface) (*ctrl.Result, error) {
+	logger logr.Logger) (*ctrl.Result, error) {
 	ispn := r.infinispan
 	if ispn.Spec.Replicas == 0 {
 		logger.Info(".Spec.Replicas==0")
@@ -1408,7 +1448,7 @@ func (r *infinispanRequest) reconcileGracefulShutdown(statefulSet *appsv1.Statef
 			logger.Info("StatefulSet.Spec.Replicas!=0")
 			// If cluster hasn't a `stopping` condition or it's false then send a graceful shutdown
 			if !ispn.IsConditionTrue(infinispanv1.ConditionStopping) {
-				return r.gracefulShutdownReq(podList, logger, cluster)
+				return r.gracefulShutdownReq(podList, logger)
 			}
 
 			// If the cluster is stopping, then set statefulset replicas and ispn.replicas to 0
@@ -1455,19 +1495,23 @@ func (r *infinispanRequest) reconcileGracefulShutdown(statefulSet *appsv1.Statef
 }
 
 // gracefulShutdownReq send a graceful shutdown request to the cluster
-func (r *infinispanRequest) gracefulShutdownReq(podList *corev1.PodList, logger logr.Logger, cluster ispn.ClusterInterface) (*ctrl.Result, error) {
+func (r *infinispanRequest) gracefulShutdownReq(podList *corev1.PodList, logger logr.Logger) (*ctrl.Result, error) {
 	ispn := r.infinispan
 	logger.Info("Sending graceful shutdown request")
 	// Send a graceful shutdown to the first ready pod. If no pods are ready, then there's nothing to shutdown
 	var shutdownExecuted bool
 	for _, pod := range podList.Items {
 		if kube.IsPodReady(pod) {
-			if err := cluster.GracefulShutdown(pod.GetName()); err != nil {
-				logger.Error(err, "Error encountered on cluster shutdown")
+			ispnClient, err := NewInfinispanForPod(r.ctx, pod.Name, r.infinispan, r.kubernetes)
+			if err != nil {
+				return &ctrl.Result{}, fmt.Errorf("unable to create Infinispan client for ready pod '%s': %w", pod.Name, err)
+			}
 
-				// Calls to /container?action=shutdown will fail on 12.x servers as the method does not exist
-				logger.Info("Container Shutdown failed. Attempting to execute GracefulShutdownTask")
-				if err := cluster.GracefulShutdownTask(pod.GetName()); err != nil {
+			// This will fail on 12.x servers as the method does not exist
+			if err := ispnClient.Container().Shutdown(); err != nil {
+				logger.Error(err, "Error encountered on container shutdown. Attempting to execute GracefulShutdownTask")
+
+				if err := ispnClient.Container().ShutdownTask(); err != nil {
 					logger.Error(err, fmt.Sprintf("Error encountered using GracefulShutdownTask on pod %s", pod.Name))
 					continue
 				} else {
@@ -1496,7 +1540,7 @@ func (r *infinispanRequest) gracefulShutdownReq(podList *corev1.PodList, logger 
 }
 
 // reconcileContainerConf reconcile the .Container struct is changed in .Spec. This needs a cluster restart
-func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulSet, configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string, adminSecret,
+func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulSet, configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string, overlayLog4jConfig bool, adminSecret,
 	userSecret, keystoreSecret, trustSecret *corev1.Secret) (*ctrl.Result, error) {
 	ispn := r.infinispan
 	updateNeeded := false
@@ -1556,7 +1600,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hash.HashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
 	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])) || updateNeeded
 
-	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey, "false"); err != nil {
+	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey, overlayLog4jConfig, "false"); err != nil {
 		return &ctrl.Result{}, err
 	} else {
 		updateNeeded = updateCmdArgs || updateNeeded
@@ -1707,7 +1751,7 @@ type UpdateFn func()
 func (r *infinispanRequest) update(update UpdateFn, ignoreNotFound ...bool) error {
 	ispn := r.infinispan
 	_, err := kube.CreateOrPatch(r.ctx, r.Client, ispn, func() error {
-		if ispn.CreationTimestamp.IsZero() {
+		if ispn.CreationTimestamp.IsZero() || ispn.GetDeletionTimestamp() != nil {
 			return errors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), ispn.Name)
 		}
 		if update != nil {
@@ -1731,18 +1775,35 @@ func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kuberne
 	return podList, kube.ResourcesList(infinispan.Namespace, GossipRouterPodLabels(infinispan.Name), podList, ctx)
 }
 
-func buildStartupArgs(overlayConfigMapKey string, zeroCapacity string) []string {
-	var args []string
-	if overlayConfigMapKey != "" {
-		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-c", "user/" + overlayConfigMapKey, "-c", "operator/infinispan.xml"}
+func buildStartupArgs(overlayConfigMapKey string, overlayLog4jConfig bool, zeroCapacity string) []string {
+	var args strings.Builder
+
+	// Preallocate a buffer to speed up string building (saves code from growing the memory dynamically)
+	args.Grow(110)
+	args.WriteString("-Dinfinispan.zero-capacity-node=")
+	args.WriteString(zeroCapacity)
+
+	// Check if the user defined a custom log4j config
+	args.WriteString(" -l ")
+	if overlayLog4jConfig {
+		args.WriteString("user/log4j.xml")
 	} else {
-		args = []string{"-Dinfinispan.zero-capacity-node=" + zeroCapacity, "-l", OperatorConfMountPath + "/log4j.xml", "-c", "operator/infinispan.xml"}
+		args.WriteString(OperatorConfMountPath)
+		args.WriteString("/log4j.xml")
 	}
-	return args
+
+	// Check if the user defined an overlay operator config
+	if overlayConfigMapKey != "" {
+		args.WriteString(" -c user/")
+		args.WriteString(overlayConfigMapKey)
+	}
+	args.WriteString(" -c operator/infinispan.xml")
+
+	return strings.Fields(args.String())
 }
 
-func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey, zeroCapacity string) (bool, error) {
-	newArgs := buildStartupArgs(overlayConfigMapKey, zeroCapacity)
+func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey string, overlayLog4jConfig bool, zeroCapacity string) (bool, error) {
+	newArgs := buildStartupArgs(overlayConfigMapKey, overlayLog4jConfig, zeroCapacity)
 	ispnContainer := GetContainer(InfinispanContainer, &statefulSet.Spec.Template.Spec)
 	if len(newArgs) == len(ispnContainer.Args) {
 		var changed bool

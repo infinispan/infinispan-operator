@@ -3,19 +3,14 @@ package upgrade
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"github.com/operator-framework/api/pkg/manifests"
@@ -26,7 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,8 +34,8 @@ var (
 	subPackage            = constants.GetEnvWithDefault("SUBSCRIPTION_PACKAGE", "infinispan")
 
 	packageManifest = testKube.PackageManifest(subPackage, catalogSource)
-	sourceChannel   = getChannel("SUBSCRIPTION_CHANNEL_SOURCE", 0, packageManifest)
-	targetChannel   = getChannel("SUBSCRIPTION_CHANNEL_TARGET", 0, packageManifest)
+	sourceChannel   = getChannel("SUBSCRIPTION_CHANNEL_SOURCE", packageManifest)
+	targetChannel   = getChannel("SUBSCRIPTION_CHANNEL_TARGET", packageManifest)
 
 	subStartingCsv = constants.GetEnvWithDefault("SUBSCRIPTION_STARTING_CSV", sourceChannel.CurrentCSVName)
 
@@ -50,7 +44,6 @@ var (
 
 func TestUpgrade(t *testing.T) {
 	printManifest()
-	name := strcase.ToKebab(t.Name())
 
 	testKube.NewNamespace(tutils.Namespace)
 	sub := &coreos.Subscription{
@@ -93,16 +86,21 @@ func TestUpgrade(t *testing.T) {
 	replicas := 2
 	spec := tutils.DefaultSpec(t, testKube)
 	spec.Spec.Replicas = int32(replicas)
+	spec.Spec.Service.Container.EphemeralStorage = false
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
 	numEntries := 100
-	hostAddr, client := tutils.HTTPClientAndHost(spec, testKube)
+	client := tutils.HTTPClientForCluster(spec, testKube)
 	cacheName := "someCache"
-	populateCache(cacheName, hostAddr, numEntries, spec, client)
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+
+	cache := tutils.NewCacheHelper(cacheName, client)
+	config := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}}}`
+	cache.Create(config, mime.ApplicationJson)
+	cache.Populate(numEntries)
+	cache.AssertSize(numEntries)
 
 	// Upgrade the Subscription channel if required
 	if sourceChannel != targetChannel {
@@ -120,9 +118,9 @@ func TestUpgrade(t *testing.T) {
 		})
 
 		// Ensure that the cluster is shutting down
-		testKube.WaitForInfinispanConditionWithTimeout(name, tutils.Namespace, ispnv1.ConditionStopping, conditionTimeout)
+		testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionStopping, conditionTimeout)
 		testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-		testKube.WaitForInfinispanConditionWithTimeout(name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+		testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 		// Validates that all pods are running with desired image
 		expectedImage := testKube.InstalledCSVServerImage(sub)
@@ -137,27 +135,27 @@ func TestUpgrade(t *testing.T) {
 
 		// Ensure that persistent cache entries have survived the upgrade(s)
 		// Refresh the hostAddr and client as the url will change if NodePort is used.
-		hostAddr, client = tutils.HTTPClientAndHost(spec, testKube)
-		assertNumEntries(cacheName, hostAddr, numEntries, client)
+		client = tutils.HTTPClientForCluster(spec, testKube)
+		tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
 	}
 
-	checkServicePorts(t, name)
-	checkBatch(t, name)
+	checkServicePorts(t, spec.Name)
+	checkBatch(t, spec.Name)
 
 	// Kill the first pod to ensure that the cluster can recover from failover after upgrade
 	err := testKube.Kubernetes.Client.Delete(ctx, &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name + "-0",
+			Name:      spec.Name + "-0",
 			Namespace: tutils.Namespace,
 		},
 	})
 	tutils.ExpectNoError(err)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	testKube.WaitForInfinispanConditionWithTimeout(name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+	testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 	// Ensure that persistent cache entries still contain the expected numEntries
-	hostAddr, client = tutils.HTTPClientAndHost(spec, testKube)
-	assertNumEntries(cacheName, hostAddr, numEntries, client)
+	client = tutils.HTTPClientForCluster(spec, testKube)
+	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
 }
 
 func cleanup(t *testing.T) {
@@ -215,7 +213,7 @@ func checkBatch(t *testing.T, name string) {
 }
 
 // Utilise the provided env variable for the channel string if it exists, otherwise retrieve the channel from the PackageManifest
-func getChannel(env string, stackPos int, manifest *manifests.PackageManifest) manifests.PackageChannel {
+func getChannel(env string, manifest *manifests.PackageManifest) manifests.PackageChannel {
 	channels := manifest.Channels
 
 	// If an env variable exists, then return the PackageChannel with that name
@@ -228,15 +226,12 @@ func getChannel(env string, stackPos int, manifest *manifests.PackageManifest) m
 		panic(fmt.Errorf("unable to find channel with name '%s' in PackageManifest", env))
 	}
 
-	semVerIndex := -1
-	for i := len(channels) - 1; i >= 0; i-- {
-		// Hack to find the first channel that uses semantic versioning names. Required for upstream, as old non-sem versioned channels exist, e.g. "stable", "alpha".
-		if strings.ContainsAny(channels[i].Name, ".") {
-			semVerIndex = i
-			break
+	for _, channel := range channels {
+		if channel.Name == manifest.DefaultChannelName {
+			return channel
 		}
 	}
-	return channels[semVerIndex-stackPos]
+	return manifests.PackageChannel{}
 }
 
 func printManifest() {
@@ -246,59 +241,4 @@ func printManifest() {
 	fmt.Println("Source channel: " + sourceChannel.Name)
 	fmt.Println("Target channel: " + targetChannel.Name)
 	fmt.Println("Starting CSV: " + subStartingCsv)
-}
-
-func populateCache(cacheName, host string, numEntries int, infinispan *ispnv1.Infinispan, client tutils.HTTPClient) {
-	post := func(url, payload string, status int, headers map[string]string) {
-		rsp, err := client.Post(url, payload, headers)
-		tutils.ExpectNoError(err)
-		defer tutils.CloseHttpResponse(rsp)
-		if rsp.StatusCode != status {
-			panic(fmt.Sprintf("Unexpected response code %d", rsp.StatusCode))
-		}
-	}
-
-	headers := map[string]string{"Content-Type": "application/json"}
-	url := fmt.Sprintf("%s/rest/v2/caches/%s", host, cacheName)
-	config := `{"distributed-cache":{"mode":"SYNC", "encoding": {"media-type": "application/json"}, "persistence":{"file-store":{"fetch-state":true}}, "statistics":true}}`
-	post(url, config, http.StatusOK, headers)
-
-	for i := 0; i < numEntries; i++ {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s/%d", host, cacheName, i)
-		value := fmt.Sprintf("{\"value\":\"%d\"}", i)
-		post(url, value, http.StatusNoContent, headers)
-	}
-}
-
-func assertNumEntries(cacheName, host string, expectedEntries int, client tutils.HTTPClient) {
-	url := fmt.Sprintf("%s/rest/v2/caches/%s?action=size", host, cacheName)
-	var entries int
-	err := wait.Poll(tutils.DefaultPollPeriod, 30*time.Second, func() (done bool, err error) {
-		rsp, err := client.Get(url, nil)
-		tutils.ExpectNoError(err)
-		if rsp.StatusCode != http.StatusOK {
-			body, _ := ioutil.ReadAll(rsp.Body)
-			panic(fmt.Sprintf("Unexpected response code %d, body='%s'", rsp.StatusCode, body))
-		}
-
-		body, err := ioutil.ReadAll(rsp.Body)
-		tutils.ExpectNoError(rsp.Body.Close())
-		tutils.ExpectNoError(err)
-		numRead, err := strconv.ParseInt(string(body), 10, 64)
-		entries = int(numRead)
-		return entries == expectedEntries, err
-	})
-	if err != nil {
-		url := fmt.Sprintf("%s/rest/v2/caches/%s?action=config", host, cacheName)
-		rsp, err := client.Get(url, map[string]string{"accept": "application/yaml"})
-		if err == nil {
-			body, err := ioutil.ReadAll(rsp.Body)
-			tutils.ExpectNoError(rsp.Body.Close())
-			tutils.ExpectNoError(err)
-			fmt.Printf("%s Config:\n%s", cacheName, string(body))
-		} else {
-			fmt.Printf("Encountered error when trying to retrieve '%s' config: %v", cacheName, err)
-		}
-		panic(fmt.Errorf("Expected %d entries found %d: %w", expectedEntries, entries, err))
-	}
 }
