@@ -4,6 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"testing"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/operator-framework/api/pkg/manifests"
@@ -18,6 +24,53 @@ import (
 func init() {
 	ExpectNoError(coreosv1.AddToScheme(Scheme))
 	ExpectNoError(coreos.AddToScheme(Scheme))
+}
+
+func (k TestKubernetes) CleanupOLMTest(t *testing.T, subName, subNamespace, subPackage string) {
+	panicVal := recover()
+
+	cleanupOlm := func() {
+		opts := []client.DeleteAllOfOption{
+			client.InNamespace(subNamespace),
+			client.MatchingLabels(
+				map[string]string{
+					fmt.Sprintf("operators.coreos.com/%s.%s", subPackage, subNamespace): "",
+				},
+			),
+		}
+
+		testFailed := t != nil && t.Failed()
+		if panicVal != nil || testFailed {
+			dir := fmt.Sprintf("%s/%s", LogOutputDir, TestName(t))
+
+			k.WriteAllResourcesToFile(dir, subNamespace, "OperatorGroup", &coreosv1.OperatorGroupList{}, map[string]string{})
+			k.WriteAllResourcesToFile(dir, subNamespace, "Subscription", &coreos.SubscriptionList{}, map[string]string{})
+			k.WriteAllResourcesToFile(dir, subNamespace, "ClusterServiceVersion", &coreos.ClusterServiceVersionList{}, map[string]string{})
+			// Print 2.1.x Operator pod logs
+			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
+			// Print latest Operator logs
+			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+		}
+
+		// Cleanup OLM resources
+		k.DeleteSubscription(subName, subNamespace)
+		k.DeleteOperatorGroup(subName, subNamespace)
+
+		operatorDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "infinispan-operator-controller-manager",
+				Namespace: subNamespace,
+			},
+		}
+		k.DeleteResource(subNamespace, labels.SelectorFromSet(map[string]string{"control-plane": "controller-manager"}), operatorDeployment, SinglePodTimeout)
+
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(context.TODO(), &coreos.ClusterServiceVersion{}, opts...))
+	}
+	// We must cleanup OLM resources after any Infinispan CRs etc, otherwise the CRDs may have been removed from the cluster
+	defer cleanupOlm()
+
+	// Cleanup Infinispan resources
+	k.CleanNamespaceAndLogWithPanic(t, Namespace, panicVal)
 }
 
 func (k TestKubernetes) CreateOperatorGroup(name, namespace string, targetNamespaces ...string) {

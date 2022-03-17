@@ -13,14 +13,12 @@ import (
 	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"github.com/operator-framework/api/pkg/manifests"
-	coreosv1 "github.com/operator-framework/api/pkg/operators/v1"
 	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -64,7 +62,7 @@ func TestUpgrade(t *testing.T) {
 		},
 	}
 
-	defer cleanup(t)
+	defer testKube.CleanupOLMTest(t, subName, subNamespace, subPackage)
 	// Create OperatorGroup only if Subscription is created in non-global namespace
 	if subNamespace != "openshift-operators" && subNamespace != "operators" {
 		testKube.CreateOperatorGroup(subName, subNamespace, subNamespace)
@@ -156,44 +154,6 @@ func TestUpgrade(t *testing.T) {
 	// Ensure that persistent cache entries still contain the expected numEntries
 	client = tutils.HTTPClientForCluster(spec, testKube)
 	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
-}
-
-func cleanup(t *testing.T) {
-	panicVal := recover()
-
-	cleanupOlm := func() {
-		opts := []client.DeleteAllOfOption{
-			client.InNamespace(subNamespace),
-			client.MatchingLabels(
-				map[string]string{
-					fmt.Sprintf("operators.coreos.com/%s.%s", subPackage, subNamespace): "",
-				},
-			),
-		}
-
-		testFailed := t != nil && t.Failed()
-		if panicVal != nil || testFailed {
-			dir := fmt.Sprintf("%s/%s", tutils.LogOutputDir, tutils.TestName(t))
-
-			testKube.WriteAllResourcesToFile(dir, subNamespace, "OperatorGroup", &coreosv1.OperatorGroupList{}, map[string]string{})
-			testKube.WriteAllResourcesToFile(dir, subNamespace, "Subscription", &coreos.SubscriptionList{}, map[string]string{})
-			testKube.WriteAllResourcesToFile(dir, subNamespace, "ClusterServiceVersion", &coreos.ClusterServiceVersionList{}, map[string]string{})
-			// Print 2.1.x Operator pod logs
-			testKube.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
-			// Print latest Operator logs
-			testKube.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
-		}
-
-		// Cleanup OLM resources
-		testKube.DeleteSubscription(subName, subNamespace)
-		testKube.DeleteOperatorGroup(subName, subNamespace)
-		tutils.ExpectMaybeNotFound(testKube.Kubernetes.Client.DeleteAllOf(ctx, &coreos.ClusterServiceVersion{}, opts...))
-	}
-	// We must cleanup OLM resources after any Infinispan CRs etc, otherwise the CRDs may have been removed from the cluster
-	defer cleanupOlm()
-
-	// Cleanup Infinispan resources
-	testKube.CleanNamespaceAndLogWithPanic(t, tutils.Namespace, panicVal)
 }
 
 func checkServicePorts(t *testing.T, name string) {

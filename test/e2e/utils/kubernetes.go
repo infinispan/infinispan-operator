@@ -930,10 +930,10 @@ func (k *TestKubernetes) WaitForDeployment(name, namespace string) {
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, deployment)
 		if err != nil && k8serrors.IsNotFound(err) {
-			return false, err
+			return false, nil
 		}
 		if err != nil {
-			return false, nil
+			return false, err
 		}
 
 		for _, condition := range deployment.Status.Conditions {
