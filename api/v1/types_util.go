@@ -116,7 +116,7 @@ func (ispn *Infinispan) SetCondition(condition ConditionType, status metav1.Cond
 }
 
 // SetConditions set provided conditions to status
-func (ispn *Infinispan) SetConditions(conds []InfinispanCondition) bool {
+func (ispn *Infinispan) SetConditions(conds ...InfinispanCondition) bool {
 	changed := false
 	for _, c := range conds {
 		changed = changed || ispn.SetCondition(c.Type, c.Status, c.Message)
@@ -860,4 +860,16 @@ func (ispn *Infinispan) IsConfigListenerEnabled() bool {
 
 func (ispn *Infinispan) GetConfigListenerName() string {
 	return fmt.Sprintf("%s-config-listener", ispn.Name)
+}
+
+func (ispn *Infinispan) UserConfigDefined() bool {
+	return ispn.Spec.ConfigMapName != ""
+}
+
+func (ispn *Infinispan) GracefulShutdownUpgrades() bool {
+	return ispn.Spec.Upgrades == nil || ispn.Spec.Upgrades.Type == UpgradeTypeShutdown
+}
+
+func (ispn *Infinispan) HotRodRollingUpgrades() bool {
+	return ispn.Spec.Upgrades != nil && ispn.Spec.Upgrades.Type == UpgradeTypeHotRodRolling
 }

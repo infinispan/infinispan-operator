@@ -9,7 +9,6 @@ import (
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	"github.com/prometheus/common/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -26,9 +25,10 @@ import (
 )
 
 const (
-	BatchFilename   = "batch"
-	BatchVolumeName = "batch-volume"
-	BatchVolumeRoot = "/etc/batch"
+	BatchFilename             = "batch"
+	BatchVolumeName           = "batch-volume"
+	BatchVolumeRoot           = "/etc/batch"
+	AdminIdentitiesVolumeName = "admin-identities-volume"
 )
 
 // BatchReconciler reconciles a Batch object
@@ -117,7 +117,7 @@ func (r *batchRequest) initializeResources() (reconcile.Result, error) {
 	}
 
 	if err := infinispan.EnsureClusterStability(); err != nil {
-		log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", spec.Cluster, err.Error()))
+		r.log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", spec.Cluster, err.Error()))
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 

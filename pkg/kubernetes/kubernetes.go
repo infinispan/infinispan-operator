@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"sort"
 
@@ -89,6 +90,10 @@ func (k Kubernetes) IsGroupVersionSupported(groupVersion string, kind string) (b
 	}
 
 	return false, nil
+}
+
+func (k Kubernetes) IsGroupVersionKindSupported(gvk schema.GroupVersionKind) (bool, error) {
+	return k.IsGroupVersionSupported(gvk.GroupVersion().String(), gvk.Kind)
 }
 
 // GetSecret returns secret associated with given secret name

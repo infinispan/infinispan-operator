@@ -1,64 +1,67 @@
-package controllers
+package provision
 
 import (
 	"fmt"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 
-	v1 "github.com/infinispan/infinispan-operator/api/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const InfinispanListenerContainer = "infinispan-listener"
 
-func (r *infinispanRequest) ReconcileConfigListener() error {
+func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	if !i.IsConfigListenerEnabled() {
+		RemoveConfigListener(i, ctx)
+		return
+	}
+
 	if constants.ConfigListenerImageName == "" {
 		err := fmt.Errorf("'%s' has not been defined", constants.ConfigListenerEnvName)
-		r.log.Error(err, "unable to create ConfigListener deployment")
-		return err
+		ctx.Log().Error(err, "unable to create ConfigListener deployment")
+		ctx.Requeue(err)
+		return
 	}
-	name := r.infinispan.GetConfigListenerName()
-	namespace := r.infinispan.Namespace
-	deployment := &appsv1.Deployment{}
+
+	r := ctx.Resources()
+	name := i.GetConfigListenerName()
+	namespace := i.Namespace
+
 	objectMeta := metav1.ObjectMeta{
 		Name:      name,
 		Namespace: namespace,
 	}
 
-	listenerExists := r.Client.Get(r.ctx, types.NamespacedName{Namespace: namespace, Name: name}, deployment) == nil
+	deployment := &appsv1.Deployment{}
+	listenerExists := r.Load(name, deployment) == nil
 	if listenerExists {
-		container := GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
+		container := kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
 		if container != nil && container.Image == constants.ConfigListenerImageName {
 			// The Deployment already exists with the expected image, do nothing
-			return nil
+			return
 		}
 	}
 
 	createOrUpdate := func(obj client.Object) error {
 		if listenerExists {
-			return r.Client.Update(r.ctx, obj)
+			return r.Update(obj, pipeline.RetryOnErr)
+		} else {
+			return r.Create(obj, true, pipeline.RetryOnErr)
 		}
-		err := controllerutil.SetControllerReference(r.infinispan, obj, r.scheme)
-		if err != nil {
-			return err
-		}
-		return r.Client.Create(r.ctx, obj)
 	}
-
 	// Create a ServiceAccount in the cluster namespace so that the ConfigListener has the required API permissions
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: objectMeta,
 	}
 	if err := createOrUpdate(sa); err != nil {
-		return err
+		return
 	}
 
 	role := &rbacv1.Role{
@@ -78,7 +81,7 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 				},
 			},
 			{
-				APIGroups: []string{v1.GroupVersion.Group},
+				APIGroups: []string{ispnv1.GroupVersion.Group},
 				Resources: []string{"infinispans"},
 				Verbs:     []string{"get"},
 			}, {
@@ -98,7 +101,7 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 		},
 	}
 	if err := createOrUpdate(role); err != nil {
-		return err
+		return
 	}
 
 	roleBinding := &rbacv1.RoleBinding{
@@ -115,11 +118,11 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 		}},
 	}
 	if err := createOrUpdate(roleBinding); err != nil {
-		return err
+		return
 	}
 
 	// The deployment doesn't exist, create it
-	labels := r.infinispan.PodLabels()
+	labels := i.PodLabels()
 	labels["app"] = "infinispan-config-listener-pod"
 	deployment = &appsv1.Deployment{
 		ObjectMeta: objectMeta,
@@ -141,7 +144,7 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 								"-namespace",
 								namespace,
 								"-cluster",
-								r.infinispan.Name,
+								i.Name,
 							},
 						},
 					},
@@ -150,57 +153,23 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 			},
 		},
 	}
-	return createOrUpdate(deployment)
+	if err := createOrUpdate(deployment); err != nil {
+		return
+	}
 }
 
-func (r *infinispanRequest) DeleteConfigListener() error {
-	objectMeta := metav1.ObjectMeta{
-		Name:      r.infinispan.GetConfigListenerName(),
-		Namespace: r.infinispan.Namespace,
+func RemoveConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	resources := []client.Object{
+		&appsv1.Deployment{},
+		&rbacv1.Role{},
+		&rbacv1.RoleBinding{},
+		&corev1.ServiceAccount{},
 	}
 
-	ignoreNotFoundError := func(err error) error {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-		return nil
-	}
-
-	deleteResource := func(obj client.Object) error {
-		err := r.Client.Delete(r.ctx, obj)
-		return ignoreNotFoundError(err)
-	}
-
-	if err := deleteResource(&appsv1.Deployment{ObjectMeta: objectMeta}); err != nil {
-		return err
-	}
-
-	if err := deleteResource(&rbacv1.RoleBinding{ObjectMeta: objectMeta}); err != nil {
-		return err
-	}
-
-	if err := deleteResource(&rbacv1.Role{ObjectMeta: objectMeta}); err != nil {
-		return err
-	}
-
-	if err := deleteResource(&corev1.ServiceAccount{ObjectMeta: objectMeta}); err != nil {
-		return err
-	}
-
-	// Remove any Cache CR instances owned by Infinispan as these were created by the Listener
-	cacheList := &v2alpha1.CacheList{}
-	if err := r.kubernetes.Client.List(r.ctx, cacheList, &client.ListOptions{Namespace: r.infinispan.Namespace}); err != nil {
-		return fmt.Errorf("unable to rerieve existing Cache resources: %w", err)
-	}
-
-	// Iterate over all existing CRs, marking for deletion any that do not have a cache definition on the server
-	for _, cache := range cacheList.Items {
-		if kube.IsOwnedBy(&cache, r.infinispan) {
-			cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete] = "true"
-			if err := r.kubernetes.Client.Update(r.ctx, &cache); err != nil {
-				return ignoreNotFoundError(err)
-			}
+	name := i.GetConfigListenerName()
+	for _, obj := range resources {
+		if err := ctx.Resources().Delete(name, obj, pipeline.RetryOnErr); err != nil {
+			return
 		}
 	}
-	return nil
 }

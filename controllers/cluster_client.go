@@ -11,6 +11,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	. "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 )
 
 // NewInfinispan returns a new api.Infinispan client using the first pod in the cluster's StatefulSet
@@ -49,14 +50,4 @@ func NewCurlClient(ctx context.Context, podName string, i *v1.Infinispan, kubern
 		Port:      consts.InfinispanAdminPort,
 	}, kubernetes)
 	return curlClient, nil
-}
-
-// InfinispanForPod return a api.Infinispan based upon a clone of the provided curl.Client that uses the provided podname
-// This method should be preferred over NewInfinispanForPod when a curl.Client already exists in order to prevent duplicate
-// lookups of the admin credentials
-func InfinispanForPod(podName string, c *curl.Client) api.Infinispan {
-	cloneConfig := c.Config
-	cloneConfig.Podname = podName
-	curl := curl.New(cloneConfig, c.Kubernetes)
-	return client.New(curl)
 }

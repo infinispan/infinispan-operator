@@ -71,24 +71,23 @@ const (
 	CacheServiceJavaOptions                 = "-Xmx%dM -Xms%dM -XX:MaxRAM=%dM -Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=%d -XX:MaxHeapFreeRatio=%d %s"
 	CacheServiceNativeJavaOptions           = "-Xmx%dM -Xms%dM -Dsun.zip.disableMemoryMapping=true %s"
 
-	NativeImageMarker           = "native"
-	GeneratedSecretSuffix       = "generated-secret"
-	InfinispanFinalizer         = "finalizer.infinispan.org"
-	ServerEncryptRoot           = "/etc/encrypt"
-	ServerEncryptTruststoreRoot = ServerEncryptRoot + "/truststore"
-	ServerEncryptKeystoreRoot   = ServerEncryptRoot + "/keystore"
-	SiteTransportKeyStoreRoot   = ServerEncryptRoot + "/transport-site-tls"
-	SiteRouterKeyStoreRoot      = ServerEncryptRoot + "/router-site-tls"
-	SiteTrustStoreRoot          = ServerEncryptRoot + "/truststore-site-tls"
-	ServerSecurityRoot          = "/etc/security"
-	ServerConfigFilename        = "infinispan.xml"
-	ServerIdentitiesFilename    = "identities.yaml"
-	CliPropertiesFilename       = "cli.properties"
-	ServerIdentitiesCliFilename = "identities.cli"
-	ServerAdminIdentitiesRoot   = ServerSecurityRoot + "/admin"
-	ServerUserIdentitiesRoot    = ServerSecurityRoot + "/user"
-	ServerOperatorSecurity      = ServerSecurityRoot + "/conf/operator-security"
-	ServerRoot                  = "/opt/infinispan/server"
+	NativeImageMarker             = "native"
+	GeneratedSecretSuffix         = "generated-secret"
+	InfinispanFinalizer           = "finalizer.infinispan.org"
+	ServerEncryptRoot             = "/etc/encrypt"
+	ServerEncryptTruststoreRoot   = ServerEncryptRoot + "/truststore"
+	ServerEncryptKeystoreRoot     = ServerEncryptRoot + "/keystore"
+	SiteTransportKeyStoreRoot     = ServerEncryptRoot + "/transport-site-tls"
+	SiteRouterKeyStoreRoot        = ServerEncryptRoot + "/router-site-tls"
+	SiteTrustStoreRoot            = ServerEncryptRoot + "/truststore-site-tls"
+	ServerSecurityRoot            = "/etc/security"
+	ServerIdentitiesFilename      = "identities.yaml"
+	CliPropertiesFilename         = "cli.properties"
+	ServerIdentitiesBatchFilename = "identities.cli"
+	ServerAdminIdentitiesRoot     = ServerSecurityRoot + "/admin"
+	ServerUserIdentitiesRoot      = ServerSecurityRoot + "/user"
+	ServerOperatorSecurity        = ServerSecurityRoot + "/conf/operator-security"
+	ServerRoot                    = "/opt/infinispan/server"
 
 	EncryptTruststoreKey         = "truststore.p12"
 	EncryptTruststorePasswordKey = "truststore-password"
@@ -118,13 +117,6 @@ const (
 	DefaultWaitClusterNotWellFormed = 15 * time.Second
 	// DefaultWaitPodsNotReady wait delay until cluster pods are ready
 	DefaultWaitClusterPodsNotReady = 2 * time.Second
-)
-
-const (
-	ExternalTypeService = "Service"
-	ExternalTypeRoute   = "Route"
-	ExternalTypeIngress = "Ingress"
-	ServiceMonitorType  = "ServiceMonitor"
 )
 
 const DefaultKubeConfig = "~/.kube/config"

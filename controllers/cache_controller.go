@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/manage"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"regexp"
 	"strconv"
@@ -291,7 +292,7 @@ func (r *cacheRequest) reconcileCacheService(cacheExists bool, cache api.Cache) 
 		return err
 	}
 
-	template, err := DefaultCacheTemplateXML(podList.Items[0].Name, r.infinispan, r.kubernetes, r.reqLogger)
+	template, err := manage.DefaultCacheTemplateXML(podList.Items[0].Name, r.infinispan, r.kubernetes, r.reqLogger)
 	if err != nil {
 		err = fmt.Errorf("unable to obtain default cache template: %w", err)
 		r.reqLogger.Error(err, "Error getting default XML")
@@ -579,32 +580,4 @@ func unmarshallEventConfig(data []byte) (string, string, error) {
 		return "", "", fmt.Errorf("unable to marshall cache configuration: %w", err)
 	}
 	return cacheName, string(configYaml), nil
-}
-
-func DefaultCacheTemplateXML(podName string, infinispan *v1.Infinispan, k8 *kube.Kubernetes, logger logr.Logger) (string, error) {
-	namespace := infinispan.Namespace
-	memoryLimitBytes, err := GetPodMemoryLimitBytes(podName, namespace, k8)
-	if err != nil {
-		logger.Error(err, "unable to extract memory limit (bytes) from pod")
-		return "", err
-	}
-
-	maxUnboundedMemory, err := GetPodMaxMemoryUnboundedBytes(podName, namespace, k8)
-	if err != nil {
-		logger.Error(err, "unable to extract max memory unbounded from pod")
-		return "", err
-	}
-
-	containerMaxMemory := maxUnboundedMemory
-	if memoryLimitBytes < maxUnboundedMemory {
-		containerMaxMemory = memoryLimitBytes
-	}
-
-	nativeMemoryOverhead := containerMaxMemory * (constants.CacheServiceJvmNativePercentageOverhead / 100)
-	evictTotalMemoryBytes := containerMaxMemory - (constants.CacheServiceJvmNativeMb * 1024 * 1024) - (constants.CacheServiceFixedMemoryXmxMb * 1024 * 1024) - nativeMemoryOverhead
-	replicationFactor := infinispan.Spec.Service.ReplicationFactor
-
-	logger.Info("calculated maximum off-heap size", "size", evictTotalMemoryBytes, "container max memory", containerMaxMemory, "memory limit (bytes)", memoryLimitBytes, "max memory bound", maxUnboundedMemory)
-
-	return fmt.Sprintf(constants.DefaultCacheTemplate, constants.DefaultCacheName, replicationFactor, evictTotalMemoryBytes), nil
 }

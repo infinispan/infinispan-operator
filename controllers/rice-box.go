@@ -10,7 +10,7 @@ import (
 func init() {
 
 	// define files
-	file4 := &embedded.EmbeddedFile{
+	file2 := &embedded.EmbeddedFile{
 		Filename:    "grafana_dashboard.json",
 		FileModTime: time.Unix(1620137619, 0),
 
@@ -18,27 +18,27 @@ func init() {
 	}
 
 	// define dirs
-	dir3 := &embedded.EmbeddedDir{
+	dir1 := &embedded.EmbeddedDir{
 		Filename:   "",
 		DirModTime: time.Unix(1620137619, 0),
 		ChildFiles: []*embedded.EmbeddedFile{
-			file4, // "grafana_dashboard.json"
+			file2, // "grafana_dashboard.json"
 
 		},
 	}
 
 	// link ChildDirs
-	dir3.ChildDirs = []*embedded.EmbeddedDir{}
+	dir1.ChildDirs = []*embedded.EmbeddedDir{}
 
 	// register embeddedBox
 	embedded.RegisterEmbeddedBox(`resources`, &embedded.EmbeddedBox{
 		Name: `resources`,
 		Time: time.Unix(1620137619, 0),
 		Dirs: map[string]*embedded.EmbeddedDir{
-			"": dir3,
+			"": dir1,
 		},
 		Files: map[string]*embedded.EmbeddedFile{
-			"grafana_dashboard.json": file4,
+			"grafana_dashboard.json": file2,
 		},
 	})
 }
