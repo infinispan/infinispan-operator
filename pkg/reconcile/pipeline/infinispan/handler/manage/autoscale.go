@@ -1,17 +1,15 @@
-package controllers
+package manage
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	"github.com/prometheus/common/log"
+	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -22,9 +20,11 @@ var autoscaleThreadPool = struct {
 	m map[types.NamespacedName]int
 }{m: make(map[types.NamespacedName]int)}
 
-// Starting a go routine that does polling autoscaling on an Infinispan cluster
-func (r *infinispanRequest) addAutoscalingEquipment() {
-	clusterNsn := r.req.NamespacedName
+func AutoScaling(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	if i.Spec.Autoscale == nil {
+		return
+	}
+	clusterNsn := types.NamespacedName{Name: i.Name, Namespace: i.Name}
 	autoscaleThreadPool.Lock()
 	_, ok := autoscaleThreadPool.m[clusterNsn]
 	autoscaleThreadPool.Unlock()
@@ -32,19 +32,21 @@ func (r *infinispanRequest) addAutoscalingEquipment() {
 		autoscaleThreadPool.Lock()
 		autoscaleThreadPool.m[clusterNsn] = 1
 		autoscaleThreadPool.Unlock()
-		go r.autoscalerLoop()
+		// Starting a go routine that does polling autoscaling on an Infinispan cluster
+		go autoscalerLoop(ctx, clusterNsn)
 	}
 }
 
-func (r *infinispanRequest) autoscalerLoop() {
-	clusterNsn := r.req.NamespacedName
+func autoscalerLoop(ctx pipeline.Context, clusterNsn types.NamespacedName) {
+	log := ctx.Log()
+	resources := ctx.Resources()
+
 	log.Info(fmt.Sprintf("Starting loop for autoscaling on cluster %v", clusterNsn))
 	for {
 		time.Sleep(constants.DefaultMinimumAutoscalePollPeriod)
-		ispn := infinispanv1.Infinispan{}
+		ispn := &ispnv1.Infinispan{}
 		// Check all the cluster in the namespace for autoscaling
-		err := r.Client.Get(r.ctx, clusterNsn, &ispn)
-		if err != nil {
+		if err := resources.Load(clusterNsn.Name, ispn, pipeline.InvalidateCache, pipeline.SkipEventRec); err != nil {
 			if errors.IsNotFound(err) {
 				// Ispn cluster doesn't exists any more
 				autoscaleThreadPool.Lock()
@@ -76,7 +78,7 @@ func (r *infinispanRequest) autoscalerLoop() {
 		// Data memory percent usage array, one value per pod
 		metricDataMemoryPercentUsed := map[string]int{}
 		podList := &corev1.PodList{}
-		if err = r.kubernetes.ResourcesList(ispn.Namespace, ispn.Labels(""), podList, r.ctx); err != nil {
+		if err := resources.List(nil, podList); err != nil {
 			continue
 		}
 
@@ -84,38 +86,32 @@ func (r *infinispanRequest) autoscalerLoop() {
 		for _, pItem := range podList.Items {
 			podName := pItem.Name
 
-			ispnClient, err := NewInfinispanForPod(r.ctx, podName, &ispn, r.kubernetes)
-			if err != nil {
-				log.Error(err, "unable to create Infinispan client", "podName", podName)
-				skipAutoscale = true
-				break
-			}
-
+			ispnClient := ctx.InfinispanClientForPod(podName)
 			if metricMinPodNum == 0 {
-				metricMinPodNum, err = getMetricMinPodNum(podName, ispnClient.Metrics())
+				var err error
+				metricMinPodNum, err = getMetricMinPodNum(ctx, ispnClient.Metrics())
 				if err != nil {
 					log.Error(err, "Unable to get metricMinPodNum for pod", "podName", podName)
 				}
 			}
-			err = getMetricDataMemoryPercentUsage(&metricDataMemoryPercentUsed, podName, ispnClient.Metrics())
-			if err != nil {
+			if err := getMetricDataMemoryPercentUsage(ctx, &metricDataMemoryPercentUsed, podName, ispnClient.Metrics()); err != nil {
 				log.Error(err, "Unable to get DataMemoryUsed for pod", "podName", podName)
 			}
 		}
 
 		if !skipAutoscale {
-			autoscaleOnPercentUsage(r.ctx, &metricDataMemoryPercentUsed, metricMinPodNum, &ispn, r.kubernetes)
+			autoscaleOnPercentUsage(ctx, &metricDataMemoryPercentUsed, metricMinPodNum, ispn)
 		}
 	}
 }
 
 // getMetricMinPodNum get the minimum number of nodes required to avoid data lost
-func getMetricMinPodNum(podName string, metrics api.Metrics) (int32, error) {
+func getMetricMinPodNum(ctx pipeline.Context, metrics api.Metrics) (int32, error) {
 	res, err := metrics.Get("vendor/cache_manager_default_cache_default_cluster_cache_stats_required_minimum_number_of_nodes")
 	if err != nil {
 		return 0, err
 	}
-	log.Info(res.String())
+	ctx.Log().Info(res.String())
 	minNumOfNodes := map[string]int32{}
 	err = json.Unmarshal(res.Bytes(), &minNumOfNodes)
 	if err != nil {
@@ -132,7 +128,8 @@ func getMetricMinPodNum(podName string, metrics api.Metrics) (int32, error) {
 	return ret, nil
 }
 
-func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, metrics api.Metrics) error {
+func getMetricDataMemoryPercentUsage(ctx pipeline.Context, m *map[string]int, podName string, metrics api.Metrics) error {
+	log := ctx.Log()
 	res, err := metrics.Get("vendor/cache_manager_default_cache_container_stats_data_memory_used")
 	if err != nil {
 		return err
@@ -170,7 +167,8 @@ func getMetricDataMemoryPercentUsage(m *map[string]int, podName string, metrics 
 	return nil
 }
 
-func autoscaleOnPercentUsage(ctx context.Context, usage *map[string]int, minPodNum int32, ispn *infinispanv1.Infinispan, kubernetes *kube.Kubernetes) {
+func autoscaleOnPercentUsage(ctx pipeline.Context, usage *map[string]int, minPodNum int32, ispn *ispnv1.Infinispan) {
+	log := ctx.Log()
 	hiTh := ispn.Spec.Autoscale.MaxMemUsagePercent
 	loTh := ispn.Spec.Autoscale.MinMemUsagePercent
 	maxReplicas := ispn.Spec.Autoscale.MaxReplicas
@@ -191,11 +189,10 @@ func autoscaleOnPercentUsage(ctx context.Context, usage *map[string]int, minPodN
 				break
 			}
 		}
-		// Downscale or upscale acting directly on infinispan.spec.replicas field
+		// Downscale or upscale acting directly on i.spec.replicas field
 		if upscale && ispn.Spec.Replicas < ispn.Spec.Autoscale.MaxReplicas {
 			ispn.Spec.Replicas++
-			err := kubernetes.Client.Update(ctx, ispn)
-			if err != nil {
+			if err := ctx.Resources().Update(ispn); err != nil {
 				log.Error(err, "Unable to upscale")
 			}
 			log.Info("Upscaling cluster", "Name", ispn.Name, "New Replicas", ispn.Spec.Replicas)
@@ -203,8 +200,7 @@ func autoscaleOnPercentUsage(ctx context.Context, usage *map[string]int, minPodN
 		}
 		if downscale && ispn.Spec.Replicas > minPodNum && ispn.Spec.Replicas > ispn.Spec.Autoscale.MinReplicas {
 			ispn.Spec.Replicas--
-			err := kubernetes.Client.Update(ctx, ispn)
-			if err != nil {
+			if err := ctx.Resources().Update(ispn); err != nil {
 				log.Error(err, "Unable to downscale")
 			}
 			log.Info("Downscaling cluster", "Name", ispn.Name, "New Replicas", ispn.Spec.Replicas)

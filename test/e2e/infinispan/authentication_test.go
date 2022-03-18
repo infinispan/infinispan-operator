@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -211,13 +212,11 @@ func TestUpdateOperatorPassword(t *testing.T) {
 	tutils.ExpectNoError(err)
 
 	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (bool, error) {
-		secret, err = testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace, context.TODO())
+		secret, err = testKube.Kubernetes.GetSecret(spec.GetInfinispanSecuritySecretName(), spec.Namespace, context.TODO())
 		tutils.ExpectNoError(err)
-		identities := secret.Data[cconsts.ServerIdentitiesFilename]
-		pwd, err := users.FindPassword(cconsts.DefaultOperatorUser, identities)
-		tutils.ExpectNoError(err)
-		fmt.Printf("Pwd=%s, Identities=%s", pwd, string(identities))
-		return pwd == newPassword, nil
+		identitiesBatch := string(secret.Data[cconsts.ServerIdentitiesBatchFilename])
+		// Ensure the IDENTITIES_BATCH file has been updated to use the latest password
+		return strings.Contains(identitiesBatch, fmt.Sprintf("user create operator --realm admin -p %s", newPassword)), nil
 	})
 	tutils.ExpectNoError(err)
 }

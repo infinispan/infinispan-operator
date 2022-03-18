@@ -2,8 +2,9 @@ package infinispan
 
 import (
 	"fmt"
-	"github.com/infinispan/infinispan-operator/controllers"
 	"testing"
+
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -207,13 +208,13 @@ func TestUserCustomConfigRemove(t *testing.T) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 
 		for _, volume := range ss.Spec.Template.Spec.Volumes {
-			if volume.Name == controllers.UserConfVolumeName {
+			if volume.Name == provision.UserConfVolumeName {
 				panic("Custom Config Volume still exists")
 			}
 		}
 
 		for _, volumeMount := range ss.Spec.Template.Spec.Containers[0].VolumeMounts {
-			if volumeMount.Name == controllers.UserConfVolumeName {
+			if volumeMount.Name == provision.UserConfVolumeName {
 				panic("Custom Config VolumeMount still exists")
 			}
 		}

@@ -50,8 +50,7 @@ lint: golangci-lint
 .PHONY: test
 ## Execute tests
 test: manager manifests envtest
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./api/... -coverprofile cover.out -v
-	go test ./controllers/... -v
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./api/... ./controllers/... ./pkg/... -coverprofile cover.out
 
 .PHONY: infinispan-test
 ## Execute end to end (e2e) tests for Infinispan CRs
@@ -157,7 +156,7 @@ vet:
 generate: controller-gen rice
 	$(CONTROLLER_GEN) object paths="./..."
 # Generate rice-box files and fix timestamp value
-	$(RICE) embed-go -i controllers/dependencies.go -i controllers/grafana.go -i pkg/templates/templates.go
+	$(RICE) embed-go -i controllers/grafana.go -i pkg/templates/templates.go
 	find . -type f -name 'rice-box.go' -exec sed -i "s|time.Unix(.*, 0)|time.Unix(1620137619, 0)|" {} \;
 
 .PHONY: operator-build
