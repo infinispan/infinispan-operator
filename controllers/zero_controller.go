@@ -311,15 +311,18 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 		Spec: corev1.PodSpec{
 			SecurityContext: podSecurityCtx,
 			Containers: []corev1.Container{{
-				Image:          ispn.ImageName(),
-				Name:           InfinispanContainer,
-				Env:            PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesCliFilename}}),
-				LivenessProbe:  PodLivenessProbe(),
-				Ports:          PodPorts(),
+				Image:         ispn.ImageName(),
+				Name:          InfinispanContainer,
+				Env:           PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesCliFilename}}),
+				LivenessProbe: PodLivenessProbe(),
+				Ports: []corev1.ContainerPort{
+					{ContainerPort: consts.InfinispanAdminPort, Name: consts.InfinispanAdminPortName, Protocol: corev1.ProtocolTCP},
+					{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
+				},
 				ReadinessProbe: PodReadinessProbe(),
 				Resources:      *podResources,
 				StartupProbe:   PodStartupProbe(),
-				Args:           buildStartupArgs("", false, "true"),
+				Args:           []string{"-c", "operator/infinispan-zero.xml", "-l", OperatorConfMountPath + "/log4j.xml"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      ConfigVolumeName,
@@ -375,12 +378,6 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 
 	if zeroSpec.Volume.UpdatePermissions {
 		AddVolumeChmodInitContainer("backup-chmod-pv", name, zeroSpec.Volume.MountPath, &pod.Spec)
-	}
-
-	AddVolumeForUserAuthentication(ispn, &pod.Spec)
-
-	if ispn.IsEncryptionEnabled() {
-		AddVolumesForEncryption(ispn, &pod.Spec)
 	}
 	return pod, nil
 }

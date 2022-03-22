@@ -652,7 +652,7 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap
 		return configMap, reconcile.Result{}, err
 	}
 
-	serverConfig, result, err := GenerateServerConfig(targetStatefulSetName, r.infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
+	serverConfig, zeroConfig, result, err := GenerateServerConfig(targetStatefulSetName, r.infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
 	if result != nil {
 		return nil, *result, err
 	}
@@ -666,7 +666,7 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap
 	if err != nil {
 		return nil, reconcile.Result{}, err
 	}
-	InitServerConfigMap(configMap, r.infinispan, serverConfig, log4jXml)
+	InitServerConfigMap(configMap, r.infinispan, serverConfig, zeroConfig, log4jXml)
 
 	return configMap, reconcile.Result{}, r.Create(r.ctx, configMap)
 }

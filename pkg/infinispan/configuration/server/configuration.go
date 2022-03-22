@@ -115,3 +115,15 @@ func Generate(v *version.Version, spec *Spec) (string, error) {
 		return "", version.UnknownError(v)
 	}
 }
+
+func GenerateZeroCapacity(v *version.Version, spec *Spec) (string, error) {
+	if v == nil {
+		v = &version.Version{Major: 13, Minor: 0, Patch: 0}
+	}
+	switch v.Major {
+	case 13:
+		return templates.LoadAndExecute("infinispan-zero-13.xml", funcMap, spec)
+	default:
+		return "", version.UnknownError(v)
+	}
+}

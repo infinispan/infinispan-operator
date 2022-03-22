@@ -2,12 +2,10 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="urn:infinispan:config:13.0 https://infinispan.org/schemas/infinispan-config-13.0.xsd
                         urn:infinispan:server:13.0 https://infinispan.org/schemas/infinispan-server-13.0.xsd
-                        urn:infinispan:config:clustered-locks:13.0 https://infinispan.org/schemas/infinispan-clustered-locks-config-13.0.xsd
                         urn:org:jgroups http://www.jgroups.org/schema/jgroups-4.2.xsd
                         urn:infinispan:config:cloudevents:13.0 https://infinispan.org/schemas/infinispan-cloudevents-config-13.0.xsd"
     xmlns="urn:infinispan:config:13.0"
     xmlns:server="urn:infinispan:server:13.0"
-    xmlns:locks="urn:infinispan:config:clustered-locks:13.0"
     xmlns:ce="urn:infinispan:config:cloudevents:13.0">
 
 <jgroups>
@@ -51,7 +49,7 @@
     </stack>
     {{ end }} {{ end }}
 </jgroups>
-<cache-container name="default" statistics="true" zero-capacity-node="${infinispan.zero-capacity-node:false}">
+<cache-container name="default" statistics="true">
     {{ if .Infinispan.Authorization.Enabled }}
     <security>
         <authorization>
