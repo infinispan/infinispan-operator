@@ -2,6 +2,13 @@ package org.infinispan.operator;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.apps.StatefulSet;
@@ -28,6 +35,8 @@ import cz.xtf.client.Http;
 import cz.xtf.core.http.Https;
 import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
+import cz.xtf.core.openshift.PodShell;
+import cz.xtf.core.waiting.Waiters;
 import cz.xtf.junit5.annotations.CleanBeforeAll;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -87,6 +96,33 @@ class DataGridServiceIT {
       infinispan.delete();
 
       new CleanUpValidator(openShift, appName).withExposedRoute().withServiceMonitor().validate();
+   }
+
+   /**
+    * Retrieves targets from Prometheus instance and verifies that Infinispan pods are up and healthy.
+    */
+   @Test
+   void serviceMonitorTest() throws IOException {
+      // Give Prometheus some time to reload the config and make the first scrape
+      Waiters.sleep(TimeUnit.SECONDS, 60);
+
+      // Check ServiceMonitor targets
+      OpenShift monitoringShift = OpenShifts.master("openshift-user-workload-monitoring");
+      Pod prometheus = monitoringShift.getAnyPod("prometheus", "user-workload");
+      PodShell shell = new PodShell(monitoringShift, prometheus, "prometheus");
+      String targets = shell.executeWithBash("curl http://localhost:9090/api/v1/targets?state=active").getOutput();
+      JsonNode activeTargets = new ObjectMapper().readTree(targets).get("data").get("activeTargets");
+
+      List<JsonNode> actualList = StreamSupport.stream(activeTargets.spliterator(), false).collect(Collectors.toList());
+      List<String> targetIPs = actualList.stream().map(t -> t.get("discoveredLabels").get("__meta_kubernetes_pod_ip").asText()).collect(Collectors.toList());
+      List<String> targetHealths = actualList.stream().map(t -> t.get("health").asText()).collect(Collectors.toList());
+
+      List<Pod> clusterPods = openShift.getLabeledPods("clusterName", infinispan.getClusterName());
+      List<String> podIPs = clusterPods.stream().map(p -> p.getStatus().getPodIP()).collect(Collectors.toList());
+
+      // Assert that all the targets are up and that infinispan cluster pods are between the targets
+      Assertions.assertThat(targetHealths).allMatch("up"::equals);
+      Assertions.assertThat(targetIPs).containsAll(podIPs);
    }
 
    /**

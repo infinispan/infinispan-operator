@@ -8,6 +8,8 @@ spec:
     maxReplicas: 5
     minMemUsagePercent: 20
     minReplicas: 3
+  container:
+    memory: 512Mi
   expose:
     type: Route
   service:

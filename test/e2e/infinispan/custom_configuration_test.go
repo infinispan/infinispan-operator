@@ -16,19 +16,19 @@ import (
 // Test custom configuration with cache-container element
 func TestUserXmlCustomConfig(t *testing.T) {
 	t.Parallel()
-	configMap := newCustomConfigMap(t.Name(), "xml")
+	configMap := newCustomConfigMap(tutils.TestName(t), "xml")
 	testCustomConfig(t, configMap)
 }
 
 func TestUserYamlCustomConfig(t *testing.T) {
 	t.Parallel()
-	configMap := newCustomConfigMap(t.Name(), "yaml")
+	configMap := newCustomConfigMap(tutils.TestName(t), "yaml")
 	testCustomConfig(t, configMap)
 }
 
 func TestUserJsonCustomConfig(t *testing.T) {
 	t.Parallel()
-	configMap := newCustomConfigMap(t.Name(), "json")
+	configMap := newCustomConfigMap(tutils.TestName(t), "json")
 	testCustomConfig(t, configMap)
 }
 
@@ -49,7 +49,7 @@ func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
 
 	client_ := tutils.HTTPClientForCluster(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
+	cacheHelper := tutils.NewCacheHelper(tutils.TestName(t), client_)
 	cacheHelper.TestBasicUsage("testkey", "test-operator")
 
 	sts := testKube.GetStatefulSet(ispn.Name, ispn.Namespace)
@@ -65,14 +65,15 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	configMap := newCustomConfigMap(t.Name(), "xml")
+	testName := tutils.TestName(t)
+	configMap := newCustomConfigMap(testName, "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		// testing cache pre update
 		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
+		cacheHelper := tutils.NewCacheHelper(testName, client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
 	}
@@ -80,7 +81,7 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 		// testing cache post update
 		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
+		cacheHelper := tutils.NewCacheHelper(testName, client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(t, testKube)
@@ -94,17 +95,18 @@ func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	configMap := newCustomConfigMap(t.Name(), "xml")
+	testName := tutils.TestName(t)
+	configMap := newCustomConfigMap(testName, "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
-	configMapChanged := newCustomConfigMap(t.Name()+"Changed", "xml")
+	configMapChanged := newCustomConfigMap(testName+"Changed", "xml")
 	testKube.Create(configMapChanged)
 	defer testKube.DeleteConfigMap(configMapChanged)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		// testing cache pre update
 		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
+		cacheHelper := tutils.NewCacheHelper(testName, client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 		ispn.Spec.ConfigMapName = configMapChanged.Name
 	}
@@ -112,7 +114,7 @@ func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 		// testing cache post update
 		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name()+"Changed", client_)
+		cacheHelper := tutils.NewCacheHelper(testName+"Changed", client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(t, testKube)
@@ -125,19 +127,20 @@ func TestUserCustomConfigUpdateOnChange(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	configMap := newCustomConfigMap(t.Name(), "xml")
+	testName := tutils.TestName(t)
+	configMap := newCustomConfigMap(testName, "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
-	newCacheName := t.Name() + "Updated"
+	newCacheName := testName + "Updated"
 	var modifier = func(ispn *ispnv1.Infinispan) {
 		// testing cache pre update
 		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
+		cacheHelper := tutils.NewCacheHelper(testName, client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 		configMapUpdated := newCustomConfigMap(newCacheName, "xml")
 		// Reuse old name to test CM in-place update
-		configMapUpdated.Name = strcase.ToKebab(t.Name())
+		configMapUpdated.Name = strcase.ToKebab(testName)
 		testKube.UpdateConfigMap(configMapUpdated)
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
@@ -158,7 +161,8 @@ func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	configMap := newCustomConfigMap(t.Name(), "xml")
+	testName := tutils.TestName(t)
+	configMap := newCustomConfigMap(testName, "xml")
 	testKube.Create(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
@@ -171,7 +175,7 @@ func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 		// testing cache post update
 		client_ := tutils.HTTPClientForCluster(ispn, testKube)
-		cacheHelper := tutils.NewCacheHelper(t.Name(), client_)
+		cacheHelper := tutils.NewCacheHelper(testName, client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(t, testKube)

@@ -89,7 +89,7 @@ func TestBatchConfigMap(t *testing.T) {
 
 func TestBatchNoConfigOrConfigMap(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
+	name := strcase.ToKebab(tutils.TestName(t))
 	helper.CreateBatch(t, name, "doesn't exist", nil, nil)
 
 	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
@@ -102,7 +102,7 @@ func TestBatchNoConfigOrConfigMap(t *testing.T) {
 
 func TestBatchConfigAndConfigMap(t *testing.T) {
 	t.Parallel()
-	name := strcase.ToKebab(t.Name())
+	name := strcase.ToKebab(tutils.TestName(t))
 	helper.CreateBatch(t, name, "doesn't exist", pointer.StringPtr("Config"), pointer.StringPtr("ConfigMap"))
 
 	batch := helper.WaitForValidBatchPhase(name, v2.BatchFailed)
