@@ -1253,7 +1253,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 						StartupProbe:   PodStartupProbe(),
 						Resources:      *podResources,
 						VolumeMounts:   volumeMounts,
-						Args:           buildStartupArgs(overlayConfigMapKey, overlayLog4jConfig, "false"),
+						Args:           buildStartupArgs(overlayConfigMapKey, overlayLog4jConfig),
 					}},
 					Volumes: volumes,
 				},
@@ -1598,7 +1598,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hash.HashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
 	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])) || updateNeeded
 
-	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey, overlayLog4jConfig, "false"); err != nil {
+	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey, overlayLog4jConfig, false); err != nil {
 		return &ctrl.Result{}, err
 	} else {
 		updateNeeded = updateCmdArgs || updateNeeded
@@ -1771,13 +1771,11 @@ func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kuberne
 	return podList, kube.ResourcesList(infinispan.Namespace, infinispan.GossipRouterPodLabels(), podList, ctx)
 }
 
-func buildStartupArgs(overlayConfigMapKey string, overlayLog4jConfig bool, zeroCapacity string) []string {
+func buildStartupArgs(overlayConfigMapKey string, overlayLog4jConfig bool) []string {
 	var args strings.Builder
 
 	// Preallocate a buffer to speed up string building (saves code from growing the memory dynamically)
 	args.Grow(110)
-	args.WriteString("-Dinfinispan.zero-capacity-node=")
-	args.WriteString(zeroCapacity)
 
 	// Check if the user defined a custom log4j config
 	args.WriteString(" -l ")
@@ -1798,8 +1796,8 @@ func buildStartupArgs(overlayConfigMapKey string, overlayLog4jConfig bool, zeroC
 	return strings.Fields(args.String())
 }
 
-func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey string, overlayLog4jConfig bool, zeroCapacity string) (bool, error) {
-	newArgs := buildStartupArgs(overlayConfigMapKey, overlayLog4jConfig, zeroCapacity)
+func updateStartupArgs(statefulSet *appsv1.StatefulSet, overlayConfigMapKey string, overlayLog4jConfig, zeroCapacity bool) (bool, error) {
+	newArgs := buildStartupArgs(overlayConfigMapKey, overlayLog4jConfig)
 	ispnContainer := GetContainer(InfinispanContainer, &statefulSet.Spec.Template.Spec)
 	if len(newArgs) == len(ispnContainer.Args) {
 		var changed bool

@@ -18,17 +18,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func PodPorts() []corev1.ContainerPort {
+func PodPortsWithXsite(i *infinispanv1.Infinispan) []corev1.ContainerPort {
 	ports := []corev1.ContainerPort{
 		{ContainerPort: consts.InfinispanAdminPort, Name: consts.InfinispanAdminPortName, Protocol: corev1.ProtocolTCP},
 		{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
 		{ContainerPort: consts.InfinispanUserPort, Name: consts.InfinispanUserPortName, Protocol: corev1.ProtocolTCP},
 	}
-	return ports
-}
 
-func PodPortsWithXsite(i *infinispanv1.Infinispan) []corev1.ContainerPort {
-	ports := PodPorts()
 	if i.HasSites() {
 		ports = append(ports, corev1.ContainerPort{ContainerPort: consts.CrossSitePort, Name: consts.CrossSitePortName, Protocol: corev1.ProtocolTCP})
 	}

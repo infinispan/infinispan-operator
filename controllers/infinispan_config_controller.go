@@ -113,7 +113,7 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 	}
 
-	serverConfig, result, err := GenerateServerConfig(infinispan.GetStatefulSetName(), infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
+	serverConfig, zeroConfig, result, err := GenerateServerConfig(infinispan.GetStatefulSetName(), infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
 	if result != nil {
 		return *result, err
 	}
@@ -141,7 +141,7 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 				return err
 			}
 		}
-		InitServerConfigMap(configMap, infinispan, serverConfig, log4jXml)
+		InitServerConfigMap(configMap, infinispan, serverConfig, zeroConfig, log4jXml)
 		return nil
 	})
 	if err != nil {
@@ -154,18 +154,17 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 	return reconcile.Result{}, nil
 }
 
-func InitServerConfigMap(configMapObject *corev1.ConfigMap, i *v1.Infinispan, serverConfig, log4jXml string) {
+func InitServerConfigMap(configMapObject *corev1.ConfigMap, i *v1.Infinispan, serverConfig, zeroConfig, log4jXml string) {
 	configMapObject.Data = map[string]string{
-		"infinispan.xml": serverConfig,
-		"log4j.xml":      log4jXml,
+		"infinispan.xml":      serverConfig,
+		"infinispan-zero.xml": zeroConfig,
+		"log4j.xml":           log4jXml,
 	}
-	configMapObject.Data["infinispan.xml"] = serverConfig
-	configMapObject.Data["log4j.xml"] = log4jXml
 	configMapObject.Labels = i.Labels("infinispan-configmap-configuration")
 }
 
 func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube.Kubernetes, c client.Client, log logr.Logger,
-	eventRec record.EventRecorder, ctx context.Context) (string, *reconcile.Result, error) {
+	eventRec record.EventRecorder, ctx context.Context) (string, string, *reconcile.Result, error) {
 	var xsite *config.XSite
 	if i.HasSites() {
 		// Check x-site configuration first.
@@ -177,14 +176,14 @@ func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube
 		siteService := &corev1.Service{}
 		svcName := i.GetSiteServiceName()
 		if result, err := kube.LookupResource(svcName, i.Namespace, siteService, i, c, log, eventRec, ctx); result != nil {
-			return "", result, err
+			return "", "", result, err
 		}
 
 		var err error
 		xsite, err = ComputeXSite(i, kubernetes, siteService, log, eventRec, ctx)
 		if err != nil {
 			log.Error(err, "Error in computeXSite configuration")
-			return "", &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
+			return "", "", &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 		}
 	}
 
@@ -238,21 +237,26 @@ func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube
 	}
 
 	if result, err := ConfigureServerEncryption(i, configSpec, c, log, eventRec, ctx); result != nil {
-		return "", result, err
+		return "", "", result, err
 	}
 
 	if i.IsSiteTLSEnabled() {
 		if result, err := configureXSiteTransportTLS(i, configSpec, c, log, eventRec, ctx); result != nil || err != nil {
-			return "", result, err
+			return "", "", result, err
 		}
 	}
 
 	// TODO utilise a version specific configurator once server/operator versions decoupled
-	config, err := config.Generate(nil, configSpec)
+	serverConfig, err := config.Generate(nil, configSpec)
 	if err != nil {
-		return "", &reconcile.Result{}, err
+		return "", "", &reconcile.Result{}, err
 	}
-	return config, nil, nil
+
+	zeroConfig, err := config.GenerateZeroCapacity(nil, configSpec)
+	if err != nil {
+		return "", "", &reconcile.Result{}, err
+	}
+	return serverConfig, zeroConfig, nil, nil
 }
 
 func IsUserProvidedKeystore(secret *corev1.Secret) bool {

@@ -53,7 +53,7 @@ func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
 	cacheHelper.TestBasicUsage("testkey", "test-operator")
 
 	sts := testKube.GetStatefulSet(ispn.Name, ispn.Namespace)
-	if sts.Spec.Template.Spec.Containers[0].Args[2] != "user/log4j.xml" {
+	if sts.Spec.Template.Spec.Containers[0].Args[1] != "user/log4j.xml" {
 		tutils.ExpectNoError(fmt.Errorf("failed to pass the custom log4j.xml logging config as an argument "+
 			"of the Infinispan server (%s)", sts.Name))
 	}
