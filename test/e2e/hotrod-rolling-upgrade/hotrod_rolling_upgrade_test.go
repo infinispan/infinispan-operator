@@ -99,7 +99,7 @@ func TestRollingUpgrade(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: tutils.Namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
+			Labels:    map[string]string{"test-name": tutils.TestName(t)},
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Replicas: int32(numPods),

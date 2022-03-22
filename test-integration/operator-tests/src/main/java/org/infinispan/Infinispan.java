@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
 
 import org.infinispan.cr.InfinispanObject;
 import org.infinispan.cr.status.Condition;
@@ -20,10 +21,14 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
 import cz.xtf.core.waiting.SimpleWaiter;
+import io.fabric8.kubernetes.api.model.Event;
+import io.fabric8.kubernetes.api.model.ObjectReference;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 @Getter
+@Slf4j
 public class Infinispan {
    private static final OpenShift openShift = OpenShifts.master();
    private static final CustomResourceDefinitionContext crdc = new InfinispanContextProvider().getContext();
@@ -72,11 +77,36 @@ public class Infinispan {
          }
       };
 
-      new SimpleWaiter(bs).timeout(TimeUnit.MINUTES, 5).waitFor();
+      new SimpleWaiter(bs).timeout(TimeUnit.MINUTES, 10).onTimeout(() -> onTimeout()).waitFor();
 
       if(openShift.getLabeledPods("clusterName", clusterName).size() != infinispanObject.getSpec().getReplicas()) {
          throw new IllegalStateException(clusterName + " is WellFormed but cluster pod count doesn't match expected replicas!");
       }
+   }
+
+   private void onTimeout() {
+      List<Event> events = openShift.events().list().getItems();
+      List<Event> podEvents = events.stream().filter(e -> {
+         ObjectReference or = e.getInvolvedObject();
+         return or.getKind().equals("Pod") && or.getName().startsWith(clusterName);
+      }).collect(Collectors.toList());
+      List<Event> ssEvents = events.stream().filter(e -> {
+         ObjectReference or = e.getInvolvedObject();
+         return or.getKind().equals("StatefulSet") && or.getName().equals(clusterName);
+      }).collect(Collectors.toList());
+      List<Event> ispnEvents = events.stream().filter(e -> {
+         ObjectReference or = e.getInvolvedObject();
+         return or.getKind().equals("Infinispan") && or.getName().equals(clusterName);
+      }).collect(Collectors.toList());
+
+      log.info("--- Pod events ---");
+      podEvents.forEach(e -> log.info(e.getMessage()));
+
+      log.info("--- StatefulSet events ---");
+      ssEvents.forEach(e -> log.info(e.getMessage()));
+
+      log.info("--- Infinispan events ---");
+      ispnEvents.forEach(e -> log.info(e.getMessage()));
    }
 
    public Credentials getDefaultCredentials() throws IOException {

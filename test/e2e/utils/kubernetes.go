@@ -155,7 +155,8 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(t *testing.T, namespace stri
 }
 
 func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace string, panicVal interface{}) {
-	specLabel := map[string]string{"test-name": t.Name()}
+	testName := TestName(t)
+	specLabel := map[string]string{"test-name": testName}
 
 	// Print pod output if a panic has occurred
 	if panicVal != nil {

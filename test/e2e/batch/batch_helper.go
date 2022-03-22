@@ -22,6 +22,7 @@ func NewBatchHelper(testKube *tutils.TestKubernetes) *BatchHelper {
 }
 
 func (b BatchHelper) CreateBatch(t *testing.T, name, cluster string, config, configMap *string) *v2.Batch {
+	testName := tutils.TestName(t)
 	batch := &v2.Batch{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v2alpha1",
@@ -30,7 +31,7 @@ func (b BatchHelper) CreateBatch(t *testing.T, name, cluster string, config, con
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: tutils.Namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
+			Labels:    map[string]string{"test-name": testName},
 		},
 		Spec: v2.BatchSpec{
 			Cluster:   cluster,
