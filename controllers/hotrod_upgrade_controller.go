@@ -348,17 +348,16 @@ func (r *HotRodRollingUpgradeRequest) prepare() (ctrl.Result, error) {
 		return *result, fmt.Errorf("error finding statefulSet '%s': %w", targetStatefulSet.Name, err)
 	}
 
-	podList, err := PodsCreatedBy(targetStatefulSet.GetNamespace(), r.kubernetes, r.ctx, targetStatefulSetName)
+	targetPodList, err := PodsCreatedBy(targetStatefulSet.GetNamespace(), r.kubernetes, r.ctx, targetStatefulSetName)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to find the pods from the new statefulSet : %w", err)
 	}
-	podNameTarget := podList.Items[0].Name
+	targetPod := targetPodList.Items[0]
 
-	// Obtain the admin service in the source cluster to create the remote store config
-	sourceClusterService := &corev1.Service{}
-	res, err := kube.LookupResource(ispn.GetAdminServiceName(), ispn.GetNamespace(), sourceClusterService, r.infinispan, r.Client, r.reqLogger, r.eventRec, r.ctx)
-	if res != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to get service admin to connect to source cluster : %w", err)
+	// Obtain the pods of the source cluster so that we can use their IPs to create the remote store config
+	sourcePodList, err := PodsCreatedBy(ispn.Namespace, r.kubernetes, r.ctx, getSourceStatefulSetName(ispn))
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to find the pods from the source statefulSet : %w", err)
 	}
 
 	pass, err := users.AdminPassword(ispn.GetAdminSecretName(), ispn.Namespace, r.kubernetes, r.ctx)
@@ -368,10 +367,10 @@ func (r *HotRodRollingUpgradeRequest) prepare() (ctrl.Result, error) {
 
 	sourceClient := ispnClient.New(r.curl)
 	// Clone the source curl client as the credentials are the same, updating the pod to one from the target statefulset
-	targetClient := InfinispanForPod(podNameTarget, r.curl)
+	targetClient := InfinispanForPod(targetPod.Name, r.curl)
 
-	ip := sourceClusterService.Spec.ClusterIP
-	if err = upgrades.ConnectCaches(pass, ip, sourceClient, targetClient, r.reqLogger); err != nil {
+	sourceIp := sourcePodList.Items[0].Status.PodIP
+	if err = upgrades.ConnectCaches(pass, sourceIp, sourceClient, targetClient, r.reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
 

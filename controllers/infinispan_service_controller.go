@@ -405,8 +405,9 @@ func computeAdminService(ispn *ispnv1.Infinispan) *corev1.Service {
 			Labels:    LabelsResource(ispn.Name, "infinispan-service-admin"),
 		},
 		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeClusterIP,
-			Selector: ServiceLabels(ispn.Name),
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: corev1.ClusterIPNone,
+			Selector:  ServiceLabels(ispn.Name),
 			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanAdminPortName,
