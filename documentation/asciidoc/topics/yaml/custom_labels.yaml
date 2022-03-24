@@ -2,13 +2,13 @@ apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
   annotations:
-    infinispan.org/targetLabels: svc-label1, svc-label2
+    infinispan.org/targetLabels: service-label1, service-label2
     infinispan.org/podTargetLabels: pod-label1, pod-label2
   labels:
-    svc-label1: svc-value1
-    svc-label2: svc-value2
-    pod-label1: pod-value1
-    pod-label2: pod-value2
+    service-label1: value
+    service-label2: value
+    pod-label1: value
+    pod-label2: value
     # The operator does not attach these labels to resources.
     my-label: my-value
     environment: development

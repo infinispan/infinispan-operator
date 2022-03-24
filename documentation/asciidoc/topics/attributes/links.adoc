@@ -21,12 +21,6 @@ endif::community[]
 
 :link_k8s_publishing_services: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types[Publishing Services (ServiceTypes)]
 
-:link_k8s_labels: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/[Labels and Selectors]
-
-:link_k8s_labels_guide: https://github.com/kubernetes/kubernetes/blob/release-1.0/docs/user-guide/labels.md[Labels: Kubernetes User Guide]
-
-:link_k8s_annotations: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/[Annotations]
-
 :link_k8s_storage: https://kubernetes.io/docs/concepts/storage/persistent-volumes/[Persistent Volumes]
 
 :link_k8s_access_modes: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes[Access Modes]

@@ -1,0 +1,27 @@
+[id='adding-labels-annotations-env_{context}']
+= Adding labels and annotations with environment variables
+
+[role="_abstract"]
+Set environment variables for {ispn_operator} to add labels and annotations that automatically propagate to all {brandname} pods and services.
+
+.Procedure
+
+Add labels and annotations to your {ispn_operator} subscription with the `spec.config.env` field in one of the following ways:
+
+* Use the `{oc_edit} subscription` command.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_edit} subscription {subscription_name} -n openshift-operators
+----
+
+* Use the {openshift} Console.
++
+. Navigate to **Operators** > **Installed Operators** > **Subscription**.
+. Select **Edit Subscription** from the **Actions** menu.
+
+.Labels and annotations with environment variables
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/env_vars_labels_annotations.yaml[]
+----
