@@ -43,7 +43,8 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
-	clusterName := strcase.ToKebab(t.Name())
+	testName := tutils.TestName(t)
+	clusterName := strcase.ToKebab(testName)
 	namespace := tutils.Namespace
 
 	infinispan := datagridService(t, clusterName, 1)
@@ -52,7 +53,7 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	testKube.WaitForInfinispanCondition(infinispan.Name, namespace, v1.ConditionWellFormed)
 
 	backupName := "backup"
-	backupSpec := backupSpec(t, backupName, namespace, clusterName)
+	backupSpec := backupSpec(testName, backupName, namespace, clusterName)
 	backupSpec.Spec.Resources = &v2.BackupResources{
 		CacheConfigs: []string{"some-config"},
 		Scripts:      []string{"some-script"},
@@ -71,7 +72,7 @@ func TestBackupRestoreTransformations(t *testing.T) {
 	}))
 
 	restoreName := "restore"
-	restoreSpec := restoreSpec(t, restoreName, namespace, backupName, clusterName)
+	restoreSpec := restoreSpec(testName, restoreName, namespace, backupName, clusterName)
 	restoreSpec.Spec.Resources = &v2.RestoreResources{
 		CacheConfigs: []string{"some-config"},
 		Scripts:      []string{"some-script"},
@@ -93,7 +94,8 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
-	name := strcase.ToKebab(t.Name())
+	testName := tutils.TestName(t)
+	name := strcase.ToKebab(testName)
 	namespace := tutils.Namespace
 
 	// 1. Create initial source cluster
@@ -119,7 +121,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 
 	// 3. Backup the cluster's content
 	backupName := "backup"
-	backupSpec := backupSpec(t, backupName, namespace, sourceCluster)
+	backupSpec := backupSpec(testName, backupName, namespace, sourceCluster)
 	testKube.Create(backupSpec)
 
 	// Ensure the backup pod has joined the cluster
@@ -134,7 +136,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "verify-backup-pod",
 			Namespace: namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
+			Labels:    map[string]string{"test-name": testName},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
@@ -190,7 +192,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 
 	// 6. Restore the backed up data from the volume to the target cluster
 	restoreName := "restore"
-	restoreSpec := restoreSpec(t, restoreName, namespace, backupName, targetCluster)
+	restoreSpec := restoreSpec(testName, restoreName, namespace, backupName, targetCluster)
 	testKube.Create(restoreSpec)
 
 	// Ensure the restore pod hased joined the cluster
@@ -253,7 +255,7 @@ func datagridService(t *testing.T, name string, replicas int) *v1.Infinispan {
 	return infinispan
 }
 
-func backupSpec(t *testing.T, name, namespace, cluster string) *v2alpha1.Backup {
+func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {
 	spec := &v2.Backup{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v2alpha1",
@@ -262,7 +264,7 @@ func backupSpec(t *testing.T, name, namespace, cluster string) *v2alpha1.Backup 
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
+			Labels:    map[string]string{"test-name": testName},
 		},
 		Spec: v2.BackupSpec{
 			Cluster: cluster,
@@ -274,7 +276,7 @@ func backupSpec(t *testing.T, name, namespace, cluster string) *v2alpha1.Backup 
 	return spec
 }
 
-func restoreSpec(t *testing.T, name, namespace, backup, cluster string) *v2alpha1.Restore {
+func restoreSpec(testName, name, namespace, backup, cluster string) *v2alpha1.Restore {
 	spec := &v2.Restore{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v2alpha1",
@@ -283,7 +285,7 @@ func restoreSpec(t *testing.T, name, namespace, backup, cluster string) *v2alpha
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
+			Labels:    map[string]string{"test-name": testName},
 		},
 		Spec: v2.RestoreSpec{
 			Backup:  backup,

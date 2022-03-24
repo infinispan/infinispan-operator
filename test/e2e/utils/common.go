@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -101,13 +102,19 @@ func encryptionSecret(name, namespace string) *corev1.Secret {
 	}
 }
 
+func TestName(t *testing.T) string {
+	return regexp.MustCompile(".*/").ReplaceAllString(t.Name(), "")
+}
+
 func DefaultSpec(t *testing.T, testKube *TestKubernetes) *ispnv1.Infinispan {
+	testName := TestName(t)
+
 	return &ispnv1.Infinispan{
 		TypeMeta: InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      strcase.ToKebab(t.Name()),
+			Name:      strcase.ToKebab(testName),
 			Namespace: Namespace,
-			Labels:    map[string]string{"test-name": t.Name()},
+			Labels:    map[string]string{"test-name": testName},
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Service: ispnv1.InfinispanServiceSpec{

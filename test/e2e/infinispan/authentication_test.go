@@ -151,7 +151,6 @@ func TestAuthenticationDisabled(t *testing.T) {
 	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
 
 	// Create the cluster
-	spec.Labels = map[string]string{"test-name": t.Name()}
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
