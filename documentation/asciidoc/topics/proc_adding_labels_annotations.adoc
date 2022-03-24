@@ -1,0 +1,36 @@
+[id='adding-custom-labels_{context}']
+= Adding labels and annotations to {brandname} resources
+
+[role="_abstract"]
+Attach key/value labels and annotations to pods and services that {ispn_operator} creates and manages.
+Labels help you identify relationships between objects to better organize and monitor {brandname} resources.
+Annotations are arbitrary non-identifying metadata for client applications or deployment and management tooling.
+
+//Downstream
+ifdef::downstream[]
+[NOTE]
+====
+Red Hat subscription labels are automatically applied to {brandname} resources.
+====
+endif::downstream[]
+
+.Procedure
+
+. Open your `Infinispan` CR for editing.
+. Attach labels and annotations to {brandname} resources in the `metadata.annotations` section.
++
+* Define values for annotations directly in the `metadata.annotations` section.
+* Define values for labels with the `metadata.labels` field.
+. Apply your `Infinispan` CR.
+
+.Custom annotations
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/custom_annotations.yaml[]
+----
+
+.Custom labels
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/custom_labels.yaml[]
+----

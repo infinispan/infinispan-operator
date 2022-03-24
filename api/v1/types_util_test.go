@@ -52,7 +52,7 @@ func TestApplyOperatorLabels(t *testing.T) {
 		err = os.Setenv("INFINISPAN_OPERATOR_POD_TARGET_LABELS", testItem.PodLabels)
 		assert.Nil(t, err)
 		ispn := exposeRouteInfinispan.DeepCopy()
-		err = ispn.ApplyOperatorLabels()
+		err = ispn.ApplyOperatorMeta()
 		assert.Nil(t, err)
 		assert.Equal(t, ispn.Annotations[OperatorTargetLabels], testItem.ExpectedLabels)
 		assert.Equal(t, ispn.Annotations[OperatorPodTargetLabels], testItem.ExpectedPodLabels)
@@ -69,6 +69,6 @@ func TestApplyOperatorLabels(t *testing.T) {
 		for n, v := range labelMap {
 			labelPodMap[n] = v
 		}
-		assert.True(t, reflect.DeepEqual(ispn.Labels, labelPodMap) || len(labelPodMap) == 0 && ispn.Labels == nil)
+		assert.True(t, reflect.DeepEqual(ispn.ObjectMeta.Labels, labelPodMap) || len(labelPodMap) == 0 && ispn.ObjectMeta.Labels == nil)
 	}
 }

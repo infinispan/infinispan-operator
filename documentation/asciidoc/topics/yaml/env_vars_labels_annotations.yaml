@@ -1,0 +1,19 @@
+spec:
+  config:
+    env:
+      - name: INFINISPAN_OPERATOR_TARGET_LABELS
+        value: |
+         {"service-label1":"value",
+         service-label1":"value"}
+      - name: INFINISPAN_OPERATOR_POD_TARGET_LABELS
+        value: |
+         {"pod-label1":"value",
+         "pod-label2":"value"}
+      - name: INFINISPAN_OPERATOR_TARGET_ANNOTATIONS
+        value: |
+         {"service-annotation1":"value",
+         "service-annotation2":"value"}
+      - name: INFINISPAN_OPERATOR_POD_TARGET_ANNOTATIONS
+        value: |
+         {"pod-annotation1":"value",
+         "pod-annotation2":"value"}
