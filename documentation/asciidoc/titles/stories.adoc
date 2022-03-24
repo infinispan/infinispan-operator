@@ -1,3 +1,4 @@
+include::{stories}/assembly_operator_deployments.adoc[leveloffset=+1]
 include::{stories}/assembly_installing_native_cli_plugin.adoc[leveloffset=+1]
 include::{stories}/assembly_installing_operator.adoc[leveloffset=+1]
 include::{stories}/assembly_creating_clusters.adoc[leveloffset=+1]
