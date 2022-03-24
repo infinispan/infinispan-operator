@@ -34,9 +34,14 @@ endif::downstream[]
 
 = Resource reconciliation
 
-{ispn_operator} reconciles `Infinispan` custom resources such as the `Cache` CR with resources on your {brandname} cluster.
+{ispn_operator} reconciles custom resources such as the `Cache` CR with resources on your {brandname} cluster.
 
-Bidirectional reconciliation synchronizes your CRs with changes that you make to `Infinispan` resources through the {brandname} Console, command line interface (CLI), or other client application and vice versa.
+Bidirectional reconciliation synchronizes your CRs with changes that you make to {brandname} resources through the {brandname} Console, command line interface (CLI), or other client application and vice versa.
 For example if you create a cache through the {brandname} Console then {ispn_operator} adds a declarative Kubernetes representation.
 
-To perform reconciliation {ispn_operator} creates a `listener` pod in each {brandname} cluster that detects modifications for `Infinispan` resources.
+{ispn_operator} associates declarative Kubernetes representations of {brandname} resources with an `Infinispan` CR.
+Deleting an `Infinispan` CR also deletes the {brandname} resources.
+For example deleting an `Infinispan` CR removes any associated `Cache` CRs.
+However deleting an `Infinispan` CR does not remove any {brandname} resources that you create through the console, CLI, or client applications.
+
+To perform reconciliation {ispn_operator} creates a `listener` pod for each {brandname} cluster that detects modifications for `Infinispan` resources.
