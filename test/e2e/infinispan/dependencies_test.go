@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -110,7 +109,7 @@ func TestExternalDependenciesHttp(t *testing.T) {
 
 	podList := &corev1.PodList{}
 	tutils.ExpectNoError(wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		err = testKube.Kubernetes.ResourcesList(ispn.Namespace, controllers.PodLabels(ispn.Name), podList, context.TODO())
+		err = testKube.Kubernetes.ResourcesList(ispn.Namespace, ispn.PodLabels(), podList, context.TODO())
 		if err != nil {
 			return false, nil
 		}

@@ -382,8 +382,8 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 		}
 	}
 
-	tesKubes["xsite1"].crossSite.Labels = map[string]string{"test-name": testName}
-	tesKubes["xsite2"].crossSite.Labels = map[string]string{"test-name": testName}
+	tesKubes["xsite1"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
+	tesKubes["xsite2"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
 
 	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
 	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)

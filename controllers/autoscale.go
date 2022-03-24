@@ -76,7 +76,7 @@ func (r *infinispanRequest) autoscalerLoop() {
 		// Data memory percent usage array, one value per pod
 		metricDataMemoryPercentUsed := map[string]int{}
 		podList := &corev1.PodList{}
-		if err = r.kubernetes.ResourcesList(ispn.Namespace, LabelsResource(ispn.Name, ""), podList, r.ctx); err != nil {
+		if err = r.kubernetes.ResourcesList(ispn.Namespace, ispn.Labels(""), podList, r.ctx); err != nil {
 			continue
 		}
 

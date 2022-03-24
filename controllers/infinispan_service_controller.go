@@ -287,13 +287,14 @@ func (s serviceRequest) reconcileResource(resource client.Object) error {
 }
 
 func (s serviceRequest) cleanupExternalExpose(excludeKind string) error {
+	externalSvcLabels := s.infinispan.ExternalServiceLabels()
 	for _, obj := range s.supportedTypes {
 		if obj.GroupVersionSupported && obj.Kind() != excludeKind {
 			switch obj.Kind() {
 			case consts.ExternalTypeService:
 				//TODO DeleteAllOf for Service objects not yet implemented. See https://github.com/kubernetes/kubernetes/issues/68468#issuecomment-419981870
 				serviceList := &corev1.ServiceList{}
-				if err := s.kube.ResourcesList(s.infinispan.Namespace, ExternalServiceLabels(s.infinispan.Name), serviceList, s.ctx); err != nil {
+				if err := s.kube.ResourcesList(s.infinispan.Namespace, externalSvcLabels, serviceList, s.ctx); err != nil {
 					return nil
 				}
 				for _, service := range serviceList.Items {
@@ -302,7 +303,7 @@ func (s serviceRequest) cleanupExternalExpose(excludeKind string) error {
 					}
 				}
 			case consts.ExternalTypeIngress, consts.ExternalTypeRoute:
-				deleteOptions := []client.DeleteAllOfOption{client.MatchingLabels(ExternalServiceLabels(s.infinispan.Name)), client.InNamespace(s.infinispan.Namespace)}
+				deleteOptions := []client.DeleteAllOfOption{client.MatchingLabels(externalSvcLabels), client.InNamespace(s.infinispan.Namespace)}
 				if err := s.Client.DeleteAllOf(s.ctx, obj.ObjectType, deleteOptions...); err != nil && !errors.IsNotFound(err) {
 					return err
 				}
@@ -366,19 +367,20 @@ func setupServiceForEncryption(ispn *ispnv1.Infinispan, service *corev1.Service)
 }
 
 func computeService(ispn *ispnv1.Infinispan) *corev1.Service {
-	service := corev1.Service{
+	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ispn.GetServiceName(),
-			Namespace: ispn.Namespace,
-			Labels:    LabelsResource(ispn.Name, "infinispan-service"),
+			Name:        ispn.GetServiceName(),
+			Namespace:   ispn.Namespace,
+			Labels:      ispn.ServiceLabels("infinispan-service"),
+			Annotations: ispn.ServiceAnnotations(),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: ServiceLabels(ispn.Name),
+			Selector: ispn.ServiceSelectorLabels(),
 			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanUserPortName,
@@ -387,27 +389,24 @@ func computeService(ispn *ispnv1.Infinispan) *corev1.Service {
 			},
 		},
 	}
-	// This way CR labels will override operator labels with same name
-	ispn.AddOperatorLabelsForServices(service.Labels)
-	ispn.AddLabelsForServices(service.Labels)
-	return &service
 }
 
 func computeAdminService(ispn *ispnv1.Infinispan) *corev1.Service {
-	service := corev1.Service{
+	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ispn.GetAdminServiceName(),
-			Namespace: ispn.Namespace,
-			Labels:    LabelsResource(ispn.Name, "infinispan-service-admin"),
+			Name:        ispn.GetAdminServiceName(),
+			Namespace:   ispn.Namespace,
+			Annotations: ispn.ServiceAnnotations(),
+			Labels:      ispn.ServiceLabels("infinispan-service-admin"),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,
-			Selector:  ServiceLabels(ispn.Name),
+			Selector:  ispn.ServiceSelectorLabels(),
 			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanAdminPortName,
@@ -416,27 +415,24 @@ func computeAdminService(ispn *ispnv1.Infinispan) *corev1.Service {
 			},
 		},
 	}
-	// This way CR labels will override operator labels with same name
-	ispn.AddOperatorLabelsForServices(service.Labels)
-	ispn.AddLabelsForServices(service.Labels)
-	return &service
 }
 
 func computePingService(ispn *ispnv1.Infinispan) *corev1.Service {
-	pingService := corev1.Service{
+	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ispn.GetPingServiceName(),
-			Namespace: ispn.Namespace,
-			Labels:    LabelsResource(ispn.Name, "infinispan-service-ping"),
+			Name:        ispn.GetPingServiceName(),
+			Namespace:   ispn.Namespace,
+			Annotations: ispn.ServiceAnnotations(),
+			Labels:      ispn.ServiceLabels("infinispan-service-ping"),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,
-			Selector:  ServiceLabels(ispn.Name),
+			Selector:  ispn.ServiceSelectorLabels(),
 			Ports: []corev1.ServicePort{
 				{
 					Name: consts.InfinispanPingPortName,
@@ -445,10 +441,6 @@ func computePingService(ispn *ispnv1.Infinispan) *corev1.Service {
 			},
 		},
 	}
-	// This way CR labels will override operator labels with same name
-	ispn.AddOperatorLabelsForServices(pingService.Labels)
-	ispn.AddLabelsForServices(pingService.Labels)
-	return &pingService
 }
 
 // computeServiceExternal compute the external service
@@ -457,9 +449,10 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 	exposeConf := ispn.Spec.Expose
 
 	metadata := metav1.ObjectMeta{
-		Name:      ispn.GetServiceExternalName(),
-		Namespace: ispn.Namespace,
-		Labels:    ExternalServiceLabels(ispn.Name),
+		Name:        ispn.GetServiceExternalName(),
+		Namespace:   ispn.Namespace,
+		Annotations: ispn.ServiceAnnotations(),
+		Labels:      ispn.ExternalServiceLabels(),
 	}
 	if exposeConf.Annotations != nil && len(exposeConf.Annotations) > 0 {
 		metadata.Annotations = exposeConf.Annotations
@@ -467,7 +460,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 
 	exposeSpec := corev1.ServiceSpec{
 		Type:     externalServiceType,
-		Selector: ServiceLabels(ispn.Name),
+		Selector: ispn.ServiceSelectorLabels(),
 		Ports: []corev1.ServicePort{
 			{
 				Port:       int32(consts.InfinispanUserPort),
@@ -482,7 +475,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 		exposeSpec.Ports[0].Port = exposeConf.Port
 	}
 
-	externalService := corev1.Service{
+	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
@@ -490,19 +483,13 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 		ObjectMeta: metadata,
 		Spec:       exposeSpec,
 	}
-	// This way CR labels will override operator labels with same name
-	ispn.AddOperatorLabelsForServices(externalService.Labels)
-	ispn.AddLabelsForServices(externalService.Labels)
-	return &externalService
 }
 
 // computeSiteService compute the XSite service
 func computeSiteService(ispn *ispnv1.Infinispan, exposeType ispnv1.CrossSiteExposeType) *corev1.Service {
-	lsPodSelector := GossipRouterPodLabels(ispn.Name)
-
 	exposeSpec := corev1.ServiceSpec{}
 	exposeConf := ispn.Spec.Service.Sites.Local.Expose
-	exposeSpec.Selector = lsPodSelector
+	exposeSpec.Selector = ispn.Labels("infinispan-router-pod")
 
 	switch exposeType {
 	case ispnv1.CrossSiteExposeTypeNodePort:
@@ -535,19 +522,20 @@ func computeSiteService(ispn *ispnv1.Infinispan, exposeType ispnv1.CrossSiteExpo
 		}
 	}
 
+	annotations := ispn.ServiceAnnotations()
+	annotations["service.beta.kubernetes.io/aws-load-balancer-backend-protocol"] = "tcp"
+
 	objectMeta := metav1.ObjectMeta{
-		Name:      ispn.GetSiteServiceName(),
-		Namespace: ispn.Namespace,
-		Annotations: map[string]string{
-			"service.beta.kubernetes.io/aws-load-balancer-backend-protocol": "tcp",
-		},
-		Labels: LabelsResource(ispn.Name, "infinispan-service-xsite"),
+		Name:        ispn.GetSiteServiceName(),
+		Namespace:   ispn.Namespace,
+		Annotations: annotations,
+		Labels:      ispn.ServiceLabels("infinispan-service-xsite"),
 	}
 	if exposeConf.Annotations != nil && len(exposeConf.Annotations) > 0 {
 		objectMeta.Annotations = exposeConf.Annotations
 	}
 
-	siteService := corev1.Service{
+	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
@@ -555,26 +543,22 @@ func computeSiteService(ispn *ispnv1.Infinispan, exposeType ispnv1.CrossSiteExpo
 		ObjectMeta: objectMeta,
 		Spec:       exposeSpec,
 	}
-	// This way CR labels will override operator labels with same name
-	ispn.AddOperatorLabelsForServices(siteService.Labels)
-	ispn.AddLabelsForServices(siteService.Labels)
-	return &siteService
 }
 
 func computeSiteRoute(ispn *ispnv1.Infinispan) *routev1.Route {
-	host := strings.TrimSpace(ispn.Spec.Service.Sites.Local.Expose.RouteHostName)
-	route := routev1.Route{
+	return &routev1.Route{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "route.openshift.io/v1",
 			Kind:       "Route",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ispn.GetSiteRouteName(),
-			Namespace: ispn.Namespace,
-			Labels:    LabelsResource(ispn.Name, "infinispan-route-xsite"),
+			Name:        ispn.GetSiteRouteName(),
+			Namespace:   ispn.Namespace,
+			Annotations: ispn.ServiceAnnotations(),
+			Labels:      ispn.ServiceLabels("infinispan-route-xsite"),
 		},
 		Spec: routev1.RouteSpec{
-			Host: host,
+			Host: strings.TrimSpace(ispn.Spec.Service.Sites.Local.Expose.RouteHostName),
 			Port: &routev1.RoutePort{
 				TargetPort: intstr.IntOrString{IntVal: consts.CrossSitePort},
 			},
@@ -587,11 +571,6 @@ func computeSiteRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 			},
 		},
 	}
-
-	// This way CR labels will override operator labels with same name
-	ispn.AddOperatorLabelsForServices(route.Labels)
-	ispn.AddLabelsForServices(route.Labels)
-	return &route
 }
 
 // computeRoute compute the Route object
@@ -602,9 +581,10 @@ func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 			Kind:       "Route",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ispn.GetServiceExternalName(),
-			Namespace: ispn.Namespace,
-			Labels:    ExternalServiceLabels(ispn.Name),
+			Name:        ispn.GetServiceExternalName(),
+			Namespace:   ispn.Namespace,
+			Annotations: ispn.ServiceAnnotations(),
+			Labels:      ispn.ExternalServiceLabels(),
 		},
 		Spec: routev1.RouteSpec{
 			Host: ispn.Spec.Expose.Host,
@@ -620,10 +600,6 @@ func computeRoute(ispn *ispnv1.Infinispan) *routev1.Route {
 	if ispn.IsEncryptionEnabled() {
 		route.Spec.TLS = &routev1.TLSConfig{Termination: routev1.TLSTerminationPassthrough}
 	}
-
-	// This way CR labels will override operator labels with same name
-	ispn.AddOperatorLabelsForServices(route.Labels)
-	ispn.AddLabelsForServices(route.Labels)
 	return &route
 }
 
@@ -636,9 +612,10 @@ func computeIngress(ispn *ispnv1.Infinispan) *ingressv1.Ingress {
 			Kind:       "Ingress",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ispn.GetServiceExternalName(),
-			Namespace: ispn.Namespace,
-			Labels:    ExternalServiceLabels(ispn.Name),
+			Name:        ispn.GetServiceExternalName(),
+			Namespace:   ispn.Namespace,
+			Annotations: ispn.ServiceAnnotations(),
+			Labels:      ispn.ExternalServiceLabels(),
 		},
 		Spec: ingressv1.IngressSpec{
 			TLS: []ingressv1.IngressTLS{},
@@ -665,9 +642,6 @@ func computeIngress(ispn *ispnv1.Infinispan) *ingressv1.Ingress {
 			},
 		}
 	}
-	// This way CR labels will override operator labels with same name
-	ispn.AddOperatorLabelsForServices(ingress.Labels)
-	ispn.AddLabelsForServices(ingress.Labels)
 	return &ingress
 }
 
@@ -707,7 +681,7 @@ func computeServiceMonitor(ispn *ispnv1.Infinispan) *monitoringv1.ServiceMonitor
 				},
 			},
 			Selector: metav1.LabelSelector{
-				MatchLabels: LabelsResource(ispn.Name, "infinispan-service-admin"),
+				MatchLabels: ispn.Labels("infinispan-service-admin"),
 			},
 			NamespaceSelector: monitoringv1.NamespaceSelector{
 				MatchNames: []string{ispn.Namespace},
