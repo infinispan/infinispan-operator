@@ -140,7 +140,7 @@ func (r *backupResource) Init() (*zeroCapacitySpec, error) {
 			},
 		},
 		Container: r.instance.Spec.Container,
-		PodLabels: BackupPodLabels(r.instance.Name, r.instance.Spec.Cluster),
+		PodLabels: map[string]string{"backup_cr": r.instance.Name},
 	}, nil
 }
 

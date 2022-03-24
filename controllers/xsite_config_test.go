@@ -133,11 +133,10 @@ var staticSiteService = &corev1.Service{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      staticXSiteInfinispan.GetSiteServiceName(),
 		Namespace: namespace,
-		Labels:    LabelsResource(staticXSiteInfinispan.Name, "infinispan-service"),
 	},
 	Spec: corev1.ServiceSpec{
 		Type:     corev1.ServiceTypeClusterIP,
-		Selector: ServiceLabels(staticXSiteInfinispan.Name),
+		Selector: staticXSiteInfinispan.ServiceSelectorLabels(),
 		Ports: []corev1.ServicePort{
 			{
 				Port:       consts.CrossSitePort,

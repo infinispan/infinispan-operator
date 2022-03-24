@@ -209,7 +209,7 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 	}
 
 	podList := &corev1.PodList{}
-	podLabels := PodLabels(infinispan.Name)
+	podLabels := infinispan.PodLabels()
 	if err := z.Kube.ResourcesList(infinispan.Namespace, podLabels, podList, ctx); err != nil {
 		z.Log.Error(err, "Failed to list pods")
 		return reconcile.Result{}, err
@@ -296,20 +296,23 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 		return nil, err
 	}
 	dataVolName := name + "-data"
-	labels := zeroSpec.PodLabels
-	ispn.AddLabelsForPods(labels)
+	labels := ispn.PodLabels()
+	labels["app"] = "infinispan-zero-pod"
+	for k, v := range zeroSpec.PodLabels {
+		labels[k] = v
+	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    labels,
+			Name:        name,
+			Namespace:   namespace,
+			Labels:      labels,
+			Annotations: ispn.PodAnnotations(),
 		},
 		Spec: corev1.PodSpec{
 			SecurityContext: podSecurityCtx,
 			Containers: []corev1.Container{{
-				Image: ispn.ImageName(),
-				Name:  InfinispanContainer,
-				//				Env:   PodEnv(ispn, nil),
+				Image:          ispn.ImageName(),
+				Name:           InfinispanContainer,
 				Env:            PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesCliFilename}}),
 				LivenessProbe:  PodLivenessProbe(),
 				Ports:          PodPorts(),

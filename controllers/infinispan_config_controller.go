@@ -161,7 +161,7 @@ func InitServerConfigMap(configMapObject *corev1.ConfigMap, i *v1.Infinispan, se
 	}
 	configMapObject.Data["infinispan.xml"] = serverConfig
 	configMapObject.Data["log4j.xml"] = log4jXml
-	configMapObject.Labels = LabelsResource(i.Name, "infinispan-configmap-configuration")
+	configMapObject.Labels = i.Labels("infinispan-configmap-configuration")
 }
 
 func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube.Kubernetes, c client.Client, log logr.Logger,

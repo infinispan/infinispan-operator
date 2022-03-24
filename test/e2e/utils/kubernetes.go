@@ -14,7 +14,6 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	ispnv2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
-	"github.com/infinispan/infinispan-operator/controllers"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/launcher/operator"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
@@ -298,22 +297,22 @@ func (k TestKubernetes) CreateInfinispan(infinispan *ispnv1.Infinispan, namespac
 }
 
 func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan) {
-	labelSelector := labels.SelectorFromSet(controllers.PodLabels(infinispan.Name))
+	labelSelector := labels.SelectorFromSet(infinispan.PodLabels())
 	k.DeleteResource(infinispan.Namespace, labelSelector, infinispan, SinglePodTimeout)
 }
 
 func (k TestKubernetes) DeleteBackup(backup *ispnv2.Backup) {
-	labelSelector := labels.SelectorFromSet(controllers.BackupPodLabels(backup.Name, backup.Spec.Cluster))
+	labelSelector := labels.SelectorFromSet(map[string]string{"backup_cr": backup.Name})
 	k.DeleteResource(backup.Namespace, labelSelector, backup, SinglePodTimeout)
 }
 
 func (k TestKubernetes) DeleteRestore(restore *ispnv2.Restore) {
-	labelSelector := labels.SelectorFromSet(controllers.RestorePodLabels(restore.Name, restore.Spec.Cluster))
+	labelSelector := labels.SelectorFromSet(map[string]string{"restore_cr": restore.Name})
 	k.DeleteResource(restore.Namespace, labelSelector, restore, SinglePodTimeout)
 }
 
 func (k TestKubernetes) DeleteBatch(batch *ispnv2.Batch) {
-	labelSelector := labels.SelectorFromSet(controllers.BatchLabels(batch.Name))
+	labelSelector := labels.SelectorFromSet(map[string]string{"infinispan_batch": batch.Name})
 	k.DeleteResource(batch.Namespace, labelSelector, batch, SinglePodTimeout)
 }
 
@@ -453,7 +452,7 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 		switch ispn.GetExposeType() {
 		case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
 			routeList := &corev1.ServiceList{}
-			err = k.Kubernetes.ResourcesList(ispn.Namespace, controllers.ExternalServiceLabels(ispn.Name), routeList, context.TODO())
+			err = k.Kubernetes.ResourcesList(ispn.Namespace, ispn.ExternalServiceLabels(), routeList, context.TODO())
 			ExpectNoError(err)
 
 			if len(routeList.Items) > 0 {
@@ -468,7 +467,7 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 			}
 		case ispnv1.ExposeTypeRoute:
 			routeList := &routev1.RouteList{}
-			err = k.Kubernetes.ResourcesList(ispn.Namespace, controllers.ExternalServiceLabels(ispn.Name), routeList, context.TODO())
+			err = k.Kubernetes.ResourcesList(ispn.Namespace, ispn.ExternalServiceLabels(), routeList, context.TODO())
 			ExpectNoError(err)
 			if len(routeList.Items) > 0 {
 				hostAndPort = routeList.Items[0].Spec.Host
@@ -545,7 +544,7 @@ func isTemporary(err error) bool {
 func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) {
 	k.WaitForPods(required, timeout, &client.ListOptions{
 		Namespace:     namespace,
-		LabelSelector: labels.SelectorFromSet(controllers.PodLabels(cluster)),
+		LabelSelector: labels.SelectorFromSet(map[string]string{"clusterName": cluster, "app": "infinispan-pod"}),
 	}, nil)
 }
 

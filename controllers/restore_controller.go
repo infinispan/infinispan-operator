@@ -130,7 +130,7 @@ func (r *restore) Init() (*zeroCapacitySpec, error) {
 
 	return &zeroCapacitySpec{
 		Container: r.instance.Spec.Container,
-		PodLabels: RestorePodLabels(r.instance.Name, backup.Spec.Cluster),
+		PodLabels: map[string]string{"restore_cr": r.instance.Name},
 		Volume: zeroCapacityVolumeSpec{
 			MountPath: BackupDataMountPath,
 			VolumeSource: corev1.VolumeSource{

@@ -189,8 +189,10 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 
 	cliArgs := fmt.Sprintf("--properties '%s/%s' --file '%s/%s'", consts.ServerAdminIdentitiesRoot, consts.CliPropertiesFilename, BatchVolumeRoot, BatchFilename)
 
-	labels := BatchLabels(batch.Name)
-	infinispan.AddLabelsForPods(labels)
+	labels := infinispan.PodLabels()
+	for k, v := range batchLabels(batch.Name) {
+		labels[k] = v
+	}
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -201,7 +203,8 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 			BackoffLimit: pointer.Int32Ptr(0),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels:      labels,
+					Annotations: infinispan.PodAnnotations(),
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -323,7 +326,7 @@ func (r *batchRequest) update(mutate func() error) (bool, error) {
 }
 
 func GetJobPodName(name, namespace string, c client.Client, ctx context.Context) (string, error) {
-	labelSelector := labels.SelectorFromSet(BatchLabels(name))
+	labelSelector := labels.SelectorFromSet(batchLabels(name))
 	podList := &corev1.PodList{}
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}
 	if err := c.List(ctx, podList, listOps); err != nil {
@@ -334,4 +337,11 @@ func GetJobPodName(name, namespace string, c client.Client, ctx context.Context)
 		return "", fmt.Errorf("no Batch job pods found")
 	}
 	return podList.Items[0].Name, nil
+}
+
+func batchLabels(name string) map[string]string {
+	return map[string]string{
+		"infinispan_batch": name,
+		"app":              "infinispan-batch-pod",
+	}
 }

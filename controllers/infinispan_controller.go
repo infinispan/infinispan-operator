@@ -260,8 +260,8 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 		if r.isTypeSupported(consts.ServiceMonitorType) {
 			infinispan.ApplyMonitoringAnnotation()
 		}
-		infinispan.Spec.Affinity = podAffinity(infinispan, PodLabels(infinispan.Name))
-		errLabel := infinispan.ApplyOperatorLabels()
+		infinispan.Spec.Affinity = podAffinity(infinispan, infinispan.PodLabels())
+		errLabel := infinispan.ApplyOperatorMeta()
 		if errLabel != nil {
 			reqLogger.Error(errLabel, "Error applying operator label")
 		}
@@ -922,7 +922,7 @@ func (r *infinispanRequest) upgradeInfinispan() error {
 	if controllerutil.ContainsFinalizer(infinispan, consts.InfinispanFinalizer) {
 		// Set Infinispan CR as owner reference for PVC if it not defined
 		pvcs := &corev1.PersistentVolumeClaimList{}
-		err := r.kubernetes.ResourcesList(infinispan.Namespace, LabelsResource(infinispan.Name, ""), pvcs, r.ctx)
+		err := r.kubernetes.ResourcesList(infinispan.Namespace, infinispan.Labels(""), pvcs, r.ctx)
 		if err != nil {
 			return err
 		}
@@ -1107,9 +1107,7 @@ func (r *infinispanRequest) updatePodsLabels(podList *corev1.PodList) error {
 	}
 
 	ispn := r.infinispan
-	labelsForPod := PodLabels(ispn.Name)
-	ispn.AddOperatorLabelsForPods(labelsForPod)
-	ispn.AddLabelsForPods(labelsForPod)
+	labelsForPod := ispn.PodLabels()
 
 	for _, pod := range podList.Items {
 		podLabels := make(map[string]string)
@@ -1141,14 +1139,14 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	configMap, overlayConfigMap *corev1.ConfigMap, overlayConfigMapKey string, overlayLog4jConfig bool) (*appsv1.StatefulSet, error) {
 	ispn := r.infinispan
 	reqLogger := r.log.WithValues("Request.Namespace", ispn.Namespace, "Request.Name", ispn.Name)
-	lsPod := PodLabels(ispn.Name)
-	labelsForPod := PodLabels(ispn.Name)
-	ispn.AddOperatorLabelsForPods(labelsForPod)
-	ispn.AddLabelsForPods(labelsForPod)
-	ispn.AddStatefulSetLabelForPods(labelsForPod)
+	labelsForPod := ispn.PodLabels()
+	labelsForPod[consts.StatefulSetPodLabel] = ispn.Name
+
+	annotationsForPod := ispn.PodAnnotations()
+	annotationsForPod["updateDate"] = time.Now().String()
 
 	pvcs := &corev1.PersistentVolumeClaimList{}
-	err := r.kubernetes.ResourcesList(ispn.Namespace, LabelsResource(ispn.Name, ""), pvcs, r.ctx)
+	err := r.kubernetes.ResourcesList(ispn.Namespace, ispn.Labels(""), pvcs, r.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1231,13 +1229,13 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 		Spec: appsv1.StatefulSetSpec{
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
 			Selector: &metav1.LabelSelector{
-				MatchLabels: lsPod,
+				MatchLabels: labelsForPod,
 			},
 			Replicas: &replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labelsForPod,
-					Annotations: map[string]string{"updateDate": time.Now().String()},
+					Annotations: annotationsForPod,
 				},
 				Spec: corev1.PodSpec{
 					Affinity: ispn.Spec.Affinity,
@@ -1671,10 +1669,8 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 		r.reqLogger.Info("updateNeeded")
 		// If updating the parameters results in a rolling upgrade, we can update the labels here too
 		if rollingUpgrade {
-			labelsForPod := PodLabels(ispn.Name)
-			ispn.AddOperatorLabelsForPods(labelsForPod)
-			ispn.AddLabelsForPods(labelsForPod)
-			ispn.AddStatefulSetLabelForPods(labelsForPod)
+			labelsForPod := ispn.PodLabels()
+			labelsForPod[consts.StatefulSetPodLabel] = ispn.Name
 			statefulSet.Spec.Template.Labels = labelsForPod
 		}
 		err := r.Client.Update(r.ctx, statefulSet)
@@ -1772,7 +1768,7 @@ func (reconciler *InfinispanReconciler) isTypeSupported(kind string) bool {
 // GossipRouterPodList returns a list of pods where JGroups Gossip Router is running
 func GossipRouterPodList(infinispan *infinispanv1.Infinispan, kube *kube.Kubernetes, ctx context.Context) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
-	return podList, kube.ResourcesList(infinispan.Namespace, GossipRouterPodLabels(infinispan.Name), podList, ctx)
+	return podList, kube.ResourcesList(infinispan.Namespace, infinispan.GossipRouterPodLabels(), podList, ctx)
 }
 
 func buildStartupArgs(overlayConfigMapKey string, overlayLog4jConfig bool, zeroCapacity string) []string {
