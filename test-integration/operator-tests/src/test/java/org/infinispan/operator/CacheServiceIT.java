@@ -23,6 +23,7 @@ import org.infinispan.identities.Credentials;
 import org.infinispan.util.CleanUpValidator;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import cz.xtf.client.Http;
@@ -161,6 +162,7 @@ class CacheServiceIT {
     * Verifies autoscaling feature of default cache.
     */
    @Test
+   @Tag("unstable")
    void autoscalingTest() throws Exception {
       String request = "https://" + hostName + "/rest/v2/caches/default/autoscaling-key-";
       int i = 0;

@@ -160,7 +160,7 @@ func TestStaticServerCache(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	name := strcase.ToKebab(t.Name())
+	name := strcase.ToKebab(tutils.TestName(t))
 	cacheName := "static-cache"
 
 	// Create cluster using custom config containing a static cache
