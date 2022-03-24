@@ -353,7 +353,7 @@ func TestCacheClusterNameChange(t *testing.T) {
 
 	// Update Cache CR to point to new cluster
 	cr = testKube.GetCache(cr.Name, cr.Namespace)
-	cr.ObjectMeta.Labels = newCluster.Labels
+	cr.ObjectMeta.Labels = newCluster.ObjectMeta.Labels
 	cr.Spec.ClusterName = newCluster.Name
 	testKube.Update(cr)
 
@@ -372,7 +372,7 @@ func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cacheName,
 			Namespace: i.Namespace,
-			Labels:    i.Labels,
+			Labels:    i.ObjectMeta.Labels,
 		},
 		Spec: v2alpha1.CacheSpec{
 			ClusterName: i.Name,

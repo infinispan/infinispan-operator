@@ -202,7 +202,7 @@ func (r secretRequest) computeAndReconcileAuthProps(userPropSecret, adminPropSec
 
 	// Create secret with all the objects to be mounted as "/etc/security/conf/operator-security"
 	result, err := k8sctrlutil.CreateOrUpdate(r.ctx, r.Client, infinispanServerSecurityConf, func() error {
-		infinispanServerSecurityConf.Labels = LabelsResource(r.infinispan.Name, "infinispan-secret-server-security")
+		infinispanServerSecurityConf.Labels = r.infinispan.Labels("infinispan-secret-server-security")
 		infinispanServerSecurityConf.Data = map[string][]byte{consts.ServerIdentitiesCliFilename: []byte(cliBatch)}
 		infinispanServerSecurityConf.Data[EncryptPemKeystoreName] = []byte(pem)
 		err = k8sctrlutil.SetControllerReference(r.infinispan, infinispanServerSecurityConf, r.scheme)
@@ -222,26 +222,23 @@ func (s *secretRequest) createUserIdentitiesSecret() (*corev1.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.createSecret(s.infinispan.GetSecretName(), "infinispan-secret-identities", identities)
-}
 
-func (s *secretRequest) createSecret(name, label string, identities []byte) (*corev1.Secret, error) {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      s.infinispan.GetSecretName(),
 			Namespace: s.infinispan.Namespace,
-			Labels:    LabelsResource(s.infinispan.Name, label),
+			Labels:    s.infinispan.Labels("infinispan-secret-identities"),
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{consts.ServerIdentitiesFilename: identities},
 	}
 
 	s.reqLogger.Info(fmt.Sprintf("Creating Identities Secret %s", secret.Name))
-	_, err := k8sctrlutil.CreateOrUpdate(s.ctx, s.Client, secret, func() error {
+	_, err = k8sctrlutil.CreateOrUpdate(s.ctx, s.Client, secret, func() error {
 		return k8sctrlutil.SetControllerReference(s.infinispan, secret, s.scheme)
 	})
 
@@ -337,7 +334,7 @@ func (s *secretRequest) reconcileAdminSecret() (*corev1.Secret, error) {
 			if adminSecret.Data == nil {
 				adminSecret.Data = map[string][]byte{}
 			}
-			adminSecret.Labels = LabelsResource(s.infinispan.Name, "infinispan-secret-admin-identities")
+			adminSecret.Labels = s.infinispan.Labels("infinispan-secret-admin-identities")
 			adminSecret.Data[consts.ServerIdentitiesFilename] = identities
 			if err = k8sctrlutil.SetControllerReference(s.infinispan, adminSecret, s.scheme); err != nil {
 				return err

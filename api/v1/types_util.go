@@ -41,6 +41,19 @@ const (
 	// OperatorPodTargetLabelsEnvVarName is the name of the envvar containing operator label/value map for pods
 	OperatorPodTargetLabelsEnvVarName string = "INFINISPAN_OPERATOR_POD_TARGET_LABELS"
 
+	// PodTargetAnnotations annotations propagated to pods
+	PodTargetAnnotations string = "infinispan.org/podTargetAnnotations"
+	// TargetAnnotations annotations propagated to services/ingresses/routes
+	TargetAnnotations string = "infinispan.org/targetAnnotations"
+	// OperatorPodTargetAnnotations annotations propagated by the operator to pods
+	OperatorPodTargetAnnotations string = "infinispan.org/operatorPodTargetAnnotations"
+	// OperatorTargetAnnotations annotations propagated by the operator to services/ingresses/routes
+	OperatorTargetAnnotations string = "infinispan.org/operatorTargetAnnotations"
+	// OperatorTargetAnnotationsEnvVarName is the name of the envvar containing operator label/value map for services/ingresses/routes
+	OperatorTargetAnnotationsEnvVarName string = "INFINISPAN_OPERATOR_TARGET_ANNOTATIONS"
+	// OperatorPodTargetAnnotationsEnvVarName is the name of the envvar containing operator label/value map for pods
+	OperatorPodTargetAnnotationsEnvVarName string = "INFINISPAN_OPERATOR_POD_TARGET_ANNOTATIONS"
+
 	MaxRouteObjectNameLength = 63
 
 	// ServiceMonitoringAnnotation defines if we need to create ServiceMonitor or not
@@ -597,28 +610,75 @@ func (ispn *Infinispan) StorageSize() string {
 	return ""
 }
 
-// AddLabelsForPods adds to the user maps the labels defined for pods in the infinispan CR. New values override old ones in map.
-func (ispn *Infinispan) AddLabelsForPods(uMap map[string]string) {
-	addLabelsFor(ispn, PodTargetLabels, uMap)
+func (ispn *Infinispan) Labels(app string) map[string]string {
+	m := map[string]string{
+		"infinispan_cr": ispn.Name,
+		"clusterName":   ispn.Name,
+	}
+	if app != "" {
+		m["app"] = app
+	}
+	return m
 }
 
-func (ispn *Infinispan) AddStatefulSetLabelForPods(uMap map[string]string) {
-	uMap[consts.StatefulSetPodLabel] = ispn.Name
+func (ispn *Infinispan) ServiceLabels(app string) map[string]string {
+	labels := ispn.Labels(app)
+	// This way CR labels will override operator labels with same name
+	addLabelsFor(ispn, OperatorTargetLabels, labels)
+	addLabelsFor(ispn, TargetLabels, labels)
+	return labels
 }
 
-// AddLabelsForServices adds to the user maps the labels defined for services and ingresses/routes in the infinispan CR. New values override old ones in map.
-func (ispn *Infinispan) AddLabelsForServices(uMap map[string]string) {
-	addLabelsFor(ispn, TargetLabels, uMap)
+func (ispn *Infinispan) ServiceSelectorLabels() map[string]string {
+	return map[string]string{
+		"clusterName": ispn.Name,
+		"app":         "infinispan-pod",
+	}
 }
 
-// AddOperatorLabelsForPods adds to the user maps the labels defined for pods in the infinispan CR by the operator. New values override old ones in map.
-func (ispn *Infinispan) AddOperatorLabelsForPods(uMap map[string]string) {
-	addLabelsFor(ispn, OperatorPodTargetLabels, uMap)
+func (ispn *Infinispan) ExternalServiceLabels() map[string]string {
+	return ispn.ServiceLabels("infinispan-service-external")
 }
 
-// AddOperatorLabelsForServices adds to the user maps the labels defined for services and ingresses/routes in the infinispan CR. New values override old ones in map.
-func (ispn *Infinispan) AddOperatorLabelsForServices(uMap map[string]string) {
-	addLabelsFor(ispn, OperatorTargetLabels, uMap)
+func (ispn *Infinispan) PodLabels() map[string]string {
+	labels := ispn.Labels("infinispan-pod")
+	// This way CR labels will override operator labels with same name
+	addLabelsFor(ispn, OperatorPodTargetLabels, labels)
+	addLabelsFor(ispn, PodTargetLabels, labels)
+	return labels
+}
+
+func (ispn *Infinispan) GossipRouterPodLabels() map[string]string {
+	labels := ispn.PodLabels()
+	labels["app"] = "infinispan-router-pod"
+	return labels
+}
+
+func (ispn *Infinispan) PodAnnotations() map[string]string {
+	annotations := make(map[string]string)
+	addAnnotationsFor(ispn, OperatorPodTargetAnnotations, annotations)
+	addAnnotationsFor(ispn, PodTargetAnnotations, annotations)
+	return annotations
+}
+
+func (ispn *Infinispan) ServiceAnnotations() map[string]string {
+	annotations := make(map[string]string)
+	addAnnotationsFor(ispn, OperatorTargetAnnotations, annotations)
+	addAnnotationsFor(ispn, TargetAnnotations, annotations)
+	return annotations
+}
+
+func addAnnotationsFor(ispn *Infinispan, target string, uMap map[string]string) {
+	if ispn.Annotations == nil {
+		return
+	}
+	labels := ispn.Annotations[target]
+	for _, label := range strings.Split(labels, ",") {
+		tLabel := strings.Trim(label, " ")
+		if lval := strings.Trim(ispn.Annotations[tLabel], " "); lval != "" {
+			uMap[tLabel] = lval
+		}
+	}
 }
 
 func addLabelsFor(ispn *Infinispan, target string, uMap map[string]string) {
@@ -628,25 +688,35 @@ func addLabelsFor(ispn *Infinispan, target string, uMap map[string]string) {
 	labels := ispn.Annotations[target]
 	for _, label := range strings.Split(labels, ",") {
 		tLabel := strings.Trim(label, " ")
-		if lval := strings.Trim(ispn.Labels[tLabel], " "); lval != "" {
+		if lval := strings.Trim(ispn.ObjectMeta.Labels[tLabel], " "); lval != "" {
 			uMap[tLabel] = lval
 		}
 	}
 }
 
-// ApplyOperatorLabels applies operator labels to be propagated to pods and services
+// ApplyOperatorMeta applies operator labels to be propagated to pods and services
 // Env vars INFINISPAN_OPERATOR_TARGET_LABELS, INFINISPAN_OPERATOR_POD_TARGET_LABELS
 // must contain a json map of labels, the former will be applied to services/ingresses/routes, the latter to pods
-func (ispn *Infinispan) ApplyOperatorLabels() error {
+func (ispn *Infinispan) ApplyOperatorMeta() error {
+
+	applyErr := func(env string, err error) string {
+		return fmt.Sprintf("Error unmarshalling %s environment variable: %v\n", env, err)
+	}
+
 	var errStr string
-	err := applyLabels(ispn, OperatorTargetLabelsEnvVarName, OperatorTargetLabels)
-	if err != nil {
-		errStr = fmt.Sprintf("Error unmarshalling %s environment variable: %v\n", OperatorTargetLabelsEnvVarName, err)
+	if err := applyLabels(ispn, OperatorTargetLabelsEnvVarName, OperatorTargetLabels); err != nil {
+		errStr = applyErr(OperatorTargetLabelsEnvVarName, err)
 	}
-	err = applyLabels(ispn, OperatorPodTargetLabelsEnvVarName, OperatorPodTargetLabels)
-	if err != nil {
-		errStr = errStr + fmt.Sprintf("Error unmarshalling %s environment variable: %v", OperatorPodTargetLabelsEnvVarName, err)
+	if err := applyLabels(ispn, OperatorPodTargetLabelsEnvVarName, OperatorPodTargetLabels); err != nil {
+		errStr = errStr + applyErr(OperatorPodTargetLabelsEnvVarName, err)
 	}
+	if err := applyAnnotations(ispn, OperatorTargetAnnotationsEnvVarName, OperatorTargetAnnotations); err != nil {
+		errStr = errStr + applyErr(OperatorTargetAnnotationsEnvVarName, err)
+	}
+	if err := applyAnnotations(ispn, OperatorPodTargetAnnotationsEnvVarName, OperatorPodTargetAnnotations); err != nil {
+		errStr = errStr + applyErr(OperatorPodTargetAnnotationsEnvVarName, err)
+	}
+
 	if errStr != "" {
 		return errors.New(errStr)
 	}
@@ -662,8 +732,8 @@ func applyLabels(ispn *Infinispan, envvar, annotationName string) error {
 	err := json.Unmarshal([]byte(labels), &labelMap)
 	if err == nil {
 		if len(labelMap) > 0 {
-			if ispn.Labels == nil {
-				ispn.Labels = make(map[string]string, len(labelMap))
+			if ispn.ObjectMeta.Labels == nil {
+				ispn.ObjectMeta.Labels = make(map[string]string, len(labelMap))
 			}
 			keys := make([]string, len(labelMap))
 			i := 0
@@ -674,7 +744,7 @@ func applyLabels(ispn *Infinispan, envvar, annotationName string) error {
 			sort.Strings(keys)
 			var svcLabels string
 			for _, k := range keys {
-				ispn.Labels[k] = labelMap[k]
+				ispn.ObjectMeta.Labels[k] = labelMap[k]
 				svcLabels += k + ","
 			}
 			if ispn.Annotations == nil {
@@ -684,6 +754,29 @@ func applyLabels(ispn *Infinispan, envvar, annotationName string) error {
 		}
 	}
 	return err
+}
+
+func applyAnnotations(ispn *Infinispan, envvar, annotationName string) error {
+	annotations := os.Getenv(envvar)
+	if annotations == "" {
+		return nil
+	}
+	envAnnotations := make(map[string]string)
+	if err := json.Unmarshal([]byte(annotations), &envAnnotations); err != nil {
+		return err
+	}
+
+	if ispn.Annotations == nil {
+		ispn.Annotations = make(map[string]string, len(envAnnotations))
+	}
+
+	var annotationStr string
+	for k, v := range envAnnotations {
+		ispn.Annotations[k] = v
+		annotationStr += k + ","
+	}
+	ispn.Annotations[annotationName] = strings.TrimRight(annotationStr, ", ")
+	return nil
 }
 
 // HasDependenciesVolume true if custom dependencies are defined via PersistenceVolumeClaim
