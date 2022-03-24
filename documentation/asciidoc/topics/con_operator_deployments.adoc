@@ -17,6 +17,8 @@ ifdef::downstream[]
 image::custom-resources.png[This illustration depicts how {k8s} users pass custom resources to {ispn_operator}.]
 endif::downstream[]
 
+= Cluster management
+
 A single {ispn_operator} installation can manage multiple {brandname} clusters in separate namespaces.
 Each time a user applies CRs to modify the deployment, {ispn_operator} applies the changes globally to all {brandname} clusters.
 
@@ -29,3 +31,12 @@ endif::community[]
 ifdef::downstream[]
 image::operator-managed-clusters.png[This illustration depicts how {ispn_operator} manages multiple clusters on {openshiftshort}.]
 endif::downstream[]
+
+= Resource reconciliation
+
+{ispn_operator} reconciles `Infinispan` custom resources such as the `Cache` CR with resources on your {brandname} cluster.
+
+Bidirectional reconciliation synchronizes your CRs with changes that you make to `Infinispan` resources through the {brandname} Console, command line interface (CLI), or other client application and vice versa.
+For example if you create a cache through the {brandname} Console then {ispn_operator} adds a declarative Kubernetes representation.
+
+To perform reconciliation {ispn_operator} creates a `listener` pod in each {brandname} cluster that detects modifications for `Infinispan` resources.

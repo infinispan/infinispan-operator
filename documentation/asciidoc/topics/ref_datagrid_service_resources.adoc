@@ -53,6 +53,13 @@ include::yaml/datagrid_service.yaml[]
 |`spec.configMapName`
 |Specifies a `ConfigMap` that contains {brandname} configuration.
 
+|`spec.configListener`
+|Creates a `listener` pod in each {brandname} cluster that allows {ispn_operator} to reconcile server-side modifications with `Infinispan` resources such as the `Cache` CR.
+
+The `listener` pod consumes minimal resources and is enabled by default.
+Setting a value of `false` removes the `listener` pod and disables reconciliation.
+You should do this only if you access `Infinispan` resources through the {brandname} Console, CLI, or client applications.
+
 |`spec.affinity`
 |Configures anti-affinity strategies that guarantee {brandname} availability.
 
