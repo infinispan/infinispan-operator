@@ -1,0 +1,10 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  annotations:
+    infinispan.org/targetAnnotations: service-annotation1, service-annotation2
+    infinispan.org/podTargetAnnotations: pod-annotation1, pod-annotation2
+    service-annotation1: value
+    service-annotation2: value
+    pod-annotation1: value
+    pod-annotation2: value

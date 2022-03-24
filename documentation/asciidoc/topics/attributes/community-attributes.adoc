@@ -31,6 +31,7 @@
 :schemaversion: 13.0
 :brandname: Infinispan
 :fullbrandname: Infinispan
+:subscription_name: infinispan
 :datagridservice: Data Grid Service
 :cacheservice: Cache Service
 
