@@ -93,12 +93,12 @@ xsite-test: manager manifests
 .PHONY: manager
 ## Build manager binary
 manager: generate fmt vet
-	go build -o bin/manager main.go
+	go build -ldflags="-X 'github.com/infinispan/infinispan-operator/launcher.Version=$(VERSION)'" -o bin/manager main.go
 
 .PHONY: run
 ## Run the operator against the configured Kubernetes cluster in ~/.kube/config
 run: manager manifests
-	OSDK_FORCE_RUN_MODE=local go run ./main.go operator
+	OSDK_FORCE_RUN_MODE=local ./bin/manager operator
 
 .PHONY: install
 ## Install CRDs into a cluster
@@ -149,7 +149,7 @@ generate: controller-gen rice
 .PHONY: operator-build
 ## Build the operator image
 operator-build: manager
-	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMG) .
+	$(CONTAINER_TOOL) build --build-arg OPERATOR_VERSION=$(VERSION) -t $(IMG) .
 
 .PHONY: operator-push
 ## Push the operator image
