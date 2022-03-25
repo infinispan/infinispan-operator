@@ -18,6 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/infinispan/infinispan-operator/launcher"
+
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	infinispanv2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers"
@@ -28,8 +30,6 @@ import (
 	ingressv1 "k8s.io/api/networking/v1"
 	// +kubebuilder:scaffold:imports
 )
-
-const Version = "undefined"
 
 var (
 	scheme = runtime.NewScheme()
@@ -148,7 +148,7 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		os.Exit(1)
 	}
 
-	setupLog.Info(fmt.Sprintf("Starting Infinispan Operator Version: %s", Version))
+	setupLog.Info(fmt.Sprintf("Starting Infinispan Operator Version: %s", launcher.Version))
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
