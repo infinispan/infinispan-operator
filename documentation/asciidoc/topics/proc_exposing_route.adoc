@@ -28,7 +28,7 @@ include::yaml/expose_type_route.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_routes}
+{oc_get_routes}
 
 NAME                 CLASS    HOSTS   ADDRESS   PORTS   AGE
 {example_crd_name}   <none>   *                 443     73s

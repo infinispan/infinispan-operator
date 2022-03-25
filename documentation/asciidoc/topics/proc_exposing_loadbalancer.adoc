@@ -26,7 +26,7 @@ include::yaml/expose_type_load_balancer.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_services} | grep external
+{oc_get_services} | grep external
 
 NAME                         TYPE            CLUSTER-IP    EXTERNAL-IP   PORT(S)
 {example_crd_name}-external  LoadBalancer    192.0.2.24    hostname.com  11222/TCP

@@ -27,8 +27,8 @@ If necessary, delete the existing secret first.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_delete} secret connect-secret --ignore-not-found
-$ {oc_create} secret generic --from-file=identities.yaml connect-secret
+{oc_delete} secret connect-secret --ignore-not-found
+{oc_create} secret generic --from-file=identities.yaml connect-secret
 ----
 +
 . Specify the authentication secret with `spec.security.endpointSecretName` in your `Infinispan` CR and then apply the changes.

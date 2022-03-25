@@ -15,7 +15,7 @@ Run batch operations that include configuration artifacts.
 +
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-$ cat > mybatch.yaml<<EOF
+cat > mybatch.yaml<<EOF
 include::yaml/batch_configmap.yaml[]
 EOF
 ----
@@ -24,7 +24,7 @@ EOF
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} mybatch.yaml
+{oc_apply_cr} mybatch.yaml
 ----
 +
 . Check the `status.Phase` field in the `Batch` CR to verify the operations completed successfully.

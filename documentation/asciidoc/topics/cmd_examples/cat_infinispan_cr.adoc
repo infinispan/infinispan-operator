@@ -1,4 +1,4 @@
-$ cat > cr_minimal.yaml<<EOF
+cat > cr_minimal.yaml<<EOF
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:

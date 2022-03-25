@@ -15,7 +15,7 @@ Use the following command or get the token from the {osweb}:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc sa get-token lon
+oc sa get-token lon
 
 eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
 ----
@@ -27,14 +27,14 @@ eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc create secret generic <token-name> --from-literal=token=<token>
+oc create secret generic <token-name> --from-literal=token=<token>
 ----
 +
 For example, log in to the {openshiftshort} cluster at **NYC** and create a `lon-token` secret as follows:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc create secret generic lon-token --from-literal=token=eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
+oc create secret generic lon-token --from-literal=token=eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9...
 ----
 +
 . Repeat the preceding steps on your other {openshiftshort} clusters.

@@ -22,7 +22,7 @@ spec:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_infinispan} {example_crd_name} -o=jsonpath='{.status.replicasWantedAtRestart}'
+{oc_get_infinispan} {example_crd_name} -o=jsonpath='{.status.replicasWantedAtRestart}'
 ----
 +
 . Change the `spec.replicas` field to the same number of pods to restart the {brandname} cluster.

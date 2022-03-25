@@ -30,13 +30,27 @@ Do the following for automated scripts:
 
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_well_formed}
+{oc_well_formed}
 ----
 ====
 
-Alternatively, you can retrieve cluster view from logs as follows:
+[discrete]
+== Retrieving cluster view from logs
+
+You can also get the cluster view from {brandname} logs as follows:
 
 [source,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/oc_logs_clusterview.adoc[]
+{oc_logs} {example_crd_name}-0 | grep ISPN000094
+----
+
+[source,options="nowrap",subs=attributes+]
+----
+INFO  [org.infinispan.CLUSTER] (MSC service thread 1-2) \
+ISPN000094: Received new cluster view for channel infinispan: \
+[{example_crd_name}-0|0] (1) [{example_crd_name}-0]
+
+INFO  [org.infinispan.CLUSTER] (jgroups-3,{example_crd_name}-0) \
+ISPN000094: Received new cluster view for channel infinispan: \
+[{example_crd_name}-0|1] (2) [{example_crd_name}-0, {example_crd_name}-1]
 ----

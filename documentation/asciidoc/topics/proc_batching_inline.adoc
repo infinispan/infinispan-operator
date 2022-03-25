@@ -19,7 +19,7 @@ include::yaml/batch_inline.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} mybatch.yaml
+{oc_apply_cr} mybatch.yaml
 ----
 +
 . Check the `status.Phase` field in the `Batch` CR to verify the operations completed successfully.
