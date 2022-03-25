@@ -25,18 +25,18 @@ Use the {brandname} Helm chart to deploy clusters of fully configurable {brandna
 
 .Procedure
 
-. Add your {brandname} configuration to the `data` field of a `ConfigMap` as `infinispan-config.[xml|yaml|json]`.
+. Add {brandname} configuration to a `infinispan-config.[xml|yaml|json]` key in the `data` field of your `ConfigMap`.
 +
 [source,options="nowrap",subs=attributes+]
 ----
 include::yaml/config-map-cluster-configuration.yaml[]
 ----
 
-. Create the `ConfigMap`.
+. Create the `ConfigMap` from your YAML file.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_configmap} my-cluster-config --from-file=infinispan-config.yaml
+{oc_apply_cr} cluster-config.yaml
 ----
 
 . Specify the name of the `ConfigMap` with the `spec.configMapName` field in your `Infinispan` CR and then apply the changes.
