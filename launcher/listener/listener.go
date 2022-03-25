@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/infinispan/infinispan-operator/launcher"
 	"net/http"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
-	sse "github.com/r3labs/sse/v2"
+	"github.com/r3labs/sse/v2"
 	"gopkg.in/cenkalti/backoff.v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,6 +44,8 @@ type Parameters struct {
 
 func New(ctx context.Context, p Parameters) {
 	log := zap.NewRaw(zap.UseFlagOptions(p.ZapOptions)).Sugar()
+
+	log.Info(fmt.Sprintf("Starting Infinispan ConfigListener Version: %s", launcher.Version))
 
 	ctx, cancel := context.WithCancel(ctx)
 	kubernetes, err := kubernetes.NewKubernetesFromConfig(ctrl.GetConfigOrDie(), scheme)
