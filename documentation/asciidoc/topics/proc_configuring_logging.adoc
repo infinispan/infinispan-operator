@@ -19,5 +19,5 @@ include::yaml/logging_categories.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_logs} -f $POD_NAME
+{oc_logs} -f $POD_NAME
 ----

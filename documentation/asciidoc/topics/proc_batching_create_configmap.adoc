@@ -12,14 +12,14 @@ For demonstration purposes, you should add some configuration artifacts to your 
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ mkdir -p /tmp/mybatch
+mkdir -p /tmp/mybatch
 ----
 
 * Create a {brandname} cache configuration.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ cat > /tmp/mybatch/mycache.xml<<EOF
+cat > /tmp/mybatch/mycache.xml<<EOF
 include::xml/dist-sync-cache.xml[]
 EOF
 ----
@@ -45,7 +45,7 @@ You must prepend all `--file=` directives in your batch operations with that pat
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ ls /tmp/mybatch
+ls /tmp/mybatch
 
 batch
 mycache.xml
@@ -55,5 +55,5 @@ mycache.xml
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_configmap} mybatch-config-map --from-file=/tmp/mybatch
+{oc_configmap} mybatch-config-map --from-file=/tmp/mybatch
 ----
