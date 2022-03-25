@@ -36,12 +36,12 @@ Changing the value moves the dashboard to that namespace.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc apply -f infinispan-operator-config.yaml
+oc apply -f infinispan-operator-config.yaml
 ----
 +
 . Open the Grafana UI, which is available at:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc get routes grafana-route -o jsonpath=https://"{.spec.host}"
+oc get routes grafana-route -o jsonpath=https://"{.spec.host}"
 ----

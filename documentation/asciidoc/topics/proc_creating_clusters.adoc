@@ -15,16 +15,16 @@ Create {brandname} clusters with the native CLI plugin, `kubectl-infinispan`.
 +
 For example, create a {brandname} cluster with two pods as follows:
 +
-[source,bash,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
-$ {kube_client} infinispan create cluster --replicas=3 -Pservice.type=DataGrid infinispan
+{kube_client} infinispan create cluster --replicas=3 -Pservice.type=DataGrid infinispan
 ----
 +
 . Watch {ispn_operator} create the {brandname} pods.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-include::cmd_examples/oc_get_pods_w.adoc[]
+{oc_get_pods_w}
 ----
 
 .Next steps
@@ -33,7 +33,7 @@ After you create a {brandname} cluster, use the `{kube_client}` to apply changes
 
 You can also delete {brandname} clusters with `kubectl-infinispan` and re-create them as required.
 
-[source,bash,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
-$ {kube_client} infinispan delete cluster infinispan
+{kube_client} infinispan delete cluster infinispan
 ----

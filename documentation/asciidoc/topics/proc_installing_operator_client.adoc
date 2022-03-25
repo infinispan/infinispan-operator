@@ -16,8 +16,8 @@ You can use the `oc` client to create {ispn_operator} subscriptions as an altern
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_new_project} ${INSTALL_NAMESPACE} <1>
-$ {oc_new_project} ${WATCH_NAMESPACE} <2>
+{oc_new_project} ${INSTALL_NAMESPACE} <1>
+{oc_new_project} ${WATCH_NAMESPACE} <2>
 ----
 <1> Creates a project into which you install {ispn_operator}.
 <2> Optionally creates a project for a specific {brandname} cluster if you do not want {ispn_operator} to watch all projects.
@@ -27,7 +27,7 @@ $ {oc_new_project} ${WATCH_NAMESPACE} <2>
 .Control all {brandname} clusters
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} - << EOF
+{oc_apply_cr} - << EOF
 include::yaml/operator_group.yaml[]
 EOF
 ----
@@ -35,7 +35,7 @@ EOF
 .Control a specific {brandname} cluster
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} - << EOF
+{oc_apply_cr} - << EOF
 include::yaml/operator_group_target.yaml[]
 EOF
 ----
@@ -44,7 +44,7 @@ EOF
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} - << EOF
+{oc_apply_cr} - << EOF
 include::yaml/operator_subscription.yaml[]
 EOF
 ----
@@ -58,7 +58,7 @@ If you want to manually approve updates from the {operator_channel} channel, cha
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_pods} -n ${INSTALL_NAMESPACE}
+{oc_get_pods} -n ${INSTALL_NAMESPACE}
 NAME                                   READY   STATUS
 infinispan-operator-<id>               1/1     Running
 ----

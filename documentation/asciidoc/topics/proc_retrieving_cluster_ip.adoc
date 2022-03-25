@@ -11,5 +11,5 @@ can use with client connections.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_service} {example_crd_name} -o jsonpath={.spec.clusterIP}
+{oc_get_service} {example_crd_name} -o jsonpath={.spec.clusterIP}
 ----

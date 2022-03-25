@@ -32,12 +32,12 @@ include::cmd_examples/cat_infinispan_cr.adoc[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} my_infinispan.yaml
+{oc_apply_cr} my_infinispan.yaml
 ----
 +
 . Watch {ispn_operator} scale the {brandname} pods.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_pods_w}
+{oc_get_pods_w}
 ----

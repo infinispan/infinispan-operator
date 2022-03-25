@@ -18,7 +18,7 @@ metadata:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_services}
+{oc_get_services}
 
 NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)
 {example_crd_name} ClusterIP   192.0.2.0        <none>        11222/TCP

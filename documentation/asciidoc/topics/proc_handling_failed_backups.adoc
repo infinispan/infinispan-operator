@@ -12,7 +12,7 @@ Pods are terminated but remain available until you delete the `Backup` or `Resto
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_logs} <backup|restore_pod_name>
+{oc_logs} <backup|restore_pod_name>
 ----
 +
 . Resolve any error conditions or other causes of failure as indicated by the pod logs.

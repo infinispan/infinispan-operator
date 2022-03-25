@@ -22,17 +22,17 @@ endif::downstream[]
 . Extract the `.zip` archive for the native {brandname} CLI distribution.
 . Copy the native executable, or create a hard link, to a file named "kubectl-infinispan", for example:
 +
-[source,bash,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
-$ cp {native_cli} kubectl-infinispan
+cp {native_cli} kubectl-infinispan
 ----
 +
 . Add `kubectl-infinispan` to your `PATH`.
 . Verify that the CLI is installed.
 +
-[source,bash,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
-$ {kube_client} plugin list
+{kube_client} plugin list
 
 The following compatible plugins are available:
 /path/to/kubectl-infinispan
@@ -40,9 +40,9 @@ The following compatible plugins are available:
 +
 . Use the [command]`infinispan --help` command to view available commands.
 +
-[source,bash,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
-$ {kube_client} infinispan --help
+{kube_client} infinispan --help
 ----
 
 [role="_additional-resources"]
