@@ -21,7 +21,7 @@ If you do not specify a name with the `spec.name` field then the cache uses the 
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} mycache.yaml
+{oc_apply_cr} mycache.yaml
 cache.infinispan.org/mycachedefinition created
 ----
 

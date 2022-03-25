@@ -44,7 +44,7 @@ include::yaml/backup_resources_glob.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} my-backup.yaml
+{oc_apply_cr} my-backup.yaml
 ----
 
 .Verification
@@ -60,5 +60,5 @@ ISPN005044: Backup file created 'my-backup.zip'
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {describe_backup}
+{describe_backup}
 ----

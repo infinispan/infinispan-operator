@@ -15,18 +15,18 @@ endif::community[]
 
 . Run the [command]`oc infinispan install` command to create {ispn_operator} subscriptions, for example:
 +
-[source,bash,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
-$ {kube_client} infinispan install --channel={operator_channel}
-                             --source=redhat-operators
-                             --source-namespace=openshift-marketplace
+{kube_client} infinispan install --channel={operator_channel}
+                           --source=redhat-operators
+                           --source-namespace=openshift-marketplace
 ----
 +
 . Verify the installation.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_get_pods} -n openshift-operators | grep infinispan-operator
+{oc_get_pods} -n openshift-operators | grep infinispan-operator
 NAME                                   READY   STATUS
 infinispan-operator-<id>               1/1     Running
 ----

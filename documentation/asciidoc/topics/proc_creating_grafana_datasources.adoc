@@ -24,14 +24,14 @@ include::yaml/prometheus_service_account.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc apply -f service-account.yaml
+oc apply -f service-account.yaml
 ----
 +
 .. Grant `cluster-monitoring-view` permissions to the `ServiceAccount`.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc adm policy add-cluster-role-to-user cluster-monitoring-view -z infinispan-monitoring
+oc adm policy add-cluster-role-to-user cluster-monitoring-view -z infinispan-monitoring
 ----
 +
 . Create a Grafana data source.
@@ -39,9 +39,7 @@ $ oc adm policy add-cluster-role-to-user cluster-monitoring-view -z infinispan-m
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc serviceaccounts get-token infinispan-monitoring
-
-eyJhbGciOiJSUzI1NiIsImtpZCI6Imc4O...
+oc serviceaccounts get-token infinispan-monitoring
 ----
 +
 .. Define a `GrafanaDataSource` that includes the token in the `spec.datasources.secureJsonData.httpHeaderValue1` field, as in the following example:
@@ -55,7 +53,7 @@ include::yaml/grafana_datasource.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ oc apply -f grafana-datasource.yaml
+oc apply -f grafana-datasource.yaml
 ----
 
 .Next steps

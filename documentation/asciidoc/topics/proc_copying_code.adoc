@@ -29,7 +29,7 @@ Using `ReadWriteOnce` access mode results in all {brandname} pods in a cluster b
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {set_namespace}
+{set_namespace}
 ----
 +
 . Create a PVC for your custom code artifacts, for example:
@@ -43,7 +43,7 @@ include::yaml/custom_code_pvc.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} datagrid-libs.yaml
+{oc_apply_cr} datagrid-libs.yaml
 ----
 +
 . Create a pod that mounts the PVC, for example:
@@ -57,8 +57,8 @@ include::yaml/custom_code_pod.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} datagrid-libs-pod.yaml
-$ {oc_wait} --for=condition=ready --timeout=2m pod/datagrid-libs-pod
+{oc_apply_cr} datagrid-libs-pod.yaml
+{oc_wait} --for=condition=ready --timeout=2m pod/datagrid-libs-pod
 ----
 +
 . Copy your code artifacts to the pod so that they are loaded into the PVC.
@@ -67,14 +67,14 @@ For example to copy code artifacts from a local `libs` directory, do the followi
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_copy} --no-preserve=true libs datagrid-libs-pod:/tmp/
+{oc_copy} --no-preserve=true libs datagrid-libs-pod:/tmp/
 ----
 +
 . Delete the pod.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_delete_pod} datagrid-libs-pod
+{oc_delete_pod} datagrid-libs-pod
 ----
 +
 Specify the persistent volume with `spec.dependencies.volumeClaimName` in your `Infinispan` CR and then apply the changes.

@@ -28,6 +28,6 @@ include::yaml/cache_template.yaml[]
 +
 [source,options="nowrap",subs=attributes+]
 ----
-$ {oc_apply_cr} mycache.yaml
+{oc_apply_cr} mycache.yaml
 cache.infinispan.org/mycachedefinition created
 ----

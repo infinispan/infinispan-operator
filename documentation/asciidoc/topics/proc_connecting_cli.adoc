@@ -13,9 +13,9 @@ Start a remote shell session to {brandname} clusters and use the command line in
 
 . Run the [command]`infinispan shell` command to connect to your {brandname} cluster.
 +
-[source,bash,options="nowrap",subs=attributes+]
+[source,options="nowrap",subs=attributes+]
 ----
-$ {kube_client} infinispan shell <cluster_name>
+{kube_client} infinispan shell <cluster_name>
 ----
 +
 [NOTE]
