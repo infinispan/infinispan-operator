@@ -1168,22 +1168,12 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 	}, {
 		Name:      dataVolumeName,
 		MountPath: DataMountPath,
-	}, {
-		Name:      AdminIdentitiesVolumeName,
-		MountPath: consts.ServerAdminIdentitiesRoot,
 	}}
 	volumes := []corev1.Volume{{
 		Name: ConfigVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{Name: configMap.Name},
-			},
-		},
-	}, {
-		Name: AdminIdentitiesVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: ispn.GetAdminSecretName(),
 			},
 		},
 	}, {

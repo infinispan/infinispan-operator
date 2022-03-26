@@ -325,10 +325,6 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 						Name:      ConfigVolumeName,
 						MountPath: OperatorConfMountPath,
 					},
-					{
-						Name:      AdminIdentitiesVolumeName,
-						MountPath: consts.ServerAdminIdentitiesRoot,
-					},
 					// Utilise Ephemeral vol as we're only interested in data related to CR
 					{
 						Name:      dataVolName,
@@ -354,15 +350,6 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 							LocalObjectReference: corev1.LocalObjectReference{Name: ispn.GetConfigName()},
 						},
 					}},
-				// Volume for admin credentials
-				{
-					Name: AdminIdentitiesVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						Secret: &corev1.SecretVolumeSource{
-							SecretName: ispn.GetAdminSecretName(),
-						},
-					},
-				},
 				// Volume for reading/writing data
 				{
 					Name:         name,
