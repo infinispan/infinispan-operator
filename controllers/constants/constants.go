@@ -49,21 +49,19 @@ const (
 	// DefaultDeveloperUser users to access the cluster rest API
 	DefaultDeveloperUser = "developer"
 	// DefaultCacheName default cache name for the CacheService
-	DefaultCacheName         = "default"
-	AdminUsernameKey         = "username"
-	AdminPasswordKey         = "password"
-	InfinispanAdminPort      = 11223
-	InfinispanAdminPortName  = "infinispan-adm"
-	InfinispanUserPortName   = "infinispan"
-	InfinispanPingPort       = 8888
-	InfinispanPingPortName   = "ping"
-	InfinispanUserPort       = 11222
-	CrossSitePort            = 7900
-	CrossSitePortName        = "xsite"
-	StatefulSetPodLabel      = "app.kubernetes.io/created-by"
-	StaticCrossSiteUriSchema = "infinispan+xsite"
-	// DefaultCacheManagerName default cache manager name used for cross site
-	DefaultCacheManagerName                 = "default"
+	DefaultCacheName                        = "default"
+	AdminUsernameKey                        = "username"
+	AdminPasswordKey                        = "password"
+	InfinispanAdminPort                     = 11223
+	InfinispanAdminPortName                 = "infinispan-adm"
+	InfinispanUserPortName                  = "infinispan"
+	InfinispanPingPort                      = 8888
+	InfinispanPingPortName                  = "ping"
+	InfinispanUserPort                      = 11222
+	CrossSitePort                           = 7900
+	CrossSitePortName                       = "xsite"
+	StatefulSetPodLabel                     = "app.kubernetes.io/created-by"
+	StaticCrossSiteUriSchema                = "infinispan+xsite"
 	CacheServiceFixedMemoryXmxMb            = 200
 	CacheServiceJvmNativeMb                 = 220
 	CacheServiceMinHeapFreeRatio            = 5
@@ -73,33 +71,24 @@ const (
 	CacheServiceJavaOptions                 = "-Xmx%dM -Xms%dM -XX:MaxRAM=%dM -Dsun.zip.disableMemoryMapping=true -XX:+UseSerialGC -XX:MinHeapFreeRatio=%d -XX:MaxHeapFreeRatio=%d %s"
 	CacheServiceNativeJavaOptions           = "-Xmx%dM -Xms%dM -Dsun.zip.disableMemoryMapping=true %s"
 
-	NativeImageMarker                   = "native"
-	GeneratedSecretSuffix               = "generated-secret"
-	InfinispanFinalizer                 = "finalizer.infinispan.org"
-	SiteServiceTemplate                 = "%v-site"
-	ServerConfigRoot                    = "/etc/config"
-	ServerEncryptRoot                   = "/etc/encrypt"
-	ServerEncryptTruststoreRoot         = ServerEncryptRoot + "/truststore"
-	ServerEncryptKeystoreRoot           = ServerEncryptRoot + "/keystore"
-	SiteTransportKeyStoreRoot           = ServerEncryptRoot + "/transport-site-tls"
-	SiteRouterKeyStoreRoot              = ServerEncryptRoot + "/router-site-tls"
-	SiteTrustStoreRoot                  = ServerEncryptRoot + "/truststore-site-tls"
-	ServerSecurityRoot                  = "/etc/security"
-	ServerConfigFilename                = "infinispan.xml"
-	ServerConfigPath                    = ServerConfigRoot + "/" + ServerConfigFilename
-	ServerIdentitiesFilename            = "identities.yaml"
-	ServerAdminUsersPropertiesFilename  = "admin-users.properties"
-	ServerAdminGroupsPropertiesFilename = "admin-groups.properties"
-	ServerUsersPropertiesFilename       = "users.properties"
-	ServerGroupsPropertiesFilename      = "groups.properties"
-	CliPropertiesFilename               = "cli.properties"
-	ServerIdentitiesCliFilename         = "identities.cli"
-	ServerAdminIdentitiesRoot           = ServerSecurityRoot + "/admin"
-	ServerAdminIdentitiesPath           = ServerAdminIdentitiesRoot + "/" + ServerIdentitiesFilename
-	ServerUserIdentitiesRoot            = ServerSecurityRoot + "/user"
-	ServerUserIdentitiesPath            = ServerUserIdentitiesRoot + "/" + ServerIdentitiesFilename
-	ServerOperatorSecurity              = ServerSecurityRoot + "/conf/operator-security"
-	ServerRoot                          = "/opt/infinispan/server"
+	NativeImageMarker           = "native"
+	GeneratedSecretSuffix       = "generated-secret"
+	InfinispanFinalizer         = "finalizer.infinispan.org"
+	ServerEncryptRoot           = "/etc/encrypt"
+	ServerEncryptTruststoreRoot = ServerEncryptRoot + "/truststore"
+	ServerEncryptKeystoreRoot   = ServerEncryptRoot + "/keystore"
+	SiteTransportKeyStoreRoot   = ServerEncryptRoot + "/transport-site-tls"
+	SiteRouterKeyStoreRoot      = ServerEncryptRoot + "/router-site-tls"
+	SiteTrustStoreRoot          = ServerEncryptRoot + "/truststore-site-tls"
+	ServerSecurityRoot          = "/etc/security"
+	ServerConfigFilename        = "infinispan.xml"
+	ServerIdentitiesFilename    = "identities.yaml"
+	CliPropertiesFilename       = "cli.properties"
+	ServerIdentitiesCliFilename = "identities.cli"
+	ServerAdminIdentitiesRoot   = ServerSecurityRoot + "/admin"
+	ServerUserIdentitiesRoot    = ServerSecurityRoot + "/user"
+	ServerOperatorSecurity      = ServerSecurityRoot + "/conf/operator-security"
+	ServerRoot                  = "/opt/infinispan/server"
 
 	EncryptTruststoreKey         = "truststore.p12"
 	EncryptTruststorePasswordKey = "truststore-password"
