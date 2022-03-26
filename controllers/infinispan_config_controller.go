@@ -302,11 +302,6 @@ func ConfigureServerEncryption(i *v1.Infinispan, c *config.Spec, client client.C
 
 	// Configure Truststore
 	if i.IsClientCertEnabled() {
-		trustSecret := &corev1.Secret{}
-		if result, err := kube.LookupResource(i.GetTruststoreSecretName(), i.Namespace, trustSecret, i, client, log, eventRec, ctx); result != nil {
-			return result, err
-		}
-
 		c.Endpoints.ClientCert = string(i.Spec.Security.EndpointEncryption.ClientCert)
 		c.Truststore.Path = fmt.Sprintf("%s/%s", consts.ServerEncryptTruststoreRoot, consts.EncryptTruststoreKey)
 	}
