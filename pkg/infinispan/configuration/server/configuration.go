@@ -91,27 +91,29 @@ type Endpoints struct {
 	ClientCert   string
 }
 
-var funcMap = template.FuncMap{
-	"RemoteSites": func(elems []BackupSite) string {
-		var ret string
-		for i, bs := range elems {
-			ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
-			if i < len(elems)-1 {
-				ret += ","
-			}
-		}
-		return ret
-	},
-}
-
 func Generate(v *version.Version, spec *Spec) (string, error) {
 	if v == nil {
 		v = &version.Version{Major: 13, Minor: 0, Patch: 0}
 	}
 	switch v.Major {
 	case 13:
-		return templates.LoadAndExecute("infinispan-13.xml", funcMap, spec)
+		return templates.LoadAndExecute("infinispan-13.xml", funcMap(), spec)
 	default:
 		return "", version.UnknownError(v)
+	}
+}
+
+func funcMap() template.FuncMap {
+	return template.FuncMap{
+		"RemoteSites": func(elems []BackupSite) string {
+			var ret string
+			for i, bs := range elems {
+				ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
+				if i < len(elems)-1 {
+					ret += ","
+				}
+			}
+			return ret
+		},
 	}
 }
