@@ -770,9 +770,17 @@ func applyAnnotations(ispn *Infinispan, envvar, annotationName string) error {
 		ispn.Annotations = make(map[string]string, len(envAnnotations))
 	}
 
+	keys := make([]string, len(envAnnotations))
+	i := 0
+	for k := range envAnnotations {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+
 	var annotationStr string
-	for k, v := range envAnnotations {
-		ispn.Annotations[k] = v
+	for _, k := range keys {
+		ispn.Annotations[k] = envAnnotations[k]
 		annotationStr += k + ","
 	}
 	ispn.Annotations[annotationName] = strings.TrimRight(annotationStr, ", ")
