@@ -72,3 +72,56 @@ func TestApplyOperatorLabels(t *testing.T) {
 		assert.True(t, reflect.DeepEqual(ispn.ObjectMeta.Labels, labelPodMap) || len(labelPodMap) == 0 && ispn.ObjectMeta.Labels == nil)
 	}
 }
+
+func TestApplyOperatorAnnotations(t *testing.T) {
+	testTable := []struct {
+		Annotations            string
+		PodAnnotations         string
+		ExpectedAnnotations    string
+		ExpectedPodAnnotations string
+	}{
+		{"", "", "", ""},
+		{"{\"annotation\":\"value\"}", "", "annotation", ""},
+		{"", "{\"annotation\":\"value\"}", "", "annotation"},
+		{"{\"a2\":\"v2\",\"a1\":\"v1\"}", "", "a1,a2", ""},
+		{"", "{\"a2\":\"v2\",\"a1\":\"v1\"}", "", "a1,a2"},
+		{"{\"a2\":\"v2\",\"a1\":\"v1\"}", "{\"ap2\":\"v2\",\"ap1\":\"v1\"}", "a1,a2", "ap1,ap2"},
+	}
+
+	for _, testItem := range testTable {
+		err := os.Setenv("INFINISPAN_OPERATOR_TARGET_ANNOTATIONS", testItem.Annotations)
+		assert.Nil(t, err)
+
+		err = os.Setenv("INFINISPAN_OPERATOR_POD_TARGET_ANNOTATIONS", testItem.PodAnnotations)
+		assert.Nil(t, err)
+
+		ispn := exposeRouteInfinispan.DeepCopy()
+		err = ispn.ApplyOperatorMeta()
+		assert.Nil(t, err)
+		assert.Equal(t, ispn.Annotations[OperatorTargetAnnotations], testItem.ExpectedAnnotations)
+		assert.Equal(t, ispn.Annotations[OperatorPodTargetAnnotations], testItem.ExpectedPodAnnotations)
+
+		// We've already tested the content of the target annotations, so remove to simplify user annotation comparison
+		delete(ispn.Annotations, OperatorTargetAnnotations)
+		delete(ispn.Annotations, OperatorPodTargetAnnotations)
+		delete(ispn.Annotations, OperatorTargetLabels)
+		delete(ispn.Annotations, OperatorPodTargetLabels)
+
+		annotationMap := make(map[string]string)
+		if testItem.Annotations != "" {
+			err = json.Unmarshal([]byte(testItem.Annotations), &annotationMap)
+			assert.Nil(t, err)
+		}
+
+		annotationPodMap := make(map[string]string)
+		if testItem.PodAnnotations != "" {
+			err = json.Unmarshal([]byte(testItem.PodAnnotations), &annotationPodMap)
+			assert.Nil(t, err)
+		}
+
+		for n, v := range annotationMap {
+			annotationPodMap[n] = v
+		}
+		assert.True(t, reflect.DeepEqual(ispn.Annotations, annotationPodMap) || len(annotationPodMap) == 0 && ispn.Annotations == nil)
+	}
+}
