@@ -19,12 +19,18 @@ endif::downstream[]
 
 . Create an `Infinispan` CR for each {brandname} cluster.
 . Specify the name of the local site with `spec.service.sites.local.name`.
-. Set the value of the `spec.service.sites.local.expose.type` field to either `NodePort` or `LoadBalancer`.
-. Optionally configure ports with the following fields:
+. Configure the expose type for cross-site replication.
+.. Set the value of the `spec.service.sites.local.expose.type` field to one of the following:
++
+* `NodePort`
+* `LoadBalancer`
+* `Route`
+.. Optionally specify a port or custom hostname with the following fields:
 +
 * `spec.service.sites.local.expose.nodePort` if you use a `NodePort` service.
 * `spec.service.sites.local.expose.port` if you use a `LoadBalancer` service.
-+
+* `spec.service.sites.local.expose.routeHostName` if you use an {openshiftshort} `Route`.
+
 . Specify the number of pods that can send RELAY messages with the `service.sites.local.maxRelayNodes` field.
 +
 [TIP]
@@ -32,7 +38,7 @@ endif::downstream[]
 Configure all pods in your cluster to send `RELAY` messages for better performance.
 If all pods send backup requests directly, then no pods need to forward backup requests.
 ====
-+
+
 . Provide the name, URL, and secret for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`.
 . If {brandname} cluster names or namespaces at the remote site do not match the local site, specify those values with the `clusterName` and `namespace` fields.
 +

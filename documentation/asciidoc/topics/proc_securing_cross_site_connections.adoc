@@ -2,7 +2,10 @@
 = Securing cross-site connections
 
 [role="_abstract"]
-Add keystores, and optional trust stores, so that {brandname} clusters can encrypt RELAY messages and secure cross-site replication traffic.
+Add keystores and trust stores so that {brandname} clusters can encrypt RELAY messages and secure cross-site replication traffic.
+
+Securing cross-site connections is optional if you use a `NodePort` or `LoadBalancer` as the expose type.
+If you use an {openshiftshort} `Route` as the expose type for cross-site replication, you must add a keystore and configure encryption for RELAY messages.
 
 .Prerequisites
 

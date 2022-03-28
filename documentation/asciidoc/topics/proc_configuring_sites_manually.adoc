@@ -16,12 +16,18 @@ Manually connecting {brandname} clusters to form cross-site views requires predi
 
 . Create an `Infinispan` CR for each {brandname} cluster.
 . Specify the name of the local site with `spec.service.sites.local.name`.
-. Set the value of the `spec.service.sites.local.expose.type` field to either `NodePort` or `LoadBalancer`.
-. Optionally configure ports with the following fields:
+. Configure the expose type for cross-site replication.
+.. Set the value of the `spec.service.sites.local.expose.type` field to one of the following:
++
+* `NodePort`
+* `LoadBalancer`
+* `Route`
+.. Optionally specify a port or custom hostname with the following fields:
 +
 * `spec.service.sites.local.expose.nodePort` if you use a `NodePort` service.
 * `spec.service.sites.local.expose.port` if you use a `LoadBalancer` service.
-+
+* `spec.service.sites.local.expose.routeHostName` if you use an {openshiftshort} `Route`.
+
 . Provide the name and static URL for each {brandname} cluster that acts as a backup location with `spec.service.sites.locations`, for example:
 +
 * **LON**
@@ -48,7 +54,7 @@ This prevents a large number of log files from uses container storage.
 include::yaml/xsite_logging.yaml[]
 ----
 ====
-+
+
 . Configure your `Infinispan` CRs with any other {datagridservice} resources and then apply the changes.
 . Verify that {brandname} clusters form a cross-site view.
 .. Retrieve the `Infinispan` CR.
