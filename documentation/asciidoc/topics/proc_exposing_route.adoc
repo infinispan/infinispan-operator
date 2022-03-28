@@ -29,12 +29,16 @@ include::yaml/expose_type_route.yaml[]
 [source,options="nowrap",subs=attributes+]
 ----
 {oc_get_routes}
-
+----
++
+[source,options="nowrap",subs=attributes+]
+----
 NAME                 CLASS    HOSTS   ADDRESS   PORTS   AGE
 {example_crd_name}   <none>   *                 443     73s
 ----
 
 .`Route` ports
+
 When you create a `Route`, it exposes a port on the network that accepts client connections and redirects traffic to {brandname} services that listen on port `11222`.
 
 The port where the `Route` is available depends on whether you use encryption or not.

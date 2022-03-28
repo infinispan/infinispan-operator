@@ -2,7 +2,7 @@
 = Cross-site replication expose types
 
 [role="_abstract"]
-You can use a `NodePort` service or a `LoadBalancer` service to handle network traffic for backup operations between {brandname} clusters.
+You can use a `NodePort` service, a `LoadBalancer` service, or an {openshiftshort} `Route` to handle network traffic for backup operations between {brandname} clusters.
 Before you start setting up cross-site replication you should determine what expose type is available for your {openshift} cluster.
 In some cases you may require an administrator to provision services before you can configure an expose type.
 
@@ -15,11 +15,24 @@ In most cases, an administrator must also configure DNS routing for those extern
 
 .`LoadBalancer`
 
-A `LoadBalancer` is service that directs network traffic to the correct node in the {openshiftshort} cluster.
+A `LoadBalancer` is a service that directs network traffic to the correct node in the {openshiftshort} cluster.
 
 Whether you can use a `LoadBalancer` as the expose type for cross-site replication depends on the host platform.
 AWS supports network load balancers (NLB) while some other cloud platforms do not.
 To use a `LoadBalancer` service, an administrator must first create an ingress controller backed by an NLB.
+
+.`Route`
+
+An {openshiftshort} `Route` allows {brandname} clusters to connect with each other through a public secure URL.
+
+{brandname} uses TLS with the SNI header to send backup requests between clusters through an {openshiftshort} `Route`.
+To do this you must add a keystore with TLS certificates so that {brandname} can encrypt network traffic for cross-site replication.
+
+When you specify `Route` as the expose type for cross-site replication, {ispn_operator} creates a route with TLS passthrough encryption for each {brandname} cluster that it manages.
+You can specify a hostname for the `Route` but you cannot specify a `Route` that you have already created.
+ifdef::community[]
+Likewise it is not possible to use an ingress instead of a route because Kubernetes does not support TLS+SNI.
+endif::community[]
 
 [role="_additional-resources"]
 .Additional resources
