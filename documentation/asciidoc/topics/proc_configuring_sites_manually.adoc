@@ -8,7 +8,7 @@ Manual cross-site connections are necessary in any scenario where access to the 
 .Prerequisites
 
 * Determine a suitable expose type for cross-site replication. +
-If you use an {openshiftshort} `Route` you must add a keystore and encrypt RELAY messages between clusters.
+If you use an {openshiftshort} `Route` you must add a keystore with TLS certificates and secure cross-site connections.
 * Ensure you have the correct host names and ports for each {brandname} cluster and each `<cluster-name>-site` service.
 +
 Manually connecting {brandname} clusters to form cross-site views requires predictable network locations for {brandname} services, which means you need to know the network locations before they are created.

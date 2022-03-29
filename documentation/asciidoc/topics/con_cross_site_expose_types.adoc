@@ -26,12 +26,12 @@ To use a `LoadBalancer` service, an administrator must first create an ingress c
 An {openshiftshort} `Route` allows {brandname} clusters to connect with each other through a public secure URL.
 
 {brandname} uses TLS with the SNI header to send backup requests between clusters through an {openshiftshort} `Route`.
-To do this you must add a keystore with certificates so that {brandname} can encrypt the traffic with TLS.
+To do this you must add a keystore with TLS certificates so that {brandname} can encrypt network traffic for cross-site replication.
 
-When you specify `Route` as the expose type for cross-site replication, {ispn_operator} creates a routes with TLS passthrough encryption for each {brandname} cluster that it manages.
+When you specify `Route` as the expose type for cross-site replication, {ispn_operator} creates a route with TLS passthrough encryption for each {brandname} cluster that it manages.
 You can specify a hostname for the `Route` but you cannot specify a `Route` that you have already created.
 ifdef::community[]
-Likewise it is not possible to use Kubernetes ingress instead of a route.
+Likewise it is not possible to use an ingress instead of a route because Kubernetes does not support TLS+SNI.
 endif::community[]
 
 [role="_additional-resources"]
