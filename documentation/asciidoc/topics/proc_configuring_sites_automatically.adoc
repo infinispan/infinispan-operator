@@ -6,7 +6,8 @@ Configure {ispn_operator} to establish cross-site views with {brandname} cluster
 
 .Prerequisites
 
-* Determine a suitable expose type for cross-site replication.
+* Determine a suitable expose type for cross-site replication. +
+If you use an {openshiftshort} `Route` you must add a keystore with the certificates for the TLS traffic.
 ifdef::community[]
 * Create and exchange {openshift} service account tokens for each {brandname} cluster. +
 Or, if you are using {k8s}, apply cluster roles and create site access secrets.
