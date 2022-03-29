@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -190,7 +191,8 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 
 	if panicVal != nil {
 		// Fail the test and pass the panic value to the output if panic occurred
-		t.Fatal(fmt.Printf("panicVal: %v\n", panicVal))
+		fmt.Println(string(debug.Stack()))
+		t.Fatal(panicVal, "\n")
 	}
 }
 
