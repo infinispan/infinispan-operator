@@ -1,11 +1,11 @@
 package infinispan
 
 import (
-	"fmt"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	testifyRequire "github.com/stretchr/testify/require"
 )
 
 // Test if single node with a storage class
@@ -28,8 +28,12 @@ func TestNodeWithStorageClass(t *testing.T) {
 
 	// Ensure a PVCs is bound from defaultStorageClass
 	pvcName := "data-volume-test-node-with-storage-class-0"
-	if *testKube.GetPVC(pvcName, spec.Namespace).Spec.StorageClassName != defaultStorageClass {
-		tutils.ExpectNoError(fmt.Errorf("persistent volume claim (%s) was created, but not bound to the cluster's default storage class (%s)",
-			pvcName, defaultStorageClass))
+	storageClassName := testKube.GetPVC(pvcName, spec.Namespace).Spec.StorageClassName
+
+	require := testifyRequire.New(t)
+	if defaultStorageClass == "" {
+		require.Nil(storageClassName, "StorageClassName should be empty")
+	} else {
+		require.Equal(defaultStorageClass, *storageClassName, "StorageClassName should use default storage class")
 	}
 }
