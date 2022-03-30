@@ -261,11 +261,9 @@ spec:
   - name: Blog
     url: https://blog.infinispan.org/
   - name: Documentation
-    url: https://infinispan.org/
+    url: https://infinispan.org/documentation
   - name: Chat
     url: https://infinispan.zulipchat.com/#narrow/stream/185835-infinispan-cloud
-  - name: Quickstart
-    url: https://github.com/infinispan/infinispan-simple-tutorials/tree/main/operator
   - name: Operator Source Code
     url: https://github.com/infinispan/infinispan-operator
   maintainers:
