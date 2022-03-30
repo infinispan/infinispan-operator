@@ -1,0 +1,15 @@
+[id='operator-reconciliation_{context}']
+= Resource reconciliation
+
+{ispn_operator} reconciles custom resources such as the `Cache` CR with resources on your {brandname} cluster.
+
+Bidirectional reconciliation synchronizes your CRs with changes that you make to {brandname} resources through the {brandname} Console, command line interface (CLI), or other client application and vice versa.
+For example if you create a cache through the {brandname} Console then {ispn_operator} adds a declarative Kubernetes representation.
+
+To perform reconciliation {ispn_operator} creates a `listener` pod for each {brandname} cluster that detects modifications for `Infinispan` resources.
+
+[NOTE]
+====
+Declarative Kubernetes representations of {brandname} resources that {ispn_operator} creates with the `listener` pod are linked to `Infinispan` CRs.
+Deleting `Infinispan` CRs removes any associated resource declarations.
+====
