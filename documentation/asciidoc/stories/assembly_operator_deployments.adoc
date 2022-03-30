@@ -7,6 +7,8 @@ ifdef::context[:parent-context: {context}]
 {ispn_operator} provides operational intelligence and reduces management complexity for deploying {brandname} on {k8s} and {openshift}.
 
 include::{topics}/con_operator_deployments.adoc[leveloffset=+1]
+include::{topics}/con_operator_managed_clusters.adoc[leveloffset=+1]
+include::{topics}/con_operator_reconciliation.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

@@ -1,0 +1,15 @@
+[id='operator-managed-clusters_{context}']
+= Cluster management
+
+A single {ispn_operator} installation can manage multiple {brandname} clusters in separate namespaces.
+Each time a user applies CRs to modify the deployment, {ispn_operator} applies the changes globally to all {brandname} clusters.
+
+.Operator-managed clusters
+//Community content
+ifdef::community[]
+image::operator-managed-clusters-ispn.png[This illustration depicts how {ispn_operator} manages multiple clusters on {k8s}.]
+endif::community[]
+//Downstream content
+ifdef::downstream[]
+image::operator-managed-clusters.png[This illustration depicts how {ispn_operator} manages multiple clusters on {openshiftshort}.]
+endif::downstream[]
