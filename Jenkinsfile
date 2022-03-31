@@ -168,6 +168,12 @@ pipeline {
                         junit testResults: 'test/reports/*.xml', skipPublishingChecks: true
                     }
                 }
+
+                stage('Archive artifacts') {
+                    steps {
+                        archiveArtifacts artifacts: '/tmp/infinispan-operator/*', followSymlinks: false
+                    }
+                }
             }
         }
     }
