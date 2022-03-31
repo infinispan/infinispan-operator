@@ -25,6 +25,8 @@ var (
 	MaxWaitTimeout       = timeout("TEST_MAX_WAIT_TIMEOUT", "3m") // MaxWaitTimeout is the maximum time to wait for resources
 	ConditionWaitTimeout = timeout("TEST_CONDITION_WAIT_TIMEOUT", "3m")
 
+	LogOutputDir = constants.GetEnvWithDefault("TESTING_LOG_DIR", os.TempDir()+"/infinispan-operator")
+
 	CPU               = os.Getenv("INFINISPAN_CPU")
 	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "1Gi")
 	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))

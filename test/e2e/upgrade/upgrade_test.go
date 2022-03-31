@@ -170,14 +170,17 @@ func cleanup(t *testing.T) {
 			),
 		}
 
-		if panicVal != nil {
-			testKube.PrintAllResources(subNamespace, &coreosv1.OperatorGroupList{}, map[string]string{})
-			testKube.PrintAllResources(subNamespace, &coreos.SubscriptionList{}, map[string]string{})
-			testKube.PrintAllResources(subNamespace, &coreos.ClusterServiceVersionList{}, map[string]string{})
+		testFailed := t != nil && t.Failed()
+		if panicVal != nil || testFailed {
+			dir := fmt.Sprintf("%s/%s", tutils.LogOutputDir, tutils.TestName(t))
+
+			testKube.WriteAllResourcesToFile(dir, subNamespace, "OperatorGroup", &coreosv1.OperatorGroupList{}, map[string]string{})
+			testKube.WriteAllResourcesToFile(dir, subNamespace, "Subscription", &coreos.SubscriptionList{}, map[string]string{})
+			testKube.WriteAllResourcesToFile(dir, subNamespace, "ClusterServiceVersion", &coreos.ClusterServiceVersionList{}, map[string]string{})
 			// Print 2.1.x Operator pod logs
-			testKube.PrintAllResources(subNamespace, &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
+			testKube.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
 			// Print latest Operator logs
-			testKube.PrintAllResources(subNamespace, &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+			testKube.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
 		}
 
 		// Cleanup OLM resources
