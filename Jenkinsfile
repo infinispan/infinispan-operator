@@ -25,6 +25,7 @@ pipeline {
         GO111MODULE = 'on'
         KUBECONFIG = "$WORKSPACE/kind-kube-config.yaml"
         TESTING_NAMESPACE = 'namespace-for-testing'
+        TESTING_LOG_DIR = "$WORKSPACE/log"
         WATCH_NAMESPACE = 'namespace-for-testing'
         PATH="/opt/go/bin:$PATH"
         RUN_SA_OPERATOR = 'true'
@@ -186,6 +187,8 @@ pipeline {
         }
 
         cleanup {
+            archiveArtifacts artifacts: 'log/**/*.yaml,log/**/*.log', followSymlinks: false
+
             sh 'kind delete clusters --all'
             sh 'docker kill $(docker ps -q) || true'
             sh 'docker container prune -f'
