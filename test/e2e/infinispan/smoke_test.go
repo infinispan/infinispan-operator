@@ -49,6 +49,8 @@ func TestBaseFunctionality(t *testing.T) {
 	verifyNoPVCs(assert, require, ispn)
 	verifyLabelsAndAnnotations(assert, require, ispn)
 	verifyDefaultAuthention(require, ispn)
+
+	panic("Temporary failure")
 }
 
 // Make sure no PVCs were created

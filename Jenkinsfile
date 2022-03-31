@@ -186,6 +186,8 @@ pipeline {
         }
 
         cleanup {
+            archiveArtifacts artifacts: '/tmp/infinispan-operator/**/*.yaml,/tmp/infinispan-operator/**/*.log', followSymlinks: false
+
             sh 'kind delete clusters --all'
             sh 'docker kill $(docker ps -q) || true'
             sh 'docker container prune -f'

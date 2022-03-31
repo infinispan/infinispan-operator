@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"testing"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"testing"
 
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/operator-framework/api/pkg/manifests"
@@ -40,13 +42,15 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, subName, subNamespace, subP
 
 		testFailed := t != nil && t.Failed()
 		if panicVal != nil || testFailed {
-			k.PrintAllResources(subNamespace, &coreosv1.OperatorGroupList{}, map[string]string{})
-			k.PrintAllResources(subNamespace, &coreos.SubscriptionList{}, map[string]string{})
-			k.PrintAllResources(subNamespace, &coreos.ClusterServiceVersionList{}, map[string]string{})
+			dir := os.TempDir() + "/infinispan-operator/" + TestName(t)
+
+			k.WriteAllResourcesToFile(dir, subNamespace, "OperatorGroup", &coreosv1.OperatorGroupList{}, map[string]string{})
+			k.WriteAllResourcesToFile(dir, subNamespace, "Subscription", &coreos.SubscriptionList{}, map[string]string{})
+			k.WriteAllResourcesToFile(dir, subNamespace, "ClusterServiceVersion", &coreos.ClusterServiceVersionList{}, map[string]string{})
 			// Print 2.1.x Operator pod logs
-			k.PrintAllResources(subNamespace, &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
+			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
 			// Print latest Operator logs
-			k.PrintAllResources(subNamespace, &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
 		}
 
 		// Cleanup OLM resources
