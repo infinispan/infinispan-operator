@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"reflect"
@@ -155,20 +156,30 @@ func (k TestKubernetes) CleanNamespaceAndLogOnPanic(t *testing.T, namespace stri
 }
 
 func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace string, panicVal interface{}) {
-	testName := TestName(t)
-	specLabel := map[string]string{"test-name": testName}
+	specLabel := make(map[string]string)
+	if t != nil {
+		specLabel["test-name"] = TestName(t)
+	}
 
-	// Print pod output if a panic has occurred
-	if panicVal != nil {
-		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
-		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
-		k.PrintAllResources(namespace, &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
-		k.PrintAllResources(namespace, &appsv1.StatefulSetList{}, map[string]string{})
-		k.PrintAllResources(namespace, &ispnv1.InfinispanList{}, map[string]string{})
-		k.PrintAllResources(namespace, &ispnv2.BackupList{}, map[string]string{})
-		k.PrintAllResources(namespace, &ispnv2.RestoreList{}, map[string]string{})
-		k.PrintAllResources(namespace, &ispnv2.BatchList{}, map[string]string{})
-		k.PrintAllResources(namespace, &ispnv2.CacheList{}, map[string]string{})
+	// Store pod output if a panic has occurred
+	testFailed := t != nil && t.Failed()
+	if panicVal != nil || testFailed {
+		dir := fmt.Sprintf("%s/%s", LogOutputDir, TestName(t))
+		err := os.RemoveAll(dir)
+		LogError(err)
+
+		err = os.MkdirAll(dir, os.ModePerm)
+		LogError(err)
+
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "StatefulSet", &appsv1.StatefulSetList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Infinispan", &ispnv1.InfinispanList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Backup", &ispnv2.BackupList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Restore", &ispnv2.RestoreList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Batch", &ispnv2.BatchList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Cache", &ispnv2.CacheList{}, map[string]string{})
 	}
 
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
@@ -189,17 +200,16 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-router-pod"})}, nil)
 	}
 
-	if panicVal != nil {
+	if t != nil && panicVal != nil {
 		// Fail the test and pass the panic value to the output if panic occurred
 		fmt.Println(string(debug.Stack()))
 		t.Fatal(panicVal, "\n")
 	}
 }
 
-func (k TestKubernetes) PrintAllResources(namespace string, list runtime.Object, set labels.Set) {
-	if err := k.Kubernetes.ResourcesList(namespace, set, list, context.TODO()); err != nil {
-		LogError(err)
-	}
+func (k TestKubernetes) WriteAllResourcesToFile(dir, namespace, suffix string, list runtime.Object, set labels.Set) {
+	err := k.Kubernetes.ResourcesList(namespace, set, list, context.TODO())
+	LogError(err)
 
 	unstructuredResource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(list)
 	LogError(err)
@@ -210,14 +220,15 @@ func (k TestKubernetes) PrintAllResources(namespace string, list runtime.Object,
 		yaml_, err := yaml.Marshal(item)
 		LogError(err)
 		if strings.Contains(reflect.TypeOf(list).String(), "PodList") {
-			fmt.Println(strings.Repeat("-", 30))
 			log, err := k.Kubernetes.Logs(item.GetName(), namespace, context.TODO())
 			LogError(err)
-			fmt.Printf("%s", log)
+
+			err = ioutil.WriteFile(dir+"/"+item.GetName()+".log", []byte(log), 0666)
+			LogError(err)
 		}
 
-		fmt.Println(strings.Repeat("-", 30))
-		fmt.Println(string(yaml_))
+		err = ioutil.WriteFile(dir+"/"+item.GetName()+"-"+suffix+".yaml", []byte(string(yaml_)), 0666)
+		LogError(err)
 	}
 }
 
