@@ -98,6 +98,20 @@ func (i *Infinispan) Default() {
 	}
 
 	i.ApplyEndpointEncryptionSettings(servingCertsMode)
+
+	if i.HasSites() {
+		// Migrate Spec.Service.Locations Host and Port parameters into the unified URL schema
+		for idx, location := range i.Spec.Service.Sites.Locations {
+			if location.Host != nil && *location.Host != "" {
+				port := consts.CrossSitePort
+				if location.Port != nil && *location.Port > 0 {
+					port = int(*location.Port)
+				}
+				// It's not possible to unset the Host and Port values so we must leave their values in place but never use them
+				i.Spec.Service.Sites.Locations[idx].URL = fmt.Sprintf("%s://%s:%d", consts.StaticCrossSiteUriSchema, *location.Host, port)
+			}
+		}
+	}
 }
 
 // +kubebuilder:webhook:path=/validate-infinispan-org-v1-infinispan,mutating=false,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=infinispans,verbs=create;update,versions=v1,name=vinfinispan.kb.io,admissionReviewVersions={v1,v1beta1}

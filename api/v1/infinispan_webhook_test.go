@@ -314,6 +314,42 @@ var _ = Describe("Infinispan Webhooks", func() {
 				"FieldValueForbidden", "spec.service.sites", "XSite not supported",
 			}}...)
 		})
+
+		It("Should convert XSite Host and Port spec fields to URL", func() {
+
+			created := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Service: InfinispanServiceSpec{
+						Sites: &InfinispanSitesSpec{
+							Locations: []InfinispanSiteLocationSpec{{
+								Name:        "SiteB",
+								ClusterName: "example-clustera",
+								Host:        pointer.StringPtr("some.host.com"),
+								Port:        pointer.Int32Ptr(6443),
+							}},
+							Local: InfinispanSitesLocalSpec{
+								Expose: CrossSiteExposeSpec{
+									Type: CrossSiteExposeTypeClusterIP,
+								},
+							},
+						},
+						Type: ServiceTypeDataGrid,
+					},
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, created)).Should(Succeed())
+
+			Expect(k8sClient.Get(ctx, key, created)).Should(Succeed())
+			spec := created.Spec
+			Expect(spec.Service.Sites.Locations).Should(HaveLen(1))
+			Expect(spec.Service.Sites.Locations[0].URL).Should(Equal("infinispan+xsite://some.host.com:6443"))
+		})
 	})
 })
 

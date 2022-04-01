@@ -910,21 +910,6 @@ func (r *infinispanRequest) upgradeInfinispan() error {
 		if sc != nil && sc.Storage != nil && *sc.Storage == "" {
 			sc.Storage = nil
 		}
-
-		if infinispan.HasSites() {
-			// Migrate Spec.Service.Locations Host and Port parameters into the unified URL schema
-			for i, location := range infinispan.Spec.Service.Sites.Locations {
-				if location.Host != nil && *location.Host != "" {
-					port := consts.CrossSitePort
-					if location.Port != nil && *location.Port > 0 {
-						port = int(*location.Port)
-					}
-					infinispan.Spec.Service.Sites.Locations[i].Host = nil
-					infinispan.Spec.Service.Sites.Locations[i].Port = nil
-					infinispan.Spec.Service.Sites.Locations[i].URL = fmt.Sprintf("%s://%s:%d", consts.StaticCrossSiteUriSchema, *location.Host, port)
-				}
-			}
-		}
 	})
 }
 
