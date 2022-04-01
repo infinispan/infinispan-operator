@@ -742,13 +742,8 @@ func (r *infinispanRequest) destroyResources() error {
 	// removing the Stateful Set should remove the rest.
 	// Then, stateful set could be controlled by Infinispan to keep current logic.
 
-	// Remove finalizer (we don't use it anymore) if it present and set owner reference for old PVCs
 	infinispan := r.infinispan
-	err := r.upgradeInfinispan()
-	if err != nil {
-		return err
-	}
-
+	var err error
 	if r.infinispan.IsConfigListenerEnabled() {
 		if err = r.DeleteConfigListener(); err != nil {
 			return err
@@ -867,69 +862,6 @@ func (r *infinispanRequest) destroyResources() error {
 		return err
 	}
 
-	return nil
-}
-
-func (r *infinispanRequest) upgradeInfinispan() error {
-	infinispan := r.infinispan
-	// Remove controller owner reference from the custom Secrets
-	for _, secretName := range []string{infinispan.GetKeystoreSecretName(), infinispan.GetTruststoreSecretName()} {
-		if err := r.dropSecretOwnerReference(secretName); err != nil {
-			return err
-		}
-	}
-
-	if controllerutil.ContainsFinalizer(infinispan, consts.InfinispanFinalizer) {
-		// Set Infinispan CR as owner reference for PVC if it not defined
-		pvcs := &corev1.PersistentVolumeClaimList{}
-		err := r.kubernetes.ResourcesList(infinispan.Namespace, infinispan.Labels(""), pvcs, r.ctx)
-		if err != nil {
-			return err
-		}
-
-		for _, pvc := range pvcs.Items {
-			if !metav1.IsControlledBy(&pvc, infinispan) {
-				if err = controllerutil.SetControllerReference(infinispan, &pvc, r.scheme); err != nil {
-					return err
-				}
-				pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
-				err := r.Client.Update(r.ctx, &pvc)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return r.update(func() {
-		// Remove finalizer if it defined in the Infinispan CR
-		controllerutil.RemoveFinalizer(infinispan, consts.InfinispanFinalizer)
-
-		infinispan.Spec.Image = nil
-		sc := infinispan.Spec.Service.Container
-		if sc != nil && sc.Storage != nil && *sc.Storage == "" {
-			sc.Storage = nil
-		}
-	})
-}
-
-func (r *infinispanRequest) dropSecretOwnerReference(secretName string) error {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: r.infinispan.Namespace,
-		},
-	}
-	_, err := kube.CreateOrPatch(r.ctx, r.Client, secret, func() error {
-		if secret.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(corev1.Resource(""), secretName)
-		}
-		kube.RemoveOwnerReference(secret, r.infinispan)
-		return nil
-	})
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
 	return nil
 }
 
