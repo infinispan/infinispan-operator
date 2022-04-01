@@ -55,8 +55,7 @@ func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
 
 	volatileCacheHelper.TestBasicUsage(volatileKey, volatileValue)
 
-	// [ISPN-13740] Server may return 500 upon deleting cache after graceful shutdown of a cluster
-	// defaultCacheHelper.Delete()
+	volatileCacheHelper.Delete()
 
 	// Verify persisted cache usability and data presence
 	actual, _ := filestoreCacheHelper.Get(filestoreKey)
@@ -64,6 +63,5 @@ func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
 		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, filestoreValue))
 	}
 
-	// [ISPN-13740] Server may return 500 upon deleting cache after graceful shutdown of a cluster
-	// filestoreCacheHelper.Delete()
+	filestoreCacheHelper.Delete()
 }
