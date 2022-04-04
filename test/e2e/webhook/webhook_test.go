@@ -3,7 +3,9 @@ package webhook
 import (
 	"context"
 	"errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 
 	"github.com/iancoleman/strcase"
@@ -82,6 +84,23 @@ func TestMain(m *testing.M) {
 		},
 	})
 	testKube.WaitForDeployment("infinispan-operator-controller-manager", subNamespace)
+
+	// We must ensure that the Operator pods have the defined environment variables available
+	// https://github.com/operator-framework/operator-lifecycle-manager/issues/2725
+	testKube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{
+		Namespace:     subNamespace,
+		LabelSelector: labels.SelectorFromSet(map[string]string{"app.kubernetes.io/name": "infinispan-operator"}),
+	}, func(pods []corev1.Pod) bool {
+		for _, pod := range pods {
+			for _, env := range pod.Spec.Containers[0].Env {
+				if env.Name == ispnv1.OperatorTargetLabelsEnvVarName {
+					return true
+				}
+			}
+		}
+		return false
+	})
+
 	code := m.Run()
 	testKube.CleanupOLMTest(nil, subName, subNamespace, subPackage)
 	os.Exit(code)
