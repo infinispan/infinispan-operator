@@ -38,7 +38,8 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, subName, subNamespace, subP
 			),
 		}
 
-		if panicVal != nil {
+		testFailed := t != nil && t.Failed()
+		if panicVal != nil || testFailed {
 			k.PrintAllResources(subNamespace, &coreosv1.OperatorGroupList{}, map[string]string{})
 			k.PrintAllResources(subNamespace, &coreos.SubscriptionList{}, map[string]string{})
 			k.PrintAllResources(subNamespace, &coreos.ClusterServiceVersionList{}, map[string]string{})
