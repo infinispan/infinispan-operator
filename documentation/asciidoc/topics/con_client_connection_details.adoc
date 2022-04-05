@@ -11,7 +11,7 @@ Client connections to {brandname} require the following information:
 
 .Hostnames
 
-The hostname you use depends on whether client connections are on the same {k8s} cluster as {brandname}.
+The hostname you use depends on whether clients are running on the same {k8s} cluster as {brandname}.
 
 Client applications running on the same {k8s} cluster use the internal service name for the {brandname} cluster.
 
@@ -20,11 +20,11 @@ Client applications running on the same {k8s} cluster use the internal service n
 include::yaml/metadata_name.yaml[]
 ----
 
-Client applications running outside {k8s} use one of the following as the host name:
+Client applications running on a different {k8s}, or outside {k8s}, use a hostname that depends on how {brandname} is exposed on the network.
 
 A `LoadBalancer` service uses the URL for the load balancer.
-A `NodePort` service uses the node host name.
-An {openshift} `Route` uses either a custom hostname or a system-defined hostname.
+A `NodePort` service uses the node hostname.
+An {openshift} `Route` uses either a custom hostname that you define or a hostname that the system generates.
 
 .Ports
 

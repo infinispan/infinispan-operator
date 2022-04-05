@@ -18,7 +18,4 @@ The default intelligence, `HASH_DISTRIBUTION_AWARE`, is recommended because it a
 In some cases network isolation policies can require you to use `BASIC` intelligence even when clients are running in the same {k8s} cluster but a different namespace.
 ====
 
-Hot Rod clients must use `BASIC` intelligence when:
-
-* Running in a different {k8s} cluster than {brandname}.
-* Connecting to {brandname} through a `LoadBalancer`, `NodePort`, or {openshiftshort} `Route`.
+Hot Rod clients must use `BASIC` intelligence when connecting to {brandname} through a `LoadBalancer`, `NodePort`, or {openshiftshort} `Route`.
