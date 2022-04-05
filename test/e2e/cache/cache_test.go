@@ -1,23 +1,29 @@
 package cache
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"strings"
-	"testing"
-	"time"
-
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	testifyAssert "github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
+	"testing"
+	"time"
 )
 
-var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
+var (
+	ctx      = context.TODO()
+	testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
+)
 
 func TestMain(m *testing.M) {
 	tutils.RunOperator(m, testKube)
@@ -48,7 +54,7 @@ func TestCacheCR(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	ispn := initCluster(t, false)
+	ispn := initCluster(t, true)
 
 	test := func(cache *v2alpha1.Cache) {
 		testKube.Create(cache)
@@ -60,17 +66,37 @@ func TestCacheCR(t *testing.T) {
 		testKube.DeleteCache(cache)
 		// Assert that the Cache is removed from the server once the Cache CR has been deleted
 		cacheHelper.WaitForCacheToNotExist()
+		assertConfigListenerHasNoErrors(t, ispn)
 	}
 
-	//Test for CacheCR with Templatename
+	//Test for CacheCR with TemplateName
 	cache := cacheCR("cache-with-static-template", ispn)
 	cache.Spec.TemplateName = "org.infinispan.DIST_SYNC"
 	test(cache)
 
 	//Test for CacheCR with TemplateXML
 	cache = cacheCR("cache-with-xml-template", ispn)
-	cache.Spec.Template = "<infinispan><cache-container><distributed-cache name=\"cache-with-xml-template\" mode=\"SYNC\"><persistence><file-store/></persistence></distributed-cache></cache-container></infinispan>"
+	cache.Spec.Template = "<distributed-cache name=\"cache-with-xml-template\" mode=\"SYNC\"/>"
 	test(cache)
+}
+
+func assertConfigListenerHasNoErrors(t *testing.T, i *v1.Infinispan) {
+	// Ensure that the ConfigListener pod is not in a CrashLoopBackOff
+	testKube.WaitForDeployment(i.GetConfigListenerName(), tutils.Namespace)
+
+	k8s := testKube.Kubernetes
+	podList := testKube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{
+		Namespace: tutils.Namespace,
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"app":         "infinispan-config-listener-pod",
+			"clusterName": strcase.ToKebab(tutils.TestName(t)),
+		})},
+		nil,
+	)
+	testifyAssert.Equal(t, 1, len(podList.Items))
+	logs, err := k8s.Logs(podList.Items[0].Name, tutils.Namespace, ctx)
+	tutils.ExpectNoError(err)
+	testifyAssert.NotContains(t, logs, "ERROR")
 }
 
 func TestUpdateCacheCR(t *testing.T) {
@@ -154,6 +180,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 		return !testKube.AssertK8ResourceExists(cacheName, tutils.Namespace, &v2alpha1.Cache{}), nil
 	})
 	tutils.ExpectNoError(err)
+	assertConfigListenerHasNoErrors(t, ispn)
 }
 
 func TestStaticServerCache(t *testing.T) {
@@ -211,6 +238,7 @@ func TestStaticServerCache(t *testing.T) {
 	// if !cacheHelper.Exists() {
 	// 	panic("Static cache removed from the server")
 	// }
+	assertConfigListenerHasNoErrors(t, ispn)
 }
 
 func TestCacheWithXML(t *testing.T) {
@@ -251,6 +279,7 @@ func TestCacheWithXML(t *testing.T) {
 	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == updatedXml
 	})
+	assertConfigListenerHasNoErrors(t, ispn)
 }
 
 func TestCacheWithJSON(t *testing.T) {
@@ -291,6 +320,7 @@ func TestCacheWithJSON(t *testing.T) {
 	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == updatedJson
 	})
+	assertConfigListenerHasNoErrors(t, ispn)
 }
 
 func TestCacheClusterRecreate(t *testing.T) {
