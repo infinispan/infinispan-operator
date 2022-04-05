@@ -11,9 +11,9 @@ For example, configure a `LoadBalancer` service or create a `Route`.
 
 .Procedure
 
-* Access the REST API with any HTTP client at `$SERVICE_HOSTNAME:$PORT/rest/v2`.
+* Access the REST API with any HTTP client at `$HOSTNAME:$PORT/rest/v2`.
 +
-Replace `$SERVICE_HOSTNAME:$PORT` with the hostname and port where {brandname} is available on the network.
+Replace `$HOSTNAME:$PORT` with the network location where {brandname} listens for client connections.
 
 [role="_additional-resources"]
 .Additional resources

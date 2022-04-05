@@ -2,22 +2,29 @@
 = Client connection details
 
 [role="_abstract"]
-Before you can connect to {brandname}, you need to retrieve the following pieces of information:
+Client connections to {brandname} require the following information:
 
-* Service hostname
+* Hostname
 * Port
 * Authentication credentials, if required
 * TLS certificate, if you use encryption
 
-.Service hostnames
+.Hostnames
 
-The service hostname depends on how you expose {brandname} on the network or if your clients are running on {k8s}.
+The hostname you use depends on whether client connections are on the same {k8s} cluster as {brandname}.
 
-For clients running on {k8s}, you can use the name of the internal service that {ispn_operator} creates.
+Client applications running on the same {k8s} cluster use the internal service name for the {brandname} cluster.
 
-For clients running outside {k8s}, the service hostname is the location URL if you use a `LoadBalancer` service.
-For a `NodePort` service, the service hostname is the node host name.
-For a route, the service hostname is either a custom hostname or a system-defined hostname.
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/metadata_name.yaml[]
+----
+
+Client applications running outside {k8s} use one of the following as the host name:
+
+A `LoadBalancer` service uses the URL for the load balancer.
+A `NodePort` service uses the node host name.
+An {openshift} `Route` uses either a custom hostname or a system-defined hostname.
 
 .Ports
 

@@ -6,9 +6,19 @@ Hot Rod is a binary TCP protocol that {brandname} provides for high-performance 
 
 .Client intelligence
 
-Client intelligence refers to mechanisms the Hot Rod protocol provides so that clients can locate and send requests to {brandname} pods.
+The Hot Rod protocol includes a mechanism that provides clients with an up to date view of the cache topology.
+Client intelligence improves performance by reducing the number of network hops for read and write operations.
 
-Hot Rod clients running on {k8s} can access internal IP addresses for {brandname} pods so you can use any client intelligence.
+Clients running in the same {k8s} cluster can access internal IP addresses for {brandname} pods so you can use any client intelligence.
 The default intelligence, `HASH_DISTRIBUTION_AWARE`, is recommended because it allows clients to route requests to primary owners, which improves performance.
 
-Hot Rod clients running outside {k8s} must use `BASIC` intelligence.
+[NOTE]
+====
+{k8s} cluster administrators can define network policies that restrict traffic to {brandname}.
+In some cases network isolation policies can require you to use `BASIC` intelligence even when clients are running in the same {k8s} cluster but a different namespace.
+====
+
+Hot Rod clients must use `BASIC` intelligence when:
+
+* Running in a different {k8s} cluster than {brandname}.
+* Connecting to {brandname} through a `LoadBalancer`, `NodePort`, or {openshiftshort} `Route`.
