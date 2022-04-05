@@ -67,7 +67,7 @@ func TestCacheCR(t *testing.T) {
 		testKube.DeleteCache(cache)
 		// Assert that the Cache is removed from the server once the Cache CR has been deleted
 		cacheHelper.WaitForCacheToNotExist()
-		assertConfigListenerHasNoErrors(t, ispn)
+		assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 	}
 
 	//Test for CacheCR with TemplateName
@@ -81,21 +81,23 @@ func TestCacheCR(t *testing.T) {
 	test(cache)
 }
 
-func assertConfigListenerHasNoErrors(t *testing.T, i *v1.Infinispan) {
+func assertConfigListenerHasNoErrorsOrRestarts(t *testing.T, i *v1.Infinispan) {
 	// Ensure that the ConfigListener pod is not in a CrashLoopBackOff
 	testKube.WaitForDeployment(i.GetConfigListenerName(), tutils.Namespace)
-
 	k8s := testKube.Kubernetes
 	podList := testKube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{
 		Namespace: tutils.Namespace,
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			"app":         "infinispan-config-listener-pod",
-			"clusterName": strcase.ToKebab(tutils.TestName(t)),
+			"clusterName": i.Name,
 		})},
 		nil,
 	)
 	testifyAssert.Equal(t, 1, len(podList.Items))
-	logs, err := k8s.Logs(podList.Items[0].Name, tutils.Namespace, ctx)
+
+	pod := podList.Items[0]
+	testifyAssert.Equal(t, int32(0), pod.Status.ContainerStatuses[0].RestartCount)
+	logs, err := k8s.Logs(pod.Name, tutils.Namespace, ctx)
 	tutils.ExpectNoError(err)
 	testifyAssert.NotContains(t, logs, "ERROR")
 }
@@ -181,7 +183,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 		return !testKube.AssertK8ResourceExists(cacheName, tutils.Namespace, &v2alpha1.Cache{}), nil
 	})
 	tutils.ExpectNoError(err)
-	assertConfigListenerHasNoErrors(t, ispn)
+	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 }
 
 func TestStaticServerCache(t *testing.T) {
@@ -240,7 +242,7 @@ func TestStaticServerCache(t *testing.T) {
 	// if !cacheHelper.Exists() {
 	// 	panic("Static cache removed from the server")
 	// }
-	assertConfigListenerHasNoErrors(t, ispn)
+	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 }
 
 func TestCacheWithXML(t *testing.T) {
@@ -281,7 +283,7 @@ func TestCacheWithXML(t *testing.T) {
 	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == updatedXml
 	})
-	assertConfigListenerHasNoErrors(t, ispn)
+	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 }
 
 func TestCacheWithJSON(t *testing.T) {
@@ -322,7 +324,7 @@ func TestCacheWithJSON(t *testing.T) {
 	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == updatedJson
 	})
-	assertConfigListenerHasNoErrors(t, ispn)
+	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 }
 
 func TestCacheClusterRecreate(t *testing.T) {
@@ -393,6 +395,44 @@ func TestCacheClusterNameChange(t *testing.T) {
 	client = tutils.HTTPClientForCluster(newCluster, testKube)
 	cacheHelper = tutils.NewCacheHelper(cacheName, client)
 	cacheHelper.WaitForCacheToExist()
+}
+
+func TestConfigListenerFailover(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, true)
+	listOps := &client.ListOptions{
+		Namespace:     tutils.Namespace,
+		LabelSelector: labels.SelectorFromSet(ispn.PodLabels()),
+	}
+
+	// Scale down, resulting in ConfigLister SSE subscribe to fail and cause a pod restart
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.Replicas = 0
+		}),
+	)
+	testKube.WaitForPods(0, tutils.SinglePodTimeout, listOps, nil)
+
+	// Scale up
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.Replicas = 1
+		}),
+	)
+	testKube.WaitForPods(1, tutils.SinglePodTimeout, listOps, nil)
+
+	// Create cache via REST
+	cacheName := "some-cache"
+	cacheConfig := fmt.Sprintf("localCache:\n  memory:\n    maxCount: \"%d\"\n", 100)
+	httpClient := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, httpClient)
+	cacheHelper.Create(cacheConfig, mime.ApplicationYaml)
+
+	// Assert Cache CR created and ready
+	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 }
 
 func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
