@@ -299,10 +299,7 @@ func (r *cacheRequest) reconcileCacheService(cacheExists bool, cache api.Cache) 
 func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) error {
 	spec := r.cache.Spec
 	if cacheExists {
-		if spec.TemplateName != "" {
-			// TODO enforce with webhook validation when supported
-			r.log.Error(fmt.Errorf("updating an existing Cache's 'spec.TemplateName' field is not supported"), "")
-		} else {
+		if spec.Template != "" {
 			err := cache.UpdateConfig(spec.Template, mime.GuessMarkup(spec.Template))
 			if err != nil {
 				return fmt.Errorf("unable to update cache template: %w", err)
@@ -351,7 +348,7 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 	maxRetries := 5
 	for i := 1; i <= maxRetries; i++ {
 		_, err = controllerutil.CreateOrPatch(cl.Ctx, client, cache, func() error {
-			var template string
+			var template, templateName string
 			if cache.CreationTimestamp.IsZero() {
 				cl.Log.Infof("Create Cache CR for '%s'\n%s", cacheCrName, configYaml)
 				if err := controllerutil.SetOwnerReference(cl.Infinispan, cache, client.Scheme()); err != nil {
@@ -359,7 +356,7 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 				}
 				// Define template using YAML provided by the stream when Cache is being created for the first time
 				template = configYaml
-			} else {
+			} else if cache.Spec.Template != "" {
 				cl.Log.Infof("Update Cache CR for '%s'\n%s", cacheCrName, configYaml)
 				// Determinate the original user markup format and convert stream configuration to that format if required
 				mediaType := mime.GuessMarkup(cache.Spec.Template)
@@ -374,6 +371,8 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 						return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationYaml, mediaType, err)
 					}
 				}
+			} else {
+				templateName = cache.Spec.TemplateName
 			}
 			if cache.ObjectMeta.Annotations == nil {
 				cache.ObjectMeta.Annotations = make(map[string]string, 1)
@@ -381,9 +380,10 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 			controllerutil.AddFinalizer(cache, constants.InfinispanFinalizer)
 			cache.ObjectMeta.Annotations[constants.ListenerAnnotationGeneration] = strconv.FormatInt(cache.GetGeneration()+1, 10)
 			cache.Spec = v2alpha1.CacheSpec{
-				Name:        cacheName,
-				ClusterName: cl.Infinispan.Name,
-				Template:    template,
+				Name:         cacheName,
+				ClusterName:  cl.Infinispan.Name,
+				Template:     template,
+				TemplateName: templateName,
 			}
 			return nil
 		})

@@ -561,7 +561,7 @@ func (k TestKubernetes) WaitForInfinispanPodsCreatedBy(required int, timeout tim
 }
 
 // WaitForPods waits for pods with given ListOptions to reach the desired count in ContainersReady state
-func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps *client.ListOptions, callback func([]corev1.Pod) bool) {
+func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps *client.ListOptions, callback func([]corev1.Pod) bool) *corev1.PodList {
 	podList := &corev1.PodList{}
 	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
@@ -593,6 +593,7 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps
 	})
 
 	ExpectNoError(err)
+	return podList
 }
 
 func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace string, condition ispnv1.ConditionType, timeout time.Duration) *ispnv1.Infinispan {
