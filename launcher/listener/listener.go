@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/infinispan/infinispan-operator/launcher"
+	"gopkg.in/cenkalti/backoff.v1"
 	"net/http"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/r3labs/sse/v2"
-	"gopkg.in/cenkalti/backoff.v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -77,12 +77,9 @@ func New(ctx context.Context, p Parameters) {
 	containerSse.Headers = map[string]string{
 		"Accept": string(mime.ApplicationYaml),
 	}
-	// TODO how to make this more rebust?
-	// Fix number of attempts to reconnect?
-	// How should Listener behave if Cluster becomes unavailable at runtime?
-	containerSse.ReconnectStrategy = &backoff.StopBackOff{}
+	containerSse.ReconnectStrategy = backoff.NewConstantBackOff(time.Second)
 	containerSse.ReconnectNotify = func(e error, t time.Duration) {
-		log.Warnf("Cache stream connection lost. Reconnecting: %w", e)
+		log.Warnf("Cache stream connection lost. Reconnecting: %v", e)
 	}
 
 	cacheListener := &controllers.CacheListener{
@@ -108,7 +105,7 @@ func New(ctx context.Context, p Parameters) {
 			}
 		})
 		if err != nil {
-			log.Errorf("Error encountered on SSE subscribe: %w", err)
+			log.Errorf("Error encountered on SSE subscribe: %v", err)
 			cancel()
 		}
 	}()
