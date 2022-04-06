@@ -927,3 +927,11 @@ func (k *TestKubernetes) AssertK8ResourceExists(name, namespace string, obj clie
 	}
 	return client.Get(context.TODO(), key, obj) == nil
 }
+
+func (k TestKubernetes) WaitForResourceRemoval(name, namespace string, obj client.Object) {
+	ExpectNoError(
+		wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+			return !k.AssertK8ResourceExists(name, namespace, obj), nil
+		}),
+	)
+}

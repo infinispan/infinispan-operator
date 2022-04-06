@@ -6,15 +6,19 @@ import (
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	testifyAssert "github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 	"testing"
 	"time"
@@ -161,7 +165,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	cr := testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
 
 	// Assert that the owner reference has been correctly set to the Infinispan CR
-	if cr.GetOwnerReferences()[0].UID != ispn.UID {
+	if !kubernetes.IsOwnedBy(cr, ispn) {
 		panic("Cache has unexpected owner reference")
 	}
 
@@ -228,7 +232,7 @@ func TestStaticServerCache(t *testing.T) {
 	cr := testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
 
 	// Assert that the owner reference has been correctly set to the Infinispan CR
-	if cr.GetOwnerReferences()[0].UID != ispn.UID {
+	if !kubernetes.IsOwnedBy(cr, ispn) {
 		panic("Cache has unexpected owner reference")
 	}
 
@@ -431,6 +435,65 @@ func TestConfigListenerFailover(t *testing.T) {
 	// Assert Cache CR created and ready
 	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
 	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
+}
+
+func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, true)
+
+	// Create cache via REST
+	cacheName := "some-cache"
+	cacheConfig := "distributedCache: ~"
+	httpClient := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, httpClient)
+	cacheHelper.Create(cacheConfig, mime.ApplicationYaml)
+	cacheHelper.AssertCacheExists()
+
+	// Assert the Cache CR is created
+	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+
+	// Disable the ConfigListener and wait for the Deployment to be removed
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
+				Enabled: false,
+			}
+		}),
+	)
+	testKube.WaitForResourceRemoval(ispn.GetConfigListenerName(), tutils.Namespace, &appsv1.Deployment{})
+
+	// Assert the cache still exists on the server
+	cacheHelper.AssertCacheExists()
+
+	// Assert that the listener created Cache CR is removed by the Infinispan controller when the ConfigListener is disabled
+	testKube.WaitForResourceRemoval(cacheName, tutils.Namespace, &v2alpha1.Cache{})
+
+	// Manually recreate the Cache CR and set its owner reference
+	cr := cacheCR(cacheName, ispn)
+	cr.ObjectMeta.Annotations = map[string]string{constants.ListenerAnnotationGeneration: "1"}
+	cr.Spec.Template = cacheConfig
+	tutils.ExpectNoError(controllerutil.SetControllerReference(ispn, cr, testKube.Kubernetes.Client.Scheme()))
+	testKube.Create(cr)
+
+	// Delete the cache on the server so the CR becomes stale
+	cacheHelper.Delete()
+
+	// Assert the now orphaned Cache CR still exists
+	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+
+	// Enable the ConfigListener again
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
+				Enabled: true,
+			}
+		}),
+	)
+
+	// Assert the Cache CR was removed
+	testKube.WaitForResourceRemoval(cacheName, tutils.Namespace, &v2alpha1.Cache{})
 }
 
 func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
