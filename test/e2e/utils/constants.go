@@ -12,10 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	DefaultClusterName = "test-node-startup"
-)
-
 var (
 	TestTimeout          = timeout("TEST_TIMEOUT", "5m")
 	SinglePodTimeout     = timeout("TEST_SINGLE_POD_TIMEOUT", "5m")
