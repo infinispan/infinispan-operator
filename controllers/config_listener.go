@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -158,24 +159,48 @@ func (r *infinispanRequest) DeleteConfigListener() error {
 		Namespace: r.infinispan.Namespace,
 	}
 
-	delete := func(obj client.Object) error {
-		err := r.Client.Delete(r.ctx, obj)
+	ignoreNotFoundError := func(err error) error {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 		return nil
 	}
 
-	if err := delete(&appsv1.Deployment{ObjectMeta: objectMeta}); err != nil {
+	deleteResource := func(obj client.Object) error {
+		err := r.Client.Delete(r.ctx, obj)
+		return ignoreNotFoundError(err)
+	}
+
+	if err := deleteResource(&appsv1.Deployment{ObjectMeta: objectMeta}); err != nil {
 		return err
 	}
 
-	if err := delete(&rbacv1.RoleBinding{ObjectMeta: objectMeta}); err != nil {
+	if err := deleteResource(&rbacv1.RoleBinding{ObjectMeta: objectMeta}); err != nil {
 		return err
 	}
 
-	if err := delete(&rbacv1.Role{ObjectMeta: objectMeta}); err != nil {
+	if err := deleteResource(&rbacv1.Role{ObjectMeta: objectMeta}); err != nil {
 		return err
 	}
-	return delete(&corev1.ServiceAccount{ObjectMeta: objectMeta})
+
+	if err := deleteResource(&corev1.ServiceAccount{ObjectMeta: objectMeta}); err != nil {
+		return err
+	}
+
+	// Remove any Cache CR instances owned by Infinispan as these were created by the Listener
+	cacheList := &v2alpha1.CacheList{}
+	if err := r.kubernetes.Client.List(r.ctx, cacheList, &client.ListOptions{Namespace: r.infinispan.Namespace}); err != nil {
+		return fmt.Errorf("unable to rerieve existing Cache resources: %w", err)
+	}
+
+	// Iterate over all existing CRs, marking for deletion any that do not have a cache definition on the server
+	for _, cache := range cacheList.Items {
+		if kube.IsOwnedBy(&cache, r.infinispan) {
+			cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete] = "true"
+			if err := r.kubernetes.Client.Update(r.ctx, &cache); err != nil {
+				return ignoreNotFoundError(err)
+			}
+		}
+	}
+	return nil
 }

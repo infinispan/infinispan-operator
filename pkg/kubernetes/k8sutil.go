@@ -188,3 +188,12 @@ func SupportsOwnerReference(restMapper meta.RESTMapper, owner, dependent runtime
 	// Both owner and dependent are namespace-scoped and in the same namespace.
 	return true, nil
 }
+
+func IsOwnedBy(obj, owner crclient.Object) bool {
+	for _, ref := range obj.GetOwnerReferences() {
+		if ref.UID == owner.GetUID() {
+			return true
+		}
+	}
+	return false
+}
