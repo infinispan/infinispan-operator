@@ -4,14 +4,15 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/launcher"
 	"gopkg.in/cenkalti/backoff.v1"
 	"net/http"
+	"os"
 	"time"
 
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
-	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
@@ -48,29 +49,71 @@ func New(ctx context.Context, p Parameters) {
 	log.Info(fmt.Sprintf("Starting Infinispan ConfigListener Version: %s", launcher.Version))
 
 	ctx, cancel := context.WithCancel(ctx)
-	kubernetes, err := kubernetes.NewKubernetesFromConfig(ctrl.GetConfigOrDie(), scheme)
+	k8s, err := kubernetes.NewKubernetesFromConfig(ctrl.GetConfigOrDie(), scheme)
 	if err != nil {
 		log.Fatal("failed to create client")
 	}
 
 	infinispan := &v1.Infinispan{}
-	if err = kubernetes.Client.Get(ctx, types.NamespacedName{Namespace: p.Namespace, Name: p.Cluster}, infinispan); err != nil {
-		log.Fatalf("unable to load Infinispan cluster %s in Namespace %s: %w", p.Cluster, p.Namespace, err)
+	if err = k8s.Client.Get(ctx, types.NamespacedName{Namespace: p.Namespace, Name: p.Cluster}, infinispan); err != nil {
+		log.Fatalf("unable to load Infinispan cluster %s in Namespace %s: %v", p.Cluster, p.Namespace, err)
 	}
 
 	secret := &corev1.Secret{}
-	if err = kubernetes.Client.Get(ctx, types.NamespacedName{Namespace: p.Namespace, Name: infinispan.GetAdminSecretName()}, secret); err != nil {
-		log.Fatalf("unable to load Infinispan Admin identities secret %s in Namespace %s: %w", p.Cluster, p.Namespace, err)
+	if err = k8s.Client.Get(ctx, types.NamespacedName{Namespace: p.Namespace, Name: infinispan.GetAdminSecretName()}, secret); err != nil {
+		log.Fatalf("unable to load Infinispan Admin identities secret %s in Namespace %s: %v", p.Cluster, p.Namespace, err)
 	}
-
-	service := fmt.Sprintf("%s.%s.svc.cluster.local:11223", infinispan.GetAdminServiceName(), p.Namespace)
-	log.Debugf("Attempting to consume streams from service '%s'\n", service)
 
 	user := secret.Data[constants.AdminUsernameKey]
 	password := secret.Data[constants.AdminPasswordKey]
-	service = fmt.Sprintf("http://%s:%s@%s", user, password, service)
+	service := fmt.Sprintf("%s.%s.svc.cluster.local:11223", infinispan.GetAdminServiceName(), p.Namespace)
+	serviceWithAuth := fmt.Sprintf("http://%s:%s@%s", user, password, service)
 
-	containerSse := sse.NewClient(service + "/rest/v2/container/config?action=listen&includeCurrentState=true")
+	cacheListener := &controllers.CacheListener{
+		Infinispan: infinispan,
+		Ctx:        ctx,
+		Kubernetes: k8s,
+		Log:        log,
+	}
+
+	wait := func() {
+		t := time.NewTimer(time.Second)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			log.Info("Context cancelled, terminating.")
+			os.Exit(0)
+		case <-t.C:
+		}
+	}
+
+	for {
+		podList := &corev1.PodList{}
+		err = k8s.ResourcesList(infinispan.Namespace, infinispan.PodLabels(), podList, ctx)
+		if err != nil {
+			log.Error("Unable to retrieve Infinispan pod list: %w", err)
+		}
+
+		var readyPod *corev1.Pod
+		for _, pod := range podList.Items {
+			if kubernetes.IsPodReady(pod) {
+				readyPod = &pod
+				break
+			}
+		}
+
+		if readyPod == nil {
+			log.Info("Waiting for an Infinispan pod to become ready...")
+		} else if err = cacheListener.RemoveStaleResources(readyPod.Name); err != nil {
+			log.Errorf("Unable to remove stale resources: %v", err)
+		} else {
+			break
+		}
+		wait()
+	}
+
+	log.Infof("Consuming streams from service '%s'\n", service)
+	containerSse := sse.NewClient(serviceWithAuth + "/rest/v2/container/config?action=listen&includeCurrentState=true")
 	containerSse.Connection.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -80,13 +123,6 @@ func New(ctx context.Context, p Parameters) {
 	containerSse.ReconnectStrategy = backoff.NewConstantBackOff(time.Second)
 	containerSse.ReconnectNotify = func(e error, t time.Duration) {
 		log.Warnf("Cache stream connection lost. Reconnecting: %v", e)
-	}
-
-	cacheListener := &controllers.CacheListener{
-		Infinispan: infinispan,
-		Ctx:        ctx,
-		Kubernetes: kubernetes,
-		Log:        log,
 	}
 
 	go func() {
@@ -101,7 +137,7 @@ func New(ctx context.Context, p Parameters) {
 				err = cacheListener.Delete(msg.Data)
 			}
 			if err != nil {
-				log.Errorf("Error encountered for event '%s': %w", event, err)
+				log.Errorf("Error encountered for event '%s': %v", event, err)
 			}
 		})
 		if err != nil {

@@ -325,6 +325,52 @@ func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) erro
 	return err
 }
 
+func (cl *CacheListener) RemoveStaleResources(podName string) error {
+	cl.Log.Info("Checking for stale cache resources")
+	k8s := cl.Kubernetes
+	ispn, err := NewInfinispanForPod(cl.Ctx, podName, cl.Infinispan, k8s)
+	if err != nil {
+		return err
+	}
+
+	// Retrieve names of caches defined on the server
+	cacheNames, err := ispn.Caches().Names()
+	if err != nil {
+		return err
+	}
+	cl.Log.Debugf("Caches defined on the server: '%v'", cacheNames)
+
+	// Create Set of CR names for 0(1) lookup
+	serverCaches := make(map[string]struct{}, len(cacheNames))
+	for _, name := range cacheNames {
+		cacheCrName := strcase.ToKebab(name)
+		serverCaches[cacheCrName] = struct{}{}
+	}
+
+	// Retrieve list of all Cache CRs in namespace
+	cacheList := &v2alpha1.CacheList{}
+	if err := k8s.Client.List(cl.Ctx, cacheList, &client.ListOptions{Namespace: cl.Infinispan.Namespace}); err != nil {
+		return fmt.Errorf("unable to rerieve existing Cache resources: %w", err)
+	}
+
+	// Iterate over all existing CRs, marking for deletion any that do not have a cache definition on the server
+	for _, cache := range cacheList.Items {
+		listenerCreated := kube.IsOwnedBy(&cache, cl.Infinispan)
+		_, cacheExists := serverCaches[cache.Name]
+		cl.Log.Debugf("Checking if Cache CR '%s' is stale. ListenerCreated=%t. CacheExists=%t", cache.Name, listenerCreated, cacheExists)
+		if listenerCreated && !cacheExists {
+			cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete] = "true"
+			cl.Log.Infof("Marking stale Cache resource '%s' for deletion", cache.Name)
+			if err := k8s.Client.Update(cl.Ctx, &cache); err != nil {
+				if !errors.IsNotFound(err) {
+					return fmt.Errorf("unable to mark Cache '%s' for deletion: %w", cache.Name, err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 	cacheName, configYaml, err := unmarshallEventConfig(data)
 	if err != nil {
