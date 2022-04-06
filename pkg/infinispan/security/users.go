@@ -136,19 +136,6 @@ func AdminPassword(secretName, namespace string, k *kube.Kubernetes, ctx context
 	return passwordFromSecret(consts.DefaultOperatorUser, secretName, namespace, k, ctx)
 }
 
-func AuthPropsFromSecret(buf []byte) (users, groups string, err error) {
-	var creds IdentitiesYaml
-	err = yaml.Unmarshal(buf, &creds)
-	if err != nil {
-		return
-	}
-	for _, cred := range creds.Credentials {
-		users += fmt.Sprintf("%s=%s\n", cred.Username, cred.Password)
-		groups += fmt.Sprintf("%s=%s\n", cred.Username, strings.Join(cred.Roles, ","))
-	}
-	return
-}
-
 func IdentitiesCliFileFromSecret(buf []byte, realm, usersFile, groupsFile string) (string, error) {
 	var creds IdentitiesYaml
 	if err := yaml.Unmarshal(buf, &creds); err != nil {

@@ -228,14 +228,3 @@ func IsControlledByGVK(refs []metav1.OwnerReference, gvk schema.GroupVersionKind
 	}
 	return false
 }
-
-func RemoveOwnerReference(obj, owner metav1.Object) {
-	ownerReferences := obj.GetOwnerReferences()
-	for index, ref := range ownerReferences {
-		if ref.UID == owner.GetUID() {
-			ownerReferences[index] = ownerReferences[len(ownerReferences)-1]
-			obj.SetOwnerReferences(ownerReferences[:len(ownerReferences)-1])
-			break
-		}
-	}
-}
