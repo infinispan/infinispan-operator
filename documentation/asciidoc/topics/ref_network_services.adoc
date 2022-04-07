@@ -4,11 +4,6 @@
 [role="_abstract"]
 Reference information for network services that {ispn_operator} creates and manages.
 
-== Internal service
-
-* Allow {brandname} pods to discover each other and form clusters.
-* Provide access to {brandname} endpoints from clients in the same {k8s} namespace.
-
 [%header,cols=4*]
 |===
 | Service
@@ -19,49 +14,17 @@ Reference information for network services that {ispn_operator} creates and mana
 | `<cluster_name>`
 | `11222`
 | TCP
-| Internal access to {brandname} endpoints
+| Access to {brandname} endpoints within the {k8s} cluster.
 
 | `<cluster_name>-ping`
 | `8888`
 | TCP
-| Cluster discovery
-
-|===
-
-== External service
-
-Provides access to {brandname} endpoints from clients outside {k8s} or in different namespaces.
-
-[NOTE]
-====
-You must create the external service with {ispn_operator}. It is not available
-by default.
-====
-
-[%header,cols=4*]
-|===
-| Service
-| Port
-| Protocol
-| Description
+| Cluster discovery for {brandname} pods.
 
 | `<cluster_name>-external`
 | `11222`
 | TCP
-| External access to {brandname} endpoints.
-
-|===
-
-== Cross-site service
-
-Allows {brandname} to back up data between clusters.
-
-[%header,cols=4*]
-|===
-| Service
-| Port
-| Protocol
-| Description
+| Access to {brandname} endpoints from a `LoadBalancer` or `NodePort` service.
 
 | `<cluster_name>-site`
 | `7900`
