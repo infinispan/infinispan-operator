@@ -813,15 +813,14 @@ func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {
 	ExpectMaybeNotFound(err)
 }
 
-func (k TestKubernetes) WaitForCacheState(name, namespace string, predicate func(*ispnv2.Cache) bool) *ispnv2.Cache {
-	cache := &ispnv2.Cache{}
+// WaitForCacheState retrieves the Cache CR that corresponds to the provided cache, cluster and namespace, then waits for
+// for the desired state
+func (k TestKubernetes) WaitForCacheState(cacheName, clusterName, namespace string, predicate func(*ispnv2.Cache) bool) *ispnv2.Cache {
+	var cache *ispnv2.Cache
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
-		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, cache)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return false, nil
-			}
-			return false, err
+		cache = k.FindCacheResource(cacheName, clusterName, namespace)
+		if cache == nil {
+			return false, nil
 		}
 		return predicate(cache), nil
 	})
@@ -829,15 +828,31 @@ func (k TestKubernetes) WaitForCacheState(name, namespace string, predicate func
 	return cache
 }
 
-func (k TestKubernetes) WaitForCacheConditionReady(name, namespace string) *ispnv2.Cache {
-	return k.WaitForCacheCondition(name, namespace, ispnv2.CacheCondition{
+func (k TestKubernetes) FindCacheResource(cacheName, clusterName, namespace string) *ispnv2.Cache {
+	cacheList := &ispnv2.CacheList{}
+	listOpts := &client.ListOptions{
+		Namespace: namespace,
+	}
+	ExpectNoError(k.Kubernetes.Client.List(context.TODO(), cacheList, listOpts))
+	for _, c := range cacheList.Items {
+		if c.Spec.Name == cacheName && c.Spec.ClusterName == clusterName {
+			return &c
+		}
+	}
+	return nil
+}
+
+// WaitForCacheConditionReady retrieves the Cache CR that corresponds to the provided cache, cluster and namespace
+func (k TestKubernetes) WaitForCacheConditionReady(cacheName, clusterName, namespace string) *ispnv2.Cache {
+	return k.WaitForCacheCondition(cacheName, clusterName, namespace, ispnv2.CacheCondition{
 		Type:   ispnv2.CacheConditionReady,
 		Status: metav1.ConditionTrue,
 	})
 }
 
-func (k TestKubernetes) WaitForCacheCondition(name, namespace string, condition ispnv2.CacheCondition) *ispnv2.Cache {
-	return k.WaitForCacheState(name, namespace, func(cache *ispnv2.Cache) bool {
+// WaitForCacheConditionReady retrieves the Cache CR that corresponds to the provided cache, cluster and namespace
+func (k TestKubernetes) WaitForCacheCondition(cacheName, clusterName, namespace string, condition ispnv2.CacheCondition) *ispnv2.Cache {
+	return k.WaitForCacheState(cacheName, clusterName, namespace, func(cache *ispnv2.Cache) bool {
 		for _, c := range cache.Status.Conditions {
 			if c.Type == condition.Type && c.Status == condition.Status {
 				log.Info("Cache condition met", "condition", condition)
