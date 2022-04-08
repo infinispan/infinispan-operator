@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -25,11 +26,11 @@ type caches struct {
 }
 
 func (c *cache) url() string {
-	return fmt.Sprintf("%s/%s", CachesPath, c.name)
+	return fmt.Sprintf("%s/%s", CachesPath, url.PathEscape(c.name))
 }
 
 func (c *cache) entryUrl(key string) string {
-	return fmt.Sprintf("%s/%s", c.url(), key)
+	return fmt.Sprintf("%s/%s", c.url(), url.PathEscape(key))
 }
 
 func (c *cache) Config(contentType mime.MimeType) (config string, err error) {
