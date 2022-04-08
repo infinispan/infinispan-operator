@@ -63,7 +63,7 @@ func TestCacheCR(t *testing.T) {
 
 	test := func(cache *v2alpha1.Cache) {
 		testKube.Create(cache)
-		testKube.WaitForCacheConditionReady(cache.Spec.Name, cache.Namespace)
+		testKube.WaitForCacheConditionReady(cache.Spec.Name, cache.Spec.ClusterName, cache.Namespace)
 		client := tutils.HTTPClientForCluster(ispn, testKube)
 		cacheHelper := tutils.NewCacheHelper(cache.Spec.Name, client)
 		cacheHelper.WaitForCacheToExist()
@@ -82,6 +82,12 @@ func TestCacheCR(t *testing.T) {
 	//Test for CacheCR with TemplateXML
 	cache = cacheCR("cache-with-xml-template", ispn)
 	cache.Spec.Template = "<distributed-cache name=\"cache-with-xml-template\" mode=\"SYNC\"/>"
+	test(cache)
+
+	//Test for CacheCR with spaces in the server cache name
+	cache = cacheCR("cache-with-spaces", ispn)
+	cache.Spec.Name = "cache with spaces"
+	cache.Spec.Template = "<distributed-cache mode=\"SYNC\"/>"
 	test(cache)
 }
 
@@ -118,31 +124,31 @@ func TestUpdateCacheCR(t *testing.T) {
 	cr := cacheCR(cacheName, ispn)
 	cr.Spec.Template = originalYaml
 	testKube.Create(cr)
-	cr = testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	cr = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	validUpdateYaml := strings.Replace(cr.Spec.Template, "10", "50", 1)
 	cr.Spec.Template = validUpdateYaml
 	testKube.Update(cr)
 
 	// Assert CR spec.Template updated
-	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == validUpdateYaml
 	})
 
 	// Assert CR remains ready
-	cr = testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	cr = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	invalidUpdateYaml := `distributedCache: {}`
 	cr.Spec.Template = invalidUpdateYaml
 	testKube.Update(cr)
 
 	// Assert CR spec.Template updated
-	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == invalidUpdateYaml
 	})
 
 	// Wait for the Cache CR to become unready as the spec.Template cannot be reconciled with the server
-	testKube.WaitForCacheCondition(cacheName, tutils.Namespace, v2alpha1.CacheCondition{
+	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
 		Type:   v2alpha1.CacheConditionReady,
 		Status: metav1.ConditionFalse,
 	})
@@ -153,7 +159,8 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	ispn := initCluster(t, true)
-	cacheName := ispn.Name
+	// Create the cache on the server with / to ensure listener converts to a k8s friendly name
+	cacheName := strings.Replace(ispn.Name, "-", "/", -1)
 	yamlTemplate := "localCache:\n  memory:\n    maxCount: \"%d\"\n"
 	originalConfig := fmt.Sprintf(yamlTemplate, 100)
 
@@ -163,19 +170,20 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	cacheHelper.Create(originalConfig, mime.ApplicationYaml)
 
 	// Assert CR created and ready
-	cr := testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	cr := testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+
+	// Ensure that the listener has created the CR name with the correct format
+	testifyAssert.True(t, strings.HasPrefix(cr.Name, strings.Replace(cacheName, "/", "-", -1)))
 
 	// Assert that the owner reference has been correctly set to the Infinispan CR
-	if !kubernetes.IsOwnedBy(cr, ispn) {
-		panic("Cache has unexpected owner reference")
-	}
+	testifyAssert.True(t, kubernetes.IsOwnedBy(cr, ispn), "Cache has unexpected owner reference")
 
 	// Update cache configuration via REST
 	updatedConfig := fmt.Sprintf(yamlTemplate, 50)
 	cacheHelper.Update(updatedConfig, mime.ApplicationYaml)
 
 	// Assert CR spec.Template updated
-	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == updatedConfig
 	})
 
@@ -184,7 +192,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 
 	// Assert CR deleted
 	err := wait.Poll(10*time.Millisecond, tutils.MaxWaitTimeout, func() (bool, error) {
-		return !testKube.AssertK8ResourceExists(cacheName, tutils.Namespace, &v2alpha1.Cache{}), nil
+		return !testKube.AssertK8ResourceExists(cr.Name, tutils.Namespace, &v2alpha1.Cache{}), nil
 	})
 	tutils.ExpectNoError(err)
 	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
@@ -231,7 +239,7 @@ func TestStaticServerCache(t *testing.T) {
 	cacheHelper.AssertCacheExists()
 
 	// Assert CR created for static cache and is in the Ready state
-	cr := testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	cr := testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Assert that the owner reference has been correctly set to the Infinispan CR
 	if !kubernetes.IsOwnedBy(cr, ispn) {
@@ -261,10 +269,10 @@ func TestCacheWithXML(t *testing.T) {
 	cr := cacheCR(cacheName, ispn)
 	cr.Spec.Template = originalXml
 	testKube.Create(cr)
-	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Wait for 2nd generation of Cache CR with server formatting
-	cr = testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	cr = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.ObjectMeta.Generation == 2
 	})
 
@@ -284,7 +292,7 @@ func TestCacheWithXML(t *testing.T) {
 	cacheHelper.Update(updatedXml, mime.ApplicationXml)
 
 	// Assert CR spec.Template updated and returned template is in the XML format
-	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == updatedXml
 	})
 	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
@@ -302,10 +310,10 @@ func TestCacheWithJSON(t *testing.T) {
 	cr := cacheCR(cacheName, ispn)
 	cr.Spec.Template = originalJson
 	testKube.Create(cr)
-	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Wait for 2nd generation of Cache CR with server formatting
-	cr = testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	cr = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.ObjectMeta.Generation == 2
 	})
 
@@ -325,7 +333,7 @@ func TestCacheWithJSON(t *testing.T) {
 	cacheHelper.Update(updatedJson, mime.ApplicationJson)
 
 	// Assert CR spec.Template updated and returned template is in the JSON format
-	testKube.WaitForCacheState(cacheName, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == updatedJson
 	})
 	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
@@ -342,7 +350,7 @@ func TestCacheClusterRecreate(t *testing.T) {
 	cr := cacheCR(cacheName, ispn)
 	cr.Spec.Template = `{"local-cache":{}}`
 	testKube.Create(cr)
-	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Assert that the cache exists on the server
 	client := tutils.HTTPClientForCluster(ispn, testKube)
@@ -353,7 +361,7 @@ func TestCacheClusterRecreate(t *testing.T) {
 	testKube.DeleteInfinispan(ispn)
 
 	// Wait for the Cache CR to become unready as the the Infinispan CR no longer exists
-	testKube.WaitForCacheCondition(cacheName, tutils.Namespace, v2alpha1.CacheCondition{
+	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
 		Type:   v2alpha1.CacheConditionReady,
 		Status: metav1.ConditionFalse,
 	})
@@ -362,7 +370,7 @@ func TestCacheClusterRecreate(t *testing.T) {
 	ispn = initCluster(t, false)
 
 	// Assert that the cache is recreated and the CR has the ready status
-	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Assert that the cache exists on the server
 	client = tutils.HTTPClientForCluster(ispn, testKube)
@@ -382,7 +390,7 @@ func TestCacheClusterNameChange(t *testing.T) {
 	cr := cacheCR(cacheName, originalCluster)
 	cr.Spec.Template = `{"local-cache":{}}`
 	testKube.Create(cr)
-	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, originalCluster.Name, tutils.Namespace)
 
 	// Assert that the cache exists on the original cluster
 	client := tutils.HTTPClientForCluster(originalCluster, testKube)
@@ -435,7 +443,7 @@ func TestConfigListenerFailover(t *testing.T) {
 	cacheHelper.Create(cacheConfig, mime.ApplicationYaml)
 
 	// Assert Cache CR created and ready
-	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 }
 
@@ -454,7 +462,7 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 	cacheHelper.AssertCacheExists()
 
 	// Assert the Cache CR is created
-	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Disable the ConfigListener and wait for the Deployment to be removed
 	tutils.ExpectNoError(
@@ -483,7 +491,7 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 	cacheHelper.Delete()
 
 	// Assert the now orphaned Cache CR still exists
-	testKube.WaitForCacheConditionReady(cacheName, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Enable the ConfigListener again
 	tutils.ExpectNoError(
@@ -496,6 +504,34 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 
 	// Assert the Cache CR was removed
 	testKube.WaitForResourceRemoval(cacheName, tutils.Namespace, &v2alpha1.Cache{})
+}
+
+func TestSameCacheNameInMultipleClusters(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	// Create two clusters in the same namespace
+	cluster1 := initClusterWithSuffix(t, "-cluster-1", true)
+	cluster2 := initClusterWithSuffix(t, "-cluster-2", true)
+
+	// Create a cache with the same name on each cluster
+	cacheName := "name-collision"
+	cacheConfig := "distributedCache: ~"
+	cluster1Cache := tutils.NewCacheHelper(cacheName, tutils.HTTPClientForCluster(cluster1, testKube))
+	cluster1Cache.Create(cacheConfig, mime.ApplicationYaml)
+	cluster1Cache.WaitForCacheToExist()
+
+	cluster2Cache := tutils.NewCacheHelper(cacheName, tutils.HTTPClientForCluster(cluster2, testKube))
+	cluster2Cache.Create(cacheConfig, mime.ApplicationYaml)
+	cluster2Cache.WaitForCacheToExist()
+
+	// Wait for a Cache CR to be created for each cluster
+	cluster1CR := testKube.WaitForCacheConditionReady(cacheName, cluster1.Name, tutils.Namespace)
+	cluster2CR := testKube.WaitForCacheConditionReady(cacheName, cluster2.Name, tutils.Namespace)
+
+	// Assert that the two CRs are distinct and have the expected cluster defined in the spec
+	testifyAssert.NotEqualf(t, cluster1CR.UID, cluster2CR.UID, "Cache CR UUID should be different")
+	testifyAssert.Equal(t, cluster1.Name, cluster1CR.Spec.ClusterName)
+	testifyAssert.Equal(t, cluster2.Name, cluster2CR.Spec.ClusterName)
 }
 
 func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
