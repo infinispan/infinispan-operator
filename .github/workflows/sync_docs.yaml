@@ -1,0 +1,54 @@
+name: Synchronize documentation to the website
+
+on:
+  push:
+    branches:
+      - 'main'
+      - '2.2.x'
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: oraNod/asciidocjs-action@v1.3
+      with:
+        docs_path: documentation/asciidoc/titles
+
+    - name: Clone infinispan.github.io
+      uses: actions/checkout@master
+      with:
+        repository: infinispan/infinispan.github.io
+        ref: master
+        path: infinispan.github.io
+
+    - if: github.ref == 'refs/heads/main'
+      name: Copy docs to main
+      run: |
+        cp -r documentation/asciidoc/titles/operator.html infinispan.github.io/docs/infinispan-operator/main
+
+    - if: github.ref == 'refs/heads/2.2.x'
+      name: Copy docs to main
+      run: |
+        cp -r documentation/asciidoc/titles/operator.html infinispan.github.io/docs/infinispan-operator/2.2.x
+
+    - name: Commit files
+      run: |
+        cd infinispan.github.io
+        git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
+        git config --global user.email "dnaro@redhat.com"
+        git config --global user.name "dnaro"
+        git add . --all
+        git commit -m "Synchronized Operator docs from ${{ github.ref }}"
+
+    - name: Push to the community site
+      uses: cpina/github-action-push-to-another-repository@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source-directory: 'infinispan.github.io'
+        destination-github-username: 'infinispan'
+        destination-repository-name: 'infinispan.github.io'
+        user-email: dnaro@redhat.com
+        target-branch: master
