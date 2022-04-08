@@ -3,13 +3,15 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
-	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -379,7 +381,11 @@ func (cl *CacheListener) RemoveStaleResources(podName string) error {
 	return nil
 }
 
+var cacheNameRegexp = regexp.MustCompile("[^-a-z0-9]")
+
 func (cl *CacheListener) CreateOrUpdate(data []byte) error {
+	namespace := cl.Infinispan.Namespace
+	clusterName := cl.Infinispan.Name
 	cacheName, configYaml, err := unmarshallEventConfig(data)
 	if err != nil {
 		return err
@@ -390,89 +396,143 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 		return nil
 	}
 
-	cacheCrName := strcase.ToKebab(cacheName)
-	cache := &v2alpha1.Cache{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cacheCrName,
-			Namespace: cl.Infinispan.Namespace,
-		},
-	}
-
-	client := cl.Kubernetes.Client
-	maxRetries := 5
-	for i := 1; i <= maxRetries; i++ {
-		_, err = controllerutil.CreateOrPatch(cl.Ctx, client, cache, func() error {
-			var template, templateName string
-			if cache.CreationTimestamp.IsZero() {
-				cl.Log.Infof("Create Cache CR for '%s'\n%s", cacheCrName, configYaml)
-				if err := controllerutil.SetOwnerReference(cl.Infinispan, cache, client.Scheme()); err != nil {
-					return err
-				}
-				// Define template using YAML provided by the stream when Cache is being created for the first time
-				template = configYaml
-			} else if cache.Spec.Template != "" {
-				cl.Log.Infof("Update Cache CR for '%s'\n%s", cacheCrName, configYaml)
-				// Determinate the original user markup format and convert stream configuration to that format if required
-				mediaType := mime.GuessMarkup(cache.Spec.Template)
-				if mediaType == mime.ApplicationYaml {
-					template = configYaml
-				} else {
-					ispnClient, err := NewInfinispan(cl.Ctx, cl.Infinispan, cl.Kubernetes)
-					if err != nil {
-						return fmt.Errorf("unable to create Infinispan client: %w", err)
-					}
-					if template, err = ispnClient.Caches().ConvertConfiguration(configYaml, mime.ApplicationYaml, mediaType); err != nil {
-						return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationYaml, mediaType, err)
-					}
-				}
-			} else {
-				templateName = cache.Spec.TemplateName
-			}
-			if cache.ObjectMeta.Annotations == nil {
-				cache.ObjectMeta.Annotations = make(map[string]string, 1)
-			}
-			controllerutil.AddFinalizer(cache, constants.InfinispanFinalizer)
-			cache.ObjectMeta.Annotations[constants.ListenerAnnotationGeneration] = strconv.FormatInt(cache.GetGeneration()+1, 10)
-			cache.Spec = v2alpha1.CacheSpec{
-				Name:         cacheName,
-				ClusterName:  cl.Infinispan.Name,
-				Template:     template,
-				TemplateName: templateName,
-			}
-			return nil
-		})
-
-		if err == nil {
-			break
-		}
-
-		if !errors.IsConflict(err) {
-			return fmt.Errorf("unable to CreateOrUpdate Cache CR: %w", err)
-		}
-		cl.Log.Errorf("Conflict encountered on Cache update. Retry %d..%d", i, maxRetries)
-	}
-
+	cache, err := cl.findExistingCacheCR(cacheName, clusterName)
 	if err != nil {
-		return fmt.Errorf("unable to CreateOrPatch Cache CR %s after %d attempts", cacheCrName, maxRetries)
+		return err
+	}
+
+	k8sClient := cl.Kubernetes.Client
+	if cache == nil {
+		// There's no Existing Cache CR, so we must create one
+		sanitizedCacheName := cacheNameRegexp.ReplaceAllString(strcase.ToKebab(cacheName), "-")
+		errs := validation.IsDNS1123Subdomain(sanitizedCacheName)
+		if len(errs) > 0 {
+			return fmt.Errorf("unable to create Cache Resource Name for cache=%s, cluster=%s: %s", cacheName, clusterName, strings.Join(errs, "."))
+		}
+
+		cache = &v2alpha1.Cache{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: sanitizedCacheName + "-",
+				Namespace:    namespace,
+				Annotations: map[string]string{
+					constants.ListenerAnnotationGeneration: "1",
+				},
+			},
+			Spec: v2alpha1.CacheSpec{
+				ClusterName: cl.Infinispan.Name,
+				Name:        cacheName,
+				Template:    configYaml,
+			},
+		}
+		controllerutil.AddFinalizer(cache, constants.InfinispanFinalizer)
+		if err := controllerutil.SetOwnerReference(cl.Infinispan, cache, k8sClient.Scheme()); err != nil {
+			return err
+		}
+
+		cl.Log.Infof("Creating Cache CR for '%s'\n%s", cacheName, configYaml)
+		if err := k8sClient.Create(cl.Ctx, cache); err != nil {
+			return fmt.Errorf("unable to create Cache CR for cache '%s': %w", cacheName, err)
+		}
+		cl.Log.Infof("Cache CR '%s' created", cache.Name)
+	} else {
+		// Update existing Cache
+		maxRetries := 5
+		for i := 1; i <= maxRetries; i++ {
+			_, err = controllerutil.CreateOrPatch(cl.Ctx, k8sClient, cache, func() error {
+				if cache.CreationTimestamp.IsZero() {
+					return errors.NewNotFound(schema.ParseGroupResource("caches.infinispan.org"), cache.Name)
+				}
+				var template, templateName string
+				if cache.Spec.Template != "" {
+					cl.Log.Infof("Update Cache CR for '%s'\n%s", cache.Name, configYaml)
+					// Determinate the original user markup format and convert stream configuration to that format if required
+					mediaType := mime.GuessMarkup(cache.Spec.Template)
+					if mediaType == mime.ApplicationYaml {
+						template = configYaml
+					} else {
+						ispnClient, err := NewInfinispan(cl.Ctx, cl.Infinispan, cl.Kubernetes)
+						if err != nil {
+							return fmt.Errorf("unable to create Infinispan client: %w", err)
+						}
+						if template, err = ispnClient.Caches().ConvertConfiguration(configYaml, mime.ApplicationYaml, mediaType); err != nil {
+							return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationYaml, mediaType, err)
+						}
+					}
+				} else {
+					templateName = cache.Spec.TemplateName
+				}
+
+				if cache.ObjectMeta.Annotations == nil {
+					cache.ObjectMeta.Annotations = make(map[string]string, 1)
+				}
+				controllerutil.AddFinalizer(cache, constants.InfinispanFinalizer)
+				cache.ObjectMeta.Annotations[constants.ListenerAnnotationGeneration] = strconv.FormatInt(cache.GetGeneration()+1, 10)
+				cache.Spec = v2alpha1.CacheSpec{
+					Name:         cacheName,
+					ClusterName:  cl.Infinispan.Name,
+					Template:     template,
+					TemplateName: templateName,
+				}
+				return nil
+			})
+			if err == nil {
+				break
+			}
+
+			if !errors.IsConflict(err) {
+				return fmt.Errorf("unable to Update Cache CR '%s': %w", cache.Name, err)
+			}
+			cl.Log.Errorf("Conflict encountered on Cache CR '%s' update. Retry %d..%d", cache.Name, i, maxRetries)
+		}
+		if err != nil {
+			return fmt.Errorf("unable to Update Cache CR %s after %d attempts", cache.Name, maxRetries)
+		}
 	}
 	return nil
 }
 
-func (cl *CacheListener) Delete(data []byte) error {
-	cacheName := string(data)
-	crName := strcase.ToKebab(cacheName)
-	cl.Log.Infof("Remove cache %s, cr %s", cacheName, crName)
-
-	cache := &v2alpha1.Cache{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      crName,
-			Namespace: cl.Infinispan.Namespace,
-		},
+func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2alpha1.Cache, error) {
+	cacheList := &v2alpha1.CacheList{}
+	listOpts := &client.ListOptions{
+		Namespace: cl.Infinispan.Namespace,
+	}
+	if err := cl.Kubernetes.Client.List(cl.Ctx, cacheList, listOpts); err != nil {
+		return nil, fmt.Errorf("unable to list existing Cache CRs: %w", err)
 	}
 
-	_, err := kube.CreateOrPatch(cl.Ctx, cl.Kubernetes.Client, cache, func() error {
+	var caches []v2alpha1.Cache
+	for _, c := range cacheList.Items {
+		if c.Spec.Name == cacheName && c.Spec.ClusterName == clusterName {
+			caches = append(caches, c)
+		}
+	}
+	switch len(caches) {
+	case 0:
+		cl.Log.Debugf("no existing Cache CR found for Cache=%s, Cluster=%s", cacheName, clusterName)
+		return nil, nil
+	case 1:
+		cl.Log.Debugf("an existing Cache CR '%s' was found for Cache=%s, Cluster=%s", caches[0].Name, cacheName, clusterName)
+		return &caches[0], nil
+	default:
+		// Multiple existing Cache CRs found. Should never happen
+		y, _ := yaml.Marshal(caches)
+		return nil, fmt.Errorf("more than one Cache CR found for Cache=%s, Cluster=%s:\n%s", cacheName, clusterName, y)
+	}
+}
+
+func (cl *CacheListener) Delete(data []byte) error {
+	cacheName := string(data)
+	cl.Log.Infof("Attempting to remove CR associated with cache '%s'", cacheName)
+
+	cache, err := cl.findExistingCacheCR(cacheName, cl.Infinispan.Name)
+	if cache == nil || err != nil {
+		return err
+	}
+
+	cl.Log.Infof("Removing Cache CR '%s'", cache.Name)
+	_, err = kube.CreateOrPatch(cl.Ctx, cl.Kubernetes.Client, cache, func() error {
 		if cache.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(schema.ParseGroupResource("caches.infinispan.org"), crName)
+			return errors.NewNotFound(schema.ParseGroupResource("caches.infinispan.org"), cache.Name)
 		}
 		if cache.ObjectMeta.Annotations == nil {
 			cache.ObjectMeta.Annotations = make(map[string]string, 1)
