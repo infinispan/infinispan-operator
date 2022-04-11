@@ -3,6 +3,7 @@ package org.infinispan;
 import java.io.File;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -79,7 +80,11 @@ public class Infinispan {
 
       new SimpleWaiter(bs).timeout(TimeUnit.MINUTES, 10).onTimeout(() -> onTimeout()).waitFor();
 
-      if(openShift.getLabeledPods("clusterName", clusterName).size() != infinispanObject.getSpec().getReplicas()) {
+      Map<String, String> labels = new HashMap<>();
+      labels.put("clusterName", clusterName);
+      labels.put("app", "infinispan-pod");
+
+      if(openShift.getLabeledPods(labels).size() != infinispanObject.getSpec().getReplicas()) {
          throw new IllegalStateException(clusterName + " is WellFormed but cluster pod count doesn't match expected replicas!");
       }
    }
