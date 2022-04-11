@@ -140,7 +140,7 @@ func verifyLabelsAndAnnotations(assert *assert.Assertions, require *require.Asse
 // and match them with the labels map provided by the caller
 func operatorEnvVarExistsWithValues(namespace, varName string, expectedVals map[string]string) bool {
 	podList := &corev1.PodList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(namespace, map[string]string{"name": tutils.OperatorName}, podList, context.TODO()))
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(namespace, map[string]string{"app.kubernetes.io/name": tutils.OperatorName}, podList, context.TODO()))
 	if len(podList.Items) == 0 {
 		panic("Cannot get the Infinispan operator pod")
 	}

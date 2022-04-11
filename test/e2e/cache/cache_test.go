@@ -3,6 +3,11 @@ package cache
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -16,12 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
-	"testing"
-	"time"
 )
 
 var (
@@ -220,6 +221,7 @@ func TestStaticServerCache(t *testing.T) {
 		Data: map[string]string{"infinispan-config.xml": serverConfig},
 	}
 	testKube.CreateConfigMap(configMap)
+	defer testKube.DeleteConfigMap(configMap)
 
 	ispn := tutils.DefaultSpec(t, testKube)
 	ispn.Spec.ConfigMapName = configMap.Name
@@ -508,8 +510,8 @@ func TestSameCacheNameInMultipleClusters(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create two clusters in the same namespace
-	cluster1 := initClusterWithSuffix(t, "-cluster-1", true)
-	cluster2 := initClusterWithSuffix(t, "-cluster-2", true)
+	cluster1 := initClusterWithSuffix(t, "-c1", true)
+	cluster2 := initClusterWithSuffix(t, "-c2", true)
 
 	// Create a cache with the same name on each cluster
 	cacheName := "name-collision"
