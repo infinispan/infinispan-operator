@@ -37,7 +37,7 @@
         </authorization>
     </security>
     {{ end }}
-    <transport cluster="${infinispan.cluster.name:{{ .Infinispan.ClusterName }}}" node-name="${infinispan.node.name:}"
+    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}"
     stack="image-tcp" />
 </cache-container>
 <server xmlns="urn:infinispan:server:13.0">
