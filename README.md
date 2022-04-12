@@ -77,7 +77,8 @@ To create an Operator release perform the following:
 to `replaces: infinispan-operator.v<x.y.z>`
 9. Update the `RELATED_IMAGE_OPENJDK` field in `config/manager/manager.yaml` to use the required floating tag, e.g. `13.0`
 10. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
-11. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
+11. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS` and the next release version in the update graph 
+12. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
 
 # Testing
 
