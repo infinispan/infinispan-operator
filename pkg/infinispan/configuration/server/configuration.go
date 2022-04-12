@@ -24,7 +24,6 @@ type Spec struct {
 
 type Infinispan struct {
 	Authorization    *Authorization
-	ClusterName      string
 	ZeroCapacityNode bool
 }
 
