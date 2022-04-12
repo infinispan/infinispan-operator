@@ -5,7 +5,7 @@ import org.infinispan.client.hotrod.impl.ConfigurationProperties;
 
 ConfigurationBuilder builder = new ConfigurationBuilder();
       builder.addServer()
-               .host("$SERVICE_HOSTNAME")
+               .host("$HOSTNAME")
                .port(ConfigurationProperties.DEFAULT_HOTROD_PORT)
              .security().authentication()
                .username("username")

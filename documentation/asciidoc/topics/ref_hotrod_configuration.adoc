@@ -1,0 +1,45 @@
+[id='hotrod-configuration-builder_{context}']
+= Hot Rod client configuration API
+
+[role="_abstract"]
+You can programmatically configure Hot Rod client connections with the `ConfigurationBuilder` interface.
+
+[NOTE]
+====
+Replace `$SERVICE_HOSTNAME` in the following examples with the internal service name of your {brandname} cluster.
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/metadata_name.yaml[]
+----
+====
+
+[discrete]
+== On {k8s}
+
+.ConfigurationBuilder
+[source,java,options="nowrap",subs=attributes+]
+----
+include::java/ConfigurationBuilderInternal.java[]
+----
+
+.hotrod-client.properties
+[source,java,options="nowrap",subs=attributes+]
+----
+include::properties/hotrod-client-internal.properties[]
+----
+
+[discrete]
+== Outside {k8s}
+
+.ConfigurationBuilder
+[source,java,options="nowrap",subs=attributes+]
+----
+include::java/ConfigurationBuilderExternal.java[]
+----
+
+.hotrod-client.properties
+[source,java,options="nowrap",subs=attributes+]
+----
+include::properties/hotrod-client-external.properties[]
+----

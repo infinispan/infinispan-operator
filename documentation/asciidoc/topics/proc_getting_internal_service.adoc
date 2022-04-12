@@ -8,8 +8,7 @@ This internal service has the same name as your {brandname} cluster, for example
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
-metadata:
-  name: {example_crd_name}
+include::yaml/metadata_name.yaml[]
 ----
 
 .Procedure
