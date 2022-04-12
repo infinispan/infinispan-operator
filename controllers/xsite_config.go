@@ -120,44 +120,60 @@ func appendKubernetesRemoteLocation(ctx context.Context, infinispan *ispnv1.Infi
 	remoteServiceName := infinispan.GetRemoteSiteServiceName(remoteLocationName)
 	remoteRouteName := infinispan.GetRemoteSiteRouteName(remoteLocationName)
 
-	var host string
-	var port int32
-	var err error
+	routeObj := &reconcileType{
+		ObjectType:   &routev1.Route{},
+		GroupVersion: routev1.SchemeGroupVersion,
+	}
+	routeSupported, err := remoteKubernetes.IsGroupVersionSupported(routeObj.GroupVersion.String(), routeObj.Kind())
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("failed to check if GVK '%s' is supported", routeObj.GroupVersionKind()))
+		return err
+	}
 
-	// Try to find the service first
+	if routeSupported {
+		// Note: we need to lookup the Route first because, even if Route is enabled, the service exists with "ClusterIP".
+		logger.Info("Lookup cross-site route", "Name", remoteRouteName, "Namespace", remoteNamespace)
+		siteRoute := &routev1.Route{}
+		err = remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteRouteName, Namespace: remoteNamespace}, siteRoute)
+		if err == nil {
+			// Route found
+			logger.Info("Remote route found!", "host", siteRoute.Spec.Host)
+			appendBackupSite(remoteLocationName, siteRoute.Spec.Host, 443, xsite)
+			return nil
+		}
+		if err != nil && !errors.IsNotFound(err) {
+			// unexpected error
+			logger.Error(err, "could not get x-site Route in remote cluster", "site route name", remoteRouteName, "site namespace", remoteNamespace)
+			return err
+		}
+	}
+
+	// no Route object found, try the Service
+	logger.Info("Lookup cross-site service", "Name", remoteServiceName, "Namespace", remoteNamespace)
 	siteService := &corev1.Service{}
 	err = remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteServiceName, Namespace: remoteNamespace}, siteService)
 	if err != nil {
 		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
-		if !errors.IsNotFound(err) {
-			// another error
-			return err
-		}
+		return err
 	}
 
-	// service found
-	if err == nil {
-		host, port, err = getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger, eventRec, "XSiteRemoteServiceUnsupported", ctx)
-		if err != nil {
-			logger.Error(err, "error retrieving remote x-site service information")
-			return err
-		}
-	} else {
-		// Try searching for the Route
-		siteRoute := &routev1.Route{}
-		err = remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteRouteName, Namespace: remoteNamespace}, siteRoute)
-		if err != nil {
-			logger.Error(err, "could not get x-site Route in remote cluster", "site route name", remoteRouteName, "site namespace", remoteNamespace)
-			return err
-		}
-		host = siteRoute.Spec.Host
-		port = 443 // TLS port
+	if siteService.Spec.Type == corev1.ServiceTypeClusterIP {
+		// If we reach this point, we have a remote API URL to a different cluster.
+		// ClusterIP service won't work because we will be unable to connect to the internal IP address
+		err = fmt.Errorf("ClusterIP service type not supported")
+		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
+		return err
 	}
 
+	host, port, err := getCrossSiteServiceHostPort(siteService, remoteKubernetes, logger, eventRec, "XSiteRemoteServiceUnsupported", ctx)
+	if err != nil {
+		logger.Error(err, "error retrieving remote x-site service information")
+		return err
+	}
 	if host == "" {
-		msg := "remote x-site service host not yet available"
-		logger.Info(msg)
-		return fmt.Errorf(msg)
+		err = fmt.Errorf("remote x-site service host not yet available")
+		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
+		return err
 	}
 
 	logger.Info("remote site service", "host", host, "port", port)
