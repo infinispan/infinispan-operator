@@ -5,7 +5,7 @@ import org.infinispan.client.hotrod.configuration.SaslQop;
 
 ConfigurationBuilder builder = new ConfigurationBuilder();
       builder.addServer()
-               .host("$SERVICE_HOSTNAME")
+               .host("$HOSTNAME")
                .port("$PORT")
              .security().authentication()
                .username("username")

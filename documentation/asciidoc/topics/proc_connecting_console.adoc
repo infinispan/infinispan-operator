@@ -11,6 +11,6 @@ For example, configure a `LoadBalancer` service or create a `Route`.
 
 .Procedure
 
-* Access the console from any browser at `$SERVICE_HOSTNAME:$PORT`.
+* Access the console from any browser at `$HOSTNAME:$PORT`.
 +
-Replace `$SERVICE_HOSTNAME:$PORT` with the hostname and port where {brandname} is available on the network.
+Replace `$HOSTNAME:$PORT` with the network location where {brandname} is available.

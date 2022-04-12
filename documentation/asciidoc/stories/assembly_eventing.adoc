@@ -8,7 +8,10 @@ Configure {brandname} as a Knative source by sending `CloudEvents` to Apache Kaf
 
 //Downstream content
 ifdef::downstream[]
-Sending cloud events with {openshift} Serverless is available as a technology preview.
+[IMPORTANT]
+====
+Sending cloud events with {openshift} Serverless is available as a technology preview feature.
+====
 
 include::{topics}/ref_tech_preview.adoc[leveloffset=+1]
 endif::downstream[]
