@@ -8,8 +8,9 @@ For example if you create a cache through the {brandname} Console then {ispn_ope
 
 To perform reconciliation {ispn_operator} creates a `listener` pod for each {brandname} cluster that detects modifications for `Infinispan` resources.
 
-[NOTE]
-====
-Declarative Kubernetes representations of {brandname} resources that {ispn_operator} creates with the `listener` pod are linked to `Infinispan` CRs.
+.Notes about reconciliation
+
+* When you create a cache through the {brandname} Console, CLI, or other client application, {ispn_operator} creates a corresponding `Cache` CR with a unique name that conforms to the Kubernetes naming policy.
+
+* Declarative Kubernetes representations of {brandname} resources that {ispn_operator} creates with the `listener` pod are linked to `Infinispan` CRs. +
 Deleting `Infinispan` CRs removes any associated resource declarations.
-====
