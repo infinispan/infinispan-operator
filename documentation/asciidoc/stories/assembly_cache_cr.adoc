@@ -7,7 +7,6 @@ ifdef::context[:parent-context: {context}]
 Use `Cache` CRs to add cache configuration with {ispn_operator} and control how {brandname} stores your data.
 
 include::{topics}/con_caches.adoc[leveloffset=+1]
-include::{topics}/con_cache_cr.adoc[leveloffset=+1]
 include::{topics}/proc_creating_caches.adoc[leveloffset=+1]
 include::{topics}/proc_creating_caches_templates.adoc[leveloffset=+1]
 include::{topics}/proc_adding_cache_stores.adoc[leveloffset=+1]

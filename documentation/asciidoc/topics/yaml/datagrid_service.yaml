@@ -47,7 +47,8 @@ spec:
   expose:
     type: LoadBalancer
   configMapName: "my-cluster-config"
-  configListener: true
+  configListener:
+    enabled: true
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
