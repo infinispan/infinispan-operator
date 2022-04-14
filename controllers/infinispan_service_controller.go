@@ -287,7 +287,7 @@ func (s serviceRequest) reconcileResource(resource client.Object) error {
 }
 
 func (s serviceRequest) cleanupExternalExpose(excludeKind string) error {
-	externalSvcLabels := s.infinispan.ExternalServiceLabels()
+	externalSvcLabels := s.infinispan.ExternalServiceSelectorLabels()
 	for _, obj := range s.supportedTypes {
 		if obj.GroupVersionSupported && obj.Kind() != excludeKind {
 			switch obj.Kind() {
@@ -489,7 +489,7 @@ func computeServiceExternal(ispn *ispnv1.Infinispan) *corev1.Service {
 func computeSiteService(ispn *ispnv1.Infinispan, exposeType ispnv1.CrossSiteExposeType) *corev1.Service {
 	exposeSpec := corev1.ServiceSpec{}
 	exposeConf := ispn.Spec.Service.Sites.Local.Expose
-	exposeSpec.Selector = ispn.Labels("infinispan-router-pod")
+	exposeSpec.Selector = ispn.GossipRouterPodSelectorLabels()
 
 	switch exposeType {
 	case ispnv1.CrossSiteExposeTypeNodePort:

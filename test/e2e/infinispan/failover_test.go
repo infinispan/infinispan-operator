@@ -54,7 +54,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	//Verify whether the pod restarted for an OOM exception
 	hasOOMhappened := false
 	podList := &corev1.PodList{}
-	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(tutils.Namespace, ispn.PodLabels(), podList, context.TODO()))
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(tutils.Namespace, ispn.PodSelectorLabels(), podList, context.TODO()))
 
 	for _, pod := range podList.Items {
 		status := pod.Status.ContainerStatuses

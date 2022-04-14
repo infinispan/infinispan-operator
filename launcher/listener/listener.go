@@ -89,7 +89,7 @@ func New(ctx context.Context, p Parameters) {
 
 	for {
 		podList := &corev1.PodList{}
-		err = k8s.ResourcesList(infinispan.Namespace, infinispan.PodLabels(), podList, ctx)
+		err = k8s.ResourcesList(infinispan.Namespace, infinispan.PodSelectorLabels(), podList, ctx)
 		if err != nil {
 			log.Error("Unable to retrieve Infinispan pod list: %w", err)
 		}
