@@ -124,7 +124,7 @@ func TestUpgrade(t *testing.T) {
 		// Validates that all pods are running with desired image
 		expectedImage := testKube.InstalledCSVServerImage(sub)
 		pods := &corev1.PodList{}
-		err := testKube.Kubernetes.ResourcesList(tutils.Namespace, spec.PodLabels(), pods, ctx)
+		err := testKube.Kubernetes.ResourcesList(tutils.Namespace, spec.PodSelectorLabels(), pods, ctx)
 		tutils.ExpectNoError(err)
 		for _, pod := range pods.Items {
 			if pod.Spec.Containers[0].Image != expectedImage {

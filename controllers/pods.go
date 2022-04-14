@@ -255,7 +255,7 @@ func PodList(infinispan *infinispanv1.Infinispan, kube *kubernetes.Kubernetes, c
 		return podList, nil
 	}
 	// Obtain pod list associated with the cluster
-	err = kube.ResourcesList(namespace, infinispan.PodLabels(), podList, ctx)
+	err = kube.ResourcesList(namespace, infinispan.PodSelectorLabels(), podList, ctx)
 	if err != nil {
 		return nil, err
 	}
