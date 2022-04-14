@@ -86,7 +86,7 @@ func (r *HotRodRollingUpgradeReconciler) Reconcile(ctx context.Context, request 
 		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
 	}
 	// Check if the CR is configured to do Hot Rod rolling upgrades
-	if ispn.Spec.Upgrades.Type != ispnv1.UpgradeTypeHotRodRolling {
+	if ispn.Spec.Upgrades == nil || ispn.Spec.Upgrades.Type != ispnv1.UpgradeTypeHotRodRolling {
 		return reconcile.Result{}, nil
 	}
 
