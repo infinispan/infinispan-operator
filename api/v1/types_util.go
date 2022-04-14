@@ -591,22 +591,48 @@ func (ispn *Infinispan) ServiceSelectorLabels() map[string]string {
 	}
 }
 
+// ExternalServiceLabels returns all labels to be applied to the external service pods, including those defined by the
+// user. It's values should never be used as a selector.
 func (ispn *Infinispan) ExternalServiceLabels() map[string]string {
 	return ispn.ServiceLabels("infinispan-service-external")
 }
 
+// ExternalServiceSelectorLabels returns the minimum required labels to identify an external service. It does not contain any user
+// defined labels. This should always be used for selectors so that updates to user labels don't break the controller logic.
+func (ispn *Infinispan) ExternalServiceSelectorLabels() map[string]string {
+	return ispn.Labels("infinispan-service-external")
+}
+
+// PodLabels returns all labels to be applied to Infinispan pods, including those defined by the user. It's values
+// should never be used as a selector.
 func (ispn *Infinispan) PodLabels() map[string]string {
-	labels := ispn.Labels("infinispan-pod")
+	labels := ispn.PodSelectorLabels()
 	// This way CR labels will override operator labels with same name
 	addLabelsFor(ispn, OperatorPodTargetLabels, labels)
 	addLabelsFor(ispn, PodTargetLabels, labels)
 	return labels
 }
 
+// PodSelectorLabels returns the minimum required labels to identify an Infinispan Pod. It does not contain any user
+// defined labels. This should always be used for selectors so that updates to user labels don't break the controller logic.
+func (ispn *Infinispan) PodSelectorLabels() map[string]string {
+	return ispn.Labels("infinispan-pod")
+}
+
+// GossipRouterPodLabels returns all labels to be applied to the GossipRouter pod. It's values
+// should never be used as a selector.
 func (ispn *Infinispan) GossipRouterPodLabels() map[string]string {
 	labels := ispn.PodLabels()
-	labels["app"] = "infinispan-router-pod"
+	for k, v := range ispn.GossipRouterPodSelectorLabels() {
+		labels[k] = v
+	}
 	return labels
+}
+
+// GossipRouterPodSelectorLabels returns the minimum required labels to identify a Gossip Router Pod. It does not contain any user
+// defined labels. This should always be used for selectors so that updates to user labels don't break the controller logic.
+func (ispn *Infinispan) GossipRouterPodSelectorLabels() map[string]string {
+	return ispn.Labels("infinispan-router-pod")
 }
 
 func (ispn *Infinispan) PodAnnotations() map[string]string {

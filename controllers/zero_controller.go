@@ -203,7 +203,7 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 	}
 
 	podList := &corev1.PodList{}
-	podLabels := infinispan.PodLabels()
+	podLabels := infinispan.PodSelectorLabels()
 	if err := z.Kube.ResourcesList(infinispan.Namespace, podLabels, podList, ctx); err != nil {
 		z.Log.Error(err, "Failed to list pods")
 		return reconcile.Result{}, err

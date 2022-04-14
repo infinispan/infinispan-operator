@@ -54,7 +54,7 @@ func TestBaseFunctionality(t *testing.T) {
 // Make sure no PVCs were created
 func verifyNoPVCs(assert *assert.Assertions, require *require.Assertions, ispn *v1.Infinispan) {
 	pvcs := &corev1.PersistentVolumeClaimList{}
-	err := testKube.Kubernetes.ResourcesList(ispn.Namespace, ispn.PodLabels(), pvcs, context.TODO())
+	err := testKube.Kubernetes.ResourcesList(ispn.Namespace, ispn.PodSelectorLabels(), pvcs, context.TODO())
 
 	require.NoError(err)
 	assert.Equal(0, len(pvcs.Items), "persistent volume claims were found (count = %d) but not expected for ephemeral storage configuration")

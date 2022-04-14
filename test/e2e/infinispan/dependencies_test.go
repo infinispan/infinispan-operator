@@ -110,7 +110,7 @@ func TestExternalDependenciesHttp(t *testing.T) {
 
 	podList := &corev1.PodList{}
 	tutils.ExpectNoError(wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		err = testKube.Kubernetes.ResourcesList(ispn.Namespace, ispn.PodLabels(), podList, context.TODO())
+		err = testKube.Kubernetes.ResourcesList(ispn.Namespace, ispn.PodSelectorLabels(), podList, context.TODO())
 		if err != nil {
 			return false, nil
 		}

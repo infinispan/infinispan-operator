@@ -302,7 +302,7 @@ func (k TestKubernetes) CreateInfinispan(infinispan *ispnv1.Infinispan, namespac
 }
 
 func (k TestKubernetes) DeleteInfinispan(infinispan *ispnv1.Infinispan) {
-	labelSelector := labels.SelectorFromSet(infinispan.PodLabels())
+	labelSelector := labels.SelectorFromSet(infinispan.PodSelectorLabels())
 	k.DeleteResource(infinispan.Namespace, labelSelector, infinispan, SinglePodTimeout)
 }
 
@@ -457,7 +457,7 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 		switch ispn.GetExposeType() {
 		case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
 			routeList := &corev1.ServiceList{}
-			err = k.Kubernetes.ResourcesList(ispn.Namespace, ispn.ExternalServiceLabels(), routeList, context.TODO())
+			err = k.Kubernetes.ResourcesList(ispn.Namespace, ispn.ExternalServiceSelectorLabels(), routeList, context.TODO())
 			ExpectNoError(err)
 
 			if len(routeList.Items) > 0 {
@@ -472,7 +472,7 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 			}
 		case ispnv1.ExposeTypeRoute:
 			routeList := &routev1.RouteList{}
-			err = k.Kubernetes.ResourcesList(ispn.Namespace, ispn.ExternalServiceLabels(), routeList, context.TODO())
+			err = k.Kubernetes.ResourcesList(ispn.Namespace, ispn.ExternalServiceSelectorLabels(), routeList, context.TODO())
 			ExpectNoError(err)
 			if len(routeList.Items) > 0 {
 				hostAndPort = routeList.Items[0].Spec.Host

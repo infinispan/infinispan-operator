@@ -408,7 +408,7 @@ func TestConfigListenerFailover(t *testing.T) {
 	ispn := initCluster(t, true)
 	listOps := &client.ListOptions{
 		Namespace:     tutils.Namespace,
-		LabelSelector: labels.SelectorFromSet(ispn.PodLabels()),
+		LabelSelector: labels.SelectorFromSet(ispn.PodSelectorLabels()),
 	}
 
 	// Scale down, resulting in ConfigLister SSE subscribe to fail and cause a pod restart
