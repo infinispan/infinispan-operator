@@ -106,7 +106,7 @@ manager: generate fmt vet
 .PHONY: run
 ## Run the operator against the configured Kubernetes cluster in ~/.kube/config
 run: manager manifests
-	OSDK_FORCE_RUN_MODE=local ./bin/manager operator
+	OSDK_FORCE_RUN_MODE=local ENABLE_WEBHOOKS=false ./bin/manager operator
 
 .PHONY: install
 ## Install CRDs into a cluster
