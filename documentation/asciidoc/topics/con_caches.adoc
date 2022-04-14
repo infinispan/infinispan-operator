@@ -21,7 +21,6 @@ When using `Cache` CRs, the following rules apply:
 
 * `Cache` CRs apply to {datagridservice} pods only.
 * You can create a single cache for each `Cache` CR.
-* If your `Cache` CR contains a template and a cache configuration, {ispn_operator} uses the template.
 
 [NOTE]
 ====
