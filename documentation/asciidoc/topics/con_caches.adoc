@@ -17,12 +17,5 @@ You can use Hot Rod or HTTP clients but {brandname} recommends `Cache` CR or `Ba
 [discrete]
 == Cache CRs
 
-When using `Cache` CRs, the following rules apply:
-
 * `Cache` CRs apply to {datagridservice} pods only.
-* You can create a single cache for each `Cache` CR.
-
-[NOTE]
-====
-{ispn_operator} uses the **operator** user and corresponding password to perform cache operations.
-====
+* Each `Cache` CR corresponds to a single cache on the {brandname} cluster.
