@@ -125,17 +125,24 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 	}
 
 	if cache.markedForDeletion() {
+		reqLogger.Info("Cache CR marked for deletion. Attempting to remove.")
 		// The ConfigListener has marked this resource for deletion
 		// Remove finalizer and delete CR. No need to update the server as the cache has already been removed
 		if err := cache.removeFinalizer(); err != nil {
 			if errors.IsNotFound(err) {
+				reqLogger.Info("Cache CR not found, nothing todo.")
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
 		}
-		if err := cache.kubernetes.Client.Delete(ctx, instance); err != nil && errors.IsNotFound(err) {
+		if err := cache.kubernetes.Client.Delete(ctx, instance); err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Cache CR not found, nothing todo.")
+				return ctrl.Result{}, nil
+			}
 			return ctrl.Result{}, err
 		}
+		reqLogger.Info("Cache CR Removed.")
 		return ctrl.Result{}, nil
 	}
 
@@ -500,15 +507,15 @@ func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2
 	}
 	switch len(caches) {
 	case 0:
-		cl.Log.Debugf("no existing Cache CR found for Cache=%s, Cluster=%s", cacheName, clusterName)
+		cl.Log.Debugf("No existing Cache CR found for Cache=%s, Cluster=%s", cacheName, clusterName)
 		return nil, nil
 	case 1:
-		cl.Log.Debugf("an existing Cache CR '%s' was found for Cache=%s, Cluster=%s", caches[0].Name, cacheName, clusterName)
+		cl.Log.Debugf("An existing Cache CR '%s' was found for Cache=%s, Cluster=%s", caches[0].Name, cacheName, clusterName)
 		return &caches[0], nil
 	default:
 		// Multiple existing Cache CRs found. Should never happen
 		y, _ := yaml.Marshal(caches)
-		return nil, fmt.Errorf("more than one Cache CR found for Cache=%s, Cluster=%s:\n%s", cacheName, clusterName, y)
+		return nil, fmt.Errorf("More than one Cache CR found for Cache=%s, Cluster=%s:\n%s", cacheName, clusterName, y)
 	}
 }
 
@@ -516,14 +523,17 @@ func (cl *CacheListener) Delete(data []byte) error {
 	cacheName := string(data)
 	cl.Log.Infof("Attempting to remove CR associated with cache '%s'", cacheName)
 
-	cache, err := cl.findExistingCacheCR(cacheName, cl.Infinispan.Name)
-	if cache == nil || err != nil {
+	existingCacheCr, err := cl.findExistingCacheCR(cacheName, cl.Infinispan.Name)
+	if existingCacheCr == nil || err != nil {
 		return err
 	}
 
-	cl.Log.Infof("Removing Cache CR '%s'", cache.Name)
-	_, err = kube.CreateOrPatch(cl.Ctx, cl.Kubernetes.Client, cache, func() error {
-		if cache.CreationTimestamp.IsZero() {
+	cache := &v2alpha1.Cache{}
+	existingCacheCr.DeepCopyInto(cache)
+
+	cl.Log.Infof("Marking Cache CR '%s' for removal", cache.Name)
+	_, err = controllerutil.CreateOrPatch(cl.Ctx, cl.Kubernetes.Client, cache, func() error {
+		if cache.CreationTimestamp.IsZero() || !cache.DeletionTimestamp.IsZero() {
 			return errors.NewNotFound(schema.ParseGroupResource("caches.infinispan.org"), cache.Name)
 		}
 		if cache.ObjectMeta.Annotations == nil {
@@ -534,6 +544,7 @@ func (cl *CacheListener) Delete(data []byte) error {
 	})
 	// If the CR can't be found, do nothing
 	if !errors.IsNotFound(err) {
+		cl.Log.Debugf("Cache CR '%s' not found, nothing todo.", cache.Name)
 		return err
 	}
 	return nil
