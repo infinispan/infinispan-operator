@@ -14,7 +14,7 @@ Reference information for network services that {ispn_operator} creates and mana
 | `<cluster_name>`
 | `11222`
 | TCP
-| Access to {brandname} endpoints within the {k8s} cluster.
+| Access to {brandname} endpoints within the {k8s} cluster or from an {openshiftshort} `Route`.
 
 | `<cluster_name>-ping`
 | `8888`

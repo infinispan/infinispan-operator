@@ -21,7 +21,4 @@ include::yaml/expose_type_node_port.yaml[]
 [source,options="nowrap",subs=attributes+]
 ----
 {oc_get_services} | grep external
-
-NAME                         TYPE            CLUSTER-IP       EXTERNAL-IP   PORT(S)
-{example_crd_name}-external  NodePort        192.0.2.24       <none>        11222:30000/TCP
 ----

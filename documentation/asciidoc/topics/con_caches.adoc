@@ -13,3 +13,9 @@ To create caches with {brandname} clusters running on {k8s}, you should:
 * Access {brandname} Console and create caches in XML or JSON format.
 
 You can use Hot Rod or HTTP clients but {brandname} recommends `Cache` CR or `Batch` CR unless your specific use case requires programmatic remote cache creation.
+
+[discrete]
+== Cache CRs
+
+* `Cache` CRs apply to {datagridservice} pods only.
+* Each `Cache` CR corresponds to a single cache on the {brandname} cluster.

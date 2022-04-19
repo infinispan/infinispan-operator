@@ -57,7 +57,7 @@ include::yaml/datagrid_service.yaml[]
 |Creates a `listener` pod in each {brandname} cluster that allows {ispn_operator} to reconcile server-side modifications with {brandname} resources such as the `Cache` CR.
 
 The `listener` pod consumes minimal resources and is enabled by default.
-Setting a value of `false` removes the `listener` pod and disables reconciliation.
+Setting a value of `false` removes the `listener` pod and disables bi-directional reconciliation.
 You should do this only if you do not need declarative Kubernetes representations of {brandname} resources created through the {brandname} Console, CLI, or client applications.
 
 |`spec.affinity`
