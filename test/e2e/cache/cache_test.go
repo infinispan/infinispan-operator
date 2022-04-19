@@ -109,7 +109,7 @@ func assertConfigListenerHasNoErrorsOrRestarts(t *testing.T, i *v1.Infinispan) {
 	testifyAssert.Equal(t, int32(0), pod.Status.ContainerStatuses[0].RestartCount)
 	logs, err := k8s.Logs(pod.Name, tutils.Namespace, ctx)
 	tutils.ExpectNoError(err)
-	testifyAssert.NotContains(t, logs, "ERROR")
+	testifyAssert.NotContains(t, logs, "ERROR", "Error(s) exist in ConfigListener logs")
 }
 
 func TestUpdateCacheCR(t *testing.T) {
