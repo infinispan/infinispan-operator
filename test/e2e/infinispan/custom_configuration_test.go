@@ -2,6 +2,7 @@ package infinispan
 
 import (
 	"fmt"
+	"github.com/infinispan/infinispan-operator/controllers"
 	"testing"
 
 	"github.com/iancoleman/strcase"
@@ -184,6 +185,42 @@ func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
 	}
 	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	})
+	genericTestForContainerUpdated(*ispn, modifier, verifier)
+}
+
+func TestUserCustomConfigRemove(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	testName := tutils.TestName(t)
+	configMap := newCustomConfigMap(testName, "xml")
+	testKube.Create(configMap)
+	defer testKube.DeleteConfigMap(configMap)
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		tutils.ExpectNoError(testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.ConfigMapName = ""
+		}))
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
+
+		for _, volume := range ss.Spec.Template.Spec.Volumes {
+			if volume.Name == controllers.UserConfVolumeName {
+				panic("Custom Config Volume still exists")
+			}
+		}
+
+		for _, volumeMount := range ss.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if volumeMount.Name == controllers.UserConfVolumeName {
+				panic("Custom Config VolumeMount still exists")
+			}
+		}
+	}
+	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		i.Spec.ConfigMapName = configMap.Name
 	})
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
 }
