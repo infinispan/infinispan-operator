@@ -1156,9 +1156,9 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 			return nil, err
 		}
 		pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
-		// Set a storage class if it specified
+		// Set a storage class if specified
 		if storageClassName := ispn.StorageClassName(); storageClassName != "" {
-			if _, err := kube.LookupResource(storageClassName, ispn.Namespace, &storagev1.StorageClass{}, ispn, r.Client, reqLogger, r.eventRec, r.ctx); err != nil {
+			if err := r.Client.Get(r.ctx, types.NamespacedName{Name: storageClassName}, &storagev1.StorageClass{}); err != nil {
 				return nil, err
 			}
 			pvc.Spec.StorageClassName = &storageClassName
