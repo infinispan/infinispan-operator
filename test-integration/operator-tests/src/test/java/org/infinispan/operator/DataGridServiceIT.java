@@ -2,7 +2,9 @@ package org.infinispan.operator;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -117,7 +119,11 @@ class DataGridServiceIT {
       List<String> targetIPs = actualList.stream().map(t -> t.get("discoveredLabels").get("__meta_kubernetes_pod_ip").asText()).collect(Collectors.toList());
       List<String> targetHealths = actualList.stream().map(t -> t.get("health").asText()).collect(Collectors.toList());
 
-      List<Pod> clusterPods = openShift.getLabeledPods("clusterName", infinispan.getClusterName());
+      Map<String, String> labels = new HashMap<>();
+      labels.put("clusterName", infinispan.getClusterName());
+      labels.put("app", "infinispan-pod");
+
+      List<Pod> clusterPods = openShift.getLabeledPods(labels);
       List<String> podIPs = clusterPods.stream().map(p -> p.getStatus().getPodIP()).collect(Collectors.toList());
 
       // Assert that all the targets are up and that infinispan cluster pods are between the targets

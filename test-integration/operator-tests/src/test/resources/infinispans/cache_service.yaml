@@ -3,11 +3,11 @@ kind: Infinispan
 metadata:
   name: cache-service
 spec:
-  autoscale:
-    maxMemUsagePercent: 40
-    maxReplicas: 5
-    minMemUsagePercent: 20
-    minReplicas: 3
+  # autoscale:
+  #   maxMemUsagePercent: 40
+  #   maxReplicas: 5
+  #   minMemUsagePercent: 20
+  #   minReplicas: 3
   container:
     memory: 512Mi
   expose:
