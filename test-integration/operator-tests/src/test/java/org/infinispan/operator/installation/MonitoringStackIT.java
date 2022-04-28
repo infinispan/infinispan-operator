@@ -89,7 +89,7 @@ public class MonitoringStackIT {
         operatorShift.configMaps().createOrReplace(infinispanOperatorConfig);
 
         // Restart the Operator to recreate the Dashboard in the Grafana namespace
-        operatorShift.pods().withLabel("name", "infinispan-operator").delete();
+        operatorShift.pods().withLabel("app.kubernetes.io/name", "infinispan-operator").delete();
     }
 
     static void createClusterRoleBindingForGrafana() {
