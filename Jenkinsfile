@@ -74,87 +74,87 @@ pipeline {
                     }
                 }
 
-                stage('Create k8s Cluster') {
-                    steps {
-                        sh 'scripts/ci/kind-with-olm.sh'
-                        writeFile file: "${KUBECONFIG}", text: sh(script: 'kind get kubeconfig', , returnStdout: true)
+                // stage('Create k8s Cluster') {
+                //     steps {
+                //         sh 'scripts/ci/kind-with-olm.sh'
+                //         writeFile file: "${KUBECONFIG}", text: sh(script: 'kind get kubeconfig', , returnStdout: true)
 
-                        script {
-                            env.TESTING_CONTEXT = sh(script: 'kubectl --insecure-skip-tls-verify config current-context', , returnStdout: true).trim()
-                        }
+                //         script {
+                //             env.TESTING_CONTEXT = sh(script: 'kubectl --insecure-skip-tls-verify config current-context', , returnStdout: true).trim()
+                //         }
 
-                        sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
-                        sh 'scripts/ci/install-catalog-source.sh'
-                        sh 'make install'
-                        // Create the Operator image so that it can be used for ConfigListener deployments
-                        sh "make operator-build operator-push IMG=$CONFIG_LISTENER_IMAGE"
-                    }
-                }
+                //         sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
+                //         sh 'scripts/ci/install-catalog-source.sh'
+                //         sh 'make install'
+                //         // Create the Operator image so that it can be used for ConfigListener deployments
+                //         sh "make operator-build operator-push IMG=$CONFIG_LISTENER_IMAGE"
+                //     }
+                // }
 
-                stage('Infinispan') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh "make infinispan-test PARALLEL_COUNT=5"
-                        }
-                    }
-                }
+                // stage('Infinispan') {
+                //     steps {
+                //         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                //             sh "make infinispan-test PARALLEL_COUNT=5"
+                //         }
+                //     }
+                // }
 
-                stage('Cache') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh "make cache-test PARALLEL_COUNT=5"
-                        }
-                    }
-                }
+                // stage('Cache') {
+                //     steps {
+                //         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                //             sh "make cache-test PARALLEL_COUNT=5"
+                //         }
+                //     }
+                // }
 
-                stage('Batch') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make batch-test PARALLEL_COUNT=5'
-                        }
-                    }
-                }
+                // stage('Batch') {
+                //     steps {
+                //         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                //             sh 'make batch-test PARALLEL_COUNT=5'
+                //         }
+                //     }
+                // }
 
-                stage('Multinamespace') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh "kubectl config use-context $TESTING_CONTEXT"
-                            sh 'make multinamespace-test'
-                        }
-                    }
-                }
+                // stage('Multinamespace') {
+                //     steps {
+                //         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                //             sh "kubectl config use-context $TESTING_CONTEXT"
+                //             sh 'make multinamespace-test'
+                //         }
+                //     }
+                // }
 
-                stage('Backup/Restore') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make backuprestore-test INFINISPAN_CPU=500m'
-                        }
-                    }
-                }
+                // stage('Backup/Restore') {
+                //     steps {
+                //         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                //             sh 'make backuprestore-test INFINISPAN_CPU=500m'
+                //         }
+                //     }
+                // }
 
-                stage('Webhook') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make webhook-test PARALLEL_COUNT=5'
-                        }
-                    }
-                }
+                // stage('Webhook') {
+                //     steps {
+                //         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                //             sh 'make webhook-test PARALLEL_COUNT=5'
+                //         }
+                //     }
+                // }
 
-                stage('Hot Rod Rolling Upgrade') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make hotrod-upgrade-test'
-                        }
-                    }
-                }
+                // stage('Hot Rod Rolling Upgrade') {
+                //     steps {
+                //         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                //             sh 'make hotrod-upgrade-test'
+                //         }
+                //     }
+                // }
 
-                stage('Upgrade') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
-                        }
-                    }
-                }
+                // stage('Upgrade') {
+                //     steps {
+                //         catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                //             sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
+                //         }
+                //     }
+                // }
 
                 stage('Xsite') {
                     steps {
