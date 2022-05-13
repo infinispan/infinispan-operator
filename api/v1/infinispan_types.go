@@ -313,11 +313,16 @@ const (
 )
 
 type InfinispanExternalArtifacts struct {
-	// +kubebuilder:validation:Pattern=`^(https?|ftp)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`
+	// +optional
+	// +kubebuilder:validation:Pattern=`^$|^(https?|ftp)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`
 	// URL of the file you want to download.
 	Url string `json:"url"`
 	// +optional
-	// Specifies the type of file you want to download. If not specified, the file type is automatically determined from the extension.
+	// +kubebuilder:validation:Pattern=`^$|^([-_a-zA-Z0-9.]+):([-_a-zA-Z0-9.]+):([-_a-zA-Z0-9.]+)(?::([-_a-zA-Z0-9.]+))?$`
+	// Coordinates of a maven artifact in the `groupId:artifactId:version` format, for example `org.postgresql:postgresql:42.3.1`.
+	Maven string `json:"maven"`
+	// +optional
+	// Deprecated, no longer has any effect. Specifies the type of file you want to download. If not specified, the file type is automatically determined from the extension.
 	Type ExternalArtifactType `json:"type,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Pattern=`^(sha1|sha224|sha256|sha384|sha512|md5):[a-z0-9]+`

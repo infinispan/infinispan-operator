@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"fmt"
+
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
@@ -195,6 +196,17 @@ func (i *Infinispan) validate() error {
 			msg := fmt.Sprintf("XSite not supported with %s upgrades", UpgradeTypeHotRodRolling)
 			err := field.Forbidden(field.NewPath("spec").Child("service").Child("sites"), msg)
 			allErrs = append(allErrs, err)
+		}
+	}
+
+	if i.HasExternalArtifacts() {
+		for i, artifact := range i.Spec.Dependencies.Artifacts {
+			f := field.NewPath("spec").Child("dependencies").Child("artifacts").Index(i)
+			if artifact.Url == "" && artifact.Maven == "" {
+				allErrs = append(allErrs, field.Required(f, "'artifact.Url' OR 'artifact.Maven' must be supplied"))
+			} else if artifact.Url != "" && artifact.Maven != "" {
+				allErrs = append(allErrs, field.Duplicate(f, "At most one of ['artifact.Url', 'artifact.Maven'] must be configured"))
+			}
 		}
 	}
 

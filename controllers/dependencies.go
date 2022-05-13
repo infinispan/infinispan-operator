@@ -1,12 +1,8 @@
 package controllers
 
 import (
-	"bytes"
-	"fmt"
 	"strings"
-	"text/template"
 
-	rice "github.com/GeertJohan/go.rice"
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
@@ -15,10 +11,10 @@ import (
 const (
 	CustomLibrariesMountPath               = "/opt/infinispan/server/lib/custom-libraries"
 	CustomLibrariesVolumeName              = "custom-libraries"
-	ExternalArtifactsMountPath             = "/opt/infinispan/server/lib/external-artifacts"
+	ExternalArtifactsLibsRoot              = "server/lib/external-artifacts"
+	ExternalArtifactsMountPath             = "/opt/infinispan/" + ExternalArtifactsLibsRoot + "/lib"
 	ExternalArtifactsVolumeName            = "external-artifacts"
 	ExternalArtifactsDownloadInitContainer = "external-artifacts-download"
-	ExternalArtifactsHashValidationCommand = "echo %s %s | %ssum -c"
 )
 
 func applyExternalDependenciesVolume(ispn *infinispanv1.Infinispan, spec *corev1.PodSpec) (updated bool) {
@@ -46,22 +42,22 @@ func applyExternalArtifactsDownload(ispn *infinispanv1.Infinispan, spec *corev1.
 	volumeMounts := &ispnContainer.VolumeMounts
 	containerPosition := kube.ContainerIndex(*initContainers, ExternalArtifactsDownloadInitContainer)
 	if ispn.HasExternalArtifacts() {
-		extractCommands, err := externalArtifactsExtractCommand(ispn)
-		if err != nil {
-			retErr = err
-			return
-		}
+		serverLibs := serverLibs(ispn)
 		if containerPosition >= 0 {
-			if spec.InitContainers[containerPosition].Args[0] != extractCommands {
-				spec.InitContainers[containerPosition].Args = []string{extractCommands}
+			if spec.InitContainers[containerPosition].Env[0].Value != serverLibs {
+				spec.InitContainers[containerPosition].Env[0].Value = serverLibs
 				updated = true
 			}
 		} else {
 			*initContainers = append(*initContainers, corev1.Container{
-				Image:   ispn.ImageName(),
-				Name:    ExternalArtifactsDownloadInitContainer,
-				Command: []string{"sh", "-c"},
-				Args:    []string{extractCommands},
+				Image: ispn.ImageName(),
+				Name:  ExternalArtifactsDownloadInitContainer,
+				Env: []corev1.EnvVar{
+					{Name: "SERVER_LIBS", Value: serverLibs},
+					{Name: "SERVER_LIBS_DIR", Value: ExternalArtifactsLibsRoot},
+					{Name: "INIT_CONTAINER", Value: "TRUE"},
+					{Name: "MANAGED_ENV", Value: "TRUE"},
+				},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      ExternalArtifactsVolumeName,
 					MountPath: ExternalArtifactsMountPath,
@@ -82,47 +78,27 @@ func applyExternalArtifactsDownload(ispn *infinispanv1.Infinispan, spec *corev1.
 	return
 }
 
-func externalArtifactsExtractCommand(ispn *infinispanv1.Infinispan) (string, error) {
-	box, err := rice.FindBox("resources")
-	if err != nil {
-		return "", err
+func serverLibs(i *infinispanv1.Infinispan) string {
+	if !i.HasExternalArtifacts() {
+		return ""
 	}
-	dependenciesTemplate, err := box.String("dependencies.gotmpl")
-	if err != nil {
-		return "", err
-	}
-
-	tmpl, err := template.New("init-container").Funcs(template.FuncMap{
-		"hashCmd": func(artifact infinispanv1.InfinispanExternalArtifacts, fileName string) (string, error) {
-			if artifact.Hash == "" {
-				return "", nil
-			}
-
+	var libs strings.Builder
+	for _, artifact := range i.Spec.Dependencies.Artifacts {
+		if artifact.Url != "" {
+			libs.WriteString(artifact.Url)
+		} else {
+			libs.WriteString(artifact.Maven)
+		}
+		if artifact.Hash != "" {
 			hashParts := strings.Split(artifact.Hash, ":")
-			if len(hashParts) != 2 {
-				return "", fmt.Errorf("expected hash to be in the format `<hash-type>:<hash>`")
-			}
-			return fmt.Sprintf(ExternalArtifactsHashValidationCommand, hashParts[1], fileName, hashParts[0]), nil
-		},
-	}).Parse(dependenciesTemplate)
-
-	if err != nil {
-		return "", err
+			libs.WriteString("|")
+			libs.WriteString(hashParts[0])
+			libs.WriteString("|")
+			libs.WriteString(hashParts[1])
+		}
+		libs.WriteString(" ")
 	}
-
-	var tpl bytes.Buffer
-	err = tmpl.Execute(&tpl, struct {
-		MountPath string
-		Artifacts []infinispanv1.InfinispanExternalArtifacts
-	}{
-		MountPath: ExternalArtifactsMountPath,
-		Artifacts: ispn.Spec.Dependencies.Artifacts,
-	})
-
-	if err != nil {
-		return "", err
-	}
-	return tpl.String(), nil
+	return libs.String()
 }
 
 func findVolume(volumes []corev1.Volume, volumeName string) int {
