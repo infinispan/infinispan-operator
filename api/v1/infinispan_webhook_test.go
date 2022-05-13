@@ -7,6 +7,7 @@ import (
 	"time"
 
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/hash"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -349,6 +350,68 @@ var _ = Describe("Infinispan Webhooks", func() {
 			spec := created.Spec
 			Expect(spec.Service.Sites.Locations).Should(HaveLen(1))
 			Expect(spec.Service.Sites.Locations[0].URL).Should(Equal("infinispan+xsite://some.host.com:6443"))
+		})
+
+		It("Should reject invalid external artifact", func() {
+
+			ispn := Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Dependencies: &InfinispanExternalDependencies{
+						Artifacts: []InfinispanExternalArtifacts{{
+							Url:  "https://test.com",
+							Hash: "sha1", // Missing checksum
+						}},
+					},
+				},
+			}
+
+			err := k8sClient.Create(ctx, ispn.DeepCopy())
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts.hash", "in body should match"})
+
+			ispn.Spec.Dependencies.Artifacts[0].Hash = "sha1:" + hash.HashString("made up")
+			Expect(k8sClient.Create(ctx, ispn.DeepCopy())).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &ispn)).Should(Succeed())
+
+			// Http
+			ispn.Spec.Dependencies.Artifacts[0].Url = "http://test.com"
+			Expect(k8sClient.Create(ctx, ispn.DeepCopy())).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &ispn)).Should(Succeed())
+
+			// Invalid Http
+			ispn.Spec.Dependencies.Artifacts[0].Url = "httasfap://test.com"
+			err = k8sClient.Create(ctx, ispn.DeepCopy())
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts.url", "should match"})
+
+			// FTP
+			ispn.Spec.Dependencies.Artifacts[0].Url = "ftp://test.com"
+			Expect(k8sClient.Create(ctx, ispn.DeepCopy())).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &ispn)).Should(Succeed())
+
+			// Maven
+			ispn.Spec.Dependencies.Artifacts[0] = InfinispanExternalArtifacts{
+				Maven: "org.postgresql:postgresql:42.3.1",
+			}
+			Expect(k8sClient.Create(ctx, ispn.DeepCopy())).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, &ispn)).Should(Succeed())
+
+			// Invalid Maven
+			ispn.Spec.Dependencies.Artifacts[0] = InfinispanExternalArtifacts{
+				Maven: "http://org.postgresql:postgresql:42.3.1",
+			}
+			err = k8sClient.Create(ctx, ispn.DeepCopy())
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts.maven", "should match"})
+
+			// Ensure that an artifacts Url and Maven field can't be set at the same time
+			ispn.Spec.Dependencies.Artifacts[0] = InfinispanExternalArtifacts{
+				Maven: "org.postgresql:postgresql:42.3.1",
+				Url:   "ftp://test.com",
+			}
+			err = k8sClient.Create(ctx, ispn.DeepCopy())
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueDuplicate, "spec.dependencies.artifacts[0]", "At most one of"})
 		})
 	})
 })

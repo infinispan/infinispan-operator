@@ -10,13 +10,7 @@ import (
 func init() {
 
 	// define files
-	file5 := &embedded.EmbeddedFile{
-		Filename:    "dependencies.gotmpl",
-		FileModTime: time.Unix(1620137619, 0),
-
-		Content: string("{{/* Dependencies download script for init container */}}\nset -e\nfunction retry {\n    local n=1\n    local max=5\n    local delay=1\n    while true; do\n        $@ && break || {\n            if [[ $n -lt $max ]]; then\n                ((n++))\n                echo \"Download failed. Attempt $n/$max:\"\n                sleep $delay\n            else\n                echo \"Artifact download has failed after $n attempts.\"\n                exit 1\n            fi\n        }\n    done\n}\nfunction unpack {\n    if [[ ${2} == \"\" && ${1} =~ \".zip\" || ${2} == \"zip\" ]]; then\n        unzip -oq ${1} && rm ${1}\n    fi\n    if [[ ${2} == \"\" && ${1} =~ \".tar.gz\" || ${2} == \"tgz\" ]]; then\n        tar xf ${1} && rm ${1}\n    fi\n}\ncd {{ .MountPath }}\n{{- range $i, $artifact := .Artifacts }}\n    mkdir -p ./tmp\n    cd ./tmp\n    retry \"curl --insecure -LO {{ $artifact.Url }}\"\n    FILENAME=$(ls -1 . | head -n1)\n    {{ hashCmd $artifact \"$FILENAME\" }}\n    cd .. && mv ./tmp/$FILENAME .\n    unpack {{ $artifact.Type }} $FILENAME\n    rm -rf ./tmp\n{{- end }}"),
-	}
-	file6 := &embedded.EmbeddedFile{
+	file4 := &embedded.EmbeddedFile{
 		Filename:    "grafana_dashboard.json",
 		FileModTime: time.Unix(1620137619, 0),
 
@@ -24,29 +18,27 @@ func init() {
 	}
 
 	// define dirs
-	dir4 := &embedded.EmbeddedDir{
+	dir3 := &embedded.EmbeddedDir{
 		Filename:   "",
 		DirModTime: time.Unix(1620137619, 0),
 		ChildFiles: []*embedded.EmbeddedFile{
-			file5, // "dependencies.gotmpl"
-			file6, // "grafana_dashboard.json"
+			file4, // "grafana_dashboard.json"
 
 		},
 	}
 
 	// link ChildDirs
-	dir4.ChildDirs = []*embedded.EmbeddedDir{}
+	dir3.ChildDirs = []*embedded.EmbeddedDir{}
 
 	// register embeddedBox
 	embedded.RegisterEmbeddedBox(`resources`, &embedded.EmbeddedBox{
 		Name: `resources`,
 		Time: time.Unix(1620137619, 0),
 		Dirs: map[string]*embedded.EmbeddedDir{
-			"": dir4,
+			"": dir3,
 		},
 		Files: map[string]*embedded.EmbeddedFile{
-			"dependencies.gotmpl":    file5,
-			"grafana_dashboard.json": file6,
+			"grafana_dashboard.json": file4,
 		},
 	})
 }
