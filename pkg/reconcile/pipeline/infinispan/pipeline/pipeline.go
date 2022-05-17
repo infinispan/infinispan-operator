@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/configure"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/manage"
@@ -132,6 +133,11 @@ func (b *builder) WithSupportedTypes(types map[schema.GroupVersionKind]struct{})
 	return b
 }
 
+func (b *builder) WithVersionManager(versionManager *version.Manager) *builder {
+	b.VersionManager = versionManager
+	return b
+}
+
 func (b *builder) Build() pipeline.Pipeline {
 	i := b.Infinispan
 	handlers := handlerBuilder{
@@ -139,6 +145,7 @@ func (b *builder) Build() pipeline.Pipeline {
 	}
 
 	// Apply default meta before doing anything else
+	handlers.Add(manage.InitialiseOperandVersion)
 	handlers.Add(manage.PrelimChecksCondition)
 
 	// Provision/Remove the XSite service before performing configuration so that Remote site information can be retrieved
@@ -166,20 +173,24 @@ func (b *builder) Build() pipeline.Pipeline {
 		configure.AdminIdentities,
 		configure.IdentitiesBatch,
 	)
+	handlers.AddFeatureSpecific(i.GracefulShutdownUpgrades(), manage.ScheduleGracefulShutdownUpgrade)
 
-	// Provision Handlers
-	handlers.AddFeatureSpecific(i.IsAuthenticationEnabled() && i.IsGeneratedSecret(), provision.UserAuthenticationSecret)
-	handlers.AddFeatureSpecific(i.IsClientCertEnabled(), provision.TruststoreSecret)
-	handlers.Add(
-		provision.GossipRouter,
-		provision.AdminSecret,
-		provision.InfinispanSecuritySecret,
-		provision.InfinispanConfigMap,
-		provision.PingService,
-		provision.AdminService,
-		provision.ClusterStatefulSet,
-	)
-	handlers.AddFeatureSpecific(i.IsExposed(), provision.ExternalService)
+	// Execute Provision Handlers if an upgrade is not already in progress
+	// Necessary to prevent resources being upgraded prematurely
+	if !i.IsUpgradeCondition() {
+		handlers.AddFeatureSpecific(i.IsAuthenticationEnabled() && i.IsGeneratedSecret(), provision.UserAuthenticationSecret)
+		handlers.AddFeatureSpecific(i.IsClientCertEnabled(), provision.TruststoreSecret)
+		handlers.Add(
+			provision.GossipRouter,
+			provision.AdminSecret,
+			provision.InfinispanSecuritySecret,
+			provision.InfinispanConfigMap,
+			provision.PingService,
+			provision.AdminService,
+			provision.ClusterStatefulSet,
+		)
+		handlers.AddFeatureSpecific(i.IsExposed(), provision.ExternalService)
+	}
 
 	// Manage the created Cluster
 	handlers.Add(manage.PodStatus)
@@ -189,7 +200,6 @@ func (b *builder) Build() pipeline.Pipeline {
 		manage.RemoveFailedInitContainers,
 		manage.UpdatePodLabels,
 	)
-	handlers.AddFeatureSpecific(i.GracefulShutdownUpgrades(), manage.ScheduleGracefulShutdownUpgrade)
 
 	handlers.Add(
 		manage.GracefulShutdown,

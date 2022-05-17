@@ -79,6 +79,9 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	// Ensure that the backup pod has left the cluster, by checking a cluster pod's size
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
+	// Retrieve the latest Infinispan so that the call to `ImageName()` has the operand initialized
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: sourceCluster}, infinispan))
+
 	// Validate the number of entries stored in the someCache backup file
 	cmd := fmt.Sprintf("ls -l /etc/backups/backup; cd /tmp; unzip /etc/backups/backup/backup.zip; LINES=$(cat containers/default/caches/someCache/someCache.dat | wc -l); echo $LINES; [[ $LINES -eq \"%d\" ]]", numEntries)
 	pod := &corev1.Pod{

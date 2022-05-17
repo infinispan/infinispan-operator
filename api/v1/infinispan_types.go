@@ -354,6 +354,10 @@ type InfinispanSpec struct {
 	// The number of nodes in the Infinispan cluster.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:podCount"
 	Replicas int32 `json:"replicas"`
+	// The semantic version of the Infinispan cluster.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^$|^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`
+	Version string `json:"version"`
 	// +optional
 	Image *string `json:"image,omitempty"`
 	// +optional
@@ -400,7 +404,6 @@ const (
 type ConditionType string
 
 const (
-	// Deprecated and no longer used
 	ConditionPrelimChecksPassed  ConditionType = "PreliminaryChecksPassed"
 	ConditionGracefulShutdown    ConditionType = "GracefulShutdown"
 	ConditionStopping            ConditionType = "Stopping"
@@ -450,11 +453,37 @@ type InfinispanStatus struct {
 	ConsoleUrl *string `json:"consoleUrl,omitempty"`
 	// +optional
 	HotRodRollingUpgradeStatus *HotRodRollingUpgradeStatus `json:"hotRodRollingUpgradeStatus,omitempty"`
+	// The Operand status
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operand Status"
+	Operand OperandStatus `json:"operand,omitempty"`
+}
+
+type OperandPhase string
+
+const (
+	// OperandPhasePending indicates that the configured Operand is currently being provisioned and the cluster is not WellFormed
+	OperandPhasePending OperandPhase = "Pending"
+	// OperandPhaseRunning indicates that the Operand has been provisioned and is WellFormed
+	OperandPhaseRunning OperandPhase = "Running"
+)
+
+type OperandStatus struct {
+	// The Image being used by the Operand currently being reconciled
+	// +optional
+	Image string `json:"image,omitempty"`
+	// The most recently observed Phase of the Operand deployment
+	// +optional
+	Phase OperandPhase `json:"phase,omitempty"`
+	// The Operand version to be reconciled
+	// +optional
+	Version string `json:"version,omitempty"`
 }
 
 type HotRodRollingUpgradeStatus struct {
 	Stage                 HotRodRollingUpgradeStage `json:"stage,omitempty"`
 	SourceStatefulSetName string                    `json:"SourceStatefulSetName,omitempty"`
+	SourceVersion         string                    `json:"SourceVersion,omitempty"`
 	TargetStatefulSetName string                    `json:"TargetStatefulSetName,omitempty"`
 }
 

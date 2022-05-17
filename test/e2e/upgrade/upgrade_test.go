@@ -9,6 +9,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -107,7 +108,8 @@ func TestUpgrade(t *testing.T) {
 
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
 	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
-		fmt.Printf("Installed csv: %s, Current CSV: %s", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
+		fmt.Printf("Installed csv: %s, Current CSV: %s\n", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
+		ispnPreUpgrade := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
 		testKube.ApproveInstallPlan(sub)
 
@@ -115,19 +117,72 @@ func TestUpgrade(t *testing.T) {
 			return sub.Status.InstalledCSV == sub.Status.CurrentCSV
 		})
 
-		// Ensure that the cluster is shutting down
-		testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionStopping, conditionTimeout)
-		testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-		testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+		assertOperandImage := func(expectedImage string) {
+			pods := &corev1.PodList{}
+			err := testKube.Kubernetes.ResourcesList(tutils.Namespace, spec.PodSelectorLabels(), pods, ctx)
+			tutils.ExpectNoError(err)
+			for _, pod := range pods.Items {
+				if pod.Spec.Containers[0].Image != expectedImage {
+					panic(fmt.Errorf("upgraded image [%v] in Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, expectedImage))
+				}
+			}
+		}
 
-		// Validates that all pods are running with desired image
-		expectedImage := testKube.InstalledCSVServerImage(sub)
-		pods := &corev1.PodList{}
-		err := testKube.Kubernetes.ResourcesList(tutils.Namespace, spec.PodSelectorLabels(), pods, ctx)
-		tutils.ExpectNoError(err)
-		for _, pod := range pods.Items {
-			if pod.Spec.Containers[0].Image != expectedImage {
-				tutils.ExpectNoError(fmt.Errorf("upgraded image [%v] in Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, expectedImage))
+		latestOperand := func() version.Operand {
+			operandVersions := testKube.InstalledCSVEnv(ispnv1.OperatorOperandVersionEnvVarName, sub)
+			if operandVersions == "" {
+				panic(fmt.Sprintf("%s env empty, cannot continue", ispnv1.OperatorOperandVersionEnvVarName))
+			}
+			versionManager, err := version.ManagerFromJson(operandVersions)
+			tutils.ExpectNoError(err)
+			return versionManager.Latest()
+		}
+
+		if ispnPreUpgrade.Spec.Version == "" {
+			// We're upgrading from an Infinispan version that does not have multi-operand support so expect cluster
+			// GracefulShutdown upgrade to happen automatically
+			testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionStopping, conditionTimeout)
+			testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+			testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+
+			relatedImageJdk := testKube.InstalledCSVEnv("RELATED_IMAGE_OPENJDK", sub)
+			if relatedImageJdk != "" {
+				// The latest Operator version still doesn't support multi-operand so check that the RELATED_IMAGE_OPENJDK
+				// image has been installed on all pods
+				assertOperandImage(relatedImageJdk)
+			} else {
+				latestOperand := latestOperand()
+				testKube.WaitForInfinispanState(spec.Name, subNamespace, func(i *ispnv1.Infinispan) bool {
+					return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+						i.Status.Operand.Version == latestOperand.Ref() &&
+						i.Status.Operand.Image == latestOperand.Image &&
+						i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+				})
+				assertOperandImage(latestOperand.Image)
+			}
+		} else {
+			latestOperand := latestOperand()
+			if ispnPreUpgrade.Spec.Version != latestOperand.Ref() {
+				ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+				tutils.ExpectNoError(
+					testKube.UpdateInfinispan(ispn, func() {
+						ispn.Spec.Version = latestOperand.Ref()
+					}),
+				)
+				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+					return !i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+						i.Status.Operand.Version == latestOperand.Ref() &&
+						i.Status.Operand.Image == latestOperand.Image &&
+						i.Status.Operand.Phase == ispnv1.OperandPhasePending
+				})
+				testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+					return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+						i.Status.Operand.Version == latestOperand.Ref() &&
+						i.Status.Operand.Image == latestOperand.Image &&
+						i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+				})
+				assertOperandImage(latestOperand.Image)
 			}
 		}
 

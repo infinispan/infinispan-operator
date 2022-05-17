@@ -15,6 +15,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +27,32 @@ const (
 	keystoreSecretSuffix   = "keystore"
 	truststoreSecretSuffix = "truststore"
 )
+
+var VersionManager = func() *version.Manager {
+	if os.Getenv(ispnv1.OperatorOperandVersionEnvVarName) == "" {
+		// Operand versions must be updated whenever the supported Operands change as the Operands are executed
+		// during the integration tests.
+		// The final release must be a cve release in order for TestOperandCVEUpgrade to pass. This does not have to be
+		// a real release, but the image tag must differ from the oldest Operand release so that we can ensure the
+		// Pod Image was correctly updated.
+		_ = os.Setenv(ispnv1.OperatorOperandVersionEnvVarName, `[{
+			"upstream-version": "13.0.9",
+			"image": "quay.io/infinispan/server:13.0.9.Final"
+		},{
+			"upstream-version": "13.0.10",
+			"image": "quay.io/infinispan/server:13.0.10.Final"
+		},{
+			"upstream-version": "13.0.11",
+			"image": "quay.io/infinispan/server:13.0",
+			"cve": true
+		}]`)
+	}
+	if manager, err := version.ManagerFromEnv(ispnv1.OperatorOperandVersionEnvVarName); err != nil {
+		panic(err)
+	} else {
+		return manager
+	}
+}()
 
 func EndpointEncryption(name string) *ispnv1.EndpointEncryption {
 	return &ispnv1.EndpointEncryption{
@@ -133,6 +160,7 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 			ConfigListener: &ispnv1.ConfigListenerSpec{
 				Enabled: false,
 			},
+			Version: VersionManager.Latest().Ref(),
 		},
 	}
 	if initializer != nil {

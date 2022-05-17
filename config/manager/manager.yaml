@@ -47,8 +47,15 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: RELATED_IMAGE_OPENJDK
-            value: "quay.io/infinispan/server:13.0"
+          - name: INFINISPAN_OPERAND_VERSIONS
+            value: |-
+              [{
+                "upstream-version": "13.0.9",
+                "image": "quay.io/infinispan/server:13.0.9.Final"
+              },{
+                "upstream-version": "13.0.10",
+                "image": "quay.io/infinispan/server:13.0.10.Final"
+              }]
           - name: POD_NAME
             valueFrom:
               fieldRef:

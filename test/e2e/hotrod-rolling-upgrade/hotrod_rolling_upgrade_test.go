@@ -1,13 +1,9 @@
 package hotrod_rolling_upgrade
 
 import (
-	"bufio"
-	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
-	"syscall"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -16,86 +12,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	mainPath        = "../../../main.go"
-	crdPath         = "../../../config/crd/bases/"
-	entriesPerCache = 100
-	numPods         = 2
-	clusterName     = "demo-cluster"
-)
-
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 
-// command Pointer to the spawned operator process
-var command *exec.Cmd
-
-// initialize Prepares namespaces and CRD installations
-func initialize() {
-	testKube.NewNamespace(tutils.Namespace)
-}
-
-// killOperator Gracefully shutdown the operator and its subprocesses
-func killOperator() {
-	err := syscall.Kill(-command.Process.Pid, syscall.SIGTERM)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func runOperatorSameProcess() context.CancelFunc {
-	return testKube.RunOperator(tutils.Namespace, crdPath)
-}
-
-// runOperatorNewProcess Starts the operator in a new Process, as it's not possible to start it after stopping in the
-//same process due to several internal concurrency issues like https://github.com/kubernetes-sigs/controller-runtime/issues/1346
-func runOperatorNewProcess(image string) {
-	command = exec.Command("go", "run", mainPath, "operator")
-
-	// Sets the gid since "go run" spawns a subprocess
-	command.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-	command.Env = os.Environ()
-	command.Env = append(command.Env, "RELATED_IMAGE_OPENJDK="+image)
-	command.Env = append(command.Env, "OSDK_FORCE_RUN_MODE=local")
-	command.Env = append(command.Env, "WATCH_NAMESPACE="+tutils.Namespace)
-	command.Env = append(command.Env, "ENABLE_WEBHOOKS=false")
-
-	stdoutPipe, _ := command.StdoutPipe()
-	command.Stderr = command.Stdout
-	ch := make(chan struct{})
-	scanner := bufio.NewScanner(stdoutPipe)
-	go func() {
-		for scanner.Scan() {
-			line := scanner.Text()
-			fmt.Println(line)
-		}
-		ch <- struct{}{}
-	}()
-	if err := command.Start(); err != nil {
-		panic(err)
-	}
-	<-ch
-	if err := command.Wait(); err != nil {
-		println("Operator stopped")
-	}
-	<-ch
-}
-
-func TestMain(t *testing.M) {
-	code := t.Run()
-	os.Exit(code)
+func TestMain(m *testing.M) {
+	tutils.RunOperator(m, testKube)
 }
 
 func TestRollingUpgrade(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	initialize()
-	// TODO This should always trigger a rolling upgrade since the operator uses aliases by default. Make it an environment variable to test upgrade from different versions
-	go runOperatorNewProcess("quay.io/infinispan/server")
-
+	numPods := 2
+	entriesPerCache := 100
+	// Create a cluster with the oldest supported Operand release
 	infinispan := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Name = clusterName
+		operandSrc := tutils.VersionManager.Operands[0]
+		i.Spec.Version = operandSrc.Ref()
 		i.Spec.Replicas = int32(numPods)
 		i.Spec.Container.CPU = "1000m"
 		i.Spec.Service.Container.EphemeralStorage = false
@@ -109,8 +40,8 @@ func TestRollingUpgrade(t *testing.T) {
 	})
 
 	testKube.Create(infinispan)
-	testKube.WaitForInfinispanPods(numPods, tutils.SinglePodTimeout, clusterName, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(clusterName, tutils.Namespace, ispnv1.ConditionWellFormed)
+	testKube.WaitForInfinispanPods(numPods, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
+	infinispan = testKube.WaitForInfinispanCondition(infinispan.Name, tutils.Namespace, ispnv1.ConditionWellFormed)
 	client := tutils.HTTPClientForCluster(infinispan, testKube)
 
 	// Create caches
@@ -123,15 +54,17 @@ func TestRollingUpgrade(t *testing.T) {
 	addData("textCache", entriesPerCache, client)
 	addData("indexedCache", entriesPerCache, client)
 
-	// Kill the operator
-	killOperator()
-
-	// Restart the operator
-	runOperatorSameProcess()
+	// Upgrade to the next available Operand version
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(infinispan, func() {
+			operandDst := tutils.VersionManager.Operands[1]
+			infinispan.Spec.Version = operandDst.Ref()
+		}),
+	)
 
 	// Check migration
-	currentStatefulSetName := clusterName
-	newStatefulSetName := clusterName + "-1"
+	currentStatefulSetName := infinispan.Name
+	newStatefulSetName := infinispan.Name + "-1"
 
 	testKube.WaitForStateFulSet(newStatefulSetName, tutils.Namespace)
 	testKube.WaitForStateFulSetRemoval(currentStatefulSetName, tutils.Namespace)

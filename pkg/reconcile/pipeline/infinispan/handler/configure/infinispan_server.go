@@ -144,16 +144,14 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
-	// TODO utilise a version specific configurator once server/operator versions decoupled
-	if serverConfig, err := config.Generate(nil, configSpec); err == nil {
+	if serverConfig, err := config.Generate(ctx.Operand(), configSpec); err == nil {
 		configFiles.ServerConfig = serverConfig
 	} else {
 		ctx.Requeue(fmt.Errorf("unable to generate infinispan.xml: %w", err))
 		return
 	}
 
-	// TODO utilise a version specific configurator once server/operator versions decoupled
-	if zeroConfig, err := config.GenerateZeroCapacity(nil, configSpec); err == nil {
+	if zeroConfig, err := config.GenerateZeroCapacity(ctx.Operand(), configSpec); err == nil {
 		configFiles.ZeroConfig = zeroConfig
 	} else {
 		ctx.Requeue(fmt.Errorf("unable to generate infinispan.xml: %w", err))
@@ -164,8 +162,7 @@ func Logging(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	loggingSpec := &logging.Spec{
 		Categories: i.GetLogCategoriesForConfig(),
 	}
-	// TODO utilise a version specific logging once server/operator versions decoupled
-	log4jXml, err := logging.Generate(nil, loggingSpec)
+	log4jXml, err := logging.Generate(ctx.Operand(), loggingSpec)
 	if err != nil {
 		ctx.Requeue(fmt.Errorf("unable to generate log4j.xml: %w", err))
 		return

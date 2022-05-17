@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,12 +24,19 @@ var (
 	log              = ctrl.Log.WithName("webhook").WithName("Infinispan")
 	eventRec         record.EventRecorder
 	ServingCertsMode string
+	versionManager   *version.Manager
 )
 
-func (i *Infinispan) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (i *Infinispan) SetupWebhookWithManager(mgr ctrl.Manager) (err error) {
 	kubernetes := kube.NewKubernetesFromController(mgr)
 	eventRec = mgr.GetEventRecorderFor("webhook-infinispan")
 	ServingCertsMode = kubernetes.GetServingCertsMode(context.Background())
+
+	// Initialize supported Operand versions
+	versionManager, err = version.ManagerFromEnv(OperatorOperandVersionEnvVarName)
+	if err != nil {
+		return
+	}
 
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(i).
@@ -41,6 +49,9 @@ var _ webhook.Defaulter = &Infinispan{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (i *Infinispan) Default() {
+	if i.Spec.Version == "" {
+		i.Spec.Version = versionManager.Latest().Ref()
+	}
 	if i.Spec.Service.Type == "" {
 		i.Spec.Service.Type = ServiceTypeCache
 	}
@@ -125,8 +136,40 @@ func (i *Infinispan) ValidateCreate() error {
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateUpdate(old runtime.Object) error {
-	return i.validate()
+func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
+	if err := i.validate(); err != nil {
+		return err
+	}
+
+	var allErrs field.ErrorList
+	old := oldRuntimeObj.(*Infinispan)
+	if old.Spec.Version != "" {
+		// We know the versions must be valid as they have already been validated, so the error will always be nil
+		operand, _ := versionManager.WithRef(i.Spec.Version)
+		oldOperand, _ := versionManager.WithRef(old.Spec.Version)
+
+		if i.GracefulShutdownUpgrades() {
+			// Version downgrades are not supported with Graceful Shutdown
+			if operand.LT(oldOperand) {
+				detail := fmt.Sprintf("Version downgrading not supported. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
+				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+			}
+		} else {
+			if old.Status.HotRodRollingUpgradeStatus == nil {
+				detail := fmt.Sprintf("Version rollback only supported when a Hot Rolling Upgrade is in progress. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
+				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+			} else {
+				// Only allow upgrades to be rolled back to the original source version
+				validRollbackOperand, _ := versionManager.WithRef(i.Status.HotRodRollingUpgradeStatus.SourceVersion)
+				if !validRollbackOperand.EQ(operand) {
+					detail := fmt.Sprintf("Hot Rod Rolling Upgrades can only be rolled back to the original source version. Existing='%s', Source='%s', Requested='%s'.",
+						oldOperand.Ref(), validRollbackOperand.Ref(), operand.Ref())
+					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+				}
+			}
+		}
+	}
+	return errorListToError(i, allErrs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -137,6 +180,14 @@ func (i *Infinispan) ValidateDelete() error {
 
 func (i *Infinispan) validate() error {
 	var allErrs field.ErrorList
+
+	operand, err := versionManager.WithRef(i.Spec.Version)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("version"), i.Spec.Version, err.Error()))
+	}
+	if operand.Deprecated {
+		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", "Configured Infinispan version will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.")
+	}
 
 	if i.Spec.Container.CPU != "" {
 		req, limit, err := i.Spec.Container.GetCpuResources()
@@ -209,7 +260,10 @@ func (i *Infinispan) validate() error {
 			}
 		}
 	}
+	return errorListToError(i, allErrs)
+}
 
+func errorListToError(i *Infinispan, allErrs field.ErrorList) error {
 	if len(allErrs) != 0 {
 		return apierrors.NewInvalid(
 			schema.GroupKind{Group: GroupVersion.Group, Kind: "Infinispan"},

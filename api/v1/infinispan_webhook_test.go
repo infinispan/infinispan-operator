@@ -10,7 +10,6 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
 	// +kubebuilder:scaffold:imports
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -412,6 +411,157 @@ var _ = Describe("Infinispan Webhooks", func() {
 			}
 			err = k8sClient.Create(ctx, ispn.DeepCopy())
 			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueDuplicate, "spec.dependencies.artifacts[0]", "At most one of"})
+		})
+
+		It("Should set the latest available Infinispan version if not specified", func() {
+
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, key, ispn)).Should(Succeed())
+			Expect(ispn.Spec.Version).Should(Equal("13.0.10"))
+		})
+
+		It("Should throw an error if an invalid version is specified", func() {
+
+			failed := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Version:  "9.0.0",
+				},
+			}
+			err := k8sClient.Create(ctx, failed)
+			expectInvalidErrStatus(err, statusDetailCause{
+				metav1.CauseTypeFieldValueInvalid, "spec.version", "unknown version",
+			})
+		})
+
+		It("Should throw an error if version downgrades are attempted with GracefulShutdown", func() {
+
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Version:  "13.0.10",
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			ispn.Spec.Version = "13.0.9"
+			err := k8sClient.Update(ctx, ispn)
+			expectInvalidErrStatus(err, statusDetailCause{
+				"FieldValueForbidden", "spec.version", "downgrading not supported",
+			})
+		})
+		It("Should throw an error if rollback attempted when no HR rolling upgrade in progress", func() {
+
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Service: InfinispanServiceSpec{
+						Type: ServiceTypeDataGrid,
+					},
+					Replicas: 1,
+					Version:  "13.0.10",
+					Upgrades: &InfinispanUpgradesSpec{
+						Type: UpgradeTypeHotRodRolling,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			ispn.Spec.Version = "13.0.9"
+			expectInvalidErrStatus(k8sClient.Update(ctx, ispn), statusDetailCause{
+				"FieldValueForbidden", "spec.version", "rollback only supported when a Hot Rolling Upgrade is in progress",
+			})
+		})
+
+		It("Should allow rollback when HR rolling upgrade in progress", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Service: InfinispanServiceSpec{
+						Type: ServiceTypeDataGrid,
+					},
+					Replicas: 1,
+					Version:  "13.0.10",
+					Upgrades: &InfinispanUpgradesSpec{
+						Type: UpgradeTypeHotRodRolling,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			ispn.Status.HotRodRollingUpgradeStatus = &HotRodRollingUpgradeStatus{
+				Stage:         HotRodRollingStageStatefulSetReplace,
+				SourceVersion: "13.0.9",
+			}
+			Expect(k8sClient.Status().Update(ctx, ispn)).Should(Succeed())
+			ispn.Spec.Version = "13.0.9"
+			Expect(k8sClient.Update(ctx, ispn)).Should(Succeed())
+		})
+
+		It("Should prevent HR rolling upgrade rollback when invalid source version defined", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Service: InfinispanServiceSpec{
+						Type: ServiceTypeDataGrid,
+					},
+					Replicas: 1,
+					Version:  "13.0.10",
+					Upgrades: &InfinispanUpgradesSpec{
+						Type: UpgradeTypeHotRodRolling,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			ispn.Status.HotRodRollingUpgradeStatus = &HotRodRollingUpgradeStatus{
+				Stage:         HotRodRollingStageStatefulSetReplace,
+				SourceVersion: "13.0.9",
+			}
+			Expect(k8sClient.Status().Update(ctx, ispn)).Should(Succeed())
+			ispn.Spec.Version = "13.0.8"
+			expectInvalidErrStatus(k8sClient.Update(ctx, ispn), statusDetailCause{
+				"FieldValueForbidden", "spec.version", "Hot Rod Rolling Upgrades can only be rolled back to the original source version",
+			})
+		})
+
+		It("Should prevent only allow correctly formatted versions", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Version:  "should fail",
+				},
+			}
+			expectInvalidErrStatus(k8sClient.Create(ctx, ispn), statusDetailCause{
+				metav1.CauseTypeFieldValueInvalid, "spec.version", "should match",
+			})
 		})
 	})
 })

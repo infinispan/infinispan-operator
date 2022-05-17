@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
@@ -17,6 +16,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// InitialiseOperandVersion sets the spec.Version field for CRs that were created by an older operator version
+func InitialiseOperandVersion(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	if i.Spec.Version == "" {
+		ctx.Requeue(
+			ctx.UpdateInfinispan(func() {
+				i.Spec.Version = ctx.Operand().Ref()
+			}),
+		)
+	} else if _, err := ctx.OperandLookup(i.Spec.Version); err != nil {
+		// Version is not known to the Operator. State not possible when a CR is created for this Operator version as
+		// the webhook should prevent the resource being created/updated. The only way this state can be reached is if
+		// the Operator was upgraded from a previous release containing the spec.Version Operand, which is now no longer
+		// supported with this Operator release.
+		ctx.Stop(fmt.Errorf("unable to continue reconcilliation. Operand spec.version='%s' is not supported by this Operator version", i.Spec.Version))
+	}
+}
+
 // ScheduleGracefulShutdownUpgrade if an upgrade is not already in progress, pods exist and the current pod image
 // is not equal to the most recent Operand image associated with the operator
 // Sets ConditionUpgrade=true and spec.Replicas=0 in order to trigger GracefulShutdown
@@ -25,30 +41,38 @@ func ScheduleGracefulShutdownUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context)
 		return
 	}
 
-	podList, err := ctx.InfinispanPods()
-	if err != nil {
-		return
-	}
-
-	// We can't upgrade pods that don't exist
-	if len(podList.Items) == 0 {
-		return
-	}
-
-	// Get default Infinispan image for a running Infinispan pod
-	podDefaultImage := kube.GetPodDefaultImage(*kube.GetContainer(provision.InfinispanContainer, &podList.Items[0].Spec))
-
-	// If the operator's default image differs from the pod's default image,
-	// schedule an upgrade by gracefully shutting down the current cluster.
-	if podDefaultImage != consts.DefaultImageName {
-		ctx.Log().Info("schedule an Infinispan cluster upgrade", "pod default image", podDefaultImage, "desired image", consts.DefaultImageName)
+	if UpgradeRequired(i, ctx) {
+		ctx.Log().Info("schedule an Infinispan cluster upgrade", "current version", i.Status.Operand.Version, "desired version", ctx.Operand().Ref())
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
 				i.SetCondition(ispnv1.ConditionUpgrade, metav1.ConditionTrue, "")
 				i.Spec.Replicas = 0
+				i.Status.Operand = ispnv1.OperandStatus{}
+				requestedOperand := ctx.Operand()
+				i.Status.Operand = ispnv1.OperandStatus{
+					Image:   requestedOperand.Image,
+					Phase:   ispnv1.OperandPhasePending,
+					Version: requestedOperand.Ref(),
+				}
 			}),
 		)
-		return
+	}
+}
+
+func UpgradeRequired(i *ispnv1.Infinispan, ctx pipeline.Context) bool {
+	if i.Status.Operand.Version == "" {
+		// If the status version is not set, then this means we're upgrading from an older Operator version
+		return true
+	} else {
+		installedOperand, _ := ctx.OperandLookup(i.Status.Operand.Version)
+		requestedOperand := ctx.Operand()
+
+		// If the Operand is marked as a CVE base-image release, then we perform the upgrade as a StatefulSet rolling upgrade
+		// as the server components are not changed.
+		if requestedOperand.CVE {
+			return false
+		}
+		return !requestedOperand.EQ(installedOperand)
 	}
 }
 
@@ -172,7 +196,6 @@ func GracefulShutdownUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				i.SetCondition(ispnv1.ConditionUpgrade, metav1.ConditionFalse, "")
 			}),
 		)
-		return
 	}
 }
 
