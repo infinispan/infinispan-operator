@@ -9,6 +9,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	ispnApi "github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -62,10 +63,18 @@ type ContextProviderConfig struct {
 	Infinispan         *ispnv1.Infinispan
 	Logger             logr.Logger
 	SupportedTypes     map[schema.GroupVersionKind]struct{} // We only care about keys, so use struct{} as it requires 0 bytes
+	VersionManager     *version.Manager
 }
 
 // Context of the pipeline, which is passed to each Handler
 type Context interface {
+
+	// Operand returns the metadata associated with the current Infinispan CR spec.version field
+	Operand() version.Operand
+
+	// OperandLookup returns the metadata associated with a provided version string
+	OperandLookup(version string) (version.Operand, error)
+
 	// InfinispanClient returns a client for the Operand servers
 	// The client is created Lazily and cached per Pipeline execution to prevent repeated calls to retrieve the cluster pods
 	// An error is thrown on initial client creation if the cluster pods can't be retrieved or don't exist.

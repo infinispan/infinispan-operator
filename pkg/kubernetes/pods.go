@@ -14,19 +14,6 @@ import (
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPodDefaultImage returns an Infinispan pod's default image.
-// If the default image cannot be found, it returns the running image.
-func GetPodDefaultImage(container corev1.Container) string {
-	envs := container.Env
-	for _, env := range envs {
-		if env.Name == "DEFAULT_IMAGE" {
-			return env.Value
-		}
-	}
-
-	return container.Image
-}
-
 func AreAllPodsReady(podList *corev1.PodList) bool {
 	for _, pod := range podList.Items {
 		containerStatuses := pod.Status.ContainerStatuses

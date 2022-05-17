@@ -24,6 +24,12 @@ func PrelimChecksCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					i.ApplyMonitoringAnnotation()
 				}
 				i.SetCondition(ispnv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
+				requestedOperand := ctx.Operand()
+				i.Status.Operand = ispnv1.OperandStatus{
+					Image:   requestedOperand.Image,
+					Phase:   ispnv1.OperandPhasePending,
+					Version: requestedOperand.Ref(),
+				}
 			}),
 		)
 	}
@@ -73,6 +79,9 @@ func AwaitWellFormedCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	wellFormed := wellFormedCondition(i, ctx, podList)
 	if err := ctx.UpdateInfinispan(func() {
 		i.SetConditions(wellFormed)
+		if wellFormed.Status == metav1.ConditionTrue {
+			i.Status.Operand.Phase = ispnv1.OperandPhaseRunning
+		}
 	}); err != nil {
 		return
 	}

@@ -996,6 +996,10 @@ spec:
                 required:
                 - type
                 type: object
+              version:
+                description: The semantic version of the Infinispan cluster.
+                pattern: ^$|^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+                type: string
             required:
             - replicas
             type: object
@@ -1028,9 +1032,25 @@ spec:
                 properties:
                   SourceStatefulSetName:
                     type: string
+                  SourceVersion:
+                    type: string
                   TargetStatefulSetName:
                     type: string
                   stage:
+                    type: string
+                type: object
+              operand:
+                description: The Operand status
+                properties:
+                  image:
+                    description: The Image being used by the Operand currently being
+                      reconciled
+                    type: string
+                  phase:
+                    description: The most recently observed Phase of the Operand deployment
+                    type: string
+                  version:
+                    description: The Operand version to be reconciled
                     type: string
                 type: object
               podStatus:

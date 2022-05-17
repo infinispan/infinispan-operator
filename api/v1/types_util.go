@@ -52,6 +52,9 @@ const (
 	// OperatorPodTargetAnnotationsEnvVarName is the name of the envvar containing operator label/value map for pods
 	OperatorPodTargetAnnotationsEnvVarName string = "INFINISPAN_OPERATOR_POD_TARGET_ANNOTATIONS"
 
+	// OperatorOperandVersionEnvVarName is the name of the envvar containing the supported operand json
+	OperatorOperandVersionEnvVarName string = "INFINISPAN_OPERAND_VERSIONS"
+
 	MaxRouteObjectNameLength = 63
 
 	// ServiceMonitoringAnnotation defines if we need to create ServiceMonitor or not
@@ -193,7 +196,7 @@ func (ispn *Infinispan) ImageName() string {
 	if ispn.Spec.Image != nil && *ispn.Spec.Image != "" {
 		return *ispn.Spec.Image
 	}
-	return consts.DefaultImageName
+	return ispn.Status.Operand.Image
 }
 
 func (ispn *Infinispan) ImageType() ImageType {

@@ -21,7 +21,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	configFiles := ctx.ConfigFiles()
 
 	statefulSet := &appsv1.StatefulSet{}
-	if err := ctx.Resources().Load(i.GetStatefulSetName(), statefulSet); err != nil {
+	if err := ctx.Resources().Load(i.GetStatefulSetName(), statefulSet, pipeline.InvalidateCache); err != nil {
 		if errors.IsNotFound(err) {
 			// No existing StatefulSet so nothing todo
 			return
@@ -32,6 +32,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	updateNeeded := false
 	rollingUpgrade := true
+
 	// Ensure the deployment size is the same as the spec
 	replicas := i.Spec.Replicas
 	previousReplicas := *statefulSet.Spec.Replicas
@@ -69,6 +70,23 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			log.Info("cpu changed, update i", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateNeeded = true
+		}
+	}
+
+	// Check if the base-image has been upgraded due to a CVE
+	requestedOperand := ctx.Operand()
+	if requestedOperand.CVE && container.Image != requestedOperand.Image {
+		ctx.Log().Info(fmt.Sprintf("CVE release '%s'. StatefulSet Rolling upgrade required", requestedOperand.Ref()))
+		updateNeeded = true
+		container.Image = requestedOperand.Image
+
+		err := ctx.UpdateInfinispan(func() {
+			i.Status.Operand.Version = requestedOperand.Ref()
+			i.Status.Operand.Image = requestedOperand.Image
+			i.Status.Operand.Phase = ispnv1.OperandPhasePending
+		})
+		if err != nil {
+			return
 		}
 	}
 
@@ -143,14 +161,13 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		// If updating the parameters results in a rolling upgrade, we can update the labels here too
 		if rollingUpgrade {
 			labelsForPod := i.PodLabels()
-			labelsForPod[consts.StatefulSetPodLabel] = i.Name
+			labelsForPod[consts.StatefulSetPodLabel] = i.GetStatefulSetName()
 			statefulSet.Spec.Template.Labels = labelsForPod
 		}
 		err := ctx.Resources().Update(statefulSet, pipeline.RetryOnErr)
 		if err != nil {
 			log.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
 		}
-		return
 	}
 }
 

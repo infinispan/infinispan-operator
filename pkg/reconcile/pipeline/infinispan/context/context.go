@@ -10,6 +10,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/http/curl"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
@@ -47,6 +48,7 @@ func (p *provider) Get(ctx context.Context, config *pipeline.ContextProviderConf
 		ContextProviderConfig: config,
 		infinispan:            config.Infinispan,
 		ctx:                   ctx,
+		versionManager:        config.VersionManager,
 		ispnConfig:            &pipeline.ConfigFiles{},
 		ispnClient:            nil,
 		ispnPods:              nil,
@@ -58,12 +60,29 @@ type contextImpl struct {
 	*flowCtrl
 	*provider
 	*pipeline.ContextProviderConfig
-	ctx        context.Context
-	infinispan *ispnv1.Infinispan
-	ispnConfig *pipeline.ConfigFiles
-	ispnClient api.Infinispan
-	ispnPods   *corev1.PodList
-	resources  map[string]client.Object
+	ctx            context.Context
+	versionManager *version.Manager
+	infinispan     *ispnv1.Infinispan
+	ispnConfig     *pipeline.ConfigFiles
+	ispnClient     api.Infinispan
+	ispnPods       *corev1.PodList
+	resources      map[string]client.Object
+}
+
+func (c *contextImpl) Operand() version.Operand {
+	v := c.Infinispan.Spec.Version
+	if v == "" {
+		return c.versionManager.Latest()
+	}
+	if operand, err := c.VersionManager.WithRef(v); err != nil {
+		panic(fmt.Errorf("spec.Version '%s' doesn't exist", v))
+	} else {
+		return operand
+	}
+}
+
+func (c *contextImpl) OperandLookup(versionStr string) (version.Operand, error) {
+	return c.VersionManager.WithRef(versionStr)
 }
 
 func (c contextImpl) InfinispanClient() (api.Infinispan, error) {

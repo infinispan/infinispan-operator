@@ -605,6 +605,20 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps
 }
 
 func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace string, condition ispnv1.ConditionType, timeout time.Duration) *ispnv1.Infinispan {
+	return k.WaitForInfinispanStateWithTimeout(name, namespace, timeout, func(i *ispnv1.Infinispan) bool {
+		if i.IsConditionTrue(condition) {
+			log.Info("infinispan condition met", "condition", condition, "status", metav1.ConditionTrue)
+			return true
+		}
+		return false
+	})
+}
+
+func (k TestKubernetes) WaitForInfinispanState(name, namespace string, predicate func(infinispan *ispnv1.Infinispan) bool) *ispnv1.Infinispan {
+	return k.WaitForInfinispanStateWithTimeout(name, namespace, MaxWaitTimeout, predicate)
+}
+
+func (k TestKubernetes) WaitForInfinispanStateWithTimeout(name, namespace string, timeout time.Duration, predicate func(infinispan *ispnv1.Infinispan) bool) *ispnv1.Infinispan {
 	ispn := &ispnv1.Infinispan{}
 	err := wait.Poll(ConditionPollPeriod, timeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
@@ -614,11 +628,7 @@ func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace st
 			}
 			return false, err
 		}
-		if ispn.IsConditionTrue(condition) {
-			log.Info("infinispan condition met", "condition", condition, "status", metav1.ConditionTrue)
-			return true, nil
-		}
-		return false, nil
+		return predicate(ispn), nil
 	})
 	ExpectNoError(err)
 	return ispn

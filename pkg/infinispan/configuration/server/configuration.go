@@ -90,10 +90,8 @@ type Endpoints struct {
 	ClientCert   string
 }
 
-func Generate(v *version.Version, spec *Spec) (string, error) {
-	if v == nil {
-		v = &version.Version{Major: 13, Minor: 0, Patch: 0}
-	}
+func Generate(operand version.Operand, spec *Spec) (string, error) {
+	v := operand.UpstreamVersion
 	switch v.Major {
 	case 13:
 		return templates.LoadAndExecute("infinispan-13.xml", funcMap(), spec)
@@ -102,10 +100,8 @@ func Generate(v *version.Version, spec *Spec) (string, error) {
 	}
 }
 
-func GenerateZeroCapacity(v *version.Version, spec *Spec) (string, error) {
-	if v == nil {
-		v = &version.Version{Major: 13, Minor: 0, Patch: 0}
-	}
+func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
+	v := operand.UpstreamVersion
 	switch v.Major {
 	case 13:
 		return templates.LoadAndExecute("infinispan-zero-13.xml", funcMap(), spec)

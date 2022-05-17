@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -82,6 +83,25 @@ var _ = BeforeSuite(func() {
 		MetricsBindAddress: "0",
 	})
 	Expect(err).NotTo(HaveOccurred())
+
+	// Define INFINISPAN_OPERAND_VERSIONS so that we can test spec.version webhooks
+	// The Operand is never executed in these tests, so the versions don't need to be updated over time
+	json := `
+		[{
+			"upstream-version": "13.0.8",
+			"image": "quay.io/infinispan/server:13.0.8.Final"
+		},{
+			"upstream-version": "13.0.9",
+			"image": "quay.io/infinispan/server:13.0.9.Final"
+		},{
+			"upstream-version": "13.0.10",
+			"image": "quay.io/infinispan/server:13.0.10.Final"
+		}]`
+
+	defer func() {
+		_ = os.Unsetenv(OperatorOperandVersionEnvVarName)
+	}()
+	Expect(os.Setenv(OperatorOperandVersionEnvVarName, json)).Should(Succeed())
 
 	err = (&Infinispan{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())

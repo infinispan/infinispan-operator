@@ -77,7 +77,7 @@ make bundle-build bundle-push VERSION=<latest-version> IMG=<operator-image> BUND
 # Release
 To create an Operator release perform the following:
 
-1. Update the `RELATED_IMAGE_OPENJDK` field in `config/manager/manager.yaml` to point to the latest .Final tag of Infinispan Server image. Do not use the floating tags for a stream, e.g. `13.0`.
+1. Update the `INFINISPAN_OPERAND_VERSIONS` json in `config/manager/manager.yaml` to point to include the latest Infinispan Server releases. Do not use the floating tags for an Operand image, e.g. `13.0`.
 2. Commit changes with appropriate commit message, e.g "Releasing Operator <x.y.z>.Final"
 3. Tag the release `git tag <x.y.z>`
 4. Create and push the image `make operator-build operator-push VERSION=<x.y.z>.Final IMG=quay.io/infinispan/operator:<x.y.z>.Final`
@@ -88,10 +88,9 @@ To create an Operator release perform the following:
     - https://github.com/redhat-openshift-ecosystem/community-operators-prod
 8. Once PR in 5 has been merged and Operator has been released to OperatorHub, update the "replaces" field in `config/manifests/bases/infinispan-operator.clusterserviceversion.yaml`
 to `replaces: infinispan-operator.v<x.y.z>`
-9. Update the `RELATED_IMAGE_OPENJDK` field in `config/manager/manager.yaml` to use the required floating tag, e.g. `13.0`
-10. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
-11. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS` and the next release version in the update graph 
-12. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
+9. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
+10. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS` and the next release version in the update graph
+11. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
 
 # Testing
 

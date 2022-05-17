@@ -1,7 +1,6 @@
 package manage
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -44,10 +43,9 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
-	rollbackNeeded := false
 	upgradeStatus := i.Status.HotRodRollingUpgradeStatus
 
-	if upgradeStatus == nil && !isImageOutdated(podList) {
+	if upgradeStatus == nil && !UpgradeRequired(i, ctx) {
 		log.Info("Pods already running correct version, skipping upgrade")
 		return
 	}
@@ -59,44 +57,29 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		currentStatefulSet: podList.Items[0].Labels[StatefulSetPodLabel],
 	}
 
+	requestedOperand := ctx.Operand()
 	if upgradeStatus != nil {
-		sourcePods, err := req.PodsCreatedBy(upgradeStatus.SourceStatefulSetName)
-		if err != nil {
+		sourceOperand, _ := ctx.OperandLookup(upgradeStatus.SourceVersion)
+		// If an upgrade is in process, but the spec.Version is reverted to the original source version then rollback
+		if requestedOperand.EQ(sourceOperand) {
+			if err := req.rollback(); err != nil {
+				log.Error(err, "error encountered on rollback")
+			}
+			ctx.RequeueEventually(0)
 			return
 		}
-		targetPods, err := req.PodsCreatedBy(upgradeStatus.TargetStatefulSetName)
-		if err != nil {
-			return
-		}
-
-		sourcePodOutdated := len(sourcePods.Items) > 0 && isImageOutdated(sourcePods)
-		targetPodOutdated := len(targetPods.Items) > 0 && isImageOutdated(targetPods)
-
-		if sourcePodOutdated && targetPodOutdated {
-			ctx.Requeue(errors.New("on-going rolling upgrade cannot proceed or rollback: both source and target statefulSet differ from operator image version"))
-			return
-		}
-
-		// If the source pods match the operation image version, schedule a rollback since there is an ongoing migration
-		if !sourcePodOutdated {
-			rollbackNeeded = true
-		}
-	}
-
-	if rollbackNeeded {
-		if err := req.rollback(); err != nil {
-			log.Error(err, "error encountered on rollback")
-		}
-		ctx.RequeueEventually(0)
-		return
-	}
-
-	if upgradeStatus == nil {
+	} else {
 		err := ctx.UpdateInfinispan(func() {
 			i.Status.HotRodRollingUpgradeStatus = &ispnv1.HotRodRollingUpgradeStatus{
 				Stage:                 ispnv1.HotRodRollingStageStart,
 				SourceStatefulSetName: i.GetStatefulSetName(),
+				SourceVersion:         i.Status.Operand.Version,
 				TargetStatefulSetName: getOrCreateTargetStatefulSetName(i),
+			}
+			i.Status.Operand = ispnv1.OperandStatus{
+				Phase:   ispnv1.OperandPhasePending,
+				Image:   requestedOperand.Image,
+				Version: requestedOperand.Ref(),
 			}
 		})
 		if err != nil {
@@ -105,6 +88,7 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		ctx.RequeueEventually(0)
 		return
 	}
+
 	if err := req.handleMigration(); err != nil {
 		ctx.Log().Error(err, fmt.Sprintf("%s failed, retrying", upgradeStatus.Stage))
 		ctx.RequeueEventually(0)
@@ -131,7 +115,7 @@ func (r *HotRodRollingUpgradeRequest) handleMigration() error {
 		return r.replaceStatefulSet()
 	case ispnv1.HotRodRollingStageCleanup:
 		r.log.Info(string(ispnv1.HotRodRollingStageCleanup))
-		return r.cleanup(getSourceStatefulSetName(r.i), false)
+		return r.cleanup()
 	default:
 		return nil
 	}
@@ -246,14 +230,14 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (string, error) {
 	configSpec := configFiles.ConfigSpec
 	configSpec.StatefulSetName = targetStatefulSetName
 
-	// TODO utilise a version specific configurator once server/operator versions decoupled
+	operand := ctx.Operand()
 	var serverConfig, zeroConfig string
 	var err error
-	if serverConfig, err = config.Generate(nil, &configSpec); err != nil {
+	if serverConfig, err = config.Generate(operand, &configSpec); err != nil {
 		return "", fmt.Errorf("unable to generate new infinispan.xml for Rolling Upgrade: %w", err)
 	}
 
-	if zeroConfig, err = config.Generate(nil, &configSpec); err != nil {
+	if zeroConfig, err = config.Generate(operand, &configSpec); err != nil {
 		return "", fmt.Errorf("unable to generate new infinispan-zero.xml for Rolling Upgrade: %w", err)
 	}
 
@@ -353,15 +337,8 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 		targetStatefulSet.Spec.Template.ObjectMeta.Labels[StatefulSetPodLabel] = targetStatefulSetName
 		targetStatefulSet.Spec.Selector.MatchLabels[StatefulSetPodLabel] = targetStatefulSetName
 		container := kube.GetContainer(provision.InfinispanContainer, &targetStatefulSet.Spec.Template.Spec)
-		container.Image = DefaultImageName
+		container.Image = r.i.ImageName()
 		for o, envVar := range container.Env {
-			if envVar.Name == "DEFAULT_IMAGE" {
-				container.Env[o] = corev1.EnvVar{
-					Name:      envVar.Name,
-					Value:     DefaultImageName,
-					ValueFrom: envVar.ValueFrom,
-				}
-			}
 			if envVar.Name == "CONFIG_HASH" {
 				container.Env[o] = corev1.EnvVar{
 					Name:      envVar.Name,
@@ -489,22 +466,74 @@ func (r *HotRodRollingUpgradeRequest) replaceStatefulSet() error {
 
 	// Change statefulSet reference in the Infinispan resource and move to next stage
 	return r.ctx.UpdateInfinispan(func() {
+		ispn.Status.Operand.Phase = ispnv1.OperandPhaseRunning
 		ispn.Status.StatefulSetName = targetStatefulSetName
 		ispn.Status.HotRodRollingUpgradeStatus.Stage = ispnv1.HotRodRollingStageCleanup
 	})
 }
 
 // cleanup Dispose a statefulSet from an Infinispan CRD and its dependencies
-func (r *HotRodRollingUpgradeRequest) cleanup(statefulSetName string, rollback bool) error {
+func (r *HotRodRollingUpgradeRequest) cleanup() error {
 	ctx := r.ctx
-	pingServiceName := fmt.Sprintf("%s-ping", statefulSetName)
-	configName := fmt.Sprintf("%v-configuration", statefulSetName)
-
 	// Wait for cluster with new statefulSet stability
 	if !r.i.IsWellFormed() {
 		ctx.RequeueEventually(DefaultWaitOnCreateResource)
 		return nil
 	}
+
+	statefulSetName := getSourceStatefulSetName(r.i)
+	if err := r.removeStatefulSetResources(statefulSetName); err != nil {
+		return fmt.Errorf("unable to remove statefulset resources on cleanup: %w", err)
+	}
+
+	// Remove HotRodRollingUpgradeStatus status from the Infinispan CR
+	if err := ctx.UpdateInfinispan(func() {
+		r.i.Status.HotRodRollingUpgradeStatus = nil
+	}); err != nil {
+		return fmt.Errorf("error removing HotRodRollingUpgradeStatus: %w", err)
+	}
+
+	r.log.Info("Hot Rod Rolling Upgrade finished successfully")
+	return nil
+}
+
+// rollback Undo changes of a partial upgrade
+func (r *HotRodRollingUpgradeRequest) rollback() error {
+	ctx := r.ctx
+	status := r.i.Status.HotRodRollingUpgradeStatus
+	sourceStatefulSetName := status.SourceStatefulSetName
+
+	// Redirect services back to source cluster
+	if err := r.redirectServices(sourceStatefulSetName); err != nil {
+		return err
+	}
+
+	if err := r.removeStatefulSetResources(status.TargetStatefulSetName); err != nil {
+		return fmt.Errorf("unable to rollback statefulset resources on rollback: %w", err)
+	}
+
+	// Remove HotRodRollingUpgradeStatus status from the Infinispan CR
+	err := ctx.UpdateInfinispan(func() {
+		rollingUpgradeStatus := r.i.Status.HotRodRollingUpgradeStatus
+		r.i.Status.StatefulSetName = rollingUpgradeStatus.SourceStatefulSetName
+		sourceOperand, _ := ctx.OperandLookup(rollingUpgradeStatus.SourceVersion)
+		r.i.Status.Operand.Image = sourceOperand.Image
+		r.i.Status.Operand.Phase = ispnv1.OperandPhaseRunning
+		r.i.Status.Operand.Version = sourceOperand.Ref()
+		r.i.Status.HotRodRollingUpgradeStatus = nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("error updating HotRodRollingUpgradeStatus: %w", err)
+	}
+	r.log.Info("Hot Rod Rolling Upgrade rollback finished successfully")
+	return nil
+}
+
+func (r *HotRodRollingUpgradeRequest) removeStatefulSetResources(statefulSetName string) error {
+	ctx := r.ctx
+	pingServiceName := fmt.Sprintf("%s-ping", statefulSetName)
+	configName := fmt.Sprintf("%v-configuration", statefulSetName)
 
 	// Remove statefulSet label from the services
 	if err := r.removeStatefulSetSelector(r.i.GetAdminServiceName()); err != nil {
@@ -545,36 +574,7 @@ func (r *HotRodRollingUpgradeRequest) cleanup(statefulSetName string, rollback b
 			return err
 		}
 	}
-	// Remove HotRodRollingUpgradeStatus status from the Infinispan CR
-	err := ctx.UpdateInfinispan(func() {
-		ispn := r.i
-		rollingUpgradeStatus := ispn.Status.HotRodRollingUpgradeStatus
-		if rollback {
-			ispn.Status.StatefulSetName = rollingUpgradeStatus.SourceStatefulSetName
-		}
-		ispn.Status.HotRodRollingUpgradeStatus = nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("error removing HotRodRollingUpgradeStatus: %w", err)
-	}
-
-	r.log.Info("Hot Rod Rolling Upgrade finished successfully")
 	return nil
-}
-
-// rollback Undo changes of a partial upgrade
-func (r *HotRodRollingUpgradeRequest) rollback() error {
-	status := r.i.Status.HotRodRollingUpgradeStatus
-	sourceStatefulSetName := status.SourceStatefulSetName
-
-	// Redirect services back to source cluster
-	if err := r.redirectServices(sourceStatefulSetName); err != nil {
-		return err
-	}
-
-	// Rollback is needed when state is cleanup, since the statefulSet in the CRD was replaced
-	return r.cleanup(status.TargetStatefulSetName, status.Stage == ispnv1.HotRodRollingStageCleanup)
 }
 
 func (r *HotRodRollingUpgradeRequest) PodsCreatedBy(statefulSetName string) (*corev1.PodList, error) {
@@ -584,9 +584,4 @@ func (r *HotRodRollingUpgradeRequest) PodsCreatedBy(statefulSetName string) (*co
 		return nil, err
 	}
 	return podList, nil
-}
-
-func isImageOutdated(podList *corev1.PodList) bool {
-	podDefaultImage := kube.GetPodDefaultImage(*kube.GetContainer(provision.InfinispanContainer, &podList.Items[0].Spec))
-	return podDefaultImage != DefaultImageName
 }

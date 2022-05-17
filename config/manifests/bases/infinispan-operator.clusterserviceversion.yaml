@@ -184,6 +184,9 @@ spec:
         path: consoleUrl
         x-descriptors:
         - urn:alm:descriptor:org.w3:link
+      - description: The Operand status
+        displayName: Operand Status
+        path: operand
       - description: The Pod's currently in the cluster
         displayName: Pod Status
         path: podStatus

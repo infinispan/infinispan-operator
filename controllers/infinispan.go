@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	pipelineContext "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/context"
 	pipelineBuilder "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/pipeline"
@@ -34,6 +35,7 @@ type InfinispanReconciler struct {
 	defaultLabels      map[string]string
 	defaultAnnotations map[string]string
 	supportedTypes     map[schema.GroupVersionKind]struct{}
+	versionManager     *version.Manager
 }
 
 func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
@@ -84,6 +86,13 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 			r.supportedTypes[gvk] = struct{}{}
 		}
 	}
+
+	// Initialize supported Operand versions
+	r.versionManager, err = version.ManagerFromEnv(infinispanv1.OperatorOperandVersionEnvVarName)
+	if err != nil {
+		return err
+	}
+	r.versionManager.Log(r.log)
 
 	// Initialize default operator labels and annotations
 	if defaultLabels, defaultAnnotations, err := infinispanv1.LoadDefaultLabelsAndAnnotations(); err != nil {
@@ -219,6 +228,7 @@ func (r *InfinispanReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.R
 		WithLabels(r.defaultLabels).
 		WithLogger(reqLogger).
 		WithSupportedTypes(r.supportedTypes).
+		WithVersionManager(r.versionManager).
 		Build()
 
 	retry, delay, err := pipeline.Process(ctx)

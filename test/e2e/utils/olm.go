@@ -158,13 +158,12 @@ func (k TestKubernetes) InstalledCSV(sub *coreos.Subscription) *coreos.ClusterSe
 	return csv
 }
 
-func (k TestKubernetes) InstalledCSVServerImage(sub *coreos.Subscription) string {
+func (k TestKubernetes) InstalledCSVEnv(envName string, sub *coreos.Subscription) string {
 	csv := k.InstalledCSV(sub)
-	envName := "RELATED_IMAGE_OPENJDK"
 	envVars := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env
 	index := kubernetes.GetEnvVarIndex(envName, &envVars)
 	if index < 0 {
-		panic(fmt.Sprintf("Unable to find env var '%s' in CSV %s", envName, csv.Name))
+		return ""
 	}
 	return envVars[index].Value
 }
