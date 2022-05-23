@@ -25,27 +25,6 @@ include::json/infinispan_cache_template.json[]
 ----
 
 [discrete]
-== Multiple caches
-
-.XML
-[source,xml,options="nowrap",subs=attributes+]
-----
-include::xml/infinispan_caches.xml[]
-----
-
-.YAML
-[source,yaml,options="nowrap",subs=attributes+]
-----
-include::yaml/infinispan_caches.yaml[]
-----
-
-.JSON
-[source,json,options="nowrap",subs=attributes+]
-----
-include::json/infinispan_caches.json[]
-----
-
-[discrete]
 == Logging configuration
 
 You can also include Apache Log4j configuration in XML format as part of your `ConfigMap`.
@@ -60,3 +39,7 @@ Add Apache Log4j configuration only if you require advanced file-based logging c
 ----
 include::yaml/config-map-logging-configuration.yaml[]
 ----
+
+[role="_additional-resources"]
+.Additional resources
+* link:{config_docs}#cache-configuration_cache-configuration[Custom {brandname} configuration]
