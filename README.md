@@ -4,7 +4,7 @@ This is a Kubernetes operator to manage Infinispan clusters.
 
 ## System Requirements
 
-* [go 1.15](https://github.com/golang/go) or higher.
+* [go 1.17](https://github.com/golang/go) or higher.
 * Docker | Podman
 * [Operator SDK 1.3.2](https://github.com/operator-framework/operator-sdk/releases/download/v1.3.2/operator-sdk_linux_amd64)
 * A running Kubernetes cluster
