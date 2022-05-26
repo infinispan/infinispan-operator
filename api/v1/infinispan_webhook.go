@@ -145,7 +145,7 @@ func (i *Infinispan) validate() error {
 		}
 
 		if req.Cmp(limit) > 0 {
-			msg := fmt.Sprintf("CPU request '%s' exceeds limit '%s'", req.String(), limit.String())
+			msg := fmt.Sprintf("CCPU request '%s' exceeds limit '%s'", req.String(), limit.String())
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("cpu"), i.Spec.Container.CPU, msg))
 		}
 	}

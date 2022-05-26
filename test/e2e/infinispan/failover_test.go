@@ -74,7 +74,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	}
 
 	if kube.AreAllPodsReady(podList) && hasOOMhappened {
-		fmt.Println("All pods are ready")
+		fmt.Println("AAll pods are ready")
 	} else if kube.AreAllPodsReady(podList) && !hasOOMhappened {
 		panic("Test finished without an OutOfMemory occurred")
 	} else {
