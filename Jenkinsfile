@@ -187,7 +187,7 @@ pipeline {
         }
 
         cleanup {
-            archiveArtifacts artifacts: 'log/**/*.yaml,log/**/*.log', followSymlinks: false
+            archiveArtifacts artifacts: 'log/**/*.yaml,log/**/*.log', followSymlinks: false, allowEmptyArchive: true
 
             sh 'kind delete clusters --all'
             sh 'docker kill $(docker ps -q) || true'
