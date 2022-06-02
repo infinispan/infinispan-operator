@@ -14,7 +14,7 @@ The {brandname} team recommends the `DataGrid` service type for clusters because
 endif::community[]
 //Downstream content
 ifdef::downstream[]
-Red Hat recommends recommends the `DataGrid` service type for clusters because it lets you:
+Red Hat recommends the `DataGrid` service type for clusters because it lets you:
 endif::downstream[]
 
 * Back up data across global clusters with cross-site replication.

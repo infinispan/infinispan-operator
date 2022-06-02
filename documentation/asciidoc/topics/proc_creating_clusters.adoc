@@ -20,6 +20,13 @@ For example, create a {brandname} cluster with two pods as follows:
 {kube_client} infinispan create cluster --replicas=3 -Pservice.type=DataGrid infinispan
 ----
 +
+[TIP]
+====
+Add the `--version` argument to control the {brandname} version of your cluster.
+For example, `--version={server_image_version}`.
+If you don't specify the version, {ispn_operator} creates cluster with the latest supported {brandname} version.
+====
+
 . Watch {ispn_operator} create the {brandname} pods.
 +
 [source,options="nowrap",subs=attributes+]

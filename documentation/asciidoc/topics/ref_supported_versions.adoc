@@ -1,0 +1,17 @@
+[id='supported-versions_{context}']
+= Supported versions
+
+[role="_abstract"]
+Since version 2.3.0 {ispn_operator} supports multiple {brandname} Server versions.
+You can upgrade the version of your cluster between supported {brandname} versions:
+
+[%header,cols=2*]
+|===
+| {ispn_operator} version
+| {brandname} Server versions
+
+| 2.3.0
+| 13.0.9 +
+13.0.10
+
+|===

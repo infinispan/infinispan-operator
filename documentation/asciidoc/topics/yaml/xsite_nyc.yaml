@@ -4,6 +4,7 @@ metadata:
   name: nyc-cluster
 spec:
   replicas: 2
+  version: <{brandname}_version>
   service:
     type: DataGrid
     sites:

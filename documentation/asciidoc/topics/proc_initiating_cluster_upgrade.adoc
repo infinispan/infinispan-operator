@@ -1,0 +1,24 @@
+[id='initiating-cluster-upgrades_{context}']
+= Initiating cluster upgrades
+
+[role="_abstract"]
+Modify the `spec.version` field in your `Infinispan` CR to upgrade the {brandname} version of your cluster.
+
+.Prerequisite
+
+* The {ispn_operator} version you have installed supports the {brandname} target version.
+
+.Procedure
+
+. Specify the version number in the `spec.version` field in your `Infinispan` CR.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+spec:
+  replicas: 2
+  version: <{brandname}_version>
+----
++
+. Apply your changes.
++
+{ispn_operator} initiates the upgrade of your cluster to the version you specified.
