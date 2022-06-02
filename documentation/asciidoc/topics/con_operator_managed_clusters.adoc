@@ -1,7 +1,7 @@
 [id='operator-managed-clusters_{context}']
 = Cluster management
 
-A single {ispn_operator} installation can manage multiple {brandname} clusters in separate namespaces.
+A single {ispn_operator} installation can manage multiple clusters with different {brandname} versions in separate namespaces.
 Each time a user applies CRs to modify the deployment, {ispn_operator} applies the changes globally to all {brandname} clusters.
 
 .Operator-managed clusters

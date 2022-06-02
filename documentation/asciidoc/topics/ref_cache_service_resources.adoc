@@ -23,6 +23,9 @@ include::yaml/cache_service.yaml[]
 |`spec.replicas`
 |Specifies the number of pods in your cluster. If you enable autoscaling capabilities, this field specifies the initial number of pods.
 
+|`spec.version`
+| Specifies the {brandname} Server version of your cluster.
+
 |`spec.upgrades.type`
 |Controls how {ispn_operator} upgrades your {brandname} cluster when new versions become available.
 

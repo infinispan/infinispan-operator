@@ -23,6 +23,9 @@ include::yaml/datagrid_service.yaml[]
 |`spec.replicas`
 |Specifies the number of pods in your cluster.
 
+|`spec.version`
+| Specifies the {brandname} Server version of your cluster.
+
 |`spec.upgrades.type`
 |Controls how {ispn_operator} upgrades your {brandname} cluster when new versions become available.
 

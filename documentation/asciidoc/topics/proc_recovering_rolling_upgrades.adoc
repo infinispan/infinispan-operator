@@ -1,0 +1,23 @@
+[id='recovering_rolling_upgrades_{context}']
+= Recovering from a failed Hot Rod rolling upgrade
+
+[role="_abstract"]
+You can roll back a failed Hot Rod rolling upgrade to the previous version if the original cluster is still present.
+
+.Prerequisites
+
+* Hot Rod rolling upgrade is in progress and the initial {brandname} cluster is present.
+
+.Procedure
+. Ensure the Hot Rod rolling upgrade is in progress.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_get_infinispan} <cr_name> -o yaml
+----
++
+The `status.hotRodRollingUpgradeStatus` field must be present.
++
+. Update `spec.version` field of your `Infinispan CR` to the original cluster version defined in the `status.hotRodRollingUpgradeStatus`.
++
+{ispn_operator} deletes the newly created cluster.

@@ -6,6 +6,11 @@ ifdef::context[:parent-context: {context}]
 [role="_abstract"]
 {ispn_operator} provides operational intelligence and reduces management complexity for deploying {brandname} on {k8s} and {openshift}.
 
+//Community content
+ifdef::community[]
+include::{topics}/ref_supported_versions.adoc[leveloffset=+1]
+endif::community[]
+
 include::{topics}/con_operator_deployments.adoc[leveloffset=+1]
 include::{topics}/con_operator_managed_clusters.adoc[leveloffset=+1]
 include::{topics}/con_operator_reconciliation.adoc[leveloffset=+1]

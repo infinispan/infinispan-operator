@@ -5,8 +5,13 @@
 Performing Hot Rod rolling upgrades lets you move to a new {brandname} version without service disruption.
 However, this upgrade type requires additional capacity and temporarily results in two {brandname} clusters with different versions running concurrently.
 
+.Prerequisite
+
+* The {ispn_operator} version you have installed supports the {brandname} target version.
+
 .Procedure
 
+. Specify the {brandname} version number in the `spec.version` field.
 . Specify `HotRodRolling` as the value for the `spec.upgrades.type` field.
 +
 [source,options="nowrap",subs=attributes+]
@@ -16,4 +21,4 @@ include::yaml/upgrade_type_hotrodrolling.yaml[]
 +
 . Apply your changes.
 
-When it detects a new {brandname} version, {ispn_operator} automatically upgrades your cluster or prompts you to manually approve the upgrade before proceeding.
+When new {brandname} version becomes available, you must manually change the value in the `spec.version` field to trigger the upgrade.
