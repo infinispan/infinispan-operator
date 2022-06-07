@@ -133,6 +133,14 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	if len(pods.Items) == 0 || !kube.AreAllPodsReady(pods) {
+		if i.Spec.Replicas == 0 {
+			// shutdown request, ignore
+			// retry on error set!
+			_ = ctx.UpdateInfinispan(func() {
+				i.SetCondition(ispnv1.ConditionGossipRouterReady, metav1.ConditionFalse, "Shutdown Requested")
+			})
+			return
+		}
 		msg := "Gossip Router pod is not ready"
 		log.Info(msg)
 		ctx.Requeue(
