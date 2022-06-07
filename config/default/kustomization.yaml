@@ -1,8 +1,5 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
 # Adds namespace to all resources.
-namespace: namespace-for-testing
+namespace: infinispan-operator-system
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named
@@ -17,12 +14,8 @@ commonLabels:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER'. 'WEBHOOK' components are required.
-resources:
-- ../crd
-- ../rbac
-- ../manager
-- ../webhook
-- ../certmanager
+# [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
+#- ../prometheus
 
 # Protect the /metrics endpoint by putting it behind auth.
 # If you want your controller-manager to expose the /metrics
@@ -43,7 +36,6 @@ patchesStrategicMerge:
 - manager_webhook_patch.yaml
 - webhookcainjection_patch.yaml
 
-
 # the following config is for teaching kustomize how to do var substitution
 # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER' prefix.
 vars:
@@ -53,14 +45,14 @@ vars:
   objref:
     group: cert-manager.io
     kind: Certificate
-    name: service-cert
+    name: serving-cert
     version: v1
 - fieldref: {}
   name: CERTIFICATE_NAME
   objref:
     group: cert-manager.io
     kind: Certificate
-    name: service-cert
+    name: serving-cert
     version: v1
 - fieldref:
     fieldPath: metadata.namespace
@@ -75,3 +67,11 @@ vars:
     kind: Service
     name: webhook-service
     version: v1
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../crd
+- ../rbac
+- ../manager
+- ../webhook
+- ../certmanager
