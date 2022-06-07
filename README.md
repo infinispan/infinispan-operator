@@ -13,41 +13,54 @@ This is a Kubernetes operator to manage Infinispan clusters.
 
 For details on how to use the operator, please read the [official operator documentation](https://infinispan.org/docs/infinispan-operator/main/operator.html).
 
-# Building the Operator
+# Getting Started
+You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
+**Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
-To build the go binary locally, execute:
+We utilise [Skaffold](https://skaffold.dev/) to drive CI/CD, so you will need to download the latest binary in order to
+follow the steps below:
 
-`make manager`
+## Kind Cluster
 
-## Operator Image
+Create a local kind cluster backed by a local docker repository, with [OLM](https://olm.operatorframework.io/) and
+[cert-manager](https://cert-manager.io) installed:
 
-To create a container and push to a remote repository execute:
+```sh
+./hack/kind.sh`
+```
 
-`make operator-build operator-push IMG=<image_name:tag>`
+## Development
 
-> By default, the Makefile uses `docker` to create images. If another container tool is desired, this can be configured
-by setting `CONTAINER_TOOL=podman`.
+Build the Operator image and deploy to a cluster:
 
-## Running the Operator
+```sh
+skaffold dev
+```
 
-### Locally
-The following commands will generate and install the CRDs to the local cluster before starting the operator. To only execute the operator, simply omit the `install` target.
+Changes to the local `**/*.go` files will result in the image being rebuilt and the Operator deployment updated.
 
-To watch all namespaces:
+## Debugging
+Build the Operator image with [dlv](https://github.com/go-delve/delve) so that a remote debugger can be attached
+to the Operator deployment from your IDE.
 
-`make install run`
+```sh
+skaffold debug
+```
 
-To watch specific namespaces:
+## Deploying
+Build the Operator image and deploy to a cluster:
 
-`make install run WATCH_NAMESPACE=namespace1,namespace2`
+```sh
+skaffold run
+```
 
-### On K8s
-To deploy the operator to the cluster you're currently connected to, execute:
+## Remote Repositories
+The `skaffold dev|debug|run` commands can all be used on a remote k8s instance, as long as the built images are accessible
+on the cluster. To build and push the operator images to a remote repository, add the `--default-repo` option, for example:
 
-`make deploy IMG=<image_name:tag> DEPLOYMENT_NAMESPACE=<namespace>`
-
-This will update the `config/manager/manager.yaml` to utilise the specified image and will create all of the required
-resources on the kubernetes cluster in the `$DEPLOYMENT_NAMESPACE` namespace.
+```sh
+skaffold run --default-repo <remote_repo>
+```
 
 # OLM Bundle
 The OLM bundle manifests are created by executing `make bundle VERSION=<latest-version>`.
@@ -84,7 +97,7 @@ to `replaces: infinispan-operator.v<x.y.z>`
 
 ## Unit Tests
 
-`make unit-test`
+`make test`
 
 ## Go Integration Tests
 
