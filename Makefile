@@ -18,7 +18,7 @@ BUNDLE_METADATA_OPTS ?= --version $(VERSION) $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT
 DEPLOYMENT_NAMESPACE ?= infinispan-operator-system
 
 # Image URL to use all building/pushing image targets
-IMG ?= quay.io/infinispan/operator:latest
+IMG ?= controller:latest
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
@@ -226,8 +226,6 @@ bundle: manifests kustomize
 	rm -rf bundle
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite $(BUNDLE_METADATA_OPTS)
-# TODO is there a better way todo this with operator-sdk and/or kustomize. `commonAnnotations` adds annotations to all resources, not just CSV.
-	sed -i -e "s,<IMAGE>,$(IMG)," bundle/manifests/infinispan-operator.clusterserviceversion.yaml
 # Hack to set the metadata package name to "infinispan". `operator-sdk --package infinispan` can't be used as it
 # changes the csv name from  infinispan-operator.v0.0.0 -> infinispan.v0.0.0
 	sed -i -e 's/infinispan-operator/infinispan/' bundle/metadata/annotations.yaml bundle.Dockerfile

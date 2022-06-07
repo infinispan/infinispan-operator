@@ -2,12 +2,11 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
-
-	"errors"
 
 	corev1 "k8s.io/api/core/v1"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -82,6 +81,24 @@ func GetOperatorNamespace() (string, error) {
 		}
 	}
 	return operatorNs, err
+}
+
+func GetOperatorImage(ctx context.Context, client crclient.Client) (string, error) {
+	operatorNs, err := GetOperatorNamespace()
+	if err != nil {
+		return "", err
+	}
+	pod, err := GetPod(ctx, client, operatorNs)
+	if err != nil {
+		return "", err
+	}
+
+	containerName := "manager"
+	container := GetContainer(containerName, &pod.Spec)
+	if container == nil {
+		return "", fmt.Errorf("unable to determine Operator Image as container '%s' not defined", containerName)
+	}
+	return container.Image, nil
 }
 
 // GetPod returns a Pod object that corresponds to the pod in which the code

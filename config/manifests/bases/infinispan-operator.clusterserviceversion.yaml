@@ -6,7 +6,6 @@ metadata:
     capabilities: Deep Insights
     categories: Database
     certified: "false"
-    containerImage: <IMAGE>
     description: Create and manage Infinispan clusters.
     olm.skipRange: '>=2.1.x <2.2.1'
     repository: https://github.com/infinispan/infinispan-operator

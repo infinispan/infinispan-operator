@@ -53,7 +53,3 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
-          - name: CONFIG_LISTENER_IMAGE
-            valueFrom:
-              fieldRef:
-                fieldPath: "metadata.annotations['containerImage']"

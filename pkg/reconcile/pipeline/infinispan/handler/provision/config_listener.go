@@ -1,8 +1,6 @@
 package provision
 
 import (
-	"fmt"
-
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
@@ -23,11 +21,18 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
-	if constants.ConfigListenerImageName == "" {
-		err := fmt.Errorf("'%s' has not been defined", constants.ConfigListenerEnvName)
-		ctx.Log().Error(err, "unable to create ConfigListener deployment")
-		ctx.Requeue(err)
-		return
+	var configListenerImage string
+	if constants.ConfigListenerImageName != "" {
+		configListenerImage = constants.ConfigListenerImageName
+	} else {
+		// If env not explicitly set, use the Operator image
+		if image, err := kube.GetOperatorImage(ctx.Ctx(), ctx.Kubernetes().Client); err != nil {
+			ctx.Log().Error(err, "unable to create ConfigListener deployment")
+			ctx.Requeue(err)
+			return
+		} else {
+			configListenerImage = image
+		}
 	}
 
 	r := ctx.Resources()
@@ -43,7 +48,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	listenerExists := r.Load(name, deployment) == nil
 	if listenerExists {
 		container := kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
-		if container != nil && container.Image == constants.ConfigListenerImageName {
+		if container != nil && container.Image == configListenerImage {
 			// The Deployment already exists with the expected image, do nothing
 			return
 		}
@@ -138,7 +143,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					Containers: []corev1.Container{
 						{
 							Name:  InfinispanListenerContainer,
-							Image: constants.ConfigListenerImageName,
+							Image: configListenerImage,
 							Args: []string{
 								"listener",
 								"-namespace",
