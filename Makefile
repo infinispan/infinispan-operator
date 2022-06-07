@@ -18,7 +18,7 @@ BUNDLE_METADATA_OPTS ?= --version $(VERSION) $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT
 DEPLOYMENT_NAMESPACE ?= infinispan-operator-system
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= operator:latest
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
@@ -120,7 +120,7 @@ uninstall: manifests kustomize
 .PHONY: deploy
 ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests kustomize deploy-cert-manager
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	cd config/manager && $(KUSTOMIZE) edit set image operator=$(IMG)
 	cd config/default && $(KUSTOMIZE) edit set namespace $(DEPLOYMENT_NAMESPACE)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
@@ -224,7 +224,7 @@ endef
 bundle: manifests kustomize
 # Remove old bundle as old files aren't always cleaned up by operator-sdk
 	rm -rf bundle
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	cd config/manager && $(KUSTOMIZE) edit set image operator=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite $(BUNDLE_METADATA_OPTS)
 # Hack to set the metadata package name to "infinispan". `operator-sdk --package infinispan` can't be used as it
 # changes the csv name from  infinispan-operator.v0.0.0 -> infinispan.v0.0.0

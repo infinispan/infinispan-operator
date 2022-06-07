@@ -25,7 +25,7 @@ spec:
       serviceAccountName: controller-manager
       containers:
       - name: manager
-        image: controller:latest
+        image: operator:latest
         args:
         - operator
         - --leader-elect
