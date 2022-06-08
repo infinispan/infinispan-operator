@@ -236,6 +236,61 @@ func TestDefaultTLSOpenshiftRoute(t *testing.T) {
 	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeRoute, 0, 1, DefaultTLS, nil)
 }
 
+func TestCrossSiteGracefulShutdown(t *testing.T) {
+	testName := tutils.TestName(t)
+	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
+	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+
+	tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 2, "xsite1", "xsite2", "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
+	tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 2, "xsite2", "xsite1", "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
+	for _, testKube := range tesKubes {
+		testKube.context = clientConfig.CurrentContext
+		testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, "xsite2")
+		testKube.kube = tutils.NewTestKubernetes(testKube.context)
+	}
+
+	tesKubes["xsite1"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
+	tesKubes["xsite2"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
+
+	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
+	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
+
+	tesKubes["xsite1"].kube.WaitForInfinispanPods(int(2), tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
+	tesKubes["xsite2"].kube.WaitForInfinispanPods(int(2), tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)
+
+	tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
+	tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionWellFormed)
+
+	var ispnXSite1 *ispnv1.Infinispan
+
+	ispnXSite1 = tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+	ispnXSite2 := tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+
+	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+	assert.Contains(t, ispnXSite2.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+
+	tutils.ExpectNoError(
+		tesKubes["xsite1"].kube.UpdateInfinispan(&tesKubes["xsite1"].crossSite, func() {
+			tesKubes["xsite1"].crossSite.Spec.Replicas = 0
+		}),
+	)
+
+	tesKubes["xsite1"].kube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
+	ispnXSite1 = tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionGracefulShutdown)
+	assert.Equal(t, metav1.ConditionTrue, ispnXSite1.GetCondition(ispnv1.ConditionGracefulShutdown).Status)
+	assert.Equal(t, metav1.ConditionFalse, ispnXSite1.GetCondition(ispnv1.ConditionStopping).Status)
+
+	tutils.ExpectNoError(
+		tesKubes["xsite1"].kube.UpdateInfinispan(&tesKubes["xsite1"].crossSite, func() {
+			tesKubes["xsite1"].crossSite.Spec.Replicas = 2
+		}),
+	)
+	tesKubes["xsite1"].kube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
+	tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
+	ispnXSite1 = tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+}
+
 func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
 	testName := tutils.TestName(t)
 	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
