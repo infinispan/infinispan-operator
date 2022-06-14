@@ -174,8 +174,8 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 // +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=pods/logs,verbs=get
 // +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=core;events.k8s.io,namespace=infinispan-operator-system,resources=events,verbs=create;patch
-// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=create;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=create;delete;update
+// +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=serviceaccounts,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace=infinispan-operator-system,resources=roles;rolebindings,verbs=create;delete;update
 
 // +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=deployments,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=replicasets,verbs=get
@@ -188,7 +188,7 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 
 // +kubebuilder:rbac:groups=monitoring.coreos.com,namespace=infinispan-operator-system,resources=servicemonitors,verbs=get;list;watch;create;delete;update
 
-// +kubebuilder:rbac:groups=core,resources=nodes;serviceaccounts,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list;watch
 

@@ -19,27 +19,10 @@ rules:
   - ""
   resources:
   - nodes
-  - serviceaccounts
   verbs:
   - get
   - list
   - watch
-- apiGroups:
-  - ""
-  resources:
-  - serviceaccounts
-  verbs:
-  - create
-  - delete
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - rolebindings
-  - roles
-  verbs:
-  - create
-  - delete
-  - update
 - apiGroups:
   - storage.k8s.io
   resources:
@@ -128,6 +111,16 @@ rules:
   - pods/logs
   verbs:
   - get
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   - events.k8s.io
@@ -244,6 +237,15 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - update
 - apiGroups:
   - route.openshift.io
   resources:
