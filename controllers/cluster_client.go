@@ -20,6 +20,10 @@ func NewInfinispan(ctx context.Context, i *v1.Infinispan, kubernetes *kube.Kuber
 	if err != nil {
 		return nil, err
 	}
+
+	if len(podList.Items) == 0 {
+		return nil, fmt.Errorf("no Infinispan pods exist")
+	}
 	return NewInfinispanForPod(ctx, podList.Items[0].Name, i, kubernetes)
 }
 
