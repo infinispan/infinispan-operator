@@ -1,7 +1,7 @@
 spec:
   security:
     endpointEncryption:
-        type: Service
+        type: Secret
         certSecretName: tls-secret
         clientCert: Validate
         clientCertSecretName: {example_crd_name}-client-cert-secret
