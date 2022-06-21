@@ -85,7 +85,7 @@
         <socket-binding name="admin" port="11223"/>
     </socket-bindings>
     <security>
-        {{ if .Keystore.Password }}
+        {{ if or .Keystore.Password .Truststore.Path }}
         <credential-stores>
           <credential-store name="credentials" path="credentials.pfx">
             <clear-text-credential clear-text="secret"/>
