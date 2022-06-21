@@ -115,6 +115,38 @@ func CreateKeyAndTruststore(serverName string, authenticate bool) (keystore []by
 	return
 }
 
+type KeyCertPair struct {
+	PrivateKey  []byte
+	Certificate []byte
+}
+
+func CreateKeyCertAndTruststore(serverName string, authenticate bool) (keyCertPair KeyCertPair, truststore []byte, clientTLSConf *tls.Config) {
+	ExpectNoError(os.MkdirAll(tmpDir, 0777))
+	ca := ca()
+	server := serverCert(serverName, ca)
+
+	keyCertPair = KeyCertPair{
+		Certificate: server.getCertPEM(),
+		PrivateKey:  server.getPrivateKeyPEM(),
+	}
+
+	client := clientCert("client", ca)
+	truststore = createTruststore(ca, client, authenticate)
+
+	certpool := x509.NewCertPool()
+	certpool.AddCert(ca.cert)
+
+	clientTLSConf = &tls.Config{
+		GetClientCertificate: func(t *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			certificate, err := tls.X509KeyPair(client.getCertPEM(), client.getPrivateKeyPEM())
+			return &certificate, err
+		},
+		RootCAs:    certpool,
+		ServerName: serverName,
+	}
+	return
+}
+
 func CreateDefaultCrossSiteKeyAndTrustStore() (transportKeyStore, routerKeyStore, trustStore []byte) {
 	ExpectNoError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
