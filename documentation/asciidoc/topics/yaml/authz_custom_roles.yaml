@@ -3,10 +3,12 @@ spec:
     authorization:
       enabled: true
       roles:
-        - name: my-role-1
-          permissions:
-            - ALL
-        - name: my-role-2
-          permissions:
-            - READ
-            - WRITE
+        my-role-1:
+          role:
+            permissions:
+              - "ALL"
+        my-role-2:
+          role:
+            permissions:
+              - "READ"
+              - "WRITE"
