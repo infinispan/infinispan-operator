@@ -206,7 +206,14 @@ func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace str
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
 	}
-
+	
+	// We want to connect the opposite site using "infinispan-operator" secret with token value inside
+	if token, ok := secret.Data["token"]; ok {
+		config.Insecure = true
+		config.BearerToken = string(token)
+		return config, nil
+	}
+	
 	for _, secretKey := range []string{"certificate-authority", "client-certificate", "client-key"} {
 		if value, ok := secret.Data[secretKey]; !ok || len(value) == 0 {
 			return nil, fmt.Errorf("%s required connect to Kubernetes cluster", secretKey)

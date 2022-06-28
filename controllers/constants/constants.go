@@ -114,6 +114,11 @@ const (
 			</distributed-cache>
 		</cache-container>
 	</infinispan>`
+
+	InfinispanSslKeyExchangePort        = 2157
+	InfinispanSslKeyExchangePortName    = "exchange"
+	AnnotationIstioExcludeInboundPorts  = "traffic.sidecar.istio.io/excludeInboundPorts"
+	AnnotationIstioExcludeOutboundPorts = "traffic.sidecar.istio.io/excludeOutboundPorts"
 )
 
 const (

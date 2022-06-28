@@ -40,6 +40,13 @@ func ArePodIPsReady(pods *corev1.PodList) bool {
 		if pod.Status.PodIP == "" {
 			return false
 		}
+
+		// Check ALL the containers inside the POD because of using istio-proxy
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			if !containerStatus.Ready {
+				return false
+			}
+		}
 	}
 
 	return len(pods.Items) > 0

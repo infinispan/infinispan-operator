@@ -382,6 +382,9 @@ func (reconciler *InfinispanReconciler) Reconcile(ctx context.Context, ctrlReque
 
 		// Define a new StatefulSet
 		statefulSet, err = r.statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret, configMap, overlayConfigMap, overlayConfigMapKey, overlayLog4jConfig)
+		resolveStatefulSetIstioAnnotations(infinispan, statefulSet, reqLogger)
+		reqLogger.Info("Resolved StatefulSet Istio annotations", "StatefulSet.Spec.Template.Annotations", statefulSet.Spec.Template.Annotations)
+
 		if err != nil {
 			reqLogger.Error(err, "failed to configure new StatefulSet")
 			return ctrl.Result{}, err
@@ -1633,6 +1636,49 @@ func updateStatefulSetEnv(statefulSet *appsv1.StatefulSet, envName, newValue str
 		return true
 	}
 	return false
+}
+
+func resolveStatefulSetIstioAnnotations(m *infinispanv1.Infinispan, statefulSet *appsv1.StatefulSet, reqLogger logr.Logger) {
+	/* Process custom 'x-site' annotations. Example how to add 'x-site' annotations into StatefulSet:
+	          apiVersion: infinispan.org/v1
+	          kind: Infinispan
+	            name: infinispan-dg
+	            namespace: infinispan
+			  spec:
+				service:
+				  sites: ## x-site configuration
+					local:
+					  expose:
+						annotations:
+						  traffic.sidecar.istio.io/excludeInboundPorts: 8888,11223,7900
+						  traffic.sidecar.istio.io/excludeOutboundPorts: 8888,11223,7900
+	*/
+	sfAnnotations := map[string]string{}
+	if m.Spec.Service.Sites != nil && m.Spec.Service.Sites.Local.Expose.Annotations != nil {
+		reqLogger.Info("Custom StatefulSet annotations has been detected", "m.Spec.Service.Sites.Local.Expose.Annotations", m.Spec.Service.Sites.Local.Expose.Annotations)
+		for k, v := range m.Spec.Service.Sites.Local.Expose.Annotations {
+			sfAnnotations[k] = v
+		}
+	}
+	sfAnnotations["updateDate"] = time.Now().String()
+
+	// Mode 'jgroups.enrypt: true' uses port '2157' to exchange SSL keys, this port must be excluded from the Istio Proxy for any cluster mode (x-site enabled or not).
+	jgroupsEncryptionPort := strconv.Itoa(consts.InfinispanSslKeyExchangePort)
+
+	annotationIstioExcludeInboundPortsValue := sfAnnotations[consts.AnnotationIstioExcludeInboundPorts]
+	if len(annotationIstioExcludeInboundPortsValue) > 0 {
+		sfAnnotations[consts.AnnotationIstioExcludeInboundPorts] = jgroupsEncryptionPort + "," + annotationIstioExcludeInboundPortsValue
+	} else {
+		sfAnnotations[consts.AnnotationIstioExcludeInboundPorts] = jgroupsEncryptionPort
+	}
+	annotationIstioExcludeOutboundPortsValue := sfAnnotations[consts.AnnotationIstioExcludeOutboundPorts]
+	if len(annotationIstioExcludeOutboundPortsValue) > 0 {
+		sfAnnotations[consts.AnnotationIstioExcludeOutboundPorts] = jgroupsEncryptionPort + "," + annotationIstioExcludeOutboundPortsValue
+	} else {
+		sfAnnotations[consts.AnnotationIstioExcludeOutboundPorts] = jgroupsEncryptionPort
+	}
+
+	statefulSet.Spec.Template.Annotations = sfAnnotations
 }
 
 func updateStatefulSetAnnotations(statefulSet *appsv1.StatefulSet, name, value string) bool {

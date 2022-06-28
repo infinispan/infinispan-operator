@@ -116,6 +116,11 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keys
 					Name:      m.ObjectMeta.Name,
 					Namespace: m.ObjectMeta.Namespace,
 					Labels:    routerLabels,
+					//TODO: Do NOT hardcode annotation values (Introduce optional ENV var or CRD field) 
+					Annotations: map[string]string{
+									"traffic.sidecar.istio.io/excludeInboundPorts": "7900",
+									"traffic.sidecar.istio.io/excludeOutboundPorts": "7900",
+								},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
