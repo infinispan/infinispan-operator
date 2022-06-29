@@ -223,7 +223,7 @@ func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube
 		for i, role := range specRoles {
 			confRoles[i] = config.AuthorizationRole{
 				Name:        role.Name,
-				Permissions: strings.Join(role.Permissions, ","),
+				Permissions: strings.Join(role.Permissions, " "),
 			}
 		}
 		configSpec.Infinispan.Authorization.Roles = confRoles
