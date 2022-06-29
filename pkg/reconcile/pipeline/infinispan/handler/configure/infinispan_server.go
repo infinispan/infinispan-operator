@@ -116,7 +116,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		for i, role := range specRoles {
 			confRoles[i] = config.AuthorizationRole{
 				Name:        role.Name,
-				Permissions: strings.Join(role.Permissions, ","),
+				Permissions: strings.Join(role.Permissions, " "),
 			}
 		}
 		configSpec.Infinispan.Authorization.Roles = confRoles
