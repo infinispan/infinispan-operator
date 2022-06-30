@@ -87,5 +87,26 @@ var _ = Describe("Cache Webhook", func() {
 			err := k8sClient.Create(ctx, rejected)
 			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueRequired, "spec.clusterName", "'spec.clusterName' must be configured"})
 		})
+
+		It("Should return error if clusterName field is updated", func() {
+
+			created := &Cache{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: CacheSpec{
+					ClusterName: "initial-value",
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, created)).Should(Succeed())
+			updated := &Cache{}
+			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
+			updated.Spec.ClusterName = "new-value"
+
+			cause := statusDetailCause{"FieldValueForbidden", "spec.clusterName", "Cache clusterName is immutable and cannot be updated after initial Cache creation"}
+			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
+		})
 	})
 })
