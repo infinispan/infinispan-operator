@@ -36,18 +36,19 @@ var _ webhook.Validator = &Cache{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (c *Cache) ValidateCreate() error {
-	return c.validate()
+	var allErrs field.ErrorList
+	if c.Spec.ClusterName == "" {
+		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("clusterName"), "'spec.clusterName' must be configured"))
+	}
+	return c.StatusError(allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (c *Cache) ValidateUpdate(old runtime.Object) error {
-	return c.validate()
-}
-
-func (c *Cache) validate() error {
 	var allErrs field.ErrorList
-	if c.Spec.ClusterName == "" {
-		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("clusterName"), "'spec.clusterName' must be configured"))
+	oldCache := old.(*Cache)
+	if oldCache.Spec.ClusterName != c.Spec.ClusterName {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("clusterName"), "Cache clusterName is immutable and cannot be updated after initial Cache creation"))
 	}
 	return c.StatusError(allErrs)
 }
