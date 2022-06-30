@@ -11,6 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	ingressv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -153,6 +154,12 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		// GracefulShutdown complete, proceed with the upgrade
 		if statefulSet.Status.CurrentReplicas == 0 {
+
+			if err := provision.ScaleConfigListener(0, i, ctx); err != nil && !errors.IsNotFound(err) {
+				ctx.Requeue(err)
+				return
+			}
+
 			ctx.Requeue(
 				ctx.UpdateInfinispan(func() {
 					i.SetCondition(ispnv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")

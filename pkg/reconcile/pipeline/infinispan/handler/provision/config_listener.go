@@ -9,7 +9,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -49,7 +51,13 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if listenerExists {
 		container := kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
 		if container != nil && container.Image == configListenerImage {
-			// The Deployment already exists with the expected image, do nothing
+			if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0 {
+				if err := ScaleConfigListener(1, i, ctx); err != nil {
+					ctx.Requeue(err)
+					return
+				}
+			}
+			// The Deployment already exists with the expected image and number of replicas, do nothing
 			return
 		}
 	}
@@ -173,8 +181,37 @@ func RemoveConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	name := i.GetConfigListenerName()
 	for _, obj := range resources {
-		if err := ctx.Resources().Delete(name, obj, pipeline.RetryOnErr); err != nil {
+		if err := ctx.Resources().Delete(name, obj, pipeline.RetryOnErr, pipeline.IgnoreNotFound); err != nil {
 			return
 		}
 	}
+}
+
+func ScaleConfigListener(replicas int32, i *ispnv1.Infinispan, ctx pipeline.Context) error {
+	if !i.IsConfigListenerEnabled() {
+		return nil
+	}
+	// Remove the ConfigListener deployment as no Infinispan Pods exist
+	ctx.Log().Info("Scaling ConfigListener deployment", "replicas", replicas)
+
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      i.GetConfigListenerName(),
+			Namespace: i.Namespace,
+		},
+	}
+
+	_, err := ctx.Resources().CreateOrPatch(deployment, false, func() error {
+		if deployment.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(appsv1.Resource("deployment"), deployment.Name)
+		}
+		deployment.Spec.Replicas = pointer.Int32Ptr(replicas)
+		return nil
+	})
+
+	if err != nil {
+		ctx.Log().Error(err, "unable to scale ConfigListener Deployment")
+		return err
+	}
+	return nil
 }
