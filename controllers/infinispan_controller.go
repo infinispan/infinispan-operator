@@ -224,9 +224,8 @@ func (r *InfinispanReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=core,namespace=infinispan-operator-system,resources=serviceaccounts,verbs=create;delete;get;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace=infinispan-operator-system,resources=roles;rolebindings,verbs=create;delete;update
 
-// +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=deployments,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=replicasets,verbs=get
-// +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=deployments/finalizers;statefulsets,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=apps,namespace=infinispan-operator-system,resources=deployments;deployments/finalizers;statefulsets,verbs=get;list;watch;create;update;delete;patch
 
 // +kubebuilder:rbac:groups=networking.k8s.io,namespace=infinispan-operator-system,resources=ingresses,verbs=get;list;watch;create;delete;deletecollection;update
 // +kubebuilder:rbac:groups=networking.k8s.io,namespace=infinispan-operator-system,resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list
@@ -1321,12 +1320,18 @@ func (r *infinispanRequest) reconcileGracefulShutdown(statefulSet *appsv1.Statef
 			}
 		}
 
-		return &ctrl.Result{Requeue: true}, r.update(func() {
-			if statefulSet.Status.CurrentReplicas == 0 {
-				ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")
-				ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "")
+		if statefulSet.Status.CurrentReplicas == 0 {
+			if err := r.ScaleConfigListener(0); err != nil && !errors.IsNotFound(err) {
+				return &ctrl.Result{}, err
 			}
-		})
+			return &ctrl.Result{Requeue: true}, r.update(func() {
+				if statefulSet.Status.CurrentReplicas == 0 {
+					ispn.SetCondition(infinispanv1.ConditionGracefulShutdown, metav1.ConditionTrue, "")
+					ispn.SetCondition(infinispanv1.ConditionStopping, metav1.ConditionFalse, "")
+				}
+			})
+		}
+		return &ctrl.Result{Requeue: true}, nil
 	}
 	if ispn.Spec.Replicas != 0 && ispn.IsConditionTrue(infinispanv1.ConditionGracefulShutdown) {
 		logger.Info("Resuming from graceful shutdown")

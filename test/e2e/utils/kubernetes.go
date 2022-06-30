@@ -926,6 +926,17 @@ func GetServerName(i *ispnv1.Infinispan) string {
 }
 
 func (k *TestKubernetes) WaitForDeployment(name, namespace string) {
+	k.WaitForDeploymentState(name, namespace, func(deployment *appsv1.Deployment) bool {
+		for _, condition := range deployment.Status.Conditions {
+			if condition.Type == appsv1.DeploymentAvailable {
+				return condition.Status == corev1.ConditionTrue
+			}
+		}
+		return false
+	})
+}
+
+func (k *TestKubernetes) WaitForDeploymentState(name, namespace string, predicate func(deployment *appsv1.Deployment) bool) {
 	deployment := &appsv1.Deployment{}
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, deployment)
@@ -935,13 +946,7 @@ func (k *TestKubernetes) WaitForDeployment(name, namespace string) {
 		if err != nil {
 			return false, err
 		}
-
-		for _, condition := range deployment.Status.Conditions {
-			if condition.Type == appsv1.DeploymentAvailable {
-				return condition.Status == corev1.ConditionTrue, nil
-			}
-		}
-		return false, nil
+		return predicate(deployment), nil
 	})
 	ExpectNoError(err)
 }
