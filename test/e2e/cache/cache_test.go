@@ -381,36 +381,6 @@ func TestCacheClusterRecreate(t *testing.T) {
 
 }
 
-func TestCacheClusterNameChange(t *testing.T) {
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	originalCluster := initClusterWithSuffix(t, "-original-cluster", false)
-	newCluster := initClusterWithSuffix(t, "-new-cluster", false)
-
-	// Create Cache CR
-	cacheName := "some-cache"
-	cr := cacheCR(cacheName, originalCluster)
-	cr.Spec.Template = `{"local-cache":{}}`
-	testKube.Create(cr)
-	testKube.WaitForCacheConditionReady(cacheName, originalCluster.Name, tutils.Namespace)
-
-	// Assert that the cache exists on the original cluster
-	client := tutils.HTTPClientForCluster(originalCluster, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, client)
-	cacheHelper.WaitForCacheToExist()
-
-	// Update Cache CR to point to new cluster
-	cr = testKube.GetCache(cr.Name, cr.Namespace)
-	cr.ObjectMeta.Labels = newCluster.ObjectMeta.Labels
-	cr.Spec.ClusterName = newCluster.Name
-	testKube.Update(cr)
-
-	// Assert that the cache exists on the new cluster
-	client = tutils.HTTPClientForCluster(newCluster, testKube)
-	cacheHelper = tutils.NewCacheHelper(cacheName, client)
-	cacheHelper.WaitForCacheToExist()
-}
-
 func TestConfigListenerFailover(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
