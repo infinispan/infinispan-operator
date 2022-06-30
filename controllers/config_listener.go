@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"fmt"
+
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"k8s.io/utils/pointer"
 
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -37,7 +39,12 @@ func (r *infinispanRequest) ReconcileConfigListener() error {
 	if listenerExists {
 		container := GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
 		if container != nil && container.Image == constants.ConfigListenerImageName {
-			// The Deployment already exists with the expected image, do nothing
+			if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0 {
+				if err := r.ScaleConfigListener(1); err != nil {
+					return err
+				}
+			}
+			// The Deployment already exists with the expected image and number of replicas, do nothing
 			return nil
 		}
 	}
@@ -201,6 +208,36 @@ func (r *infinispanRequest) DeleteConfigListener() error {
 				return ignoreNotFoundError(err)
 			}
 		}
+	}
+	return nil
+}
+
+func (r *infinispanRequest) ScaleConfigListener(replicas int32) error {
+	i := r.infinispan
+	if !i.IsConfigListenerEnabled() {
+		return nil
+	}
+	// Remove the ConfigListener deployment as no Infinispan Pods exist
+	r.log.Info("Scaling ConfigListener deployment", "replicas", replicas)
+
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      i.GetConfigListenerName(),
+			Namespace: i.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrPatch(r.ctx, r.Client, deployment, func() error {
+		if deployment.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(appsv1.Resource("deployment"), deployment.Name)
+		}
+		deployment.Spec.Replicas = pointer.Int32Ptr(replicas)
+		return nil
+	})
+
+	if err != nil {
+		r.log.Error(err, "unable to scale ConfigListener Deployment")
+		return err
 	}
 	return nil
 }
