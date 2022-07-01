@@ -22,13 +22,13 @@ import (
 var (
 	log              = ctrl.Log.WithName("webhook").WithName("Infinispan")
 	eventRec         record.EventRecorder
-	servingCertsMode string
+	ServingCertsMode string
 )
 
 func (i *Infinispan) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	kubernetes := kube.NewKubernetesFromController(mgr)
 	eventRec = mgr.GetEventRecorderFor("webhook-infinispan")
-	servingCertsMode = kubernetes.GetServingCertsMode(context.Background())
+	ServingCertsMode = kubernetes.GetServingCertsMode(context.Background())
 
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(i).
@@ -98,7 +98,7 @@ func (i *Infinispan) Default() {
 		}
 	}
 
-	i.ApplyEndpointEncryptionSettings(servingCertsMode)
+	i.ApplyEndpointEncryptionSettings(ServingCertsMode)
 
 	if i.HasSites() {
 		// Migrate Spec.Service.Locations Host and Port parameters into the unified URL schema
