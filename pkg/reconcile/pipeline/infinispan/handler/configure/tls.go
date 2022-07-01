@@ -18,16 +18,18 @@ const (
 
 func Keystore(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	keystore := &pipeline.Keystore{}
+
+	keystoreSecret := &corev1.Secret{}
+	if err := ctx.Resources().Load(i.GetKeystoreSecretName(), keystoreSecret, pipeline.RetryOnErr); err != nil {
+		return
+	}
+
 	if i.IsEncryptionCertFromService() {
 		if strings.Contains(i.Spec.Security.EndpointEncryption.CertServiceName, "openshift.io") {
 			keystore.Path = consts.ServerOperatorSecurity + "/" + EncryptPemKeystoreName
+			keystore.PemFile = append(keystoreSecret.Data["tls.key"], keystoreSecret.Data["tls.crt"]...)
 		}
 	} else {
-		keystoreSecret := &corev1.Secret{}
-		if err := ctx.Resources().Load(i.GetKeystoreSecretName(), keystoreSecret, pipeline.RetryOnErr); err != nil {
-			return
-		}
-
 		isUserProvidedPrivateKey := func() bool {
 			for _, k := range []string{corev1.TLSPrivateKeyKey, corev1.TLSCertKey} {
 				if _, ok := keystoreSecret.Data[k]; !ok {

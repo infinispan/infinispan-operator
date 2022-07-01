@@ -144,6 +144,10 @@ func (b *builder) Build() pipeline.Pipeline {
 	// Provision/Remove the XSite service before performing configuration so that Remote site information can be retrieved
 	handlers.Add(provision.XSiteService)
 
+	// Provision the Cluster Service before executing the configuration handlers, as the Secret created by Openshift
+	// `serving-cert-secret-name` annotation is required in order to configure the Keystore
+	handlers.Add(provision.ClusterService)
+
 	// Configuration Handlers
 	handlers.AddFeatureSpecific(i.HasSites(), configure.XSite)
 	handlers.AddFeatureSpecific(i.IsSiteTLSEnabled(),
@@ -173,7 +177,6 @@ func (b *builder) Build() pipeline.Pipeline {
 		provision.InfinispanConfigMap,
 		provision.PingService,
 		provision.AdminService,
-		provision.ClusterService,
 		provision.ClusterStatefulSet,
 	)
 	handlers.AddFeatureSpecific(i.IsExposed(), provision.ExternalService)

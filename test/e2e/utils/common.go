@@ -138,6 +138,9 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 	if initializer != nil {
 		initializer(infinispan)
 	}
+	// Explicitly set the ServingCertsMode so that Openshift automatic encryption configuration is applied when running
+	// tests locally
+	ispnv1.ServingCertsMode = testKube.Kubernetes.GetServingCertsMode(context.TODO())
 	infinispan.Default()
 	return infinispan
 }
