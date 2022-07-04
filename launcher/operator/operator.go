@@ -152,9 +152,11 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		}
 
 		if err = (&infinispanv2alpha1.Cache{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Cache")
+			setupLog.Error(err, "unable to create defaulting webhook", "webhook", "Cache")
 			os.Exit(1)
 		}
+
+		infinispanv2alpha1.RegisterCacheValidatingWebhook(mgr)
 
 		if err = (&infinispanv2alpha1.Backup{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Backup")
