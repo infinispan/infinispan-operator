@@ -130,5 +130,26 @@ var _ = Describe("Cache Webhook", func() {
 			cause := statusDetailCause{"FieldValueForbidden", "spec.name", "Cache name is immutable and cannot be updated after initial Cache creation"}
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 		})
+
+		It("Should prevent two Cache CRs being created with the same spec.cacheName", func() {
+
+			original := &Cache{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: CacheSpec{
+					ClusterName: "some-cluster",
+					Name:        "some-cache",
+				},
+			}
+			duplicate := original.DeepCopy()
+			duplicate.Name = duplicate.Name + "-1"
+
+			Expect(k8sClient.Create(ctx, original)).Should(Succeed())
+
+			err := k8sClient.Create(ctx, duplicate)
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueDuplicate, "spec.name", "Cache CR already exists with spec.Name 'some-cache'"})
+		})
 	})
 })
