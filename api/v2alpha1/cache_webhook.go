@@ -50,6 +50,9 @@ func (c *Cache) ValidateUpdate(old runtime.Object) error {
 	if oldCache.Spec.ClusterName != c.Spec.ClusterName {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("clusterName"), "Cache clusterName is immutable and cannot be updated after initial Cache creation"))
 	}
+	if oldCache.Spec.Name != c.Spec.Name {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("name"), "Cache name is immutable and cannot be updated after initial Cache creation"))
+	}
 	return c.StatusError(allErrs)
 }
 
