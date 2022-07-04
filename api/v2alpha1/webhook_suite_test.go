@@ -104,6 +104,8 @@ var _ = BeforeSuite(func() {
 	err = (&Cache{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	RegisterCacheValidatingWebhook(mgr)
+
 	err = (&Backup{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 

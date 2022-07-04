@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/infinispan/infinispan-operator/controllers"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -134,9 +133,11 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		}
 
 		if err = (&infinispanv2alpha1.Cache{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "Cache")
+			setupLog.Error(err, "unable to create defaulting webhook", "webhook", "Cache")
 			os.Exit(1)
 		}
+
+		infinispanv2alpha1.RegisterCacheValidatingWebhook(mgr)
 
 		if err = (&infinispanv2alpha1.Backup{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Backup")
