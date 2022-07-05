@@ -143,7 +143,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		// If updating the parameters results in a rolling upgrade, we can update the labels here too
 		if rollingUpgrade {
 			labelsForPod := i.PodLabels()
-			labelsForPod[consts.StatefulSetPodLabel] = i.Name
+			labelsForPod[consts.StatefulSetPodLabel] = i.GetStatefulSetName()
 			statefulSet.Spec.Template.Labels = labelsForPod
 		}
 		err := ctx.Resources().Update(statefulSet, pipeline.RetryOnErr)
