@@ -1665,13 +1665,11 @@ func resolveStatefulSetIstioAnnotations(m *infinispanv1.Infinispan, statefulSet 
 
 	annotationIstioExcludeInboundPortsValue := sfAnnotations[consts.AnnotationIstioExcludeInboundPorts]
 	if len(annotationIstioExcludeInboundPortsValue) > 0 {
-		sfAnnotations[consts.AnnotationIstioExcludeInboundPorts] = jgroupsEncryptionPort + "," + annotationIstioExcludeInboundPortsValue
+		sfAnnotations[consts.AnnotationIstioExcludeInboundPorts] = annotationIstioExcludeInboundPortsValue
 	}
 	annotationIstioExcludeOutboundPortsValue := sfAnnotations[consts.AnnotationIstioExcludeOutboundPorts]
 	if len(annotationIstioExcludeOutboundPortsValue) > 0 {
-		sfAnnotations[consts.AnnotationIstioExcludeOutboundPorts] = jgroupsEncryptionPort + "," + annotationIstioExcludeOutboundPortsValue
-	} else {
-		sfAnnotations[consts.AnnotationIstioExcludeOutboundPorts] = jgroupsEncryptionPort
+		sfAnnotations[consts.AnnotationIstioExcludeOutboundPorts] = annotationIstioExcludeOutboundPortsValue
 	}
 
 	statefulSet.Spec.Template.Annotations = sfAnnotations
