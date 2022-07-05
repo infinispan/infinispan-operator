@@ -1663,14 +1663,9 @@ func resolveStatefulSetIstioAnnotations(m *infinispanv1.Infinispan, statefulSet 
 	}
 	sfAnnotations["updateDate"] = time.Now().String()
 
-	// Mode 'jgroups.enrypt: true' uses port '2157' to exchange SSL keys, this port must be excluded from the Istio Proxy for any cluster mode (x-site enabled or not).
-	jgroupsEncryptionPort := strconv.Itoa(consts.InfinispanSslKeyExchangePort)
-
 	annotationIstioExcludeInboundPortsValue := sfAnnotations[consts.AnnotationIstioExcludeInboundPorts]
 	if len(annotationIstioExcludeInboundPortsValue) > 0 {
 		sfAnnotations[consts.AnnotationIstioExcludeInboundPorts] = jgroupsEncryptionPort + "," + annotationIstioExcludeInboundPortsValue
-	} else {
-		sfAnnotations[consts.AnnotationIstioExcludeInboundPorts] = jgroupsEncryptionPort
 	}
 	annotationIstioExcludeOutboundPortsValue := sfAnnotations[consts.AnnotationIstioExcludeOutboundPorts]
 	if len(annotationIstioExcludeOutboundPortsValue) > 0 {
