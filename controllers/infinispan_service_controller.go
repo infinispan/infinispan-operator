@@ -386,10 +386,6 @@ func computeService(ispn *ispnv1.Infinispan) *corev1.Service {
 					Name: consts.InfinispanUserPortName,
 					Port: consts.InfinispanUserPort,
 				},
-				{
-					Name: consts.InfinispanSslKeyExchangePortName,
-					Port: consts.InfinispanSslKeyExchangePort,
-				},
 			},
 		},
 	}
