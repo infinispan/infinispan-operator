@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -652,6 +653,9 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap
 	}
 	InitServerConfigMap(configMap, r.infinispan, serverConfig, log4jXml)
 
+	if err = controllerutil.SetControllerReference(r.infinispan, configMap, r.scheme); err != nil {
+		return nil, reconcile.Result{}, fmt.Errorf("unable to SetControllerReference for new ConfigMap: %w", err)
+	}
 	return configMap, reconcile.Result{}, r.Create(r.ctx, configMap)
 }
 
