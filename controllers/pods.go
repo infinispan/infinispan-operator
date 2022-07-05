@@ -23,7 +23,6 @@ func PodPorts() []corev1.ContainerPort {
 		{ContainerPort: consts.InfinispanAdminPort, Name: consts.InfinispanAdminPortName, Protocol: corev1.ProtocolTCP},
 		{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
 		{ContainerPort: consts.InfinispanUserPort, Name: consts.InfinispanUserPortName, Protocol: corev1.ProtocolTCP},
-		{ContainerPort: consts.InfinispanSslKeyExchangePort, Name: consts.InfinispanSslKeyExchangePortName, Protocol: corev1.ProtocolTCP},
 	}
 	return ports
 }
