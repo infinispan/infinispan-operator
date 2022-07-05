@@ -1519,7 +1519,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 		// If updating the parameters results in a rolling upgrade, we can update the labels here too
 		if rollingUpgrade {
 			labelsForPod := ispn.PodLabels()
-			labelsForPod[consts.StatefulSetPodLabel] = ispn.Name
+			labelsForPod[consts.StatefulSetPodLabel] = ispn.GetStatefulSetName()
 			statefulSet.Spec.Template.Labels = labelsForPod
 		}
 		err := r.Client.Update(r.ctx, statefulSet)
