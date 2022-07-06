@@ -17,6 +17,10 @@ import (
 )
 
 func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	// Skip StatefulSet upgrades until HotRod Rolling upgrade is complete
+	if i.HotRodRollingUpgrades() && i.Status.HotRodRollingUpgradeStatus != nil {
+		return
+	}
 	log := ctx.Log()
 	configFiles := ctx.ConfigFiles()
 
