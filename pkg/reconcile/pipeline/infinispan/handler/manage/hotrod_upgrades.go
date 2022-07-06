@@ -247,6 +247,8 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (string, error) {
 			Namespace: r.i.Namespace,
 		},
 	}
+	configFiles.ServerConfig = serverConfig
+	configFiles.ZeroConfig = zeroConfig
 	provision.PopulateServerConfigMap(serverConfig, zeroConfig, configFiles.Log4j, cm)
 	return hash.HashString(serverConfig), r.ctx.Resources().Create(cm, true)
 }
@@ -342,7 +344,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 			if envVar.Name == "CONFIG_HASH" {
 				container.Env[o] = corev1.EnvVar{
 					Name:      envVar.Name,
-					Value:     hash.HashString(configHash),
+					Value:     configHash,
 					ValueFrom: envVar.ValueFrom,
 				}
 			}
