@@ -108,7 +108,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods/logs
+  - pods/log
   verbs:
   - get
 - apiGroups:
