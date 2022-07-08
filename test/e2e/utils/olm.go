@@ -107,14 +107,16 @@ func (k TestKubernetes) CreateSubscription(sub *coreos.Subscription) {
 }
 
 func (k TestKubernetes) DeleteSubscription(name, namespace string) {
-	sub := &coreos.Subscription{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+	sub := &coreos.Subscription{}
+
+	if err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, sub); k8serrors.IsNotFound(err) {
+		return
 	}
-	err := k.Kubernetes.Client.Delete(context.TODO(), sub, DeleteOpts...)
-	ExpectMaybeNotFound(err)
+
+	if csv, err := k.InstalledCSV(sub); err == nil {
+		ExpectMaybeNotFound(k.Kubernetes.Client.Delete(context.TODO(), csv, DeleteOpts...))
+	}
+	ExpectMaybeNotFound(k.Kubernetes.Client.Delete(context.TODO(), sub, DeleteOpts...))
 }
 
 func (k TestKubernetes) Subscription(sub *coreos.Subscription) {
@@ -150,16 +152,16 @@ func (k TestKubernetes) ApproveInstallPlan(sub *coreos.Subscription) {
 	})
 }
 
-func (k TestKubernetes) InstalledCSV(sub *coreos.Subscription) *coreos.ClusterServiceVersion {
+func (k TestKubernetes) InstalledCSV(sub *coreos.Subscription) (*coreos.ClusterServiceVersion, error) {
 	csvName := sub.Status.InstalledCSV
 	csv := &coreos.ClusterServiceVersion{}
 	err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: csvName, Namespace: sub.Namespace}, csv)
-	ExpectNoError(err)
-	return csv
+	return csv, err
 }
 
 func (k TestKubernetes) InstalledCSVServerImage(sub *coreos.Subscription) string {
-	csv := k.InstalledCSV(sub)
+	csv, err := k.InstalledCSV(sub)
+	ExpectNoError(err)
 	envName := "RELATED_IMAGE_OPENJDK"
 	envVars := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env
 	index := kubernetes.GetEnvVarIndex(envName, &envVars)
