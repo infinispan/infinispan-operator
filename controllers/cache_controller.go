@@ -3,11 +3,12 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/manage"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/manage"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/go-logr/logr"
 	"github.com/iancoleman/strcase"
@@ -274,16 +275,15 @@ func (r *cacheRequest) ispnCreateOrUpdate() (*ctrl.Result, error) {
 
 func (r *cacheRequest) reconcileCacheService(cacheExists bool, cache api.Cache) error {
 	spec := r.cache.Spec
-	if cacheExists {
-		err := fmt.Errorf("cannot update an existing cache in a CacheService cluster")
-		r.reqLogger.Error(err, "Error updating cache")
-		return err
-	}
-
 	if spec.TemplateName != "" || spec.Template != "" {
 		err := fmt.Errorf("cannot create a cache with a template in a CacheService cluster")
 		r.reqLogger.Error(err, "Error creating cache")
 		return err
+	}
+
+	if cacheExists {
+		r.reqLogger.Info("cache already exists")
+		return nil
 	}
 
 	podList, err := PodList(r.infinispan, r.kubernetes, r.ctx)
