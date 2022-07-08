@@ -936,38 +936,24 @@ func IsUpgradeRequired(infinispan *infinispanv1.Infinispan, kube *kube.Kubernete
 }
 
 func GetSingleStatefulSetStatus(ss appsv1.StatefulSet) infinispanv1.DeploymentStatus {
-	return getSingleDeploymentStatus(ss.Name, getInt32(ss.Spec.Replicas), ss.Status.Replicas, ss.Status.ReadyReplicas)
+	return getSingleDeploymentStatus(ss.Name, ss.Status.Replicas, ss.Status.ReadyReplicas)
 }
 
-func getInt32(pointer *int32) int32 {
-	if pointer == nil {
-		return 0
-	} else {
-		return *pointer
-	}
-
-}
-func getSingleDeploymentStatus(name string, requestedCount int32, targetCount int32, readyCount int32) infinispanv1.DeploymentStatus {
-	var ready, starting, stopped []string
-	if requestedCount == 0 || targetCount == 0 {
-		stopped = append(stopped, name)
-	} else {
-		for i := int32(0); i < targetCount; i++ {
-			instanceName := fmt.Sprintf("%s-%d", name, i+1)
-			if i < readyCount {
-				ready = append(ready, instanceName)
-			} else {
-				starting = append(starting, instanceName)
-			}
+func getSingleDeploymentStatus(name string, targetCount int32, readyCount int32) infinispanv1.DeploymentStatus {
+	var ready, starting []string
+	for i := int32(0); i < targetCount; i++ {
+		instanceName := fmt.Sprintf("%s-%d", name, i+1)
+		if i < readyCount {
+			ready = append(ready, instanceName)
+		} else {
+			starting = append(starting, instanceName)
 		}
 	}
-	log.Info("Found deployments with status ", "stopped", stopped, "starting", starting, "ready", ready)
+	log.Info("Found deployments with status ", "starting", starting, "ready", ready)
 	return infinispanv1.DeploymentStatus{
-		Stopped:  stopped,
 		Starting: starting,
 		Ready:    ready,
 	}
-
 }
 
 func (r *infinispanRequest) updatePodsLabels(podList *corev1.PodList) error {
