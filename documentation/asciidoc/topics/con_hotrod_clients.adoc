@@ -11,8 +11,6 @@ Client intelligence improves performance by reducing the number of network hops 
 
 Clients running in the same {k8s} cluster can access internal IP addresses for {brandname} pods so you can use any client intelligence.
 
-.`HASH_DISTRIBUTION_AWARE` intelligence
-
 `HASH_DISTRIBUTION_AWARE` is the default intelligence mechanism and enables clients to route requests to primary owners, which provides the best performance for Hot Rod clients.
 
 .`BASIC`intelligence
