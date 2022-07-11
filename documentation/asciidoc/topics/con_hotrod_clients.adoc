@@ -26,8 +26,3 @@ Clients running in the same {k8s} cluster can access internal IP addresses for {
 {k8s} cluster administrators can define network policies that restrict traffic to {brandname}.
 In some cases network isolation policies can require you to use `BASIC` intelligence even when clients are running in the same {k8s} cluster but a different namespace.
 ====
-
-
-
-
-
