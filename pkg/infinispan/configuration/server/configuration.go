@@ -23,9 +23,7 @@ type Spec struct {
 }
 
 type Infinispan struct {
-	Authorization    *Authorization
-	ClusterName      string
-	ZeroCapacityNode bool
+	Authorization *Authorization
 }
 
 type Authorization struct {
@@ -91,15 +89,21 @@ type Endpoints struct {
 	ClientCert   string
 }
 
-func Generate(v *version.Version, spec *Spec) (string, error) {
+// Generate the base and admin configuration files used by the Infinispan server
+func Generate(v *version.Version, spec *Spec) (baseCfg string, admingCfg string, err error) {
 	if v == nil {
 		v = &version.Version{Major: 13, Minor: 0, Patch: 0}
 	}
 	switch v.Major {
 	case 13:
-		return templates.LoadAndExecute("infinispan-13.xml", funcMap(), spec)
+		if baseCfg, err = templates.LoadAndExecute("infinispan-base-13.xml", funcMap(), spec); err != nil {
+			return
+		}
+
+		admingCfg, err = templates.LoadAndExecute("infinispan-admin-13.xml", funcMap(), spec)
+		return
 	default:
-		return "", version.UnknownError(v)
+		return "", "", version.UnknownError(v)
 	}
 }
 

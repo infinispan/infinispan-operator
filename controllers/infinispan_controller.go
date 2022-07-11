@@ -1097,7 +1097,7 @@ func (r *infinispanRequest) statefulSetForInfinispan(adminSecret, userSecret, ke
 						Image: ispn.ImageName(),
 						Name:  InfinispanContainer,
 						Env: PodEnv(ispn, &[]corev1.EnvVar{
-							{Name: "CONFIG_HASH", Value: hash.HashString(configMap.Data[consts.ServerConfigFilename])},
+							{Name: "CONFIG_HASH", Value: hash.HashString(configMap.Data[consts.ServerConfigBaseFilename], configMap.Data[consts.ServerConfigAdminFilename])},
 							{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])},
 							{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesCliFilename},
 						}),
@@ -1435,7 +1435,7 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 	}
 
 	// Validate ConfigMap changes (by the hash of the infinispan.yaml key value)
-	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hash.HashString(configMap.Data[consts.ServerConfigFilename])) || updateNeeded
+	updateNeeded = updateStatefulSetEnv(statefulSet, "CONFIG_HASH", hash.HashString(configMap.Data[consts.ServerConfigBaseFilename], configMap.Data[consts.ServerConfigAdminFilename])) || updateNeeded
 	updateNeeded = updateStatefulSetEnv(statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(adminSecret.Data[consts.ServerIdentitiesFilename])) || updateNeeded
 
 	if updateCmdArgs, err := updateStartupArgs(statefulSet, overlayConfigMapKey, overlayLog4jConfig, "false"); err != nil {
@@ -1715,12 +1715,15 @@ func buildStartupArgs(overlayConfigMapKey string, overlayLog4jConfig bool, zeroC
 		args.WriteString("/log4j.xml")
 	}
 
-	// Check if the user defined an overlay operator config
+	// Apply Operator user config
+	args.WriteString(" -c operator/infinispan-base.xml")
+	// Apply user custom config
 	if overlayConfigMapKey != "" {
 		args.WriteString(" -c user/")
 		args.WriteString(overlayConfigMapKey)
 	}
-	args.WriteString(" -c operator/infinispan.xml")
+	// Apply Operator Admin config
+	args.WriteString(" -c operator/infinispan-admin.xml")
 
 	return strings.Fields(args.String())
 }

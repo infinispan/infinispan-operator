@@ -6,9 +6,11 @@ import (
 	"sort"
 )
 
-func HashString(data string) string {
+func HashString(data ...string) string {
 	hash := sha1.New()
-	hash.Write([]byte(data))
+	for _, d := range data {
+		hash.Write([]byte(d))
+	}
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
