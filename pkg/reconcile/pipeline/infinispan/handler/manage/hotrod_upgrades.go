@@ -231,13 +231,13 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (string, error) {
 	configSpec.StatefulSetName = targetStatefulSetName
 
 	operand := ctx.Operand()
-	var serverConfig, zeroConfig string
+	var adminCfg, baseCfg, zeroConfig string
 	var err error
-	if serverConfig, err = config.Generate(operand, &configSpec); err != nil {
+	if baseCfg, adminCfg, err = config.Generate(operand, &configSpec); err != nil {
 		return "", fmt.Errorf("unable to generate new infinispan.xml for Rolling Upgrade: %w", err)
 	}
 
-	if zeroConfig, err = config.Generate(operand, &configSpec); err != nil {
+	if zeroConfig, err = config.GenerateZeroCapacity(operand, &configSpec); err != nil {
 		return "", fmt.Errorf("unable to generate new infinispan-zero.xml for Rolling Upgrade: %w", err)
 	}
 
@@ -247,10 +247,11 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (string, error) {
 			Namespace: r.i.Namespace,
 		},
 	}
-	configFiles.ServerConfig = serverConfig
+	configFiles.ServerAdminConfig = adminCfg
+	configFiles.ServerBaseConfig = baseCfg
 	configFiles.ZeroConfig = zeroConfig
-	provision.PopulateServerConfigMap(serverConfig, zeroConfig, configFiles.Log4j, cm)
-	return hash.HashString(serverConfig), r.ctx.Resources().Create(cm, true)
+	provision.PopulateServerConfigMap(baseCfg, adminCfg, zeroConfig, configFiles.Log4j, cm)
+	return hash.HashString(baseCfg), r.ctx.Resources().Create(cm, true)
 }
 
 // reconcileNewPingService Reconcile a specific ping service for the pods of the new statefulSet

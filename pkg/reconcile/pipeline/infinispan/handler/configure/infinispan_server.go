@@ -144,8 +144,9 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
-	if serverConfig, err := config.Generate(ctx.Operand(), configSpec); err == nil {
-		configFiles.ServerConfig = serverConfig
+	if baseCfg, adminCfg, err := config.Generate(ctx.Operand(), configSpec); err == nil {
+		configFiles.ServerAdminConfig = adminCfg
+		configFiles.ServerBaseConfig = baseCfg
 	} else {
 		ctx.Requeue(fmt.Errorf("unable to generate infinispan.xml: %w", err))
 		return
