@@ -282,7 +282,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 			if envVar.Name == "CONFIG_HASH" {
 				container.Env[o] = corev1.EnvVar{
 					Name:      envVar.Name,
-					Value:     hash.HashString(configMap.Data[ServerConfigFilename]),
+					Value:     hash.HashString(configMap.Data[ServerConfigBaseFilename], configMap.Data[ServerConfigAdminFilename]),
 					ValueFrom: envVar.ValueFrom,
 				}
 			}
@@ -637,7 +637,7 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap
 		return configMap, reconcile.Result{}, err
 	}
 
-	serverConfig, result, err := GenerateServerConfig(targetStatefulSetName, r.infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
+	baseConfig, adminConfig, result, err := GenerateServerConfig(targetStatefulSetName, r.infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
 	if result != nil {
 		return nil, *result, err
 	}
@@ -651,7 +651,7 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap
 	if err != nil {
 		return nil, reconcile.Result{}, err
 	}
-	InitServerConfigMap(configMap, r.infinispan, serverConfig, log4jXml)
+	InitServerConfigMap(configMap, r.infinispan, baseConfig, adminConfig, log4jXml)
 
 	if err = controllerutil.SetControllerReference(r.infinispan, configMap, r.scheme); err != nil {
 		return nil, reconcile.Result{}, fmt.Errorf("unable to SetControllerReference for new ConfigMap: %w", err)
