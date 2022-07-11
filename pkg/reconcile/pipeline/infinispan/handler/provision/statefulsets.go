@@ -88,7 +88,7 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						Args:  BuildServerContainerArgs(ctx.ConfigFiles().UserConfig),
 						Name:  InfinispanContainer,
 						Env: PodEnv(i, &[]corev1.EnvVar{
-							{Name: "CONFIG_HASH", Value: hash.HashString(configFiles.ServerConfig)},
+							{Name: "CONFIG_HASH", Value: hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)},
 							{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)},
 							{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename},
 						}),
@@ -267,12 +267,15 @@ func BuildServerContainerArgs(userConfig pipeline.UserConfig) []string {
 		args.WriteString("/log4j.xml")
 	}
 
-	// Check if the user defined an overlay operator config
+	// Apply Operator user config
+	args.WriteString(" -c operator/infinispan-base.xml")
+	// Apply user custom config
 	if userConfig.ServerConfig != "" {
 		args.WriteString(" -c user/")
 		args.WriteString(userConfig.ServerConfigFileName)
 	}
-	args.WriteString(" -c operator/infinispan.xml")
+	// Apply Operator Admin config
+	args.WriteString(" -c operator/infinispan-admin.xml")
 
 	return strings.Fields(args.String())
 }

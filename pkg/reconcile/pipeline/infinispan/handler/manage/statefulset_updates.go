@@ -100,7 +100,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	// Validate ConfigMap changes (by the hash of the i.yaml key value)
-	updateNeeded = updateStatefulSetEnv(container, statefulSet, "CONFIG_HASH", hash.HashString(configFiles.ServerConfig)) || updateNeeded
+	updateNeeded = updateStatefulSetEnv(container, statefulSet, "CONFIG_HASH", hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)) || updateNeeded
 	updateNeeded = updateStatefulSetEnv(container, statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)) || updateNeeded
 
 	if updateCmdArgs, err := updateStartupArgs(container, configFiles.UserConfig); err != nil {

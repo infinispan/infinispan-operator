@@ -18,17 +18,18 @@ func InfinispanConfigMap(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	mutateFn := func() error {
-		PopulateServerConfigMap(config.ServerConfig, config.ZeroConfig, config.Log4j, configmap)
+		PopulateServerConfigMap(config.ServerBaseConfig, config.ServerAdminConfig, config.ZeroConfig, config.Log4j, configmap)
 		configmap.Labels = i.Labels("infinispan-configmap-configuration")
 		return nil
 	}
 	_, _ = ctx.Resources().CreateOrUpdate(configmap, true, mutateFn, pipeline.RetryOnErr)
 }
 
-func PopulateServerConfigMap(serverConfig, zeroConfig, log4jConfig string, cm *corev1.ConfigMap) {
+func PopulateServerConfigMap(baseConfig, adminConfig, zeroConfig, log4jConfig string, cm *corev1.ConfigMap) {
 	cm.Data = map[string]string{
-		"infinispan.xml":      serverConfig,
-		"infinispan-zero.xml": zeroConfig,
-		"log4j.xml":           log4jConfig,
+		"infinispan-admin.xml": adminConfig,
+		"infinispan-base.xml":  baseConfig,
+		"infinispan-zero.xml":  zeroConfig,
+		"log4j.xml":            log4jConfig,
 	}
 }
