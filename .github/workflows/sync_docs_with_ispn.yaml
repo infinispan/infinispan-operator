@@ -1,0 +1,47 @@
+name: Synchronize documentation with Infinispan
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: main
+
+    - name: Clone infinispan
+      uses: actions/checkout@master
+      with:
+        repository: infinispan/infinispan
+        ref: main
+        path: infinispan
+
+    - name: Wipe the sync directory
+      run: |
+        cd documentation/asciidoc/topics/sync
+        rm -rf *
+
+    - name: Sync docs
+      run: |
+        rsync -vr --delete infinispan/documentation/src/main/asciidoc/topics/xml/cache_template_inheritance.xml ./documentation/asciidoc/topics/sync/xml/
+        rsync -vr --delete infinispan/documentation/src/main/asciidoc/topics/yaml/cache_template_inheritance.yaml ./documentation/asciidoc/topics/sync/yaml/
+        rsync -vr --delete infinispan/documentation/src/main/asciidoc/topics/json/cache_template_inheritance.json ./documentation/asciidoc/topics/sync/json/
+        rm -rf infinispan
+
+    - name: Commit files
+      run: |
+        git config --local user.email "infinispan@infinispan.org"
+        git config --local user.name "Infinispan"
+        git add . --all
+        git commit -m "Synchronized config examples from Infinispan"
+
+    - name: Push changes to develop
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.API_TOKEN_GITHUB }}
+        branch: main
