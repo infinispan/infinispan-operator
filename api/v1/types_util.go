@@ -349,6 +349,13 @@ func (ispn *Infinispan) GetSecretName() string {
 	return ispn.Spec.Security.EndpointSecretName
 }
 
+func (ispn *Infinispan) GetOperatorUser() string {
+	if ispn.IsClientCertEnabled() && ispn.Spec.Security.EndpointEncryption.ClientCert == ClientCertAuthenticate {
+		return "CN=admin"
+	}
+	return "operator"
+}
+
 func (ispn *Infinispan) GenerateSecretName() string {
 	return fmt.Sprintf("%v-%v", ispn.GetName(), consts.GeneratedSecretSuffix)
 }

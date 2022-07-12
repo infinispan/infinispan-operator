@@ -345,7 +345,8 @@ func (r *HotRodRollingUpgradeRequest) prepare() (ctrl.Result, error) {
 		return reconcile.Result{}, fmt.Errorf("failed to find the pods from the source statefulSet : %w", err)
 	}
 
-	pass, err := users.AdminPassword(ispn.GetAdminSecretName(), ispn.Namespace, r.kubernetes, r.ctx)
+	user := ispn.GetOperatorUser()
+	pass, err := users.AdminPassword(user, ispn.GetAdminSecretName(), ispn.Namespace, r.kubernetes, r.ctx)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -355,7 +356,7 @@ func (r *HotRodRollingUpgradeRequest) prepare() (ctrl.Result, error) {
 	targetClient := InfinispanForPod(targetPod.Name, r.curl)
 
 	sourceIp := sourcePodList.Items[0].Status.PodIP
-	if err = upgrades.ConnectCaches(pass, sourceIp, sourceClient, targetClient, r.reqLogger); err != nil {
+	if err = upgrades.ConnectCaches(user, pass, sourceIp, sourceClient, targetClient, r.reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
 

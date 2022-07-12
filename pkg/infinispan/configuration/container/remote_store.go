@@ -62,7 +62,7 @@ type Truststore struct {
 	Type     string `json:"type,omitempty"`
 }
 
-func CreateRemoteStoreConfig(ip string, cache, pass string) (string, error) {
+func CreateRemoteStoreConfig(ip string, cache, user, pass string) (string, error) {
 
 	cfg := RemoteStoreConfig{
 		RemoteStore: &RemoteStore{
@@ -78,7 +78,7 @@ func CreateRemoteStoreConfig(ip string, cache, pass string) (string, error) {
 				Authentication: &Authentication{
 					ServerName: "infinispan",
 					Digest: &Digest{
-						Username: constants.DefaultOperatorUser,
+						Username: user,
 						Password: pass,
 						Realm:    "admin",
 					},

@@ -326,8 +326,9 @@ func (s *secretRequest) reconcileAdminSecret() (*corev1.Secret, error) {
 	}
 
 	_, err := kube.CreateOrPatch(s.ctx, s.Client, adminSecret, func() error {
+		user := s.infinispan.GetOperatorUser()
 		if adminSecret.CreationTimestamp.IsZero() {
-			identities, err := security.GetAdminCredentials()
+			identities, err := security.GetAdminCredentials(user)
 			if err != nil {
 				return err
 			}
@@ -344,11 +345,11 @@ func (s *secretRequest) reconcileAdminSecret() (*corev1.Secret, error) {
 		password := string(pass)
 		if !ok || password == "" {
 			var usrErr error
-			if password, usrErr = security.FindPassword(consts.DefaultOperatorUser, adminSecret.Data[consts.ServerIdentitiesFilename]); usrErr != nil {
+			if password, usrErr = security.FindPassword(user, adminSecret.Data[consts.ServerIdentitiesFilename]); usrErr != nil {
 				return usrErr
 			}
 		}
-		identities, err := security.CreateIdentitiesFor(consts.DefaultOperatorUser, password)
+		identities, err := security.CreateIdentitiesFor(user, password)
 		if err != nil {
 			return err
 		}
@@ -365,14 +366,14 @@ func (s *secretRequest) reconcileAdminSecret() (*corev1.Secret, error) {
 
 func (s *secretRequest) addCliProperties(secret *corev1.Secret, password string) {
 	service := s.infinispan.GetAdminServiceName()
-	url := fmt.Sprintf("http://%s:%s@%s:%d", consts.DefaultOperatorUser, url.QueryEscape(password), service, consts.InfinispanAdminPort)
+	url := fmt.Sprintf("http://%s:%s@%s:%d", s.infinispan.GetOperatorUser(), url.QueryEscape(password), service, consts.InfinispanAdminPort)
 	properties := fmt.Sprintf("autoconnect-url=%s", url)
 	secret.Data[consts.CliPropertiesFilename] = []byte(properties)
 }
 
 func (s *secretRequest) addServiceMonitorProperties(secret *corev1.Secret, password string) {
 	secret.Data[consts.AdminPasswordKey] = []byte(password)
-	secret.Data[consts.AdminUsernameKey] = []byte(consts.DefaultOperatorUser)
+	secret.Data[consts.AdminUsernameKey] = []byte(s.infinispan.GetOperatorUser())
 }
 
 func (s *secretRequest) getSecret(name string) (*corev1.Secret, error) {
