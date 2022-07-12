@@ -37,13 +37,13 @@ func NewInfinispanForPod(ctx context.Context, podName string, i *v1.Infinispan, 
 
 // NewCurlClient return a new curl.Client using the admin credentials associated with the v1.Infinispan instance
 func NewCurlClient(ctx context.Context, podName string, i *v1.Infinispan, kubernetes *kube.Kubernetes) (*curl.Client, error) {
-	pass, err := users.AdminPassword(i.GetAdminSecretName(), i.Namespace, kubernetes, ctx)
+	pass, err := users.AdminPassword(i.GetOperatorUser(), i.GetAdminSecretName(), i.Namespace, kubernetes, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve operator admin identities when creating Curl client: %w", err)
 	}
 	curlClient := curl.New(curl.Config{
 		Credentials: &curl.Credentials{
-			Username: consts.DefaultOperatorUser,
+			Username: i.GetOperatorUser(),
 			Password: pass,
 		},
 		Container: InfinispanContainer,

@@ -214,7 +214,7 @@ func TestUpdateOperatorPassword(t *testing.T) {
 		secret, err = testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace, context.TODO())
 		tutils.ExpectNoError(err)
 		identities := secret.Data[cconsts.ServerIdentitiesFilename]
-		pwd, err := users.FindPassword(cconsts.DefaultOperatorUser, identities)
+		pwd, err := users.FindPassword(spec.GetOperatorUser(), identities)
 		tutils.ExpectNoError(err)
 		fmt.Printf("Pwd=%s, Identities=%s", pwd, string(identities))
 		return pwd == newPassword, nil
