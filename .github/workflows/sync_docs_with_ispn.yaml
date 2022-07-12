@@ -31,8 +31,9 @@ jobs:
           --exclude='**/asciidoc_examples/' \
           --exclude='**/client_config/' \
           --exclude='**/cmd_examples/' \
-          ./documentation/src/main/asciidoc/topics/ \
-          sync
+          infinispan/documentation/src/main/asciidoc/topics/ \
+          ./documentation/asciidoc/topics/sync/
+        rm -rf infinispan
 
     - name: Commit files
       run: |
