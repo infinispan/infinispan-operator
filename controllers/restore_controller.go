@@ -137,7 +137,16 @@ func (r *restore) Exec(client api.Infinispan) error {
 		Location:  fmt.Sprintf("%[1]s/%[2]s/%[2]s.zip", BackupDataMountPath, instance.Spec.Backup),
 		Resources: resources,
 	}
-	return client.Container().Restores().Create(instance.Name, config)
+
+	status, err := client.Container().Restores().Status(instance.Name)
+	if err != nil {
+		return fmt.Errorf("unable to obtain Restore status: %w", err)
+	}
+
+	if status == api.StatusNotFound {
+		return client.Container().Restores().Create(instance.Name, config)
+	}
+	return nil
 }
 
 func (r *restore) ExecStatus(client api.Infinispan) (zeroCapacityPhase, error) {
