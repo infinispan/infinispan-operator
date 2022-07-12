@@ -47,10 +47,10 @@ func AdminSecret(i *ispnv1.Infinispan, ctx pipeline.Context) {
 func AdminIdentities(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	configFiles := ctx.ConfigFiles()
 
-	user := consts.DefaultOperatorUser
+	user := i.GetOperatorUser()
 	if configFiles.AdminIdentities == nil {
 		// An existing secret was not found in the collect stage, so generate new credentials and define in the context
-		identities, err := security.GetAdminCredentials()
+		identities, err := security.GetAdminCredentials(user)
 		if err != nil {
 			ctx.Requeue(err)
 			return
