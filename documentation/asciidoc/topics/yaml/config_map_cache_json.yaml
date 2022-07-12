@@ -4,7 +4,8 @@ metadata:
    name: cluster-config
    namespace: {example_namespace}
 data:
-   infinispan-config.xml: >
-     <infinispan>
-       <!-- Custom configuration. -->
-     </infinispan>
+   infinispan-config.json: >
+     {
+       "infinispan": {
+       }
+     }
