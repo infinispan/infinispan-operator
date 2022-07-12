@@ -412,8 +412,9 @@ func (r *HotRodRollingUpgradeRequest) prepare() error {
 	targetClient := ctx.InfinispanClientForPod(targetPod.Name)
 
 	sourceIp := sourcePodList.Items[0].Status.PodIP
+	user := r.i.GetOperatorUser()
 	pass := ctx.ConfigFiles().AdminIdentities.Password
-	if err = upgrades.ConnectCaches(pass, sourceIp, sourceClient, targetClient, r.log); err != nil {
+	if err = upgrades.ConnectCaches(user, pass, sourceIp, sourceClient, targetClient, r.log); err != nil {
 		return err
 	}
 
