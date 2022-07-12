@@ -61,7 +61,7 @@ func main() {
 }
 
 func exit() {
-	fmt.Println("expected 'operator' or 'listener' subcommands")
+	fmt.Println("asfasfexpected 'operator' or 'listener' subcommands")
 	os.Exit(1)
 }
 
