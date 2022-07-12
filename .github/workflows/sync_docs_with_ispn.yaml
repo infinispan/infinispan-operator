@@ -28,16 +28,9 @@ jobs:
 
     - name: Sync docs
       run: |
-        rsync -vr --delete \
-          --exclude='*.asciidoc' \
-          --exclude='*.adoc' \
-          --exclude='**/dependencies_maven/' \
-          --exclude='**/contributing/' \
-          --exclude='**/asciidoc_examples/' \
-          --exclude='**/client_config/' \
-          --exclude='**/cmd_examples/' \
-          infinispan/documentation/src/main/asciidoc/topics/ \
-          ./documentation/asciidoc/topics/sync/
+        rsync -vr --delete infinispan/documentation/src/main/asciidoc/topics/xml/cache_template_inheritance.xml ./documentation/asciidoc/topics/sync/xml
+        rsync -vr --delete infinispan/documentation/src/main/asciidoc/topics/yaml/cache_template_inheritance.yaml ./documentation/asciidoc/topics/sync/yaml
+        rsync -vr --delete infinispan/documentation/src/main/asciidoc/topics/json/cache_template_inheritance.json ./documentation/asciidoc/topics/sync/json
         rm -rf infinispan
 
     - name: Commit files
