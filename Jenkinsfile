@@ -33,6 +33,7 @@ pipeline {
         CONFIG_LISTENER_IMAGE = 'localhost:5000/infinispan-operator'
         SERVER_IMAGE = 'quay.io/infinispan/server:13.0'
         TEST_REPORT_DIR = "$WORKSPACE/test/reports"
+        CHANGE_TARGET = "${env.CHANGE_TARGET}"
     }
 
     options {
@@ -52,6 +53,11 @@ pipeline {
                     changeset "Dockerfile"
                     changeset "scripts/**/*"
                     changeset "config/**/*"
+                    changeset "Jenkinsfile"
+
+                    expression {
+                        return sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
+                    }
                 }
             }
             stages {
