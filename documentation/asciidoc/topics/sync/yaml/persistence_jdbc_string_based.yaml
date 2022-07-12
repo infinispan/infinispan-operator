@@ -1,0 +1,24 @@
+distributedCache:
+  persistence:
+    stringKeyedJdbcStore:
+      dialect: "H2"
+      stringKeyedTable:
+        prefix: "ISPN_STRING_TABLE"
+        createOnStart: true
+        idColumn:
+          name: "ID_COLUMN"
+          type: "VARCHAR(255)"
+        dataColumn:
+          name: "DATA_COLUMN"
+          type: "BINARY"
+        timestampColumn:
+          name: "TIMESTAMP_COLUMN"
+          type: "BIGINT"
+        segmentColumn:
+          name: "SEGMENT_COLUMN"
+          type: "INT"
+      connectionPool:
+        connectionUrl: "jdbc:h2:mem:infinispan"
+        driver: "org.h2.Driver"
+        username: "sa"
+        password: "changeme"

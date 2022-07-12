@@ -1,0 +1,5 @@
+<distributed-cache>
+   <backups merge-policy="org.mycompany.MyCustomXSiteEntryMergePolicy">
+      <backup site="LON" strategy="ASYNC"/>
+   </backups>
+</distributed-cache>

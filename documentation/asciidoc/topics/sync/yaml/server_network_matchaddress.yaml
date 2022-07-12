@@ -1,0 +1,5 @@
+server:
+  interfaces:
+    - name: "public"
+      matchAddress:
+        value: "127\\..*"

@@ -1,0 +1,25 @@
+{
+  "server": {
+    "security": {
+      "security-realms": [{
+        "name": "trust-store-realm",
+        "server-identities": {
+          "ssl": {
+            "keystore": {
+              "path": "server.p12",
+              "relative-to": "infinispan.server.config.path",
+              "keystore-password": "secret",
+              "alias": "server"
+            },
+            "truststore": {
+              "path": "trust.p12",
+              "relative-to": "infinispan.server.config.path",
+              "password": "secret"
+            }
+          }
+        },
+        "truststore-realm": {}
+      }]
+    }
+  }
+}

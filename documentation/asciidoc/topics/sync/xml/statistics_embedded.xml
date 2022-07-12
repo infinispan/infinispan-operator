@@ -1,0 +1,6 @@
+<infinispan>
+  <cache-container statistics="true">
+    <distributed-cache statistics="true"/>
+    <replicated-cache statistics="true"/>
+  </cache-container>
+</infinispan>

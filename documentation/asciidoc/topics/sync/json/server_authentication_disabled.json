@@ -1,0 +1,9 @@
+{
+  "server": {
+    "endpoints": {
+      "endpoint": {
+        "socket-binding": "default"
+      }
+    }
+  }
+}

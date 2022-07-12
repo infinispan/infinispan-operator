@@ -1,0 +1,19 @@
+{
+  "infinispan": {
+    "cache-container": {
+      "name": "certificate-authentication",
+      "security": {
+        "authorization": {
+          "common-name-role-mapper": null,
+          "roles": {
+            "Client1": {
+              "role": {
+                "permissions": "ALL"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

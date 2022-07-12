@@ -1,0 +1,5 @@
+distributedCache:
+  persistence:
+    clusterLoader:
+      preload: "true"
+      remoteTimeout: "500"

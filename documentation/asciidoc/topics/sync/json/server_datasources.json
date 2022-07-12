@@ -1,0 +1,27 @@
+{
+  "server": {
+    "data-sources": [{
+      "name": "ds",
+      "jndi-name": "jdbc/postgres",
+      "statistics": true,
+      "connection-factory": {
+        "driver": "org.postgresql.Driver",
+        "url": "jdbc:postgresql://localhost:5432/postgres",
+        "username": "postgres",
+        "password": "changeme",
+        "connection-properties": {
+          "name": "value"
+        }
+      },
+      "connection-pool": {
+        "initial-size": 1,
+        "max-size": 10,
+        "min-size": 3,
+        "background-validation": 1000,
+        "idle-removal": 1,
+        "blocking-timeout": 1000,
+        "leak-detection": 10000
+      }
+    }]
+  }
+}

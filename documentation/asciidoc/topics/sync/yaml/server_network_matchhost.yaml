@@ -1,0 +1,5 @@
+server:
+  interfaces:
+    - name: "public"
+      matchHost:
+        value: "my_host_name"

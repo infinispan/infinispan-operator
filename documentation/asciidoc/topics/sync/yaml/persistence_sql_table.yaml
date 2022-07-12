@@ -1,0 +1,9 @@
+distributedCache:
+  persistence:
+    tableJdbcStore:
+      dialect: "H2"
+      shared: "true"
+      tableName: "books"
+      schema:
+        messageName: "books_value"
+        package: "library"

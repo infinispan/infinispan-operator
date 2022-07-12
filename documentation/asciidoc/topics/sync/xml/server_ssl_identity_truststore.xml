@@ -1,0 +1,17 @@
+<server xmlns="urn:infinispan:server:{schemaversion}">
+  <security>
+    <security-realms>
+      <security-realm name="default">
+        <server-identities>
+          <ssl>
+            <!-- Adds a keystore that contains server certificates that provide SSL/TLS identities to clients. -->
+            <keystore path="server.p12"
+                      relative-to="infinispan.server.config.path"
+                      password="secret"
+                      alias="my-server"/>
+          </ssl>
+        </server-identities>
+      </security-realm>
+    </security-realms>
+  </security>
+</server>

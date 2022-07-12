@@ -1,0 +1,4 @@
+server:
+  interfaces:
+    - name: "public"
+      siteLocal: ~

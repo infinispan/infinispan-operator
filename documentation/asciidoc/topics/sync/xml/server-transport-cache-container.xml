@@ -1,0 +1,5 @@
+<infinispan>
+  <cache-container>
+    <transport server:security-realm="cluster-transport"/>
+  </cache-container>
+</infinispan>

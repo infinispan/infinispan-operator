@@ -1,0 +1,5 @@
+<distributed-cache>
+  <persistence>
+    <cluster-loader preload="true" remote-timeout="500"/>
+  </persistence>
+</distributed-cache>

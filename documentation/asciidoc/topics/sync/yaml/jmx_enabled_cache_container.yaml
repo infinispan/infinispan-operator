@@ -1,0 +1,6 @@
+infinispan:
+  cacheContainer:
+    statistics: "true"
+    jmx:
+      enabled: "true"
+      domain: "example.com"

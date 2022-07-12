@@ -1,0 +1,8 @@
+{
+  "server": {
+    "interfaces": [{
+      "name": "public",
+      "link_local": null
+    }]
+  }
+}

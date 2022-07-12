@@ -1,0 +1,16 @@
+<infinispan>
+  <jgroups>
+    <stack name="xsite" extends="udp">
+      <relay.RELAY2 xmlns="urn:org:jgroups"
+                    site="LON"
+                    max_site_masters="1000"/>
+      <remote-sites default-stack="tcp">
+        <remote-site name="LON"/>
+        <remote-site name="NYC"/>
+      </remote-sites>
+    </stack>
+  </jgroups>
+  <cache-container>
+    <transport cluster="${cluster.name}" stack="xsite"/>
+  </cache-container>
+</infinispan>

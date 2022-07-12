@@ -1,0 +1,27 @@
+[ {
+  "status" : "RUNNING",
+  "name" : "cache1",
+  "type" : "local-cache",
+  "simple_cache" : false,
+  "transactional" : false,
+  "persistent" : false,
+  "bounded": false,
+  "secured": false,
+  "indexed": true,
+  "has_remote_backup": true,
+  "health":"HEALTHY",
+  "rebalancing_enabled": true
+}, {
+  "status" : "RUNNING",
+  "name" : "cache2",
+  "type" : "distributed-cache",
+  "simple_cache" : false,
+  "transactional" : true,
+  "persistent" : false,
+  "bounded": false,
+  "secured": false,
+  "indexed": true,
+  "has_remote_backup": true,
+  "health":"HEALTHY",
+  "rebalancing_enabled": false
+}]

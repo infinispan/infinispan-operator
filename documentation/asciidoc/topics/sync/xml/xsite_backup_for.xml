@@ -1,0 +1,8 @@
+<distributed-cache name="eu-customers">
+  <backups>
+    <backup site="LON"
+            strategy="ASYNC" />
+  </backups>
+  <backup-for remote-cache="customers"
+              remote-site="LON" />
+</distributed-cache>

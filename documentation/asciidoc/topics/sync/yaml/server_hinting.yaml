@@ -1,0 +1,6 @@
+cacheContainer:
+  transport:
+    cluster: "MyCluster"
+    machine: "LinuxServer01"
+    rack: "Rack01"
+    site: "US-WestCoast"

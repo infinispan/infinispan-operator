@@ -1,0 +1,5 @@
+<distributed-cache>
+  <security>
+    <authorization roles="admin supervisor"/>
+  </security>
+</distributed-cache>

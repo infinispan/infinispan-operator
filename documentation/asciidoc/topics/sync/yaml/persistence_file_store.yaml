@@ -1,0 +1,11 @@
+distributedCache:
+  persistence:
+    passivation: "true"
+    fileStore:
+      shared: "false"
+      data:
+        path: "data"
+      index:
+        path: "index"
+      writeBehind:
+        modificationQueueSize: "2048"

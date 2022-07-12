@@ -1,0 +1,4 @@
+server:
+  endpoints:
+    endpoint:
+      socketBinding: "default"
