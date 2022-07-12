@@ -236,8 +236,7 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 
 func (z *zeroCapacityController) execute(ispnClient api.Infinispan, request reconcile.Request, instance zeroCapacityResource, ctx context.Context) (reconcile.Result, error) {
 	if !z.isZeroPodReady(request, ctx) {
-		// Don't requeue as reconcile request is received when the zero pod becomes ready
-		return reconcile.Result{}, nil
+		return reconcile.Result{RequeueAfter: time.Second}, nil
 	}
 
 	if err := instance.Exec(ispnClient); err != nil {

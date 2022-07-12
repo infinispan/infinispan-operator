@@ -109,6 +109,8 @@ const (
 type Status string
 
 const (
+	// StatusNotFound means that the operation could not be found.
+	StatusNotFound Status = "NotFound"
 	// StatusSucceeded means that the operation has completed.
 	StatusSucceeded Status = "Succeeded"
 	// StatusRunning means that the operation is in progress.

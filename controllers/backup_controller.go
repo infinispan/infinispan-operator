@@ -195,7 +195,16 @@ func (r *backupResource) Exec(client api.Infinispan) error {
 		Directory: BackupDataMountPath,
 		Resources: resources,
 	}
-	return client.Container().Backups().Create(instance.Name, config)
+
+	status, err := client.Container().Backups().Status(instance.Name)
+	if err != nil {
+		return fmt.Errorf("unable to obtain Backup status: %w", err)
+	}
+
+	if status == api.StatusNotFound {
+		return client.Container().Backups().Create(instance.Name, config)
+	}
+	return nil
 }
 
 func (r *backupResource) ExecStatus(client api.Infinispan) (zeroCapacityPhase, error) {
