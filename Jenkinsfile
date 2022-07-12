@@ -42,139 +42,146 @@ pipeline {
     }
 
     stages {
-        stage('Build') {
-            steps {
-                sh 'go mod vendor'
-                sh 'make lint'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'make test'
-            }
-        }
-
-        stage('E2E') {
-            environment {
-                CHANGE_TARGET = "${env.CHANGE_TARGET}"
-            }
+        stage('Execute') {
             when {
-                expression {
-                    return !env.BRANCH_NAME.startsWith('PR-') || sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
+                anyOf {
+                    changeset "go.*"
+                    changeset "**/*.go"
+                    changeset "pkg/**/*"
+                    changeset "test/**/*"
+                    changeset "Dockerfile"
+                    changeset "scripts/**/*"
+                    changeset "config/**/*"
                 }
             }
             stages {
-                stage('Prepare') {
-                    steps{
-                        sh 'kind delete clusters --all'
-                        sh 'cleanup.sh'
-                        // Ensure that we always have the latest version of the server image locally
-                        sh "docker pull $SERVER_IMAGE"
-                        sh 'make go-junit-report'
+                stage('Build') {
+                    steps {
+                        sh 'go mod vendor'
+                        sh 'make lint'
                     }
                 }
 
-                stage('Create k8s Cluster') {
+                stage('Unit Test') {
                     steps {
-                        sh 'scripts/ci/kind-with-olm.sh'
-                        writeFile file: "${KUBECONFIG}", text: sh(script: 'kind get kubeconfig', , returnStdout: true)
-
-                        script {
-                            env.TESTING_CONTEXT = sh(script: 'kubectl --insecure-skip-tls-verify config current-context', , returnStdout: true).trim()
-                        }
-
-                        sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
-                        sh 'scripts/ci/install-catalog-source.sh'
-                        sh 'make install'
-                        // Create the Operator image so that it can be used for ConfigListener deployments
-                        sh "make operator-build operator-push IMG=$CONFIG_LISTENER_IMAGE"
+                        sh 'make test'
                     }
                 }
 
-                stage('Infinispan') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh "make infinispan-test PARALLEL_COUNT=5"
+                stage('E2E') {
+                    stages {
+                        stage('Prepare') {
+                            steps{
+                                sh 'kind delete clusters --all'
+                                sh 'cleanup.sh'
+                                // Ensure that we always have the latest version of the server image locally
+                                sh "docker pull $SERVER_IMAGE"
+                                sh 'make go-junit-report'
+                            }
                         }
-                    }
-                }
 
-                stage('Cache') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh "make cache-test PARALLEL_COUNT=5"
+                        stage('Create k8s Cluster') {
+                            steps {
+                                sh 'scripts/ci/kind-with-olm.sh'
+                                writeFile file: "${KUBECONFIG}", text: sh(script: 'kind get kubeconfig', , returnStdout: true)
+
+                                script {
+                                    env.TESTING_CONTEXT = sh(script: 'kubectl --insecure-skip-tls-verify config current-context', , returnStdout: true).trim()
+                                }
+
+                                sh "kubectl delete namespace $TESTING_NAMESPACE --wait=true || true"
+                                sh 'scripts/ci/install-catalog-source.sh'
+                                sh 'make install'
+                                // Create the Operator image so that it can be used for ConfigListener deployments
+                                sh "make operator-build operator-push IMG=$CONFIG_LISTENER_IMAGE"
+                            }
                         }
-                    }
-                }
 
-                stage('Batch') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make batch-test PARALLEL_COUNT=5'
+                        stage('Infinispan') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh "make infinispan-test PARALLEL_COUNT=5"
+                                }
+                            }
                         }
-                    }
-                }
 
-                stage('Multinamespace') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh "kubectl config use-context $TESTING_CONTEXT"
-                            sh 'make multinamespace-test'
+                        stage('Cache') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh "make cache-test PARALLEL_COUNT=5"
+                                }
+                            }
                         }
-                    }
-                }
 
-                stage('Backup/Restore') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make backuprestore-test INFINISPAN_CPU=500m'
+                        stage('Batch') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh 'make batch-test PARALLEL_COUNT=5'
+                                }
+                            }
                         }
-                    }
-                }
 
-                stage('Webhook') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make webhook-test PARALLEL_COUNT=5'
+                        stage('Multinamespace') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh "kubectl config use-context $TESTING_CONTEXT"
+                                    sh 'make multinamespace-test'
+                                }
+                            }
                         }
-                    }
-                }
 
-                stage('Hot Rod Rolling Upgrade') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make hotrod-upgrade-test'
+                        stage('Backup/Restore') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh 'make backuprestore-test INFINISPAN_CPU=500m'
+                                }
+                            }
                         }
-                    }
-                }
 
-                stage('Upgrade') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
+                        stage('Webhook') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh 'make webhook-test PARALLEL_COUNT=5'
+                                }
+                            }
                         }
-                    }
-                }
 
-                stage('Xsite') {
-                    steps {
-                        catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                            sh 'scripts/ci/configure-xsite.sh'
-                            sh 'make xsite-test'
+                        stage('Hot Rod Rolling Upgrade') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh 'make hotrod-upgrade-test'
+                                }
+                            }
                         }
-                    }
 
-                    post {
-                        failure {
-                            debugKind(true, 'kind-xsite1', 'kind-xsite2')
+                        stage('Upgrade') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
+                                }
+                            }
                         }
-                    }
-                }
 
-                stage('Publish test results') {
-                    steps {
-                        junit testResults: 'test/reports/*.xml', skipPublishingChecks: true
+                        stage('Xsite') {
+                            steps {
+                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                                    sh 'scripts/ci/configure-xsite.sh'
+                                    sh 'make xsite-test'
+                                }
+                            }
+
+                            post {
+                                failure {
+                                    debugKind(true, 'kind-xsite1', 'kind-xsite2')
+                                }
+                            }
+                        }
+
+                        stage('Publish test results') {
+                            steps {
+                                junit testResults: 'test/reports/*.xml', skipPublishingChecks: true
+                            }
+                        }
                     }
                 }
             }
