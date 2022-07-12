@@ -21,6 +21,11 @@ jobs:
         ref: main
         path: infinispan
 
+    - name: Wipe the sync directory
+      run: |
+        cd documentation/asciidoc/topics/sync
+        rm -rf *
+
     - name: Sync docs
       run: |
         rsync -vr --delete \
