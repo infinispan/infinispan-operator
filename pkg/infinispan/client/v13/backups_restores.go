@@ -94,7 +94,7 @@ func status(url, name, op string, client httpClient.HttpClient) (api.Status, err
 	case http.StatusAccepted:
 		return api.StatusRunning, nil
 	case http.StatusNotFound:
-		return api.StatusUnknown, fmt.Errorf("unable to retrieve %s with name '%s' from the server", op, name)
+		return api.StatusNotFound, nil
 	case http.StatusInternalServerError:
 		return api.StatusFailed, fmt.Errorf("unable to retrieve %s with name '%s' due to server error: '%s'", op, name, bodyOrStatus(rsp))
 	default:
