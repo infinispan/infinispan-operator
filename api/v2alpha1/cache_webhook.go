@@ -126,8 +126,8 @@ func (cv *cacheValidator) Create(ctx context.Context, c *Cache) error {
 		allErrs = append(allErrs, field.InternalError(field.NewPath("spec").Child("name"), err))
 	} else {
 		for _, cache := range list.Items {
-			if c.Spec.Name == cache.Spec.Name {
-				msg := fmt.Sprintf("Cache CR already exists with spec.Name '%s'", c.Spec.Name)
+			if c.Spec.Name == cache.Spec.Name && c.Spec.ClusterName == cache.Spec.ClusterName {
+				msg := fmt.Sprintf("Cache CR already exists for cluster '%s' with spec.Name '%s'", c.Spec.ClusterName, c.Spec.Name)
 				allErrs = append(allErrs, field.Duplicate(field.NewPath("spec").Child("name"), msg))
 			}
 		}
