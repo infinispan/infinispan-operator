@@ -131,7 +131,7 @@ var _ = Describe("Cache Webhook", func() {
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 		})
 
-		It("Should prevent two Cache CRs being created with the same spec.cacheName", func() {
+		It("Should prevent two Cache CRs being created with the same spec.cacheName and spec.clusterName", func() {
 
 			original := &Cache{
 				ObjectMeta: metav1.ObjectMeta{
@@ -149,7 +149,27 @@ var _ = Describe("Cache Webhook", func() {
 			Expect(k8sClient.Create(ctx, original)).Should(Succeed())
 
 			err := k8sClient.Create(ctx, duplicate)
-			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueDuplicate, "spec.name", "Cache CR already exists with spec.Name 'some-cache'"})
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueDuplicate, "spec.name", "Cache CR already exists for cluster"})
+		})
+
+		It("Should allow two Cache CRs with the same spec.Name to be created for different clusters", func() {
+
+			cluster1Cache := &Cache{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: CacheSpec{
+					ClusterName: "some-cluster",
+					Name:        "some-cache",
+				},
+			}
+			cluster2Cache := cluster1Cache.DeepCopy()
+			cluster2Cache.Name = key.Name + "1"
+			cluster2Cache.Spec.ClusterName = "another-cluster"
+
+			Expect(k8sClient.Create(ctx, cluster1Cache)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, cluster2Cache)).Should(Succeed())
 		})
 	})
 })
