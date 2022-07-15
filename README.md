@@ -20,22 +20,37 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 We utilise [Skaffold](https://skaffold.dev/) to drive CI/CD, so you will need to download the latest binary in order to
 follow the steps below:
 
-## Kind Cluster
+## Setup a Kind (Kubernetes) Cluster
 
-Create a local kind cluster backed by a local docker repository, with [OLM](https://olm.operatorframework.io/) and
-[cert-manager](https://cert-manager.io) installed:
+Create a local kind cluster backed by a local docker repository, with [OLM](https://olm.operatorframework.io/)
 
 ```sh
-./hack/kind.sh`
+./scripts/ci/kind-with-olm.sh
+```
+
+and install [cert-manager](https://cert-manager.io) on it:
+
+```sh
+make deploy-cert-manager
 ```
 
 ## Development
+
+If you haven't done that, pull the Infinispan server image to the local (Docker or Podman) registry. For instance:
+
+```sh
+docker pull quay.io/infinispan/server:13.0
+```
 
 Build the Operator image and deploy to a cluster:
 
 ```sh
 skaffold dev
 ```
+
+The `dev` command will make the process follow the logs produced by the remote process.
+Exiting from the process, the image will be undeployed from the cluster.
+See more on [Skaffold Documentation](https://skaffold.dev/docs/).
 
 Changes to the local `**/*.go` files will result in the image being rebuilt and the Operator deployment updated.
 
@@ -53,6 +68,10 @@ Build the Operator image and deploy to a cluster:
 ```sh
 skaffold run
 ```
+
+The `run` command returns immediately after the deploy.
+The image won't be undeployed from the cluster.
+See more on [Skaffold Documentation](https://skaffold.dev/docs/).
 
 ## Remote Repositories
 The `skaffold dev|debug|run` commands can all be used on a remote k8s instance, as long as the built images are accessible
