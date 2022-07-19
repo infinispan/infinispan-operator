@@ -38,7 +38,7 @@ jobs:
         git config --local user.email "infinispan@infinispan.org"
         git config --local user.name "Infinispan"
         git add . --all
-        git commit -m "Synchronized config examples from Infinispan"
+        git diff-index --quiet HEAD || git commit -m "Synchronized config examples from Infinispan"
 
     - name: Push changes to develop
       uses: ad-m/github-push-action@master
