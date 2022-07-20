@@ -122,7 +122,7 @@ func (cv *cacheValidator) Create(ctx context.Context, c *Cache) error {
 
 	// Ensure that a Cache CR does not already exist in this namespace with the same spec.Name
 	list := &CacheList{}
-	if err := cv.client.List(ctx, list); err != nil {
+	if err := cv.client.List(ctx, list, &runtimeClient.ListOptions{Namespace: c.Namespace}); err != nil {
 		allErrs = append(allErrs, field.InternalError(field.NewPath("spec").Child("name"), err))
 	} else {
 		for _, cache := range list.Items {
