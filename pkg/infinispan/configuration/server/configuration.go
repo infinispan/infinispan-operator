@@ -94,27 +94,29 @@ type Endpoints struct {
 // Generate the base and admin configuration files used by the Infinispan server
 func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg string, err error) {
 	v := operand.UpstreamVersion
-	switch v.Major {
-	case 13:
-		if baseCfg, err = templates.LoadAndExecute("infinispan-base-13.xml", funcMap(), spec); err != nil {
-			return
-		}
-
-		admingCfg, err = templates.LoadAndExecute("infinispan-admin-13.xml", funcMap(), spec)
-		return
-	default:
+	if !supportedMajorVersion(v.Major) {
 		return "", "", version.UnknownError(v)
 	}
+
+	baseTemplate := fmt.Sprintf("infinispan-base-%d.xml", v.Major)
+	adminTemplate := fmt.Sprintf("infinispan-admin-%d.xml", v.Major)
+
+	if baseCfg, err = templates.LoadAndExecute(baseTemplate, funcMap(), spec); err != nil {
+		return
+	}
+
+	admingCfg, err = templates.LoadAndExecute(adminTemplate, funcMap(), spec)
+	return
 }
 
 func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
 	v := operand.UpstreamVersion
-	switch v.Major {
-	case 13:
-		return templates.LoadAndExecute("infinispan-zero-13.xml", funcMap(), spec)
-	default:
+	if !supportedMajorVersion(v.Major) {
 		return "", version.UnknownError(v)
 	}
+
+	zeroTemplate := fmt.Sprintf("infinispan-zero-%d.xml", v.Major)
+	return templates.LoadAndExecute(zeroTemplate, funcMap(), spec)
 }
 
 func funcMap() template.FuncMap {
@@ -136,4 +138,8 @@ func funcMap() template.FuncMap {
 			return ret
 		},
 	}
+}
+
+func supportedMajorVersion(v uint64) bool {
+	return v == 13 || v == 14
 }

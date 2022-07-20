@@ -1,0 +1,78 @@
+<infinispan
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="urn:infinispan:config:14.0 https://infinispan.org/schemas/infinispan-config-14.0.xsd
+                        urn:infinispan:server:14.0 https://infinispan.org/schemas/infinispan-server-14.0.xsd
+                        urn:org:jgroups http://www.jgroups.org/schema/jgroups-5.2.xsd"
+    xmlns="urn:infinispan:config:14.0"
+    xmlns:server="urn:infinispan:server:14.0">
+
+<jgroups>
+    <stack name="image-tcp" extends="tcp">
+        <TCP bind_addr="${jgroups.bind.address:SITE_LOCAL}"
+             bind_port="${jgroups.bind.port,jgroups.tcp.port:7800}"
+             diag.enabled="{{ .JGroups.Diagnostics }}"
+             port_range="0"
+        />
+        <dns.DNS_PING dns_query="{{ .StatefulSetName }}-ping.{{ .Namespace }}.svc.cluster.local"
+                      dns_record_type="A"
+                      stack.combine="REPLACE" stack.position="MPING"/>
+        {{ if .JGroups.FastMerge }}
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
+        {{ end }}
+    </stack>
+    {{ if .XSite }} {{ if .XSite.Sites }}
+    <stack name="relay-tunnel" extends="udp">
+        <TUNNEL
+            bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
+            bind_port="${jgroups.relay.bind.port:0}"
+            gossip_router_hosts="{{RemoteSites .XSite.Sites}}"
+            diag.enabled="{{ .JGroups.Diagnostics }}"
+            port_range="0"
+            {{ if .JGroups.FastMerge }}reconnect_interval="1000"{{ end }}
+            stack.combine="REPLACE"
+            stack.position="UDP"
+        />
+        <!-- we are unable to use FD_SOCK with openshift -->
+        <!-- otherwise, we would need 1 external service per pod -->
+        <FD_SOCK2 stack.combine="REMOVE"/>
+        {{ if .JGroups.FastMerge }}
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
+        {{ end }}
+    </stack>
+    <stack name="xsite" extends="image-tcp">
+        <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ (index .XSite.Sites 0).Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}" />
+        <remote-sites default-stack="relay-tunnel">{{ range $it := .XSite.Sites }}
+            <remote-site name="{{ $it.Name }}"/>
+        {{ end }}</remote-sites>
+    </stack>
+    {{ end }} {{ end }}
+</jgroups>
+<server xmlns="urn:infinispan:server:14.0">
+    <interfaces>
+        <interface name="public">
+            <inet-address value="${infinispan.bind.address}"/>
+        </interface>
+    </interfaces>
+    <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">
+        <socket-binding name="admin" port="11223"/>
+    </socket-bindings>
+    <security>
+        <security-realms>
+            <security-realm name="admin">
+                <properties-realm groups-attribute="Roles">
+                    <user-properties path="cli-admin-users.properties" relative-to="infinispan.server.config.path"/>
+                    <group-properties path="cli-admin-groups.properties" relative-to="infinispan.server.config.path"/>
+                </properties-realm>
+            </security-realm>
+        </security-realms>
+    </security>
+    <endpoints>
+        <endpoint socket-binding="admin" security-realm="admin">
+            <rest-connector>
+                <authentication mechanisms="BASIC DIGEST"/>
+            </rest-connector>
+            <hotrod-connector />
+        </endpoint>
+    </endpoints>
+</server>
+</infinispan>

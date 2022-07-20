@@ -36,14 +36,14 @@ var VersionManager = func() *version.Manager {
 		// a real release, but the image tag must differ from the oldest Operand release so that we can ensure the
 		// Pod Image was correctly updated.
 		_ = os.Setenv(ispnv1.OperatorOperandVersionEnvVarName, `[{
-			"upstream-version": "13.0.9",
-			"image": "quay.io/infinispan/server:13.0.9.Final"
-		},{
 			"upstream-version": "13.0.10",
 			"image": "quay.io/infinispan/server:13.0.10.Final"
 		},{
-			"upstream-version": "13.0.11",
-			"image": "quay.io/infinispan/server:13.0",
+			"upstream-version": "14.0.0-CR1",
+			"image": "quay.io/infinispan/server:14.0.0.CR1-2"
+		},{
+			"upstream-version": "14.0.0-CR2",
+			"image": "quay.io/infinispan/server:14.0",
 			"cve": true
 		}]`)
 	}
