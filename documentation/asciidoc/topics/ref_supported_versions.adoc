@@ -11,7 +11,7 @@ You can upgrade the version of your cluster between supported {brandname} versio
 | {brandname} Server versions
 
 | 2.3.0
-| 13.0.9 +
-13.0.10
+| 13.0.10 +
+14.0.0
 
 |===

@@ -1,0 +1,71 @@
+<infinispan
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="urn:infinispan:config:14.0 https://infinispan.org/schemas/infinispan-config-14.0.xsd
+                        urn:infinispan:server:14.0 https://infinispan.org/schemas/infinispan-server-14.0.xsd"
+    xmlns="urn:infinispan:config:14.0"
+    xmlns:server="urn:infinispan:server:14.0">
+
+<jgroups>
+    <stack name="image-tcp" extends="tcp">
+        <TCP bind_addr="${jgroups.bind.address:SITE_LOCAL}"
+             bind_port="${jgroups.bind.port,jgroups.tcp.port:7800}"
+             diag.enabled="{{ .JGroups.Diagnostics }}"
+             port_range="0"
+        />
+        <dns.DNS_PING dns_query="{{ .StatefulSetName }}-ping.{{ .Namespace }}.svc.cluster.local"
+                      dns_record_type="A"
+                      stack.combine="REPLACE" stack.position="MPING"/>
+        {{ if .JGroups.FastMerge }}
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
+        {{ end }}
+    </stack>
+</jgroups>
+<cache-container name="default" statistics="true" zero-capacity-node="true">
+    {{ if .Infinispan.Authorization.Enabled }}
+    <security>
+        <authorization>
+            {{if eq .Infinispan.Authorization.RoleMapper "commonName" }}
+            <common-name-role-mapper />
+            {{ else }}
+            <cluster-role-mapper />
+            {{ end }}
+            {{ if .Infinispan.Authorization.Roles }}
+            {{ range $role :=  .Infinispan.Authorization.Roles }}
+            <role name="{{ $role.Name }}" permissions="{{ $role.Permissions }}"/>
+            {{ end }}
+            {{ end }}
+        </authorization>
+    </security>
+    {{ end }}
+    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}"
+    stack="image-tcp" />
+</cache-container>
+<server xmlns="urn:infinispan:server:14.0">
+    <interfaces>
+        <interface name="public">
+            <inet-address value="${infinispan.bind.address}"/>
+        </interface>
+    </interfaces>
+    <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">
+        <socket-binding name="admin" port="11223"/>
+    </socket-bindings>
+    <security>
+        <security-realms>
+            <security-realm name="admin">
+                <properties-realm groups-attribute="Roles">
+                    <user-properties path="cli-admin-users.properties" relative-to="infinispan.server.config.path"/>
+                    <group-properties path="cli-admin-groups.properties" relative-to="infinispan.server.config.path"/>
+                </properties-realm>
+            </security-realm>
+        </security-realms>
+    </security>
+    <endpoints>
+        <endpoint socket-binding="admin" security-realm="admin">
+            <rest-connector>
+                <authentication mechanisms="BASIC DIGEST"/>
+            </rest-connector>
+            <hotrod-connector />
+        </endpoint>
+    </endpoints>
+</server>
+</infinispan>

@@ -2,7 +2,7 @@
 # Modified version of the script found at https://kind.sigs.k8s.io/docs/user/local-registry/#create-a-cluster-and-registry
 set -o errexit
 
-SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:13.0'}
+SERVER_TAGS=${SERVER_TAGS:-'13.0.10.Final 14.0.0.CR1-2'}
 KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.17.17'}
 KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
 
@@ -38,8 +38,10 @@ EOF
 # (the network may already be connected)
 docker network connect "kind" "${reg_name}" || true
 
-# Attempt to load the server image to prevent it being pulled again
-kind load docker-image $SERVER_IMAGE
+# Attempt to load the servers image to prevent them being pulled again
+for tag in ${SERVER_TAGS}; do
+  kind load docker-image "quay.io/infinispan/server:${tag}" || true]
+done
 
 # Document the local registry
 # https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry

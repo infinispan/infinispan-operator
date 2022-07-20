@@ -50,11 +50,11 @@ spec:
           - name: INFINISPAN_OPERAND_VERSIONS
             value: |-
               [{
-                "upstream-version": "13.0.9",
-                "image": "quay.io/infinispan/server:13.0.9.Final"
-              },{
                 "upstream-version": "13.0.10",
                 "image": "quay.io/infinispan/server:13.0.10.Final"
+              },{
+                "upstream-version": "14.0.0-CR1",
+                "image": "quay.io/infinispan/server:14.0.0.CR1"
               }]
           - name: POD_NAME
             valueFrom:
