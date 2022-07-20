@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 
 	// +kubebuilder:scaffold:imports
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -170,6 +171,38 @@ var _ = Describe("Cache Webhook", func() {
 
 			Expect(k8sClient.Create(ctx, cluster1Cache)).Should(Succeed())
 			Expect(k8sClient.Create(ctx, cluster2Cache)).Should(Succeed())
+		})
+
+		It("Should allow two Cache CRs being created with the same spec.cacheName and spec.clusterName in different namespaces", func() {
+
+			namespace1Cache := &Cache{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: CacheSpec{
+					ClusterName: "some-cluster",
+					Name:        "some-cache",
+				},
+			}
+
+			namespace2 := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "another-namespace",
+				},
+			}
+
+			namespace2Cache := namespace1Cache.DeepCopy()
+			namespace2Cache.Namespace = namespace2.Name
+
+			cleanup := func() {
+				_ = k8sClient.Delete(ctx, namespace2)
+			}
+			defer cleanup()
+
+			Expect(k8sClient.Create(ctx, namespace2)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, namespace1Cache)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, namespace2Cache)).Should(Succeed())
 		})
 	})
 })
