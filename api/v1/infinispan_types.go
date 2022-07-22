@@ -140,6 +140,8 @@ type InfinispanServiceSpec struct {
 // InfinispanContainerSpec specify resource requirements per container
 type InfinispanContainerSpec struct {
 	// +optional
+	CliExtraJvmOpts string `json:"cliExtraJvmOpts,omitempty"`
+	// +optional
 	ExtraJvmOpts string `json:"extraJvmOpts,omitempty"`
 	// +optional
 	Memory string `json:"memory,omitempty"`
