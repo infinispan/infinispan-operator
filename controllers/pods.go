@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-
 	"strconv"
 	"strings"
 
@@ -123,6 +122,7 @@ func PodEnv(i *infinispanv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.Env
 		{Name: "MANAGED_ENV", Value: "TRUE"},
 		{Name: "JAVA_OPTIONS", Value: i.GetJavaOptions()},
 		{Name: "EXTRA_JAVA_OPTIONS", Value: i.Spec.Container.ExtraJvmOpts},
+		{Name: "CLI_JAVA_OPTIONS", Value: i.Spec.Container.CliExtraJvmOpts},
 		{Name: "DEFAULT_IMAGE", Value: consts.DefaultImageName},
 	}
 

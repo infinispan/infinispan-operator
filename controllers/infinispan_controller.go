@@ -1504,6 +1504,9 @@ func (r *infinispanRequest) reconcileContainerConf(statefulSet *appsv1.StatefulS
 		updateStatefulSetEnv(statefulSet, "JAVA_OPTIONS", ispn.GetJavaOptions())
 		updateNeeded = true
 	}
+	if updateStatefulSetEnv(statefulSet, "CLI_JAVA_OPTIONS", ispnContr.CliExtraJvmOpts) {
+		updateNeeded = true
+	}
 
 	if updateNeeded {
 		r.reqLogger.Info("updateNeeded")
