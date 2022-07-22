@@ -101,6 +101,7 @@ func PodEnv(i *ispnv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {
 		{Name: "MANAGED_ENV", Value: "TRUE"},
 		{Name: "JAVA_OPTIONS", Value: i.GetJavaOptions()},
 		{Name: "EXTRA_JAVA_OPTIONS", Value: i.Spec.Container.ExtraJvmOpts},
+		{Name: "CLI_JAVA_OPTIONS", Value: i.Spec.Container.CliExtraJvmOpts},
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var

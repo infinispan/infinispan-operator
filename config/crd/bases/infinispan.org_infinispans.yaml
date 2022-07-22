@@ -681,6 +681,8 @@ spec:
                 description: InfinispanContainerSpec specify resource requirements
                   per container
                 properties:
+                  cliExtraJvmOpts:
+                    type: string
                   cpu:
                     type: string
                   extraJvmOpts:
