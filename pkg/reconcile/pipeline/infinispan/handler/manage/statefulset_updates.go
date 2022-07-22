@@ -159,6 +159,9 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		updateStatefulSetEnv(container, statefulSet, "JAVA_OPTIONS", i.GetJavaOptions())
 		updateNeeded = true
 	}
+	if updateStatefulSetEnv(container, statefulSet, "CLI_JAVA_OPTIONS", ispnContr.CliExtraJvmOpts) {
+		updateNeeded = true
+	}
 
 	if updateNeeded {
 		log.Info("updateNeeded")
