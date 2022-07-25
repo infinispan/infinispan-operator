@@ -300,46 +300,22 @@ func (ispn *Infinispan) GetRemoteSiteServiceName(locationName string) string {
 
 // GetSiteRouteName returns the local Route name for cross-site replication
 func (ispn *Infinispan) GetSiteRouteName() string {
-	return getCrossSiteRouteName(ispn.Name, ispn.Namespace, strings.TrimSpace(ispn.Spec.Service.Sites.Local.Expose.RouteHostName) != "")
+	name := ispn.Name
+	maxNameLength := MaxRouteObjectNameLength - len(SiteRouteNameSuffix)
+	if len(name) >= maxNameLength {
+		name = name[0 : maxNameLength-1]
+	}
+	return name + SiteRouteNameSuffix
 }
 
 // GetRemoteSiteRouteName return the remote Route name for cross-site replication
-func (ispn *Infinispan) GetRemoteSiteRouteName(locationName string, customRoute bool) string {
-	remoteLocation := ispn.GetRemoteSiteLocations()[locationName]
-	return getCrossSiteRouteName(remoteLocation.Name, remoteLocation.Namespace, customRoute)
-}
-
-func getCrossSiteRouteName(name, namespace string, customRouteHostname bool) string {
-	externalName := name + SiteRouteNameSuffix
-
-	if len(externalName) > MaxRouteObjectNameLength {
-		externalName = externalName[0 : MaxRouteObjectNameLength-2]
-		// GetServiceExternalName appends "a" when truncates the name
-		externalName += "b"
+func (ispn *Infinispan) GetRemoteSiteRouteName(locationName string) string {
+	name := ispn.GetRemoteSiteClusterName(locationName)
+	maxNameLength := MaxRouteObjectNameLength - len(SiteRouteNameSuffix)
+	if len(name) >= maxNameLength {
+		name = name[0 : maxNameLength-1]
 	}
-
-	if customRouteHostname {
-		return externalName
-	}
-	// Openshift sets hostname with "name" + "-" + "namespace"
-	totalLength := len(externalName) + len(namespace) + 1
-
-	if totalLength <= MaxRouteObjectNameLength {
-		// the name fits
-		return externalName
-	}
-
-	// (-3) comes from the '-' between namespace and name and we append 'b'
-	maxExternalNameLength := MaxRouteObjectNameLength - len(namespace) - 2
-	if maxExternalNameLength <= 0 {
-		// nothing we can do, it won't fit
-		return externalName
-	}
-
-	externalName = externalName[0:maxExternalNameLength]
-	// GetServiceExternalName appends "a" when truncates the name
-	externalName += "-b"
-	return externalName
+	return name + SiteRouteNameSuffix
 }
 
 func (ispn *Infinispan) GetRemoteSiteServiceFQN(locationName string) string {

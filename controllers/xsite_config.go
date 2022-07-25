@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -15,6 +14,7 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -117,33 +117,41 @@ func appendRemoteLocation(ctx context.Context, infinispan *ispnv1.Infinispan, re
 
 func appendKubernetesRemoteLocation(ctx context.Context, infinispan *ispnv1.Infinispan, remoteLocationName string, remoteKubernetes *kube.Kubernetes, logger logr.Logger, eventRec record.EventRecorder, xsite *config.XSite) error {
 	remoteNamespace := infinispan.GetRemoteSiteNamespace(remoteLocationName)
-	remoteClusterName := infinispan.GetRemoteSiteClusterName(remoteLocationName)
+	remoteServiceName := infinispan.GetRemoteSiteServiceName(remoteLocationName)
+	remoteRouteName := infinispan.GetRemoteSiteRouteName(remoteLocationName)
 
-	remoteIspn := &ispnv1.Infinispan{}
-	if err := remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteClusterName, Namespace: remoteNamespace}, remoteIspn); err != nil {
-		logger.Error(err, "could not get Infinispan CR from remote cluster", "name", remoteClusterName, "namespace", remoteNamespace, "site", remoteLocationName)
+	routeObj := &reconcileType{
+		ObjectType:   &routev1.Route{},
+		GroupVersion: routev1.SchemeGroupVersion,
+	}
+	routeSupported, err := remoteKubernetes.IsGroupVersionSupported(routeObj.GroupVersion.String(), routeObj.Kind())
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("failed to check if GVK '%s' is supported", routeObj.GroupVersionKind()))
 		return err
 	}
 
-	if remoteIspn.Spec.Service.Sites.Local.Expose.Type == ispnv1.CrossSiteExposeTypeRoute {
-		remoteRouteName := infinispan.GetRemoteSiteRouteName(remoteLocationName, strings.TrimSpace(remoteIspn.Spec.Service.Sites.Local.Expose.RouteHostName) != "")
+	if routeSupported {
 		// Note: we need to lookup the Route first because, even if Route is enabled, the service exists with "ClusterIP".
 		logger.Info("Lookup cross-site route", "Name", remoteRouteName, "Namespace", remoteNamespace)
 		siteRoute := &routev1.Route{}
-		if err := remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteRouteName, Namespace: remoteNamespace}, siteRoute); err != nil {
+		err = remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteRouteName, Namespace: remoteNamespace}, siteRoute)
+		if err == nil {
+			// Route found
+			logger.Info("Remote route found!", "host", siteRoute.Spec.Host)
+			appendBackupSite(remoteLocationName, siteRoute.Spec.Host, 443, xsite)
+			return nil
+		}
+		if err != nil && !errors.IsNotFound(err) {
+			// unexpected error
 			logger.Error(err, "could not get x-site Route in remote cluster", "site route name", remoteRouteName, "site namespace", remoteNamespace)
 			return err
 		}
-		logger.Info("Remote route found!", "host", siteRoute.Spec.Host)
-		appendBackupSite(remoteLocationName, siteRoute.Spec.Host, 443, xsite)
-		return nil
 	}
 
-	remoteServiceName := infinispan.GetRemoteSiteServiceName(remoteLocationName)
 	// no Route object found, try the Service
 	logger.Info("Lookup cross-site service", "Name", remoteServiceName, "Namespace", remoteNamespace)
 	siteService := &corev1.Service{}
-	err := remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteServiceName, Namespace: remoteNamespace}, siteService)
+	err = remoteKubernetes.Client.Get(ctx, types.NamespacedName{Name: remoteServiceName, Namespace: remoteNamespace}, siteService)
 	if err != nil {
 		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
 		return err
