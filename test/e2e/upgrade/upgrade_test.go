@@ -13,35 +13,23 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	"github.com/operator-framework/api/pkg/manifests"
 	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
-	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	ctx                   = context.TODO()
-	testKube              = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
-	subName               = constants.GetEnvWithDefault("SUBSCRIPTION_NAME", "infinispan-operator")
-	subNamespace          = constants.GetEnvWithDefault("SUBSCRIPTION_NAMESPACE", tutils.Namespace)
-	catalogSource         = constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE", "test-catalog")
-	catalogSourcNamespace = constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE_NAMESPACE", tutils.Namespace)
-	subPackage            = constants.GetEnvWithDefault("SUBSCRIPTION_PACKAGE", "infinispan")
-
-	packageManifest = testKube.PackageManifest(subPackage, catalogSource)
-	sourceChannel   = getChannel("SUBSCRIPTION_CHANNEL_SOURCE", packageManifest)
-	targetChannel   = getChannel("SUBSCRIPTION_CHANNEL_TARGET", packageManifest)
-
-	subStartingCsv = constants.GetEnvWithDefault("SUBSCRIPTION_STARTING_CSV", sourceChannel.CurrentCSVName)
-
+	ctx              = context.TODO()
+	testKube         = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 	conditionTimeout = 2 * tutils.ConditionWaitTimeout
 )
 
 func TestUpgrade(t *testing.T) {
-	printManifest()
+	olm := testKube.OLMTestEnv()
+	olm.PrintManifest()
+	sourceChannel := olm.SourceChannel
+	targetChannel := olm.TargetChannel
 
 	testKube.NewNamespace(tutils.Namespace)
 	sub := &coreos.Subscription{
@@ -50,35 +38,21 @@ func TestUpgrade(t *testing.T) {
 			Kind:       coreos.SubscriptionKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      subName,
-			Namespace: subNamespace,
+			Name:      olm.SubName,
+			Namespace: olm.SubNamespace,
 		},
 		Spec: &coreos.SubscriptionSpec{
-			Channel:                sourceChannel.Name,
-			CatalogSource:          catalogSource,
-			CatalogSourceNamespace: catalogSourcNamespace,
+			Channel:                olm.SourceChannel.Name,
+			CatalogSource:          olm.CatalogSource,
+			CatalogSourceNamespace: olm.CatalogSourceNamespace,
 			InstallPlanApproval:    coreos.ApprovalManual,
-			Package:                subPackage,
-			StartingCSV:            subStartingCsv,
+			Package:                olm.SubPackage,
+			StartingCSV:            olm.SubStartingCSV,
 		},
 	}
 
-	defer testKube.CleanupOLMTest(t, subName, subNamespace, subPackage)
-	// Create OperatorGroup only if Subscription is created in non-global namespace
-	if subNamespace != "openshift-operators" && subNamespace != "operators" {
-		testKube.CreateOperatorGroup(subName, subNamespace, subNamespace)
-	}
-	testKube.CreateSubscription(sub)
-
-	// Approve the initial startingCSV InstallPlan
-	testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
-	testKube.ApproveInstallPlan(sub)
-
-	testKube.WaitForCrd(&apiextv1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "infinispans.infinispan.org",
-		},
-	})
+	defer testKube.CleanupOLMTest(t, olm.SubName, olm.SubNamespace, olm.SubPackage)
+	testKube.CreateSubscriptionAndApproveInitialVersion(olm, sub)
 
 	// Create the Infinispan CR
 	replicas := 2
@@ -152,7 +126,7 @@ func TestUpgrade(t *testing.T) {
 				assertOperandImage(relatedImageJdk)
 			} else {
 				latestOperand := latestOperand()
-				testKube.WaitForInfinispanState(spec.Name, subNamespace, func(i *ispnv1.Infinispan) bool {
+				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 					return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 						i.Status.Operand.Version == latestOperand.Ref() &&
 						i.Status.Operand.Image == latestOperand.Image &&
@@ -228,35 +202,4 @@ func checkBatch(t *testing.T, name string) {
 	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
 	batchHelper.CreateBatch(t, name, name, &config, nil)
 	batchHelper.WaitForValidBatchPhase(name, v2alpha1.BatchSucceeded)
-}
-
-// Utilise the provided env variable for the channel string if it exists, otherwise retrieve the channel from the PackageManifest
-func getChannel(env string, manifest *manifests.PackageManifest) manifests.PackageChannel {
-	channels := manifest.Channels
-
-	// If an env variable exists, then return the PackageChannel with that name
-	if env, exists := os.LookupEnv(env); exists {
-		for _, channel := range channels {
-			if channel.Name == env {
-				return channel
-			}
-		}
-		panic(fmt.Errorf("unable to find channel with name '%s' in PackageManifest", env))
-	}
-
-	for _, channel := range channels {
-		if channel.Name == manifest.DefaultChannelName {
-			return channel
-		}
-	}
-	return manifests.PackageChannel{}
-}
-
-func printManifest() {
-	bytes, err := yaml.Marshal(packageManifest)
-	tutils.ExpectNoError(err)
-	fmt.Println(string(bytes))
-	fmt.Println("Source channel: " + sourceChannel.Name)
-	fmt.Println("Target channel: " + targetChannel.Name)
-	fmt.Println("Starting CSV: " + subStartingCsv)
 }

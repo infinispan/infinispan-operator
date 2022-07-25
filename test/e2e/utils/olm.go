@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
+	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -24,6 +28,83 @@ import (
 func init() {
 	ExpectNoError(coreosv1.AddToScheme(Scheme))
 	ExpectNoError(coreos.AddToScheme(Scheme))
+}
+
+type OLMEnv struct {
+	CatalogSource          string
+	CatalogSourceNamespace string
+	SubName                string
+	SubNamespace           string
+	SubPackage             string
+	SubStartingCSV         string
+
+	PackageManifest *manifests.PackageManifest
+	SourceChannel   manifests.PackageChannel
+	TargetChannel   manifests.PackageChannel
+}
+
+func (env OLMEnv) PrintManifest() {
+	bytes, err := yaml.Marshal(env.PackageManifest)
+	ExpectNoError(err)
+	fmt.Println(string(bytes))
+	fmt.Println("Source channel: " + env.SourceChannel.Name)
+	fmt.Println("Target channel: " + env.TargetChannel.Name)
+	fmt.Println("Starting CSV: " + env.SubStartingCSV)
+}
+
+func (k TestKubernetes) OLMTestEnv() OLMEnv {
+	env := &OLMEnv{
+		CatalogSource:          constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE", "test-catalog"),
+		CatalogSourceNamespace: constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE_NAMESPACE", Namespace),
+		SubName:                constants.GetEnvWithDefault("SUBSCRIPTION_NAME", "infinispan-operator"),
+		SubNamespace:           constants.GetEnvWithDefault("SUBSCRIPTION_NAMESPACE", Namespace),
+		SubPackage:             constants.GetEnvWithDefault("SUBSCRIPTION_PACKAGE", "infinispan"),
+	}
+	packageManifest := k.PackageManifest(env.SubPackage, env.CatalogSource)
+	env.PackageManifest = packageManifest
+	env.SourceChannel = getChannel("SUBSCRIPTION_CHANNEL_SOURCE", packageManifest)
+	env.TargetChannel = getChannel("SUBSCRIPTION_CHANNEL_TARGET", packageManifest)
+	env.SubStartingCSV = constants.GetEnvWithDefault("SUBSCRIPTION_STARTING_CSV", env.SourceChannel.CurrentCSVName)
+	return *env
+}
+
+// Utilise the provided env variable for the channel string if it exists, otherwise retrieve the channel from the PackageManifest
+func getChannel(env string, manifest *manifests.PackageManifest) manifests.PackageChannel {
+	channels := manifest.Channels
+
+	// If an env variable exists, then return the PackageChannel with that name
+	if env, exists := os.LookupEnv(env); exists {
+		for _, channel := range channels {
+			if channel.Name == env {
+				return channel
+			}
+		}
+		panic(fmt.Errorf("unable to find channel with name '%s' in PackageManifest", env))
+	}
+
+	for _, channel := range channels {
+		if channel.Name == manifest.DefaultChannelName {
+			return channel
+		}
+	}
+	return manifests.PackageChannel{}
+}
+
+func (k TestKubernetes) CreateSubscriptionAndApproveInitialVersion(olm OLMEnv, sub *coreos.Subscription) {
+	// Create OperatorGroup only if Subscription is created in non-global namespace
+	if olm.SubNamespace != "openshift-operators" && olm.SubNamespace != "operators" {
+		k.CreateOperatorGroup(olm.SubName, olm.SubNamespace, olm.SubNamespace)
+	}
+	k.CreateSubscription(sub)
+	// Approve the initial startingCSV InstallPlan
+	k.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
+	k.ApproveInstallPlan(sub)
+
+	k.WaitForCrd(&apiextv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "infinispans.infinispan.org",
+		},
+	})
 }
 
 func (k TestKubernetes) CleanupOLMTest(t *testing.T, subName, subNamespace, subPackage string) {

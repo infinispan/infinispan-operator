@@ -3,10 +3,11 @@ package webhook
 import (
 	"context"
 	"errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -16,26 +17,22 @@ import (
 	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	testifyAssert "github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 var (
-	ctx                   = context.Background()
-	testKube              = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
-	subName               = constants.GetEnvWithDefault("SUBSCRIPTION_NAME", "infinispan-operator")
-	subNamespace          = constants.GetEnvWithDefault("SUBSCRIPTION_NAMESPACE", tutils.Namespace)
-	catalogSource         = constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE", "test-catalog")
-	catalogSourcNamespace = constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE_NAMESPACE", tutils.Namespace)
-	subPackage            = constants.GetEnvWithDefault("SUBSCRIPTION_PACKAGE", "infinispan")
-	packageManifest       = testKube.PackageManifest(subPackage, catalogSource)
+	ctx      = context.Background()
+	testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 )
 
 // This test is to ensure that the Webhooks are deployed correctly with OLM deployments. Webhook semantic tests should
 // be written using Envtest in the api/ packages
 func TestMain(m *testing.M) {
+	olm := testKube.OLMTestEnv()
+	olm.PrintManifest()
+
 	testKube.NewNamespace(tutils.Namespace)
 	// Install Operator via Subscription
 	sub := &coreos.Subscription{
@@ -44,14 +41,14 @@ func TestMain(m *testing.M) {
 			Kind:       coreos.SubscriptionKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      subName,
-			Namespace: subNamespace,
+			Name:      olm.SubName,
+			Namespace: olm.SubNamespace,
 		},
 		Spec: &coreos.SubscriptionSpec{
-			Channel:                packageManifest.DefaultChannelName,
-			CatalogSource:          catalogSource,
-			CatalogSourceNamespace: catalogSourcNamespace,
-			Package:                subPackage,
+			Channel:                olm.PackageManifest.DefaultChannelName,
+			CatalogSource:          olm.CatalogSource,
+			CatalogSourceNamespace: olm.CatalogSourceNamespace,
+			Package:                olm.SubPackage,
 			Config: coreos.SubscriptionConfig{
 				Env: []corev1.EnvVar{{
 					Name:  ispnv1.OperatorTargetLabelsEnvVarName,
@@ -70,25 +67,15 @@ func TestMain(m *testing.M) {
 		},
 	}
 	// Defer in case a panic is encountered by one of the tests
-	defer testKube.CleanupOLMTest(nil, subName, subNamespace, subPackage)
+	defer testKube.CleanupOLMTest(nil, olm.SubName, olm.SubNamespace, olm.SubPackage)
 
-	// Create OperatorGroup only if Subscription is created in non-global namespace
-	if subNamespace != "openshift-operators" && subNamespace != "operators" {
-		testKube.CreateOperatorGroup(subName, subNamespace, subNamespace)
-	}
-	testKube.CreateSubscription(sub)
-
-	testKube.WaitForCrd(&apiextv1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "infinispans.infinispan.org",
-		},
-	})
-	testKube.WaitForDeployment("infinispan-operator-controller-manager", subNamespace)
+	testKube.CreateSubscriptionAndApproveInitialVersion(olm, sub)
+	testKube.WaitForDeployment("infinispan-operator-controller-manager", olm.SubNamespace)
 
 	// We must ensure that the Operator pods have the defined environment variables available
 	// https://github.com/operator-framework/operator-lifecycle-manager/issues/2725
 	testKube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{
-		Namespace:     subNamespace,
+		Namespace:     olm.SubNamespace,
 		LabelSelector: labels.SelectorFromSet(map[string]string{"app.kubernetes.io/name": "infinispan-operator"}),
 	}, func(pods []corev1.Pod) bool {
 		for _, pod := range pods {
@@ -102,7 +89,7 @@ func TestMain(m *testing.M) {
 	})
 
 	code := m.Run()
-	testKube.CleanupOLMTest(nil, subName, subNamespace, subPackage)
+	testKube.CleanupOLMTest(nil, olm.SubName, olm.SubNamespace, olm.SubPackage)
 	os.Exit(code)
 }
 
