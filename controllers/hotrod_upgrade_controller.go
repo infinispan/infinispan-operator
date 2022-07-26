@@ -206,6 +206,7 @@ func getSourceStatefulSetName(ispn *ispnv1.Infinispan) string {
 
 // createNewStatefulSet Creates a new statefulSet to migrate the existing cluster to
 func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error) {
+	i := r.infinispan
 	// Reconcile configmap with new DNS query
 	configMap, result, err := r.reconcileNewConfigMap()
 	if err != nil {
@@ -217,32 +218,32 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 		return reconcile.Result{}, err
 	}
 
-	// Obtain existing statefulSet
-	namespace := r.infinispan.Namespace
-	statefulSetName := r.infinispan.GetStatefulSetName()
+	// Retrieve the current StatefulSet
+	namespace := i.Namespace
+	statefulSetName := i.GetStatefulSetName()
 	sourceStatefulSet := &appsv1.StatefulSet{}
-	if result, err := kube.LookupResource(statefulSetName, namespace, sourceStatefulSet, r.infinispan, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+	if result, err := kube.LookupResource(statefulSetName, namespace, sourceStatefulSet, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
 		return *result, fmt.Errorf("error obtaining the existing statefulSet '%s': %w", statefulSetName, err)
 	}
 
 	// Redirect the admin service to the current statefulSet
-	result, err = r.redirectServiceToStatefulSet(r.infinispan.GetAdminServiceName(), r.currentStatefulSet)
+	result, err = r.redirectServiceToStatefulSet(i.GetAdminServiceName(), r.currentStatefulSet)
 	if err != nil {
 		return result, err
 	}
 	// Redirect the ping service to the current statefulSet
-	result, err = r.redirectServiceToStatefulSet(r.infinispan.GetPingServiceName(), r.currentStatefulSet)
+	result, err = r.redirectServiceToStatefulSet(i.GetPingServiceName(), r.currentStatefulSet)
 	if err != nil {
 		return result, err
 	}
 	// Redirect the user service to the current statefulSet
-	result, err = r.redirectServiceToStatefulSet(r.infinispan.GetServiceName(), r.currentStatefulSet)
+	result, err = r.redirectServiceToStatefulSet(i.GetServiceName(), r.currentStatefulSet)
 	if err != nil {
 		return result, err
 	}
 	// Redirect the nodePort service to the current statefulSet
-	if r.infinispan.IsExposed() {
-		result, err = r.redirectServiceToStatefulSet(r.infinispan.GetServiceExternalName(), r.currentStatefulSet)
+	if i.IsExposed() {
+		result, err = r.redirectServiceToStatefulSet(i.GetServiceExternalName(), r.currentStatefulSet)
 		if err != nil {
 			return result, err
 		}
@@ -250,14 +251,67 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 
 	// Create a new statefulSet based on the existing one
 	targetStatefulSet := &appsv1.StatefulSet{}
-	targetStatefulSetName := getOrCreateTargetStatefulSetName(r.infinispan)
+	targetStatefulSetName := getOrCreateTargetStatefulSetName(i)
 	err = r.Get(r.ctx, types.NamespacedName{Namespace: namespace, Name: targetStatefulSetName}, targetStatefulSet)
 
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return result, err
 		}
-		targetStatefulSet := sourceStatefulSet.DeepCopy()
+
+		var userSecret *corev1.Secret
+		if i.IsAuthenticationEnabled() {
+			userSecret = &corev1.Secret{}
+			if result, err := kube.LookupResource(i.GetSecretName(), i.Namespace, userSecret, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+				return *result, err
+			}
+		}
+
+		adminSecret := &corev1.Secret{}
+		if result, err := kube.LookupResource(i.GetAdminSecretName(), i.Namespace, adminSecret, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+			return *result, err
+		}
+
+		var keystoreSecret *corev1.Secret
+		if i.IsEncryptionEnabled() {
+			keystoreSecret = &corev1.Secret{}
+			if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+				return *result, err
+			}
+		}
+
+		var trustSecret *corev1.Secret
+		if i.IsClientCertEnabled() {
+			trustSecret = &corev1.Secret{}
+			if result, err := kube.LookupResource(i.GetTruststoreSecretName(), i.Namespace, trustSecret, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+				return *result, err
+			}
+		}
+
+		// Create infinispanRequest so that we can reuse existing infinispan_controller logic
+		infinispanRequest := &infinispanRequest{
+			InfinispanReconciler: &InfinispanReconciler{
+				Client:     r.Client,
+				scheme:     r.scheme,
+				kubernetes: r.kubernetes,
+				eventRec:   r.eventRec,
+			},
+			ctx:        r.ctx,
+			infinispan: i,
+			reqLogger:  r.reqLogger,
+		}
+
+		userOverlay, result, err := infinispanRequest.userOverlayConfig(i)
+		if result != nil {
+			return *result, err
+		}
+
+		targetStatefulSet, err := infinispanRequest.statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret, configMap, userOverlay)
+		if err != nil {
+			r.reqLogger.Error(err, "unable to create Target StatefulSet")
+			return ctrl.Result{}, err
+		}
+
 		volumes := targetStatefulSet.Spec.Template.Spec.Volumes
 		// Change the config name
 		for _, volume := range volumes {
@@ -308,7 +362,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 	}
 
 	// Check if cluster is well-formed
-	conditions := getInfinispanConditions(podList.Items, r.infinispan, r.curl)
+	conditions := getInfinispanConditions(podList.Items, i, r.curl)
 	r.reqLogger.Info(fmt.Sprintf("Cluster conditions: %v", conditions))
 	for _, condition := range conditions {
 		if condition.Type == ispnv1.ConditionWellFormed {
