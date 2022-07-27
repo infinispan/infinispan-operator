@@ -561,8 +561,8 @@ func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duratio
 	}, nil)
 }
 
-func (k TestKubernetes) WaitForInfinispanPodsCreatedBy(required int, timeout time.Duration, createdByLabel string, namespace string) {
-	k.WaitForPods(required, timeout, &client.ListOptions{
+func (k TestKubernetes) WaitForInfinispanPodsCreatedBy(required int, timeout time.Duration, createdByLabel string, namespace string) *corev1.PodList {
+	return k.WaitForPods(required, timeout, &client.ListOptions{
 		Namespace:     namespace,
 		LabelSelector: labels.SelectorFromSet(map[string]string{consts.StatefulSetPodLabel: createdByLabel}),
 	}, nil)
