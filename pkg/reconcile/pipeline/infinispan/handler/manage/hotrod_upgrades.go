@@ -31,11 +31,48 @@ type HotRodRollingUpgradeRequest struct {
 
 var nameRegexp = regexp.MustCompile(`(.*)-([\d]+$)`)
 
+func hotRodRollingUpgradeLog(log logr.Logger) logr.Logger {
+	return log.WithName("HotRodRollingUpgrade")
+}
+
+func ScheduleHotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	log := hotRodRollingUpgradeLog(ctx.Log())
+
+	if i.IsHotRodUpgrade() || !UpgradeRequired(i, ctx) {
+		return
+	}
+
+	requestedOperand := ctx.Operand()
+	log.Info(fmt.Sprintf("Scheduling an Upgrade to Operand %s", requestedOperand.Ref()))
+
+	err := ctx.UpdateInfinispan(func() {
+		i.Status.HotRodRollingUpgradeStatus = &ispnv1.HotRodRollingUpgradeStatus{
+			Stage:                 ispnv1.HotRodRollingStageStart,
+			SourceStatefulSetName: i.GetStatefulSetName(),
+			SourceVersion:         i.Status.Operand.Version,
+			TargetStatefulSetName: getOrCreateTargetStatefulSetName(i),
+		}
+		i.Status.Operand = ispnv1.OperandStatus{
+			Phase:   ispnv1.OperandPhasePending,
+			Image:   requestedOperand.Image,
+			Version: requestedOperand.Ref(),
+		}
+	})
+	if err != nil {
+		log.Error(err, "unable to create initial Hot Rod status")
+	}
+	ctx.Requeue(nil)
+}
+
 // HotRodRollingUpgrade handles all stages of a Hot Rod Rolling upgrade. Throughout the execution we use RequeueEventually
 // so that the Infinispan CR pipeline execution is not stopped by any rolling upgrade failures. This ensures the source
 // cluster will continue to be reconciled as normal throughout the upgrade process.
 func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
-	log := ctx.Log().WithName("HotRodRollingUpgrade")
+	if !i.IsHotRodUpgrade() {
+		return
+	}
+
+	log := hotRodRollingUpgradeLog(ctx.Log())
 
 	podList, err := ctx.InfinispanPods()
 	if err != nil || len(podList.Items) == 0 {
@@ -45,11 +82,6 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	upgradeStatus := i.Status.HotRodRollingUpgradeStatus
 
-	if upgradeStatus == nil && !UpgradeRequired(i, ctx) {
-		log.Info("Pods already running correct version, skipping upgrade")
-		return
-	}
-
 	req := HotRodRollingUpgradeRequest{
 		ctx:                ctx,
 		i:                  i,
@@ -58,32 +90,12 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	requestedOperand := ctx.Operand()
-	if upgradeStatus != nil {
-		sourceOperand, _ := ctx.OperandLookup(upgradeStatus.SourceVersion)
-		// If an upgrade is in process, but the spec.Version is reverted to the original source version then rollback
-		if requestedOperand.EQ(sourceOperand) {
-			if err := req.rollback(); err != nil {
-				log.Error(err, "error encountered on rollback")
-			}
-			ctx.RequeueEventually(0)
-			return
-		}
-	} else {
-		err := ctx.UpdateInfinispan(func() {
-			i.Status.HotRodRollingUpgradeStatus = &ispnv1.HotRodRollingUpgradeStatus{
-				Stage:                 ispnv1.HotRodRollingStageStart,
-				SourceStatefulSetName: i.GetStatefulSetName(),
-				SourceVersion:         i.Status.Operand.Version,
-				TargetStatefulSetName: getOrCreateTargetStatefulSetName(i),
-			}
-			i.Status.Operand = ispnv1.OperandStatus{
-				Phase:   ispnv1.OperandPhasePending,
-				Image:   requestedOperand.Image,
-				Version: requestedOperand.Ref(),
-			}
-		})
-		if err != nil {
-			log.Error(err, "unable to create initial status")
+	sourceOperand, _ := ctx.OperandLookup(upgradeStatus.SourceVersion)
+	// If an upgrade is in process, but the spec.Version is reverted to the original source version then rollback
+	// Rollback is not possible if upgrading from an Operator that did no support multi-operand
+	if upgradeStatus.SourceVersion != "" && requestedOperand.EQ(sourceOperand) {
+		if err := req.rollback(); err != nil {
+			log.Error(err, "error encountered on rollback")
 		}
 		ctx.RequeueEventually(0)
 		return
@@ -213,8 +225,7 @@ func generateNewStatefulSetName(ispn *ispnv1.Infinispan) string {
 	return name + "-" + strconv.Itoa(revision)
 }
 
-// reconcileNewConfigMap Creates a new configMap based on the existing (but with different ping discovery) for the new statefulSet
-// returns the hash of the server config
+// reconcileNewConfigMap Creates a new configMap using the configuration required for the target Operand version
 func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (string, error) {
 	ctx := r.ctx
 	targetStatefulSetName := getOrCreateTargetStatefulSetName(r.i)
@@ -251,7 +262,7 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (string, error) {
 	configFiles.ServerBaseConfig = baseCfg
 	configFiles.ZeroConfig = zeroConfig
 	provision.PopulateServerConfigMap(baseCfg, adminCfg, zeroConfig, configFiles.Log4j, cm)
-	return hash.HashString(baseCfg), r.ctx.Resources().Create(cm, true)
+	return hash.HashString(baseCfg, adminCfg), r.ctx.Resources().Create(cm, true)
 }
 
 // reconcileNewPingService Reconcile a specific ping service for the pods of the new statefulSet
@@ -327,7 +338,10 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 			return err
 		}
 
-		targetStatefulSet := sourceStatefulSet.DeepCopy()
+		targetStatefulSet, err := provision.ClusterStatefulSetSpec(targetStatefulSetName, r.i, ctx)
+		if err != nil {
+			return fmt.Errorf("unable to create Target StatefulSet spec: %w", err)
+		}
 		volumes := targetStatefulSet.Spec.Template.Spec.Volumes
 		// Change the config name
 		for _, volume := range volumes {
@@ -335,10 +349,6 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 				volume.ConfigMap.Name = fmt.Sprintf("%v-configuration", targetStatefulSetName)
 			}
 		}
-		targetStatefulSet.Name = targetStatefulSetName
-		targetStatefulSet.ObjectMeta.ResourceVersion = ""
-		targetStatefulSet.Spec.Template.ObjectMeta.Labels[StatefulSetPodLabel] = targetStatefulSetName
-		targetStatefulSet.Spec.Selector.MatchLabels[StatefulSetPodLabel] = targetStatefulSetName
 		container := kube.GetContainer(provision.InfinispanContainer, &targetStatefulSet.Spec.Template.Spec)
 		container.Image = r.i.ImageName()
 		for o, envVar := range container.Env {
