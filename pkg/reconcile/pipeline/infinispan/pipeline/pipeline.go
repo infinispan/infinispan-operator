@@ -174,10 +174,11 @@ func (b *builder) Build() pipeline.Pipeline {
 		configure.IdentitiesBatch,
 	)
 	handlers.AddFeatureSpecific(i.GracefulShutdownUpgrades(), manage.ScheduleGracefulShutdownUpgrade)
+	handlers.AddFeatureSpecific(i.HotRodRollingUpgrades(), manage.ScheduleHotRodRollingUpgrade)
 
 	// Execute Provision Handlers if an upgrade is not already in progress
 	// Necessary to prevent resources being upgraded prematurely
-	if !i.IsUpgradeCondition() {
+	if !i.IsUpgradeCondition() && !i.IsHotRodUpgrade() {
 		handlers.AddFeatureSpecific(i.IsAuthenticationEnabled() && i.IsGeneratedSecret(), provision.UserAuthenticationSecret)
 		handlers.AddFeatureSpecific(i.IsClientCertEnabled(), provision.TruststoreSecret)
 		handlers.Add(

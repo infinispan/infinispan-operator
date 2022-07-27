@@ -218,6 +218,10 @@ func (ispn *Infinispan) IsUpgradeCondition() bool {
 	return ispn.IsConditionTrue(ConditionUpgrade)
 }
 
+func (ispn *Infinispan) IsHotRodUpgrade() bool {
+	return ispn.HotRodRollingUpgrades() && ispn.Status.HotRodRollingUpgradeStatus != nil
+}
+
 func (ispn *Infinispan) GetServiceExternalName() string {
 	externalServiceName := fmt.Sprintf("%s-external", ispn.Name)
 	if ispn.IsExposed() && ispn.GetExposeType() == ExposeTypeRoute && len(externalServiceName)+len(ispn.Namespace) >= MaxRouteObjectNameLength {

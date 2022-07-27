@@ -33,24 +33,39 @@ const (
 	InfinispanSecurityVolumeName = "infinispan-security-volume"
 	OverlayConfigMountPath       = consts.ServerRoot + "/conf/user"
 
-	EventReasonEphemeralStorage = "EphemeralStorageEnables"
-
 	SiteTransportKeystoreVolumeName = "encrypt-transport-site-tls-volume"
 	SiteRouterKeystoreVolumeName    = "encrypt-router-site-tls-volume"
 	SiteTruststoreVolumeName        = "encrypt-truststore-site-tls-volume"
 )
 
 func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	statefulSetName := i.GetStatefulSetName()
 	// If StatefulSet already exists, continue to the next handler in the pipeline
-	if err := ctx.Resources().Load(i.GetStatefulSetName(), &appsv1.StatefulSet{}); err == nil {
+	if err := ctx.Resources().Load(statefulSetName, &appsv1.StatefulSet{}); err == nil {
 		return
 	} else if client.IgnoreNotFound(err) != nil {
 		ctx.Requeue(err)
 		return
 	}
 
+	statefulSet, err := ClusterStatefulSetSpec(statefulSetName, i, ctx)
+	if err != nil {
+		ctx.Requeue(fmt.Errorf("unable to create StatefulSet spec: %w", err))
+		return
+	}
+
+	if err := ctx.Resources().Create(statefulSet, true, pipeline.RetryOnErr); err != nil {
+		return
+	}
+
+	_ = ctx.UpdateInfinispan(func() {
+		i.Status.StatefulSetName = statefulSet.Name
+	})
+}
+
+func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pipeline.Context) (*appsv1.StatefulSet, error) {
 	labelsForPod := i.PodLabels()
-	labelsForPod[consts.StatefulSetPodLabel] = i.Name
+	labelsForPod[consts.StatefulSetPodLabel] = statefulSetName
 
 	annotationsForPod := i.PodAnnotations()
 	annotationsForPod["updateDate"] = time.Now().String()
@@ -65,7 +80,7 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        i.GetStatefulSetName(),
+			Name:        statefulSetName,
 			Namespace:   i.Namespace,
 			Annotations: consts.DeploymentAnnotations,
 			Labels:      map[string]string{},
@@ -130,29 +145,19 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	if err := addDataMountVolume(ctx, i, statefulSet); err != nil {
-		ctx.Requeue(err)
-		return
+		return nil, err
 	}
 
 	container := kube.GetContainer(InfinispanContainer, &statefulSet.Spec.Template.Spec)
 	if _, err := ApplyExternalArtifactsDownload(i, container, &statefulSet.Spec.Template.Spec); err != nil {
-		ctx.Requeue(err)
-		return
+		return nil, err
 	}
 	ApplyExternalDependenciesVolume(i, &container.VolumeMounts, &statefulSet.Spec.Template.Spec)
-
 	addUserIdentities(ctx, i, statefulSet)
 	addUserConfigVolumes(ctx, i, statefulSet)
 	addTLS(ctx, i, statefulSet)
 	addXSiteTLS(ctx, i, statefulSet)
-
-	if err := ctx.Resources().Create(statefulSet, true, pipeline.RetryOnErr); err != nil {
-		return
-	}
-
-	_ = ctx.UpdateInfinispan(func() {
-		i.Status.StatefulSetName = statefulSet.Name
-	})
+	return statefulSet, nil
 }
 
 func addUserIdentities(ctx pipeline.Context, i *ispnv1.Infinispan, statefulset *appsv1.StatefulSet) {
@@ -178,9 +183,6 @@ func addDataMountVolume(ctx pipeline.Context, i *ispnv1.Infinispan, statefulset 
 			},
 		}
 		*volumes = append(*volumes, ephemeralVolume)
-		errMsg := "Ephemeral storage configured. All data will be lost on cluster shutdown and restart."
-		ctx.EventRecorder().Event(i, corev1.EventTypeWarning, EventReasonEphemeralStorage, errMsg)
-		ctx.Log().Info(errMsg)
 		return nil
 	}
 

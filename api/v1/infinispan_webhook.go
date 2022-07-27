@@ -260,6 +260,13 @@ func (i *Infinispan) validate() error {
 			}
 		}
 	}
+
+	if i.IsEphemeralStorage() {
+		errMsg := "Ephemeral storage configured. All data will be lost on cluster shutdown and restart."
+		eventRec.Event(i, corev1.EventTypeWarning, "EphemeralStorageEnables", "Ephemeral storage configured. All data will be lost on cluster shutdown and restart.")
+		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+	}
+
 	return errorListToError(i, allErrs)
 }
 
