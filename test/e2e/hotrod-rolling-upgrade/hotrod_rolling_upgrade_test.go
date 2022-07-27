@@ -61,10 +61,6 @@ func TestRollingUpgrade(t *testing.T) {
 		i.Spec.Replicas = int32(numPods)
 		i.Spec.Container.CPU = "1000m"
 		i.Spec.Service.Container.EphemeralStorage = false
-		i.Spec.Expose = &ispnv1.ExposeSpec{
-			Type:     ispnv1.ExposeTypeNodePort,
-			NodePort: 30000,
-		}
 		i.Spec.Upgrades = &ispnv1.InfinispanUpgradesSpec{
 			Type: ispnv1.UpgradeTypeHotRodRolling,
 		}
@@ -90,6 +86,9 @@ func TestRollingUpgrade(t *testing.T) {
 		testKube.UpdateSubscriptionChannel(targetChannel.Name, sub)
 	}
 
+	clusterCounter := 0
+	newStatefulSetName := clusterName
+
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
 	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
 		fmt.Printf("Installed csv: %s, Current CSV: %s\n", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
@@ -101,8 +100,9 @@ func TestRollingUpgrade(t *testing.T) {
 		})
 
 		// Check migration
-		currentStatefulSetName := clusterName
-		newStatefulSetName := clusterName + "-1"
+		clusterCounter++
+		currentStatefulSetName := newStatefulSetName
+		newStatefulSetName := fmt.Sprintf("%s-%d", clusterName, clusterCounter)
 
 		testKube.WaitForStateFulSet(newStatefulSetName, tutils.Namespace)
 		testKube.WaitForStateFulSetRemoval(currentStatefulSetName, tutils.Namespace)
