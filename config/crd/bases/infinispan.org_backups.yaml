@@ -51,6 +51,8 @@ spec:
                     type: string
                   memory:
                     type: string
+                  routerExtraJvmOpts:
+                    type: string
                 type: object
               resources:
                 properties:
