@@ -22,11 +22,13 @@ func TestTLSWithExistingKeystore(t *testing.T) {
 
 	// Create a resource without passing any config
 	replicas := 2
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Replicas = int32(replicas)
-	spec.Spec.Security = ispnv1.InfinispanSecurity{
-		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
-	}
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = int32(replicas)
+		i.Spec.Security = ispnv1.InfinispanSecurity{
+			EndpointEncryption: tutils.EndpointEncryption(i.Name),
+		}
+	})
+
 	// Create secret
 	serverName := tutils.GetServerName(spec)
 	keystore, tlsConfig := tutils.CreateKeystore(serverName)
@@ -53,12 +55,13 @@ func TestEndpointEncryptionUpdate(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Security = ispnv1.InfinispanSecurity{
-		EndpointEncryption: &ispnv1.EndpointEncryption{
-			Type: ispnv1.CertificateSourceTypeNoneNoEncryption,
-		},
-	}
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Security = ispnv1.InfinispanSecurity{
+			EndpointEncryption: &ispnv1.EndpointEncryption{
+				Type: ispnv1.CertificateSourceTypeNoneNoEncryption,
+			},
+		}
+	})
 
 	// Create secret with server certificates
 	serverName := tutils.GetServerName(spec)
@@ -87,11 +90,11 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Replicas = 1
-	spec.Spec.Security = ispnv1.InfinispanSecurity{
-		EndpointEncryption: tutils.EndpointEncryption(spec.Name),
-	}
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Security = ispnv1.InfinispanSecurity{
+			EndpointEncryption: tutils.EndpointEncryption(i.Name),
+		}
+	})
 
 	// Create secret
 	serverName := tutils.GetServerName(spec)

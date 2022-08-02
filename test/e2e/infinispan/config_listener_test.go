@@ -16,10 +16,9 @@ func TestConfigListenerDeployment(t *testing.T) {
 	// t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	ispn := tutils.DefaultSpec(t, testKube)
-	ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
-		Enabled: true,
-	}
+	ispn := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Spec.ConfigListener.Enabled = true
+	})
 
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)

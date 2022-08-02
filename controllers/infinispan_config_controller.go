@@ -88,12 +88,6 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{}, nil
 	}
 
-	// Validate that Infinispan CR passed all preliminary checks
-	if !infinispan.IsConditionTrue(v1.ConditionPrelimChecksPassed) {
-		reqLogger.Info("Infinispan CR not ready")
-		return reconcile.Result{}, nil
-	}
-
 	r := &configRequest{
 		ConfigReconciler: reconciler,
 		infinispan:       infinispan,
@@ -113,7 +107,7 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 	}
 
-	serverConfig, result, err := GenerateServerConfig(infinispan.GetStatefulSetName(), infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
+	baseCfg, adminCfg, result, err := GenerateServerConfig(infinispan.GetStatefulSetName(), infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
 	if result != nil {
 		return *result, err
 	}
@@ -141,7 +135,7 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 				return err
 			}
 		}
-		InitServerConfigMap(configMap, infinispan, serverConfig, log4jXml)
+		InitServerConfigMap(configMap, infinispan, baseCfg, adminCfg, log4jXml)
 		return nil
 	})
 	if err != nil {
@@ -154,18 +148,17 @@ func (reconciler *ConfigReconciler) Reconcile(ctx context.Context, request recon
 	return reconcile.Result{}, nil
 }
 
-func InitServerConfigMap(configMapObject *corev1.ConfigMap, i *v1.Infinispan, serverConfig, log4jXml string) {
+func InitServerConfigMap(configMapObject *corev1.ConfigMap, i *v1.Infinispan, baseCfg, adminCfg, log4jXml string) {
 	configMapObject.Data = map[string]string{
-		"infinispan.xml": serverConfig,
-		"log4j.xml":      log4jXml,
+		consts.ServerConfigAdminFilename: adminCfg,
+		consts.ServerConfigBaseFilename:  baseCfg,
+		"log4j.xml":                      log4jXml,
 	}
-	configMapObject.Data["infinispan.xml"] = serverConfig
-	configMapObject.Data["log4j.xml"] = log4jXml
 	configMapObject.Labels = i.Labels("infinispan-configmap-configuration")
 }
 
 func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube.Kubernetes, c client.Client, log logr.Logger,
-	eventRec record.EventRecorder, ctx context.Context) (string, *reconcile.Result, error) {
+	eventRec record.EventRecorder, ctx context.Context) (string, string, *reconcile.Result, error) {
 	var xsite *config.XSite
 	if i.HasSites() {
 		// Check x-site configuration first.
@@ -177,14 +170,14 @@ func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube
 		siteService := &corev1.Service{}
 		svcName := i.GetSiteServiceName()
 		if result, err := kube.LookupResource(svcName, i.Namespace, siteService, i, c, log, eventRec, ctx); result != nil {
-			return "", result, err
+			return "", "", result, err
 		}
 
 		var err error
 		xsite, err = ComputeXSite(i, kubernetes, siteService, log, eventRec, ctx)
 		if err != nil {
 			log.Error(err, "Error in computeXSite configuration")
-			return "", &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
+			return "", "", &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 		}
 	}
 
@@ -223,7 +216,7 @@ func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube
 		for i, role := range specRoles {
 			confRoles[i] = config.AuthorizationRole{
 				Name:        role.Name,
-				Permissions: strings.Join(role.Permissions, ","),
+				Permissions: strings.Join(role.Permissions, " "),
 			}
 		}
 		configSpec.Infinispan.Authorization.Roles = confRoles
@@ -238,21 +231,22 @@ func GenerateServerConfig(statefulSet string, i *v1.Infinispan, kubernetes *kube
 	}
 
 	if result, err := ConfigureServerEncryption(i, configSpec, c, log, eventRec, ctx); result != nil {
-		return "", result, err
+		return "", "", result, err
 	}
 
 	if i.IsSiteTLSEnabled() {
 		if result, err := configureXSiteTransportTLS(i, configSpec, c, log, eventRec, ctx); result != nil || err != nil {
-			return "", result, err
+			return "", "", result, err
 		}
 	}
 
+	var adminCfg, baseCfg string
+	var err error
 	// TODO utilise a version specific configurator once server/operator versions decoupled
-	config, err := config.Generate(nil, configSpec)
-	if err != nil {
-		return "", &reconcile.Result{}, err
+	if baseCfg, adminCfg, err = config.Generate(nil, configSpec); err != nil {
+		return "", "", &reconcile.Result{}, fmt.Errorf("unable to generate new infinispan.xml for Rolling Upgrade: %w", err)
 	}
-	return config, nil, nil
+	return baseCfg, adminCfg, nil, nil
 }
 
 func IsUserProvidedKeystore(secret *corev1.Secret) bool {

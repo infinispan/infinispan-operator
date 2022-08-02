@@ -39,57 +39,6 @@ func TestBackupRestoreNoAuth(t *testing.T) {
 	testBackupRestore(t, datagridServiceNoAuth, 1, 1)
 }
 
-func TestBackupRestoreTransformations(t *testing.T) {
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	// Create a resource without passing any config
-	testName := tutils.TestName(t)
-	clusterName := strcase.ToKebab(testName)
-	namespace := tutils.Namespace
-
-	infinispan := datagridService(t, clusterName, 1)
-	testKube.Create(infinispan)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(infinispan.Name, namespace, v1.ConditionWellFormed)
-
-	backupName := "backup"
-	backupSpec := backupSpec(testName, backupName, namespace, clusterName)
-	backupSpec.Spec.Resources = &v2.BackupResources{
-		CacheConfigs: []string{"some-config"},
-		Scripts:      []string{"some-script"},
-	}
-
-	testKube.Create(backupSpec)
-
-	tutils.ExpectNoError(wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
-		backup := testKube.GetBackup(backupName, namespace)
-
-		// ISPN-12675 It's not possible to create templates via rest, so the backup will fail as the template and scripts don't exist.
-		backupFailed := backup.Status.Phase == v2.BackupFailed
-		specUpdated := backup.Spec.Resources.CacheConfigs == nil && len(backup.Spec.Resources.Templates) == 1
-		specUpdated = specUpdated && backup.Spec.Resources.Scripts == nil && len(backup.Spec.Resources.Tasks) == 1
-		return backupFailed && specUpdated, nil
-	}))
-
-	restoreName := "restore"
-	restoreSpec := restoreSpec(testName, restoreName, namespace, backupName, clusterName)
-	restoreSpec.Spec.Resources = &v2.RestoreResources{
-		CacheConfigs: []string{"some-config"},
-		Scripts:      []string{"some-script"},
-	}
-	testKube.Create(restoreSpec)
-
-	tutils.ExpectNoError(wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
-		restore := testKube.GetRestore(restoreName, namespace)
-
-		// ISPN-12675 The restore will fail as the backup could not complete successfully
-		restoreFailed := restore.Status.Phase == v2.RestoreFailed
-		specUpdated := restore.Spec.Resources.CacheConfigs == nil && len(restore.Spec.Resources.Templates) == 1
-		specUpdated = specUpdated && restore.Spec.Resources.Scripts == nil && len(restore.Spec.Resources.Tasks) == 1
-		return restoreFailed && specUpdated, nil
-	}))
-}
-
 func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEntries int) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
@@ -245,14 +194,14 @@ func datagridServiceNoAuth(t *testing.T, name string, replicas int) *v1.Infinisp
 }
 
 func datagridService(t *testing.T, name string, replicas int) *v1.Infinispan {
-	infinispan := tutils.DefaultSpec(t, testKube)
-	infinispan.Name = name
-	infinispan.Spec.Replicas = int32(replicas)
+	return tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Name = name
+		i.Spec.Replicas = int32(replicas)
 
-	if tutils.CPU != "" {
-		infinispan.Spec.Container.CPU = tutils.CPU
-	}
-	return infinispan
+		if tutils.CPU != "" {
+			i.Spec.Container.CPU = tutils.CPU
+		}
+	})
 }
 
 func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {
@@ -273,6 +222,7 @@ func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {
 	if tutils.CPU != "" {
 		spec.Spec.Container.CPU = tutils.CPU
 	}
+	spec.Default()
 	return spec
 }
 
@@ -295,6 +245,7 @@ func restoreSpec(testName, name, namespace, backup, cluster string) *v2alpha1.Re
 	if tutils.CPU != "" {
 		spec.Spec.Container.CPU = tutils.CPU
 	}
+	spec.Default()
 	return spec
 }
 

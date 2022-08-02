@@ -11,7 +11,7 @@ import (
 )
 
 // ConnectCaches Connects caches from a cluster (target) to another (source) via Remote Stores. Caches are created in the target cluster if needed.
-func ConnectCaches(adminPasswordSource, sourceIp string, sourceClient, targetClient api.Infinispan, logger logr.Logger) error {
+func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, targetClient api.Infinispan, logger logr.Logger) error {
 
 	// Obtain all cache names from the source cluster
 	names, err := sourceClient.Caches().Names()
@@ -50,7 +50,7 @@ func ConnectCaches(adminPasswordSource, sourceIp string, sourceClient, targetCli
 			return fmt.Errorf("failed to call source-connected from target cluster for cache '%s': %w", cacheName, err)
 		}
 		if !connected {
-			remoteStoreCfg, err := container.CreateRemoteStoreConfig(sourceIp, cacheName, adminPasswordSource)
+			remoteStoreCfg, err := container.CreateRemoteStoreConfig(sourceIp, cacheName, user, adminPasswordSource)
 			if err != nil {
 				return fmt.Errorf("failed to generate remote store config '%s': %w", cacheName, err)
 			}

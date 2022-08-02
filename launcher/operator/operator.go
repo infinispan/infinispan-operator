@@ -139,6 +139,46 @@ func NewWithContext(ctx context.Context, p Parameters) {
 	}
 	// +kubebuilder:scaffold:builder
 
+	// Setup webhooks if enabled
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+
+		webhookServer := mgr.GetWebhookServer()
+		if _, err := os.Stat("/tmp/k8s-webhook-server/serving-certs"); os.IsNotExist(err) {
+			// Use the old webhook cert directory if running on Openshift 4.6 or older
+			webhookServer.CertDir = "/apiserver.local.config/certificates"
+			webhookServer.CertName = "apiserver.crt"
+			webhookServer.KeyName = "apiserver.key"
+			setupLog.Info("Using legacy webhook certificate mounts", "CertDir", webhookServer.CertDir, "CertName", webhookServer.CertName, "KeyName", webhookServer.KeyName)
+		}
+
+		if err = (&infinispanv1.Infinispan{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Infinispan")
+			os.Exit(1)
+		}
+
+		if err = (&infinispanv2alpha1.Batch{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Batch")
+			os.Exit(1)
+		}
+
+		if err = (&infinispanv2alpha1.Cache{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create defaulting webhook", "webhook", "Cache")
+			os.Exit(1)
+		}
+
+		infinispanv2alpha1.RegisterCacheValidatingWebhook(mgr)
+
+		if err = (&infinispanv2alpha1.Backup{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Backup")
+			os.Exit(1)
+		}
+
+		if err = (&infinispanv2alpha1.Restore{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Restore")
+			os.Exit(1)
+		}
+	}
+
 	if err := mgr.AddHealthzCheck("health", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)

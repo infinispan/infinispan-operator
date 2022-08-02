@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -85,25 +86,9 @@ func (r *HotRodRollingUpgradeReconciler) Reconcile(ctx context.Context, request 
 		}
 		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
 	}
-
-	// Skip if defaults haven't been applied to the CR yet
-	if ispn.Spec.Upgrades == nil {
-		return ctrl.Result{}, nil
-	}
-
 	// Check if the CR is configured to do Hot Rod rolling upgrades
 	if ispn.Spec.Upgrades.Type != ispnv1.UpgradeTypeHotRodRolling {
 		return reconcile.Result{}, nil
-	}
-
-	// Skip for x-site
-	if ispn.HasSites() {
-		return reconcile.Result{}, errors.New("hot rod rolling upgrades not supported for clusters with X-Site")
-	}
-
-	// Skip for non-datagrid
-	if ispn.Spec.Service.Type != ispnv1.ServiceTypeDataGrid {
-		return reconcile.Result{}, errors.New("hot rod rolling upgrades only supported for ServiceTypeDataGrid")
 	}
 
 	// Check if the running pod is running a container with a different image
@@ -221,6 +206,7 @@ func getSourceStatefulSetName(ispn *ispnv1.Infinispan) string {
 
 // createNewStatefulSet Creates a new statefulSet to migrate the existing cluster to
 func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error) {
+	i := r.infinispan
 	// Reconcile configmap with new DNS query
 	configMap, result, err := r.reconcileNewConfigMap()
 	if err != nil {
@@ -232,32 +218,32 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 		return reconcile.Result{}, err
 	}
 
-	// Obtain existing statefulSet
-	namespace := r.infinispan.Namespace
-	statefulSetName := r.infinispan.GetStatefulSetName()
+	// Retrieve the current StatefulSet
+	namespace := i.Namespace
+	statefulSetName := i.GetStatefulSetName()
 	sourceStatefulSet := &appsv1.StatefulSet{}
-	if result, err := kube.LookupResource(statefulSetName, namespace, sourceStatefulSet, r.infinispan, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+	if result, err := kube.LookupResource(statefulSetName, namespace, sourceStatefulSet, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
 		return *result, fmt.Errorf("error obtaining the existing statefulSet '%s': %w", statefulSetName, err)
 	}
 
 	// Redirect the admin service to the current statefulSet
-	result, err = r.redirectServiceToStatefulSet(r.infinispan.GetAdminServiceName(), r.currentStatefulSet)
+	result, err = r.redirectServiceToStatefulSet(i.GetAdminServiceName(), r.currentStatefulSet)
 	if err != nil {
 		return result, err
 	}
 	// Redirect the ping service to the current statefulSet
-	result, err = r.redirectServiceToStatefulSet(r.infinispan.GetPingServiceName(), r.currentStatefulSet)
+	result, err = r.redirectServiceToStatefulSet(i.GetPingServiceName(), r.currentStatefulSet)
 	if err != nil {
 		return result, err
 	}
 	// Redirect the user service to the current statefulSet
-	result, err = r.redirectServiceToStatefulSet(r.infinispan.GetServiceName(), r.currentStatefulSet)
+	result, err = r.redirectServiceToStatefulSet(i.GetServiceName(), r.currentStatefulSet)
 	if err != nil {
 		return result, err
 	}
 	// Redirect the nodePort service to the current statefulSet
-	if r.infinispan.IsExposed() {
-		result, err = r.redirectServiceToStatefulSet(r.infinispan.GetServiceExternalName(), r.currentStatefulSet)
+	if i.IsExposed() {
+		result, err = r.redirectServiceToStatefulSet(i.GetServiceExternalName(), r.currentStatefulSet)
 		if err != nil {
 			return result, err
 		}
@@ -265,14 +251,67 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 
 	// Create a new statefulSet based on the existing one
 	targetStatefulSet := &appsv1.StatefulSet{}
-	targetStatefulSetName := getOrCreateTargetStatefulSetName(r.infinispan)
+	targetStatefulSetName := getOrCreateTargetStatefulSetName(i)
 	err = r.Get(r.ctx, types.NamespacedName{Namespace: namespace, Name: targetStatefulSetName}, targetStatefulSet)
 
 	if err != nil {
 		if !kerrors.IsNotFound(err) {
 			return result, err
 		}
-		targetStatefulSet := sourceStatefulSet.DeepCopy()
+
+		var userSecret *corev1.Secret
+		if i.IsAuthenticationEnabled() {
+			userSecret = &corev1.Secret{}
+			if result, err := kube.LookupResource(i.GetSecretName(), i.Namespace, userSecret, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+				return *result, err
+			}
+		}
+
+		adminSecret := &corev1.Secret{}
+		if result, err := kube.LookupResource(i.GetAdminSecretName(), i.Namespace, adminSecret, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+			return *result, err
+		}
+
+		var keystoreSecret *corev1.Secret
+		if i.IsEncryptionEnabled() {
+			keystoreSecret = &corev1.Secret{}
+			if result, err := kube.LookupResource(i.GetKeystoreSecretName(), i.Namespace, keystoreSecret, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+				return *result, err
+			}
+		}
+
+		var trustSecret *corev1.Secret
+		if i.IsClientCertEnabled() {
+			trustSecret = &corev1.Secret{}
+			if result, err := kube.LookupResource(i.GetTruststoreSecretName(), i.Namespace, trustSecret, i, r.Client, r.reqLogger, r.eventRec, r.ctx); result != nil {
+				return *result, err
+			}
+		}
+
+		// Create infinispanRequest so that we can reuse existing infinispan_controller logic
+		infinispanRequest := &infinispanRequest{
+			InfinispanReconciler: &InfinispanReconciler{
+				Client:     r.Client,
+				scheme:     r.scheme,
+				kubernetes: r.kubernetes,
+				eventRec:   r.eventRec,
+			},
+			ctx:        r.ctx,
+			infinispan: i,
+			reqLogger:  r.reqLogger,
+		}
+
+		userOverlay, result, err := infinispanRequest.userOverlayConfig(i)
+		if result != nil {
+			return *result, err
+		}
+
+		targetStatefulSet, err := infinispanRequest.statefulSetForInfinispan(adminSecret, userSecret, keystoreSecret, trustSecret, configMap, userOverlay)
+		if err != nil {
+			r.reqLogger.Error(err, "unable to create Target StatefulSet")
+			return ctrl.Result{}, err
+		}
+
 		volumes := targetStatefulSet.Spec.Template.Spec.Volumes
 		// Change the config name
 		for _, volume := range volumes {
@@ -297,7 +336,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 			if envVar.Name == "CONFIG_HASH" {
 				container.Env[o] = corev1.EnvVar{
 					Name:      envVar.Name,
-					Value:     hash.HashString(configMap.Data[ServerConfigFilename]),
+					Value:     hash.HashString(configMap.Data[ServerConfigBaseFilename], configMap.Data[ServerConfigAdminFilename]),
 					ValueFrom: envVar.ValueFrom,
 				}
 			}
@@ -323,7 +362,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() (ctrl.Result, error
 	}
 
 	// Check if cluster is well-formed
-	conditions := getInfinispanConditions(podList.Items, r.infinispan, r.curl)
+	conditions := getInfinispanConditions(podList.Items, i, r.curl)
 	r.reqLogger.Info(fmt.Sprintf("Cluster conditions: %v", conditions))
 	for _, condition := range conditions {
 		if condition.Type == ispnv1.ConditionWellFormed {
@@ -360,7 +399,8 @@ func (r *HotRodRollingUpgradeRequest) prepare() (ctrl.Result, error) {
 		return reconcile.Result{}, fmt.Errorf("failed to find the pods from the source statefulSet : %w", err)
 	}
 
-	pass, err := users.AdminPassword(ispn.GetAdminSecretName(), ispn.Namespace, r.kubernetes, r.ctx)
+	user := ispn.GetOperatorUser()
+	pass, err := users.AdminPassword(user, ispn.GetAdminSecretName(), ispn.Namespace, r.kubernetes, r.ctx)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -370,7 +410,7 @@ func (r *HotRodRollingUpgradeRequest) prepare() (ctrl.Result, error) {
 	targetClient := InfinispanForPod(targetPod.Name, r.curl)
 
 	sourceIp := sourcePodList.Items[0].Status.PodIP
-	if err = upgrades.ConnectCaches(pass, sourceIp, sourceClient, targetClient, r.reqLogger); err != nil {
+	if err = upgrades.ConnectCaches(user, pass, sourceIp, sourceClient, targetClient, r.reqLogger); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -652,7 +692,7 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap
 		return configMap, reconcile.Result{}, err
 	}
 
-	serverConfig, result, err := GenerateServerConfig(targetStatefulSetName, r.infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
+	baseConfig, adminConfig, result, err := GenerateServerConfig(targetStatefulSetName, r.infinispan, r.kubernetes, r.Client, r.log, r.eventRec, r.ctx)
 	if result != nil {
 		return nil, *result, err
 	}
@@ -666,8 +706,11 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (*corev1.ConfigMap
 	if err != nil {
 		return nil, reconcile.Result{}, err
 	}
-	InitServerConfigMap(configMap, r.infinispan, serverConfig, log4jXml)
+	InitServerConfigMap(configMap, r.infinispan, baseConfig, adminConfig, log4jXml)
 
+	if err = controllerutil.SetControllerReference(r.infinispan, configMap, r.scheme); err != nil {
+		return nil, reconcile.Result{}, fmt.Errorf("unable to SetControllerReference for new ConfigMap: %w", err)
+	}
 	return configMap, reconcile.Result{}, r.Create(r.ctx, configMap)
 }
 

@@ -7,14 +7,17 @@ resources:
   group: infinispan
   kind: Infinispan
   version: v1
+  webhookVersion: v1
 - crdVersion: v1
   group: infinispan
   kind: Backup
   version: v2alpha1
+  webhookVersion: v1
 - crdVersion: v1
   group: infinispan
   kind: Restore
   version: v2alpha1
+  webhookVersion: v1
 - crdVersion: v1
   group: infinispan
   kind: Batch
@@ -23,6 +26,7 @@ resources:
   group: infinispan
   kind: Cache
   version: v2alpha1
+  webhookVersion: v1
 version: 3-alpha
 plugins:
   manifests.sdk.operatorframework.io/v2: {}

@@ -79,12 +79,12 @@ func CreateIdentitiesFor(usr string, pass string) ([]byte, error) {
 }
 
 // GetAdminCredentials get admin identities credentials in yaml format
-func GetAdminCredentials() ([]byte, error) {
+func GetAdminCredentials(user string) ([]byte, error) {
 	pass, err := getRandomStringForAuth(16)
 	if err != nil {
 		return nil, err
 	}
-	return CreateIdentitiesFor(consts.DefaultOperatorUser, pass)
+	return CreateIdentitiesFor(user, pass)
 }
 
 // GetUserCredentials get identities credentials in yaml format
@@ -132,8 +132,8 @@ func UserPassword(user, secretName, namespace string, k *kube.Kubernetes, ctx co
 	return passwordFromSecret(user, secretName, namespace, k, ctx)
 }
 
-func AdminPassword(secretName, namespace string, k *kube.Kubernetes, ctx context.Context) (string, error) {
-	return passwordFromSecret(consts.DefaultOperatorUser, secretName, namespace, k, ctx)
+func AdminPassword(user, secretName, namespace string, k *kube.Kubernetes, ctx context.Context) (string, error) {
+	return passwordFromSecret(user, secretName, namespace, k, ctx)
 }
 
 func AuthPropsFromSecret(buf []byte) (users, groups string, err error) {

@@ -45,6 +45,17 @@ func TestClientCertAuthenticate(t *testing.T) {
 	})
 }
 
+func TestClientCertWithKeyCrtFiles(t *testing.T) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = ispnv1.ClientCertAuthenticate
+		serverName := tutils.GetServerName(spec)
+		keyCertPair, truststore, tlsConfig := tutils.CreateKeyCertAndTruststore(serverName, true)
+		keystoreSecret = tutils.EncryptionSecret(spec.Name, tutils.Namespace, keyCertPair.PrivateKey, keyCertPair.Certificate)
+		truststoreSecret = tutils.EncryptionSecretClientTrustore(spec.Name, tutils.Namespace, truststore)
+		return
+	})
+}
+
 func TestClientCertValidateWithAuthorization(t *testing.T) {
 	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		spec.Spec.Security.Authorization = &v1.Authorization{
@@ -111,8 +122,7 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Replicas = 1
+	spec := tutils.DefaultSpec(t, testKube, nil)
 
 	// Create the keystore & truststore for the server with a compatible client tls configuration
 	authType, keystoreSecret, truststoreSecret, tlsConfig := initializer(spec)
@@ -127,9 +137,14 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
 	client_ := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
 	tutils.NewCacheHelper("test", client_).CreateWithDefault()
+
+	// Scale the cluster down to ensure that Operator authorization works as expected
+	ispn.Spec.Replicas = 0
+	testKube.Update(ispn)
+	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 }

@@ -8,7 +8,8 @@ require (
 	github.com/go-logr/logr v0.3.0
 	github.com/go-playground/validator/v10 v10.8.0
 	github.com/iancoleman/strcase v0.2.0
-	github.com/onsi/gomega v1.14.0 // indirect
+	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/gomega v1.14.0
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/operator-framework/api v0.4.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.0
@@ -25,7 +26,7 @@ require (
 	k8s.io/client-go v0.19.4
 	k8s.io/cloud-provider v0.19.4
 	k8s.io/utils v0.0.0-20210722164352-7f3ee0f31471
-	sigs.k8s.io/controller-runtime v0.7.0
+	sigs.k8s.io/controller-runtime v0.7.2
 	software.sslmate.com/src/go-pkcs12 v0.0.0-20210415151418-c5206de65a78
 )
 
@@ -35,5 +36,5 @@ replace (
 	k8s.io/apimachinery => k8s.io/apimachinery v0.19.4
 	k8s.io/client-go => k8s.io/client-go v0.19.4
 	k8s.io/client-go/plugin => k8s.io/client-go/plugin v0.19.4
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.7.0
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.7.2
 )

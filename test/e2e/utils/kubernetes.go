@@ -809,6 +809,7 @@ func runOperatorLocally(ctx context.Context, namespace string) {
 	_ = os.Setenv("KUBECONFIG", kube.FindKubeConfig())
 	_ = os.Setenv("OSDK_FORCE_RUN_MODE", "local")
 	_ = os.Setenv("OPERATOR_NAME", OperatorName)
+	_ = os.Setenv("ENABLE_WEBHOOKS", "false")
 	operator.NewWithContext(ctx, operator.Parameters{
 		ZapOptions: &zap.Options{
 			Development: true,
@@ -925,22 +926,27 @@ func GetServerName(i *ispnv1.Infinispan) string {
 }
 
 func (k *TestKubernetes) WaitForDeployment(name, namespace string) {
+	k.WaitForDeploymentState(name, namespace, func(deployment *appsv1.Deployment) bool {
+		for _, condition := range deployment.Status.Conditions {
+			if condition.Type == appsv1.DeploymentAvailable {
+				return condition.Status == corev1.ConditionTrue
+			}
+		}
+		return false
+	})
+}
+
+func (k *TestKubernetes) WaitForDeploymentState(name, namespace string, predicate func(deployment *appsv1.Deployment) bool) {
 	deployment := &appsv1.Deployment{}
 	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, deployment)
 		if err != nil && k8serrors.IsNotFound(err) {
-			return false, err
-		}
-		if err != nil {
 			return false, nil
 		}
-
-		for _, condition := range deployment.Status.Conditions {
-			if condition.Type == appsv1.DeploymentAvailable {
-				return condition.Status == corev1.ConditionTrue, nil
-			}
+		if err != nil {
+			return false, err
 		}
-		return false, nil
+		return predicate(deployment), nil
 	})
 	ExpectNoError(err)
 }

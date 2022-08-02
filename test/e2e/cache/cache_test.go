@@ -39,11 +39,12 @@ func initCluster(t *testing.T, configListener bool) *v1.Infinispan {
 }
 
 func initClusterWithSuffix(t *testing.T, suffix string, configListener bool) *v1.Infinispan {
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Name = spec.Name + suffix
-	spec.Spec.ConfigListener = &v1.ConfigListenerSpec{
-		Enabled: configListener,
-	}
+	spec := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Name = i.Name + suffix
+		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
+			Enabled: configListener,
+		}
+	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 
@@ -223,11 +224,12 @@ func TestStaticServerCache(t *testing.T) {
 	testKube.CreateConfigMap(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
-	ispn := tutils.DefaultSpec(t, testKube)
-	ispn.Spec.ConfigMapName = configMap.Name
-	ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
-		Enabled: true,
-	}
+	ispn := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Spec.ConfigMapName = configMap.Name
+		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
+			Enabled: true,
+		}
+	})
 
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
@@ -379,36 +381,6 @@ func TestCacheClusterRecreate(t *testing.T) {
 
 }
 
-func TestCacheClusterNameChange(t *testing.T) {
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	originalCluster := initClusterWithSuffix(t, "-original-cluster", false)
-	newCluster := initClusterWithSuffix(t, "-new-cluster", false)
-
-	// Create Cache CR
-	cacheName := "some-cache"
-	cr := cacheCR(cacheName, originalCluster)
-	cr.Spec.Template = `{"local-cache":{}}`
-	testKube.Create(cr)
-	testKube.WaitForCacheConditionReady(cacheName, originalCluster.Name, tutils.Namespace)
-
-	// Assert that the cache exists on the original cluster
-	client := tutils.HTTPClientForCluster(originalCluster, testKube)
-	cacheHelper := tutils.NewCacheHelper(cacheName, client)
-	cacheHelper.WaitForCacheToExist()
-
-	// Update Cache CR to point to new cluster
-	cr = testKube.GetCache(cr.Name, cr.Namespace)
-	cr.ObjectMeta.Labels = newCluster.ObjectMeta.Labels
-	cr.Spec.ClusterName = newCluster.Name
-	testKube.Update(cr)
-
-	// Assert that the cache exists on the new cluster
-	client = tutils.HTTPClientForCluster(newCluster, testKube)
-	cacheHelper = tutils.NewCacheHelper(cacheName, client)
-	cacheHelper.WaitForCacheToExist()
-}
-
 func TestConfigListenerFailover(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
@@ -532,6 +504,27 @@ func TestSameCacheNameInMultipleClusters(t *testing.T) {
 	testifyAssert.NotEqualf(t, cluster1CR.UID, cluster2CR.UID, "Cache CR UUID should be different")
 	testifyAssert.Equal(t, cluster1.Name, cluster1CR.Spec.ClusterName)
 	testifyAssert.Equal(t, cluster2.Name, cluster2CR.Spec.ClusterName)
+}
+
+func TestCacheCRCacheService(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Spec.Service.Type = v1.ServiceTypeCache
+	})
+	testKube.CreateInfinispan(ispn, tutils.Namespace)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+
+	cache := cacheCR("some-cache", ispn)
+	testKube.Create(cache)
+	testKube.WaitForCacheConditionReady(cache.Spec.Name, cache.Spec.ClusterName, cache.Namespace)
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cache.Spec.Name, client)
+	cacheHelper.WaitForCacheToExist()
+	cacheHelper.TestBasicUsage("testkey", "test-operator")
+	testKube.DeleteCache(cache)
+	// Assert that the Cache is removed from the server once the Cache CR has been deleted
+	cacheHelper.WaitForCacheToNotExist()
 }
 
 func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {

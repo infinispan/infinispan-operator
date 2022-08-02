@@ -7,6 +7,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 // TestGracefulShutdownWithTwoReplicas creates a permanent cache with file-store and any entry,
@@ -23,14 +24,16 @@ func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
 
 	// Create Infinispan
 	replicas := 2
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Replicas = int32(replicas)
-	spec.Spec.Service.Container.EphemeralStorage = false
-
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = int32(replicas)
+		i.Spec.Service.Container.EphemeralStorage = false
+		i.Spec.ConfigListener.Enabled = true
+	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	testKube.WaitForDeployment(ispn.GetConfigListenerName(), spec.Namespace)
 	client_ := tutils.HTTPClientForCluster(ispn, testKube)
 
 	// Create non-persisted cache
@@ -47,8 +50,14 @@ func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
 
 	// Shutdown/bring back the cluster
 	testKube.GracefulShutdownInfinispan(spec)
+	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForDeploymentState(spec.GetConfigListenerName(), spec.Namespace, func(deployment *appsv1.Deployment) bool {
+		return deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0
+	})
 	testKube.GracefulRestartInfinispan(spec, int32(replicas), tutils.SinglePodTimeout)
-
+	testKube.WaitForDeploymentState(spec.GetConfigListenerName(), spec.Namespace, func(deployment *appsv1.Deployment) bool {
+		return deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 1
+	})
 	// Verify non-persisted cache usability
 	volatileKey := "volatileKey"
 	volatileValue := "volatileValue"

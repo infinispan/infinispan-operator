@@ -53,8 +53,9 @@ func TestExplicitCredentials(t *testing.T) {
 	defer testKube.DeleteSecret(&secret)
 
 	// Create Infinispan
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Security = ispnv1.InfinispanSecurity{EndpointSecretName: "conn-secret-test"}
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Security.EndpointSecretName = "conn-secret-test"
+	})
 
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
@@ -147,8 +148,9 @@ func TestAuthenticationDisabled(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	})
 
 	// Create the cluster
 	testKube.CreateInfinispan(spec, tutils.Namespace)
@@ -183,8 +185,9 @@ func TestEndpointAuthenticationUpdate(t *testing.T) {
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 	}
-	spec := tutils.DefaultSpec(t, testKube)
-	spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	})
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
@@ -193,7 +196,7 @@ func TestUpdateOperatorPassword(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
-	spec := tutils.DefaultSpec(t, testKube)
+	spec := tutils.DefaultSpec(t, testKube, nil)
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
@@ -211,7 +214,7 @@ func TestUpdateOperatorPassword(t *testing.T) {
 		secret, err = testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace, context.TODO())
 		tutils.ExpectNoError(err)
 		identities := secret.Data[cconsts.ServerIdentitiesFilename]
-		pwd, err := users.FindPassword(cconsts.DefaultOperatorUser, identities)
+		pwd, err := users.FindPassword(spec.GetOperatorUser(), identities)
 		tutils.ExpectNoError(err)
 		fmt.Printf("Pwd=%s, Identities=%s", pwd, string(identities))
 		return pwd == newPassword, nil

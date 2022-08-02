@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -14,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 )
 
 type ImageType string
@@ -152,48 +150,6 @@ func (ispn *Infinispan) ExpectConditionStatus(expected map[ConditionType]metav1.
 	return nil
 }
 
-// ApplyDefaults applies default values to the Infinispan instance
-func (ispn *Infinispan) ApplyDefaults() {
-	if ispn.Status.Conditions == nil {
-		ispn.Status.Conditions = []InfinispanCondition{}
-	}
-	if ispn.Spec.Service.Type == "" {
-		ispn.Spec.Service.Type = ServiceTypeCache
-	}
-	if ispn.Spec.Service.Type == ServiceTypeCache && ispn.Spec.Service.ReplicationFactor == 0 {
-		ispn.Spec.Service.ReplicationFactor = 2
-	}
-	if ispn.Spec.Container.Memory == "" {
-		ispn.Spec.Container.Memory = consts.DefaultMemorySize.String()
-	}
-	if ispn.IsDataGrid() {
-		if ispn.Spec.Service.Container == nil {
-			ispn.Spec.Service.Container = &InfinispanServiceContainerSpec{}
-		}
-		if ispn.Spec.Service.Container.Storage == nil {
-			ispn.Spec.Service.Container.Storage = pointer.StringPtr(consts.DefaultPVSize.String())
-		}
-	}
-	if ispn.Spec.Security.EndpointAuthentication == nil {
-		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
-	}
-	if *ispn.Spec.Security.EndpointAuthentication {
-		ispn.Spec.Security.EndpointSecretName = ispn.GetSecretName()
-	} else if ispn.IsGeneratedSecret() {
-		ispn.Spec.Security.EndpointSecretName = ""
-	}
-	if ispn.Spec.Upgrades == nil {
-		ispn.Spec.Upgrades = &InfinispanUpgradesSpec{
-			Type: UpgradeTypeShutdown,
-		}
-	}
-	if ispn.Spec.ConfigListener == nil {
-		ispn.Spec.ConfigListener = &ConfigListenerSpec{
-			Enabled: true,
-		}
-	}
-}
-
 func (ispn *Infinispan) ApplyMonitoringAnnotation() {
 	if ispn.Annotations == nil {
 		ispn.Annotations = make(map[string]string)
@@ -205,7 +161,7 @@ func (ispn *Infinispan) ApplyMonitoringAnnotation() {
 }
 
 // ApplyEndpointEncryptionSettings compute the EndpointEncryption object
-func (ispn *Infinispan) ApplyEndpointEncryptionSettings(servingCertsMode string, reqLogger logr.Logger) {
+func (ispn *Infinispan) ApplyEndpointEncryptionSettings(servingCertsMode string) {
 	// Populate EndpointEncryption if serving cert service is available
 	encryption := ispn.Spec.Security.EndpointEncryption
 	if servingCertsMode == "openshift.io" && (!ispn.IsEncryptionCertSourceDefined() || ispn.IsEncryptionCertFromService()) {
@@ -214,7 +170,6 @@ func (ispn *Infinispan) ApplyEndpointEncryptionSettings(servingCertsMode string,
 			ispn.Spec.Security.EndpointEncryption = encryption
 		}
 		if encryption.CertServiceName == "" || encryption.Type == "" {
-			reqLogger.Info("Serving certificate service present. Configuring into Infinispan CR")
 			encryption.Type = CertificateSourceTypeService
 			encryption.CertServiceName = "service.beta.openshift.io"
 		}
@@ -392,6 +347,13 @@ func (ispn *Infinispan) GetSecretName() string {
 		return ispn.GenerateSecretName()
 	}
 	return ispn.Spec.Security.EndpointSecretName
+}
+
+func (ispn *Infinispan) GetOperatorUser() string {
+	if ispn.IsClientCertEnabled() && ispn.Spec.Security.EndpointEncryption.ClientCert == ClientCertAuthenticate {
+		return "CN=admin"
+	}
+	return "operator"
 }
 
 func (ispn *Infinispan) GenerateSecretName() string {
@@ -720,96 +682,76 @@ func addLabelsFor(ispn *Infinispan, target string, uMap map[string]string) {
 	}
 }
 
-// ApplyOperatorMeta applies operator labels to be propagated to pods and services
+func (i *Infinispan) ApplyOperatorMeta(defaultLabels, defaultAnnotations map[string]string) {
+	// Apply default annotations
+	if i.ObjectMeta.Annotations == nil {
+		i.ObjectMeta.Annotations = make(map[string]string, len(defaultAnnotations)+1)
+	}
+
+	for k, v := range defaultAnnotations {
+		i.ObjectMeta.Annotations[k] = v
+	}
+
+	// Apply default labels
+	if i.ObjectMeta.Labels == nil {
+		i.ObjectMeta.Labels = make(map[string]string, len(defaultLabels))
+	}
+
+	for k, v := range defaultLabels {
+		i.ObjectMeta.Labels[k] = v
+	}
+}
+
+// LoadDefaultLabelsAndAnnotations initialises default operator labels to be propagated to pods and services
 // Env vars INFINISPAN_OPERATOR_TARGET_LABELS, INFINISPAN_OPERATOR_POD_TARGET_LABELS
 // must contain a json map of labels, the former will be applied to services/ingresses/routes, the latter to pods
-func (ispn *Infinispan) ApplyOperatorMeta() error {
+func LoadDefaultLabelsAndAnnotations() (labels map[string]string, annotations map[string]string, err error) {
+	labels = make(map[string]string)
+	annotations = make(map[string]string)
 
-	applyErr := func(env string, err error) string {
-		return fmt.Sprintf("Error unmarshalling %s environment variable: %v\n", env, err)
+	if err = unmarshallEnvLabelsAndAnnotations(OperatorTargetLabelsEnvVarName, OperatorTargetLabels, labels, annotations); err != nil {
+		return
 	}
-
-	var errStr string
-	if err := applyLabels(ispn, OperatorTargetLabelsEnvVarName, OperatorTargetLabels); err != nil {
-		errStr = applyErr(OperatorTargetLabelsEnvVarName, err)
+	if err = unmarshallEnvLabelsAndAnnotations(OperatorPodTargetLabelsEnvVarName, OperatorPodTargetLabels, labels, annotations); err != nil {
+		return
 	}
-	if err := applyLabels(ispn, OperatorPodTargetLabelsEnvVarName, OperatorPodTargetLabels); err != nil {
-		errStr = errStr + applyErr(OperatorPodTargetLabelsEnvVarName, err)
+	if err = unmarshallEnvLabelsAndAnnotations(OperatorTargetAnnotationsEnvVarName, OperatorTargetAnnotations, annotations, annotations); err != nil {
+		return
 	}
-	if err := applyAnnotations(ispn, OperatorTargetAnnotationsEnvVarName, OperatorTargetAnnotations); err != nil {
-		errStr = errStr + applyErr(OperatorTargetAnnotationsEnvVarName, err)
+	if err = unmarshallEnvLabelsAndAnnotations(OperatorPodTargetAnnotationsEnvVarName, OperatorPodTargetAnnotations, annotations, annotations); err != nil {
+		return
 	}
-	if err := applyAnnotations(ispn, OperatorPodTargetAnnotationsEnvVarName, OperatorPodTargetAnnotations); err != nil {
-		errStr = errStr + applyErr(OperatorPodTargetAnnotationsEnvVarName, err)
-	}
-
-	if errStr != "" {
-		return errors.New(errStr)
-	}
-	return nil
+	return
 }
 
-func applyLabels(ispn *Infinispan, envvar, annotationName string) error {
-	labels := os.Getenv(envvar)
-	if labels == "" {
+func unmarshallEnvLabelsAndAnnotations(envName, annotationName string, values, annotations map[string]string) error {
+	env := os.Getenv(envName)
+	if env == "" {
 		return nil
 	}
-	labelMap := make(map[string]string)
-	err := json.Unmarshal([]byte(labels), &labelMap)
-	if err == nil {
-		if len(labelMap) > 0 {
-			if ispn.ObjectMeta.Labels == nil {
-				ispn.ObjectMeta.Labels = make(map[string]string, len(labelMap))
-			}
-			keys := make([]string, len(labelMap))
-			i := 0
-			for k := range labelMap {
-				keys[i] = k
-				i++
-			}
-			sort.Strings(keys)
-			var svcLabels string
-			for _, k := range keys {
-				ispn.ObjectMeta.Labels[k] = labelMap[k]
-				svcLabels += k + ","
-			}
-			if ispn.Annotations == nil {
-				ispn.Annotations = make(map[string]string)
-			}
-			ispn.Annotations[annotationName] = strings.TrimRight(svcLabels, ", ")
-		}
-	}
-	return err
-}
 
-func applyAnnotations(ispn *Infinispan, envvar, annotationName string) error {
-	annotations := os.Getenv(envvar)
-	if annotations == "" {
+	envMap := make(map[string]string)
+	if err := json.Unmarshal([]byte(env), &envMap); err != nil {
+		return fmt.Errorf("error unmarshalling environment variable %s: %w", envName, err)
+	}
+
+	if len(envMap) == 0 {
 		return nil
 	}
-	envAnnotations := make(map[string]string)
-	if err := json.Unmarshal([]byte(annotations), &envAnnotations); err != nil {
-		return err
-	}
 
-	if ispn.Annotations == nil {
-		ispn.Annotations = make(map[string]string, len(envAnnotations))
-	}
-
-	keys := make([]string, len(envAnnotations))
+	keys := make([]string, len(envMap))
 	i := 0
-	for k := range envAnnotations {
+	for k := range envMap {
 		keys[i] = k
 		i++
 	}
 	sort.Strings(keys)
-
 	var annotationStr string
 	for _, k := range keys {
-		ispn.Annotations[k] = envAnnotations[k]
+		values[k] = envMap[k]
 		annotationStr += k + ","
 	}
-	ispn.Annotations[annotationName] = strings.TrimRight(annotationStr, ", ")
+	annotations[annotationName] = strings.TrimRight(annotationStr, ", ")
 	return nil
 }
 
