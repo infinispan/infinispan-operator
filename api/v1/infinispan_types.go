@@ -144,6 +144,8 @@ type InfinispanContainerSpec struct {
 	// +optional
 	ExtraJvmOpts string `json:"extraJvmOpts,omitempty"`
 	// +optional
+	RouterExtraJvmOpts string `json:"routerExtraJvmOpts,omitempty"`
+	// +optional
 	Memory string `json:"memory,omitempty"`
 	// +optional
 	CPU string `json:"cpu,omitempty"`

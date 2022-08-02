@@ -689,6 +689,8 @@ spec:
                     type: string
                   memory:
                     type: string
+                  routerExtraJvmOpts:
+                    type: string
                 type: object
               dependencies:
                 description: External dependencies needed by the Infinispan cluster
