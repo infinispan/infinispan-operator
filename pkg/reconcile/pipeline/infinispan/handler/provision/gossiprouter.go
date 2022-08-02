@@ -93,6 +93,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						Image:   i.ImageName(),
 						Command: []string{"/opt/gossiprouter/bin/launch.sh"},
 						Args:    args,
+						Env:     []corev1.EnvVar{{Name: "ROUTER_JAVA_OPTIONS", Value: i.Spec.Container.RouterExtraJvmOpts}},
 						Ports: []corev1.ContainerPort{
 							{
 								ContainerPort: consts.CrossSitePort,
