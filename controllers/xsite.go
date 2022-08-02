@@ -123,6 +123,7 @@ func (r *infinispanRequest) GetGossipRouterDeployment(m *ispnv1.Infinispan, keys
 						Image:   m.ImageName(),
 						Command: []string{"/opt/gossiprouter/bin/launch.sh"},
 						Args:    args,
+						Env:     []corev1.EnvVar{{Name: "ROUTER_JAVA_OPTIONS", Value: m.Spec.Container.RouterExtraJvmOpts}},
 						Ports: []corev1.ContainerPort{
 							{
 								ContainerPort: consts.CrossSitePort,
