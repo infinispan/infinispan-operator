@@ -1,3 +1,5 @@
 spec:
   container:
-    extraJvmOpts: "-XX:NativeMemoryTracking=summary"
+    extraJvmOpts: "-<option>=<value>"
+    routerExtraJvmOpts: "-<option>=<value>"
+    cliExtraJvmOpts: "-<option>=<value>"
