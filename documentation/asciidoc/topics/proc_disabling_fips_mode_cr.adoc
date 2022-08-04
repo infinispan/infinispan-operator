@@ -1,0 +1,32 @@
+[id="disabling-fips-mode-CR_{context}"]
+= Disabling FIPS mode in your `Infinispan` CR
+
+The {openshiftplatform} can use certain Federal Information Processing Standards (FIPS) components that ensure {openshiftshort} clusters meet the requirements of a FIPS compliance audit. 
+This might cause issues when you want your {brandname} instance to run on any {openshiftshort} cluster that has FIPS mode enabled. 
+{brandname} {ProductVersion} does not support FIPS mode, so you must disable FIPS mode in your `Infinispan` CR.
+
+After you disable FIPS mode in your `Infinispan` CR, any component that uses a JVM, such as {brandname} Server, {brandname} CLI, or Gossip router, ignores FIPS mode. 
+This happens, because the JVM no longer loads FIPS-related cryptographic libraries on implementation startup. 
+
+[NOTE]
+====
+You need to explicitly disable FIPS mode in your `Infinispan` CR configuration only if FIPS mode is enabled for an {openshiftshort} cluster.
+====
+
+.Prerequisites
+* Created `Infinispan` CR on {openshiftshort}, so that your {ispn_operator} can interact with {openshiftshort}. 
+
+.Procedure
+. Configure JVM options with the `spec.container` field in your `Infinispan` CR. 
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/disable_fips_cr.yaml[]
+----
+
+. Apply your `Infinispan` CR.
+
+[role="_additional-resources"]
+.Additional resources
+* link:https://access.redhat.com/documentation/en-us/openshift_container_platform/4.10/html/installing/installing-fips#doc-wrapper[Support for FIPS cryptography {openshiftplatform}]
+* link:https://access.redhat.com/documentation/en-us/red_hat_data_grid/{ispn_version}}/html-single/data_grid_operator_guide/index#setting-jvm-options_services[Setting JVM options]
