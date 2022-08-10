@@ -887,3 +887,17 @@ func (ispn *Infinispan) GracefulShutdownUpgrades() bool {
 func (ispn *Infinispan) HotRodRollingUpgrades() bool {
 	return ispn.Spec.Upgrades != nil && ispn.Spec.Upgrades.Type == UpgradeTypeHotRodRolling
 }
+
+func (ispn *Infinispan) CrossSiteDiscoveryType() DiscoverySiteType {
+	// by default, use the Gossip Router (set by webhook!)
+	return ispn.Spec.Service.Sites.Local.Discovery.Type
+}
+
+func (ispn *Infinispan) LaunchGossipRouterEnabled() bool {
+	// no nil check since webhook sets it.
+	return *ispn.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter
+}
+
+func (ispn *Infinispan) IsGossipRouterEnabled() bool {
+	return ispn.CrossSiteDiscoveryType() == GossipRouterType && ispn.LaunchGossipRouterEnabled()
+}

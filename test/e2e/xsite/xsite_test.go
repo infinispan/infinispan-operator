@@ -15,8 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type TLSMode string
@@ -252,6 +256,9 @@ func TestCrossSiteGracefulShutdown(t *testing.T) {
 	tesKubes["xsite1"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
 	tesKubes["xsite2"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
 
+	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite1"].namespace)
+	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite2"].namespace)
+
 	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
 	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
 
@@ -289,6 +296,72 @@ func TestCrossSiteGracefulShutdown(t *testing.T) {
 	tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
 	ispnXSite1 = tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionCrossSiteViewFormed)
 	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+}
+
+func TestSingleGossipRouter(t *testing.T) {
+	testName := tutils.TestName(t)
+	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
+	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+
+	// setup instances
+	for instance, testKube := range tesKubes {
+		testKube.context = fmt.Sprintf("kind-%s", instance)
+		testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, instance)
+		testKube.kube = tutils.NewTestKubernetes(testKube.context)
+		clusterContextName := clientConfig.Contexts[testKube.context].Cluster
+		apiServerUrl, err := url.Parse(clientConfig.Clusters[clusterContextName].Server)
+		tutils.ExpectNoError(err)
+		testKube.apiServer = apiServerUrl.Host
+	}
+
+	// create secrets
+	tesKubes["xsite1"].kube.CreateSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
+	tesKubes["xsite2"].kube.CreateSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
+
+	defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
+	defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
+
+	tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite1", "xsite2", tesKubes["xsite2"].namespace, ispnv1.CrossSiteExposeTypeNodePort, 0)
+	tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite2", "xsite1", tesKubes["xsite1"].namespace, ispnv1.CrossSiteExposeTypeNodePort, 0)
+
+	tesKubes["xsite1"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
+	tesKubes["xsite2"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
+
+	// Disable Gossip Router on site1
+	tesKubes["xsite1"].crossSite.Spec.Service.Sites.Local.Discovery = &ispnv1.DiscoverySiteSpec{
+		LaunchGossipRouter: pointer.Bool(false),
+	}
+	tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", ispnv1.CrossSiteSchemeTypeKubernetes, tesKubes["xsite2"].apiServer)
+
+	// Prevent site2 from trying to fetch the Gossip Router from site1
+	tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].Namespace = ""
+	tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].ClusterName = ""
+	tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].SecretName = ""
+
+	defer tesKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite1"].namespace)
+	defer tesKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, tesKubes["xsite2"].namespace)
+
+	tesKubes["xsite1"].kube.CreateInfinispan(&tesKubes["xsite1"].crossSite, tesKubes["xsite1"].namespace)
+	tesKubes["xsite2"].kube.CreateInfinispan(&tesKubes["xsite2"].crossSite, tesKubes["xsite2"].namespace)
+
+	tesKubes["xsite1"].kube.WaitForInfinispanPods(int(1), tutils.SinglePodTimeout, tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace)
+	tesKubes["xsite2"].kube.WaitForInfinispanPods(int(1), tutils.SinglePodTimeout, tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace)
+
+	tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
+	tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionWellFormed)
+
+	ispnXSite1 := tesKubes["xsite1"].kube.WaitForInfinispanCondition(tesKubes["xsite1"].crossSite.Name, tesKubes["xsite1"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+	ispnXSite2 := tesKubes["xsite2"].kube.WaitForInfinispanCondition(tesKubes["xsite2"].crossSite.Name, tesKubes["xsite2"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+
+	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+	assert.Contains(t, ispnXSite2.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+
+	assertGossipRouterPodCount(t, tesKubes["xsite1"], 0)
+	expectNoCrossSiteService(tesKubes["xsite1"])
+
+	assertGossipRouterPodCount(t, tesKubes["xsite2"], 1)
+	expectsCrossSiteService(tesKubes["xsite2"])
+
 }
 
 func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
@@ -454,4 +527,30 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 
 	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
 	assert.Contains(t, ispnXSite2.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+}
+
+func assertGossipRouterPodCount(t *testing.T, testkube *crossSiteKubernetes, expected int) {
+	pods := &corev1.PodList{}
+	err := testkube.kube.Kubernetes.Client.List(context.TODO(), pods, &client.ListOptions{
+		Namespace:     testkube.namespace,
+		LabelSelector: labels.SelectorFromSet(testkube.crossSite.GossipRouterPodLabels()),
+	})
+	tutils.ExpectNoError(err)
+	assert.Equal(t, expected, len(pods.Items))
+}
+
+func expectNoCrossSiteService(testkube *crossSiteKubernetes) {
+	err := testkube.kube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{
+		Name:      testkube.crossSite.GetSiteServiceName(),
+		Namespace: testkube.crossSite.Namespace,
+	}, &corev1.Service{})
+	tutils.ExpectNotFound(err)
+}
+
+func expectsCrossSiteService(testkube *crossSiteKubernetes) {
+	err := testkube.kube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{
+		Name:      testkube.crossSite.GetSiteServiceName(),
+		Namespace: testkube.crossSite.Namespace,
+	}, &corev1.Service{})
+	tutils.ExpectNoError(err)
 }

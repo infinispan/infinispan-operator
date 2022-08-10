@@ -123,6 +123,16 @@ func (i *Infinispan) Default() {
 				i.Spec.Service.Sites.Locations[idx].URL = fmt.Sprintf("%s://%s:%d", consts.StaticCrossSiteUriSchema, *location.Host, port)
 			}
 		}
+
+		if i.Spec.Service.Sites.Local.Discovery == nil {
+			i.Spec.Service.Sites.Local.Discovery = &DiscoverySiteSpec{}
+		}
+		if i.Spec.Service.Sites.Local.Discovery.Type == "" {
+			i.Spec.Service.Sites.Local.Discovery.Type = GossipRouterType
+		}
+		if i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter == nil {
+			i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter = pointer.Bool(true)
+		}
 	}
 }
 

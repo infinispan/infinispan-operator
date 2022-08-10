@@ -863,6 +863,21 @@ spec:
                       local:
                         description: InfinispanSitesLocalSpec enables cross-site replication
                         properties:
+                          discovery:
+                            description: DiscoverySiteSpec configures the corss-site
+                              replication discovery
+                            properties:
+                              launchGossipRouter:
+                                description: Enables (default) or disables the Gossip
+                                  Router pod and cross-site services
+                                type: boolean
+                              type:
+                                description: Configures the discovery mode for cross-site
+                                  replication
+                                enum:
+                                - gossiprouter
+                                type: string
+                            type: object
                           encryption:
                             description: EncryptionSiteSpec enables TLS for cross-site
                               replication

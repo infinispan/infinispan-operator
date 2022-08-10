@@ -28,6 +28,21 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if err := r.Delete(oldRouterDeployment, &appsv1.Deployment{}, pipeline.RetryOnErr); err != nil {
 		return
 	}
+
+	if !i.IsGossipRouterEnabled() {
+		if i.Spec.Replicas == 0 {
+			// shutdown request, ignore
+			_ = ctx.UpdateInfinispan(func() {
+				i.SetCondition(ispnv1.ConditionGossipRouterReady, metav1.ConditionFalse, "Shutdown Requested")
+			})
+		} else {
+			_ = ctx.UpdateInfinispan(func() {
+				i.SetCondition(ispnv1.ConditionGossipRouterReady, metav1.ConditionTrue, "Gossip Router disabled by user")
+			})
+		}
+		return
+	}
+
 	router := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.GetGossipRouterDeploymentName(),
@@ -42,7 +57,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if i.Spec.Replicas <= 0 {
 			replicas = pointer.Int32(0)
 		} else {
-			replicas = pointer.Int32(i.Spec.Replicas)
+			replicas = pointer.Int32(1)
 		}
 
 		args := []string{

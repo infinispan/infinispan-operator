@@ -20,30 +20,34 @@ import (
 )
 
 func XSite(i *ispnv1.Infinispan, ctx pipeline.Context) {
-	svc := &corev1.Service{}
-	if err := ctx.Resources().Load(i.GetSiteServiceName(), svc, pipeline.RetryOnErr); err != nil {
-		return
-	}
 	xSite := &pipeline.XSite{}
+	if i.IsGossipRouterEnabled() {
+		svc := &corev1.Service{}
+		if err := ctx.Resources().Load(i.GetSiteServiceName(), svc, pipeline.RetryOnErr); err != nil {
+			return
+		}
 
-	// Configure Local and Remote sites
-	localSiteHost, localPort, err := getCrossSiteServiceHostPort(svc, ctx, ctx.Kubernetes(), "XSiteLocalServiceUnsupported")
-	if err != nil {
-		ctx.Requeue(fmt.Errorf("error retrieving local x-site service information: %w", err))
-		return
+		// Configure Local and Remote sites
+		localSiteHost, localPort, err := getCrossSiteServiceHostPort(svc, ctx, ctx.Kubernetes(), "XSiteLocalServiceUnsupported")
+		if err != nil {
+			ctx.Requeue(fmt.Errorf("error retrieving local x-site service information: %w", err))
+			return
+		}
+
+		if localSiteHost == "" {
+			ctx.Requeue(fmt.Errorf("local x-site service host not yet available"))
+			return
+		}
+
+		if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
+			// For load balancer service, we allow a custom port!
+			localPort = consts.CrossSitePort
+		}
+
+		appendBackupSite(i.Spec.Service.Sites.Local.Name, svc.Name, localPort, xSite, false)
+	} else {
+		appendBackupSite(i.Spec.Service.Sites.Local.Name, "", 0, xSite, true)
 	}
-
-	if localSiteHost == "" {
-		ctx.Requeue(fmt.Errorf("local x-site service host not yet available"))
-		return
-	}
-
-	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
-		// For load balancer service, we allow a custom port!
-		localPort = consts.CrossSitePort
-	}
-
-	appendBackupSite(i.Spec.Service.Sites.Local.Name, svc.Name, localPort, xSite)
 
 	if err := searchRemoteSites(i, ctx, xSite); err != nil {
 		ctx.Requeue(fmt.Errorf("unable to search remote sites: %w", err))
@@ -72,14 +76,14 @@ func searchRemoteSites(i *ispnv1.Infinispan, ctx pipeline.Context, xSite *pipeli
 			clusterName := i.GetRemoteSiteClusterName(remoteName)
 			namespace := i.GetRemoteSiteNamespace(remoteName)
 			if clusterName == i.Name && namespace == i.Namespace {
-				return fmt.Errorf("unable to link the cross-site service with itself. clusterName '%s' or namespace '%s' for remote location '%s' should be different from the original cluster name or namespace",
-					clusterName, namespace, remoteName)
+				appendBackupSite(remoteName, "", 0, xSite, true)
+				continue
 			}
 			// Add cross-site FQN service name inside the same k8s cluster
-			appendBackupSite(remoteName, i.GetRemoteSiteServiceFQN(remoteName), 0, xSite)
+			appendBackupSite(remoteName, i.GetRemoteSiteServiceFQN(remoteName), 0, xSite, false)
 		} else if backupSiteURL.Scheme == consts.StaticCrossSiteUriSchema {
 			port, _ := strconv.ParseInt(backupSiteURL.Port(), 10, 32)
-			appendBackupSite(remoteName, backupSiteURL.Hostname(), int32(port), xSite)
+			appendBackupSite(remoteName, backupSiteURL.Hostname(), int32(port), xSite, false)
 		} else {
 			// lookup remote service via kubernetes API
 			if err = appendRemoteLocation(i, ctx, xSite, &remoteLocation); err != nil {
@@ -99,7 +103,7 @@ func appendRemoteLocation(i *ispnv1.Infinispan, ctx pipeline.Context, xSite *pip
 
 	remoteKubernetes, err := kube.NewKubernetesFromConfig(restConfig, ctx.Kubernetes().Client.Scheme())
 	if err != nil {
-		ctx.Log().Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
+		logger.Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
 		return err
 	}
 
@@ -121,7 +125,7 @@ func appendRemoteLocation(i *ispnv1.Infinispan, ctx pipeline.Context, xSite *pip
 		if err := remoteKubernetes.Client.Get(ctx.Ctx(), types.NamespacedName{Name: remoteRouteName, Namespace: remoteNamespace}, siteRoute); err == nil {
 			// Route found
 			logger.Info("Remote route found!", "host", siteRoute.Spec.Host)
-			appendBackupSite(remoteLocationName, siteRoute.Spec.Host, 443, xSite)
+			appendBackupSite(remoteLocationName, siteRoute.Spec.Host, 443, xSite, false)
 			return nil
 		} else if client.IgnoreNotFound(err) != nil {
 			logger.Error(err, "could not get x-site Route in remote cluster", "site route name", remoteRouteName, "site namespace", remoteNamespace)
@@ -158,7 +162,7 @@ func appendRemoteLocation(i *ispnv1.Infinispan, ctx pipeline.Context, xSite *pip
 	}
 
 	logger.Info("remote site service", "host", host, "port", port)
-	appendBackupSite(remoteLocationName, host, port, xSite)
+	appendBackupSite(remoteLocationName, host, port, xSite, false)
 
 	return nil
 }
@@ -189,15 +193,16 @@ func getRemoteSiteRESTConfig(i *ispnv1.Infinispan, ctx pipeline.Context, locatio
 	}
 }
 
-func appendBackupSite(name, host string, port int32, xSite *pipeline.XSite) {
+func appendBackupSite(name, host string, port int32, xSite *pipeline.XSite, ignoreGossipRouter bool) {
 	if port == 0 {
 		port = consts.CrossSitePort
 	}
 
 	backupSite := pipeline.BackupSite{
-		Address: host,
-		Name:    name,
-		Port:    port,
+		Address:            host,
+		Name:               name,
+		Port:               port,
+		IgnoreGossipRouter: ignoreGossipRouter,
 	}
 
 	xSite.Sites = append(xSite.Sites, backupSite)
