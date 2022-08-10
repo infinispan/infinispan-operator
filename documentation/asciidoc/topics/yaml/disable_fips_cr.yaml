@@ -1,5 +1,0 @@
-spec:
-  container:
-    extraJvmOpts: "-Dcom.redhat.fips=false"
-    cliExtraJvmOpts: "-Dcom.redhat.fips=false"
-    routerExtraJvmOpts: "-Dcom.redhat.fips=false"  
