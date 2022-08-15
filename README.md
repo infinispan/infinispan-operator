@@ -98,8 +98,8 @@ To create an Operator release perform the following:
 
 1. Update the `INFINISPAN_OPERAND_VERSIONS` json in `config/manager/manager.yaml` to point to include the latest Infinispan Server releases. Do not use the floating tags for an Operand image, e.g. `13.0`.
 2. Commit changes with appropriate commit message, e.g "Releasing Operator <x.y.z>.Final"
-3. Tag the release `git tag <x.y.z>`
-4. Create and push the image `make operator-build operator-push VERSION=<x.y.z>.Final IMG=quay.io/infinispan/operator:<x.y.z>.Final`
+3. Tag the release `git tag <x.y.z>` and push to GitHub
+4. Create and push the multi-arch image using the created tag via the "Image Release" GitHub Action
 5. Remove the old bundle from local `rm -rf bundle`
 6. Create OLM bundle `make bundle VERSION=<x.y.z> CHANNELS=2.2.x DEFAULT_CHANNEL=2.2.x IMG=quay.io/remerson/operator:<x.y.z>.Final`
 7. Copy contents of `bundle/` and issue PRs to:
