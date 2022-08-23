@@ -5,34 +5,33 @@
 The {ispn_operator} starts a Gossip router on each site, but you only need a single Gossip router to manage traffic between the {brandname} cluster members.
 You can disable the additional Gossip routers to save resources.
 
-.Prerequisites
-
-* Have multiple working Gossip routers.
-+
-You can have an external Gossip router that is not managed by the {ispn_operator}.
+For example, you have {brandname} clusters in *LON* and *NYC* sites.
+The following procedure shows how you can disable Gossip router in *LON* site and connect to *NYC* that has the Gossip router enabled.
 
 .Procedure
 
 . Create an `Infinispan` CR for each {brandname} cluster.
 . Specify the name of the local site with `spec.service.sites.local.name`.
-. Set `false` as the value for the `spec.service.sites.local.discovery.launchGossipRouter`.
-. Connect to a remote site:
-.. For the remote site with Gossip router enabled,specify the `url` with the `spec.service.sites.locations.url`.
+. For the *LON* cluster, set `false` as the value for the `spec.service.sites.local.discovery.launchGossipRouter`.
+. For the *LON* cluster, specify the `url` with the `spec.service.sites.locations.url` to connect to the *NYC*.
 +
+In the *NYC* configuration, do not specify `spec.service.sites.locations.url`.
++
+.LON
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/xsite_disable_gossip_router.yaml[]
 ----
-.. For the remote site with Gossip router disabled, do not specify `spec.service.sites.locations.url`.
 +
+.NYC
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/xsite_local_gossip_router.yaml[]
 ----
-+
+
 [IMPORTANT]
 ====
-{brandname} recommends to keep the Gossip router enabled on all the remote sites.
+If you have three and more sites, {brandname} recommends to keep the Gossip router enabled on all the remote sites.
 When you have multiple Gossip routers and one of them becomes unavailable, the remaining routers continue exchanging messages.
 In case when there is a single Gossip router that becomes unavailable, the connection between the remote sites breaks.
 ====
@@ -43,4 +42,4 @@ If your clusters have formed a cross-site view, you can start adding backup loca
 
 [role="_additional-resources"]
 .Additional resources
-* link:{xsite_docs}[{brandname} guide to cross-site replication]
+* link:{xsite_docs}[{brandname} cross-site replication]

@@ -9,7 +9,5 @@ spec:
     sites:
       local:
         name: NYC
-        discovery:
-          launchGossipRouter: false
       locations:
         - name: LON
