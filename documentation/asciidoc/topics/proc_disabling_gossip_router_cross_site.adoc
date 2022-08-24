@@ -31,9 +31,9 @@ include::yaml/xsite_local_gossip_router.yaml[]
 
 [IMPORTANT]
 ====
-If you have three and more sites, {brandname} recommends to keep the Gossip router enabled on all the remote sites.
+If you have three or more sites, {brandname} recommends to keep the Gossip router enabled on all the remote sites.
 When you have multiple Gossip routers and one of them becomes unavailable, the remaining routers continue exchanging messages.
-In case when there is a single Gossip router that becomes unavailable, the connection between the remote sites breaks.
+If a single Gossip router is defined, and it becomes unavailable, the connection between the remote sites breaks.
 ====
 
 .Next steps
