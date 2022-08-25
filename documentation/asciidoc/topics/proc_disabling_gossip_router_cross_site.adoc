@@ -11,11 +11,10 @@ The following procedure shows how you can disable Gossip router in *LON* site an
 .Procedure
 
 . Create an `Infinispan` CR for each {brandname} cluster.
-. Specify the name of the local site with `spec.service.sites.local.name`.
-. For the *LON* cluster, set `false` as the value for the `spec.service.sites.local.discovery.launchGossipRouter`.
+. Specify the name of the local site with the `spec.service.sites.local.name` field.
+. For the *LON* cluster, set `false` as the value for the `spec.service.sites.local.discovery.launchGossipRouter` field.
 . For the *LON* cluster, specify the `url` with the `spec.service.sites.locations.url` to connect to the *NYC*.
-+
-In the *NYC* configuration, do not specify `spec.service.sites.locations.url`.
+. In the *NYC* configuration, do not specify the `spec.service.sites.locations.url`.
 +
 .LON
 [source,yaml,options="nowrap",subs=attributes+]
