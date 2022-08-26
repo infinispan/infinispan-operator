@@ -51,7 +51,7 @@ func TestRollingUpgrade(t *testing.T) {
 		},
 	}
 
-	defer testKube.CleanupOLMTest(t, olm.SubName, olm.SubNamespace, olm.SubPackage)
+	defer testKube.CleanupOLMTest(t, tutils.TestName(t), olm.SubName, olm.SubNamespace, olm.SubPackage)
 	testKube.CreateSubscriptionAndApproveInitialVersion(olm, sub)
 
 	replicas := 2

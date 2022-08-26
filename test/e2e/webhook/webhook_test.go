@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 		},
 	}
 	// Defer in case a panic is encountered by one of the tests
-	defer testKube.CleanupOLMTest(nil, olm.SubName, olm.SubNamespace, olm.SubPackage)
+	defer testKube.CleanupOLMTest(nil, "webhook_test_main_defer", olm.SubName, olm.SubNamespace, olm.SubPackage)
 
 	testKube.CreateSubscriptionAndApproveInitialVersion(olm, sub)
 	testKube.WaitForDeployment("infinispan-operator-controller-manager", olm.SubNamespace)
@@ -89,7 +89,7 @@ func TestMain(m *testing.M) {
 	})
 
 	code := m.Run()
-	testKube.CleanupOLMTest(nil, olm.SubName, olm.SubNamespace, olm.SubPackage)
+	testKube.CleanupOLMTest(nil, "webhook_test_main", olm.SubName, olm.SubNamespace, olm.SubPackage)
 	os.Exit(code)
 }
 

@@ -107,7 +107,7 @@ func (k TestKubernetes) CreateSubscriptionAndApproveInitialVersion(olm OLMEnv, s
 	})
 }
 
-func (k TestKubernetes) CleanupOLMTest(t *testing.T, subName, subNamespace, subPackage string) {
+func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, subNamespace, subPackage string) {
 	panicVal := recover()
 
 	cleanupOlm := func() {
@@ -122,7 +122,13 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, subName, subNamespace, subP
 
 		testFailed := t != nil && t.Failed()
 		if panicVal != nil || testFailed {
-			dir := fmt.Sprintf("%s/%s", LogOutputDir, TestName(t))
+			dir := fmt.Sprintf("%s/%s", LogOutputDir, testIdentifier)
+
+			err := os.RemoveAll(dir)
+			LogError(err)
+
+			err = os.MkdirAll(dir, os.ModePerm)
+			LogError(err)
 
 			k.WriteAllResourcesToFile(dir, subNamespace, "OperatorGroup", &coreosv1.OperatorGroupList{}, map[string]string{})
 			k.WriteAllResourcesToFile(dir, subNamespace, "Subscription", &coreos.SubscriptionList{}, map[string]string{})
@@ -151,7 +157,9 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, subName, subNamespace, subP
 	defer cleanupOlm()
 
 	// Cleanup Infinispan resources
-	k.CleanNamespaceAndLogWithPanic(t, Namespace, panicVal)
+	if t != nil {
+		k.CleanNamespaceAndLogWithPanic(t, Namespace, panicVal)
+	}
 }
 
 func (k TestKubernetes) CreateOperatorGroup(name, namespace string, targetNamespaces ...string) {
