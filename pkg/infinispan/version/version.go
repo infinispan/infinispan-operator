@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/blang/semver"
 	"github.com/go-logr/logr"
@@ -121,6 +122,10 @@ func ManagerFromJson(jsonStr string) (*Manager, error) {
 			return nil, err
 		}
 
+		if err := resolveOperandImage(o); err != nil {
+			return nil, fmt.Errorf("unable to resolve Operand image: %w", err)
+		}
+
 		key := o.Ref()
 		if _, exists := manager.operandMap[key]; exists {
 			return nil, fmt.Errorf("multiple operands have the same version reference '%s'", key)
@@ -132,4 +137,17 @@ func ManagerFromJson(jsonStr string) (*Manager, error) {
 		return manager.Operands[i].LT(*manager.Operands[j])
 	})
 	return manager, nil
+}
+
+func resolveOperandImage(o *Operand) error {
+	img := o.Image
+	if strings.HasPrefix(img, "${") && strings.HasSuffix(img, "}") {
+		envVar := strings.TrimPrefix(strings.TrimSuffix(img, "}"), "${")
+		envImg := os.Getenv(envVar)
+		if envImg == "" {
+			return fmt.Errorf("operand %s image env variable '%s' is empty or has not been set", o.Ref(), envVar)
+		}
+		o.Image = envImg
+	}
+	return nil
 }

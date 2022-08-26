@@ -178,4 +178,32 @@ var _ = Describe("VersionManager", func() {
 			Patch: 10,
 		}))
 	})
+
+	It("should load image references from environment variables", func() {
+		json := `
+			[{
+				"upstream-version": "13.0.10",
+				"image": "${RELATED_IMAGE_OPENJDK_13.0.10}"
+			}]`
+		envName := "RELATED_IMAGE_OPENJDK_13.0.10"
+		image := "quay.io/infinispan/server:13.0.10.Final"
+		defer func() {
+			_ = os.Unsetenv(envName)
+		}()
+		Expect(os.Setenv(envName, image)).Should(BeNil())
+
+		m, err := version.ManagerFromJson(json)
+		Expect(err).Should(BeNil())
+		Expect(m.Latest().Image).Should(Equal(image))
+	})
+
+	It("should throw an error if an environment variable image reference is not set", func() {
+		json := `
+			[{
+				"upstream-version": "13.0.10",
+				"image": "${RELATED_IMAGE_OPENJDK_13.0.10}"
+			}]`
+		_, err := version.ManagerFromJson(json)
+		Expect(err).ShouldNot(BeNil())
+	})
 })
