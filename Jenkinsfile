@@ -102,47 +102,47 @@ pipeline {
                                 sh "make operator-build operator-push IMG=$CONFIG_LISTENER_IMAGE"
                             }
                         }
-
-                        stage('Infinispan') {
-                            steps {
-                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh "make infinispan-test PARALLEL_COUNT=5"
-                                }
-                            }
-                        }
-
-                        stage('Cache') {
-                            steps {
-                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh "make cache-test PARALLEL_COUNT=5"
-                                }
-                            }
-                        }
-
-                        stage('Batch') {
-                            steps {
-                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'make batch-test PARALLEL_COUNT=5'
-                                }
-                            }
-                        }
-
-                        stage('Multinamespace') {
-                            steps {
-                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh "kubectl config use-context $TESTING_CONTEXT"
-                                    sh 'make multinamespace-test'
-                                }
-                            }
-                        }
-
-                        stage('Backup/Restore') {
-                            steps {
-                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'make backuprestore-test INFINISPAN_CPU=500m'
-                                }
-                            }
-                        }
+//
+//                         stage('Infinispan') {
+//                             steps {
+//                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+//                                     sh "make infinispan-test PARALLEL_COUNT=5"
+//                                 }
+//                             }
+//                         }
+//
+//                         stage('Cache') {
+//                             steps {
+//                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+//                                     sh "make cache-test PARALLEL_COUNT=5"
+//                                 }
+//                             }
+//                         }
+//
+//                         stage('Batch') {
+//                             steps {
+//                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+//                                     sh 'make batch-test PARALLEL_COUNT=5'
+//                                 }
+//                             }
+//                         }
+//
+//                         stage('Multinamespace') {
+//                             steps {
+//                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+//                                     sh "kubectl config use-context $TESTING_CONTEXT"
+//                                     sh 'make multinamespace-test'
+//                                 }
+//                             }
+//                         }
+//
+//                         stage('Backup/Restore') {
+//                             steps {
+//                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+//                                     sh 'make backuprestore-test INFINISPAN_CPU=500m'
+//                                 }
+//                             }
+//                         }
 
                         stage('Webhook') {
                             steps {
@@ -151,37 +151,37 @@ pipeline {
                                 }
                             }
                         }
-
-                        stage('Hot Rod Rolling Upgrade') {
-                            steps {
-                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'make hotrod-upgrade-test'
-                                }
-                            }
-                        }
-
-                        stage('Upgrade') {
-                            steps {
-                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
-                                }
-                            }
-                        }
-
-                        stage('Xsite') {
-                            steps {
-                                catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'scripts/ci/configure-xsite.sh'
-                                    sh 'make xsite-test'
-                                }
-                            }
-
-                            post {
-                                failure {
-                                    debugKind(true, 'kind-xsite1', 'kind-xsite2')
-                                }
-                            }
-                        }
+//
+//                         stage('Hot Rod Rolling Upgrade') {
+//                             steps {
+//                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+//                                     sh 'make hotrod-upgrade-test'
+//                                 }
+//                             }
+//                         }
+//
+//                         stage('Upgrade') {
+//                             steps {
+//                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+//                                     sh 'make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.1'
+//                                 }
+//                             }
+//                         }
+//
+//                         stage('Xsite') {
+//                             steps {
+//                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
+//                                     sh 'scripts/ci/configure-xsite.sh'
+//                                     sh 'make xsite-test'
+//                                 }
+//                             }
+//
+//                             post {
+//                                 failure {
+//                                     debugKind(true, 'kind-xsite1', 'kind-xsite2')
+//                                 }
+//                             }
+//                         }
 
                         stage('Publish test results') {
                             steps {
