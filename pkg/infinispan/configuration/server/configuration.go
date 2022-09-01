@@ -44,9 +44,10 @@ type XSite struct {
 }
 
 type BackupSite struct {
-	Address string
-	Name    string
-	Port    int32
+	Address            string
+	Name               string
+	Port               int32
+	IgnoreGossipRouter bool
 }
 
 type JGroups struct {
@@ -120,11 +121,17 @@ func funcMap() template.FuncMap {
 	return template.FuncMap{
 		"RemoteSites": func(elems []BackupSite) string {
 			var ret string
-			for i, bs := range elems {
-				ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
-				if i < len(elems)-1 {
-					ret += ","
+			first := true
+			for _, bs := range elems {
+				if bs.IgnoreGossipRouter {
+					continue
 				}
+				if !first {
+					ret += ","
+				} else {
+					first = false
+				}
+				ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
 			}
 			return ret
 		},

@@ -276,9 +276,10 @@ type GossipRouter struct {
 }
 
 type BackupSite struct {
-	Address string
-	Name    string
-	Port    int32
+	Address            string
+	Name               string
+	Port               int32
+	IgnoreGossipRouter bool
 }
 
 var (

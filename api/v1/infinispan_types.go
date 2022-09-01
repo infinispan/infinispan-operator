@@ -159,7 +159,28 @@ type InfinispanSitesLocalSpec struct {
 	MaxRelayNodes int32 `json:"maxRelayNodes,omitempty"`
 	// +optional
 	Encryption *EncryptionSiteSpec `json:"encryption,omitempty"`
+	// +optional
+	Discovery *DiscoverySiteSpec `json:"discovery,omitempty"`
 }
+
+// DiscoverySiteSpec configures the corss-site replication discovery
+type DiscoverySiteSpec struct {
+	// Configures the discovery mode for cross-site replication
+	// +optional
+	Type DiscoverySiteType `json:"type,omitempty"`
+	// Enables (default) or disables the Gossip Router pod and cross-site services
+	// +optional
+	LaunchGossipRouter *bool `json:"launchGossipRouter,omitempty"`
+}
+
+// Specifies the discovery mode for cross-site configuration
+// +kubebuilder:validation:Enum=gossiprouter
+type DiscoverySiteType string
+
+// GossipRouterType is the only one supported but we may add other like submariner and/or skupper
+const (
+	GossipRouterType DiscoverySiteType = "gossiprouter"
+)
 
 type InfinispanSiteLocationSpec struct {
 	Name string `json:"name"`

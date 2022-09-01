@@ -1,0 +1,44 @@
+[id='disabling-gossip-router-cross-site_{context}']
+= Disabling local Gossip router and service
+
+[role="_abstract"]
+The {ispn_operator} starts a Gossip router on each site, but you only need a single Gossip router to manage traffic between the {brandname} cluster members.
+You can disable the additional Gossip routers to save resources.
+
+For example, you have {brandname} clusters in *LON* and *NYC* sites.
+The following procedure shows how you can disable Gossip router in *LON* site and connect to *NYC* that has the Gossip router enabled.
+
+.Procedure
+
+. Create an `Infinispan` CR for each {brandname} cluster.
+. Specify the name of the local site with the `spec.service.sites.local.name` field.
+. For the *LON* cluster, set `false` as the value for the `spec.service.sites.local.discovery.launchGossipRouter` field.
+. For the *LON* cluster, specify the `url` with the `spec.service.sites.locations.url` to connect to the *NYC*.
+. In the *NYC* configuration, do not specify the `spec.service.sites.locations.url`.
++
+.LON
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/xsite_disable_gossip_router.yaml[]
+----
++
+.NYC
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/xsite_local_gossip_router.yaml[]
+----
+
+[IMPORTANT]
+====
+If you have three or more sites, {brandname} recommends to keep the Gossip router enabled on all the remote sites.
+When you have multiple Gossip routers and one of them becomes unavailable, the remaining routers continue exchanging messages.
+If a single Gossip router is defined, and it becomes unavailable, the connection between the remote sites breaks.
+====
+
+.Next steps
+
+If your clusters have formed a cross-site view, you can start adding backup locations to caches.
+
+[role="_additional-resources"]
+.Additional resources
+* link:{xsite_docs}[{brandname} cross-site replication]

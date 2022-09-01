@@ -250,8 +250,16 @@ func defineExternalIngress(i *ispnv1.Infinispan, ctx pipeline.Context) {
 }
 
 func XSiteService(i *ispnv1.Infinispan, ctx pipeline.Context) {
-	if !i.HasSites() {
-		_ = ctx.Resources().Delete(i.GetSiteServiceName(), &corev1.Service{}, pipeline.RetryOnErr)
+	if !i.HasSites() || !i.IsGossipRouterEnabled() {
+		_ = ctx.Resources().Delete(i.GetSiteServiceName(), &corev1.Service{}, pipeline.RetryOnErr, pipeline.IgnoreNotFound)
+		ok, err := ctx.Kubernetes().IsGroupVersionKindSupported(pipeline.RouteGVK)
+		if err != nil {
+			ctx.Log().Error(err, fmt.Sprintf("failed to check if GVK '%s' is supported", pipeline.RouteGVK))
+			return
+		}
+		if ok {
+			_ = ctx.Resources().Delete(i.GetSiteRouteName(), &routev1.Route{}, pipeline.RetryOnErr, pipeline.IgnoreNotFound)
+		}
 		return
 	}
 
