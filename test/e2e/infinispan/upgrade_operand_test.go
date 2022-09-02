@@ -2,12 +2,14 @@ package infinispan
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,12 +21,15 @@ import (
 func TestOperandUpgrade(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	versionManager := tutils.VersionManager
+	versionManager := tutils.VersionManager()
+	oldest := versionManager.Oldest().Ref()
+	fmt.Println(t.Name() + " will be performed from " + oldest)
+
 	// Create Infinispan Cluster using the oldest Operand release
 	replicas := 1
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
-		i.Spec.Version = versionManager.Operands[0].Ref()
+		i.Spec.Version = oldest
 		// Ensure that FIPS is disabled when testing 13.0.x Operand
 		i.Spec.Container.CliExtraJvmOpts = "-Dcom.redhat.fips=false"
 		i.Spec.Container.ExtraJvmOpts = "-Dcom.redhat.fips=false"
@@ -40,6 +45,7 @@ func TestOperandUpgrade(t *testing.T) {
 		if operand.CVE {
 			continue
 		}
+		fmt.Println("Updating version to " + operand.Ref())
 		tutils.ExpectNoError(
 			testKube.UpdateInfinispan(ispn, func() {
 				ispn.Spec.Version = operand.Ref()
@@ -78,7 +84,11 @@ func TestOperandUpgrade(t *testing.T) {
 // installed operand, only result in a StatefulSet rolling upgrade
 func TestOperandCVERollingUpgrade(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-	versionManager := tutils.VersionManager
+	versionManager := tutils.VersionManager()
+
+	if !versionManager.Latest().CVE {
+		t.Skip("Latest release is non-cve, skipping test")
+	}
 
 	// Create Infinispan Cluster using the penultimate Operand release
 	replicas := 1
@@ -89,10 +99,6 @@ func TestOperandCVERollingUpgrade(t *testing.T) {
 	})
 
 	cveOperand := versionManager.Latest()
-	if !cveOperand.CVE {
-		t.Errorf("Expected latest Operand release to have cve=true: %s", cveOperand)
-		return
-	}
 	modifier := func(ispn *ispnv1.Infinispan) {
 		// Update the spec to install the CVE operand
 		ispn.Spec.Version = cveOperand.Ref()
@@ -114,8 +120,12 @@ func TestOperandCVERollingUpgrade(t *testing.T) {
 // the currently installed operand, result in a GracefulShutdown upgrade
 func TestOperandCVEGracefulShutdown(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+	versionManager := tutils.VersionManager()
 
-	versionManager := tutils.VersionManager
+	if !versionManager.Latest().CVE {
+		t.Skip("Latest release is non-cve, skipping test")
+	}
+
 	// Create Infinispan Cluster using the oldest Operand release
 	replicas := 1
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
@@ -130,10 +140,6 @@ func TestOperandCVEGracefulShutdown(t *testing.T) {
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	cveOperand := versionManager.Latest()
-	if !cveOperand.CVE {
-		t.Errorf("Expected latest Operand release to have cve=true: %s", cveOperand)
-		return
-	}
 
 	tutils.ExpectNoError(
 		testKube.UpdateInfinispan(ispn, func() {

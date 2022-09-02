@@ -109,6 +109,7 @@ func TestUpgrade(t *testing.T) {
 		}
 
 		operands := func() *version.Manager {
+			testKube.SetRelatedImagesEnvs(sub)
 			operandVersions := testKube.InstalledCSVEnv(ispnv1.OperatorOperandVersionEnvVarName, sub)
 			if operandVersions == "" {
 				panic(fmt.Sprintf("%s env empty, cannot continue", ispnv1.OperatorOperandVersionEnvVarName))

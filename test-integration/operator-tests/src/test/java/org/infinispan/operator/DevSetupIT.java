@@ -141,8 +141,8 @@ class DevSetupIT {
    void defaultReplicationFactorTest() throws Exception {
       String request = "http://" + hostName + "/rest/v2/caches/default?action=config";
       String config = Http.get(request).execute().response();
-      String numOwners = Stream.of(config.split(",")).filter(s -> s.contains("owners")).map(s -> s.trim().split(":")[2].replace("\"", "").trim()).findFirst().orElse("-1");
+      String[] owners = Stream.of(config.split(",")).filter(s -> s.contains("owners")).map(s -> s.trim().split(":")).findFirst().orElseThrow(() -> new IllegalStateException("Unable to retrieve owners"));
 
-      Assertions.assertThat(numOwners).isEqualTo("2");
+      Assertions.assertThat(owners[owners.length -1 ].replace("\"", "")).isEqualTo("2");
    }
 }

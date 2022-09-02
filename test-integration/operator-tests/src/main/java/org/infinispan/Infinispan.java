@@ -19,6 +19,7 @@ import org.infinispan.identities.Identities;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+import cz.xtf.core.config.XTFConfig;
 import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
 import cz.xtf.core.waiting.SimpleWaiter;
@@ -43,6 +44,13 @@ public class Infinispan {
    public Infinispan(String crPath) {
       try {
          infinispan = new ObjectMapper(new YAMLFactory()).readValue(new File(crPath), Map.class);
+
+         // Enable testing of different version based on property
+         String version = XTFConfig.get("xtf.infinispan.version");
+         if(version != null) {
+            ((HashMap<String,Object>)infinispan.get("spec")).put("version", version);
+         }
+
          infinispanObject = new ObjectMapper().convertValue(infinispan, InfinispanObject.class);
       } catch (IOException e) {
          throw new IllegalStateException("Unable to load Infinispan from: " + crPath, e);
