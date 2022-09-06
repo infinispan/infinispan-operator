@@ -51,6 +51,8 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 	mutateFn := func() error {
 		routerLabels := i.GossipRouterPodLabels()
+		enableJgrpDiag := consts.JGroupsDiagnosticsFlag == "TRUE"
+		var probePort int32 = consts.CrossSitePort
 
 		// if the user configures 0 replicas, shutdown the gossip router pod too.
 		var replicas *int32
@@ -67,6 +69,10 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 		var addKeystoreVolume, addTruststoreVolume bool
 		if i.IsSiteTLSEnabled() {
+			// enable diagnostic for k8s probes
+			enableJgrpDiag = true
+			probePort = consts.GossipRouterDiagPort
+
 			ks := ctx.ConfigFiles().XSite.GossipRouter.Keystore
 			args = append(args, []string{
 				"-nio", "false", // NIO does not work with TLS
@@ -91,6 +97,31 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			log.Info("No TLS configured")
 		}
 
+		containerPorts := []corev1.ContainerPort{
+			{
+				ContainerPort: consts.CrossSitePort,
+				Name:          "tunnel",
+				Protocol:      corev1.ProtocolTCP,
+			},
+		}
+
+		if enableJgrpDiag {
+			args = append(args, []string{
+				"-diag_enabled", "true",
+				"-diag_enable_udp", "false",
+				"-diag_enable_tcp", "true",
+				"-diag_port", strconv.Itoa(consts.GossipRouterDiagPort),
+				"-diag_port_range", "0",
+			}...)
+			containerPorts = append(containerPorts,
+				corev1.ContainerPort{
+					ContainerPort: consts.GossipRouterDiagPort,
+					Name:          "tunnel-diag",
+					Protocol:      corev1.ProtocolTCP,
+				},
+			)
+		}
+
 		router.Labels = routerLabels
 		router.Spec = appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -104,21 +135,15 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Name:    GossipRouterContainer,
-						Image:   i.ImageName(),
-						Command: []string{"/opt/gossiprouter/bin/launch.sh"},
-						Args:    args,
-						Env:     []corev1.EnvVar{{Name: "ROUTER_JAVA_OPTIONS", Value: i.Spec.Container.RouterExtraJvmOpts}},
-						Ports: []corev1.ContainerPort{
-							{
-								ContainerPort: consts.CrossSitePort,
-								Name:          "tunnel",
-								Protocol:      corev1.ProtocolTCP,
-							},
-						},
-						LivenessProbe:  TcpProbe(consts.CrossSitePort, 5, 5, 0, 1, 60),
-						ReadinessProbe: TcpProbe(consts.CrossSitePort, 5, 5, 0, 1, 60),
-						StartupProbe:   TcpProbe(consts.CrossSitePort, 5, 1, 1, 1, 60),
+						Name:           GossipRouterContainer,
+						Image:          i.ImageName(),
+						Command:        []string{"/opt/gossiprouter/bin/launch.sh"},
+						Args:           args,
+						Env:            []corev1.EnvVar{{Name: "ROUTER_JAVA_OPTIONS", Value: i.Spec.Container.RouterExtraJvmOpts}},
+						Ports:          containerPorts,
+						LivenessProbe:  TcpProbe(probePort, 5, 5, 0, 1, 60),
+						ReadinessProbe: TcpProbe(probePort, 5, 5, 0, 1, 60),
+						StartupProbe:   TcpProbe(probePort, 5, 1, 1, 1, 60),
 					}},
 				},
 			},

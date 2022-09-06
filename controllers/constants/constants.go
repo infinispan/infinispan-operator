@@ -55,6 +55,7 @@ const (
 	InfinispanUserPort                      = 11222
 	CrossSitePort                           = 7900
 	CrossSitePortName                       = "xsite"
+	GossipRouterDiagPort                    = 7500
 	StatefulSetPodLabel                     = "app.kubernetes.io/created-by"
 	StaticCrossSiteUriSchema                = "infinispan+xsite"
 	CacheServiceFixedMemoryXmxMb            = 200
