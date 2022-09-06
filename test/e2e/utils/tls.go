@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	KeystorePassword   = "secret"
-	TruststorePassword = "secret"
+	KeystorePassword   = "SuperSecret22"
+	TruststorePassword = "SuperSecret22"
 	keyBits            = 2048
 	tmpDir             = "/tmp/infinispan/operator/tls"
 )

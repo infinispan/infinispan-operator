@@ -57,6 +57,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	configSpec := &config.Spec{
 		ClusterName:     i.Name,
 		Namespace:       i.Namespace,
+		FIPS:            ctx.FIPS(),
 		StatefulSetName: i.GetStatefulSetName(),
 		Infinispan: config.Infinispan{
 			Authorization: &config.Authorization{

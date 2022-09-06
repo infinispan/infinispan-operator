@@ -99,9 +99,10 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 				Spec: corev1.PodSpec{
 					Affinity: i.Spec.Affinity,
 					Containers: []corev1.Container{{
-						Image: i.ImageName(),
-						Args:  BuildServerContainerArgs(ctx.ConfigFiles().UserConfig),
-						Name:  InfinispanContainer,
+						Image:   i.ImageName(),
+						Command: BuildServerContainerCmd(i, ctx),
+						Args:    BuildServerContainerArgs(i, ctx),
+						Name:    InfinispanContainer,
 						Env: PodEnv(i, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)},
 							{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)},
@@ -254,11 +255,27 @@ func addUserConfigVolumes(ctx pipeline.Context, i *ispnv1.Infinispan, statefulse
 	})
 }
 
-func BuildServerContainerArgs(userConfig pipeline.UserConfig) []string {
+func BuildServerContainerCmd(i *ispnv1.Infinispan, ctx pipeline.Context) []string {
+	if ctx.FIPS() && i.IsEncryptionEnabled() && ctx.Operand().UpstreamVersion.Major > 13 {
+		return []string{"/bin/sh", "-c"}
+	}
+	return nil
+}
+
+func BuildServerContainerArgs(i *ispnv1.Infinispan, ctx pipeline.Context) []string {
+	userConfig := ctx.ConfigFiles().UserConfig
 	var args strings.Builder
 
 	// Preallocate a buffer to speed up string building (saves code from growing the memory dynamically)
 	args.Grow(110)
+
+	fipsEncryption := ctx.FIPS() && i.IsEncryptionEnabled() && ctx.Operand().UpstreamVersion.Major > 13
+	if fipsEncryption {
+		// Execute FIPS init script before launching the server
+		args.WriteString("sh ")
+		args.WriteString(consts.ServerOperatorSecurity)
+		args.WriteString("/init-fips.sh; ./bin/launch.sh")
+	}
 
 	// Check if the user defined a custom log4j config
 	args.WriteString(" -l ")
@@ -279,6 +296,12 @@ func BuildServerContainerArgs(userConfig pipeline.UserConfig) []string {
 	// Apply Operator Admin config
 	args.WriteString(" -c operator/infinispan-admin.xml")
 
+	// If running in FIPS mode disable OpenSSL as it's incompatible with the NSS PKCS#11 store
+	if fipsEncryption {
+		args.WriteString(" -Djavax.net.debug=ssl,handshake")
+		args.WriteString(" -Dorg.infinispan.openssl=false")
+		return []string{args.String()}
+	}
 	return strings.Fields(args.String())
 }
 

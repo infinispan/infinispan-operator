@@ -2,6 +2,7 @@ package infinispan
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
@@ -56,7 +57,16 @@ func testCustomConfig(t *testing.T, configMap *corev1.ConfigMap) {
 	cacheHelper.TestBasicUsage("testkey", "test-operator")
 
 	sts := testKube.GetStatefulSet(ispn.Name, ispn.Namespace)
-	if sts.Spec.Template.Spec.Containers[0].Args[1] != "user/log4j.xml" {
+
+	var log4jExists bool
+	for _, arg := range sts.Spec.Template.Spec.Containers[0].Args {
+		if strings.Contains(arg, "user/log4j.xml") {
+			log4jExists = true
+			break
+		}
+	}
+
+	if !log4jExists {
 		tutils.ExpectNoError(fmt.Errorf("failed to pass the custom log4j.xml logging config as an argument "+
 			"of the Infinispan server (%s)", sts.Name))
 	}

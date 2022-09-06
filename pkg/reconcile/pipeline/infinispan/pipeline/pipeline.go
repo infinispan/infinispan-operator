@@ -116,6 +116,11 @@ func (b *builder) WithContextProvider(ctxProvider pipeline.ContextProvider) *bui
 	return b
 }
 
+func (b *builder) WithFIPS(enabled bool) *builder {
+	b.Fips = enabled
+	return b
+}
+
 func (b *builder) WithLabels(labels map[string]string) *builder {
 	if len(labels) > 0 {
 		b.DefaultLabels = labels

@@ -37,7 +37,7 @@
         <socket-binding name="default" port="${infinispan.bind.port:11222}"/>
     </socket-bindings>
     <security>
-        {{ if or .Keystore.Password .Truststore.Path }}
+        {{ if and (not .FIPS) (or .Keystore.Password .Truststore.Path) }}
         <credential-stores>
           <credential-store name="credentials" path="credentials.pfx">
             <clear-text-credential clear-text="secret"/>
@@ -48,8 +48,10 @@
             <security-realm name="default">
                 <server-identities>
 				{{ if or .Keystore.Path .Truststore.Path}}
-				<ssl>
-                        {{ if .Keystore.Path }}
+                <ssl>
+                        {{ if .FIPS }}
+                        <keystore provider="SunPKCS11-NSS-FIPS" type="PKCS11"/>
+                        {{ else if .Keystore.Path }}
                             {{ if .Keystore.Password }}
                                 <keystore path="{{  .Keystore.Path }}" {{if .Keystore.Alias }} alias="{{ .Keystore.Alias }}" {{ end }}>
                                     <credential-reference store="credentials" alias="keystore"/>
@@ -58,7 +60,8 @@
                                 <keystore path="{{  .Keystore.Path }}" keystore-password="" {{if .Keystore.Alias }} alias="{{ .Keystore.Alias }}" {{ end }}/>
                             {{ end }}
                         {{ end }}
-                        {{ if  .Truststore.Path }}
+
+                        {{ if and (not .FIPS) .Truststore.Path }}
                             <truststore path="{{ .Truststore.Path }}">
                                 <credential-reference store="credentials" alias="truststore"/>
                             </truststore>
@@ -81,12 +84,15 @@
             <security-realm name="transport">
                 <server-identities>
                     <ssl>
-                        {{ if .Transport.TLS.KeyStore.Path }}
+                        {{ if .FIPS }}
+                        <keystore provider="SunPKCS11-NSS-FIPS" type="PKCS11"/>
+                        {{ else if .Transport.TLS.KeyStore.Path }}
                         <keystore path="{{ .Transport.TLS.KeyStore.Path }}"
                                     keystore-password="{{ .Transport.TLS.KeyStore.Password }}"
                                     alias="{{ .Transport.TLS.KeyStore.Alias }}" />
                         {{ end }}
-                        {{ if .Transport.TLS.TrustStore.Path }}
+
+                        {{ if and (not .FIPS) .Transport.TLS.TrustStore.Path }}
                         <truststore path="{{ .Transport.TLS.TrustStore.Path }}"
                                     password="{{ .Transport.TLS.TrustStore.Password }}" />
                         {{ end }}
