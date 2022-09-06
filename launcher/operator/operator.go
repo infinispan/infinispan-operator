@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/infinispan/infinispan-operator/controllers"
@@ -71,6 +72,18 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		os.Exit(1)
 	}
 
+	fipsEnabled, err := func() (bool, error) {
+		bytes, err := os.ReadFile("/proc/sys/crypto/fips_enabled")
+		if err != nil {
+			return false, err
+		}
+		return strconv.ParseBool(string(bytes)[0:1])
+	}()
+	if err != nil {
+		setupLog.Error(err, "unable to determine if FIPS enabled")
+	}
+	setupLog.Info("FIPS", "enabled", fipsEnabled)
+
 	options := ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     p.MetricsBindAddress,
@@ -92,7 +105,7 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.InfinispanReconciler{}).SetupWithManager(ctx, mgr); err != nil {
+	if err = (&controllers.InfinispanReconciler{FipsEnabled: fipsEnabled}).SetupWithManager(ctx, mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Infinispan")
 		os.Exit(1)
 	}
@@ -132,7 +145,7 @@ func NewWithContext(ctx context.Context, p Parameters) {
 			setupLog.Info("Using legacy webhook certificate mounts", "CertDir", webhookServer.CertDir, "CertName", webhookServer.CertName, "KeyName", webhookServer.KeyName)
 		}
 
-		if err = (&infinispanv1.Infinispan{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&infinispanv1.Infinispan{}).SetupWebhookWithManager(mgr, fipsEnabled); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Infinispan")
 			os.Exit(1)
 		}

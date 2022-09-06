@@ -39,11 +39,11 @@ var VersionManager = func() *version.Manager {
 			"upstream-version": "13.0.10",
 			"image": "quay.io/infinispan/server:13.0.10.Final"
 		},{
-			"upstream-version": "14.0.0-CR1",
-			"image": "quay.io/infinispan/server:14.0.0.CR1-2"
-		},{
 			"upstream-version": "14.0.0-CR2",
-			"image": "quay.io/infinispan/server:14.0",
+			"image": "quay.io/infinispan/server:14.0.0.CR2"
+		},{
+			"upstream-version": "14.0.0",
+			"image": "quay.io/infinispan/server:14.0.0.CR2-2",
 			"cve": true
 		}]`)
 	}
@@ -161,6 +161,11 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 				Enabled: false,
 			},
 			Version: VersionManager.Latest().Ref(),
+			Logging: &ispnv1.InfinispanLoggingSpec{
+				Categories: map[string]ispnv1.LoggingLevelType{
+					"org.infinispan.SERVER": ispnv1.LoggingLevelDebug,
+				},
+			},
 		},
 	}
 	if initializer != nil {

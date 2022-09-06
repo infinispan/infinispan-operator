@@ -12,6 +12,7 @@ type Spec struct {
 	ClusterName     string
 	Namespace       string
 	StatefulSetName string
+	FIPS            bool
 	Infinispan      Infinispan
 	JGroups         JGroups
 	CloudEvents     *CloudEvents

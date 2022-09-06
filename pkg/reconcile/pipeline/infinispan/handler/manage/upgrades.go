@@ -2,6 +2,7 @@ package manage
 
 import (
 	"fmt"
+	"strings"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -201,6 +202,13 @@ func GracefulShutdownUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ctx.UpdateInfinispan(func() {
 				i.Spec.Replicas = i.Status.ReplicasWantedAtRestart
 				i.SetCondition(ispnv1.ConditionUpgrade, metav1.ConditionFalse, "")
+
+				if ctx.FIPS() && ctx.Operand().UpstreamVersion.Major > 13 {
+					disableFipsFlag := "-Dcom.redhat.fips=false"
+					i.Spec.Container.ExtraJvmOpts = strings.Replace(i.Spec.Container.ExtraJvmOpts, disableFipsFlag, "", -1)
+					i.Spec.Container.CliExtraJvmOpts = strings.Replace(i.Spec.Container.CliExtraJvmOpts, disableFipsFlag, "", -1)
+					i.Spec.Container.RouterExtraJvmOpts = strings.Replace(i.Spec.Container.RouterExtraJvmOpts, disableFipsFlag, "", -1)
+				}
 			}),
 		)
 	}
