@@ -62,6 +62,7 @@ type CloudEvents struct {
 }
 
 type Keystore struct {
+	NSS      bool
 	Path     string
 	Password string
 	Alias    string
@@ -72,6 +73,7 @@ type Truststore struct {
 	Authenticate bool
 	CaFile       string
 	Certs        string
+	NSS          bool
 	Path         string
 	Password     string
 }

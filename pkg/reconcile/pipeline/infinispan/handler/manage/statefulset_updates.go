@@ -103,7 +103,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	updateNeeded = updateStatefulSetEnv(container, statefulSet, "CONFIG_HASH", hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)) || updateNeeded
 	updateNeeded = updateStatefulSetEnv(container, statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)) || updateNeeded
 
-	if updateCmdArgs, err := updateStartupArgs(container, configFiles.UserConfig); err != nil {
+	if updateCmdArgs, err := updateStartupArgs(container, configFiles.UserConfig, ctx.FIPS()); err != nil {
 		ctx.Requeue(err)
 		return
 	} else {
@@ -199,8 +199,8 @@ func updateStatefulSetEnv(ispnContainer *corev1.Container, statefulSet *appsv1.S
 	return false
 }
 
-func updateStartupArgs(ispnContainer *corev1.Container, userConfig pipeline.UserConfig) (bool, error) {
-	newArgs := provision.BuildServerContainerArgs(userConfig)
+func updateStartupArgs(ispnContainer *corev1.Container, userConfig pipeline.UserConfig, fips bool) (bool, error) {
+	newArgs := provision.BuildServerContainerArgs(userConfig, fips)
 	if len(newArgs) == len(ispnContainer.Args) {
 		var changed bool
 		for i := range newArgs {

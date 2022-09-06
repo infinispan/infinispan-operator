@@ -2,6 +2,7 @@ package provision
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -100,7 +101,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Affinity: i.Spec.Affinity,
 					Containers: []corev1.Container{{
 						Image: i.ImageName(),
-						Args:  BuildServerContainerArgs(ctx.ConfigFiles().UserConfig),
+						Args:  BuildServerContainerArgs(ctx.ConfigFiles().UserConfig, ctx.FIPS()),
 						Name:  InfinispanContainer,
 						Env: PodEnv(i, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)},
@@ -254,7 +255,7 @@ func addUserConfigVolumes(ctx pipeline.Context, i *ispnv1.Infinispan, statefulse
 	})
 }
 
-func BuildServerContainerArgs(userConfig pipeline.UserConfig) []string {
+func BuildServerContainerArgs(userConfig pipeline.UserConfig, fips bool) []string {
 	var args strings.Builder
 
 	// Preallocate a buffer to speed up string building (saves code from growing the memory dynamically)
@@ -279,6 +280,10 @@ func BuildServerContainerArgs(userConfig pipeline.UserConfig) []string {
 	// Apply Operator Admin config
 	args.WriteString(" -c operator/infinispan-admin.xml")
 
+	// If running in FIPS mode disable OpenSSL as it's incompatible with the NSS PKCS#11 store
+	if fips {
+		args.WriteString(" -Dorg.infinispan.openssl=false")
+	}
 	return strings.Fields(args.String())
 }
 
@@ -294,22 +299,59 @@ func addTLS(ctx pipeline.Context, i *ispnv1.Infinispan, statefulSet *appsv1.Stat
 				Value: hash.HashByte(configFiles.Keystore.PemFile) + hash.HashByte(configFiles.Keystore.File),
 			})
 
+		if ctx.FIPS() {
+			ks := ctx.ConfigFiles().Keystore
+			// The FIPS scripts only requires the directory containing the keystore file(s)
+			ksPath := filepath.Dir(ks.Path)
+			addFipsInitContainer("keystore-nss-database", ksPath, ks.Password, EncryptKeystoreVolumeName, consts.ServerEncryptKeystoreRoot, i, statefulSet)
+		}
+
 		if i.IsClientCertEnabled() {
 			ispnContainer.Env = append(ispnContainer.Env,
 				corev1.EnvVar{
 					Name:  "TRUSTSTORE_HASH",
 					Value: hash.HashByte(configFiles.Truststore.File),
 				})
+
+			if ctx.FIPS() {
+				ts := ctx.ConfigFiles().Truststore
+				addFipsInitContainer("truststore-nss-database", consts.ServerEncryptTruststoreRoot, ts.Password, EncryptTruststoreVolumeName, consts.ServerEncryptTruststoreRoot, i, statefulSet)
+			}
 		}
 	}
 }
 
-func addXSiteTLS(ctx pipeline.Context, i *ispnv1.Infinispan, statefulset *appsv1.StatefulSet) {
+func addFipsInitContainer(name, ksPath, ksSecret, mountName, mountPath string, i *ispnv1.Infinispan, statefulSet *appsv1.StatefulSet) {
+	initContainers := &statefulSet.Spec.Template.Spec.InitContainers
+	*initContainers = append(*initContainers, corev1.Container{
+		Name:    name,
+		Image:   i.ImageName(),
+		Command: []string{"/opt/infinispan/bin/init_fips_keystore.sh"},
+		Args:    []string{"-p", ksSecret, ksPath},
+		VolumeMounts: []corev1.VolumeMount{{
+			Name:      mountName,
+			MountPath: mountPath,
+		}},
+	})
+}
+
+func addXSiteTLS(ctx pipeline.Context, i *ispnv1.Infinispan, statefulSet *appsv1.StatefulSet) {
 	if i.IsSiteTLSEnabled() {
-		spec := &statefulset.Spec.Template.Spec
+		spec := &statefulSet.Spec.Template.Spec
 		AddSecretVolume(i.GetSiteTransportSecretName(), SiteTransportKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, spec, InfinispanContainer)
+
+		if ctx.FIPS() {
+			ks := ctx.ConfigFiles().Transport.Keystore
+			addFipsInitContainer("transport-keystore-nss-database", consts.SiteTransportKeyStoreRoot, ks.Password, SiteTransportKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, i, statefulSet)
+		}
+
 		if ctx.ConfigFiles().Transport.Truststore != nil {
 			AddSecretVolume(i.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, spec, InfinispanContainer)
+
+			if ctx.FIPS() {
+				ts := ctx.ConfigFiles().Transport.Truststore
+				addFipsInitContainer("transport-truststore-nss-database", consts.SiteTrustStoreRoot, ts.Password, SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, i, statefulSet)
+			}
 		}
 	}
 }

@@ -94,6 +94,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				Enabled: true,
 				KeyStore: config.Keystore{
 					Alias:    ks.Alias,
+					NSS:      ctx.FIPS(),
 					Password: ks.Password,
 					Path:     ks.Path,
 				},
@@ -101,6 +102,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ts := configFiles.Transport.Truststore
 			if ts != nil {
 				tlsConfig.TrustStore = config.Truststore{
+					NSS:      ctx.FIPS(),
 					Path:     ts.Path,
 					Password: ts.Password,
 				}
@@ -133,6 +135,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		ks := configFiles.Keystore
 		configSpec.Keystore = config.Keystore{
 			Alias: ks.Alias,
+			NSS:   ctx.FIPS(),
 			// Actual value is not used by template, but required to show that a credential ref is required
 			Password: ks.Password,
 			Path:     ks.Path,
@@ -140,6 +143,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 		if i.IsClientCertEnabled() {
 			configSpec.Endpoints.ClientCert = string(i.Spec.Security.EndpointEncryption.ClientCert)
+			configSpec.Truststore.NSS = ctx.FIPS()
 			configSpec.Truststore.Path = fmt.Sprintf("%s/%s", consts.ServerEncryptTruststoreRoot, consts.EncryptTruststoreKey)
 		}
 	}

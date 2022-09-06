@@ -177,6 +177,10 @@ func (c contextImpl) DefaultLabels() map[string]string {
 	return c.ContextProviderConfig.DefaultLabels
 }
 
+func (c contextImpl) FIPS() bool {
+	return c.ContextProviderConfig.Fips
+}
+
 func (c contextImpl) IsTypeSupported(gvk schema.GroupVersionKind) bool {
 	_, ok := c.SupportedTypes[gvk]
 	return ok
