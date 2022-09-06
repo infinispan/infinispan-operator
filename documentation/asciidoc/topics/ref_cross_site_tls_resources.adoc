@@ -11,7 +11,7 @@ The following tables provides fields and descriptions for encrypting cross-site 
 |Description
 
 |`service.type.sites.local.encryption.protocol`
-|Specifies the TLS protocol to use for cross-site connections. The default value is `TLSv1.2` but you can set `TLSv1.3` if required.
+|Specifies the TLS protocol to use for cross-site connections. The default value is `TLSv1.3` but you can set `TLSv1.2` if required.
 
 |`service.type.sites.local.encryption.transportKeyStore`
 |Configures a keystore secret for relay pods.

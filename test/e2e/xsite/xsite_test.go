@@ -193,9 +193,9 @@ func TestDefaultTLSInternal(t *testing.T) {
 	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, nil)
 }
 
-// TestDefaultTLSInternalVersion3 tests if the TLSv1.3 connection works for internal cross-site communication
-func TestDefaultTLSInternalVersion3(t *testing.T) {
-	protocol := ispnv1.TLSVersion13
+// TestDefaultTLSInternalVersion2 tests if the TLSv1.2 connection works for internal cross-site communication
+func TestDefaultTLSInternalVersion2(t *testing.T) {
+	protocol := ispnv1.TLSVersion12
 	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, &protocol)
 }
 
@@ -204,9 +204,9 @@ func TestSingleTLSInternal(t *testing.T) {
 	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, nil)
 }
 
-// TestSingleTLSInternalVersion3 tests if the TLSv1.3 connection works for internal cross-site communication and custom keystore and truststore
-func TestSingleTLSInternalVersion3(t *testing.T) {
-	protocol := ispnv1.TLSVersion13
+// TestSingleTLSInternalVersion2 tests if the TLSv1.2 connection works for internal cross-site communication and custom keystore and truststore
+func TestSingleTLSInternalVersion2(t *testing.T) {
+	protocol := ispnv1.TLSVersion12
 	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, &protocol)
 }
 

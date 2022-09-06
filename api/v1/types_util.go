@@ -851,7 +851,7 @@ func (ispn *Infinispan) GetSiteTLSProtocol() string {
 	if !ispn.IsSiteTLSEnabled() {
 		return ""
 	}
-	return consts.GetWithDefault(string(ispn.Spec.Service.Sites.Local.Encryption.Protocol), string(TLSVersion12))
+	return consts.GetWithDefault(string(ispn.Spec.Service.Sites.Local.Encryption.Protocol), string(TLSVersion13))
 }
 
 // GetSiteTransportSecretName returns the secret name for the transport TLS keystore
