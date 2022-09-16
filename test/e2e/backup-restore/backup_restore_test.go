@@ -102,6 +102,18 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 						MountPath: "/etc/backups",
 					},
 				},
+				SecurityContext: &corev1.SecurityContext{
+					AllowPrivilegeEscalation: pointer.Bool(false),
+					Capabilities: &corev1.Capabilities{
+						Drop: []corev1.Capability{
+							"ALL",
+						},
+					},
+					RunAsNonRoot: pointer.Bool(true),
+					SeccompProfile: &corev1.SeccompProfile{
+						Type: "RuntimeDefault",
+					},
+				},
 			}},
 			RestartPolicy: corev1.RestartPolicyNever,
 			Volumes: []corev1.Volume{

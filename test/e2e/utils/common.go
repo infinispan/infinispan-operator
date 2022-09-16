@@ -17,10 +17,12 @@ import (
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	routev1 "github.com/openshift/api/route/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -178,55 +180,67 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 	return infinispan
 }
 
-func WebServerPod(name, namespace, configName, mountPath, imageName string) *corev1.Pod {
-	return &corev1.Pod{
+func WebServerDeployment(name, namespace, configName, mountPath, imageName string) *appsv1.Deployment {
+	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Labels:    map[string]string{"app": name},
 		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{
-				Name:  "web-server",
-				Image: imageName,
-				Ports: []corev1.ContainerPort{{
-					ContainerPort: int32(WebServerPortNumber),
-					Name:          "web-port",
-					Protocol:      corev1.ProtocolTCP,
-				}},
-				VolumeMounts: []corev1.VolumeMount{{
-					MountPath: mountPath,
-					Name:      "data",
-				}},
-				ReadinessProbe: &corev1.Probe{
-					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Scheme: corev1.URISchemeHTTP,
-							Path:   "/index.html",
-							Port:   intstr.FromInt(WebServerPortNumber),
-						},
-					},
-					InitialDelaySeconds: 5,
-					TimeoutSeconds:      60,
-					PeriodSeconds:       1,
-					SuccessThreshold:    1,
-					FailureThreshold:    5,
+		Spec: appsv1.DeploymentSpec{
+			Replicas: pointer.Int32(1),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": name},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   name,
+					Labels: map[string]string{"app": name},
 				},
-			}},
-			Volumes: []corev1.Volume{{
-				Name: "data",
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: configName,
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "web-server",
+						Image: imageName,
+						Ports: []corev1.ContainerPort{{
+							ContainerPort: int32(WebServerPortNumber),
+							Name:          "web-port",
+							Protocol:      corev1.ProtocolTCP,
+						}},
+						VolumeMounts: []corev1.VolumeMount{{
+							MountPath: mountPath,
+							Name:      "data",
+						}},
+						ReadinessProbe: &corev1.Probe{
+							Handler: corev1.Handler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Scheme: corev1.URISchemeHTTP,
+									Path:   "/index.html",
+									Port:   intstr.FromInt(WebServerPortNumber),
+								},
+							},
+							InitialDelaySeconds: 5,
+							TimeoutSeconds:      60,
+							PeriodSeconds:       1,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
 						},
-					},
+					}},
+					Volumes: []corev1.Volume{{
+						Name: "data",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: configName,
+								},
+							},
+						},
+					}},
 				},
-			}},
+			},
 		},
 	}
 }
