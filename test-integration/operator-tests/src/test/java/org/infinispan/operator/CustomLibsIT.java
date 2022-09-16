@@ -70,10 +70,17 @@ public class CustomLibsIT {
         vmb.withMountPath("/tmp/libs");
         vmb.withName("lib-pv-storage");
 
+        SecurityContextBuilder scb = new SecurityContextBuilder();
+        scb.withAllowPrivilegeEscalation(false);
+        scb.withCapabilities(new CapabilitiesBuilder().withDrop("ALL").build());
+        scb.withRunAsNonRoot(true);
+        scb.withSeccompProfile(new SeccompProfileBuilder().withType("RuntimeDefault").build());
+
         ContainerBuilder cb = new ContainerBuilder();
         cb.withName("lib-pv-container")
                 .withImage(serverImage)
                 .withVolumeMounts(vmb.build());
+        cb.withSecurityContext(scb.build());
 
         PodBuilder pod = new PodBuilder();
         pod.withNewMetadata()

@@ -141,9 +141,9 @@ func prepareWebServer() *corev1.ConfigMap {
 	webServerConfig.Namespace = tutils.Namespace
 	testKube.Create(webServerConfig)
 
-	webServerPodConfig := tutils.WebServerPod(tutils.WebServerName, tutils.Namespace, webServerConfig.Name, tutils.WebServerRootFolder, tutils.WebServerImageName)
-	tutils.ExpectNoError(controllerutil.SetControllerReference(webServerConfig, webServerPodConfig, tutils.Scheme))
-	testKube.Create(webServerPodConfig)
+	webServerDeploymentConfig := tutils.WebServerDeployment(tutils.WebServerName, tutils.Namespace, webServerConfig.Name, tutils.WebServerRootFolder, tutils.WebServerImageName)
+	tutils.ExpectNoError(controllerutil.SetControllerReference(webServerConfig, webServerDeploymentConfig, tutils.Scheme))
+	testKube.Create(webServerDeploymentConfig)
 
 	webServerService := tutils.WebServerService(tutils.WebServerName, tutils.Namespace)
 	tutils.ExpectNoError(controllerutil.SetControllerReference(webServerConfig, webServerService, tutils.Scheme))
