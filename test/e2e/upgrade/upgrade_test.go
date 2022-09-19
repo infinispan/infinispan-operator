@@ -102,14 +102,14 @@ func TestUpgrade(t *testing.T) {
 			}
 		}
 
-		latestOperand := func() version.Operand {
+		operands := func() *version.Manager {
 			operandVersions := testKube.InstalledCSVEnv(ispnv1.OperatorOperandVersionEnvVarName, sub)
 			if operandVersions == "" {
 				panic(fmt.Sprintf("%s env empty, cannot continue", ispnv1.OperatorOperandVersionEnvVarName))
 			}
 			versionManager, err := version.ManagerFromJson(operandVersions)
 			tutils.ExpectNoError(err)
-			return versionManager.Latest()
+			return versionManager
 		}
 
 		if ispnPreUpgrade.Spec.Version == "" {
@@ -124,40 +124,45 @@ func TestUpgrade(t *testing.T) {
 				// The latest Operator version still doesn't support multi-operand so check that the RELATED_IMAGE_OPENJDK
 				// image has been installed on all pods
 				assertOperandImage(relatedImageJdk)
-			} else {
-				latestOperand := latestOperand()
-				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-					return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-						i.Status.Operand.Version == latestOperand.Ref() &&
-						i.Status.Operand.Image == latestOperand.Image &&
-						i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
-				})
-				assertOperandImage(latestOperand.Image)
+				client = tutils.HTTPClientForCluster(spec, testKube)
+				tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
+				continue
 			}
-		} else {
-			latestOperand := latestOperand()
-			if ispnPreUpgrade.Spec.Version != latestOperand.Ref() {
-				ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
-				tutils.ExpectNoError(
-					testKube.UpdateInfinispan(ispn, func() {
-						ispn.Spec.Version = latestOperand.Ref()
-					}),
-				)
-				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-					return !i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-						i.Status.Operand.Version == latestOperand.Ref() &&
-						i.Status.Operand.Image == latestOperand.Image &&
-						i.Status.Operand.Phase == ispnv1.OperandPhasePending
-				})
-				testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-					return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-						i.Status.Operand.Version == latestOperand.Ref() &&
-						i.Status.Operand.Image == latestOperand.Image &&
-						i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
-				})
-				assertOperandImage(latestOperand.Image)
-			}
+
+			// This is the first upgrade to an Operator with multi-operand support, so wait for the oldest Operand
+			oldestOperand := operands().Oldest()
+			ispnPreUpgrade = testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+					i.Status.Operand.Version == oldestOperand.Ref() &&
+					i.Status.Operand.Image == oldestOperand.Image &&
+					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+			})
+			assertOperandImage(oldestOperand.Image)
+		}
+
+		// Upgrade to the latest available Operand
+		latestOperand := operands().Latest()
+		if ispnPreUpgrade.Spec.Version != latestOperand.Ref() {
+			ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+			tutils.ExpectNoError(
+				testKube.UpdateInfinispan(ispn, func() {
+					ispn.Spec.Version = latestOperand.Ref()
+				}),
+			)
+			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+				return !i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+					i.Status.Operand.Version == latestOperand.Ref() &&
+					i.Status.Operand.Image == latestOperand.Image &&
+					i.Status.Operand.Phase == ispnv1.OperandPhasePending
+			})
+			testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+					i.Status.Operand.Version == latestOperand.Ref() &&
+					i.Status.Operand.Image == latestOperand.Image &&
+					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+			})
+			assertOperandImage(latestOperand.Image)
 		}
 
 		// Ensure that persistent cache entries have survived the upgrade(s)

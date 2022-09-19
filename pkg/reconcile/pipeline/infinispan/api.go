@@ -72,8 +72,8 @@ type Context interface {
 	// Operand returns the metadata associated with the current Infinispan CR spec.version field
 	Operand() version.Operand
 
-	// OperandLookup returns the metadata associated with a provided version string
-	OperandLookup(version string) (version.Operand, error)
+	// Operands returns the version.Manager containing all supported Operands
+	Operands() *version.Manager
 
 	// InfinispanClient returns a client for the Operand servers
 	// The client is created Lazily and cached per Pipeline execution to prevent repeated calls to retrieve the cluster pods

@@ -89,6 +89,10 @@ func (m *Manager) Latest() Operand {
 	return *m.Operands[len(m.Operands)-1]
 }
 
+func (m *Manager) Oldest() Operand {
+	return *m.Operands[0]
+}
+
 func (m *Manager) Log(log logr.Logger) {
 	if bytes, err := json.MarshalIndent(m.Operands, "", "  "); err != nil {
 		log.Error(err, "unable to log VersionManager content")

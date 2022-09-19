@@ -20,12 +20,15 @@ import (
 // InitialiseOperandVersion sets the spec.Version field for CRs that were created by an older operator version
 func InitialiseOperandVersion(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if i.Spec.Version == "" {
+		operandRef := ctx.Operands().Oldest().Ref()
+		ctx.Log().Info("Upgrading from single operand operator. Adding spec.version", "version", operandRef)
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
-				i.Spec.Version = ctx.Operand().Ref()
+				// Utilise the oldest Operand as this is the Operand provided by the Operator prior to Multi-Operand support
+				i.Spec.Version = operandRef
 			}),
 		)
-	} else if _, err := ctx.OperandLookup(i.Spec.Version); err != nil {
+	} else if _, err := ctx.Operands().WithRef(i.Spec.Version); err != nil {
 		// Version is not known to the Operator. State not possible when a CR is created for this Operator version as
 		// the webhook should prevent the resource being created/updated. The only way this state can be reached is if
 		// the Operator was upgraded from a previous release containing the spec.Version Operand, which is now no longer
@@ -65,7 +68,7 @@ func UpgradeRequired(i *ispnv1.Infinispan, ctx pipeline.Context) bool {
 		// If the status version is not set, then this means we're upgrading from an older Operator version
 		return true
 	} else {
-		installedOperand, _ := ctx.OperandLookup(i.Status.Operand.Version)
+		installedOperand, _ := ctx.Operands().WithRef(i.Status.Operand.Version)
 		requestedOperand := ctx.Operand()
 
 		// If the Operand is marked as a CVE base-image release, then we perform the upgrade as a StatefulSet rolling upgrade
