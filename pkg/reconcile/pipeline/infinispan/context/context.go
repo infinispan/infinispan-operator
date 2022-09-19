@@ -81,8 +81,8 @@ func (c *contextImpl) Operand() version.Operand {
 	}
 }
 
-func (c *contextImpl) OperandLookup(versionStr string) (version.Operand, error) {
-	return c.VersionManager.WithRef(versionStr)
+func (c *contextImpl) Operands() *version.Manager {
+	return c.VersionManager
 }
 
 func (c contextImpl) InfinispanClient() (api.Infinispan, error) {

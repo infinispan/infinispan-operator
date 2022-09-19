@@ -90,7 +90,7 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	requestedOperand := ctx.Operand()
-	sourceOperand, _ := ctx.OperandLookup(upgradeStatus.SourceVersion)
+	sourceOperand, _ := ctx.Operands().WithRef(upgradeStatus.SourceVersion)
 	// If an upgrade is in process, but the spec.Version is reverted to the original source version then rollback
 	// Rollback is not possible if upgrading from an Operator that did no support multi-operand
 	if upgradeStatus.SourceVersion != "" && requestedOperand.EQ(sourceOperand) {
@@ -530,7 +530,7 @@ func (r *HotRodRollingUpgradeRequest) rollback() error {
 	err := ctx.UpdateInfinispan(func() {
 		rollingUpgradeStatus := r.i.Status.HotRodRollingUpgradeStatus
 		r.i.Status.StatefulSetName = rollingUpgradeStatus.SourceStatefulSetName
-		sourceOperand, _ := ctx.OperandLookup(rollingUpgradeStatus.SourceVersion)
+		sourceOperand, _ := ctx.Operands().WithRef(rollingUpgradeStatus.SourceVersion)
 		r.i.Status.Operand.Image = sourceOperand.Image
 		r.i.Status.Operand.Phase = ispnv1.OperandPhaseRunning
 		r.i.Status.Operand.Version = sourceOperand.Ref()
