@@ -194,6 +194,7 @@ func (b *builder) Build() pipeline.Pipeline {
 			provision.PingService,
 			provision.AdminService,
 			provision.ClusterStatefulSet,
+			provision.ServiceMonitor,
 		)
 		handlers.AddFeatureSpecific(i.IsExposed(), provision.ExternalService)
 	}
