@@ -63,7 +63,7 @@ func ServiceMonitor(i *iv1.Infinispan, ctx pipeline.Context) {
 				},
 			},
 			Selector: metav1.LabelSelector{
-				MatchLabels: i.ServiceSelectorLabels(),
+				MatchLabels: i.Labels("infinispan-service-admin"),
 			},
 			NamespaceSelector: monitoringv1.NamespaceSelector{
 				MatchNames: []string{i.Namespace},
