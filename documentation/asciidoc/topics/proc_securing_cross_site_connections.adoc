@@ -7,6 +7,11 @@ Add keystores and trust stores so that {brandname} clusters can secure cross-sit
 You must add a keystore to use an {openshiftshort} `Route` as the expose type for cross-site replication.
 Securing cross-site connections is optional if you use a `NodePort` or `LoadBalancer` as the expose type.
 
+[NOTE]
+====
+Cross-site replication does not support the {k8s} CA service. You must provide your own certificates.
+====
+
 .Prerequisites
 
 * Have a PKCS12 keystore that {brandname} can use to encrypt and decrypt RELAY messages.
