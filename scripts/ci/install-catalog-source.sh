@@ -5,9 +5,9 @@ KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 IMG_REGISTRY=${IMG_REGISTRY-"localhost:5000"}
 
-export CHANNELS=2.2.x
-export DEFAULT_CHANNEL=2.2.x
-export VERSION=2.2.6
+export CHANNELS=2.3.x
+export DEFAULT_CHANNEL=2.3.x
+export VERSION=2.3.0
 
 BUNDLE_IMG_NAME=infinispan-operator-bundle
 
