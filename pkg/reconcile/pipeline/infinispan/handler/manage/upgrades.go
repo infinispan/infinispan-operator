@@ -21,12 +21,15 @@ import (
 // InitialiseOperandVersion sets the spec.Version field for CRs that were created by an older operator version
 func InitialiseOperandVersion(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if i.Spec.Version == "" {
-		operandRef := ctx.Operands().Oldest().Ref()
+		operand := ctx.Operands().Oldest()
+		operandRef := operand.Ref()
 		ctx.Log().Info("Upgrading from single operand operator. Adding spec.version", "version", operandRef)
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
 				// Utilise the oldest Operand as this is the Operand provided by the Operator prior to Multi-Operand support
 				i.Spec.Version = operandRef
+				i.Status.Operand.Image = operand.Image
+				i.Status.Operand.Version = operandRef
 			}),
 		)
 	} else if _, err := ctx.Operands().WithRef(i.Spec.Version); err != nil {
