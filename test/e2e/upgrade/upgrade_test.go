@@ -116,14 +116,14 @@ func TestUpgrade(t *testing.T) {
 		}
 
 		if ispnPreUpgrade.Spec.Version == "" {
-			// We're upgrading from an Infinispan version that does not have multi-operand support so expect cluster
-			// GracefulShutdown upgrade to happen automatically
-			testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionStopping, conditionTimeout)
-			testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-			testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
-
 			relatedImageJdk := testKube.InstalledCSVEnv("RELATED_IMAGE_OPENJDK", sub)
 			if relatedImageJdk != "" {
+				// We're upgrading from an Infinispan version that does not have multi-operand support so expect cluster
+				// GracefulShutdown upgrade to happen automatically
+				testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionStopping, conditionTimeout)
+				testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+				testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+
 				// The latest Operator version still doesn't support multi-operand so check that the RELATED_IMAGE_OPENJDK
 				// image has been installed on all pods
 				assertOperandImage(relatedImageJdk)
