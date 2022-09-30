@@ -19,6 +19,4 @@ include::{topics}/attributes/links.adoc[]
 [id='infinispan_operator']
 = {ispn_operator} {ispn_operator_version} Guide
 
-{ispn_operator} {ispn_operator_version} corresponds to {brandname} {ispn_version}.
-
 include::stories.adoc[]

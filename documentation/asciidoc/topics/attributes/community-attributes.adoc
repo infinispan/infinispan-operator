@@ -22,13 +22,12 @@
 :lib_path: /opt/infinispan/server/lib
 :backup_path: /opt/infinispan/backups
 :server_image: quay.io/infinispan/server
-:server_image_version: 13.0
+:server_image_version: 14.0.0
 
 :ispn_operator: Infinispan Operator
-:ispn_operator_version: 2.2
-:operator_channel: 2.2
-:ispn_version: 13.0
-:schemaversion: 13.0
+:ispn_operator_version: 2.3
+:operator_channel: 2.3
+:schemaversion: 14.0
 :brandname: Infinispan
 :fullbrandname: Infinispan
 :subscription_name: infinispan
