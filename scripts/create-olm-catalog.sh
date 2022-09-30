@@ -7,7 +7,7 @@ CATALOG=${CATALOG_DIR}/catalog.yaml
 
 BUNDLE_IMGS="${BUNDLE_IMG}"
 # Define existing bundle images required in the catalog
-for version in v2.2.1 v2.2.2 v2.2.3 v2.2.4 v2.2.5; do
+for version in v2.2.5; do
   BUNDLE_IMGS="${BUNDLE_IMGS} quay.io/operatorhubio/infinispan:$version"
 done
 
@@ -19,24 +19,23 @@ cat <<EOF >> ${CATALOG}
 ---
 schema: olm.package
 name: infinispan
-defaultChannel: 2.2.x
+defaultChannel: 2.3.x
+---
+schema: olm.channel
+name: 2.3.x
+package: infinispan
+entries:
+- name: infinispan-operator.v2.3.0
+  replaces: infinispan-operator.v2.2.5
+- name: infinispan-operator.v2.2.5
+  replaces: infinispan-operator.v2.2.4
 ---
 schema: olm.channel
 name: 2.2.x
 package: infinispan
 entries:
-- name: infinispan-operator.v2.2.1
-  replaces: infinispan-operator.v2.2.0
-- name: infinispan-operator.v2.2.2
-  replaces: infinispan-operator.v2.2.1
-- name: infinispan-operator.v2.2.3
-  replaces: infinispan-operator.v2.2.2
-- name: infinispan-operator.v2.2.4
-  replaces: infinispan-operator.v2.2.3
 - name: infinispan-operator.v2.2.5
   replaces: infinispan-operator.v2.2.4
-- name: infinispan-operator.v2.2.6
-  replaces: infinispan-operator.v2.2.5
 EOF
 
 ${OPM} render --use-http -o yaml ${BUNDLE_IMGS} >> ${CATALOG}

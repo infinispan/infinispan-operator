@@ -7,7 +7,6 @@ metadata:
     categories: Database
     certified: "false"
     description: Create and manage Infinispan clusters.
-    olm.skipRange: '>=2.1.x <2.2.1'
     repository: https://github.com/infinispan/infinispan-operator
   labels:
     operatorframework.io/arch.amd64: supported
