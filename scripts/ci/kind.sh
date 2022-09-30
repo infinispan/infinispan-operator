@@ -2,7 +2,7 @@
 # Modified version of the script found at https://kind.sigs.k8s.io/docs/user/local-registry/#create-a-cluster-and-registry
 set -o errexit
 
-SERVER_TAGS=${SERVER_TAGS:-'13.0.10.Final 14.0.0.CR1-2'}
+SERVER_TAGS=${SERVER_TAGS:-'13.0.10.Final 14.0.0.Final'}
 KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.17.17'}
 KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
 
