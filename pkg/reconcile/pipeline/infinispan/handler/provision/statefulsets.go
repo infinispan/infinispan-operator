@@ -298,7 +298,6 @@ func BuildServerContainerArgs(i *ispnv1.Infinispan, ctx pipeline.Context) []stri
 
 	// If running in FIPS mode disable OpenSSL as it's incompatible with the NSS PKCS#11 store
 	if fipsEncryption {
-		args.WriteString(" -Djavax.net.debug=ssl,handshake")
 		args.WriteString(" -Dorg.infinispan.openssl=false")
 		return []string{args.String()}
 	}
