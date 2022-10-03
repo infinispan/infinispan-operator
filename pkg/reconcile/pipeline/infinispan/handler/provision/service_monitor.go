@@ -77,6 +77,22 @@ func ServiceMonitor(i *iv1.Infinispan, ctx pipeline.Context) {
 		}
 		// Annotation to force ServiceMonitor update when operator admin password has been changed
 		serviceMonitor.Annotations[SecretHashAnnotation] = hash.HashString(ctx.ConfigFiles().AdminIdentities.Password)
+
+		// Operator 8.3.x incorrectly sets the ServiceMonitor owner to be the Infinispan service, not the Infinispan CR
+		// Therefore we must explicitly remove the old owner reference if it exists, so that we can successfully upgrade
+		// from the 8.3.x -> 8.4.0 Operator
+		creationTimestamp := serviceMonitor.GetCreationTimestamp()
+		if !creationTimestamp.IsZero() {
+			retained := 0
+			for _, ref := range serviceMonitor.OwnerReferences {
+				if !*ref.Controller || ref.Kind != pipeline.ServiceGVK.Kind {
+					serviceMonitor.OwnerReferences[retained] = ref
+					retained++
+				}
+			}
+			serviceMonitor.OwnerReferences = serviceMonitor.OwnerReferences[:retained]
+		}
+
 		return nil
 	}
 
