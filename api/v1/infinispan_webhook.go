@@ -166,7 +166,7 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 				detail := fmt.Sprintf("Version downgrading not supported. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
 				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
 			}
-		} else {
+		} else if operand.LT(oldOperand) {
 			if old.Status.HotRodRollingUpgradeStatus == nil {
 				detail := fmt.Sprintf("Version rollback only supported when a Hot Rolling Upgrade is in progress. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
 				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
