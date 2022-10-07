@@ -63,6 +63,9 @@ func TestUpgrade(t *testing.T) {
 		i.Spec.Container.CliExtraJvmOpts = "-Dcom.redhat.fips=false"
 		i.Spec.Container.ExtraJvmOpts = "-Dcom.redhat.fips=false"
 	})
+	// Explicitly reset the Version so that it will be set by the Operator webhook
+	spec.Spec.Version = ""
+
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)

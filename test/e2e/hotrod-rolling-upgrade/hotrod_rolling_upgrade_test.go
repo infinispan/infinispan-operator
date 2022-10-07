@@ -1,6 +1,7 @@
 package hotrod_rolling_upgrade
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,10 +13,12 @@ import (
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
+	ctx              = context.TODO()
 	conditionTimeout = 2 * tutils.ConditionWaitTimeout
 	testKube         = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 )
@@ -56,10 +59,7 @@ func TestRollingUpgrade(t *testing.T) {
 
 	replicas := 2
 	entriesPerCache := 100
-	// Create a cluster with the oldest supported Operand release
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		operandSrc := tutils.VersionManager.Operands[0]
-		i.Spec.Version = operandSrc.Ref()
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Container.CPU = "1000m"
 		i.Spec.Service.Container.EphemeralStorage = false
@@ -67,6 +67,8 @@ func TestRollingUpgrade(t *testing.T) {
 			Type: ispnv1.UpgradeTypeHotRodRolling,
 		}
 	})
+	// Explicitly reset the Version so that it will be set by the Operator webhook
+	spec.Spec.Version = ""
 
 	testKube.Create(spec)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
@@ -102,14 +104,14 @@ func TestRollingUpgrade(t *testing.T) {
 			return sub.Status.InstalledCSV == sub.Status.CurrentCSV
 		})
 
-		latestOperand := func() version.Operand {
+		operands := func() *version.Manager {
 			operandVersions := testKube.InstalledCSVEnv(ispnv1.OperatorOperandVersionEnvVarName, sub)
 			if operandVersions == "" {
 				panic(fmt.Sprintf("%s env empty, cannot continue", ispnv1.OperatorOperandVersionEnvVarName))
 			}
 			versionManager, err := version.ManagerFromJson(operandVersions)
 			tutils.ExpectNoError(err)
-			return versionManager.Latest()
+			return versionManager
 		}
 
 		assertMigration := func(expectedImage string) {
@@ -146,40 +148,49 @@ func TestRollingUpgrade(t *testing.T) {
 				// The latest Operator version still doesn't support multi-operand so check that the RELATED_IMAGE_OPENJDK
 				// image has been installed on all pods
 				assertMigration(relatedImageJdk)
-			} else {
-				latestOperand := latestOperand()
-				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-					return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-						i.Status.Operand.Version == latestOperand.Ref() &&
-						i.Status.Operand.Image == latestOperand.Image &&
-						i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
-				})
-				assertMigration(latestOperand.Image)
+				continue
 			}
-		} else {
-			latestOperand := latestOperand()
-			if ispnPreUpgrade.Spec.Version != latestOperand.Ref() {
-				ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
-				tutils.ExpectNoError(
-					testKube.UpdateInfinispan(ispn, func() {
-						ispn.Spec.Version = latestOperand.Ref()
-					}),
-				)
-				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-					return !i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-						i.Status.Operand.Version == latestOperand.Ref() &&
-						i.Status.Operand.Image == latestOperand.Image &&
-						i.Status.Operand.Phase == ispnv1.OperandPhasePending
-				})
-				testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-					return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-						i.Status.Operand.Version == latestOperand.Ref() &&
-						i.Status.Operand.Image == latestOperand.Image &&
-						i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
-				})
-				assertMigration(latestOperand.Image)
+
+			// This is the first upgrade to an Operator with multi-operand support, so wait for the oldest Operand
+			oldestOperand := operands().Oldest()
+			ispnPreUpgrade = testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+					i.Status.Operand.Version == oldestOperand.Ref() &&
+					i.Status.Operand.Image == oldestOperand.Image &&
+					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+			})
+			pods := &corev1.PodList{}
+			err := testKube.Kubernetes.ResourcesList(tutils.Namespace, spec.PodSelectorLabels(), pods, ctx)
+			tutils.ExpectNoError(err)
+			for _, pod := range pods.Items {
+				if pod.Spec.Containers[0].Image != oldestOperand.Image {
+					panic(fmt.Errorf("upgraded image [%v] in Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, oldestOperand.Image))
+				}
 			}
+		}
+
+		latestOperand := operands().Latest()
+		if ispnPreUpgrade.Spec.Version != latestOperand.Ref() {
+			ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+			tutils.ExpectNoError(
+				testKube.UpdateInfinispan(ispn, func() {
+					ispn.Spec.Version = latestOperand.Ref()
+				}),
+			)
+			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+					i.Status.Operand.Version == latestOperand.Ref() &&
+					i.Status.Operand.Image == latestOperand.Image &&
+					i.Status.Operand.Phase == ispnv1.OperandPhasePending
+			})
+			testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+					i.Status.Operand.Version == latestOperand.Ref() &&
+					i.Status.Operand.Image == latestOperand.Image &&
+					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+			})
+			assertMigration(latestOperand.Image)
 		}
 	}
 }

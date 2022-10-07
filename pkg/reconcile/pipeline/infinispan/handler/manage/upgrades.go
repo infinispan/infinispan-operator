@@ -29,6 +29,7 @@ func InitialiseOperandVersion(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				// Utilise the oldest Operand as this is the Operand provided by the Operator prior to Multi-Operand support
 				i.Spec.Version = operandRef
 				i.Status.Operand.Image = operand.Image
+				i.Status.Operand.Phase = ispnv1.OperandPhaseRunning
 				i.Status.Operand.Version = operandRef
 			}),
 		)
@@ -77,7 +78,7 @@ func UpgradeRequired(i *ispnv1.Infinispan, ctx pipeline.Context) bool {
 
 		// If the Operand is marked as a CVE base-image release, then we perform the upgrade as a StatefulSet rolling upgrade
 		// as the server components are not changed.
-		if requestedOperand.CVE {
+		if requestedOperand.CVE && installedOperand.UpstreamVersion.EQ(*requestedOperand.UpstreamVersion) {
 			return false
 		}
 		return !requestedOperand.EQ(installedOperand)
