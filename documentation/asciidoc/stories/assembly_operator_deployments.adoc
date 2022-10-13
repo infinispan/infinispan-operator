@@ -4,7 +4,7 @@ ifdef::context[:parent-context: {context}]
 = {ispn_operator}
 
 [role="_abstract"]
-{ispn_operator} provides operational intelligence and reduces management complexity for deploying {brandname} on {k8s} and {openshift}.
+{ispn_operator} provides operational intelligence and reduces management complexity for deploying {brandname} on Kubernetes and {openshift}.
 
 include::{topics}/con_operator_deployments.adoc[leveloffset=+1]
 include::{topics}/con_operator_managed_clusters.adoc[leveloffset=+1]
