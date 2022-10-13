@@ -3,14 +3,15 @@ kind: Cache
 metadata:
   name: mycachedefinition
 spec:
-  clusterName: {example_crd_name}
+  clusterName:
+    example_crd_name: ~
   name: myYAMLcache
-  template: |
-  distributedCache:
-    mode: "SYNC"
-    owners: "2"
-    statistics: "true"
-    encoding:
-      mediaType: "application/x-protostream"
-    persistence:
-      fileStore: ~
+  template: |-
+      distributedCache:
+        mode: "SYNC"
+        owners: "2"
+        statistics: "true"
+        encoding:
+          mediaType: "application/x-protostream"
+        persistence:
+          fileStore: ~
