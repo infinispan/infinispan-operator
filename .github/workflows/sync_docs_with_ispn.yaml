@@ -18,7 +18,7 @@ jobs:
       uses: actions/checkout@master
       with:
         repository: infinispan/infinispan
-        ref: main
+        ref: 14.0.x
         path: infinispan
 
     - name: Wipe the sync directory
