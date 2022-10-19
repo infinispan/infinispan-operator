@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -19,7 +20,6 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -386,7 +386,7 @@ var cacheNameRegexp = regexp.MustCompile("[^-a-z0-9]")
 func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 	namespace := cl.Infinispan.Namespace
 	clusterName := cl.Infinispan.Name
-	cacheName, configYaml, err := unmarshallEventConfig(data)
+	cacheName, configJson, err := unmarshallEventConfig(data)
 	if err != nil {
 		return err
 	}
@@ -421,9 +421,16 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 			Spec: v2alpha1.CacheSpec{
 				ClusterName: cl.Infinispan.Name,
 				Name:        cacheName,
-				Template:    configYaml,
 			},
 		}
+
+		// Convert JSON to yaml
+		configYaml, err := cl.convertCacheConfiguration(configJson, mime.ApplicationYaml)
+		if err != nil {
+			return err
+		}
+		cache.Spec.Template = configYaml
+
 		controllerutil.AddFinalizer(cache, constants.InfinispanFinalizer)
 		if err := controllerutil.SetOwnerReference(cl.Infinispan, cache, k8sClient.Scheme()); err != nil {
 			return err
@@ -444,18 +451,14 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 				}
 				var template, templateName string
 				if cache.Spec.Template != "" {
-					cl.Log.Infof("Update Cache CR for '%s'\n%s", cache.Name, configYaml)
-					// Determinate the original user markup format and convert stream configuration to that format if required
 					mediaType := mime.GuessMarkup(cache.Spec.Template)
-					if mediaType == mime.ApplicationYaml {
-						template = configYaml
+					cl.Log.Infof("Update Cache CR for '%s' with MediaType %s\n%s", cache.Name, mediaType, configJson)
+					// Determinate the original user markup format and convert stream configuration to that format if required
+					if mediaType == mime.ApplicationJson {
+						template = configJson
 					} else {
-						ispnClient, err := NewInfinispan(cl.Ctx, cl.Infinispan, cl.Kubernetes)
-						if err != nil {
-							return fmt.Errorf("unable to create Infinispan client: %w", err)
-						}
-						if template, err = ispnClient.Caches().ConvertConfiguration(configYaml, mime.ApplicationYaml, mediaType); err != nil {
-							return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationYaml, mediaType, err)
+						if template, err = cl.convertCacheConfiguration(configJson, mediaType); err != nil {
+							return err
 						}
 					}
 				} else {
@@ -491,6 +494,19 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 	return nil
 }
 
+func (cl *CacheListener) convertCacheConfiguration(configJson string, mediaType mime.MimeType) (string, error) {
+	ispnClient, err := NewInfinispan(cl.Ctx, cl.Infinispan, cl.Kubernetes)
+	if err != nil {
+		return "", fmt.Errorf("unable to create Infinispan client: %w", err)
+	}
+
+	convertedConfig, err := ispnClient.Caches().ConvertConfiguration(configJson, mime.ApplicationJson, mediaType)
+	if err != nil {
+		return "", fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationJson, mediaType, err)
+	}
+	return convertedConfig, nil
+}
+
 func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2alpha1.Cache, error) {
 	cacheList := &v2alpha1.CacheList{}
 	listOpts := &client.ListOptions{
@@ -515,7 +531,7 @@ func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2
 		return &caches[0], nil
 	default:
 		// Multiple existing Cache CRs found. Should never happen
-		y, _ := yaml.Marshal(caches)
+		y, _ := json.Marshal(caches)
 		return nil, fmt.Errorf("More than one Cache CR found for Cache=%s, Cluster=%s:\n%s", cacheName, clusterName, y)
 	}
 }
@@ -556,17 +572,17 @@ func unmarshallEventConfig(data []byte) (string, string, error) {
 		Infinispan struct {
 			CacheContainer struct {
 				Caches map[string]interface{}
-			} `yaml:"cacheContainer"`
+			} `json:"cache-container"`
 		}
 	}
 
 	config := &Config{}
-	if err := yaml.Unmarshal(data, config); err != nil {
+	if err := json.Unmarshal(data, config); err != nil {
 		return "", "", fmt.Errorf("unable to unmarshal event data: %w", err)
 	}
 
 	if len(config.Infinispan.CacheContainer.Caches) != 1 {
-		return "", "", fmt.Errorf("unexpected yaml format: %s", data)
+		return "", "", fmt.Errorf("unexpected json format: %s", data)
 	}
 	var cacheName string
 	var cacheConfig interface{}
@@ -575,9 +591,9 @@ func unmarshallEventConfig(data []byte) (string, string, error) {
 		break
 	}
 
-	configYaml, err := yaml.Marshal(cacheConfig)
+	configJson, err := json.Marshal(cacheConfig)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to marshall cache configuration: %w", err)
 	}
-	return cacheName, string(configYaml), nil
+	return cacheName, string(configJson), nil
 }
