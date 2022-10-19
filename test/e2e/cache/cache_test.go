@@ -162,7 +162,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	ispn := initCluster(t, true)
 	// Create the cache on the server with / to ensure listener converts to a k8s friendly name
 	cacheName := strings.Replace(ispn.Name, "-", "/", -1)
-	yamlTemplate := "localCache:\n  memory:\n    maxCount: \"%d\"\n"
+	yamlTemplate := "localCache: \n  memory: \n    maxCount: \"%d\"\n"
 	originalConfig := fmt.Sprintf(yamlTemplate, 100)
 
 	// Create cache via REST
@@ -308,25 +308,14 @@ func TestCacheWithJSON(t *testing.T) {
 	cacheName := ispn.Name
 	originalJson := `{"local-cache":{"memory":{"max-count":"100"}}}`
 
-	// Create Cache CR with XML template
+	// Create Cache CR with JSON template
 	cr := cacheCR(cacheName, ispn)
 	cr.Spec.Template = originalJson
 	testKube.Create(cr)
 	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
-	// Wait for 2nd generation of Cache CR with server formatting
-	cr = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
-		return cache.ObjectMeta.Generation == 2
-	})
-
-	// Assert CR spec.Template updated and returned template is in the JSON format
-	if cr.Spec.Template == originalJson {
-		panic("Expected CR template format to be different to original")
-	}
-
-	if !strings.Contains(cr.Spec.Template, `"100"`) {
-		panic("Unexpected cr.Spec.Template content")
-	}
+	// Assert CR spec.Template is the same as the original JSON as no transformations are required
+	testifyAssert.Equal(t, originalJson, cr.Spec.Template)
 
 	// Update cache via REST
 	client := tutils.HTTPClientForCluster(ispn, testKube)

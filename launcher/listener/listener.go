@@ -4,12 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/infinispan/infinispan-operator/controllers"
-	"github.com/infinispan/infinispan-operator/launcher"
-	"gopkg.in/cenkalti/backoff.v1"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/infinispan/infinispan-operator/controllers"
+	"github.com/infinispan/infinispan-operator/launcher"
+	"gopkg.in/cenkalti/backoff.v1"
 
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -118,7 +119,7 @@ func New(ctx context.Context, p Parameters) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	containerSse.Headers = map[string]string{
-		"Accept": string(mime.ApplicationYaml),
+		"Accept": string(mime.ApplicationJson),
 	}
 	containerSse.ReconnectStrategy = backoff.NewConstantBackOff(time.Second)
 	containerSse.ReconnectNotify = func(e error, t time.Duration) {
