@@ -134,6 +134,13 @@ func handleContent(reader *bufio.Reader) (*http.Response, error) {
 		return nil, err
 	}
 
+	for rsp.StatusCode == http.StatusContinue {
+		rsp, err = http.ReadResponse(reader, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Save response body
 	b := new(bytes.Buffer)
 	if _, err = io.Copy(b, rsp.Body); err != nil {
