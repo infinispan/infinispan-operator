@@ -176,6 +176,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-zero-pod"})
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-router-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-config-listener-pod"})
 		k.WriteAllResourcesToFile(dir, namespace, "StatefulSet", &appsv1.StatefulSetList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Infinispan", &ispnv1.InfinispanList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Backup", &ispnv2.BackupList{}, map[string]string{})
