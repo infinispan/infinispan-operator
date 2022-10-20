@@ -31,7 +31,7 @@ pipeline {
         RUN_SA_OPERATOR = 'true'
         MAKE_DATADIR_WRITABLE = 'true'
         CONFIG_LISTENER_IMAGE = 'localhost:5000/infinispan-operator'
-        SERVER_TAGS = '13.0.10.Final 14.0.0.Final'
+        SERVER_TAGS = '13.0.10.Final 14.0.1.Final'
         TEST_REPORT_DIR = "$WORKSPACE/test/reports"
         CHANGE_TARGET = "${env.CHANGE_TARGET}"
     }
