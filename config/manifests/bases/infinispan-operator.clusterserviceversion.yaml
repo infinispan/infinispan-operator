@@ -6,6 +6,7 @@ metadata:
     capabilities: Deep Insights
     categories: Database
     certified: "false"
+    containerImage: <IMAGE>
     description: Create and manage Infinispan clusters.
     repository: https://github.com/infinispan/infinispan-operator
   labels:
