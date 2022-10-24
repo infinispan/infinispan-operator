@@ -104,7 +104,7 @@ func (i *Infinispan) Default() {
 								"app":           "infinispan-pod",
 							},
 						},
-						TopologyKey: "r.kubernetes.io/hostname",
+						TopologyKey: "kubernetes.io/hostname",
 					},
 				}},
 			},
