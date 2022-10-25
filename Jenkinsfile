@@ -103,6 +103,12 @@ pipeline {
                             }
                         }
 
+                        stage('Basic') {
+                            steps {
+                                sh "make infinispan-test PARALLEL_COUNT=5 TEST_NAME=TestBaseFunctionality"
+                            }
+                        }
+
                         stage('Infinispan') {
                             steps {
                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
