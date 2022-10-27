@@ -4,11 +4,11 @@
 [role="_abstract"]
 The {openshiftplatform} can use certain Federal Information Processing Standards (FIPS) components that ensure {openshiftshort} clusters meet the requirements of a FIPS compliance audit.
 
-If you enabled FIPS mode on your {openshiftshort} cluster then the {ispn_operator} automatically enables FIPS mode for your `{brandname}` CR.
+If you enabled FIPS mode on your {openshiftshort} cluster then the {ispn_operator} automatically enables FIPS mode for your `Infinispan` custom resource (CR).
 
 [IMPORTANT]
 ====
-Client certificate authentication is not currently supported with FIPS mode. Attempts to create {brandname} CR with `spec.security.endpointEncryption.clientCert` set to a value other than `None` will fail.
+Client certificate authentication is not currently supported with FIPS mode. Attempts to create `Infinispan` CR with `spec.security.endpointEncryption.clientCert` set to a value other than `None` will fail.
 ====
 
 [role="_additional-resources"]
