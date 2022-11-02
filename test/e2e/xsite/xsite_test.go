@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/iancoleman/strcase"
@@ -394,10 +395,10 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
 			serviceAccount := tutils.OperatorSAName
 			operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite1"].namespace)
-			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite1, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
+			tokenSecretXsite1, err := LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite1, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
 			tutils.ExpectNoError(err)
 			operatorNamespaceSite2 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite2"].namespace)
-			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite2, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
+			tokenSecretXsite2, err := LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite2, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
 			tutils.ExpectNoError(err)
 
 			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, tokenSecretXsite2.Data["token"]))
@@ -559,4 +560,21 @@ func expectsCrossSiteService(testkube *crossSiteKubernetes) {
 		Namespace: testkube.crossSite.Namespace,
 	}, &corev1.Service{})
 	tutils.ExpectNoError(err)
+}
+
+func LookupServiceAccountTokenSecret(name, namespace string, c client.Client, ctx context.Context) (*corev1.Secret, error) {
+	secretList := &corev1.SecretList{}
+	listOps := &client.ListOptions{
+		Namespace: namespace,
+	}
+	if err := c.List(ctx, secretList, listOps); err != nil {
+		return nil, err
+	}
+
+	for _, secret := range secretList.Items {
+		if strings.Contains(secret.Name, name+"-token") {
+			return &secret, nil
+		}
+	}
+	return nil, fmt.Errorf("could not find a service account token secret for service account %q", name)
 }
