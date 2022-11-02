@@ -43,7 +43,7 @@ type crossSiteKubernetes struct {
 }
 
 func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNamespace string, exposeType ispnv1.CrossSiteExposeType, exposePort int32) *ispnv1.Infinispan {
-	return &ispnv1.Infinispan{
+	infinispan := &ispnv1.Infinispan{
 		TypeMeta: tutils.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", name, primarySite),
@@ -83,6 +83,12 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 			},
 		},
 	}
+
+	if tutils.OperandVersion != "" {
+		infinispan.Spec.Version = tutils.OperandVersion
+	}
+
+	return infinispan
 }
 
 func crossSiteCertificateSecret(siteName, namespace string, clientConfig *api.Config, ctx string) *corev1.Secret {

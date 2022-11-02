@@ -13,4 +13,5 @@ import lombok.Setter;
 public class Spec {
    private int replicas;
    private Security security;
+   private String version;
 }

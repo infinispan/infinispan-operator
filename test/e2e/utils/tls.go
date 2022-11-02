@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"os"
 	"os/exec"
@@ -28,8 +29,6 @@ const (
 	keyBits            = 2048
 	tmpDir             = "/tmp/infinispan/operator/tls"
 )
-
-var serialNumber int64 = 1
 
 type certHolder struct {
 	privateKey *rsa.PrivateKey
@@ -217,9 +216,14 @@ func createGenericCertificate(name string, dnsName *string, ca *certHolder) *cer
 	privateKey, err := rsa.GenerateKey(rand.Reader, keyBits)
 	ExpectNoError(err)
 
+	serialNumber, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		panic(err)
+	}
+
 	// set up our certificate
 	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(serialNumber),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName:         name,
 			Organization:       []string{"JBoss"},
@@ -235,7 +239,6 @@ func createGenericCertificate(name string, dnsName *string, ca *certHolder) *cer
 	if dnsName != nil {
 		cert.DNSNames = []string{*dnsName}
 	}
-	serialNumber++
 	return createAndParseCert(cert, privateKey, ca)
 }
 

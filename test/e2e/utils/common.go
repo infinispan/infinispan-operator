@@ -57,7 +57,7 @@ var VersionManager = func() *version.Manager {
 	} else {
 		return manager
 	}
-}()
+}
 
 func EndpointEncryption(name string) *ispnv1.EndpointEncryption {
 	return &ispnv1.EndpointEncryption{
@@ -165,7 +165,6 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 			ConfigListener: &ispnv1.ConfigListenerSpec{
 				Enabled: false,
 			},
-			Version: VersionManager.Latest().Ref(),
 			Logging: &ispnv1.InfinispanLoggingSpec{
 				Categories: map[string]ispnv1.LoggingLevelType{
 					"org.infinispan.SERVER": ispnv1.LoggingLevelDebug,
@@ -173,13 +172,27 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 			},
 		},
 	}
+
+	// Explicitly set the ServingCertsMode so that Openshift automatic encryption configuration is applied when running
+	// tests locally
+	if RunLocalOperator == "TRUE" {
+		infinispan.Spec.Version = VersionManager().Latest().Ref()
+		ispnv1.ServingCertsMode = testKube.Kubernetes.GetServingCertsMode(context.TODO())
+	}
+
+	if OperandVersion != "" {
+		infinispan.Spec.Version = OperandVersion
+	}
+
 	if initializer != nil {
 		initializer(infinispan)
 	}
-	// Explicitly set the ServingCertsMode so that Openshift automatic encryption configuration is applied when running
-	// tests locally
-	ispnv1.ServingCertsMode = testKube.Kubernetes.GetServingCertsMode(context.TODO())
-	infinispan.Default()
+
+	// Apply the defaults last
+	if RunLocalOperator == "TRUE" {
+		infinispan.Default()
+	}
+
 	return infinispan
 }
 

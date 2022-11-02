@@ -27,6 +27,7 @@ var (
 	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "1Gi")
 	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
 	MultiNamespace    = strings.ToLower(constants.GetEnvWithDefault("TESTING_MULTINAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
+	OperandVersion    = os.Getenv("TESTING_OPERAND_VERSION")
 	OperatorNamespace = strings.ToLower(constants.GetEnvWithDefault("TESTING_OPERATOR_NAMESPACE", ""))
 	OperatorName      = "infinispan-operator"
 	OperatorSAName    = strings.ToLower(constants.GetEnvWithDefault("OPERATOR_SA_NAME", "infinispan-operator-controller-manager"))

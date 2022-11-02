@@ -76,9 +76,7 @@ public class MonitoringStackIT {
         createClusterRoleBindingForGrafana();
         grafanaWaiter.areExactlyNPodsRunning(1, "app", "grafana").waitFor();
 
-        ServiceAccount grafanaSA = grafanaShift.getServiceAccount("grafana-serviceaccount");
-        String tokenSecretName = grafanaSA.getSecrets().stream().filter(s -> s.getName().contains("token")).findFirst().orElseThrow(() -> new IllegalStateException("Unable to retrieve service accounts token")).getName();
-        Secret tokenSecret = grafanaShift.getSecret(tokenSecretName);
+        Secret tokenSecret = grafanaShift.secrets().list().getItems().stream().filter(s -> s.getMetadata().getName().contains("grafana-serviceaccount-token")).findFirst().orElseThrow(() -> new IllegalStateException("Unable to retrieve service accounts token"));
         String token = new String(Base64.getDecoder().decode(tokenSecret.getData().get("token")));
 
         Map<String, Object> datasource = new ObjectMapper(new YAMLFactory()).readValue(getGrafanaDatasource(token), Map.class);

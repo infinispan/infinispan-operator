@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/infinispan/infinispan-operator/controllers/constants"
@@ -105,6 +106,9 @@ func (k TestKubernetes) CreateSubscriptionAndApproveInitialVersion(olm OLMEnv, s
 			Name: "infinispans.infinispan.org",
 		},
 	})
+	k.WaitForPods(1, ConditionWaitTimeout, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{"app.kubernetes.io/name": "infinispan-operator"}),
+	}, nil)
 }
 
 func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, subNamespace, subPackage string) {
@@ -257,6 +261,18 @@ func (k TestKubernetes) InstalledCSVEnv(envName string, sub *coreos.Subscription
 		return ""
 	}
 	return envVars[index].Value
+}
+
+func (k TestKubernetes) SetRelatedImagesEnvs(sub *coreos.Subscription) {
+	csv, err := k.InstalledCSV(sub)
+	ExpectNoError(err)
+
+	envVars := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env
+	for _, envVar := range envVars {
+		if strings.HasPrefix(envVar.Name, "RELATED") {
+			os.Setenv(envVar.Name, envVar.Value)
+		}
+	}
 }
 
 func (k TestKubernetes) PackageManifest(packageName, catalogName string) (manifest *manifests.PackageManifest) {
