@@ -206,7 +206,7 @@ func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace str
 		logger.Error(err, "unable to find Secret", "secret name", secretName)
 		return nil, err
 	}
-
+	
 	for _, secretKey := range []string{"certificate-authority", "client-certificate", "client-key"} {
 		if value, ok := secret.Data[secretKey]; !ok || len(value) == 0 {
 			return nil, fmt.Errorf("%s required connect to Kubernetes cluster", secretKey)

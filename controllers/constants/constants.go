@@ -103,6 +103,9 @@ const (
 			</distributed-cache>
 		</cache-container>
 	</infinispan>`
+
+	AnnotationIstioExcludeInboundPorts  = "traffic.sidecar.istio.io/excludeInboundPorts"
+	AnnotationIstioExcludeOutboundPorts = "traffic.sidecar.istio.io/excludeOutboundPorts"
 )
 
 const (
