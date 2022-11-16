@@ -23,7 +23,7 @@ For example, create a {brandname} cluster with two pods as follows:
 [TIP]
 ====
 Add the `--version` argument to control the {brandname} version of your cluster.
-For example, `--version={server_image_version}`.
+For example, `--version={operand_version}`.
 If you don't specify the version, {ispn_operator} creates cluster with the latest supported {brandname} version.
 ====
 
