@@ -6,7 +6,7 @@ metadata:
     infinispan.org/monitoring: 'true'
 spec:
   replicas: 6
-  version: {server_image_version}
+  version: {operand_version}
   upgrades:
     type: Shutdown
   service:

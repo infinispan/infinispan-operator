@@ -1,4 +1,4 @@
 spec:
-  version: {server_image_version}
+  version: {operand_version}
   upgrades:
     type: HotRodRolling
