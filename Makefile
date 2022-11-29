@@ -185,7 +185,7 @@ KUSTOMIZE = $(shell pwd)/bin/kustomize
 .PHONY: kustomize
 ## Download kustomize locally if necessary
 kustomize:
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
 
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 .PHONY: golanci-lint
