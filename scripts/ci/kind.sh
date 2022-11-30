@@ -40,7 +40,7 @@ docker network connect "kind" "${reg_name}" || true
 
 # Attempt to load the servers image to prevent them being pulled again
 for tag in ${SERVER_TAGS}; do
-  kind load docker-image "quay.io/infinispan/server:${tag}" || true]
+  kind load docker-image "quay.io/infinispan/server:${tag}" || true
 done
 
 # Document the local registry
