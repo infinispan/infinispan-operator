@@ -40,14 +40,16 @@ func PodStatus(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if err := ctx.Resources().Load(i.GetStatefulSetName(), ss, pipeline.RetryOnErr); err != nil {
 		return
 	}
-
 	var ready, starting []string
-	for i := int32(0); i < ss.Status.Replicas; i++ {
-		instanceName := fmt.Sprintf("%s-%d", ss.Name, i+1)
-		if i < ss.Status.ReadyReplicas {
-			ready = append(ready, instanceName)
+	pods, err := ctx.InfinispanPods()
+	if err != nil {
+		return
+	}
+	for _, pod := range pods.Items {
+		if kube.IsPodReady(pod) {
+			ready = append(ready, pod.GetName())
 		} else {
-			starting = append(starting, instanceName)
+			starting = append(starting, pod.GetName())
 		}
 	}
 	ctx.Log().Info("Found deployments with status ", "starting", starting, "ready", ready)
