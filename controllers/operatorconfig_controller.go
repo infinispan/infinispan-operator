@@ -2,10 +2,11 @@ package controllers
 
 import (
 	"context"
-	"strings"
 
 	"github.com/go-logr/logr"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,7 +33,7 @@ type ReconcileOperatorConfig struct {
 func (r *ReconcileOperatorConfig) SetupWithManager(mgr ctrl.Manager) error {
 	name := "config"
 	r.Client = mgr.GetClient()
-	r.log = ctrl.Log.WithName("controllers").WithName(strings.Title(name))
+	r.log = ctrl.Log.WithName("controllers").WithName(cases.Title(language.Und).String(name))
 	r.scheme = mgr.GetScheme()
 	r.kubernetes = kube.NewKubernetesFromController(mgr)
 
