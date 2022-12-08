@@ -328,6 +328,15 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 	ExpectNoError(err)
 }
 
+func (k TestKubernetes) WaitForCSVSucceeded(sub *coreos.Subscription) {
+
+	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+		csv, _ := k.InstalledCSV(sub)
+		return csv.Status.Phase == "Succeeded", nil
+	})
+	ExpectNoError(err)
+}
+
 func retryOnConflict(update func() error) {
 	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = update()

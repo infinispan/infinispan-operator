@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -96,6 +97,10 @@ func TestUpgrade(t *testing.T) {
 		testKube.WaitForSubscription(sub, func() bool {
 			return sub.Status.InstalledCSV == sub.Status.CurrentCSV
 		})
+		testKube.WaitForCSVSucceeded(sub)
+		// Operator does not start properly on the first attempt after the upgrade and is restarted
+		// https://github.com/infinispan/infinispan-operator/issues/1719
+		time.Sleep(time.Minute)
 
 		assertOperandImage := func(expectedImage string) {
 			pods := &corev1.PodList{}
