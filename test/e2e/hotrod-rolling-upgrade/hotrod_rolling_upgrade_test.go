@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
@@ -103,8 +104,13 @@ func TestRollingUpgrade(t *testing.T) {
 		testKube.WaitForSubscription(sub, func() bool {
 			return sub.Status.InstalledCSV == sub.Status.CurrentCSV
 		})
+		testKube.WaitForCSVSucceeded(sub)
+		// Operator does not start properly on the first attempt after the upgrade and is restarted
+		// https://github.com/infinispan/infinispan-operator/issues/1719
+		time.Sleep(time.Minute)
 
 		operands := func() *version.Manager {
+			testKube.SetRelatedImagesEnvs(sub)
 			operandVersions := testKube.InstalledCSVEnv(ispnv1.OperatorOperandVersionEnvVarName, sub)
 			if operandVersions == "" {
 				panic(fmt.Sprintf("%s env empty, cannot continue", ispnv1.OperatorOperandVersionEnvVarName))
@@ -114,15 +120,16 @@ func TestRollingUpgrade(t *testing.T) {
 			return versionManager
 		}
 
-		assertMigration := func(expectedImage string) {
-			clusterCounter++
-			currentStatefulSetName := newStatefulSetName
-			newStatefulSetName := fmt.Sprintf("%s-%d", spec.Name, clusterCounter)
+		assertMigration := func(expectedImage string, isRollingUpgrade bool) {
+			if !isRollingUpgrade {
+				clusterCounter++
+				currentStatefulSetName := newStatefulSetName
+				newStatefulSetName := fmt.Sprintf("%s-%d", spec.Name, clusterCounter)
 
-			testKube.WaitForStateFulSet(newStatefulSetName, tutils.Namespace)
-			testKube.WaitForStateFulSetRemoval(currentStatefulSetName, tutils.Namespace)
-			testKube.WaitForInfinispanPodsCreatedBy(0, tutils.SinglePodTimeout, currentStatefulSetName, tutils.Namespace)
-
+				testKube.WaitForStateFulSet(newStatefulSetName, tutils.Namespace)
+				testKube.WaitForStateFulSetRemoval(currentStatefulSetName, tutils.Namespace)
+				testKube.WaitForInfinispanPodsCreatedBy(0, tutils.SinglePodTimeout, currentStatefulSetName, tutils.Namespace)
+			}
 			// Assert that the pods in the target StatefulSet are using the expected image
 			targetPods := testKube.WaitForInfinispanPodsCreatedBy(replicas, tutils.SinglePodTimeout, newStatefulSetName, tutils.Namespace)
 			for _, pod := range targetPods.Items {
@@ -147,7 +154,7 @@ func TestRollingUpgrade(t *testing.T) {
 			if relatedImageJdk != "" {
 				// The latest Operator version still doesn't support multi-operand so check that the RELATED_IMAGE_OPENJDK
 				// image has been installed on all pods
-				assertMigration(relatedImageJdk)
+				assertMigration(relatedImageJdk, false)
 				continue
 			}
 
@@ -187,10 +194,13 @@ func TestRollingUpgrade(t *testing.T) {
 			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 					i.Status.Operand.Version == latestOperand.Ref() &&
-					i.Status.Operand.Image == latestOperand.Image &&
-					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+					i.Status.Operand.Image == latestOperand.Image
+				// https://github.com/infinispan/infinispan-operator/issues/1720
+				// && i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 			})
-			assertMigration(latestOperand.Image)
+			lastOperand, err := operands().WithRef(ispnPreUpgrade.Status.Operand.Version)
+			tutils.ExpectNoError(err)
+			assertMigration(latestOperand.Image, latestOperand.CVE && lastOperand.UpstreamVersion.EQ(*latestOperand.UpstreamVersion))
 		}
 	}
 }
