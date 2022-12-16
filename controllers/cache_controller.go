@@ -366,7 +366,7 @@ func (cl *CacheListener) RemoveStaleResources(podName string) error {
 	// Iterate over all existing CRs, marking for deletion any that do not have a cache definition on the server
 	for _, cache := range cacheList.Items {
 		listenerCreated := kube.IsOwnedBy(&cache, cl.Infinispan)
-		_, cacheExists := serverCaches[cache.Name]
+		_, cacheExists := serverCaches[cache.GetCacheName()]
 		cl.Log.Debugf("Checking if Cache CR '%s' is stale. ListenerCreated=%t. CacheExists=%t", cache.Name, listenerCreated, cacheExists)
 		if listenerCreated && !cacheExists {
 			cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete] = "true"
