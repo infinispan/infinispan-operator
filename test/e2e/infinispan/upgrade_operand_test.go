@@ -173,3 +173,42 @@ func TestOperandCVEGracefulShutdown(t *testing.T) {
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetStatefulSetName()}, &ss))
 	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
 }
+
+// TestOperandCVEHotRodRolling tests that Operands marked as CVE releases, with the same upstream version as the currently
+// installed operand, only result in a StatefulSet rolling upgrade
+func TestOperandCVEHotRodRolling(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+	versionManager := tutils.VersionManager()
+
+	if !versionManager.Latest().CVE {
+		t.Skip("Latest release is non-cve, skipping test")
+	}
+
+	// Create Infinispan Cluster using the penultimate Operand release
+	replicas := 1
+	operand := versionManager.Operands[1]
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = int32(replicas)
+		i.Spec.Version = operand.Ref()
+		i.Spec.Upgrades = &ispnv1.InfinispanUpgradesSpec{
+			Type: ispnv1.UpgradeTypeHotRodRolling,
+		}
+	})
+
+	cveOperand := versionManager.Latest()
+	modifier := func(ispn *ispnv1.Infinispan) {
+		// Update the spec to install the CVE operand
+		ispn.Spec.Version = cveOperand.Ref()
+	}
+
+	verifier := func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		// Ensure that the Operand Phase is eventually set to Running
+		testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
+			return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+				i.Status.Operand.Version == cveOperand.Ref() &&
+				i.Status.Operand.Image == cveOperand.Image &&
+				i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+		})
+	}
+	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
