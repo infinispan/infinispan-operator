@@ -76,7 +76,7 @@ func AwaitWellFormedCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	wellFormed := wellFormedCondition(i, ctx, podList)
 	if err := ctx.UpdateInfinispan(func() {
 		i.SetConditions(wellFormed)
-		if i.GracefulShutdownUpgrades() && wellFormed.Status == metav1.ConditionTrue {
+		if wellFormed.Status == metav1.ConditionTrue {
 			i.Status.Operand.Phase = ispnv1.OperandPhaseRunning
 		}
 	}); err != nil {
