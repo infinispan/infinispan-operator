@@ -194,9 +194,8 @@ func TestRollingUpgrade(t *testing.T) {
 			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 					i.Status.Operand.Version == latestOperand.Ref() &&
-					i.Status.Operand.Image == latestOperand.Image
-				// https://github.com/infinispan/infinispan-operator/issues/1720
-				// && i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+					i.Status.Operand.Image == latestOperand.Image &&
+					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 			})
 			lastOperand, err := operands().WithRef(ispnPreUpgrade.Status.Operand.Version)
 			tutils.ExpectNoError(err)
