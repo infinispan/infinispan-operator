@@ -58,6 +58,11 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 	}); err != nil {
 		return err
 	}
+	if err = mgr.GetFieldIndexer().IndexField(ctx, &infinispanv1.Infinispan{}, "spec.security.credentialStoreSecretName", func(obj client.Object) []string {
+		return []string{obj.(*infinispanv1.Infinispan).GetCredentialStoreSecretName()}
+	}); err != nil {
+		return err
+	}
 	if err = mgr.GetFieldIndexer().IndexField(ctx, &infinispanv1.Infinispan{}, "spec.security.endpointEncryption.certSecretName", func(obj client.Object) []string {
 		return []string{obj.(*infinispanv1.Infinispan).GetKeystoreSecretName()}
 	}); err != nil {
@@ -139,7 +144,7 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 					var requests []reconcile.Request
 					// Lookup only Secrets not controlled by Infinispan CR GVK. This means it's a custom defined Secret
 					if !kube.IsControlledByGVK(a.GetOwnerReferences(), infinispanv1.SchemeBuilder.GroupVersion.WithKind(reflect.TypeOf(infinispanv1.Infinispan{}).Name())) {
-						for _, field := range []string{"spec.security.endpointSecretName", "spec.security.endpointEncryption.certSecretName", "spec.security.endpointEncryption.clientCertSecretName"} {
+						for _, field := range []string{"spec.security.endpointSecretName", "spec.security.credentialStoreSecretName", "spec.security.endpointEncryption.certSecretName", "spec.security.endpointEncryption.clientCertSecretName"} {
 							ispnList := &infinispanv1.InfinispanList{}
 							if err := kubernetes.ResourcesListByField(a.GetNamespace(), field, a.GetName(), ispnList, ctx); err != nil {
 								r.log.Error(err, "failed to list Infinispan CR")

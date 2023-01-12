@@ -67,13 +67,14 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 	labelsForPod := i.PodLabels()
 	labelsForPod[consts.StatefulSetPodLabel] = statefulSetName
 
+	configFiles := ctx.ConfigFiles()
+	statefulSetAnnotations := consts.DeploymentAnnotations
+	statefulSetAnnotations["checksum/credentialStore"] = hash.HashMap(configFiles.CredentialStoreEntries)
 	annotationsForPod := i.PodAnnotations()
 	annotationsForPod["updateDate"] = time.Now().String()
 
 	// We can ignore the err here as the validating webhook ensures that the resources are valid
 	podResources, _ := PodResources(i.Spec.Container)
-	configFiles := ctx.ConfigFiles()
-
 	statefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",

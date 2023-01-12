@@ -138,5 +138,12 @@ func IdentitiesBatch(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
+	// Add user provided credentials to credential-store
+	if i.IsCredentialStoreSecretDefined() {
+		for alias, cred := range ctx.ConfigFiles().CredentialStoreEntries {
+			batch += fmt.Sprintf("credentials add \"%s\" -c \"%s\" -p \"secret\"\n", alias, cred)
+		}
+	}
+
 	configFiles.IdentitiesBatch = batch
 }

@@ -379,12 +379,20 @@ func (ispn *Infinispan) GetAuthorizationRoles() []AuthorizationRole {
 	return ispn.Spec.Security.Authorization.Roles
 }
 
+func (ispn *Infinispan) GetCredentialStoreSecretName() string {
+	return ispn.Spec.Security.CredentialStoreSecretName
+}
+
 func (ispn *Infinispan) IsAuthorizationEnabled() bool {
 	return ispn.Spec.Security.Authorization != nil && ispn.Spec.Security.Authorization.Enabled
 }
 
 func (ispn *Infinispan) IsAuthenticationEnabled() bool {
 	return ispn.Spec.Security.EndpointAuthentication == nil || *ispn.Spec.Security.EndpointAuthentication
+}
+
+func (ispn *Infinispan) IsCredentialStoreSecretDefined() bool {
+	return ispn.Spec.Security.CredentialStoreSecretName != ""
 }
 
 func (ispn *Infinispan) IsClientCertEnabled() bool {
