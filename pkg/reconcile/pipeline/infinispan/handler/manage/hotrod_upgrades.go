@@ -194,8 +194,8 @@ func (r *HotRodRollingUpgradeRequest) redirectServices(statefulSet string) error
 		return err
 	}
 
-	// Redirect NodePort to the new pods
-	if ispn.IsExposed() {
+	// Redirect NodePort/LoadBalancer to the new pods
+	if ispn.IsExposed() && ispn.GetExposeType() != ispnv1.ExposeTypeRoute {
 		if err := r.redirectServiceToStatefulSet(ispn.GetServiceExternalName(), statefulSet); err != nil {
 			return err
 		}
@@ -319,7 +319,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 		return err
 	}
 	// Redirect the nodePort service to the current statefulSet
-	if r.i.IsExposed() {
+	if r.i.IsExposed() && r.i.GetExposeType() != ispnv1.ExposeTypeRoute {
 		if err := r.redirectServiceToStatefulSet(r.i.GetServiceExternalName(), r.currentStatefulSet); err != nil {
 			return err
 		}
@@ -559,7 +559,7 @@ func (r *HotRodRollingUpgradeRequest) removeStatefulSetResources(statefulSetName
 	if err := r.removeStatefulSetSelector(r.i.GetServiceName()); err != nil {
 		return err
 	}
-	if r.i.IsExposed() {
+	if r.i.IsExposed() && r.i.GetExposeType() != ispnv1.ExposeTypeRoute {
 		if err := r.removeStatefulSetSelector(r.i.GetServiceExternalName()); err != nil {
 			return err
 		}
