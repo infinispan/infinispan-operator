@@ -113,6 +113,11 @@ spec:
         path: replicas
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:podCount
+      - description: A secret that contains CredentialStore alias and password combinations
+        displayName: CredentialStore Secret
+        path: security.credentialStoreSecretName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:Secret
       - description: Enable or disable user authentication
         displayName: Toggle Authentication
         path: security.endpointAuthentication

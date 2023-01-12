@@ -166,6 +166,7 @@ func (b *builder) Build() pipeline.Pipeline {
 		configure.TransportTLS,
 		configure.GossipRouterTLS,
 	)
+	handlers.AddFeatureSpecific(i.IsCredentialStoreSecretDefined(), configure.CredentialStoreSecret)
 	handlers.AddFeatureSpecific(i.IsAuthenticationEnabled(), configure.UserAuthenticationSecret)
 	handlers.AddFeatureSpecific(i.UserConfigDefined(), configure.UserConfigMap)
 	handlers.AddFeatureSpecific(i.IsEncryptionEnabled(), configure.Keystore)

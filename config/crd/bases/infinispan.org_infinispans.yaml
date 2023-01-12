@@ -797,6 +797,10 @@ spec:
                           type: object
                         type: array
                     type: object
+                  credentialStoreSecretName:
+                    description: A secret that contains CredentialStore alias and
+                      password combinations
+                    type: string
                   endpointAuthentication:
                     description: Enable or disable user authentication
                     type: boolean
@@ -1117,6 +1121,10 @@ spec:
                           type: object
                         type: array
                     type: object
+                  credentialStoreSecretName:
+                    description: A secret that contains CredentialStore alias and
+                      password combinations
+                    type: string
                   endpointAuthentication:
                     description: Enable or disable user authentication
                     type: boolean

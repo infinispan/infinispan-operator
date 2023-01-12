@@ -109,6 +109,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		hashVal = hash.HashString(configFiles.UserConfig.ServerConfig)
 	}
 	updateNeeded = updateStatefulSetAnnotations(statefulSet, "checksum/overlayConfig", hashVal) || updateNeeded
+	updateNeeded = updateStatefulSetAnnotations(statefulSet, "checksum/credentialStore", hash.HashMap(configFiles.CredentialStoreEntries)) || updateNeeded
 	updateNeeded = applyOverlayConfigVolume(container, i.Spec.ConfigMapName, spec) || updateNeeded
 
 	externalArtifactsUpd, err := provision.ApplyExternalArtifactsDownload(i, container, spec)

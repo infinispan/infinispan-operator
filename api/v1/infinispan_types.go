@@ -12,6 +12,10 @@ import (
 type InfinispanSecurity struct {
 	// +optional
 	Authorization *Authorization `json:"authorization,omitempty"`
+	// A secret that contains CredentialStore alias and password combinations
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="CredentialStore Secret",xDescriptors={"urn:alm:descriptor:io.kubernetes:Secret"}
+	CredentialStoreSecretName string `json:"credentialStoreSecretName,omitempty"`
 	// Enable or disable user authentication
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Authentication",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
