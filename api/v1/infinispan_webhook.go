@@ -89,6 +89,9 @@ func (i *Infinispan) Default() {
 			Enabled: true,
 		}
 	}
+	if i.Spec.ConfigListener.Logging == "" {
+		i.Spec.ConfigListener.Logging = ConfigListenerLoggingInfo
+	}
 
 	if i.Spec.Affinity == nil {
 		// The user hasn't configured Affinity, so we utilise the default strategy of preferring pods are deployed on distinct nodes

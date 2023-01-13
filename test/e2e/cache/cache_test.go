@@ -43,6 +43,7 @@ func initClusterWithSuffix(t *testing.T, suffix string, configListener bool) *v1
 		i.Name = i.Name + suffix
 		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
 			Enabled: configListener,
+			Logging: v1.ConfigListenerLoggingDebug,
 		}
 	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
@@ -228,6 +229,7 @@ func TestStaticServerCache(t *testing.T) {
 		i.Spec.ConfigMapName = configMap.Name
 		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
 			Enabled: true,
+			Logging: v1.ConfigListenerLoggingDebug,
 		}
 	})
 
@@ -428,9 +430,7 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 	// Disable the ConfigListener and wait for the Deployment to be removed
 	tutils.ExpectNoError(
 		testKube.UpdateInfinispan(ispn, func() {
-			ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
-				Enabled: false,
-			}
+			ispn.Spec.ConfigListener.Enabled = false
 		}),
 	)
 	testKube.WaitForResourceRemoval(ispn.GetConfigListenerName(), tutils.Namespace, &appsv1.Deployment{})
@@ -457,9 +457,7 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 	// Enable the ConfigListener again
 	tutils.ExpectNoError(
 		testKube.UpdateInfinispan(ispn, func() {
-			ispn.Spec.ConfigListener = &v1.ConfigListenerSpec{
-				Enabled: true,
-			}
+			ispn.Spec.ConfigListener.Enabled = true
 		}),
 	)
 
