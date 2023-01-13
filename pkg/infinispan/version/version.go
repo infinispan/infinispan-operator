@@ -101,6 +101,11 @@ func (m *Manager) Log(log logr.Logger) {
 	}
 }
 
+func (m *Manager) Json() (string, error) {
+	j, err := json.Marshal(m.Operands)
+	return string(j), err
+}
+
 func ManagerFromEnv(envName string) (*Manager, error) {
 	env := os.Getenv(envName)
 	if env == "" {

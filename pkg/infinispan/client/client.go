@@ -45,9 +45,16 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
+	v14 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 )
 
 // New Factory to obtain Infinispan implementation
-func New(client http.HttpClient) api.Infinispan {
-	return v13.New(client)
+func New(operand version.Operand, client http.HttpClient) api.Infinispan {
+	switch operand.UpstreamVersion.Major {
+	case 13:
+		return v13.New(client)
+	default:
+		return v14.New(client)
+	}
 }

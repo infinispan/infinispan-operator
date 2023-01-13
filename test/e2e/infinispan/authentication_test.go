@@ -131,7 +131,7 @@ func testAuthentication(ispn *ispnv1.Infinispan, schema, usr, pass string) {
 }
 
 func createCacheBadCreds(cacheName string, client tutils.HTTPClient) {
-	err := ispnClient.New(client).Cache(cacheName).Create("", mime.ApplicationYaml)
+	err := ispnClient.New(tutils.LatestOperand, client).Cache(cacheName).Create("", mime.ApplicationYaml)
 	if err == nil {
 		panic("Cache creation should fail")
 	}

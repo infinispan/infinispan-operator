@@ -1,44 +1,46 @@
-// Package v13 implements a client for interacting with Infinispan 13.x servers
-package v13
+package v14
 
 import (
 	"github.com/infinispan/infinispan-operator/pkg/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
-)
-
-const (
-	BasePath     = "rest/v2"
-	MajorVersion = "13"
+	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
 )
 
 type infinispan struct {
 	http.HttpClient
+	ispn13 api.Infinispan
 }
 
 func New(client http.HttpClient) api.Infinispan {
-	return &infinispan{client}
+	return &infinispan{
+		HttpClient: client,
+		ispn13:     v13.New(client),
+	}
 }
 
 func (i *infinispan) Cache(name string) api.Cache {
-	return &cache{i.HttpClient, name}
+	return i.ispn13.Cache(name)
 }
 
 func (i *infinispan) Caches() api.Caches {
-	return &caches{i.HttpClient}
+	return &caches{
+		HttpClient: i.HttpClient,
+		Caches:     i.ispn13.Caches(),
+	}
 }
 
 func (i *infinispan) Container() api.Container {
-	return &container{i.HttpClient}
+	return i.ispn13.Container()
 }
 
 func (i *infinispan) Logging() api.Logging {
-	return &logging{i.HttpClient}
+	return i.ispn13.Logging()
 }
 
 func (i *infinispan) Metrics() api.Metrics {
-	return &metrics{i.HttpClient}
+	return i.ispn13.Metrics()
 }
 
 func (i *infinispan) Server() api.Server {
-	return &server{i.HttpClient}
+	return i.ispn13.Server()
 }

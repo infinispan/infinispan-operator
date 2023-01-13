@@ -188,6 +188,13 @@ func (c *caches) ConvertConfiguration(config string, contentType mime.MimeType, 
 	return readResponseBody(rsp)
 }
 
+// EqualConfiguration is not supported in Infinispan 13
+func (c *caches) EqualConfiguration(_, _ string) (bool, error) {
+	return false, &api.NotSupportedError{
+		Version: MajorVersion,
+	}
+}
+
 func (c *caches) Names() (names []string, err error) {
 	rsp, err := c.Get(CachesPath, nil)
 	if err = httpClient.ValidateResponse(rsp, err, "getting caches", http.StatusOK); err != nil {

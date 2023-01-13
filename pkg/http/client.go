@@ -15,6 +15,7 @@ type HttpClient interface {
 	Head(path string, headers map[string]string) (*http.Response, error)
 	Get(path string, headers map[string]string) (*http.Response, error)
 	Post(path, payload string, headers map[string]string) (*http.Response, error)
+	PostMultipart(path string, parts map[string]string, headers map[string]string) (*http.Response, error)
 	Put(path, payload string, headers map[string]string) (*http.Response, error)
 	Delete(path string, headers map[string]string) (*http.Response, error)
 }

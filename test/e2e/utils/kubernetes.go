@@ -532,7 +532,7 @@ func getNodePort(service *corev1.Service) int32 {
 }
 
 func CheckExternalAddress(client HTTPClient) bool {
-	status, err := ispnClient.New(client).Container().HealthStatus()
+	status, err := ispnClient.New(LatestOperand, client).Container().HealthStatus()
 	if isTemporary(err) {
 		return false
 	}

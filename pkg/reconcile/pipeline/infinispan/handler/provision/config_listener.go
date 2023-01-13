@@ -149,6 +149,12 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
+	operandVersions, err := ctx.Operands().Json()
+	if err != nil {
+		ctx.Requeue(fmt.Errorf("unable to marshall Operands for ConfigListener deployment: %w", err))
+
+	}
+
 	// The deployment doesn't exist, create it
 	labels := i.PodLabels()
 	labels["app"] = "infinispan-config-listener-pod"
@@ -176,6 +182,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 								"-zap-log-level",
 								string(i.Spec.ConfigListener.Logging),
 							},
+							Env: []corev1.EnvVar{{Name: "INFINISPAN_OPERAND_VERSIONS", Value: operandVersions}},
 						},
 					},
 					ServiceAccountName: name,
