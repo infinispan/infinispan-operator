@@ -10,6 +10,7 @@ import (
 
 	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/launcher"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"gopkg.in/cenkalti/backoff.v1"
 
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -70,11 +71,17 @@ func New(ctx context.Context, p Parameters) {
 	service := fmt.Sprintf("%s.%s.svc.cluster.local:11223", infinispan.GetAdminServiceName(), p.Namespace)
 	serviceWithAuth := fmt.Sprintf("http://%s:%s@%s", user, password, service)
 
+	versionManager, err := version.ManagerFromEnv(v1.OperatorOperandVersionEnvVarName)
+	if err != nil {
+		log.Fatalf("unable to load Operand versions: %v", err)
+	}
+
 	cacheListener := &controllers.CacheListener{
-		Infinispan: infinispan,
-		Ctx:        ctx,
-		Kubernetes: k8s,
-		Log:        log,
+		Infinispan:     infinispan,
+		Ctx:            ctx,
+		Kubernetes:     k8s,
+		Log:            log,
+		VersionManager: versionManager,
 	}
 
 	wait := func() {

@@ -85,7 +85,7 @@ func (c *contextImpl) Operands() *version.Manager {
 	return c.VersionManager
 }
 
-func (c contextImpl) InfinispanClient() (api.Infinispan, error) {
+func (c *contextImpl) InfinispanClient() (api.Infinispan, error) {
 	if c.ispnClient != nil {
 		return c.ispnClient, nil
 	}
@@ -108,12 +108,12 @@ func (c contextImpl) InfinispanClient() (api.Infinispan, error) {
 	return c.ispnClient, nil
 }
 
-func (c contextImpl) InfinispanClientForPod(podName string) api.Infinispan {
+func (c *contextImpl) InfinispanClientForPod(podName string) api.Infinispan {
 	curlClient := c.curlClient(podName)
-	return ispnClient.New(curlClient)
+	return ispnClient.New(c.Operand(), curlClient)
 }
 
-func (c contextImpl) InfinispanPods() (*corev1.PodList, error) {
+func (c *contextImpl) InfinispanPods() (*corev1.PodList, error) {
 	if c.ispnPods == nil {
 		statefulSet := &appsv1.StatefulSet{}
 		if err := c.Resources().Load(c.infinispan.GetStatefulSetName(), statefulSet); err != nil {
@@ -135,7 +135,7 @@ func (c contextImpl) InfinispanPods() (*corev1.PodList, error) {
 	return c.ispnPods.DeepCopy(), nil
 }
 
-func (c contextImpl) curlClient(podName string) *curl.Client {
+func (c *contextImpl) curlClient(podName string) *curl.Client {
 	return curl.New(curl.Config{
 		Credentials: &curl.Credentials{
 			Username: c.ispnConfig.AdminIdentities.Username,
@@ -149,44 +149,44 @@ func (c contextImpl) curlClient(podName string) *curl.Client {
 	}, c.kubernetes)
 }
 
-func (c contextImpl) ConfigFiles() *pipeline.ConfigFiles {
+func (c *contextImpl) ConfigFiles() *pipeline.ConfigFiles {
 	return c.ispnConfig
 }
 
-func (c contextImpl) Ctx() context.Context {
+func (c *contextImpl) Ctx() context.Context {
 	return c.ctx
 }
 
-func (c contextImpl) Log() logr.Logger {
+func (c *contextImpl) Log() logr.Logger {
 	return c.Logger
 }
 
-func (c contextImpl) EventRecorder() record.EventRecorder {
+func (c *contextImpl) EventRecorder() record.EventRecorder {
 	return c.eventRec
 }
 
-func (c contextImpl) Kubernetes() *kube.Kubernetes {
+func (c *contextImpl) Kubernetes() *kube.Kubernetes {
 	return c.kubernetes
 }
 
-func (c contextImpl) DefaultAnnotations() map[string]string {
+func (c *contextImpl) DefaultAnnotations() map[string]string {
 	return c.ContextProviderConfig.DefaultAnnotations
 }
 
-func (c contextImpl) DefaultLabels() map[string]string {
+func (c *contextImpl) DefaultLabels() map[string]string {
 	return c.ContextProviderConfig.DefaultLabels
 }
 
-func (c contextImpl) FIPS() bool {
+func (c *contextImpl) FIPS() bool {
 	return c.ContextProviderConfig.Fips && c.infinispan.IsEncryptionEnabled()
 }
 
-func (c contextImpl) IsTypeSupported(gvk schema.GroupVersionKind) bool {
+func (c *contextImpl) IsTypeSupported(gvk schema.GroupVersionKind) bool {
 	_, ok := c.SupportedTypes[gvk]
 	return ok
 }
 
-func (c contextImpl) UpdateInfinispan(updateFn func()) error {
+func (c *contextImpl) UpdateInfinispan(updateFn func()) error {
 	i := c.infinispan
 	mutateFn := func() error {
 		if i.CreationTimestamp.IsZero() || i.GetDeletionTimestamp() != nil {

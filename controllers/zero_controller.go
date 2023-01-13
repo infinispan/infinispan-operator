@@ -11,6 +11,7 @@ import (
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	. "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	corev1 "k8s.io/api/core/v1"
@@ -71,12 +72,13 @@ type zeroCapacityVolumeSpec struct {
 
 type zeroCapacityController struct {
 	client.Client
-	Name       string
-	Reconciler zeroCapacityReconciler
-	Kube       *kube.Kubernetes
-	Log        logr.Logger
-	Scheme     *runtime.Scheme
-	EventRec   record.EventRecorder
+	Name           string
+	Reconciler     zeroCapacityReconciler
+	Kube           *kube.Kubernetes
+	Log            logr.Logger
+	Scheme         *runtime.Scheme
+	EventRec       record.EventRecorder
+	VersionManager *version.Manager
 }
 
 type zeroCapacityPhase string
@@ -99,14 +101,20 @@ const (
 )
 
 func newZeroCapacityController(name string, reconciler zeroCapacityReconciler, mgr ctrl.Manager) error {
+	versionManager, err := version.ManagerFromEnv(v1.OperatorOperandVersionEnvVarName)
+	if err != nil {
+		return err
+	}
+
 	r := &zeroCapacityController{
-		Name:       name,
-		Client:     mgr.GetClient(),
-		Reconciler: reconciler,
-		Kube:       kube.NewKubernetesFromController(mgr),
-		Log:        ctrl.Log.WithName("controllers").WithName(name),
-		Scheme:     mgr.GetScheme(),
-		EventRec:   mgr.GetEventRecorderFor(strings.ToLower(name) + "-controller"),
+		Name:           name,
+		Client:         mgr.GetClient(),
+		Reconciler:     reconciler,
+		Kube:           kube.NewKubernetesFromController(mgr),
+		Log:            ctrl.Log.WithName("controllers").WithName(name),
+		Scheme:         mgr.GetScheme(),
+		EventRec:       mgr.GetEventRecorderFor(strings.ToLower(name) + "-controller"),
+		VersionManager: versionManager,
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -164,7 +172,7 @@ func (z *zeroCapacityController) Reconcile(ctx context.Context, request reconcil
 	}
 
 	podName := instance.AsMeta().GetName()
-	ispnClient, err := NewInfinispanForPod(ctx, podName, infinispan, z.Kube)
+	ispnClient, err := NewInfinispanForPod(ctx, podName, infinispan, z.VersionManager, z.Kube)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

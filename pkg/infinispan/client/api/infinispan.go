@@ -3,6 +3,7 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 )
@@ -66,6 +67,7 @@ type RollingUpgrade interface {
 // Caches contains all generic cache operations that aren't specific to a single cache
 type Caches interface {
 	ConvertConfiguration(config string, contentType, reqType mime.MimeType) (string, error)
+	EqualConfiguration(a, b string) (bool, error)
 	Names() ([]string, error)
 }
 
@@ -149,4 +151,12 @@ type BackupRestoreResources struct {
 type ContainerInfo struct {
 	Coordinator bool           `json:"coordinator"`
 	SitesView   *[]interface{} `json:"sites_view,omitempty"`
+}
+
+type NotSupportedError struct {
+	Version string
+}
+
+func (n *NotSupportedError) Error() string {
+	return fmt.Sprintf("Operation not supported with Operand Major Version'%s'", n.Version)
 }

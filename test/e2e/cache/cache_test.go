@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	testifyAssert "github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,36 +120,50 @@ func TestUpdateCacheCR(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	ispn := initCluster(t, false)
+	ispn := initCluster(t, true)
 	cacheName := ispn.Name
-	originalYaml := "localCache:\n  memory:\n    maxCount: 10\n"
+	originalYaml := "localCache:\n  memory:\n    maxCount: 10\n  statistics: true\n"
 
 	// Create Cache CR with Yaml template
-	cr := cacheCR(cacheName, ispn)
-	cr.Spec.Template = originalYaml
-	testKube.Create(cr)
-	cr = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	cache := cacheCR(cacheName, ispn)
+	cache.Spec.Template = originalYaml
+	testKube.Create(cache)
+	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	testifyAssert.Equal(t, int64(1), cache.GetGeneration())
 
-	validUpdateYaml := strings.Replace(cr.Spec.Template, "10", "50", 1)
-	cr.Spec.Template = validUpdateYaml
-	testKube.Update(cr)
+	validUpdateYaml := strings.Replace(cache.Spec.Template, "10", "50", 1)
+	cache.Spec.Template = validUpdateYaml
+	testKube.Update(cache)
+
+	type Cache struct {
+		Cache struct {
+			Memory struct {
+				MaxCount string `yaml:"maxCount"`
+			} `yaml:"memory"`
+		} `yaml:"localCache"`
+	}
 
 	// Assert CR spec.Template updated
-	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
-		return cache.Spec.Template == validUpdateYaml
+	cache = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+		localCache := &Cache{}
+		tutils.ExpectNoError(yaml.Unmarshal([]byte(cache.Spec.Template), localCache))
+		return localCache.Cache.Memory.MaxCount == "50"
 	})
+	testifyAssert.Equal(t, int64(2), cache.GetGeneration())
 
 	// Assert CR remains ready
-	cr = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	testifyAssert.Equal(t, int64(2), cache.GetGeneration())
 
 	invalidUpdateYaml := `distributedCache: {}`
-	cr.Spec.Template = invalidUpdateYaml
-	testKube.Update(cr)
+	cache.Spec.Template = invalidUpdateYaml
+	testKube.Update(cache)
 
 	// Assert CR spec.Template updated
-	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	cache = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		return cache.Spec.Template == invalidUpdateYaml
 	})
+	testifyAssert.Equal(t, int64(3), cache.GetGeneration())
 
 	// Wait for the Cache CR to become unready as the spec.Template cannot be reconciled with the server
 	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
@@ -270,34 +286,25 @@ func TestCacheWithXML(t *testing.T) {
 	originalXml := `<local-cache><memory max-count="100"/></local-cache>`
 
 	// Create Cache CR with XML template
-	cr := cacheCR(cacheName, ispn)
-	cr.Spec.Template = originalXml
-	testKube.Create(cr)
-	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	cache := cacheCR(cacheName, ispn)
+	cache.Spec.Template = originalXml
+	testKube.Create(cache)
+	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	testifyAssert.Equal(t, int64(1), cache.GetGeneration())
 
-	// Wait for 2nd generation of Cache CR with server formatting
-	cr = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
-		return cache.ObjectMeta.Generation == 2
-	})
-
-	// Assert CR spec.Template updated and returned template is in the XML format
-	if cr.Spec.Template == originalXml {
-		panic("Expected CR template format to be different to original")
-	}
-
-	if !strings.Contains(cr.Spec.Template, `memory max-count="100"`) {
-		panic("Unexpected cr.Spec.Template content")
+	if !strings.Contains(cache.Spec.Template, `memory max-count="100"`) {
+		panic("Unexpected cache.Spec.Template content")
 	}
 
 	// Update cache via REST
 	client := tutils.HTTPClientForCluster(ispn, testKube)
 	cacheHelper := tutils.NewCacheHelper(cacheName, client)
-	updatedXml := strings.Replace(cr.Spec.Template, "100", "50", 1)
+	updatedXml := strings.Replace(cache.Spec.Template, "100", "50", 1)
 	cacheHelper.Update(updatedXml, mime.ApplicationXml)
 
-	// Assert CR spec.Template updated and returned template is in the XML format
+	// Assert CR spec.Template updated
 	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
-		return cache.Spec.Template == updatedXml
+		return strings.Contains(cache.Spec.Template, "50")
 	})
 	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 }
@@ -308,27 +315,39 @@ func TestCacheWithJSON(t *testing.T) {
 
 	ispn := initCluster(t, true)
 	cacheName := ispn.Name
-	originalJson := `{"local-cache":{"memory":{"max-count":"100"}}}`
+	originalJson := `{"local-cache":{"memory":{"max-count":"100"},"statistics":true}}`
 
 	// Create Cache CR with JSON template
-	cr := cacheCR(cacheName, ispn)
-	cr.Spec.Template = originalJson
-	testKube.Create(cr)
-	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	cache := cacheCR(cacheName, ispn)
+	cache.Spec.Template = originalJson
+	testKube.Create(cache)
+	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Assert CR spec.Template is the same as the original JSON as no transformations are required
-	testifyAssert.Equal(t, originalJson, cr.Spec.Template)
+	testifyAssert.Equal(t, originalJson, cache.Spec.Template)
+	testifyAssert.Equal(t, int64(1), cache.GetGeneration())
 
 	// Update cache via REST
 	client := tutils.HTTPClientForCluster(ispn, testKube)
 	cacheHelper := tutils.NewCacheHelper(cacheName, client)
-	updatedJson := strings.Replace(cr.Spec.Template, "100", "50", 1)
+	updatedJson := strings.Replace(cache.Spec.Template, "100", "50", 1)
 	cacheHelper.Update(updatedJson, mime.ApplicationJson)
 
+	type Cache struct {
+		Cache struct {
+			Memory struct {
+				MaxCount string `json:"max-count"`
+			} `json:"memory"`
+		} `json:"local-cache"`
+	}
+
 	// Assert CR spec.Template updated and returned template is in the JSON format
-	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
-		return cache.Spec.Template == updatedJson
+	cache = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+		localCache := &Cache{}
+		tutils.ExpectNoError(json.Unmarshal([]byte(cache.Spec.Template), localCache))
+		return localCache.Cache.Memory.MaxCount == "50"
 	})
+	testifyAssert.Equal(t, int64(2), cache.GetGeneration())
 	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 }
 

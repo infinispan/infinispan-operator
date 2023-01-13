@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/manage"
 	"k8s.io/apimachinery/pkg/util/validation"
 
@@ -37,18 +38,20 @@ import (
 // CacheReconciler reconciles a Cache object
 type CacheReconciler struct {
 	client.Client
-	log        logr.Logger
-	scheme     *runtime.Scheme
-	kubernetes *kube.Kubernetes
-	eventRec   record.EventRecorder
+	log            logr.Logger
+	scheme         *runtime.Scheme
+	kubernetes     *kube.Kubernetes
+	eventRec       record.EventRecorder
+	versionManager *version.Manager
 }
 
 type CacheListener struct {
 	// The Infinispan cluster to listen to in the configured namespace
-	Infinispan *v1.Infinispan
-	Ctx        context.Context
-	Kubernetes *kube.Kubernetes
-	Log        *zap.SugaredLogger
+	Infinispan     *v1.Infinispan
+	Ctx            context.Context
+	Kubernetes     *kube.Kubernetes
+	Log            *zap.SugaredLogger
+	VersionManager *version.Manager
 }
 
 type cacheRequest struct {
@@ -61,17 +64,22 @@ type cacheRequest struct {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) (err error) {
 	r.Client = mgr.GetClient()
 	r.log = ctrl.Log.WithName("controllers").WithName("Cache")
 	r.scheme = mgr.GetScheme()
 	r.kubernetes = kube.NewKubernetesFromController(mgr)
 	r.eventRec = mgr.GetEventRecorderFor("cache-controller")
 
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2alpha1.Cache{}, "spec.clusterName", func(obj client.Object) []string {
+	r.versionManager, err = version.ManagerFromEnv(v1.OperatorOperandVersionEnvVarName)
+	if err != nil {
+		return
+	}
+
+	if err = mgr.GetFieldIndexer().IndexField(ctx, &v2alpha1.Cache{}, "spec.clusterName", func(obj client.Object) []string {
 		return []string{obj.(*v2alpha1.Cache).Spec.ClusterName}
 	}); err != nil {
-		return err
+		return
 	}
 
 	builder := ctrl.NewControllerManagedBy(mgr).For(&v2alpha1.Cache{})
@@ -174,7 +182,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	ispnClient, err := NewInfinispan(ctx, infinispan, r.kubernetes)
+	ispnClient, err := NewInfinispan(ctx, infinispan, r.versionManager, r.kubernetes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to create Infinispan client: %w", err)
 	}
@@ -338,7 +346,7 @@ func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) erro
 func (cl *CacheListener) RemoveStaleResources(podName string) error {
 	cl.Log.Info("Checking for stale cache resources")
 	k8s := cl.Kubernetes
-	ispn, err := NewInfinispanForPod(cl.Ctx, podName, cl.Infinispan, k8s)
+	ispn, err := NewInfinispanForPod(cl.Ctx, podName, cl.Infinispan, cl.VersionManager, k8s)
 	if err != nil {
 		return err
 	}
@@ -402,6 +410,11 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 	}
 
 	k8sClient := cl.Kubernetes.Client
+	ispnClient, err := NewInfinispan(cl.Ctx, cl.Infinispan, cl.VersionManager, cl.Kubernetes)
+	if err != nil {
+		return fmt.Errorf("unable to create Infinispan client: %w", err)
+	}
+
 	if cache == nil {
 		// There's no Existing Cache CR, so we must create one
 		sanitizedCacheName := cacheNameRegexp.ReplaceAllString(strcase.ToKebab(cacheName), "-")
@@ -425,7 +438,10 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 		}
 
 		// Convert JSON to yaml
-		configYaml, err := cl.convertCacheConfiguration(configJson, mime.ApplicationYaml)
+		configYaml, err := ispnClient.Caches().ConvertConfiguration(configJson, mime.ApplicationJson, mime.ApplicationYaml)
+		if err != nil {
+			return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationJson, mime.ApplicationYaml, err)
+		}
 		if err != nil {
 			return err
 		}
@@ -445,6 +461,29 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 		// Update existing Cache
 		maxRetries := 5
 		for i := 1; i <= maxRetries; i++ {
+
+			if cache.Spec.Template == "" {
+				// The cache uses a template defined on the server so nothing to do
+				break
+			}
+
+			// If Operand is >= 14.0.5.Final we can use the cache compare endpoint to avoid unnecessary updates to the
+			// Infinispan spec.template field
+			operand, _ := cl.VersionManager.WithRef(cl.Infinispan.Spec.Version)
+			if operand.UpstreamVersion.Major >= 14 && operand.UpstreamVersion.Patch >= 5 {
+				// Check if Cache configuration is semantically the same as that already present in the Cache CR
+				configUnchanged, err := ispnClient.Caches().EqualConfiguration(configJson, cache.Spec.Template)
+				if err != nil {
+					cl.Log.Error(fmt.Errorf("cache '%s' unable to compare updated configuration. Retry %d..%d: %w", cache.Name, i, maxRetries, err))
+					continue
+				}
+
+				if configUnchanged {
+					cl.Log.Debugf("Cache '%s' configuration on update has not changed, ignoring update", cache.Name)
+					break
+				}
+			}
+
 			_, err = controllerutil.CreateOrPatch(cl.Ctx, k8sClient, cache, func() error {
 				if cache.CreationTimestamp.IsZero() {
 					return errors.NewNotFound(schema.ParseGroupResource("caches.infinispan.org"), cache.Name)
@@ -457,8 +496,9 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 					if mediaType == mime.ApplicationJson {
 						template = configJson
 					} else {
-						if template, err = cl.convertCacheConfiguration(configJson, mediaType); err != nil {
-							return err
+						template, err = ispnClient.Caches().ConvertConfiguration(configJson, mime.ApplicationJson, mime.ApplicationYaml)
+						if err != nil {
+							return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationJson, mime.ApplicationYaml, err)
 						}
 					}
 				} else {
@@ -492,19 +532,6 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 		}
 	}
 	return nil
-}
-
-func (cl *CacheListener) convertCacheConfiguration(configJson string, mediaType mime.MimeType) (string, error) {
-	ispnClient, err := NewInfinispan(cl.Ctx, cl.Infinispan, cl.Kubernetes)
-	if err != nil {
-		return "", fmt.Errorf("unable to create Infinispan client: %w", err)
-	}
-
-	convertedConfig, err := ispnClient.Caches().ConvertConfiguration(configJson, mime.ApplicationJson, mediaType)
-	if err != nil {
-		return "", fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationJson, mediaType, err)
-	}
-	return convertedConfig, nil
 }
 
 func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2alpha1.Cache, error) {

@@ -63,6 +63,8 @@ var VersionManager = func() *version.Manager {
 	}
 }
 
+var LatestOperand = VersionManager().Latest()
+
 func EndpointEncryption(name string) *ispnv1.EndpointEncryption {
 	return &ispnv1.EndpointEncryption{
 		Type:           ispnv1.CertificateSourceTypeSecret,

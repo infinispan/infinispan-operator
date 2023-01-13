@@ -18,7 +18,7 @@ type CacheHelper struct {
 
 func NewCacheHelper(cacheName string, client HTTPClient) *CacheHelper {
 	return &CacheHelper{
-		CacheClient: ispnClient.New(client).Cache(cacheName),
+		CacheClient: ispnClient.New(LatestOperand, client).Cache(cacheName),
 		CacheName:   cacheName,
 		Client:      client,
 	}

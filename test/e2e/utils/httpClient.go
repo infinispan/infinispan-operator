@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -102,6 +103,10 @@ func (c *httpClientConfig) Post(path, payload string, headers map[string]string)
 
 func (c *httpClientConfig) Put(path, payload string, headers map[string]string) (*http.Response, error) {
 	return c.exec("PUT", path, payload, headers)
+}
+
+func (c *httpClientConfig) PostMultipart(path string, parts map[string]string, headers map[string]string) (*http.Response, error) {
+	return nil, errors.New("multipart support needs to be implemented")
 }
 
 func (c *httpClientConfig) SetHostAndPort(hostAndPort string) {

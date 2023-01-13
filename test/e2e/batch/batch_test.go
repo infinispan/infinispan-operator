@@ -46,7 +46,7 @@ func testBatchInlineConfig(t *testing.T, infinispan *v1.Infinispan) {
 	helper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 
 	httpClient := tutils.HTTPClientForCluster(infinispan, testKube)
-	ispn := ispnClient.New(httpClient)
+	ispn := ispnClient.New(tutils.LatestOperand, httpClient)
 	assertCacheExists("batch-cache", ispn)
 	assertCounterExists("batch-counter", ispn)
 	testKube.DeleteBatch(batch)
@@ -80,7 +80,7 @@ func TestBatchConfigMap(t *testing.T) {
 	waitForK8sResourceCleanup(infinispan.Name)
 
 	httpClient := tutils.HTTPClientForCluster(infinispan, testKube)
-	ispn := ispnClient.New(httpClient)
+	ispn := ispnClient.New(tutils.LatestOperand, httpClient)
 	assertCacheExists("batch-cache", ispn)
 	assertCounterExists("batch-counter", ispn)
 }
