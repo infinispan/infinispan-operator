@@ -674,6 +674,14 @@ spec:
                       config resources created on the Infinispan server have a matching
                       CR resource
                     type: boolean
+                  logging:
+                    description: The logging level to be used by the ConfigListener
+                      pod
+                    enum:
+                    - Debug
+                    - Info
+                    - Error
+                    type: string
                 type: object
               configMapName:
                 type: string

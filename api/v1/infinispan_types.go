@@ -371,11 +371,24 @@ type InfinispanCloudEvents struct {
 	CacheEntriesTopic string `json:"cacheEntriesTopic,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=Debug;Info;Error
+type ConfigListenerLogging string
+
+const (
+	ConfigListenerLoggingDebug ConfigListenerLogging = "Debug"
+	ConfigListenerLoggingInfo  ConfigListenerLogging = "Info"
+	ConfigListenerLoggingError ConfigListenerLogging = "Error"
+)
+
 type ConfigListenerSpec struct {
 	// If true, a dedicated pod is used to ensure that all config resources created on the Infinispan server have a matching CR resource
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Config Listener",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
 	Enabled bool `json:"enabled"`
+	// The logging level to be used by the ConfigListener pod
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Logging Level",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:select:Debug", "urn:alm:descriptor:com.tectonic.ui:select:Info", "urn:alm:descriptor:com.tectonic.ui:select:Error"}
+	Logging ConfigListenerLogging `json:"logging"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan

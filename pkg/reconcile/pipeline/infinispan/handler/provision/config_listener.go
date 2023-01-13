@@ -1,6 +1,8 @@
 package provision
 
 import (
+	"fmt"
+
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
@@ -57,7 +59,20 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					return
 				}
 			}
-			// The Deployment already exists with the expected image and number of replicas, do nothing
+
+			// Update the deployment args if the ConfigListener log level has been updated
+			if container.Args[len(container.Args)-1] != string(i.Spec.ConfigListener.Logging) {
+				err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
+					container = kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
+					container.Args[len(container.Args)-1] = string(i.Spec.ConfigListener.Logging)
+				})
+
+				if err != nil {
+					ctx.Requeue(fmt.Errorf("unable to update ConfigListener log level: %w", err))
+					return
+				}
+			}
+			// The Deployment already exists with the expected image, log level and number of replicas, do nothing
 			return
 		}
 	}
@@ -158,6 +173,8 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 								namespace,
 								"-cluster",
 								i.Name,
+								"-zap-log-level",
+								string(i.Spec.ConfigListener.Logging),
 							},
 						},
 					},
@@ -194,6 +211,17 @@ func ScaleConfigListener(replicas int32, i *ispnv1.Infinispan, ctx pipeline.Cont
 	// Remove the ConfigListener deployment as no Infinispan Pods exist
 	ctx.Log().Info("Scaling ConfigListener deployment", "replicas", replicas)
 
+	err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
+		deployment.Spec.Replicas = pointer.Int32Ptr(replicas)
+	})
+
+	if err != nil {
+		ctx.Log().Error(err, "unable to scale ConfigListener Deployment")
+	}
+	return err
+}
+
+func UpdateConfigListenerDeployment(i *ispnv1.Infinispan, ctx pipeline.Context, mutate func(deployment *appsv1.Deployment)) error {
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.GetConfigListenerName(),
@@ -205,13 +233,8 @@ func ScaleConfigListener(replicas int32, i *ispnv1.Infinispan, ctx pipeline.Cont
 		if deployment.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(appsv1.Resource("deployment"), deployment.Name)
 		}
-		deployment.Spec.Replicas = pointer.Int32Ptr(replicas)
+		mutate(deployment)
 		return nil
 	})
-
-	if err != nil {
-		ctx.Log().Error(err, "unable to scale ConfigListener Deployment")
-		return err
-	}
-	return nil
+	return err
 }
