@@ -92,7 +92,7 @@ func TestOperandCVERollingUpgrade(t *testing.T) {
 
 	// Create Infinispan Cluster using the penultimate Operand release
 	replicas := 1
-	operand := versionManager.Operands[1]
+	operand := versionManager.Operands[len(versionManager.Operands)-2]
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Version = operand.Ref()
@@ -186,7 +186,7 @@ func TestOperandCVEHotRodRolling(t *testing.T) {
 
 	// Create Infinispan Cluster using the penultimate Operand release
 	replicas := 1
-	operand := versionManager.Operands[1]
+	operand := versionManager.Operands[len(versionManager.Operands)-2]
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Version = operand.Ref()
