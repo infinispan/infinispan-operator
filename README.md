@@ -97,10 +97,12 @@ make bundle-build bundle-push VERSION=<latest-version> IMG=<operator-image> BUND
 To create an Operator release perform the following:
 
 1. Update Operand references:
+   - `SERVER_TAGS` in `Jenkinsfile` to include the image tage all supported Operands
    - `INFINISPAN_OPERAND_VERSIONS` json in `config/manager/manager.yaml` includes the latest Infinispan Server releases. Do not use the floating tags for an Operand image, e.g. `13.0`.
    - `server_image_version` in `documentation/asciidoc/topics/attributes/community-attributes.adoc` to point to the latest Operand version
-   - `test/e2e/utils/common.go` VersionManager JSON to include latest Operand
+   - `test/e2e/utils/common.go` VersionManager JSON to include the latest Operand
    - `documentation/asciidoc/topics/ref_supported_versions.adoc` to include all supported Operands
+   - `documentation/asciidoc/topics/community-attributes.adoc` to use the latest supported Operand
 2. Commit changes with appropriate commit message, e.g "Releasing Operator <x.y.z>.Final"
 3. Tag the release `git tag <x.y.z>` and push to GitHub
 4. Create and push the multi-arch image using the created tag via the "Image Release" GitHub Action
