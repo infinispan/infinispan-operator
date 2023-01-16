@@ -22,8 +22,8 @@
 :lib_path: /opt/infinispan/server/lib
 :backup_path: /opt/infinispan/backups
 :server_image: quay.io/infinispan/server
-:server_image_version: 14.0.1
-:operand_version: 14.0.1
+:server_image_version: 14.0.5
+:operand_version: 14.0.5
 
 :ispn_operator: Infinispan Operator
 :ispn_operator_version: 2.3
