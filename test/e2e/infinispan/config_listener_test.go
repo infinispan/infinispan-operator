@@ -26,7 +26,9 @@ func TestConfigListenerDeployment(t *testing.T) {
 	ispn := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
 		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
 			Enabled: true,
-			Logging: v1.ConfigListenerLoggingDebug,
+			Logging: &v1.ConfigListenerLoggingSpec{
+				Level: v1.ConfigListenerLoggingDebug,
+			},
 		}
 	})
 
@@ -80,7 +82,7 @@ func TestConfigListenerDeployment(t *testing.T) {
 	// Update the ConfigListener log level to ensure that the deployment is updated
 	ispn = testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, v1.ConditionWellFormed)
 	err = testKube.UpdateInfinispan(ispn, func() {
-		ispn.Spec.ConfigListener.Logging = v1.ConfigListenerLoggingInfo
+		ispn.Spec.ConfigListener.Logging.Level = v1.ConfigListenerLoggingInfo
 	})
 	tutils.ExpectNoError(err)
 	testKube.WaitForDeploymentState(clName, namespace, func(deployment *appsv1.Deployment) bool {

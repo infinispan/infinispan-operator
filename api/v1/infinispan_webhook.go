@@ -89,8 +89,10 @@ func (i *Infinispan) Default() {
 			Enabled: true,
 		}
 	}
-	if i.Spec.ConfigListener.Logging == "" {
-		i.Spec.ConfigListener.Logging = ConfigListenerLoggingInfo
+	if i.Spec.ConfigListener.Logging == nil {
+		i.Spec.ConfigListener.Logging = &ConfigListenerLoggingSpec{
+			Level: ConfigListenerLoggingInfo,
+		}
 	}
 
 	if i.Spec.Affinity == nil {

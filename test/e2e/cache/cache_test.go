@@ -45,7 +45,9 @@ func initClusterWithSuffix(t *testing.T, suffix string, configListener bool) *v1
 		i.Name = i.Name + suffix
 		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
 			Enabled: configListener,
-			Logging: v1.ConfigListenerLoggingDebug,
+			Logging: &v1.ConfigListenerLoggingSpec{
+				Level: v1.ConfigListenerLoggingDebug,
+			},
 		}
 	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
@@ -245,7 +247,9 @@ func TestStaticServerCache(t *testing.T) {
 		i.Spec.ConfigMapName = configMap.Name
 		i.Spec.ConfigListener = &v1.ConfigListenerSpec{
 			Enabled: true,
-			Logging: v1.ConfigListenerLoggingDebug,
+			Logging: &v1.ConfigListenerLoggingSpec{
+				Level: v1.ConfigListenerLoggingDebug,
+			},
 		}
 	})
 

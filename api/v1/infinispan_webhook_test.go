@@ -77,6 +77,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(spec.Security.EndpointSecretName).Should(Equal(created.GetSecretName()))
 			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
 			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
+			Expect(spec.ConfigListener.Logging.Level).Should(Equal(ConfigListenerLoggingInfo))
 		})
 
 		It("Should initiate DataGrid defaults", func() {
@@ -107,7 +108,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(spec.Security.EndpointSecretName).Should(Equal(created.GetSecretName()))
 			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
 			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
-			Expect(spec.ConfigListener.Logging).Should(Equal(ConfigListenerLoggingInfo))
+			Expect(spec.ConfigListener.Logging.Level).Should(Equal(ConfigListenerLoggingInfo))
 		})
 
 		It("Should calculate default Labels", func() {

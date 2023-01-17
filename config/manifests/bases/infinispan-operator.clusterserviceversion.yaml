@@ -99,11 +99,11 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
       - description: The logging level to be used by the ConfigListener pod
         displayName: Logging Level
-        path: configListener.logging
+        path: configListener.logging.level
         x-descriptors:
-        - urn:alm:descriptor:com.tectonic.ui:select:Debug
-        - urn:alm:descriptor:com.tectonic.ui:select:Info
-        - urn:alm:descriptor:com.tectonic.ui:select:Error
+        - urn:alm:descriptor:com.tectonic.ui:select:debug
+        - urn:alm:descriptor:com.tectonic.ui:select:info
+        - urn:alm:descriptor:com.tectonic.ui:select:error
       - description: The Persistent Volume Claim that holds custom libraries
         displayName: Persistent Volume Claim Name
         path: dependencies.volumeClaimName

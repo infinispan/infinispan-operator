@@ -371,13 +371,13 @@ type InfinispanCloudEvents struct {
 	CacheEntriesTopic string `json:"cacheEntriesTopic,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Debug;Info;Error
-type ConfigListenerLogging string
+// +kubebuilder:validation:Enum=debug;info;error
+type ConfigListenerLogLevel string
 
 const (
-	ConfigListenerLoggingDebug ConfigListenerLogging = "Debug"
-	ConfigListenerLoggingInfo  ConfigListenerLogging = "Info"
-	ConfigListenerLoggingError ConfigListenerLogging = "Error"
+	ConfigListenerLoggingDebug ConfigListenerLogLevel = "debug"
+	ConfigListenerLoggingInfo  ConfigListenerLogLevel = "info"
+	ConfigListenerLoggingError ConfigListenerLogLevel = "error"
 )
 
 type ConfigListenerSpec struct {
@@ -385,10 +385,16 @@ type ConfigListenerSpec struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Config Listener",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
 	Enabled bool `json:"enabled"`
+	// ConfigListener logging configuration
+	// +optional
+	Logging *ConfigListenerLoggingSpec `json:"logging,omitempty"`
+}
+
+type ConfigListenerLoggingSpec struct {
 	// The logging level to be used by the ConfigListener pod
 	// +optional
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Logging Level",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:select:Debug", "urn:alm:descriptor:com.tectonic.ui:select:Info", "urn:alm:descriptor:com.tectonic.ui:select:Error"}
-	Logging ConfigListenerLogging `json:"logging"`
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Logging Level",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:select:debug", "urn:alm:descriptor:com.tectonic.ui:select:info", "urn:alm:descriptor:com.tectonic.ui:select:error"}
+	Level ConfigListenerLogLevel `json:"level"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan

@@ -675,13 +675,17 @@ spec:
                       CR resource
                     type: boolean
                   logging:
-                    description: The logging level to be used by the ConfigListener
-                      pod
-                    enum:
-                    - Debug
-                    - Info
-                    - Error
-                    type: string
+                    description: ConfigListener logging configuration
+                    properties:
+                      level:
+                        description: The logging level to be used by the ConfigListener
+                          pod
+                        enum:
+                        - debug
+                        - info
+                        - error
+                        type: string
+                    type: object
                 type: object
               configMapName:
                 type: string
