@@ -61,10 +61,11 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			}
 
 			// Update the deployment args if the ConfigListener log level has been updated
-			if container.Args[len(container.Args)-1] != string(i.Spec.ConfigListener.Logging) {
+			logLevel := string(i.Spec.ConfigListener.Logging.Level)
+			if container.Args[len(container.Args)-1] != logLevel {
 				err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
 					container = kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
-					container.Args[len(container.Args)-1] = string(i.Spec.ConfigListener.Logging)
+					container.Args[len(container.Args)-1] = logLevel
 				})
 
 				if err != nil {
@@ -180,7 +181,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 								"-cluster",
 								i.Name,
 								"-zap-log-level",
-								string(i.Spec.ConfigListener.Logging),
+								string(i.Spec.ConfigListener.Logging.Level),
 							},
 							Env: []corev1.EnvVar{{Name: "INFINISPAN_OPERAND_VERSIONS", Value: operandVersions}},
 						},
