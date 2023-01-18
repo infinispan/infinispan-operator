@@ -140,14 +140,14 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 		// Remove finalizer and delete CR. No need to update the server as the cache has already been removed
 		if err := cache.removeFinalizer(); err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Cache CR not found, nothing todo.")
+				reqLogger.Info("Unable to remove Finalizer as Cache CR not found.")
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
 		}
 		if err := cache.kubernetes.Client.Delete(ctx, instance); err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Cache CR not found, nothing todo.")
+				reqLogger.Info("Cache CR does not exist, nothing todo.")
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
@@ -157,6 +157,17 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 	}
 
 	crDeleted := instance.GetDeletionTimestamp() != nil
+
+	// Add the "retain" update strategy for Cache CRs created with an older Operator version
+	if !crDeleted && (instance.Spec.Updates == nil || instance.Spec.Updates.Strategy == "") {
+		reqLogger.Info("Cache CR created with older operator version, adding update strategy to maintain previous controller behaviour", "strategy", v2alpha1.CacheUpdateRetain)
+		return ctrl.Result{Requeue: true}, cache.update(func() error {
+			instance.Spec.Updates = &v2alpha1.CacheUpdateSpec{
+				Strategy: v2alpha1.CacheUpdateRetain,
+			}
+			return nil
+		})
+	}
 
 	// Fetch the Infinispan cluster
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}, infinispan); err != nil {
@@ -225,17 +236,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 }
 
 func (r *cacheRequest) update(mutate func() error) error {
-	cache := r.cache
-	_, err := kube.CreateOrPatch(r.ctx, r.Client, cache, func() error {
-		if cache.CreationTimestamp.IsZero() {
-			return errors.NewNotFound(schema.ParseGroupResource("cache.infinispan.org"), cache.Name)
-		}
-		return mutate()
-	})
-	if err != nil {
-		return fmt.Errorf("unable to update cache %s: %w", cache.Name, err)
-	}
-	return nil
+	return updateCache(r.cache, r.ctx, r.Client, mutate)
 }
 
 // Determine if reconciliation was triggered by the ConfigListener
@@ -253,10 +254,13 @@ func (r *cacheRequest) markedForDeletion() bool {
 }
 
 func (r *cacheRequest) removeFinalizer() error {
-	return r.update(func() error {
-		controllerutil.RemoveFinalizer(r.cache, constants.InfinispanFinalizer)
-		return nil
-	})
+	if controllerutil.ContainsFinalizer(r.cache, constants.InfinispanFinalizer) {
+		return r.update(func() error {
+			controllerutil.RemoveFinalizer(r.cache, constants.InfinispanFinalizer)
+			return nil
+		})
+	}
+	return nil
 }
 
 func (r *cacheRequest) ispnCreateOrUpdate() (*ctrl.Result, error) {
@@ -317,10 +321,57 @@ func (r *cacheRequest) reconcileCacheService(cacheExists bool, cache api.Cache) 
 func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) error {
 	spec := r.cache.Spec
 	if cacheExists {
-		if spec.Template != "" {
-			err := cache.UpdateConfig(spec.Template, mime.GuessMarkup(spec.Template))
+		if spec.Template == "" {
+			return nil
+		}
+
+		serverConfig, err := cache.Config(mime.ApplicationJson)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve existing cache configuration: %w", err)
+		}
+
+		configUpdated, err := configChanged(serverConfig, spec.Template, r.infinispan, r.ispnClient.Caches(), r.versionManager)
+		if err != nil {
+			return fmt.Errorf("unable to determine if configuration has changed: %w", err)
+		}
+		if !configUpdated {
+			r.log.Info("configuration has not changed, ignoring update")
+			return nil
+		}
+
+		if spec.Updates.Strategy == v2alpha1.CacheUpdateRetain {
+			// Only update the cache if possible at runtime, otherwise set Ready=false.
+			if err := cache.UpdateConfig(spec.Template, mime.GuessMarkup(spec.Template)); err != nil {
+				return fmt.Errorf("unable to update cache template at runtime: %w", err)
+			}
+			return nil
+		}
+
+		// Recreate strategy
+		// Update the cache configuration at runtime if possible, retaining data, otherwise delete
+		if err := cache.UpdateConfig(spec.Template, mime.GuessMarkup(spec.Template)); err != nil {
+			r.log.Info("unable to update cache template at runtime, recreating", "error", err)
+
+			// Add an annotation to indicate to the ConfigListener that a remote-cache event should be expected for this CR
+			// Required in order to prevent the Cache CR that's being reconciled from being
+			err := r.update(func() error {
+				if r.cache.ObjectMeta.Annotations == nil {
+					r.cache.ObjectMeta.Annotations = make(map[string]string, 1)
+				}
+				r.cache.ObjectMeta.Annotations[constants.ListenerControllerDelete] = "true"
+				return nil
+			})
 			if err != nil {
-				return fmt.Errorf("unable to update cache template: %w", err)
+				return fmt.Errorf("unable to add annotation on update '%s': %w", constants.ListenerControllerDelete, err)
+			}
+
+			cacheName := r.cache.GetCacheName()
+			if err := cache.Delete(); err != nil {
+				return fmt.Errorf("unable to delete existing cache '%s': %w", cacheName, err)
+			}
+
+			if err := cache.Create(spec.Template, mime.GuessMarkup(spec.Template)); err != nil {
+				return fmt.Errorf("unable to create cache '%s': %w", cacheName, err)
 			}
 		}
 		return nil
@@ -467,21 +518,10 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 				break
 			}
 
-			// If Operand is >= 14.0.5.Final we can use the cache compare endpoint to avoid unnecessary updates to the
-			// Infinispan spec.template field
-			operand, _ := cl.VersionManager.WithRef(cl.Infinispan.Spec.Version)
-			if operand.UpstreamVersion.Major >= 14 && operand.UpstreamVersion.Patch >= 5 {
-				// Check if Cache configuration is semantically the same as that already present in the Cache CR
-				configUnchanged, err := ispnClient.Caches().EqualConfiguration(configJson, cache.Spec.Template)
-				if err != nil {
-					cl.Log.Error(fmt.Errorf("cache '%s' unable to compare updated configuration. Retry %d..%d: %w", cache.Name, i, maxRetries, err))
-					continue
-				}
-
-				if configUnchanged {
-					cl.Log.Debugf("Cache '%s' configuration on update has not changed, ignoring update", cache.Name)
-					break
-				}
+			configUpdated, err := configChanged(configJson, cache.Spec.Template, cl.Infinispan, ispnClient.Caches(), cl.VersionManager)
+			if !configUpdated {
+				cl.Log.Debugf("Cache '%s' configuration on update has not changed, ignoring update", cache.Name)
+				break
 			}
 
 			_, err = controllerutil.CreateOrPatch(cl.Ctx, k8sClient, cache, func() error {
@@ -515,6 +555,7 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 					ClusterName:  cl.Infinispan.Name,
 					Template:     template,
 					TemplateName: templateName,
+					Updates:      cache.Spec.Updates,
 				}
 				return nil
 			})
@@ -565,11 +606,22 @@ func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2
 
 func (cl *CacheListener) Delete(data []byte) error {
 	cacheName := string(data)
-	cl.Log.Infof("Attempting to remove CR associated with cache '%s'", cacheName)
+	cl.Log.Infof("Processing remove event for cache '%s'", cacheName)
 
 	existingCacheCr, err := cl.findExistingCacheCR(cacheName, cl.Infinispan.Name)
 	if existingCacheCr == nil || err != nil {
 		return err
+	}
+
+	if existingCacheCr.ObjectMeta.Annotations != nil {
+		_, controllerDelete := existingCacheCr.ObjectMeta.Annotations[constants.ListenerControllerDelete]
+		if controllerDelete {
+			cl.Log.Infof("Retaining Cache CR '%s' as cache deletion was requested by the cache controller", existingCacheCr.Name)
+			return updateCache(existingCacheCr, cl.Ctx, cl.Kubernetes.Client, func() error {
+				delete(existingCacheCr.ObjectMeta.Annotations, constants.ListenerControllerDelete)
+				return nil
+			})
+		}
 	}
 
 	cache := &v2alpha1.Cache{}
@@ -590,6 +642,19 @@ func (cl *CacheListener) Delete(data []byte) error {
 	if !errors.IsNotFound(err) {
 		cl.Log.Debugf("Cache CR '%s' not found, nothing todo.", cache.Name)
 		return err
+	}
+	return nil
+}
+
+func updateCache(cache *v2alpha1.Cache, ctx context.Context, client client.Client, mutate func() error) error {
+	_, err := kube.CreateOrPatch(ctx, client, cache, func() error {
+		if cache.CreationTimestamp.IsZero() {
+			return errors.NewNotFound(schema.ParseGroupResource("cache.infinispan.org"), cache.Name)
+		}
+		return mutate()
+	})
+	if err != nil {
+		return fmt.Errorf("unable to update cache %s: %w", cache.Name, err)
 	}
 	return nil
 }
@@ -623,4 +688,35 @@ func unmarshallEventConfig(data []byte) (string, string, error) {
 		return "", "", fmt.Errorf("unable to marshall cache configuration: %w", err)
 	}
 	return cacheName, string(configJson), nil
+}
+
+func configChanged(a, b string, i *v1.Infinispan, caches api.Caches, vm *version.Manager) (bool, error) {
+	// Reinstate EqualConfiguration call once ISPN-14470 has been resolved
+	// If Operand is >= 14.0.5.Final we can use the cache compare endpoint to avoid unnecessary updates to the
+	// Infinispan spec.template field
+	//operand, _ := vm.WithRef(i.Spec.Version)
+	//if operand.UpstreamVersion.Major >= 14 && operand.UpstreamVersion.Patch >= 5 {
+	//	// Check if Cache configuration is semantically the same as that already present in the Cache CR
+	//	equalConfig, err := caches.EqualConfiguration(a, b)
+	//	if err != nil {
+	//		return false, err
+	//	}
+	//	return !equalConfig, nil
+	//} else {
+	// Hack use the same source and destination media type in order to get the server representation of a configuration
+	// so that we can just compare the strings directly
+	aMarkup := mime.GuessMarkup(a)
+	aServerConfig, err := caches.ConvertConfiguration(a, aMarkup, mime.ApplicationJson)
+	if err != nil {
+		return false, err
+	}
+
+	bMarkup := mime.GuessMarkup(b)
+	bServerConfig, err := caches.ConvertConfiguration(b, bMarkup, mime.ApplicationJson)
+	if err != nil {
+		return false, err
+	}
+	// Compare the two server-side representations of the provided configurations
+	return aServerConfig != bServerConfig, nil
+	//}
 }

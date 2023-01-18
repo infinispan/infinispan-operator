@@ -86,6 +86,12 @@ spec:
         path: clusterName
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan
+      - description: How updates to Cache CR template should be applied on the Infinispan server
+        displayName: Update Strategy
+        path: updates.strategy
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:select:recreate
+        - urn:alm:descriptor:com.tectonic.ui:select:retain
       version: v2alpha1
     - description: Infinispan is the Schema for the infinispans API
       displayName: Infinispan Cluster

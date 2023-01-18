@@ -53,7 +53,7 @@ var _ = Describe("Cache Webhook", func() {
 	})
 
 	Context("Cache", func() {
-		It("Should create successfully", func() {
+		It("Should initiate defaults", func() {
 
 			created := &Cache{
 				ObjectMeta: metav1.ObjectMeta{
@@ -65,14 +65,17 @@ var _ = Describe("Cache Webhook", func() {
 						SecretName: "some-secret",
 					},
 					ClusterName: "some-cluster",
+					Updates:     &CacheUpdateSpec{},
 				},
 			}
 
 			Expect(k8sClient.Create(ctx, created)).Should(Succeed())
 
-			updated := &Cache{}
-			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
-			Expect(updated.Spec.AdminAuth).Should(BeNil())
+			created = &Cache{}
+			Expect(k8sClient.Get(ctx, key, created)).Should(Succeed())
+			spec := created.Spec
+			Expect(spec.AdminAuth).Should(BeNil())
+			Expect(spec.Updates.Strategy).Should(Equal(CacheUpdateRetain))
 		})
 
 		It("Should return error if required fields not provided", func() {

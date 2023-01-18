@@ -128,6 +128,7 @@ const (
 	AnnotationDomain             = "infinispan.org/"
 	ListenerAnnotationGeneration = AnnotationDomain + "listener-generation"
 	ListenerAnnotationDelete     = AnnotationDomain + "listener-delete"
+	ListenerControllerDelete     = AnnotationDomain + "controller-delete"
 )
 
 // GetWithDefault return value if not empty else return defValue
