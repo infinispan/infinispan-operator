@@ -19,8 +19,6 @@ import (
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	certUtil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
-
-	p12 "software.sslmate.com/src/go-pkcs12"
 )
 
 const (
@@ -293,14 +291,33 @@ func createTruststore(ca, client *certHolder, authenticate bool) []byte {
 }
 
 func createGenericTruststore(certs ...*certHolder) []byte {
-	trustCerts := make([]*x509.Certificate, 0)
+	var fileMode os.FileMode = 0777
+	ExpectNoError(os.MkdirAll(tmpDir, fileMode))
+	defer os.RemoveAll(tmpDir)
+
+	certFile := tmpFile("certs.p12")
+	trustStoreFile := tmpFile("truststore.p12")
+	mergePemCertificates(certFile, certs)
+
+	cmd := exec.Command("openssl", "pkcs12", "-export", "-noiter", "-nomaciter", "-in", certFile, "-out", trustStoreFile, "-password", "pass:"+TruststorePassword)
+	ExpectNoError(cmd.Run())
+
+	keystore, err := ioutil.ReadFile(trustStoreFile)
+	ExpectNoError(err)
+	return keystore
+}
+
+func mergePemCertificates(filename string, certs []*certHolder) {
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+	ExpectNoError(err)
+	defer f.Close()
 
 	for _, cert := range certs {
-		trustCerts = append(trustCerts, cert.cert)
+		_, err := f.Write(cert.getPrivateKeyPEM())
+		ExpectNoError(err)
+		_, err = f.Write(cert.getCertPEM())
+		ExpectNoError(err)
 	}
-	truststore, err := p12.EncodeTrustStore(rand.Reader, trustCerts, TruststorePassword)
-	ExpectNoError(err)
-	return truststore
 }
 
 func tmpFile(name string) string {
