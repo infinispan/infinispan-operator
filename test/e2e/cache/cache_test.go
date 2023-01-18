@@ -124,7 +124,7 @@ func TestUpdateCacheCR(t *testing.T) {
 
 	ispn := initCluster(t, true)
 	cacheName := ispn.Name
-	originalYaml := "localCache:\n  encoding:\n    mediaType: \"application/x-protostream\"\n  memory:\n    maxCount: 10\n  statistics: true\n"
+	originalYaml := "localCache:\n  encoding:\n    mediaType: \"text/plain\"\n  memory:\n    maxCount: 10\n  statistics: true\n"
 
 	// Create Cache CR with Yaml template
 	cache := cacheCR(cacheName, ispn)
@@ -132,6 +132,12 @@ func TestUpdateCacheCR(t *testing.T) {
 	testKube.Create(cache)
 	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 	testifyAssert.Equal(t, int64(1), cache.GetGeneration())
+
+	// Populate cache
+	numEntries := 1
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
+	cacheHelper.Populate(numEntries)
 
 	validUpdateYaml := strings.Replace(cache.Spec.Template, "10", "50", 1)
 	cache.Spec.Template = validUpdateYaml
@@ -155,7 +161,10 @@ func TestUpdateCacheCR(t *testing.T) {
 	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 	testifyAssert.Equal(t, int64(2), cache.GetGeneration())
 
-	invalidUpdateYaml := strings.Replace(cache.Spec.Template, "x-protostream", "x-java-serialized-object", 1)
+	// Assert cache content remains
+	cacheHelper.AssertSize(numEntries)
+
+	invalidUpdateYaml := strings.Replace(cache.Spec.Template, "text/plain", "application/x-java-serialized-object", 1)
 	cache.Spec.Template = invalidUpdateYaml
 	testKube.Update(cache)
 
@@ -171,6 +180,71 @@ func TestUpdateCacheCR(t *testing.T) {
 		Status: metav1.ConditionFalse,
 	})
 	testifyAssert.Contains(t, cache.GetCondition(v2alpha1.CacheConditionReady).Message, "ISPN029527")
+
+	// Assert original cache
+	cacheHelper.AssertSize(numEntries)
+}
+
+func TestUpdateRecreateStrategy(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, true)
+	cacheName := ispn.Name
+	originalYaml := "localCache:\n  encoding:\n    mediaType: \"text/plain\"\n  memory:\n    maxCount: 10\n  statistics: true\n"
+
+	// Create Cache CR with Yaml template
+	cache := cacheCR(cacheName, ispn)
+	cache.Spec.Updates.Strategy = v2alpha1.CacheUpdateRecreate
+	cache.Spec.Template = originalYaml
+	testKube.Create(cache)
+	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	testifyAssert.Equal(t, int64(1), cache.GetGeneration())
+
+	// Populate cache
+	numEntries := 1
+	client := tutils.HTTPClientForCluster(ispn, testKube)
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
+	cacheHelper.Populate(numEntries)
+
+	validUpdateYaml := strings.Replace(cache.Spec.Template, "10", "50", 1)
+	cache.Spec.Template = validUpdateYaml
+	testKube.Update(cache)
+
+	type Cache struct {
+		Cache struct {
+			Memory struct {
+				MaxCount string `yaml:"maxCount"`
+			} `yaml:"memory"`
+		} `yaml:"localCache"`
+	}
+
+	// Assert CR spec.Template updated
+	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+		localCache := &Cache{}
+		tutils.ExpectNoError(yaml.Unmarshal([]byte(cache.Spec.Template), localCache))
+		return localCache.Cache.Memory.MaxCount == "50"
+	})
+	// Assert CR remains ready
+	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	testifyAssert.Equal(t, int64(2), cache.GetGeneration())
+
+	// Assert cache content remains
+	cacheHelper.AssertSize(numEntries)
+
+	recreateUpdateYaml := strings.ReplaceAll(cache.Spec.Template, "text/plain", "application/x-java-serialized-object")
+	cache.Spec.Template = recreateUpdateYaml
+	testKube.Update(cache)
+
+	// Assert CR spec.Template updated
+	cache = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+		return cache.Spec.Template == recreateUpdateYaml
+	})
+	testifyAssert.Equal(t, int64(3), cache.GetGeneration())
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+
+	// Assert cache recreated on the server
+	cacheHelper.AssertSize(0)
 }
 
 func TestCacheWithServerLifecycle(t *testing.T) {
@@ -537,7 +611,7 @@ func TestCacheCRCacheService(t *testing.T) {
 }
 
 func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
-	return &v2alpha1.Cache{
+	cache := &v2alpha1.Cache{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v2alpha1",
 			Kind:       "Cache",
@@ -552,4 +626,6 @@ func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
 			Name:        cacheName,
 		},
 	}
+	cache.Default()
+	return cache
 }

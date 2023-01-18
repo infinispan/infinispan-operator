@@ -95,6 +95,18 @@ spec:
               templateName:
                 description: Name of the template to be used to create this cache
                 type: string
+              updates:
+                description: How updates to Cache CR template should be reconciled
+                  on the Infinispan server
+                properties:
+                  strategy:
+                    description: How updates to Cache CR template should be applied
+                      on the Infinispan server
+                    enum:
+                    - recreate
+                    - retain
+                    type: string
+                type: object
             required:
             - clusterName
             type: object

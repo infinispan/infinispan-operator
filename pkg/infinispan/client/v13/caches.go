@@ -181,7 +181,7 @@ func (c *caches) ConvertConfiguration(config string, contentType mime.MimeType, 
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)
 	}()
-	err = httpClient.ValidateResponse(rsp, err, "creating cache with template", http.StatusOK)
+	err = httpClient.ValidateResponse(rsp, err, "converting configuration", http.StatusOK)
 	if err != nil {
 		return
 	}

@@ -37,6 +37,16 @@ func (c *Cache) Default() {
 		log.Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
 		c.Spec.AdminAuth = nil
 	}
+
+	if c.Spec.Updates == nil {
+		c.Spec.Updates = &CacheUpdateSpec{
+			Strategy: CacheUpdateRetain,
+		}
+	}
+
+	if c.Spec.Updates.Strategy == "" {
+		c.Spec.Updates.Strategy = CacheUpdateRetain
+	}
 }
 
 // +kubebuilder:webhook:path=/validate-infinispan-org-v2alpha1-cache,mutating=false,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=caches,verbs=create;update,versions=v2alpha1,name=vcache.kb.io,admissionReviewVersions={v1,v1beta1}

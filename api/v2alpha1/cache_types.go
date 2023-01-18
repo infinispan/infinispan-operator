@@ -28,6 +28,21 @@ type AdminAuth struct {
 	Password v1.SecretKeySelector `json:"password,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=recreate;retain
+type CacheUpdateStrategyType string
+
+const (
+	CacheUpdateRecreate CacheUpdateStrategyType = "recreate"
+	CacheUpdateRetain   CacheUpdateStrategyType = "retain"
+)
+
+type CacheUpdateSpec struct {
+	// How updates to Cache CR template should be applied on the Infinispan server
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Update Strategy",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:select:recreate", "urn:alm:descriptor:com.tectonic.ui:select:retain"}
+	Strategy CacheUpdateStrategyType `json:"strategy,omitempty"`
+}
+
 // CacheSpec defines the desired state of Cache
 type CacheSpec struct {
 	// Deprecated. This no longer has any effect. The operator's admin credentials are now used to perform cache operations
@@ -44,6 +59,9 @@ type CacheSpec struct {
 	// Name of the template to be used to create this cache
 	// +optional
 	TemplateName string `json:"templateName,omitempty"`
+	// How updates to Cache CR template should be reconciled on the Infinispan server
+	// +optional
+	Updates *CacheUpdateSpec `json:"updates,omitempty"`
 }
 
 // CacheCondition define a condition of the cluster
