@@ -124,7 +124,7 @@ func TestUpdateCacheCR(t *testing.T) {
 
 	ispn := initCluster(t, true)
 	cacheName := ispn.Name
-	originalYaml := "localCache:\n  memory:\n    maxCount: 10\n  statistics: true\n"
+	originalYaml := "localCache:\n  encoding:\n    mediaType: \"application/x-protostream\"\n  memory:\n    maxCount: 10\n  statistics: true\n"
 
 	// Create Cache CR with Yaml template
 	cache := cacheCR(cacheName, ispn)
@@ -146,18 +146,16 @@ func TestUpdateCacheCR(t *testing.T) {
 	}
 
 	// Assert CR spec.Template updated
-	cache = testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
 		localCache := &Cache{}
 		tutils.ExpectNoError(yaml.Unmarshal([]byte(cache.Spec.Template), localCache))
 		return localCache.Cache.Memory.MaxCount == "50"
 	})
-	testifyAssert.Equal(t, int64(2), cache.GetGeneration())
-
 	// Assert CR remains ready
 	cache = testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 	testifyAssert.Equal(t, int64(2), cache.GetGeneration())
 
-	invalidUpdateYaml := `distributedCache: {}`
+	invalidUpdateYaml := strings.Replace(cache.Spec.Template, "x-protostream", "x-java-serialized-object", 1)
 	cache.Spec.Template = invalidUpdateYaml
 	testKube.Update(cache)
 
@@ -168,10 +166,11 @@ func TestUpdateCacheCR(t *testing.T) {
 	testifyAssert.Equal(t, int64(3), cache.GetGeneration())
 
 	// Wait for the Cache CR to become unready as the spec.Template cannot be reconciled with the server
-	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
+	cache = testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
 		Type:   v2alpha1.CacheConditionReady,
 		Status: metav1.ConditionFalse,
 	})
+	testifyAssert.Contains(t, cache.GetCondition(v2alpha1.CacheConditionReady).Message, "ISPN029527")
 }
 
 func TestCacheWithServerLifecycle(t *testing.T) {

@@ -1,6 +1,8 @@
 package v2alpha1
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -26,6 +28,17 @@ func (cache *Cache) SetCondition(condition CacheConditionType, status metav1.Con
 	return true
 }
 
+// GetCondition return the Status of the given condition or nil if condition is not present
+func (cache *Cache) GetCondition(condition CacheConditionType) CacheCondition {
+	for _, c := range cache.Status.Conditions {
+		if c.Type.equals(condition) {
+			return c
+		}
+	}
+	// Absence of condition means `False` value
+	return CacheCondition{Type: condition, Status: metav1.ConditionFalse}
+}
+
 func (cache *Cache) GetCacheName() string {
 	if cache.Spec.Name != "" {
 		return cache.Spec.Name
@@ -38,4 +51,9 @@ func (b *Batch) ConfigMapName() string {
 		return *b.Spec.ConfigMap
 	}
 	return b.Name
+}
+
+// equals compares two ConditionType's case insensitive
+func (a CacheConditionType) equals(b CacheConditionType) bool {
+	return strings.EqualFold(strings.ToLower(string(a)), strings.ToLower(string(b)))
 }
