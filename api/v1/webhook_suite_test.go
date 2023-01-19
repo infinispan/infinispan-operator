@@ -103,7 +103,7 @@ var _ = BeforeSuite(func() {
 	}()
 	Expect(os.Setenv(OperatorOperandVersionEnvVarName, json)).Should(Succeed())
 
-	err = (&Infinispan{}).SetupWebhookWithManager(mgr, false)
+	err = (&Infinispan{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:webhook

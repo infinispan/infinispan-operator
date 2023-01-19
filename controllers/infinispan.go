@@ -34,7 +34,6 @@ type InfinispanReconciler struct {
 	contextProvider    infinispan.ContextProvider
 	defaultLabels      map[string]string
 	defaultAnnotations map[string]string
-	FipsEnabled        bool
 	supportedTypes     map[schema.GroupVersionKind]struct{}
 	versionManager     *version.Manager
 }
@@ -108,7 +107,6 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 		r.defaultAnnotations = defaultAnnotations
 		r.log.Info("Defaults:", "Annotations", defaultAnnotations, "Labels", defaultLabels)
 	}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infinispanv1.Infinispan{}).
 		Owns(&corev1.ConfigMap{}).
@@ -231,7 +229,6 @@ func (r *InfinispanReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.R
 		For(instance).
 		WithAnnotations(r.defaultAnnotations).
 		WithContextProvider(r.contextProvider).
-		WithFIPS(r.FipsEnabled).
 		WithLabels(r.defaultLabels).
 		WithLogger(reqLogger).
 		WithSupportedTypes(r.supportedTypes).

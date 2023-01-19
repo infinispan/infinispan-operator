@@ -25,11 +25,9 @@ var (
 	eventRec         record.EventRecorder
 	ServingCertsMode string
 	versionManager   *version.Manager
-	fips             bool
 )
 
-func (i *Infinispan) SetupWebhookWithManager(mgr ctrl.Manager, fipsEnabled bool) (err error) {
-	fips = fipsEnabled
+func (i *Infinispan) SetupWebhookWithManager(mgr ctrl.Manager) (err error) {
 	kubernetes := kube.NewKubernetesFromController(mgr)
 	eventRec = mgr.GetEventRecorderFor("webhook-infinispan")
 	ServingCertsMode = kubernetes.GetServingCertsMode(context.Background())
@@ -202,18 +200,6 @@ func (i *Infinispan) validate() error {
 	}
 	if operand.Deprecated {
 		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", "Configured Infinispan version will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.")
-	}
-
-	if fips {
-		if operand.UpstreamVersion.Major < 14 {
-			msg := fmt.Sprintf("Operand Version %s does not support FIPS", operand.Ref())
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("version"), i.Spec.Version, msg))
-		}
-
-		if i.IsClientCertEnabled() {
-			msg := fmt.Sprintf("ClientCert '%s' not supported with FIPS", i.Spec.Security.EndpointEncryption.ClientCert)
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("security").Child("endpointEncryption").Child("clientCert"), i.Spec.Version, msg))
-		}
 	}
 
 	if i.Spec.Container.CPU != "" {

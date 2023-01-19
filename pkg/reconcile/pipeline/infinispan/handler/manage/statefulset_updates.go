@@ -102,7 +102,13 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	// Validate ConfigMap changes (by the hash of the i.yaml key value)
 	updateNeeded = updateStatefulSetEnv(container, statefulSet, "CONFIG_HASH", hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)) || updateNeeded
 	updateNeeded = updateStatefulSetEnv(container, statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)) || updateNeeded
-	updateNeeded = updateStartupCmdArgs(i, container, ctx) || updateNeeded
+
+	if updateCmdArgs, err := updateStartupArgs(container, configFiles.UserConfig); err != nil {
+		ctx.Requeue(err)
+		return
+	} else {
+		updateNeeded = updateCmdArgs || updateNeeded
+	}
 
 	var hashVal string
 	if configFiles.UserConfig.ServerConfig != "" {
@@ -193,28 +199,22 @@ func updateStatefulSetEnv(ispnContainer *corev1.Container, statefulSet *appsv1.S
 	}
 	return false
 }
-
-func updateStartupCmdArgs(i *ispnv1.Infinispan, ispnContainer *corev1.Container, ctx pipeline.Context) bool {
-	arrayChanged := func(l, r []string) bool {
-		if len(l) == len(r) {
-			for i := range l {
-				if l[i] != r[i] {
-					return true
-				}
+func updateStartupArgs(ispnContainer *corev1.Container, userConfig pipeline.UserConfig) (bool, error) {
+	newArgs := provision.BuildServerContainerArgs(userConfig)
+	if len(newArgs) == len(ispnContainer.Args) {
+		var changed bool
+		for i := range newArgs {
+			if newArgs[i] != ispnContainer.Args[i] {
+				changed = true
+				break
 			}
-			return false
 		}
-		return true
+		if !changed {
+			return false, nil
+		}
 	}
-
-	newArgs := provision.BuildServerContainerArgs(i, ctx)
-	newCmd := provision.BuildServerContainerCmd(i, ctx)
-	if arrayChanged(newArgs, ispnContainer.Args) || arrayChanged(newCmd, ispnContainer.Command) {
-		ispnContainer.Args = newArgs
-		ispnContainer.Command = newCmd
-		return true
-	}
-	return false
+	ispnContainer.Args = newArgs
+	return true, nil
 }
 
 func updateStatefulSetAnnotations(statefulSet *appsv1.StatefulSet, name, value string) bool {
