@@ -79,10 +79,15 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	createOrUpdate := func(obj client.Object) error {
-		if listenerExists {
-			return r.Update(obj, pipeline.RetryOnErr)
-		} else {
+		err := r.Load(obj.GetName(), obj)
+		if client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("unable to create ConfigListener resource: %w", err)
+		}
+
+		if errors.IsNotFound(err) {
 			return r.Create(obj, true, pipeline.RetryOnErr)
+		} else {
+			return r.Update(obj, pipeline.RetryOnErr)
 		}
 	}
 	// Create a ServiceAccount in the cluster namespace so that the ConfigListener has the required API permissions
