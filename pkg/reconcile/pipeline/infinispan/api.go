@@ -60,7 +60,6 @@ type ContextProvider interface {
 type ContextProviderConfig struct {
 	DefaultAnnotations map[string]string
 	DefaultLabels      map[string]string
-	Fips               bool
 	Infinispan         *ispnv1.Infinispan
 	Logger             logr.Logger
 	SupportedTypes     map[schema.GroupVersionKind]struct{} // We only care about keys, so use struct{} as it requires 0 bytes
@@ -113,9 +112,6 @@ type Context interface {
 
 	// DefaultLabels defined for the Operator via ENV vars
 	DefaultLabels() map[string]string
-
-	// FIPS returns true if FIPS is enabled
-	FIPS() bool
 
 	// IsTypeSupported returns true if the GVK is supported on the kubernetes cluster
 	IsTypeSupported(gvk schema.GroupVersionKind) bool

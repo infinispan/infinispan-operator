@@ -125,7 +125,7 @@ func IdentitiesBatch(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		batch += usersCliBatch
 	}
 
-	if i.IsEncryptionEnabled() && !ctx.FIPS() {
+	if i.IsEncryptionEnabled() {
 		configFiles := ctx.ConfigFiles()
 
 		// Add the keystore credential if the user has provided their own keystore
