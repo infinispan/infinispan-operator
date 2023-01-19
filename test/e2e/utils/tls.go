@@ -19,15 +19,12 @@ import (
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	certUtil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
-
-	p12 "software.sslmate.com/src/go-pkcs12"
 )
 
 const (
 	KeystorePassword   = "SuperSecret22"
 	TruststorePassword = "SuperSecret22"
 	keyBits            = 2048
-	tmpDir             = "/tmp/infinispan/operator/tls"
 )
 
 type certHolder struct {
@@ -92,7 +89,6 @@ func CreateKeystoreAndClientCerts(serverName string) (keystore []byte, caPem []b
 // CreateKeyAndTruststore returns a keystore & truststore using a self-signed certificate, and the corresponding tls.Config required by clients to connect to the server
 // If authenticate is true, then the returned truststore contains all client certificates, otherwise it simply contains the CA for validation
 func CreateKeyAndTruststore(serverName string, authenticate bool) (keystore []byte, truststore []byte, clientTLSConf *tls.Config) {
-	ExpectNoError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
 	server := serverCert(serverName, ca)
 	keystore = createKeystore(ca, server)
@@ -120,7 +116,6 @@ type KeyCertPair struct {
 }
 
 func CreateKeyCertAndTruststore(serverName string, authenticate bool) (keyCertPair KeyCertPair, truststore []byte, clientTLSConf *tls.Config) {
-	ExpectNoError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
 	server := serverCert(serverName, ca)
 
@@ -147,7 +142,6 @@ func CreateKeyCertAndTruststore(serverName string, authenticate bool) (keyCertPa
 }
 
 func CreateDefaultCrossSiteKeyAndTrustStore() (transportKeyStore, routerKeyStore, trustStore []byte) {
-	ExpectNoError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
 	transportCert := createGenericCertificate(constants.DefaultSiteTransportKeyStoreAlias, nil, ca)
 	routerCert := createGenericCertificate(constants.DefaultSiteRouterKeyStoreAlias, nil, ca)
@@ -160,7 +154,6 @@ func CreateDefaultCrossSiteKeyAndTrustStore() (transportKeyStore, routerKeyStore
 }
 
 func CreateCrossSiteSingleKeyStoreAndTrustStore() (KeyStore, trustStore []byte) {
-	ExpectNoError(os.MkdirAll(tmpDir, 0777))
 	ca := ca()
 
 	transportCert := createGenericCertificate("same", nil, ca)
@@ -261,14 +254,17 @@ func createKeystore(ca, server *certHolder) []byte {
 	// TLS handshake failed: javax.net.ssl.SSLException: error:1417A0C1:SSL routines:tls_post_process_client_hello:no shared cipher
 	// keystore, err := p12.Encode(rand.Reader, server.privateKey, server.cert, []*x509.Certificate{ca.cert}, KeystorePassword)
 	var fileMode os.FileMode = 0777
-	ExpectNoError(os.MkdirAll(tmpDir, fileMode))
+	tmpDir, err := os.MkdirTemp("", "operator-tls")
+	ExpectNoError(err)
 	defer os.RemoveAll(tmpDir)
 
-	privKeyFile := tmpFile("server_key.pem")
-	certFile := tmpFile("server_cert.pem")
-	keystorefile := tmpFile("keystore.p12")
+	log.Info("Creating keystore.", "Temp Directory", tmpDir)
 
-	err := ioutil.WriteFile(privKeyFile, server.getPrivateKeyPEM(), fileMode)
+	privKeyFile := tmpFile(tmpDir, "server_key.pem")
+	certFile := tmpFile(tmpDir, "server_cert.pem")
+	keystorefile := tmpFile(tmpDir, "keystore.p12")
+
+	err = ioutil.WriteFile(privKeyFile, server.getPrivateKeyPEM(), fileMode)
 	ExpectNoError(err)
 
 	err = ioutil.WriteFile(certFile, append(server.getCertPEM(), ca.getCertPEM()...), fileMode)
@@ -293,17 +289,30 @@ func createTruststore(ca, client *certHolder, authenticate bool) []byte {
 }
 
 func createGenericTruststore(certs ...*certHolder) []byte {
-	trustCerts := make([]*x509.Certificate, 0)
+	var fileMode os.FileMode = 0777
+	tmpDir, err := os.MkdirTemp("", "operator-tls")
+	ExpectNoError(err)
+	defer os.RemoveAll(tmpDir)
 
+	log.Info("Creating truststore.", "Temp Directory", tmpDir)
+
+	trustStoreFile := tmpFile(tmpDir, "truststore.p12")
 	for _, cert := range certs {
-		trustCerts = append(trustCerts, cert.cert)
+		certFile := tmpFile(tmpDir, "cert.pem")
+
+		err := ioutil.WriteFile(certFile, cert.getCertPEM(), fileMode)
+		ExpectNoError(err)
+		cmd := exec.Command("keytool", "-import", "-file", certFile, "-alias", cert.cert.Subject.CommonName,
+			"-keystore", trustStoreFile, "-storepass", TruststorePassword, "-noprompt")
+		ExpectNoError(cmd.Run())
 	}
-	truststore, err := p12.EncodeTrustStore(rand.Reader, trustCerts, TruststorePassword)
+
+	truststore, err := ioutil.ReadFile(trustStoreFile)
 	ExpectNoError(err)
 	return truststore
 }
 
-func tmpFile(name string) string {
+func tmpFile(tmpDir, name string) string {
 	return fmt.Sprintf("%s/%s", tmpDir, name)
 }
 
