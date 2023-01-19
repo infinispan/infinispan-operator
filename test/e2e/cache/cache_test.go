@@ -448,7 +448,7 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 	cacheHelper.AssertCacheExists()
 
 	// Assert the Cache CR is created
-	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	cache := testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Disable the ConfigListener and wait for the Deployment to be removed
 	tutils.ExpectNoError(
@@ -462,7 +462,7 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 	cacheHelper.AssertCacheExists()
 
 	// Assert that the listener created Cache CR is removed by the Infinispan controller when the ConfigListener is disabled
-	testKube.WaitForResourceRemoval(cacheName, tutils.Namespace, &v2alpha1.Cache{})
+	testKube.WaitForResourceRemoval(cache.Name, tutils.Namespace, &v2alpha1.Cache{})
 
 	// Manually recreate the Cache CR and set its owner reference
 	cr := cacheCR(cacheName, ispn)
