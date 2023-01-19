@@ -210,6 +210,23 @@ func RemoveConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			return
 		}
 	}
+
+	// Remove any Cache CR instances owned by Infinispan as these were created by the Listener
+	cacheList := &v2alpha1.CacheList{}
+	if err := ctx.Resources().List(nil, cacheList); err != nil {
+		ctx.Requeue(fmt.Errorf("unable to retrieve existing Cache resources: %w", err))
+		return
+	}
+	// Iterate over all existing CRs, marking for deletion any that do not have a cache definition on the server
+	for _, cache := range cacheList.Items {
+		if kube.IsOwnedBy(&cache, i) {
+			cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete] = "true"
+			if err := ctx.Resources().Update(&cache, pipeline.IgnoreNotFound); err != nil {
+				ctx.Requeue(fmt.Errorf("unable to mark Cache CR '%s' for deletion: %w", cache.Name, err))
+				return
+			}
+		}
+	}
 }
 
 func ScaleConfigListener(replicas int32, i *ispnv1.Infinispan, ctx pipeline.Context) error {
