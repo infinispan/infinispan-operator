@@ -1,0 +1,39 @@
+[id='secure_credentials_{context}']
+= Securing custom {brandname} configuration
+
+[role="_abstract"]
+Define and store custom {brandname} configuration that requires credentials securely.
+To protect sensitive text strings such as passwords, add the entries in a credential store rather than directly in the `Infinispan` CR.
+
+.Prerequisites
+* Have valid {brandname} configuration in XML, YAML, or JSON format.
+
+.Procedure
+. Create a `CredentialStore Secret` file.
+. Specify the credentials and its aliases with the `data` field.
++
+.User-secret.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user-secret
+type: Opaque
+data:
+  cred1: sensitive-value
+  cred2: sensitive-value2
+----
+
+. Open the `Infinispan` CR for editing.
+. Specify the name of the credential store in the `spec.security.credentialStoreSecretName` field.
++
+.Infinispan CR
+[source,yaml]
+----
+spec:
+  security:
+    credentialStoreSecretName: user-secret
+----
+
+. Apply the changes.
