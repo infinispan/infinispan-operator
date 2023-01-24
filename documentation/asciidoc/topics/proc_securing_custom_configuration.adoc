@@ -12,14 +12,20 @@ To protect sensitive text strings such as passwords, add the entries in a creden
 . Create a `CredentialStore Secret` file.
 . Specify the credentials and its aliases with the `data` field.
 +
-.User-secret.yaml
+.user-secret.yaml
 [source,yaml]
 ----
 include::yaml/credential_store_secret.yaml[]
 ----
 
+. Apply your Secret file.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_apply_cr} user-secret.yaml
+----
 . Open the `Infinispan` CR for editing.
-. Specify the name of the credential store in the `spec.security.credentialStoreSecretName` field.
+. Specify the name of the credential store Secret in the `spec.security.credentialStoreSecretName` field.
 +
 .Infinispan CR
 [source,yaml]
