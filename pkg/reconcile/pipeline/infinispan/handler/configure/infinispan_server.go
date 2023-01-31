@@ -72,6 +72,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			Authenticate: i.IsAuthenticationEnabled(),
 			ClientCert:   string(ispnv1.ClientCertNone),
 		},
+		UserCredentialStore: len(ctx.ConfigFiles().CredentialStoreEntries) > 0,
 	}
 	// Save the spec for later so that we can reuse it for HR rolling upgrades
 	ctx.ConfigFiles().ConfigSpec = *configSpec

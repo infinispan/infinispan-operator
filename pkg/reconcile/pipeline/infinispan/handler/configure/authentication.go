@@ -128,13 +128,14 @@ func IdentitiesBatch(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if i.IsEncryptionEnabled() {
 		configFiles := ctx.ConfigFiles()
 
+		path := "--path=\"internal-credentials.pfx\""
 		// Add the keystore credential if the user has provided their own keystore
 		if configFiles.Keystore.Password != "" {
-			batch += fmt.Sprintf("credentials add keystore -c \"%s\" -p secret\n", configFiles.Keystore.Password)
+			batch += fmt.Sprintf("credentials add keystore -c \"%s\" -p secret %s\n", configFiles.Keystore.Password, path)
 		}
 
 		if i.IsClientCertEnabled() {
-			batch += fmt.Sprintf("credentials add truststore -c \"%s\" -p secret\n", configFiles.Truststore.Password)
+			batch += fmt.Sprintf("credentials add truststore -c \"%s\" -p secret %s\n", configFiles.Truststore.Password, path)
 		}
 	}
 
