@@ -243,7 +243,7 @@ func (r *cacheRequest) update(mutate func() error) error {
 func (r *cacheRequest) reconcileOnServer() bool {
 	if val, exists := r.cache.ObjectMeta.Annotations[constants.ListenerAnnotationGeneration]; exists {
 		generation, _ := strconv.ParseInt(val, 10, 64)
-		return generation != r.cache.GetGeneration()
+		return generation < r.cache.GetGeneration()
 	}
 	return true
 }
