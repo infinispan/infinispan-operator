@@ -34,3 +34,8 @@ include::yaml/credential_store.yaml[]
 ----
 
 . Apply the changes.
+. Define a `credential-reference` in your configuration with `store="credentials"`.
+
+[role="_additional-resources"]
+.Additional resources
+* link:{server_docs}##credential-keystore-references_credential-keystores[Defining credential store references]

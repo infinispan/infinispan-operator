@@ -9,17 +9,18 @@ import (
 )
 
 type Spec struct {
-	ClusterName     string
-	Namespace       string
-	StatefulSetName string
-	Infinispan      Infinispan
-	JGroups         JGroups
-	CloudEvents     *CloudEvents
-	Endpoints       Endpoints
-	Keystore        Keystore
-	Transport       Transport
-	Truststore      Truststore
-	XSite           *XSite
+	ClusterName         string
+	Namespace           string
+	StatefulSetName     string
+	Infinispan          Infinispan
+	JGroups             JGroups
+	CloudEvents         *CloudEvents
+	Endpoints           Endpoints
+	Keystore            Keystore
+	Transport           Transport
+	Truststore          Truststore
+	UserCredentialStore bool
+	XSite               *XSite
 }
 
 type Infinispan struct {

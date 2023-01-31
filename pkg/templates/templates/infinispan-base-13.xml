@@ -37,9 +37,16 @@
         <socket-binding name="default" port="${infinispan.bind.port:11222}"/>
     </socket-bindings>
     <security>
+        {{ if .UserCredentialStore }}
+        <credential-stores>
+            <credential-store name="credentials" path="credentials.pfx">
+                <clear-text-credential clear-text="secret"/>
+            </credential-store>
+        </credential-stores>
+        {{ end }}
         {{ if or .Keystore.Password .Truststore.Path }}
         <credential-stores>
-          <credential-store name="credentials" path="credentials.pfx">
+          <credential-store name="internal-credentials" path="internal-credentials.pfx">
             <clear-text-credential clear-text="secret"/>
           </credential-store>
         </credential-stores>
@@ -52,7 +59,7 @@
                         {{ if .Keystore.Path }}
                             {{ if .Keystore.Password }}
                                 <keystore path="{{  .Keystore.Path }}" {{if .Keystore.Alias }} alias="{{ .Keystore.Alias }}" {{ end }}>
-                                    <credential-reference store="credentials" alias="keystore"/>
+                                    <credential-reference store="internal-credentials" alias="keystore"/>
                                 </keystore>
                             {{ else }}
                                 <keystore path="{{  .Keystore.Path }}" keystore-password="" {{if .Keystore.Alias }} alias="{{ .Keystore.Alias }}" {{ end }}/>
@@ -60,7 +67,7 @@
                         {{ end }}
                         {{ if  .Truststore.Path }}
                             <truststore path="{{ .Truststore.Path }}">
-                                <credential-reference store="credentials" alias="truststore"/>
+                                <credential-reference store="internal-credentials" alias="truststore"/>
                             </truststore>
                         {{ end }}
                 </ssl>
