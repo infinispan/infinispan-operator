@@ -10,7 +10,7 @@ To protect sensitive text strings such as passwords, add the entries in a creden
 
 .Procedure
 . Create a `CredentialStore Secret` file.
-. Specify the credentials and its aliases with the `data` field.
+. Use the `data` field to specify the credentials and its aliases.
 +
 .user-secret.yaml
 [source,yaml]
@@ -25,7 +25,7 @@ include::yaml/credential_store_secret.yaml[]
 {oc_apply_cr} user-secret.yaml
 ----
 . Open the `Infinispan` CR for editing.
-. Specify the name of the credential store Secret in the `spec.security.credentialStoreSecretName` field.
+. In the `spec.security.credentialStoreSecretName` field, specify the name of the credential store secret.
 +
 .Infinispan CR
 [source,yaml]
@@ -34,8 +34,16 @@ include::yaml/credential_store.yaml[]
 ----
 
 . Apply the changes.
-. Define a `credential-reference` in your configuration with `store="credentials"`.
+. Open your {brandname} Server for editing.
+. Add a `credential-reference` in the `security`  section of the configuration.
+. Specify `credentials` as the name of the `store`.
+. Specify the key of the secret with the `alias` attribute.
++
+.{brandname}.xml
+----
+include::xml/alias_credentials_config.xml[]
+----
 
 [role="_additional-resources"]
 .Additional resources
-* link:{server_docs}##credential-keystore-references_credential-keystores[Defining credential store references]
+* link:{server_docs}#credential-keystore-references_credential-keystores[Credential store references]
