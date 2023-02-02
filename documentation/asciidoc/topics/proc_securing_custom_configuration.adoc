@@ -34,10 +34,10 @@ include::yaml/credential_store.yaml[]
 ----
 
 . Apply the changes.
-. Open your {brandname} Server for editing.
-. Add a `credential-reference` in the `security`  section of the configuration.
-. Specify `credentials` as the name of the `store`.
-. Specify the key of the secret with the `alias` attribute.
+. Open your {brandname} Server configuration for editing.
+. Add a `credential-reference` to your configuration.
+.. Specify the `credentials` as the name of the `store`.
+.. Specify the `alias` attribute as one of the keys defined in your credential secret.
 +
 .{brandname}.xml
 ----
