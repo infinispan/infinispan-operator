@@ -64,7 +64,7 @@ Setting a value of `false` removes the `listener` pod and disables bi-directiona
 You should do this only if you do not need declarative Kubernetes representations of {brandname} resources created through the {brandname} Console, CLI, or client applications.
 
 |`spec.configListener.logging.level`
-|Configures the logging level used by the ConfigListener deployments. Can be one of `debug | info | error`. The default level is `info`.
+|Configures the logging level for the `ConfigListener` deployments. The default level is `info`. You can change it to `debug` or  `error`.
 
 |`spec.affinity`
 |Configures anti-affinity strategies that guarantee {brandname} availability.

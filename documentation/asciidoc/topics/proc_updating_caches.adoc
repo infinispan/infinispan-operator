@@ -1,0 +1,29 @@
+[id='updating_cache_{context}']
+= Updating caches with the Cache CR
+You can control how {ispn_operator} handles modifications to the cache configuration in the `Cache` CR.
+
+{ispn_operator} attempts to update the cache configuration on the {brandname} Server at runtime.
+If the update fails, {ispn_operator} uses one of the following strategies:
+
+retain strategy:: The Operator updates the status of the `Cache` CR to `Ready=False`.
+You can manually delete the `Cache` CR and create a new cache configuration. This is the default strategy.
+recreate strategy:: The Operator deletes the `Cache` CR and creates a new cache with the latest `spec.template` value.
+
+.Prerequisites
+* Have a valid `Cache` CR.
+
+.Procedure
+. Use the `spec.updates.strategy` field to set the `Cache` CR strategy.
++
+.mycache.yaml
+[source,yaml]
+----
+include::yaml/cache_update_strategy.yaml[]
+----
+
+. Apply changes to the `Cache` CR, for example:
++
+[source,options="nowrap",subs=attributes+]
+----
+oc apply -f mycache.yaml
+----

@@ -3,7 +3,6 @@
 
 You can add {brandname} configuration to a `ConfigMap` in XML, YAML, or JSON format.
 
-[discrete]
 == Cache template
 
 .XML
@@ -24,7 +23,6 @@ include::sync/yaml/cache_template_inheritance.yaml[]
 include::sync/json/cache_template_inheritance.json[]
 ----
 
-[discrete]
 == Logging configuration
 
 You can also include Apache Log4j configuration in XML format as part of your `ConfigMap`.
