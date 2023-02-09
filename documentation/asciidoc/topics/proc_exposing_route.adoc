@@ -12,6 +12,8 @@ ifdef::downstream[]
 Use an {openshiftshort} `Route` with passthrough encryption to make {brandname} clusters available on the network.
 endif::downstream[]
 
+NOTE: To access {brandname} with Hot Rod client, you must configure TLS with SNI.
+
 .Procedure
 
 . Include `spec.expose` in your `Infinispan` CR.
