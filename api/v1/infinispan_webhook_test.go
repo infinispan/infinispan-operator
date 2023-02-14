@@ -274,6 +274,11 @@ var _ = Describe("Infinispan Webhooks", func() {
 						Memory: "1Gi:5Gi",
 						CPU:    "1000m:2000m",
 					},
+					ConfigListener: &ConfigListenerSpec{
+						Enabled: true,
+						Memory:  "1Gi:5Gi",
+						CPU:     "1000m:2000m",
+					},
 				},
 			}
 
@@ -282,6 +287,10 @@ var _ = Describe("Infinispan Webhooks", func() {
 				metav1.CauseTypeFieldValueInvalid, "spec.container.cpu", "exceeds limit",
 			}, {
 				metav1.CauseTypeFieldValueInvalid, "spec.container.memory", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.configListener.cpu", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.configListener.memory", "exceeds limit",
 			}}...)
 		})
 

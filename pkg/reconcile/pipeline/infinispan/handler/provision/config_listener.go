@@ -161,6 +161,27 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	}
 
+	container := &corev1.Container{
+		Name:  InfinispanListenerContainer,
+		Image: configListenerImage,
+		Args: []string{
+			"listener",
+			"-namespace",
+			namespace,
+			"-cluster",
+			i.Name,
+			"-zap-log-level",
+			string(i.Spec.ConfigListener.Logging.Level),
+		},
+		Env: []corev1.EnvVar{{Name: "INFINISPAN_OPERAND_VERSIONS", Value: operandVersions}},
+	}
+
+	if podResources, err := podResources(i); err != nil {
+		ctx.Requeue(fmt.Errorf("unable to calculate ConfigListener pod resources: %w", err))
+	} else if podResources != nil {
+		container.Resources = *podResources
+	}
+
 	// The deployment doesn't exist, create it
 	labels := i.PodLabels()
 	labels["app"] = "infinispan-config-listener-pod"
@@ -175,22 +196,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  InfinispanListenerContainer,
-							Image: configListenerImage,
-							Args: []string{
-								"listener",
-								"-namespace",
-								namespace,
-								"-cluster",
-								i.Name,
-								"-zap-log-level",
-								string(i.Spec.ConfigListener.Logging.Level),
-							},
-							Env: []corev1.EnvVar{{Name: "INFINISPAN_OPERAND_VERSIONS", Value: operandVersions}},
-						},
-					},
+					Containers:         []corev1.Container{*container},
 					ServiceAccountName: name,
 				},
 			},
@@ -199,6 +205,36 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if err := createOrUpdate(deployment); err != nil {
 		return
 	}
+}
+
+func podResources(i *ispnv1.Infinispan) (*corev1.ResourceRequirements, error) {
+	spec := i.Spec.ConfigListener
+	if spec.CPU == "" && spec.Memory == "" {
+		return nil, nil
+	}
+
+	req := &corev1.ResourceRequirements{
+		Limits:   corev1.ResourceList{},
+		Requests: corev1.ResourceList{},
+	}
+	if spec.Memory != "" {
+		memRequests, memLimits, err := spec.MemoryResources()
+		if err != nil {
+			return req, err
+		}
+		req.Requests[corev1.ResourceMemory] = memRequests
+		req.Limits[corev1.ResourceMemory] = memLimits
+	}
+
+	if spec.CPU != "" {
+		cpuRequests, cpuLimits, err := spec.CpuResources()
+		if err != nil {
+			return req, err
+		}
+		req.Requests[corev1.ResourceCPU] = cpuRequests
+		req.Limits[corev1.ResourceCPU] = cpuLimits
+	}
+	return req, nil
 }
 
 func RemoveConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {

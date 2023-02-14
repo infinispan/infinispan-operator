@@ -669,6 +669,8 @@ spec:
                 type: object
               configListener:
                 properties:
+                  cpu:
+                    type: string
                   enabled:
                     description: If true, a dedicated pod is used to ensure that all
                       config resources created on the Infinispan server have a matching
@@ -686,6 +688,8 @@ spec:
                         - error
                         type: string
                     type: object
+                  memory:
+                    type: string
                 type: object
               configMapName:
                 type: string

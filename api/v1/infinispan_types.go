@@ -388,6 +388,10 @@ type ConfigListenerSpec struct {
 	// ConfigListener logging configuration
 	// +optional
 	Logging *ConfigListenerLoggingSpec `json:"logging,omitempty"`
+	// +optional
+	Memory string `json:"memory,omitempty"`
+	// +optional
+	CPU string `json:"cpu,omitempty"`
 }
 
 type ConfigListenerLoggingSpec struct {
