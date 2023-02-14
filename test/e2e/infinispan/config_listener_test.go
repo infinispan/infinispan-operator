@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -29,6 +30,8 @@ func TestConfigListenerDeployment(t *testing.T) {
 			Logging: &v1.ConfigListenerLoggingSpec{
 				Level: v1.ConfigListenerLoggingDebug,
 			},
+			Memory: "512Mi:256Mi",
+			CPU:    "900m:500m",
 		}
 	})
 
@@ -37,7 +40,12 @@ func TestConfigListenerDeployment(t *testing.T) {
 
 	// Wait for ConfigListener Deployment to be created
 	clName, namespace := ispn.GetConfigListenerName(), ispn.Namespace
-	testKube.WaitForDeployment(clName, namespace)
+	deployment := testKube.WaitForDeployment(clName, namespace)
+	container := kube.GetContainer(provision.InfinispanListenerContainer, &deployment.Spec.Template.Spec)
+	testifyAssert.Equal(t, resource.MustParse("512Mi"), *container.Resources.Limits.Memory())
+	testifyAssert.Equal(t, resource.MustParse("256Mi"), *container.Resources.Requests.Memory())
+	testifyAssert.Equal(t, resource.MustParse("900m"), *container.Resources.Limits.Cpu())
+	testifyAssert.Equal(t, resource.MustParse("500m"), *container.Resources.Requests.Cpu())
 
 	gvk, err := apiutil.GVKForObject(ispn, tutils.Scheme)
 	tutils.ExpectNoError(err)

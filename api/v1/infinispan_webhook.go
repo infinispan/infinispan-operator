@@ -224,7 +224,7 @@ func (i *Infinispan) validate() error {
 
 		if memReq.Cmp(memLimit) > 0 {
 			msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", memReq.String(), memLimit.String())
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("memory"), i.Spec.Container.CPU, msg))
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("memory"), i.Spec.Container.Memory, msg))
 		}
 	}
 
@@ -248,6 +248,33 @@ func (i *Infinispan) validate() error {
 		msg := fmt.Sprintf("field must be provided for 'spec.security.endpointEncryption.certificateSourceType=%s' to be configured", CertificateSourceTypeSecret)
 		err := field.Required(field.NewPath("spec").Child("security").Child("endpointEncryption").Child("certSecretName"), msg)
 		allErrs = append(allErrs, err)
+	}
+
+	if cl := i.Spec.ConfigListener; cl != nil {
+		path := field.NewPath("spec").Child("configListener")
+		if cl.CPU != "" {
+			req, limit, err := cl.CpuResources()
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(path.Child("cpu"), cl.CPU, err.Error()))
+			}
+
+			if req.Cmp(limit) > 0 {
+				msg := fmt.Sprintf("CPU request '%s' exceeds limit '%s'", req.String(), limit.String())
+				allErrs = append(allErrs, field.Invalid(path.Child("cpu"), cl.CPU, msg))
+			}
+		}
+
+		if cl.Memory != "" {
+			req, limit, err := cl.MemoryResources()
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(path.Child("memory"), cl.Memory, err.Error()))
+			}
+
+			if req.Cmp(limit) > 0 {
+				msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", req.String(), limit.String())
+				allErrs = append(allErrs, field.Invalid(path.Child("memory"), cl.Memory, msg))
+			}
+		}
 	}
 
 	// Validate Hot Rod Rolling Upgrades
