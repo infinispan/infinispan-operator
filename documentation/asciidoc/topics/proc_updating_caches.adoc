@@ -7,7 +7,9 @@ If the update fails, {ispn_operator} uses one of the following strategies:
 
 retain strategy:: The Operator updates the status of the `Cache` CR to `Ready=False`.
 You can manually delete the `Cache` CR and create a new cache configuration. This is the default strategy.
-recreate strategy:: The Operator deletes the `Cache` CR and creates a new cache with the latest `spec.template` value.
+recreate strategy:: The Operator deletes the cache from the {brandname} cluster and creates a new cache with the latest `spec.template` value from the `Cache` CR.
++
+IMPORTANT: Configure the `recreate` strategy only if your deployment can tolerate data loss.
 
 .Prerequisites
 * Have a valid `Cache` CR.
