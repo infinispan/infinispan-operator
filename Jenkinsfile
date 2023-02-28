@@ -43,6 +43,11 @@ pipeline {
     }
 
     stages {
+        stage('Test') {
+            steps{
+                sh 'echo ${env.getEnvironment()}'
+            }
+        }
         stage('Execute') {
             when {
                 anyOf {
