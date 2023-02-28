@@ -56,7 +56,7 @@ pipeline {
                     changeset "Jenkinsfile"
 
                     expression {
-                        return sh(script: '[ -z $CHANGE_TARGET ] || git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
+                        return sh(script: '[ "$CHANGE_TARGET == "null" ] || git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
                     }
                 }
             }
