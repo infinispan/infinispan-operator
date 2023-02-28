@@ -56,7 +56,12 @@ pipeline {
                     changeset "Jenkinsfile"
 
                     expression {
-                        return sh(script: '[ "$CHANGE_TARGET == "null" ] || git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
+                        // Always build non PRS
+                        return env.CHANGE_TARGET == "null"
+                    }
+
+                    expression {
+                        return sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
                     }
                 }
             }
