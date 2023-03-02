@@ -282,6 +282,8 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewPingService() error {
 	newPingService := pingService.DeepCopy()
 	newPingService.ObjectMeta.ResourceVersion = ""
 	newPingService.Name = newPingServiceName
+	// Ensure publish flag is true for upgrade
+	newPingService.Spec.PublishNotReadyAddresses = true
 	newPingService.Spec.Selector[StatefulSetPodLabel] = targetStatefulSetName
 	if err := resources.Create(newPingService, true); err != nil {
 		return fmt.Errorf("error creating new ping service '%s' : %w", newPingServiceName, err)
