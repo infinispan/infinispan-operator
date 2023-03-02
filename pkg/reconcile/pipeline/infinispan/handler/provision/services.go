@@ -23,6 +23,7 @@ func PingService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		svc.Spec.Type = corev1.ServiceTypeClusterIP
 		svc.Spec.ClusterIP = corev1.ClusterIPNone
 		svc.Spec.Selector = i.ServiceSelectorLabels()
+		svc.Spec.PublishNotReadyAddresses = true
 		// We must utilise the existing ServicePort values if updating the service, to prevent the created ports being overwritten
 		if svc.CreationTimestamp.IsZero() {
 			svc.Spec.Ports = []corev1.ServicePort{{}}
