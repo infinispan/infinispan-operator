@@ -14,11 +14,28 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func subMapOf(f, s map[string]string) bool {
+	for k := range f {
+		if v, ok := s[k]; !ok || f[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
 func PrelimChecksCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	// Ensure that CR has all the operator required labels
+	if !subMapOf(ctx.DefaultLabels(), i.ObjectMeta.Labels) || !subMapOf(ctx.DefaultAnnotations(), i.ObjectMeta.Annotations) {
+		if err := ctx.UpdateInfinispan(func() {
+			ctx.Log().Info("Updating Labels", "Labels: ", ctx.DefaultLabels())
+			i.ApplyOperatorMeta(ctx.DefaultLabels(), ctx.DefaultAnnotations())
+		}); err != nil {
+			ctx.Log().Error(err, "Unable to update Labels")
+		}
+	}
 	if i.GetCondition(ispnv1.ConditionPrelimChecksPassed).Status == metav1.ConditionFalse {
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
-				i.ApplyOperatorMeta(ctx.DefaultLabels(), ctx.DefaultAnnotations())
 
 				if ctx.IsTypeSupported(pipeline.ServiceMonitorGVK) {
 					i.ApplyMonitoringAnnotation()

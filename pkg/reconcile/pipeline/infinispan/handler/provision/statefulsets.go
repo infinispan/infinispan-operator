@@ -65,6 +65,8 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pipeline.Context) (*appsv1.StatefulSet, error) {
 	labelsForPod := i.PodLabels()
+	labelsForSelector := i.PodSelectorLabels()
+	labelsForSelector[consts.StatefulSetPodLabel] = statefulSetName
 	labelsForPod[consts.StatefulSetPodLabel] = statefulSetName
 
 	configFiles := ctx.ConfigFiles()
@@ -89,7 +91,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 		Spec: appsv1.StatefulSetSpec{
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labelsForPod,
+				MatchLabels: labelsForSelector,
 			},
 			Replicas: &i.Spec.Replicas,
 			Template: corev1.PodTemplateSpec{
