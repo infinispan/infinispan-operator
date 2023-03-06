@@ -10,7 +10,7 @@ require (
 	github.com/iancoleman/strcase v0.2.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.14.0
-	github.com/openshift/api v3.9.0+incompatible
+	github.com/openshift/api v0.0.0-20180801171038-322a19404e37
 	github.com/operator-framework/api v0.4.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.0
 	github.com/r3labs/sse/v2 v2.8.1
@@ -95,9 +95,12 @@ require (
 
 replace (
 	github.com/go-playground/validator/v10 => github.com/go-playground/validator/v10 v10.8.0
+	github.com/mikefarah/yaml/v2 => gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api => k8s.io/api v0.19.4
 	k8s.io/apimachinery => k8s.io/apimachinery v0.19.4
 	k8s.io/client-go => k8s.io/client-go v0.19.4
 	k8s.io/client-go/plugin => k8s.io/client-go/plugin v0.19.4
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.7.2
 )
+
+exclude github.com/mikefarah/yaml/v2 v2.4.0
