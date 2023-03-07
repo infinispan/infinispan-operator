@@ -17,7 +17,7 @@ COPY controllers/ controllers/
 COPY launcher/ launcher/
 COPY pkg/ pkg/
 
-RUN GOPROXY="https://proxy.golang.org,direct" CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
     go build -a -o /bin/infinispan-operator \
     -ldflags="-X 'github.com/infinispan/infinispan-operator/launcher.Version=${OPERATOR_VERSION}'" -gcflags="${SKAFFOLD_GO_GCFLAGS}" main.go
 
