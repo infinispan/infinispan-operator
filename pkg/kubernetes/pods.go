@@ -156,7 +156,7 @@ func GetContainer(name string, spec *corev1.PodSpec) *corev1.Container {
 func GetPodMemoryLimitBytes(container, podName, namespace string, kube *Kubernetes) (uint64, error) {
 	execOut, err := kube.ExecWithOptions(ExecOptions{
 		Container: container,
-		Command:   []string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"},
+		Command:   []string{"/bin/bash", "-c", "cat /sys/fs/cgroup/memory/memory.limit_in_bytes || cat /sys/fs/cgroup/memory.max"},
 		PodName:   podName,
 		Namespace: namespace,
 	})
