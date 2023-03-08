@@ -272,6 +272,8 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	testifyAssert.True(t, kubernetes.IsOwnedBy(cr, ispn), "Cache has unexpected owner reference")
 
 	// Update cache configuration via REST
+	// Await all creation related updates are gone
+	time.Sleep(10 * time.Second)
 	updatedConfig := fmt.Sprintf(yamlTemplate, 50)
 	cacheHelper.Update(updatedConfig, mime.ApplicationYaml)
 
