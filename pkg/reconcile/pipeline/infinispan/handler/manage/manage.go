@@ -7,10 +7,12 @@ import (
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func AwaitPodIps(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -118,4 +120,78 @@ func ConfigureLoggers(infinispan *ispnv1.Infinispan, ctx pipeline.Context) {
 			}
 		}
 	}
+}
+
+// ClusterScaling can be removed once persistentVolumeClaimRetentionPolicy becomes stable and that k8s version is
+// our baseline.
+// https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#persistentvolumeclaim-retention
+func ClusterScaling(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	if *i.Status.Replicas == i.Spec.Replicas {
+		return
+	}
+
+	statefulSet := &appsv1.StatefulSet{}
+	if err := ctx.Resources().Load(i.GetStatefulSetName(), statefulSet, pipeline.InvalidateCache); err != nil {
+		if errors.IsNotFound(err) {
+			// No existing StatefulSet so nothing todo
+			return
+		}
+		ctx.Requeue(fmt.Errorf("unable to retrieve StatefulSet in ClusterScaling: %w", err))
+		return
+	}
+
+	if *statefulSet.Spec.Replicas != i.Spec.Replicas {
+		// The StatefulSet has not been updated yet, so continue with reconciliation
+		return
+	}
+
+	scalingUp := i.IsConditionTrue(ispnv1.ConditionScalingUp) && statefulSet.Status.ReadyReplicas < i.Spec.Replicas
+	scalingDown := i.IsConditionTrue(ispnv1.ConditionScalingDown) && statefulSet.Status.ReadyReplicas > i.Spec.Replicas
+	if scalingUp || scalingDown {
+		// The StatefulSet spec has already been updated to i.spec.replicas, so we must wait for the pods to be updated
+		ctx.Log().Info("waiting for the StatefulSet to scale", string(ispnv1.ConditionScalingUp), scalingUp, string(ispnv1.ConditionScalingDown), scalingDown)
+		ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
+		return
+	}
+
+	if *i.Status.Replicas > i.Spec.Replicas {
+		// Scaling down
+		if !i.IsConditionTrue(ispnv1.ConditionScalingDown) {
+			ctx.Requeue(
+				ctx.UpdateInfinispan(func() {
+					i.SetCondition(ispnv1.ConditionScalingDown, metav1.ConditionTrue, fmt.Sprintf("Scaling down to %d replicas", i.Spec.Replicas))
+				}),
+			)
+			return
+		}
+
+		if i.Spec.Replicas != 0 && *i.Status.Replicas != statefulSet.Status.CurrentReplicas {
+			// Remove all that have an index between CurrentReplicas and i.Spec.Replicas
+			for idx := *i.Status.Replicas - 1; idx >= statefulSet.Status.CurrentReplicas; idx-- {
+				pvc := fmt.Sprintf("%s-%s-%d", provision.DataMountVolume, statefulSet.Name, idx)
+				if err := ctx.Resources().Delete(pvc, &corev1.PersistentVolumeClaim{}); client.IgnoreNotFound(err) != nil {
+					ctx.Requeue(fmt.Errorf("unable to remove PVC '%s' for old pod: %w", pvc, err))
+					return
+				}
+			}
+		}
+	} else {
+		// Scaling up
+		if !i.IsConditionTrue(ispnv1.ConditionScalingUp) {
+			ctx.Requeue(
+				ctx.UpdateInfinispan(func() {
+					i.SetCondition(ispnv1.ConditionScalingUp, metav1.ConditionTrue, fmt.Sprintf("Scaling up to %d replicas", i.Spec.Replicas))
+				}),
+			)
+			return
+		}
+
+	}
+
+	// Scaling has completed so remove the associated conditions and update .Status.Replicas
+	_ = ctx.UpdateInfinispan(func() {
+		i.Status.Replicas = &i.Spec.Replicas
+		i.RemoveCondition(ispnv1.ConditionScalingDown)
+		i.RemoveCondition(ispnv1.ConditionScalingUp)
+	})
 }

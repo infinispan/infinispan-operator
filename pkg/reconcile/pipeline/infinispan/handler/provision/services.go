@@ -2,7 +2,9 @@ package provision
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
@@ -43,6 +45,12 @@ func ClusterService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		svc.Labels = i.ServiceLabels("infinispan-service")
 		svc.Spec.Type = corev1.ServiceTypeClusterIP
 		svc.Spec.Selector = i.ServiceSelectorLabels()
+
+		// If we're scaling up we must temporarily ensure that no pods are matched until the operation completes
+		if i.GracefulShutdownUpgrades() && i.IsConditionTrue(ispnv1.ConditionScalingUp) {
+			svc.Spec.Selector["app"] = strconv.FormatInt(time.Now().Unix(), 10)
+		}
+
 		// We must utilise the existing ServicePort values if updating the service, to prevent the created ports being overwritten
 		if svc.CreationTimestamp.IsZero() {
 			svc.Spec.Ports = []corev1.ServicePort{{}}

@@ -23,7 +23,7 @@ func subMapOf(f, s map[string]string) bool {
 	return true
 }
 
-func PrelimChecksCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
+func PreliminaryChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	// Ensure that CR has all the operator required labels
 	if !subMapOf(ctx.DefaultLabels(), i.ObjectMeta.Labels) || !subMapOf(ctx.DefaultAnnotations(), i.ObjectMeta.Annotations) {
 		if err := ctx.UpdateInfinispan(func() {
@@ -33,6 +33,16 @@ func PrelimChecksCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ctx.Log().Error(err, "Unable to update Labels")
 		}
 	}
+
+	// Initialize status replicas on Upgrade from older Operator version
+	if i.Status.Replicas == nil {
+		ctx.Requeue(
+			ctx.UpdateInfinispan(func() {
+				i.Status.Replicas = &i.Spec.Replicas
+			}),
+		)
+	}
+
 	if i.GetCondition(ispnv1.ConditionPrelimChecksPassed).Status == metav1.ConditionFalse {
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {

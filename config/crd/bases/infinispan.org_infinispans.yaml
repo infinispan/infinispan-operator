@@ -1112,6 +1112,9 @@ spec:
                       type: string
                     type: array
                 type: object
+              replicas:
+                format: int32
+                type: integer
               replicasWantedAtRestart:
                 format: int32
                 type: integer

@@ -24,9 +24,10 @@ type Container interface {
 	Backups() Backups
 	HealthStatus() (HealthStatus, error)
 	Members() ([]string, error)
+	RebalanceDisable() error
+	RebalanceEnable() error
 	Restores() Restores
 	Shutdown() error
-	ShutdownTask() error
 	Xsite() Xsite
 }
 
