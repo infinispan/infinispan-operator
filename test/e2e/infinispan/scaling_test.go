@@ -6,8 +6,12 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // TestGracefulShutdownWithTwoReplicas creates a permanent cache with file-store and any entry,
@@ -73,4 +77,41 @@ func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
 	}
 
 	filestoreCacheHelper.Delete()
+}
+
+func TestScaling(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Service.Container.EphemeralStorage = false
+	})
+	testKube.CreateInfinispan(ispn, tutils.Namespace)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	ispn = testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+
+	// Test scaling up
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.Replicas = 2
+		}),
+	)
+	testKube.WaitForInfinispanPods(2, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+
+	// Test scaling down
+	ispn = testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.Replicas = 1
+		}),
+	)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	var pvcs *corev1.PersistentVolumeClaimList
+	tutils.ExpectNoError(
+		wait.Poll(tutils.DefaultPollPeriod, tutils.ConditionWaitTimeout, func() (bool, error) {
+			pvcs = testKube.GetPVCList(tutils.Namespace, ispn.PodSelectorLabels())
+			return len(pvcs.Items) == 1, nil
+		}),
+	)
+	assert.Equal(t, fmt.Sprintf("%s-%s-0", provision.DataMountVolume, ispn.GetStatefulSetName()), pvcs.Items[0].Name)
 }
