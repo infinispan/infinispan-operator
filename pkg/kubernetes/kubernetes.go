@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"io"
 	"net/http"
 	"sort"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/go-logr/logr"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
@@ -356,7 +357,7 @@ func (k Kubernetes) Logs(pod, namespace string, ctx context.Context) (logs strin
 		}
 	}()
 
-	body, err := ioutil.ReadAll(readCloser)
+	body, err := io.ReadAll(readCloser)
 	if err != nil {
 		return "", err
 	}

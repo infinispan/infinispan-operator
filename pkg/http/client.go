@@ -4,7 +4,7 @@ package http
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/infinispan/infinispan-operator/controllers/constants"
@@ -53,7 +53,7 @@ func ValidateResponse(rsp *http.Response, inperr error, entity string, validCode
 		}
 	}()
 
-	responseBody, responseErr := ioutil.ReadAll(rsp.Body)
+	responseBody, responseErr := io.ReadAll(rsp.Body)
 	if responseErr != nil {
 		return &HttpError{
 			Status:  rsp.StatusCode,

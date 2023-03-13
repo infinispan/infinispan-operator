@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -51,7 +50,7 @@ type httpClientConfig struct {
 }
 
 func ThrowHTTPError(rsp *http.Response) {
-	errorBytes, _ := ioutil.ReadAll(rsp.Body)
+	errorBytes, _ := io.ReadAll(rsp.Body)
 	panic(httpClient.HttpError{
 		Status:  rsp.StatusCode,
 		Message: string(errorBytes),

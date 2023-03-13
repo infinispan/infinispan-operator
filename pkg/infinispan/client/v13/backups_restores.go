@@ -3,7 +3,7 @@ package v13
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	inputValidator "github.com/go-playground/validator/v10"
@@ -80,7 +80,7 @@ func status(url, name, op string, client httpClient.HttpClient) (api.Status, err
 	}
 
 	bodyOrStatus := func(rsp *http.Response) interface{} {
-		if body, err := ioutil.ReadAll(rsp.Body); err != nil || string(body) == "" {
+		if body, err := io.ReadAll(rsp.Body); err != nil || string(body) == "" {
 			return rsp.Status
 		}
 		return rsp.Body

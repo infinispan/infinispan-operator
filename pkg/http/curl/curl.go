@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -157,7 +156,7 @@ func handleContent(reader *bufio.Reader) (*http.Response, error) {
 	if err := rsp.Body.Close(); err != nil {
 		return nil, err
 	}
-	rsp.Body = ioutil.NopCloser(b)
+	rsp.Body = io.NopCloser(b)
 	return rsp, nil
 }
 

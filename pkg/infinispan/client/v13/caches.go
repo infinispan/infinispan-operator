@@ -3,7 +3,7 @@ package v13
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -212,7 +212,7 @@ func (c *caches) Names() (names []string, err error) {
 }
 
 func readResponseBody(rsp *http.Response) (string, error) {
-	responseBody, responseErr := ioutil.ReadAll(rsp.Body)
+	responseBody, responseErr := io.ReadAll(rsp.Body)
 	if responseErr != nil {
 		return "", fmt.Errorf("unable to read response body: %w", responseErr)
 	}
