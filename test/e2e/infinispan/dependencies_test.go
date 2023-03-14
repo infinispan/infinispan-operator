@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -59,7 +58,7 @@ func TestExternalDependenciesHttp(t *testing.T) {
 			panic(fmt.Sprintf("Unexpected response code %d for the Server Task execution", resp.StatusCode))
 		}
 		if resp.StatusCode == http.StatusOK {
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			tutils.ExpectNoError(err)
 			if string(body) != result {
 				panic(fmt.Sprintf("Unexpected task %s response '%s' from the Server Task", task, string(body)))

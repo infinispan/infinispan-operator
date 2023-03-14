@@ -3,7 +3,7 @@ package v13
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -48,7 +48,7 @@ func (c *container) HealthStatus() (status api.HealthStatus, err error) {
 	if err = httpClient.ValidateResponse(rsp, err, "getting cache manager health status", http.StatusOK); err != nil {
 		return
 	}
-	all, err := ioutil.ReadAll(rsp.Body)
+	all, err := io.ReadAll(rsp.Body)
 	if err != nil {
 		return "", fmt.Errorf("unable to decode: %w", err)
 	}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"reflect"
@@ -226,11 +225,11 @@ func (k TestKubernetes) WriteAllResourcesToFile(dir, namespace, suffix string, l
 			log, err := k.Kubernetes.Logs(item.GetName(), namespace, context.TODO())
 			LogError(err)
 
-			err = ioutil.WriteFile(dir+"/"+item.GetName()+".log", []byte(log), 0666)
+			err = os.WriteFile(dir+"/"+item.GetName()+".log", []byte(log), 0666)
 			LogError(err)
 		}
 
-		err = ioutil.WriteFile(dir+"/"+item.GetName()+"-"+suffix+".yaml", []byte(string(yaml_)), 0666)
+		err = os.WriteFile(dir+"/"+item.GetName()+"-"+suffix+".yaml", []byte(string(yaml_)), 0666)
 		LogError(err)
 	}
 }

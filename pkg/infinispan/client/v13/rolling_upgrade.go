@@ -2,7 +2,7 @@ package v13
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
@@ -60,7 +60,7 @@ func (r *rollingUpgrade) SyncData() (string, error) {
 		return "", err
 	}
 
-	all, err := ioutil.ReadAll(rsp.Body)
+	all, err := io.ReadAll(rsp.Body)
 	if err != nil {
 		return "", fmt.Errorf("unable to decode: %w", err)
 	}

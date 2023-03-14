@@ -9,7 +9,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"math/big"
 	"os"
@@ -264,17 +263,17 @@ func createKeystore(ca, server *certHolder) []byte {
 	certFile := tmpFile(tmpDir, "server_cert.pem")
 	keystorefile := tmpFile(tmpDir, "keystore.p12")
 
-	err = ioutil.WriteFile(privKeyFile, server.getPrivateKeyPEM(), fileMode)
+	err = os.WriteFile(privKeyFile, server.getPrivateKeyPEM(), fileMode)
 	ExpectNoError(err)
 
-	err = ioutil.WriteFile(certFile, append(server.getCertPEM(), ca.getCertPEM()...), fileMode)
+	err = os.WriteFile(certFile, append(server.getCertPEM(), ca.getCertPEM()...), fileMode)
 	ExpectNoError(err)
 
 	cmd := exec.Command("openssl", "pkcs12", "-export", "-in", certFile, "-inkey", privKeyFile,
 		"-name", server.cert.Subject.CommonName, "-out", keystorefile, "-password", "pass:"+KeystorePassword, "-noiter", "-nomaciter")
 	ExpectNoError(cmd.Run())
 
-	keystore, err := ioutil.ReadFile(keystorefile)
+	keystore, err := os.ReadFile(keystorefile)
 	ExpectNoError(err)
 	return keystore
 }
@@ -300,14 +299,14 @@ func createGenericTruststore(certs ...*certHolder) []byte {
 	for _, cert := range certs {
 		certFile := tmpFile(tmpDir, "cert.pem")
 
-		err := ioutil.WriteFile(certFile, cert.getCertPEM(), fileMode)
+		err := os.WriteFile(certFile, cert.getCertPEM(), fileMode)
 		ExpectNoError(err)
 		cmd := exec.Command("keytool", "-import", "-file", certFile, "-alias", cert.cert.Subject.CommonName,
 			"-keystore", trustStoreFile, "-storepass", TruststorePassword, "-noprompt")
 		ExpectNoError(cmd.Run())
 	}
 
-	truststore, err := ioutil.ReadFile(trustStoreFile)
+	truststore, err := os.ReadFile(trustStoreFile)
 	ExpectNoError(err)
 	return truststore
 }

@@ -191,7 +191,7 @@ GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 .PHONY: golanci-lint
 ## Download golanci-lint locally if necessary
 golangci-lint:
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2)
+	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0)
 
 export GO_JUNIT_REPORT = $(shell pwd)/bin/go-junit-report
 .PHONY: GO_JUNIT_REPORT
