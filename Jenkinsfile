@@ -160,7 +160,7 @@ pipeline {
                         stage('Hot Rod Rolling Upgrade') {
                             steps {
                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'make hotrod-upgrade-test'
+                                    sh 'make hotrod-upgrade-test SUBSCRIPTION_CHANNEL_SOURCE=2.2.x SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.5'
                                 }
                             }
                         }
