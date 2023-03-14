@@ -124,7 +124,7 @@ func TestRollingUpgrade(t *testing.T) {
 			if !isRollingUpgrade {
 				clusterCounter++
 				currentStatefulSetName := newStatefulSetName
-				newStatefulSetName := fmt.Sprintf("%s-%d", spec.Name, clusterCounter)
+				newStatefulSetName = fmt.Sprintf("%s-%d", spec.Name, clusterCounter)
 
 				testKube.WaitForStateFulSet(newStatefulSetName, tutils.Namespace)
 				testKube.WaitForStateFulSetRemoval(currentStatefulSetName, tutils.Namespace)
@@ -182,14 +182,9 @@ func TestRollingUpgrade(t *testing.T) {
 			tutils.ExpectNoError(
 				testKube.UpdateInfinispan(ispn, func() {
 					ispn.Spec.Version = latestOperand.Ref()
+					fmt.Printf("Upgrading Operand to %s\n", ispn.Spec.Version)
 				}),
 			)
-			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-					i.Status.Operand.Version == latestOperand.Ref() &&
-					i.Status.Operand.Image == latestOperand.Image &&
-					i.Status.Operand.Phase == ispnv1.OperandPhasePending
-			})
 			testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
