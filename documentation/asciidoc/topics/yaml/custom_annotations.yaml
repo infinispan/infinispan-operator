@@ -4,7 +4,11 @@ metadata:
   annotations:
     infinispan.org/targetAnnotations: service-annotation1, service-annotation2
     infinispan.org/podTargetAnnotations: pod-annotation1, pod-annotation2
+    infinispan.org/routerAnnotations: router-annotation1, router-annotation2
+
     service-annotation1: value
     service-annotation2: value
     pod-annotation1: value
     pod-annotation2: value
+    router-annotation1: value
+    router-annotation2: value
