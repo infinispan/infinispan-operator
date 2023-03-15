@@ -54,7 +54,10 @@ const (
 
 	// OperatorOperandVersionEnvVarName is the name of the envvar containing the supported operand json
 	OperatorOperandVersionEnvVarName string = "INFINISPAN_OPERAND_VERSIONS"
-
+	
+	// RouterAnnotations annotations for GossipRouter deployment
+	RouterAnnotations string = "infinispan.org/routerAnnotations"
+	
 	MaxRouteObjectNameLength = 63
 
 	// ServiceMonitoringAnnotation defines if we need to create ServiceMonitor or not
@@ -659,6 +662,13 @@ func (ispn *Infinispan) GossipRouterPodLabels() map[string]string {
 		labels[k] = v
 	}
 	return labels
+}
+
+// GossipRouterAnnotations returns all annotations to be applied to the GossipRouter pod. It's values
+func (ispn *Infinispan) GossipRouterAnnotations() map[string]string {
+	annotations := make(map[string]string)
+	addAnnotationsFor(ispn, RouterAnnotations, annotations)
+	return annotations
 }
 
 // GossipRouterPodSelectorLabels returns the minimum required labels to identify a Gossip Router Pod. It does not contain any user
