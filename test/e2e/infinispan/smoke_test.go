@@ -36,6 +36,8 @@ func TestBaseFunctionality(t *testing.T) {
 		i.Annotations["my-svc-annotation"] = "my-svc-value"
 		i.Annotations[v1.PodTargetAnnotations] = "my-pod-annotation"
 		i.Annotations["my-pod-annotation"] = "my-pod-value"
+		i.Annotations[v1.RouterAnnotations] = "my-router-annotation"
+		i.Annotations["my-router-annotation"] = "my-router-value"
 	})
 
 	// Create the cluster

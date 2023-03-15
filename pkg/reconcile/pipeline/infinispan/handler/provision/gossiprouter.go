@@ -51,6 +51,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 	mutateFn := func() error {
 		routerLabels := i.GossipRouterPodLabels()
+		routerAnnotations := i.GossipRouterAnnotations()
 		// Gossip Router Diagnostics is only available for JGroups 5+ (ISPN 14)
 		enableJgrpDiag := consts.JGroupsDiagnosticsFlag == "TRUE" && ctx.Operand().UpstreamVersion.Major > 13
 		// Port to be used by k8s probe, by default the cross-site port
@@ -137,6 +138,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					Name:      router.Name,
 					Namespace: router.Namespace,
 					Labels:    routerLabels,
+					Annotations: routerAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
