@@ -232,6 +232,14 @@ func EnableRebalanceAfterScaleUp(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			return
 		}
 
+		if members, err := ispnClient.Container().Members(); err != nil {
+			ctx.Requeue(fmt.Errorf("unable to retrieve cluster members on scale up: %w", err))
+			return
+		} else if len(members) != int(i.Spec.Replicas) {
+			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, fmt.Errorf("waiting for cluster of %d members to form", i.Spec.Replicas))
+			return
+		}
+
 		ctx.Log().Info("Pods scaled up, enabling rebalancing")
 		if err := ispnClient.Container().RebalanceEnable(); err != nil {
 			ctx.Requeue(fmt.Errorf("unable to enable rebalancing after cluster scale up: %w", err))
