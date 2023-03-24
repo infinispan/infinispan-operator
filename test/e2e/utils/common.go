@@ -170,6 +170,9 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 			Expose:   ExposeServiceSpec(testKube),
 			ConfigListener: &ispnv1.ConfigListenerSpec{
 				Enabled: false,
+				Logging: &ispnv1.ConfigListenerLoggingSpec{
+					Level: ispnv1.ConfigListenerLoggingDebug,
+				},
 			},
 			Logging: &ispnv1.InfinispanLoggingSpec{
 				Categories: map[string]ispnv1.LoggingLevelType{
