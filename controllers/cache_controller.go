@@ -586,7 +586,7 @@ func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2
 
 	var caches []v2alpha1.Cache
 	for _, c := range cacheList.Items {
-		if c.Spec.Name == cacheName && c.Spec.ClusterName == clusterName {
+		if c.GetCacheName() == cacheName && c.Spec.ClusterName == clusterName {
 			caches = append(caches, c)
 		}
 	}
@@ -600,7 +600,7 @@ func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2
 	default:
 		// Multiple existing Cache CRs found. Should never happen
 		y, _ := json.Marshal(caches)
-		return nil, fmt.Errorf("More than one Cache CR found for Cache=%s, Cluster=%s:\n%s", cacheName, clusterName, y)
+		return nil, fmt.Errorf("More than one Cache CR found for Cache=%s, Cluster=%s:\n%s", cacheName, clusterName, string(y))
 	}
 }
 
