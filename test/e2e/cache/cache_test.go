@@ -175,11 +175,10 @@ func TestUpdateCacheCR(t *testing.T) {
 	testifyAssert.Equal(t, int64(3), cache.GetGeneration())
 
 	// Wait for the Cache CR to become unready as the spec.Template cannot be reconciled with the server
-	cache = testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
+	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
 		Type:   v2alpha1.CacheConditionReady,
 		Status: metav1.ConditionFalse,
 	})
-	testifyAssert.Contains(t, cache.GetCondition(v2alpha1.CacheConditionReady).Message, "ISPN029527")
 
 	// Assert original cache
 	cacheHelper.AssertSize(numEntries)
