@@ -14,26 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func subMapOf(f, s map[string]string) bool {
-	for k := range f {
-		if v, ok := s[k]; !ok || f[k] != v {
-			return false
-		}
-	}
-	return true
-}
-
 func PreliminaryChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
-	// Ensure that CR has all the operator required labels
-	if !subMapOf(ctx.DefaultLabels(), i.ObjectMeta.Labels) || !subMapOf(ctx.DefaultAnnotations(), i.ObjectMeta.Annotations) {
-		if err := ctx.UpdateInfinispan(func() {
-			ctx.Log().Info("Updating Labels", "Labels: ", ctx.DefaultLabels())
-			i.ApplyOperatorMeta(ctx.DefaultLabels(), ctx.DefaultAnnotations())
-		}); err != nil {
-			ctx.Log().Error(err, "Unable to update Labels")
-		}
-	}
-
 	// Initialize status replicas on Upgrade from older Operator version
 	if i.Status.Replicas == nil {
 		ctx.Requeue(
@@ -50,6 +31,8 @@ func PreliminaryChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				if ctx.IsTypeSupported(pipeline.ServiceMonitorGVK) {
 					i.ApplyMonitoringAnnotation()
 				}
+				// Ensure that CR has all the operator required labels
+				i.ApplyOperatorMeta(ctx.DefaultLabels(), ctx.DefaultAnnotations())
 				i.SetCondition(ispnv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
 				requestedOperand := ctx.Operand()
 				i.Status.Operand = ispnv1.OperandStatus{

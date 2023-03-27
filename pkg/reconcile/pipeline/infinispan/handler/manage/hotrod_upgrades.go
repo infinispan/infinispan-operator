@@ -35,6 +35,15 @@ func hotRodRollingUpgradeLog(log logr.Logger) logr.Logger {
 	return log.WithName("HotRodRollingUpgrade")
 }
 
+func subMapOf(f, s map[string]string) bool {
+	for k := range f {
+		if v, ok := s[k]; !ok || f[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
 func ScheduleHotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	log := hotRodRollingUpgradeLog(ctx.Log())
 
@@ -98,6 +107,15 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			log.Error(err, "error encountered on rollback")
 		}
 		ctx.RequeueEventually(0)
+		return
+	}
+	// Ensure that CR has all the operator required labels
+	if !subMapOf(ctx.DefaultLabels(), i.ObjectMeta.Labels) || !subMapOf(ctx.DefaultAnnotations(), i.ObjectMeta.Annotations) {
+		ctx.Requeue(
+			ctx.UpdateInfinispan(func() {
+				ctx.Log().Info("Updating Labels", "Labels: ", ctx.DefaultLabels())
+				i.ApplyOperatorMeta(ctx.DefaultLabels(), ctx.DefaultAnnotations())
+			}))
 		return
 	}
 
