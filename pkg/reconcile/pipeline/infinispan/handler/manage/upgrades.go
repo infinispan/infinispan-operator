@@ -204,10 +204,12 @@ func GracefulShutdownUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
+				// Ensure that CR has all the operator required labels
+				i.ApplyOperatorMeta(ctx.DefaultLabels(), ctx.DefaultAnnotations())
+				// Persist replicas needed at restart
 				i.Spec.Replicas = i.Status.ReplicasWantedAtRestart
 				i.SetCondition(ispnv1.ConditionUpgrade, metav1.ConditionFalse, "")
-			}),
-		)
+			}))
 	}
 }
 
