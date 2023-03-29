@@ -459,6 +459,16 @@ func (spec *ConfigListenerSpec) MemoryResources() (requests resource.Quantity, l
 	return getRequestLimits(spec.Memory)
 }
 
+// CpuResources returns the CPU request and limit values to be used by by Gossip Router pod
+func (spec *DiscoverySiteSpec) CpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+	return getRequestLimits(spec.CPU)
+}
+
+// MemoryResources returns the Memory request and limit values to be used by Gossip Router pod
+func (spec *DiscoverySiteSpec) MemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+	return getRequestLimits(spec.Memory)
+}
+
 func getRequestLimits(str string) (requests resource.Quantity, limits resource.Quantity, err error) {
 	if str == "" {
 		err = fmt.Errorf("resource string cannot be empty")

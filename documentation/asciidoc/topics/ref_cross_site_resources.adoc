@@ -29,6 +29,12 @@ The following tables provides fields and descriptions for cross-site resources.
 |`service.sites.local.discovery.launchGossipRouter`
 |If `false`, the cross-site services and the Gossip Router pod are not created in the local site. The default value is `true`.
 
+|`service.sites.local.discovery.memory`
+|Allocates the amount of memory in bytes. It uses the following format `<limit>:<requests>` (example `"2Gi:1Gi"`).
+
+|`service.sites.local.discovery.cpu`
+|Allocate the number of CPU units It uses the following format `<limit>:<requests>` (example `"2000m:1000m"`).
+
 |`service.sites.local.expose.type`
 |Specifies the network service for cross-site replication. {brandname} clusters use this service to communicate and perform backup operations. You can set the value to `NodePort`, `LoadBalancer`, or `Route`.
 

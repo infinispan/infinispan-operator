@@ -60,6 +60,10 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 							Port: exposePort,
 						},
 						MaxRelayNodes: 2,
+						Discovery: &ispnv1.DiscoverySiteSpec{
+							Memory: "500Mi",
+							CPU:    "500m",
+						},
 					},
 					Locations: []ispnv1.InfinispanSiteLocationSpec{
 						{

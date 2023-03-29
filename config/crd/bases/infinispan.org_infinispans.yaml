@@ -893,10 +893,18 @@ spec:
                             description: DiscoverySiteSpec configures the corss-site
                               replication discovery
                             properties:
+                              cpu:
+                                description: CPU resource request for Gossip Router
+                                  if enabled
+                                type: string
                               launchGossipRouter:
                                 description: Enables (default) or disables the Gossip
                                   Router pod and cross-site services
                                 type: boolean
+                              memory:
+                                description: Memory resource request for Gossip Router
+                                  if enabled
+                                type: string
                               type:
                                 description: Configures the discovery mode for cross-site
                                   replication

@@ -251,6 +251,7 @@ func getCrossSiteServiceHostPort(service *corev1.Service, ctx pipeline.Context, 
 }
 
 func TransportTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	log := ctx.Log().WithName("xsite")
 	keyStoreSecret := &corev1.Secret{}
 	if err := ctx.Resources().Load(i.GetSiteTransportSecretName(), keyStoreSecret, pipeline.RetryOnErr); err != nil {
 		return
@@ -260,7 +261,7 @@ func TransportTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	password := string(keyStoreSecret.Data["password"])
 	alias := i.GetSiteTransportKeyStoreAlias()
 
-	if err := validaXSiteTLSKeyStore(keyStoreSecret.Name, keyStoreFileName, password, alias); err != nil {
+	if err := validateXSiteTLSKeyStore(keyStoreSecret.Name, keyStoreFileName, password, alias); err != nil {
 		ctx.Stop(err)
 		return
 	}
@@ -273,7 +274,13 @@ func TransportTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		Type:     consts.GetWithDefault(string(keyStoreSecret.Data["type"]), "pkcs12"),
 	}
 
-	ctx.Log().Info("Transport TLS Configured.", "Keystore", keyStoreFileName, "Secret Name", keyStoreSecret.Name)
+	log.Info("Transport TLS Configured.", "Keystore", keyStoreFileName, "Secret Name", keyStoreSecret.Name)
+
+	// do not attempt to load the trust store secret if not configured
+	if i.GetSiteTrustoreSecretName() == "" {
+		log.Info("Truststore not configured.")
+		return
+	}
 
 	trustStoreSecret := &corev1.Secret{}
 	// Only configure Truststore if the Secret exists
@@ -286,11 +293,11 @@ func TransportTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	trustStoreFileName := i.GetSiteTrustStoreFileName()
 	password = string(trustStoreSecret.Data["password"])
 
-	if err := validaXSiteTLSTrustStore(trustStoreSecret.Name, trustStoreFileName, password); err != nil {
+	if err := validateXSiteTLSTrustStore(trustStoreSecret.Name, trustStoreFileName, password); err != nil {
 		ctx.Stop(err)
 		return
 	}
-	ctx.Log().Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.ObjectMeta.Name)
+	log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.ObjectMeta.Name)
 	configFiles.Transport.Truststore = &pipeline.Truststore{
 		File:     trustStoreSecret.Data[trustStoreFileName],
 		Path:     fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, trustStoreFileName),
@@ -309,7 +316,7 @@ func GossipRouterTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	password := string(keyStoreSecret.Data["password"])
 	alias := i.GetSiteRouterKeyStoreAlias()
 
-	if err := validaXSiteTLSKeyStore(keyStoreSecret.Name, filename, password, alias); err != nil {
+	if err := validateXSiteTLSKeyStore(keyStoreSecret.Name, filename, password, alias); err != nil {
 		ctx.Stop(err)
 		return
 	}
@@ -335,7 +342,7 @@ func GossipRouterTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 }
 
-func validaXSiteTLSKeyStore(secretName, filename, password, alias string) error {
+func validateXSiteTLSKeyStore(secretName, filename, password, alias string) error {
 	if len(filename) == 0 {
 		return fmt.Errorf("filename is required for Keystore stored in Secret %s", secretName)
 	}
@@ -348,7 +355,7 @@ func validaXSiteTLSKeyStore(secretName, filename, password, alias string) error 
 	return nil
 }
 
-func validaXSiteTLSTrustStore(secretName, filename, password string) error {
+func validateXSiteTLSTrustStore(secretName, filename, password string) error {
 	if len(filename) == 0 {
 		return fmt.Errorf("filename is required for KeyStore stored in Secret %s", secretName)
 	}
