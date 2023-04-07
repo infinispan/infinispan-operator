@@ -68,6 +68,7 @@ func ServiceMonitor(i *iv1.Infinispan, ctx pipeline.Context) {
 			NamespaceSelector: monitoringv1.NamespaceSelector{
 				MatchNames: []string{i.Namespace},
 			},
+			TargetLabels: i.ServiceMonitorTargetLabels(),
 		},
 	}
 
@@ -92,6 +93,8 @@ func ServiceMonitor(i *iv1.Infinispan, ctx pipeline.Context) {
 			}
 			serviceMonitor.OwnerReferences = serviceMonitor.OwnerReferences[:retained]
 		}
+
+		serviceMonitor.Spec.TargetLabels = i.ServiceMonitorTargetLabels()
 
 		return nil
 	}

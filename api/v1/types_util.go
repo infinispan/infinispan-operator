@@ -30,6 +30,8 @@ const (
 	PodTargetLabels string = "infinispan.org/podTargetLabels"
 	// TargetLabels labels propagated to services/ingresses/routes
 	TargetLabels string = "infinispan.org/targetLabels"
+	// ServiceMonitorTargetLabels labels propagated to ServiceMonitor targetLabel for the label retainment
+	ServiceMonitorTargetLabels string = "infinispan.org/serviceMonitorTargetLabels"
 	// OperatorPodTargetLabels labels propagated by the operator to pods
 	OperatorPodTargetLabels string = "infinispan.org/operatorPodTargetLabels"
 	// OperatorTargetLabels labels propagated by the operator to services/ingresses/routes
@@ -54,10 +56,10 @@ const (
 
 	// OperatorOperandVersionEnvVarName is the name of the envvar containing the supported operand json
 	OperatorOperandVersionEnvVarName string = "INFINISPAN_OPERAND_VERSIONS"
-	
+
 	// RouterAnnotations annotations for GossipRouter deployment
 	RouterAnnotations string = "infinispan.org/routerAnnotations"
-	
+
 	MaxRouteObjectNameLength = 63
 
 	// ServiceMonitoringAnnotation defines if we need to create ServiceMonitor or not
@@ -617,6 +619,16 @@ func (ispn *Infinispan) ServiceLabels(app string) map[string]string {
 	addLabelsFor(ispn, OperatorTargetLabels, labels)
 	addLabelsFor(ispn, TargetLabels, labels)
 	return labels
+}
+
+func (ispn *Infinispan) ServiceMonitorTargetLabels() []string {
+	if ispn.Annotations == nil {
+		return []string{}
+	}
+	if lval := strings.ReplaceAll(ispn.Annotations[ServiceMonitorTargetLabels], " ", ""); lval != "" {
+		return strings.Split(lval, ",")
+	}
+	return []string{}
 }
 
 func (ispn *Infinispan) ServiceSelectorLabels() map[string]string {

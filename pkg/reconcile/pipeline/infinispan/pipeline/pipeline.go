@@ -222,6 +222,7 @@ func (b *builder) Build() pipeline.Pipeline {
 	handlers.Add(
 		manage.ConsoleUrl,
 	)
+	handlers.AddFeatureSpecific(i.IsServiceMonitorEnabled(), provision.ServiceMonitor)
 	handlers.AddFeatureSpecific(i.HasSites(), manage.XSiteViewCondition)
 
 	b.handlers = handlers.Build()
