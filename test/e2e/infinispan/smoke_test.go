@@ -30,6 +30,7 @@ func TestBaseFunctionality(t *testing.T) {
 
 		i.Annotations[v1.TargetLabels] = "my-svc-label"
 		i.Annotations[v1.PodTargetLabels] = "my-pod-label"
+		i.Annotations[v1.ServiceMonitorTargetLabels] = "my-servicemonitor-label"
 		i.ObjectMeta.Labels["my-svc-label"] = "my-svc-value"
 		i.ObjectMeta.Labels["my-pod-label"] = "my-pod-value"
 		i.Annotations[v1.TargetAnnotations] = "my-svc-annotation"

@@ -93,6 +93,8 @@ func ServiceMonitor(i *iv1.Infinispan, ctx pipeline.Context) {
 			serviceMonitor.OwnerReferences = serviceMonitor.OwnerReferences[:retained]
 		}
 
+		serviceMonitor.Spec.TargetLabels = i.ServiceMonitorTargetLabels()
+
 		return nil
 	}
 
