@@ -14,4 +14,5 @@ You can upgrade the version of your cluster between supported {brandname} versio
 | 13.0.10 +
 14.0.1 +
 14.0.6
+14.0.8
 |===
