@@ -68,7 +68,6 @@ func ServiceMonitor(i *iv1.Infinispan, ctx pipeline.Context) {
 			NamespaceSelector: monitoringv1.NamespaceSelector{
 				MatchNames: []string{i.Namespace},
 			},
-			TargetLabels: i.ServiceMonitorTargetLabels(),
 		},
 	}
 
