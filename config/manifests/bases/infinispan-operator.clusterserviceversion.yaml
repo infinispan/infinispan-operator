@@ -295,5 +295,5 @@ spec:
   maturity: alpha
   provider:
     name: Infinispan
-  replaces: infinispan-operator.v2.3.0
+  replaces: infinispan-operator.v2.3.1
   version: 0.0.0
