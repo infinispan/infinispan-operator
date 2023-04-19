@@ -112,39 +112,26 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					return
 				}
 
-				var shutdownExecuted bool
 				for _, pod := range podList.Items {
+					ispnClient := ctx.InfinispanClientForPod(pod.Name)
 					if kube.IsPodReady(pod) {
-						ispnClient := ctx.InfinispanClientForPod(pod.Name)
-						// This will fail on 12.x servers as the method does not exist
 						if err := ispnClient.Container().Shutdown(); err != nil {
-							logger.Error(err, "Error encountered on container shutdown. Attempting to execute GracefulShutdownTask")
-
-							if err := ispnClient.Container().ShutdownTask(); err != nil {
-								logger.Error(err, fmt.Sprintf("Error encountered using GracefulShutdownTask on pod %s", pod.Name))
-								continue
-							} else {
-								shutdownExecuted = true
-								break
-							}
+							ctx.Requeue(fmt.Errorf("error encountered on container shutdown: %w", err))
+							return
 						} else {
-							shutdownExecuted = true
-							logger.Info("Executed GracefulShutdown on pod: ", "Pod.Name", pod.Name)
-							break
+							logger.Info("Executed container shutdown on pod", "Pod.Name", pod.Name)
 						}
 					}
 				}
 
-				if shutdownExecuted {
-					logger.Info("GracefulShutdown successfully executed on the Infinispan cluster")
-					ctx.Requeue(
-						ctx.UpdateInfinispan(func() {
-							i.SetCondition(ispnv1.ConditionStopping, metav1.ConditionTrue, "")
-							i.SetCondition(ispnv1.ConditionWellFormed, metav1.ConditionFalse, "")
-						}),
-					)
-					return
-				}
+				logger.Info("GracefulShutdown successfully executed on the Infinispan cluster")
+				ctx.Requeue(
+					ctx.UpdateInfinispan(func() {
+						i.SetCondition(ispnv1.ConditionStopping, metav1.ConditionTrue, "")
+						i.SetCondition(ispnv1.ConditionWellFormed, metav1.ConditionFalse, "")
+					}),
+				)
+				return
 			}
 
 			updateStatus := func() {

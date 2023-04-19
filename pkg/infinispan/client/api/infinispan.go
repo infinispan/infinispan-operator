@@ -26,7 +26,6 @@ type Container interface {
 	Members() ([]string, error)
 	Restores() Restores
 	Shutdown() error
-	ShutdownTask() error
 	Xsite() Xsite
 }
 
