@@ -506,14 +506,6 @@ func (k TestKubernetes) GetPVC(pvcName, namespace string) *corev1.PersistentVolu
 	return pvc
 }
 
-func (k TestKubernetes) GetPVCList(namespace string, labels map[string]string) *corev1.PersistentVolumeClaimList {
-	pvcList := &corev1.PersistentVolumeClaimList{}
-	ExpectNoError(
-		k.Kubernetes.ResourcesList(namespace, labels, pvcList, context.TODO()),
-	)
-	return pvcList
-}
-
 // GetDefaultStorageClass returns the default StorageClasses name in cluster.
 func (k TestKubernetes) GetDefaultStorageClass() string {
 	// Get the list of StorageClasses in cluster.

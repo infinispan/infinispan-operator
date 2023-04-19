@@ -14,16 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func PreliminaryChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
-	// Initialize status replicas on Upgrade from older Operator version
-	if i.Status.Replicas == nil {
-		ctx.Requeue(
-			ctx.UpdateInfinispan(func() {
-				i.Status.Replicas = &i.Spec.Replicas
-			}),
-		)
-	}
-
+func PrelimChecksCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if i.GetCondition(ispnv1.ConditionPrelimChecksPassed).Status == metav1.ConditionFalse {
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {

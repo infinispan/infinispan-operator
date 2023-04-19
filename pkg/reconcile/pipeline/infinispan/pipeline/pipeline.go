@@ -146,7 +146,7 @@ func (b *builder) Build() pipeline.Pipeline {
 
 	// Apply default meta before doing anything else
 	handlers.Add(manage.InitialiseOperandVersion)
-	handlers.Add(manage.PreliminaryChecks)
+	handlers.Add(manage.PrelimChecksCondition)
 
 	// Provision/Remove the XSite service before performing configuration so that Remote site information can be retrieved
 	handlers.Add(provision.XSiteService)
@@ -207,10 +207,8 @@ func (b *builder) Build() pipeline.Pipeline {
 	handlers.Add(
 		manage.GracefulShutdown,
 		manage.AwaitUpgrade,
-		manage.ClusterScaling,
 		manage.StatefulSetRollingUpgrade,
 		manage.AwaitPodIps,
-		manage.EnableRebalanceAfterScaleUp,
 	)
 	handlers.AddFeatureSpecific(i.IsCache(), manage.AutoScaling)
 	handlers.Add(

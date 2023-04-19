@@ -458,8 +458,6 @@ type ConditionType string
 const (
 	ConditionPrelimChecksPassed  ConditionType = "PreliminaryChecksPassed"
 	ConditionGracefulShutdown    ConditionType = "GracefulShutdown"
-	ConditionScalingDown         ConditionType = "ScalingDown"
-	ConditionScalingUp           ConditionType = "ScalingUp"
 	ConditionStopping            ConditionType = "Stopping"
 	ConditionUpgrade             ConditionType = "Upgrade"
 	ConditionWellFormed          ConditionType = "WellFormed"
@@ -495,8 +493,6 @@ type InfinispanStatus struct {
 	StatefulSetName string `json:"statefulSetName,omitempty"`
 	// +optional
 	Security *InfinispanSecurity `json:"security,omitempty"`
-	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
 	// +optional
 	ReplicasWantedAtRestart int32 `json:"replicasWantedAtRestart,omitempty"`
 	// The Pod's currently in the cluster

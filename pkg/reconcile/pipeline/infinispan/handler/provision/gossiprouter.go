@@ -135,9 +135,9 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      router.Name,
-					Namespace: router.Namespace,
-					Labels:    routerLabels,
+					Name:        router.Name,
+					Namespace:   router.Namespace,
+					Labels:      routerLabels,
 					Annotations: routerAnnotations,
 				},
 				Spec: corev1.PodSpec{

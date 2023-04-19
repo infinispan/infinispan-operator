@@ -664,11 +664,6 @@ func (in *InfinispanStatus) DeepCopyInto(out *InfinispanStatus) {
 		*out = new(InfinispanSecurity)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Replicas != nil {
-		in, out := &in.Replicas, &out.Replicas
-		*out = new(int32)
-		**out = **in
-	}
 	in.PodStatus.DeepCopyInto(&out.PodStatus)
 	if in.ConsoleUrl != nil {
 		in, out := &in.ConsoleUrl, &out.ConsoleUrl

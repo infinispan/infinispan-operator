@@ -59,7 +59,6 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	_ = ctx.UpdateInfinispan(func() {
-		i.Status.Replicas = &i.Spec.Replicas
 		i.Status.StatefulSetName = statefulSet.Name
 	})
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
@@ -113,32 +112,39 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					return
 				}
 
-				for idx, pod := range podList.Items {
-					ispnClient := ctx.InfinispanClientForPod(pod.Name)
-					if idx == 0 {
-						if err := ispnClient.Container().RebalanceDisable(); err != nil {
-							ctx.Requeue(fmt.Errorf("unable to disable rebalancing: %w", err))
-							return
-						}
-					}
+				var shutdownExecuted bool
+				for _, pod := range podList.Items {
 					if kube.IsPodReady(pod) {
+						ispnClient := ctx.InfinispanClientForPod(pod.Name)
+						// This will fail on 12.x servers as the method does not exist
 						if err := ispnClient.Container().Shutdown(); err != nil {
-							ctx.Requeue(fmt.Errorf("error encountered on container shutdown: %w", err))
-							return
+							logger.Error(err, "Error encountered on container shutdown. Attempting to execute GracefulShutdownTask")
+
+							if err := ispnClient.Container().ShutdownTask(); err != nil {
+								logger.Error(err, fmt.Sprintf("Error encountered using GracefulShutdownTask on pod %s", pod.Name))
+								continue
+							} else {
+								shutdownExecuted = true
+								break
+							}
 						} else {
-							logger.Info("Executed Container Shutdown on pod: ", "Pod.Name", pod.Name)
+							shutdownExecuted = true
+							logger.Info("Executed GracefulShutdown on pod: ", "Pod.Name", pod.Name)
+							break
 						}
 					}
 				}
 
-				logger.Info("GracefulShutdown successfully executed on the Infinispan cluster")
-				ctx.Requeue(
-					ctx.UpdateInfinispan(func() {
-						i.SetCondition(ispnv1.ConditionStopping, metav1.ConditionTrue, "")
-						i.SetCondition(ispnv1.ConditionWellFormed, metav1.ConditionFalse, "")
-					}),
-				)
-				return
+				if shutdownExecuted {
+					logger.Info("GracefulShutdown successfully executed on the Infinispan cluster")
+					ctx.Requeue(
+						ctx.UpdateInfinispan(func() {
+							i.SetCondition(ispnv1.ConditionStopping, metav1.ConditionTrue, "")
+							i.SetCondition(ispnv1.ConditionWellFormed, metav1.ConditionFalse, "")
+						}),
+					)
+					return
+				}
 			}
 
 			updateStatus := func() {
@@ -179,14 +185,10 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ctx.Requeue(fmt.Errorf("Spec.Replicas(%d) must be 0 or equal to Status.ReplicasWantedAtRestart(%d)", i.Spec.Replicas, i.Status.ReplicasWantedAtRestart))
 			return
 		}
-
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
-				i.Status.Replicas = &i.Spec.Replicas
 				i.Status.ReplicasWantedAtRestart = 0
 				i.SetCondition(ispnv1.ConditionGracefulShutdown, metav1.ConditionFalse, "")
-				// Add ConditionScalingUp so that on requeue we update the ClusterService so that no pods will be selected
-				i.SetCondition(ispnv1.ConditionScalingUp, metav1.ConditionTrue, "")
 			}),
 		)
 	}
@@ -210,41 +212,6 @@ func GracefulShutdownUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				i.Spec.Replicas = i.Status.ReplicasWantedAtRestart
 				i.SetCondition(ispnv1.ConditionUpgrade, metav1.ConditionFalse, "")
 			}))
-	}
-}
-
-func EnableRebalanceAfterScaleUp(i *ispnv1.Infinispan, ctx pipeline.Context) {
-	// Perform actions on scale up after GracefulShutdown is complete
-	if i.Spec.Replicas > 0 && i.IsConditionTrue(ispnv1.ConditionScalingUp) {
-
-		statefulSet := &appsv1.StatefulSet{}
-		if err := ctx.Resources().Load(i.GetStatefulSetName(), statefulSet, pipeline.RetryOnErr); err != nil {
-			return
-		}
-
-		if statefulSet.Status.CurrentReplicas != i.Spec.Replicas {
-			// The StatefulSet spec has already been updated to i.spec.replicas, so we must wait for the pods to be provisioned
-			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
-			return
-		}
-
-		ispnClient, err := ctx.InfinispanClient()
-		if err != nil {
-			ctx.Requeue(err)
-			return
-		}
-
-		ctx.Log().Info("Pods scaled up, enabling rebalancing")
-		if err := ispnClient.Container().RebalanceEnable(); err != nil {
-			ctx.Requeue(fmt.Errorf("unable to enable rebalancing after cluster scale up: %w", err))
-			return
-		}
-
-		ctx.Requeue(
-			ctx.UpdateInfinispan(func() {
-				i.SetCondition(ispnv1.ConditionScalingUp, metav1.ConditionFalse, "")
-			}),
-		)
 	}
 }
 
