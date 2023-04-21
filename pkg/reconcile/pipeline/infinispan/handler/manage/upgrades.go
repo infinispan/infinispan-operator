@@ -238,7 +238,8 @@ func EnableRebalanceAfterScaleUp(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ctx.Requeue(fmt.Errorf("unable to retrieve cluster members on scale up: %w", err))
 			return
 		} else if len(members) != int(i.Spec.Replicas) {
-			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, fmt.Errorf("waiting for cluster of %d members to form", i.Spec.Replicas))
+			ctx.Log().Info("waiting for cluster to form", "replicas", i.Spec.Replicas)
+			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
 			return
 		}
 
