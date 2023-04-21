@@ -128,11 +128,15 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, su
 		if panicVal != nil || testFailed {
 			dir := fmt.Sprintf("%s/%s", LogOutputDir, testIdentifier)
 
-			err := os.RemoveAll(dir)
-			LogError(err)
+			if t == nil {
+				// Only remove existing dir if test doesn't exist, as otherwise the output directory will be initialized
+				// by the call to CleanNamespaceAndLogWithPanic which is executed before this function
+				err := os.RemoveAll(dir)
+				LogError(err)
 
-			err = os.MkdirAll(dir, os.ModePerm)
-			LogError(err)
+				err = os.MkdirAll(dir, os.ModePerm)
+				LogError(err)
+			}
 
 			k.WriteAllResourcesToFile(dir, subNamespace, "OperatorGroup", &coreosv1.OperatorGroupList{}, map[string]string{})
 			k.WriteAllResourcesToFile(dir, subNamespace, "Subscription", &coreos.SubscriptionList{}, map[string]string{})
