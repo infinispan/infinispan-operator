@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"testing"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -34,5 +35,14 @@ func ExpectNotFound(err error) {
 
 	if !errors.IsNotFound(err) {
 		panic(fmt.Errorf("unexpected error: %w", err))
+	}
+}
+
+func SkipForMajor(t *testing.T, infinispanMajor uint64, message string) {
+	if OperandVersion != "" {
+		operand, _ := VersionManager().WithRef(OperandVersion)
+		if operand.UpstreamVersion.Major == infinispanMajor {
+			t.Skip(message)
+		}
 	}
 }

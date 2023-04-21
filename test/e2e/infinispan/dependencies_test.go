@@ -22,6 +22,8 @@ import (
 )
 
 func TestExternalDependenciesHttp(t *testing.T) {
+	tutils.SkipForMajor(t, 13, "Downloading artifacts dependencies via url is broken with Infinispan 13.")
+
 	if os.Getenv("NO_NGINX") != "" {
 		t.Skip("Skipping test, no Nginx available.")
 	}
