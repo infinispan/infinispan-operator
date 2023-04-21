@@ -44,6 +44,8 @@ var config = `
 `
 
 func TestCredentialStoreEntries(t *testing.T) {
+	tutils.SkipForMajor(t, 13, "Credential store is not available in Infinispan 13.")
+
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
