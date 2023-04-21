@@ -1,0 +1,7 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: {example_crd_name}
+  annotations:
+    infinispan.org/targetLabels: "label1,label2,label3"
+    infinispan.org/serviceMonitorTargetLabels: "label1,label2"

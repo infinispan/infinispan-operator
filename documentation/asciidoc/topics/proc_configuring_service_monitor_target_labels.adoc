@@ -1,0 +1,18 @@
+[id='configuring-service-monitor-target-labels_{context}']
+= Configuring Service Monitor Target Labels
+
+[role="_abstract"]
+You can configure the generated `ServiceMonitor` to propagate Service labels to the underlying metrics using the ServiceMonitor `spec.targetLabels` field.
+Use the Service labels to filter and aggregate the metrics collected from the monitored endpoints.
+
+.Procedure
+
+. Define labels to apply to your service by setting the `infinispan.org/targetLabels` annotation in your `Infinispan` CR.
+. Specify a comma-separated list of the labels required in your metrics using the `infinispan.org/serviceMonitorTargetLabels` annotation on your `Infinispan` CR.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/infinispan-monitoring-target-labels.yaml[]
+----
++
+. Apply the changes.

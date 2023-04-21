@@ -17,6 +17,7 @@ See the link:{link_prometheus_operator} documentation.
 
 include::{topics}/proc_creating_service_monitor.adoc[leveloffset=+1]
 include::{topics}/proc_disabling_service_monitor.adoc[leveloffset=+2]
+include::{topics}/proc_configuring_service_monitor_target_labels.adoc[leveloffset=+2]
 //Downstream content
 ifdef::downstream[]
 include::{topics}/proc_installing_grafana_operator.adoc[leveloffset=+1]
