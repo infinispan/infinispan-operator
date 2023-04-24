@@ -168,7 +168,7 @@ pipeline {
                         stage('Upgrade') {
                             steps {
                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'make upgrade-test SUBSCRIPTION_CHANNEL_SOURCE=2.2.x SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.5'
+                                    sh 'make upgrade-test SUBSCRIPTION_CHANNEL_SOURCE=2.2.x SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.5 INFINISPAN_CPU=1.0'
                                 }
                             }
                         }

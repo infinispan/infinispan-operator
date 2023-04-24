@@ -181,10 +181,6 @@ func datagridService(t *testing.T, name string, replicas int) *v1.Infinispan {
 	return tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
 		i.Name = name
 		i.Spec.Replicas = int32(replicas)
-
-		if tutils.CPU != "" {
-			i.Spec.Container.CPU = tutils.CPU
-		}
 	})
 }
 
@@ -202,9 +198,6 @@ func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {
 		Spec: v2.BackupSpec{
 			Cluster: cluster,
 		},
-	}
-	if tutils.CPU != "" {
-		spec.Spec.Container.CPU = tutils.CPU
 	}
 	spec.Default()
 	return spec
@@ -225,9 +218,6 @@ func restoreSpec(testName, name, namespace, backup, cluster string) *v2alpha1.Re
 			Backup:  backup,
 			Cluster: cluster,
 		},
-	}
-	if tutils.CPU != "" {
-		spec.Spec.Container.CPU = tutils.CPU
 	}
 	spec.Default()
 	return spec
