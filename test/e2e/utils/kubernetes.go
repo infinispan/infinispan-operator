@@ -167,9 +167,11 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		err := os.RemoveAll(dir)
 		LogError(err)
 
-		err = os.MkdirAll(dir, os.ModePerm)
+		eventDir := fmt.Sprintf("%s/events", dir)
+		err = os.MkdirAll(eventDir, os.ModePerm)
 		LogError(err)
 
+		k.WriteAllResourcesToFile(eventDir, namespace, "Event", &corev1.EventList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
