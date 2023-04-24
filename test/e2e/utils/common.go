@@ -198,6 +198,10 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 		infinispan.Spec.Version = OperandVersion
 	}
 
+	if CPU != "" {
+		infinispan.Spec.Container.CPU = CPU
+	}
+
 	if initializer != nil {
 		initializer(infinispan)
 	}
