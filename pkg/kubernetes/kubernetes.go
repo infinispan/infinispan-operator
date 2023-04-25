@@ -344,8 +344,12 @@ func (k Kubernetes) ResourcesListByField(namespace, fieldName, fieldValue string
 	return err
 }
 
-func (k Kubernetes) Logs(pod, namespace string, ctx context.Context) (logs string, err error) {
-	readCloser, err := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log").Stream(ctx)
+func (k Kubernetes) Logs(pod, namespace string, previous bool, ctx context.Context) (logs string, err error) {
+	req := k.RestClient.Get().Namespace(namespace).Resource("pods").Name(pod).SubResource("log")
+	if previous {
+		req.Param("previous", "true")
+	}
+	readCloser, err := req.Stream(ctx)
 	if err != nil {
 		return "", err
 	}

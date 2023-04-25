@@ -222,15 +222,29 @@ func (k TestKubernetes) WriteAllResourcesToFile(dir, namespace, suffix string, l
 		yaml_, err := yaml.Marshal(item)
 		LogError(err)
 		if strings.Contains(reflect.TypeOf(list).String(), "PodList") {
-			log, err := k.Kubernetes.Logs(item.GetName(), namespace, context.TODO())
-			LogError(err)
 
-			err = os.WriteFile(dir+"/"+item.GetName()+".log", []byte(log), 0666)
-			LogError(err)
+			writeLog := func(previous bool) {
+				log, err := k.Kubernetes.Logs(item.GetName(), namespace, previous, context.TODO())
+				if previous && k8serrors.IsNotFound(err) {
+					return
+				}
+				LogError(err)
+
+				var suffix string
+				if previous {
+					suffix = ".previous"
+				}
+				fileName := fmt.Sprintf("%s/%s%s.log", dir, item.GetName(), suffix)
+				err = os.WriteFile(fileName, []byte(log), 0666)
+				LogError(err)
+			}
+			writeLog(true)
+			writeLog(false)
 		}
 
-		err = os.WriteFile(dir+"/"+item.GetName()+"-"+suffix+".yaml", []byte(string(yaml_)), 0666)
-		LogError(err)
+		LogError(
+			os.WriteFile(dir+"/"+item.GetName()+"-"+suffix+".yaml", yaml_, 0666),
+		)
 	}
 }
 
