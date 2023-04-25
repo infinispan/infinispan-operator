@@ -9,7 +9,7 @@ import (
 
 func LogError(err error) {
 	if err != nil {
-		fmt.Printf("Encountered error: %v", err)
+		fmt.Printf("Encountered error: %v\n", err)
 	}
 }
 

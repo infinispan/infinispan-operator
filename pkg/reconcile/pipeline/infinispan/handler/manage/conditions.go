@@ -164,7 +164,7 @@ func XSiteViewCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if crossSiteViewCondition.Status == metav1.ConditionTrue {
 		podName := podList.Items[0].Name
 		k8s := ctx.Kubernetes()
-		logs, err := k8s.Logs(podName, i.Namespace, ctx.Ctx())
+		logs, err := k8s.Logs(podName, i.Namespace, false, ctx.Ctx())
 		if err != nil {
 			ctx.Log().Error(err, fmt.Sprintf("Unable to retrive logs for i pod %s", podName))
 		}

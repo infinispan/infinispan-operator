@@ -254,7 +254,7 @@ func (r *batchRequest) waitToComplete() (reconcile.Result, error) {
 				if err != nil {
 					reason = err.Error()
 				} else {
-					reason, err = r.kubernetes.Logs(podName, batch.Namespace, r.ctx)
+					reason, err = r.kubernetes.Logs(podName, batch.Namespace, false, r.ctx)
 					if err != nil {
 						reason = fmt.Errorf("unable to retrive logs for batch %s: %w", batch.Name, err).Error()
 					}
