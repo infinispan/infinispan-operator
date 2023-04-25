@@ -64,6 +64,7 @@ func TestUpgrade(t *testing.T) {
 		// Ensure that FIPS is disabled when testing 13.0.x Operand
 		i.Spec.Container.CliExtraJvmOpts = "-Dcom.redhat.fips=false"
 		i.Spec.Container.ExtraJvmOpts = "-Dcom.redhat.fips=false"
+		i.Spec.Logging.Categories["org.infinispan.topology"] = ispnv1.LoggingLevelTrace
 	})
 	// Explicitly reset the Version so that it will be set by the Operator webhook
 	spec.Spec.Version = ""
