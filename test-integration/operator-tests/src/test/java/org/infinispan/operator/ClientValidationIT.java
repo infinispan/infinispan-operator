@@ -48,17 +48,17 @@ class ClientValidationIT {
       KeystoreGenerator.CertPaths ipsnCerts = KeystoreGenerator.generateCerts(hostName, new String[]{appName});
       KeystoreGenerator.CertPaths testServerCerts = KeystoreGenerator.generateCerts(testServerHost, new String[]{testServerName});
 
-      Secret ispnEncryptionSecret = new SecretBuilder("encryption-secret")
+      Secret ispnEncryptionSecret = new SecretBuilder("encryption-secret").addLabel("test", "ClientValidationIT")
               .addData("keystore.p12", ipsnCerts.keystore)
               .addData("alias", hostName.getBytes())
               .addData("password", "password".getBytes()).build();
-      Secret ispnAuthSecret = new SecretBuilder("connect-secret")
+      Secret ispnAuthSecret = new SecretBuilder("connect-secret").addLabel("test", "ClientValidationIT")
               .addData("identities.yaml", Paths.get("src/test/resources/secrets/identities.yaml")).build();
-      Secret ispnClientValidationSecret = new SecretBuilder(appName + "-client-cert-secret")
+      Secret ispnClientValidationSecret = new SecretBuilder(appName + "-client-cert-secret").addLabel("test", "ClientValidationIT")
               .addData("truststore.p12", KeystoreGenerator.getTruststore())
               .addData("truststore-password", "password".getBytes()).build();
 
-      Secret testServerEncryptionSecret = new SecretBuilder("test-server-cert-secret")
+      Secret testServerEncryptionSecret = new SecretBuilder("test-server-cert-secret").addLabel("test", "ClientValidationIT")
               .addData("keystore.p12", testServerCerts.keystore)
               .addData("truststore.p12", KeystoreGenerator.getTruststore()).build();
 
@@ -83,6 +83,7 @@ class ClientValidationIT {
    @AfterAll
    static void undeployAndVerifyIfSecretsExistUponDeletion() throws IOException {
       infinispan.delete();
+      testServer.delete();
 
       try{
          Assertions.assertThat(openShift.getSecret("encryption-secret")).isNotNull();
@@ -91,6 +92,8 @@ class ClientValidationIT {
       } finally {
          new CleanUpValidator(openShift, appName).withExposedRoute().validate();
       }
+
+      openShift.secrets().withLabel("test", "ClientAuthenticationIT").delete();
    }
 
    @Test

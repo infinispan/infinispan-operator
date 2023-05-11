@@ -42,7 +42,6 @@ import cz.xtf.core.waiting.Waiters;
 import cz.xtf.junit5.annotations.CleanBeforeAll;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Compared to MinimalSetupIT this set of tests are running
@@ -50,7 +49,6 @@ import lombok.extern.slf4j.Slf4j;
  *
  * Check datagrid_service.yaml Infinispan CR in test resources for input configuration.
  */
-@Slf4j
 @CleanBeforeAll
 class DataGridServiceIT {
    private static final OpenShift openShift = OpenShifts.master();
@@ -69,11 +67,11 @@ class DataGridServiceIT {
 
       certs = KeystoreGenerator.generateCerts(hostName, new String[]{appName});
 
-      Secret encryptionSecret = new SecretBuilder("encryption-secret")
+      Secret encryptionSecret = new SecretBuilder("encryption-secret").addLabel("test", "DataGridServiceIT")
             .addData("keystore.p12", certs.keystore)
             .addData("alias", hostName.getBytes())
             .addData("password", "password".getBytes()).build();
-      Secret authSecret = new SecretBuilder("connect-secret")
+      Secret authSecret = new SecretBuilder("connect-secret").addLabel("test", "DataGridServiceIT")
             .addData("identities.yaml", Paths.get("src/test/resources/secrets/identities.yaml")).build();
 
       openShift.secrets().create(encryptionSecret);
@@ -98,6 +96,8 @@ class DataGridServiceIT {
       infinispan.delete();
 
       new CleanUpValidator(openShift, appName).withExposedRoute().withServiceMonitor().validate();
+
+      openShift.secrets().withLabel("test", "DataGridServiceIT").delete();
    }
 
    /**

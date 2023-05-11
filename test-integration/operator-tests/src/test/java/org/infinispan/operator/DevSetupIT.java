@@ -22,14 +22,12 @@ import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
 import cz.xtf.junit5.annotations.CleanBeforeAll;
 import io.fabric8.kubernetes.api.model.Pod;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * DevSetupIT tests deployment setup for development purposes with disabled security and monitoring features
  *
  * Check dev_setup.yaml Infinispan CR in test resources for input configuration.
  */
-@Slf4j
 @CleanBeforeAll
 class DevSetupIT {
    private static final OpenShift openShift = OpenShifts.master();
@@ -61,6 +59,7 @@ class DevSetupIT {
    @AfterAll
    static void undeploy() throws IOException {
       infinispan.delete();
+      testServer.delete();
 
       new CleanUpValidator(openShift, appName).withExposedRoute().validate();
    }
