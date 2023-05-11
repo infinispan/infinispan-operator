@@ -6,12 +6,12 @@ import cz.xtf.core.openshift.OpenShiftWaiters;
 import cz.xtf.core.openshift.OpenShifts;
 import cz.xtf.junit5.annotations.CleanBeforeAll;
 import io.fabric8.kubernetes.api.model.*;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.maven.it.VerificationException;
 import org.apache.maven.it.Verifier;
 import org.assertj.core.api.Assertions;
 import org.infinispan.Infinispan;
 import org.infinispan.Infinispans;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Collections;
 
-@Slf4j
 @CleanBeforeAll
 public class CustomLibsIT {
     private static final OpenShift openShift = OpenShifts.master();
@@ -41,6 +40,14 @@ public class CustomLibsIT {
         infinispan.waitFor();
     }
 
+    @AfterAll
+    static void undeploy() throws Exception {
+        infinispan.delete();
+
+        openShift.pods().withLabel("app", "infinispan-libs").delete();
+        openShift.persistentVolumeClaims().withLabel("app", "infinispan-libs").delete();
+    }
+
     @Test
     void test() {
         Pod pod = openShift.getPod("custom-libs-0");
@@ -51,7 +58,7 @@ public class CustomLibsIT {
 
     private static void preparePVC() {
         PersistentVolumeClaimBuilder pvc = new PersistentVolumeClaimBuilder();
-        pvc.withNewMetadata().withName("infinispan-libs").endMetadata();
+        pvc.withNewMetadata().withName("infinispan-libs").addToLabels("app", "infinispan-libs").endMetadata();
         pvc.withNewSpec()
                 .withAccessModes("ReadWriteOnce")
                 .withNewResources().withRequests(Collections.singletonMap("storage", new Quantity("100Mi")))

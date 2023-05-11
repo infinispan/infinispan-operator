@@ -11,12 +11,12 @@ import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.openshift.api.model.operatorhub.v1.OperatorGroup;
 import io.fabric8.openshift.api.model.operatorhub.v1.OperatorGroupBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
-import lombok.extern.slf4j.Slf4j;
 import org.infinispan.Infinispan;
 import org.infinispan.Infinispans;
 import org.infinispan.crd.GrafanaContextProvider;
 import org.infinispan.crd.GrafanaDashboardContextProvider;
 import org.infinispan.crd.GrafanaDataSourceContextProvider;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -32,7 +32,6 @@ import java.util.function.BooleanSupplier;
  *
  * Prerequisites: Enabled user workload monitoring.
  */
-@Slf4j
 @Tag("unstable")
 public class MonitoringStackIT {
     private static final CustomResourceDefinitionContext gcp = new GrafanaContextProvider().getContext();
@@ -85,9 +84,6 @@ public class MonitoringStackIT {
         // Configure Infinispan Operator via ConfigMap and redeploy the Operator
         ConfigMap infinispanOperatorConfig = getInfinispanOperatorConfig(grafanaNamespace);
         operatorShift.configMaps().createOrReplace(infinispanOperatorConfig);
-
-        // Restart the Operator to recreate the Dashboard in the Grafana namespace
-        operatorShift.pods().withLabel("app.kubernetes.io/name", "infinispan-operator").delete();
     }
 
     static void createClusterRoleBindingForGrafana() {
@@ -102,6 +98,13 @@ public class MonitoringStackIT {
                 .build();
         crb.getSubjects().add(subject);
         grafanaShift.rbac().clusterRoleBindings().createOrReplace(crb);
+    }
+
+    @AfterAll
+    static void undeploy() throws IOException {
+        infinispan.delete();
+        grafanaShift.projects().withName(grafanaNamespace).delete();
+        operatorShift.configMaps().withName("infinispan-operator-config").delete();
     }
 
     /**

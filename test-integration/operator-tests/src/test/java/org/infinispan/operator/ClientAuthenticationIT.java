@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-
 @CleanBeforeAll
 class ClientAuthenticationIT {
    private static final OpenShift openShift = OpenShifts.master();
@@ -38,21 +37,21 @@ class ClientAuthenticationIT {
       KeystoreGenerator.CertPaths testServerCerts = KeystoreGenerator.generateCerts(testServerHost, new String[]{testServerName});
       KeystoreGenerator.CertPaths unknownCerts = KeystoreGenerator.generateCerts("unknownHostname");
 
-      Secret ispnEncryptionSecret = new SecretBuilder("encryption-secret")
+      Secret ispnEncryptionSecret = new SecretBuilder("encryption-secret").addLabel("test", "ClientAuthenticationIT")
               .addData("keystore.p12", ipsnCerts.keystore)
               .addData("alias", hostName.getBytes())
               .addData("password", "password".getBytes())
               .build();
-      Secret ispnClientValidationSecret = new SecretBuilder(appName + "-client-cert-secret")
+      Secret ispnClientValidationSecret = new SecretBuilder(appName + "-client-cert-secret").addLabel("test", "ClientAuthenticationIT")
               .addData("trust.ca", testServerCerts.caPem)
               .addData("trust.cert.client", testServerCerts.certPem)
               .build();
 
-      Secret testServerEncryptionSecret = new SecretBuilder("test-server-cert-secret")
+      Secret testServerEncryptionSecret = new SecretBuilder("test-server-cert-secret").addLabel("test", "ClientAuthenticationIT")
               .addData("keystore.p12", testServerCerts.keystore)
               .addData("truststore.p12", KeystoreGenerator.getTruststore())
               .build();
-      Secret testServerUnknownByServerSecret = new SecretBuilder("unknown-cert-secret")
+      Secret testServerUnknownByServerSecret = new SecretBuilder("unknown-cert-secret").addLabel("test", "ClientAuthenticationIT")
               .addData("keystore.p12", unknownCerts.keystore)
               .addData("truststore.p12", unknownCerts.truststore)
               .build();
@@ -74,6 +73,7 @@ class ClientAuthenticationIT {
    @AfterAll
    static void undeployAndVerifyIfSecretsExistUponDeletion() throws IOException {
       infinispan.delete();
+      testServer.delete();
 
       try{
          Assertions.assertThat(openShift.getSecret("encryption-secret")).isNotNull();
@@ -81,6 +81,8 @@ class ClientAuthenticationIT {
       } finally {
          new CleanUpValidator(openShift, appName).withExposedRoute().validate();
       }
+
+      openShift.secrets().withLabel("test", "ClientAuthenticationIT").delete();
    }
 
    @Test

@@ -81,6 +81,7 @@ class CacheServiceIT {
    @AfterAll
    static void undeploy() throws IOException {
       infinispan.delete();
+      testServer.delete();
 
       new CleanUpValidator(openShift, appName).withExposedRoute().withDefaultCredentials().withOpenShiftCerts().withServiceMonitor().validate();
    }

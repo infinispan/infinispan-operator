@@ -53,6 +53,12 @@ public class TestServer {
       testApp.buildApplication().deploy();
    }
 
+   public void delete() {
+      openShift.deploymentConfigs().withLabel("app", name).delete();
+      openShift.services().withLabel("app", name).delete();
+      openShift.routes().withLabel("app", name).delete();
+   }
+
    public String host() {
       return openShift.generateHostname(name);
    }
@@ -66,10 +72,10 @@ public class TestServer {
       ManagedBuildReference mbr = bm.getBuildReference(build);
 
       ApplicationBuilder appBuilder = new ApplicationBuilder(name);
-      appBuilder.deploymentConfig().onConfigurationChange().onImageChange();
+      appBuilder.deploymentConfig().addLabel("app", name).onConfigurationChange().onImageChange();
       appBuilder.deploymentConfig().podTemplate().container().fromImage(mbr.getNamespace(), mbr.getStreamName()).port(8080);
-      appBuilder.service().port(8080);
-      appBuilder.route();
+      appBuilder.service().addLabel("app", name).port(8080);
+      appBuilder.route().addLabel("app", name);
 
       return appBuilder;
    }
