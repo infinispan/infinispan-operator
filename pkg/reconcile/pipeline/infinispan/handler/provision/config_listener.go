@@ -2,6 +2,7 @@ package provision
 
 import (
 	"fmt"
+	"reflect"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -73,7 +74,23 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					return
 				}
 			}
-			// The Deployment already exists with the expected image, log level and number of replicas, do nothing
+
+			if podResources, err := podResources(i); err != nil {
+				ctx.Requeue(fmt.Errorf("unable to calculate ConfigListener pod resources on update: %w", err))
+				return
+			} else if !reflect.DeepEqual(*podResources, container.Resources) {
+				err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
+					container = kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
+					container.Resources = *podResources
+				})
+
+				if err != nil {
+					ctx.Requeue(fmt.Errorf("unable to update ConfigListener resources: %w", err))
+					return
+				}
+			}
+
+			// The Deployment already exists with the expected spec, do nothing
 			return
 		}
 	}

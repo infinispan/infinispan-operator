@@ -8,7 +8,7 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	testifyAssert "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -42,10 +42,10 @@ func TestConfigListenerDeployment(t *testing.T) {
 	clName, namespace := ispn.GetConfigListenerName(), ispn.Namespace
 	deployment := testKube.WaitForDeployment(clName, namespace)
 	container := kube.GetContainer(provision.InfinispanListenerContainer, &deployment.Spec.Template.Spec)
-	testifyAssert.Equal(t, resource.MustParse("512Mi"), *container.Resources.Limits.Memory())
-	testifyAssert.Equal(t, resource.MustParse("256Mi"), *container.Resources.Requests.Memory())
-	testifyAssert.Equal(t, resource.MustParse("900m"), *container.Resources.Limits.Cpu())
-	testifyAssert.Equal(t, resource.MustParse("500m"), *container.Resources.Requests.Cpu())
+	assert.Equal(t, resource.MustParse("512Mi"), *container.Resources.Limits.Memory())
+	assert.Equal(t, resource.MustParse("256Mi"), *container.Resources.Requests.Memory())
+	assert.Equal(t, resource.MustParse("900m"), *container.Resources.Limits.Cpu())
+	assert.Equal(t, resource.MustParse("500m"), *container.Resources.Requests.Cpu())
 
 	gvk, err := apiutil.GVKForObject(ispn, tutils.Scheme)
 	tutils.ExpectNoError(err)
@@ -53,8 +53,8 @@ func TestConfigListenerDeployment(t *testing.T) {
 		namespacedName := types.NamespacedName{Name: ispn.GetConfigListenerName(), Namespace: ispn.Namespace}
 		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, obj))
 		owner := metav1.GetControllerOf(obj)
-		testifyAssert.NotNil(t, owner)
-		testifyAssert.Equal(t, gvk.Kind, owner.Kind)
+		assert.NotNil(t, owner)
+		assert.Equal(t, gvk.Kind, owner.Kind)
 	}
 
 	assertOwner(&appsv1.Deployment{})
@@ -98,6 +98,29 @@ func TestConfigListenerDeployment(t *testing.T) {
 		logLevel := container.Args[len(container.Args)-1]
 		return deployment.Status.ObservedGeneration == 2 && logLevel == string(v1.ConfigListenerLoggingInfo)
 	})
+
+	// Update the ConfigListener CPU and Memory level to ensure that the deployment is updated
+	ispn = testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, v1.ConditionWellFormed)
+	err = testKube.UpdateInfinispan(ispn, func() {
+		ispn.Spec.ConfigListener.CPU = "900m"
+		ispn.Spec.ConfigListener.Memory = "512Mi"
+	})
+	tutils.ExpectNoError(err)
+	deployment = testKube.WaitForDeploymentState(clName, namespace, func(deployment *appsv1.Deployment) bool {
+		return deployment.Status.ObservedGeneration == 3
+	})
+
+	cpuLimit, cpuRequest, err := ispn.Spec.ConfigListener.CpuResources()
+	tutils.ExpectNoError(err)
+
+	memLimit, memRequest, err := ispn.Spec.ConfigListener.MemoryResources()
+	tutils.ExpectNoError(err)
+
+	container = kube.GetContainer(provision.InfinispanListenerContainer, &deployment.Spec.Template.Spec)
+	assert.Equal(t, cpuLimit, container.Resources.Limits[corev1.ResourceCPU])
+	assert.Equal(t, cpuRequest, container.Resources.Requests[corev1.ResourceCPU])
+	assert.Equal(t, memLimit, container.Resources.Limits[corev1.ResourceMemory])
+	assert.Equal(t, memRequest, container.Resources.Requests[corev1.ResourceMemory])
 
 	// Ensure that deployment is deleted with the Infinispan CR
 	testKube.DeleteInfinispan(ispn)
