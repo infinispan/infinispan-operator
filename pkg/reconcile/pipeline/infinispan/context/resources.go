@@ -128,7 +128,8 @@ func (r resources) load(name string, obj client.Object, load func() error, opts 
 		}
 
 		if config.RetryOnErr {
-			r.Requeue(err)
+			// Set NotFound errors to nil so that the Operator logs are not populated with unuseful NotFound stacktraces
+			r.Requeue(client.IgnoreNotFound(err))
 		}
 
 		if isNotFound && !config.SkipEventRec {
