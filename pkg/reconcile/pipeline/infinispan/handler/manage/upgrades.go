@@ -28,9 +28,7 @@ func InitialiseOperandVersion(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ctx.UpdateInfinispan(func() {
 				// Utilise the oldest Operand as this is the Operand provided by the Operator prior to Multi-Operand support
 				i.Spec.Version = operandRef
-				i.Status.Operand.Image = operand.Image
-				i.Status.Operand.Phase = ispnv1.OperandPhaseRunning
-				i.Status.Operand.Version = operandRef
+				i.Status.Operand = OperandStatus(i, ispnv1.OperandPhaseRunning, operand)
 			}),
 		)
 	} else if _, err := ctx.Operands().WithRef(i.Spec.Version); err != nil {
@@ -56,13 +54,7 @@ func ScheduleGracefulShutdownUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context)
 			ctx.UpdateInfinispan(func() {
 				i.SetCondition(ispnv1.ConditionUpgrade, metav1.ConditionTrue, "")
 				i.Spec.Replicas = 0
-				i.Status.Operand = ispnv1.OperandStatus{}
-				requestedOperand := ctx.Operand()
-				i.Status.Operand = ispnv1.OperandStatus{
-					Image:   requestedOperand.Image,
-					Phase:   ispnv1.OperandPhasePending,
-					Version: requestedOperand.Ref(),
-				}
+				i.Status.Operand = OperandStatus(i, ispnv1.OperandPhasePending, ctx.Operand())
 			}),
 		)
 	}

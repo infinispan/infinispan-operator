@@ -61,11 +61,7 @@ func ScheduleHotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			SourceVersion:         i.Status.Operand.Version,
 			TargetStatefulSetName: getOrCreateTargetStatefulSetName(i),
 		}
-		i.Status.Operand = ispnv1.OperandStatus{
-			Phase:   ispnv1.OperandPhasePending,
-			Image:   requestedOperand.Image,
-			Version: requestedOperand.Ref(),
-		}
+		i.Status.Operand = OperandStatus(i, ispnv1.OperandPhasePending, requestedOperand)
 	})
 	if err != nil {
 		log.Error(err, "unable to create initial Hot Rod status")
@@ -551,9 +547,7 @@ func (r *HotRodRollingUpgradeRequest) rollback() error {
 		rollingUpgradeStatus := r.i.Status.HotRodRollingUpgradeStatus
 		r.i.Status.StatefulSetName = rollingUpgradeStatus.SourceStatefulSetName
 		sourceOperand, _ := ctx.Operands().WithRef(rollingUpgradeStatus.SourceVersion)
-		r.i.Status.Operand.Image = sourceOperand.Image
-		r.i.Status.Operand.Phase = ispnv1.OperandPhaseRunning
-		r.i.Status.Operand.Version = sourceOperand.Ref()
+		r.i.Status.Operand = OperandStatus(r.i, ispnv1.OperandPhaseRunning, sourceOperand)
 		r.i.Status.HotRodRollingUpgradeStatus = nil
 	})
 

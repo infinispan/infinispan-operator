@@ -7,6 +7,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,12 +35,7 @@ func PreliminaryChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				// Ensure that CR has all the operator required labels
 				i.ApplyOperatorMeta(ctx.DefaultLabels(), ctx.DefaultAnnotations())
 				i.SetCondition(ispnv1.ConditionPrelimChecksPassed, metav1.ConditionTrue, "")
-				requestedOperand := ctx.Operand()
-				i.Status.Operand = ispnv1.OperandStatus{
-					Image:   requestedOperand.Image,
-					Phase:   ispnv1.OperandPhasePending,
-					Version: requestedOperand.Ref(),
-				}
+				i.Status.Operand = OperandStatus(i, ispnv1.OperandPhasePending, ctx.Operand())
 			}),
 		)
 	}
@@ -218,4 +214,19 @@ func getCrossSiteViewCondition(ctx pipeline.Context, podList *corev1.PodList, si
 		}
 	}
 	return &ispnv1.InfinispanCondition{Type: ispnv1.ConditionCrossSiteViewFormed, Status: metav1.ConditionFalse, Message: "Coordinator not ready"}, nil
+}
+
+func OperandStatus(i *ispnv1.Infinispan, phase ispnv1.OperandPhase, operand version.Operand) ispnv1.OperandStatus {
+	var img string
+	if i.Spec.Image != nil {
+		img = *i.Spec.Image
+	} else {
+		img = operand.Image
+	}
+
+	return ispnv1.OperandStatus{
+		Image:   img,
+		Phase:   phase,
+		Version: operand.Ref(),
+	}
 }
