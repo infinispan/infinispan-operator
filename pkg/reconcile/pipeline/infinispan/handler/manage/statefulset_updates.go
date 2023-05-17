@@ -86,9 +86,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		container.Image = requestedOperand.Image
 
 		err := ctx.UpdateInfinispan(func() {
-			i.Status.Operand.Version = requestedOperand.Ref()
-			i.Status.Operand.Image = requestedOperand.Image
-			i.Status.Operand.Phase = ispnv1.OperandPhasePending
+			i.Status.Operand = OperandStatus(i, ispnv1.OperandPhasePending, requestedOperand)
 		})
 		if err != nil {
 			return

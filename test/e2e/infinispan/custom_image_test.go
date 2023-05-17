@@ -25,7 +25,8 @@ func TestCustomImage(t *testing.T) {
 
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	assert.Equal(t, img, ispn.Status.Operand.Image)
 
 	ss := &appsv1.StatefulSet{}
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.GetStatefulSetName()}, ss))
