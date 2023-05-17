@@ -3,7 +3,7 @@ set -e
 
 KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
-IMG_REGISTRY=${IMG_REGISTRY-"localhost:5000"}
+IMG_REGISTRY=${IMG_REGISTRY-"localhost:5001"}
 
 export CHANNELS=2.3.x
 export DEFAULT_CHANNEL=2.3.x

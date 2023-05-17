@@ -10,7 +10,7 @@ docker network create kind --subnet "${KIND_SUBNET}/16" || true
 
 # create registry container unless it already exists
 reg_name='kind-registry'
-reg_port=${KIND_PORT-'5000'}
+reg_port=${KIND_PORT-'5001'}
 running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
 if [ "${running}" != 'true' ]; then
   docker run \
@@ -25,7 +25,7 @@ apiVersion: kind.x-k8s.io/v1alpha4
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
-    endpoint = ["http://${reg_name}:${reg_port}"]
+    endpoint = ["http://${reg_name}:5000"]
 nodes:
   - role: control-plane
     image: quay.io/infinispan-test/kindest-node:${KINDEST_NODE_VERSION}
