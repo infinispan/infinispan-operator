@@ -79,7 +79,8 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	// Check if the base-image has been upgraded due to a CVE
 	requestedOperand := ctx.Operand()
-	if requestedOperand.CVE && container.Image != requestedOperand.Image {
+	userProvidedImage := i.Spec.Image != nil
+	if !userProvidedImage && requestedOperand.CVE && container.Image != requestedOperand.Image {
 		ctx.Log().Info(fmt.Sprintf("CVE release '%s'. StatefulSet Rolling upgrade required", requestedOperand.Ref()))
 		updateNeeded = true
 		container.Image = requestedOperand.Image
