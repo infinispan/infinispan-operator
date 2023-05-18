@@ -78,7 +78,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			if podResources, err := podResources(i); err != nil {
 				ctx.Requeue(fmt.Errorf("unable to calculate ConfigListener pod resources on update: %w", err))
 				return
-			} else if !reflect.DeepEqual(*podResources, container.Resources) {
+			} else if podResources != nil && !reflect.DeepEqual(*podResources, container.Resources) {
 				err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
 					container = kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
 					container.Resources = *podResources
