@@ -2,6 +2,7 @@ package infinispan
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -19,6 +20,14 @@ func TestCustomImage(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	img := "quay.io/infinispan/server:latest"
+
+	// Attempting to use latest Infinispan Server image while having version set to different major will result in misconfiguration by Operator
+	if tutils.OperandVersion != "" {
+		operand, _ := tutils.VersionManager().WithRef(tutils.OperandVersion)
+		version := operand.UpstreamVersion
+		img = "quay.io/infinispan/server:" + strconv.FormatUint(version.Major, 10) + "." + strconv.FormatUint(version.Minor, 10)
+	}
+
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Image = pointer.String(img)
 	})
