@@ -105,6 +105,7 @@ public class MonitoringStackIT {
         infinispan.delete();
         grafanaShift.projects().withName(grafanaNamespace).delete();
         operatorShift.configMaps().withName("infinispan-operator-config").delete();
+        clusterShift.events().delete();
     }
 
     /**

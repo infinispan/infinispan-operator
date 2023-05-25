@@ -83,6 +83,7 @@ class ClientAuthenticationIT {
       }
 
       openShift.secrets().withLabel("test", "ClientAuthenticationIT").delete();
+      openShift.events().delete();
    }
 
    @Test

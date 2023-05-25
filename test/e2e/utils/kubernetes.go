@@ -202,6 +202,12 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod", "infinispan_cr": specLabel["test-name"]})}, nil)
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
 		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-router-pod"})}, nil)
+
+		// Remove the events otherwise we are storing the events for unrelated tests in case of failure
+		optsEvents := []client.DeleteAllOfOption{
+			client.InNamespace(namespace),
+		}
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &corev1.Event{}, optsEvents...))
 	}
 
 	if t != nil && panicVal != nil {

@@ -46,6 +46,7 @@ public class CustomLibsIT {
 
         openShift.pods().withLabel("app", "infinispan-libs").delete();
         openShift.persistentVolumeClaims().withLabel("app", "infinispan-libs").delete();
+        openShift.events().delete();
     }
 
     @Test
