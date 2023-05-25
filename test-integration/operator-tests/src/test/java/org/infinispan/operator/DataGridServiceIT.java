@@ -98,6 +98,7 @@ class DataGridServiceIT {
       new CleanUpValidator(openShift, appName).withExposedRoute().withServiceMonitor().validate();
 
       openShift.secrets().withLabel("test", "DataGridServiceIT").delete();
+      openShift.events().delete();
    }
 
    /**

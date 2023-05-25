@@ -84,6 +84,8 @@ class CacheServiceIT {
       testServer.delete();
 
       new CleanUpValidator(openShift, appName).withExposedRoute().withDefaultCredentials().withOpenShiftCerts().withServiceMonitor().validate();
+
+      openShift.events().delete();
    }
 
    /**

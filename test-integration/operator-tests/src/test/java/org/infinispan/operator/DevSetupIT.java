@@ -62,6 +62,8 @@ class DevSetupIT {
       testServer.delete();
 
       new CleanUpValidator(openShift, appName).withExposedRoute().validate();
+
+      openShift.events().delete();
    }
 
    /**
