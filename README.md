@@ -35,13 +35,6 @@ make deploy-cert-manager
 ```
 
 ## Development
-
-If you haven't done that, pull the Infinispan server image to the local (Docker or Podman) registry. For instance:
-
-```sh
-docker pull quay.io/infinispan/server:13.0
-```
-
 Build the Operator image and deploy to a cluster:
 
 ```sh
