@@ -20,6 +20,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/utils/pointer"
@@ -390,4 +391,12 @@ func HTTPSClientForCluster(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *Te
 		}
 	}
 	return kube.WaitForExternalService(i, RouteTimeout, client)
+}
+
+func AssumeGVKAvailable(t *testing.T, testKube *TestKubernetes, gvk schema.GroupVersionKind) {
+	if exists, err := testKube.Kubernetes.IsGroupVersionKindSupported(gvk); err != nil {
+		t.Error(err)
+	} else if !exists {
+		t.Skipf("%s not available. Skipping test", gvk)
+	}
 }

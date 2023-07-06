@@ -60,6 +60,17 @@ func (c *Client) Post(path, payload string, headers map[string]string) (*http.Re
 	return c.executeCurlCommand(path, headers, data, "-X POST")
 }
 
+func (c *Client) PostForm(path string, headers map[string]string, values map[string]string) (*http.Response, error) {
+	data := make([]string, len(values)*2)
+	i := 0
+	for k, v := range values {
+		data[i] = "-F"
+		data[i+1] = fmt.Sprintf("%s=\"%s\"", k, v)
+		i += 2
+	}
+	return c.executeCurlCommand(path, headers, data...)
+}
+
 func (c *Client) PostMultipart(path string, parts map[string]string, headers map[string]string) (*http.Response, error) {
 	var data string
 	for k, v := range parts {

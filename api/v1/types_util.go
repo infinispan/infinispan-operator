@@ -941,3 +941,11 @@ func (ispn *Infinispan) LaunchGossipRouterEnabled() bool {
 func (ispn *Infinispan) IsGossipRouterEnabled() bool {
 	return ispn.CrossSiteDiscoveryType() == GossipRouterType && ispn.LaunchGossipRouterEnabled()
 }
+
+func (ispn *Infinispan) IsCryostatEnabled() bool {
+	return ispn.Spec.Cryostat != nil && ispn.Spec.Cryostat.Enabled
+}
+
+func (ispn *Infinispan) GetCryostatName() string {
+	return fmt.Sprintf("%s-cs", ispn.Name)
+}

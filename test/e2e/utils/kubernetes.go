@@ -17,6 +17,7 @@ import (
 	ispnv2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/launcher/operator"
+	cryostatv1beta1 "github.com/infinispan/infinispan-operator/pkg/apis/cryostat/v1beta1"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
@@ -67,6 +68,7 @@ func init() {
 	addToScheme(&appsv1.SchemeBuilder, Scheme)
 	addToScheme(&storagev1.SchemeBuilder, Scheme)
 	ExpectNoError(routev1.AddToScheme(Scheme))
+	ExpectNoError(cryostatv1beta1.AddToScheme(Scheme))
 }
 
 func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {

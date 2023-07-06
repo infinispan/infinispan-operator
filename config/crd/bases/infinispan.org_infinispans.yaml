@@ -708,6 +708,14 @@ spec:
                   routerExtraJvmOpts:
                     type: string
                 type: object
+              cryostat:
+                properties:
+                  enabled:
+                    description: If true, a JMX endpoint is exposed on the admin service
+                      and a Cryostat CR is created to allow JFR recordings to be created
+                      via the UI
+                    type: boolean
+                type: object
               dependencies:
                 description: External dependencies needed by the Infinispan cluster
                 properties:

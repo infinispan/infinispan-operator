@@ -106,6 +106,10 @@ func (c *httpClientConfig) Put(path, payload string, headers map[string]string) 
 	return c.exec("PUT", path, payload, headers)
 }
 
+func (c *httpClientConfig) PostForm(path string, headers map[string]string, values map[string]string) (*http.Response, error) {
+	return nil, errors.New("postForm support needs to be implemented")
+}
+
 func (c *httpClientConfig) PostMultipart(path string, parts map[string]string, headers map[string]string) (*http.Response, error) {
 	return nil, errors.New("multipart support needs to be implemented")
 }

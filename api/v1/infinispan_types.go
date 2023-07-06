@@ -401,6 +401,13 @@ type ConfigListenerLoggingSpec struct {
 	Level ConfigListenerLogLevel `json:"level"`
 }
 
+type CryostatSpec struct {
+	// If true, a JMX endpoint is exposed on the admin service and a Cryostat CR is created to allow JFR recordings to be created via the UI
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Cryostat",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	Enabled bool `json:"enabled,omitempty"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	// The number of nodes in the Infinispan cluster.
@@ -437,6 +444,8 @@ type InfinispanSpec struct {
 	Upgrades *InfinispanUpgradesSpec `json:"upgrades,omitempty"`
 	// +optional
 	ConfigListener *ConfigListenerSpec `json:"configListener,omitempty"`
+	// +optional
+	Cryostat *CryostatSpec `json:"cryostat,omitempty"`
 }
 
 // InfinispanUpgradesSpec defines the Infinispan upgrade strategy

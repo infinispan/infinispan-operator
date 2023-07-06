@@ -10,8 +10,8 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -426,16 +426,8 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 
 	// Check if Route is available
 	if exposeType == ispnv1.CrossSiteExposeTypeRoute {
-		okRoute, err := tesKubes["xsite1"].kube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
-		tutils.ExpectNoError(err)
-		if !okRoute {
-			t.Skip("Route not available. Skipping test")
-		}
-		okRoute, err = tesKubes["xsite2"].kube.Kubernetes.IsGroupVersionSupported(routev1.SchemeGroupVersion.String(), "Route")
-		tutils.ExpectNoError(err)
-		if !okRoute {
-			t.Skip("Route not available. Skipping test")
-		}
+		tutils.AssumeGVKAvailable(t, tesKubes["xsite1"].kube, pipeline.RouteGVK)
+		tutils.AssumeGVKAvailable(t, tesKubes["xsite2"].kube, pipeline.RouteGVK)
 	}
 
 	if tlsMode == DefaultTLS {

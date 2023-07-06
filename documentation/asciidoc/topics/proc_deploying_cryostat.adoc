@@ -1,0 +1,45 @@
+[id='deploying-cryostat_{context}']
+= Setting up JFR recordings with Cryostat
+Enable JDK Flight Recorder (JFR) monitoring for your {brandname} clusters that run on {k8s}.
+
+.JFR recordings with Cryostat
+JFR provides insights into various aspects of JVM performance to ease cluster inspection and debugging.
+Depending on your requirements, you can store and analyze your recordings using the integrated tools provided by Cryostat or export the recordings to an external monitoring application.
+
+When you enable Cryostat for {brandname} cluster, the following occurs:
+
+. Each {brandname} server pod exposes an authenticated JMX endpoint utilizing the "admin" security-realm, which includes the Operator user credentials.
+
+. {ispn_operator} creates a `Cryostat` CR in the cluster namespace. The Cryostat Operator then reconciles the CR to create a dedicated Cryostat instance for the {brandname} cluster.
+
+.Prerequisites
+
+* Install the Cryostat Operator. You can install the Cryostat Operator in your {k8s} project by using Operator Lifecycle Manager (OLM).
+
+.Procedure
+
+. Enable Cryostat in your `Infinispan` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/infinispan-cryostat-enabled.yaml[]
+----
+
+. Wait for the `Cryostat` CR to be ready.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc} wait -n <namespace> --for=condition=MainDeploymentAvailable cryostat/test-cryostat-provisioning-cs
+----
+
+. Open the Cryostat application URL.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc} -n <namespace> get cryostat {example_crd_name}-cs
+----
+
+. Inspect {brandname} pods as required.
+
+.Additional resources
+* link:{crystat_installation}

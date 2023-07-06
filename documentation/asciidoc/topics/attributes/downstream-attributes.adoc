@@ -22,3 +22,8 @@
 //
 :kube_client: oc
 :native_cli: redhat-datagrid-cli
+
+//
+// External links
+//
+:crystat_installation: https://access.redhat.com/documentation/en-us/red_hat_build_of_cryostat/2/html/installing_cryostat/index[Installing Cryostat]

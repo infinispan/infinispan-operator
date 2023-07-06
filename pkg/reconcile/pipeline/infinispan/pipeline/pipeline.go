@@ -192,11 +192,13 @@ func (b *builder) Build() pipeline.Pipeline {
 			provision.ClusterStatefulSet,
 			provision.ServiceMonitor,
 		)
+		handlers.AddFeatureSpecific(i.IsCryostatEnabled(), provision.Cryostat)
 		handlers.AddFeatureSpecific(i.IsExposed(), provision.ExternalService)
 	}
 
 	// Manage the created Cluster
 	handlers.Add(manage.PodStatus)
+	handlers.AddFeatureSpecific(i.IsCryostatEnabled(), manage.CryostatCredentials)
 	handlers.AddFeatureSpecific(i.HotRodRollingUpgrades(), manage.HotRodRollingUpgrade)
 	handlers.AddFeatureSpecific(i.GracefulShutdownUpgrades(), manage.GracefulShutdownUpgrade)
 	handlers.Add(

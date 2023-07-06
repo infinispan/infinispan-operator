@@ -139,6 +139,10 @@ func (i *Infinispan) Default() {
 			i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter = pointer.Bool(true)
 		}
 	}
+
+	if i.Spec.Cryostat == nil {
+		i.Spec.Cryostat = &CryostatSpec{}
+	}
 }
 
 // +kubebuilder:webhook:path=/validate-infinispan-org-v1-infinispan,mutating=false,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=infinispans,verbs=create;update,versions=v1,name=vinfinispan.kb.io,admissionReviewVersions={v1,v1beta1}
@@ -183,6 +187,10 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 				}
 			}
 		}
+	}
+
+	if old.Spec.Cryostat != nil && old.Spec.Cryostat.Enabled != i.Spec.Cryostat.Enabled {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("cryostat"), "Cryostat configuration is immutable and cannot be updated after initial Infinispan creation"))
 	}
 	return errorListToError(i, allErrs)
 }

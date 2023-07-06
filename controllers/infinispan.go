@@ -80,7 +80,7 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 	}
 
 	r.supportedTypes = make(map[schema.GroupVersionKind]struct{}, 3)
-	for _, gvk := range []schema.GroupVersionKind{infinispan.IngressGVK, infinispan.RouteGVK, infinispan.ServiceMonitorGVK} {
+	for _, gvk := range []schema.GroupVersionKind{infinispan.IngressGVK, infinispan.RouteGVK, infinispan.ServiceMonitorGVK, infinispan.CryostatGVK} {
 		// Validate that GroupVersionKind is supported on runtime platform
 		ok, err := kubernetes.IsGroupVersionKindSupported(gvk)
 		if err != nil {

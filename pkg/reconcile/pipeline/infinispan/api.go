@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	cryostat "github.com/infinispan/infinispan-operator/pkg/apis/cryostat/v1beta1"
 	ispnApi "github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
@@ -216,6 +217,7 @@ func SkipEventRec(config *ResourcesConfig) {
 // ConfigFiles is used to hold all configuration required by the Operand in provisioned resources
 type ConfigFiles struct {
 	ConfigSpec             config.Spec
+	Jmx                    bool
 	ServerAdminConfig      string
 	ServerBaseConfig       string
 	ZeroConfig             string
@@ -289,4 +291,5 @@ var (
 	RouteGVK          = routev1.SchemeGroupVersion.WithKind("Route")
 	IngressGVK        = ingressv1.SchemeGroupVersion.WithKind("Ingress")
 	ServiceMonitorGVK = monitoringv1.SchemeGroupVersion.WithKind("ServiceMonitor")
+	CryostatGVK       = cryostat.GroupVersion.WithKind("Cryostat")
 )

@@ -110,6 +110,11 @@ spec:
         - urn:alm:descriptor:com.tectonic.ui:select:debug
         - urn:alm:descriptor:com.tectonic.ui:select:info
         - urn:alm:descriptor:com.tectonic.ui:select:error
+      - description: If true, a JMX endpoint is exposed on the admin service and a Cryostat CR is created to allow JFR recordings to be created via the UI
+        displayName: Toggle Cryostat
+        path: cryostat.enabled
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
       - description: The Persistent Volume Claim that holds custom libraries
         displayName: Persistent Volume Claim Name
         path: dependencies.volumeClaimName

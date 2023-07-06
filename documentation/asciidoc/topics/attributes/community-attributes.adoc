@@ -78,3 +78,5 @@
 
 //Helm chart
 :helm_chart_docs: https://infinispan.org/docs/helm-chart/main/helm-chart.html
+
+:crystat_installation: https://cryostat.io/get-started/#installing-cryostat-operator[Installing Cryostat Operator]

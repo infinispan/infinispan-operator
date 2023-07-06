@@ -82,14 +82,24 @@ func AdminService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		svc.Spec.Selector = i.ServiceSelectorLabels()
 		// We must utilise the existing ServicePort values if updating the service, to prevent the created ports being overwritten
 		if svc.CreationTimestamp.IsZero() {
-			svc.Spec.Ports = []corev1.ServicePort{{}}
+			if i.IsCryostatEnabled() {
+				svc.Spec.Ports = []corev1.ServicePort{{}, {}}
+			} else {
+				svc.Spec.Ports = []corev1.ServicePort{{}}
+			}
 			// If an upgrade is in progress, we wait for the GracefulShutdown to destroy the old admin service before
 			// defining a new one with ClusterIpNone
 			svc.Spec.ClusterIP = corev1.ClusterIPNone
 		}
-		servicePort := &svc.Spec.Ports[0]
-		servicePort.Name = consts.InfinispanAdminPortName
-		servicePort.Port = consts.InfinispanAdminPort
+		singlePort := &svc.Spec.Ports[0]
+		singlePort.Name = consts.InfinispanAdminPortName
+		singlePort.Port = consts.InfinispanAdminPort
+
+		if i.IsCryostatEnabled() {
+			cryostatPort := &svc.Spec.Ports[1]
+			cryostatPort.Name = consts.InfinispanJmxPortName
+			cryostatPort.Port = consts.InfinispanJmxPort
+		}
 		return nil
 	}
 	_, _ = ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr)

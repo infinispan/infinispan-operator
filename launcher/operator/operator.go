@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/infinispan/infinispan-operator/controllers"
+	cryostatv1beta1 "github.com/infinispan/infinispan-operator/pkg/apis/cryostat/v1beta1"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -44,6 +46,7 @@ func init() {
 	utilruntime.Must(ingressv1.AddToScheme(scheme))
 	utilruntime.Must(monitoringv1.AddToScheme(scheme))
 	utilruntime.Must(grafanav1alpha1.AddToScheme(scheme))
+	utilruntime.Must(cryostatv1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
