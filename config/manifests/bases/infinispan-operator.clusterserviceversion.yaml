@@ -121,6 +121,11 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
         - urn:alm:descriptor:com.tectonic.ui:fieldDependency:expose.type:Route
+      - description: If true, a JMX endpoint is exposed on the admin service
+        displayName: Toggle Jmx
+        path: jmx.enabled
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
       - description: The number of nodes in the Infinispan cluster.
         displayName: Replicas
         path: replicas

@@ -401,6 +401,13 @@ type ConfigListenerLoggingSpec struct {
 	Level ConfigListenerLogLevel `json:"level"`
 }
 
+type JmxSpec struct {
+	// If true, a JMX endpoint is exposed on the admin service
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Jmx",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	Enabled bool `json:"enabled,omitempty"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	// The number of nodes in the Infinispan cluster.
@@ -437,6 +444,8 @@ type InfinispanSpec struct {
 	Upgrades *InfinispanUpgradesSpec `json:"upgrades,omitempty"`
 	// +optional
 	ConfigListener *ConfigListenerSpec `json:"configListener,omitempty"`
+	// +optional
+	Jmx *JmxSpec `json:"jmx,omitempty"`
 }
 
 // InfinispanUpgradesSpec defines the Infinispan upgrade strategy

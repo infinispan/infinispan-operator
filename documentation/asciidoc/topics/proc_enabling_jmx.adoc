@@ -1,0 +1,30 @@
+[id='enabling-jmx_{context}']
+= Enabling JMX remote ports for {brandname} clusters
+Enable JMX remote ports to expose {brandname} MBeans and to integrate {brandname} with external monitoring systems such as Cryostat.
+
+When you enable JMX for {brandname} cluster, the following occurs:
+
+. Each {brandname} server pod exposes an authenticated JMX endpoint on port `9999` utilizing the "admin" security-realm, which includes the Operator user credentials.
+
+. The `<cluster-name>-admin` Service exposes port `9999`.
+
+NOTE: You can enable or disable JMX only during the creation of the `Infinispan` CR. Once the CR instance is created, you cannot modify the JMX settings.
+
+.Procedure
+
+. Enable JMX in your `Infinispan` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/infinispan-jmx-enabled.yaml[]
+----
+
+. Retrieve the Operator user credentials to authenticate client JMX connections.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_get_secret_operator_creds_jp.adoc[]
+----
+
+.Additional resources
+* link:{server_docs}#statistics-jmx[Enabling JMX statistics]

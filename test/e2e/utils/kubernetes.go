@@ -586,8 +586,8 @@ func isTemporary(err error) bool {
 	return errors.As(err, &temporary) || errors.As(err, &timeout)
 }
 
-func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) {
-	k.WaitForPods(required, timeout, &client.ListOptions{
+func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) *corev1.PodList {
+	return k.WaitForPods(required, timeout, &client.ListOptions{
 		Namespace:     namespace,
 		LabelSelector: labels.SelectorFromSet(map[string]string{"clusterName": cluster, "app": "infinispan-pod"}),
 	}, nil)

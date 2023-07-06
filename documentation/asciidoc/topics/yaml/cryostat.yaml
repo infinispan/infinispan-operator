@@ -1,0 +1,7 @@
+apiVersion: operator.cryostat.io/v1beta1
+kind: Cryostat
+metadata:
+  name: cryostat-sample
+spec:
+  minimal: false
+  enableCertManager: true
