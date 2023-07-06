@@ -49,10 +49,12 @@ const (
 	AdminPasswordKey                        = "password"
 	InfinispanAdminPort                     = 11223
 	InfinispanAdminPortName                 = "infinispan-adm"
-	InfinispanUserPortName                  = "infinispan"
+	InfinispanJmxPort                       = 9999
+	InfinispanJmxPortName                   = "jfr-jmx" // Jmx constant required for automatic lookup of JMX endpoint
 	InfinispanPingPort                      = 8888
 	InfinispanPingPortName                  = "ping"
 	InfinispanUserPort                      = 11222
+	InfinispanUserPortName                  = "infinispan"
 	CrossSitePort                           = 7900
 	CrossSitePortName                       = "xsite"
 	GossipRouterDiagPort                    = 7500

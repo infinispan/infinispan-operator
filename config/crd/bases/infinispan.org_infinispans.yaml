@@ -772,6 +772,12 @@ spec:
                 type: object
               image:
                 type: string
+              jmx:
+                properties:
+                  enabled:
+                    description: If true, a JMX endpoint is exposed on the admin service
+                    type: boolean
+                type: object
               logging:
                 properties:
                   categories:

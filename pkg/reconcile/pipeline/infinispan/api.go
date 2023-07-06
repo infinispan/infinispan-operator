@@ -216,6 +216,7 @@ func SkipEventRec(config *ResourcesConfig) {
 // ConfigFiles is used to hold all configuration required by the Operand in provisioned resources
 type ConfigFiles struct {
 	ConfigSpec             config.Spec
+	Jmx                    bool
 	ServerAdminConfig      string
 	ServerBaseConfig       string
 	ZeroConfig             string

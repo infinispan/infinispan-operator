@@ -19,6 +19,10 @@ func PodPortsWithXsite(i *ispnv1.Infinispan) []corev1.ContainerPort {
 		{ContainerPort: consts.InfinispanUserPort, Name: consts.InfinispanUserPortName, Protocol: corev1.ProtocolTCP},
 	}
 
+	if i.IsJmxExposed() {
+		ports = append(ports, corev1.ContainerPort{ContainerPort: consts.InfinispanJmxPort, Name: consts.InfinispanJmxPortName, Protocol: corev1.ProtocolTCP})
+	}
+
 	if i.HasSites() {
 		ports = append(ports, corev1.ContainerPort{ContainerPort: consts.CrossSitePort, Name: consts.CrossSitePortName, Protocol: corev1.ProtocolTCP})
 	}

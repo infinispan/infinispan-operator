@@ -78,6 +78,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
 			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
 			Expect(spec.ConfigListener.Logging.Level).Should(Equal(ConfigListenerLoggingInfo))
+			Expect(spec.Jmx.Enabled).Should(Equal(false))
 		})
 
 		It("Should initiate DataGrid defaults", func() {
@@ -109,6 +110,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
 			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
 			Expect(spec.ConfigListener.Logging.Level).Should(Equal(ConfigListenerLoggingInfo))
+			Expect(spec.Jmx.Enabled).Should(Equal(false))
 		})
 
 		It("Should calculate default Labels", func() {
@@ -573,6 +575,24 @@ var _ = Describe("Infinispan Webhooks", func() {
 			expectInvalidErrStatus(k8sClient.Create(ctx, ispn), statusDetailCause{
 				metav1.CauseTypeFieldValueInvalid, "spec.version", "should match",
 			})
+		})
+
+		It("Should prevent immutable fields being updated", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, key, ispn)).Should(Succeed())
+			ispn.Spec.Jmx.Enabled = true
+			expectInvalidErrStatus(k8sClient.Update(ctx, ispn),
+				statusDetailCause{"FieldValueForbidden", "spec.jmx", "JMX configuration is immutable and cannot be updated after initial Infinispan creation"},
+			)
 		})
 	})
 })

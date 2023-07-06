@@ -68,7 +68,7 @@ func CreateIdentitiesFor(usr string, pass string) ([]byte, error) {
 		Credentials: []Credentials{{
 			Username: usr,
 			Password: pass,
-			Roles:    []string{"admin"},
+			Roles:    []string{"admin", "controlRole"},
 		}},
 	}
 	data, err := yaml.Marshal(identities)

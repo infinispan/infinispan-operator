@@ -941,3 +941,8 @@ func (ispn *Infinispan) LaunchGossipRouterEnabled() bool {
 func (ispn *Infinispan) IsGossipRouterEnabled() bool {
 	return ispn.CrossSiteDiscoveryType() == GossipRouterType && ispn.LaunchGossipRouterEnabled()
 }
+
+func (ispn *Infinispan) IsJmxExposed() bool {
+	// TODO update
+	return ispn.Spec.Jmx != nil && ispn.Spec.Jmx.Enabled
+}
