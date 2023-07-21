@@ -1042,3 +1042,9 @@ func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase i
 	}
 	ExpectNoError(err)
 }
+
+func (k TestKubernetes) IsGVKAvailable(gvk schema.GroupVersionKind) bool {
+	exists, err := k.Kubernetes.IsGroupVersionKindSupported(gvk)
+	ExpectNoError(err)
+	return exists
+}

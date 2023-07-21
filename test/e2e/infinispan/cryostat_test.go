@@ -49,8 +49,14 @@ func TestCryostatProvisioning(t *testing.T) {
 			} else if errors.IsNotFound(err) {
 				return false, nil
 			}
-			// Once the ApplicationURL has been populated, the Cryostat deployment is ready to use
-			return cryostat.Status.ApplicationURL != "", nil
+
+			availableCondition := manage.CryostatDeploymentAvailableCondition(cryostat)
+			if availableCondition.Status != metav1.ConditionTrue {
+				return false, nil
+			}
+
+			// If an Openshift Route is not available, then applicationUrl remains empty
+			return !testKube.IsGVKAvailable(pipeline.RouteGVK) || cryostat.Status.ApplicationURL != "", nil
 		}),
 	)
 

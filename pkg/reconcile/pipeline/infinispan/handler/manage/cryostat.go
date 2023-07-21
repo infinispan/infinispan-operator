@@ -41,14 +41,7 @@ func CryostatCredentials(i *v1.Infinispan, ctx pipeline.Context) {
 	}
 
 	// Ensure that the Cryostat deployment is ready before proceeding
-	availableCondition := metav1.Condition{Type: string(cryostatv1beta1.ConditionTypeMainDeploymentAvailable)}
-	for _, condition := range cryostat.Status.Conditions {
-		if condition.Type == string(cryostatv1beta1.ConditionTypeMainDeploymentAvailable) {
-			availableCondition = condition
-			break
-		}
-	}
-	if availableCondition.Status != metav1.ConditionTrue {
+	if availableCondition := CryostatDeploymentAvailableCondition(cryostat); availableCondition.Status != metav1.ConditionTrue {
 		log.Info("Waiting for Cryostat deployment", "status", availableCondition.Status, "reason", availableCondition.Reason)
 		ctx.RequeueEventually(requeueDelay)
 		return
@@ -131,7 +124,7 @@ func credentialExists(headers map[string]string, client httpClient.HttpClient, i
 		return false, fmt.Errorf("unable to parse JSON: %w", err)
 	}
 
-	matchExpression := MatchExpression(i)
+	matchExpression := matchExpression(i)
 	for _, cred := range parsedRsp.Data.Result {
 		if cred.MatchExpression == matchExpression {
 			return true, nil
@@ -143,7 +136,7 @@ func credentialExists(headers map[string]string, client httpClient.HttpClient, i
 func createCredential(headers map[string]string, client httpClient.HttpClient, i *v1.Infinispan, ctx pipeline.Context) error {
 	admin := ctx.ConfigFiles().AdminIdentities
 	formData := map[string]string{
-		"matchExpression": MatchExpression(i),
+		"matchExpression": matchExpression(i),
 		"username":        admin.Username,
 		"password":        admin.Password,
 	}
@@ -158,6 +151,17 @@ func createCredential(headers map[string]string, client httpClient.HttpClient, i
 	return nil
 }
 
-func MatchExpression(i *v1.Infinispan) string {
+func matchExpression(i *v1.Infinispan) string {
 	return fmt.Sprintf("target.labels['infinispan_cr'] == '%s'", i.Name)
+}
+
+func CryostatDeploymentAvailableCondition(cryostat *cryostatv1beta1.Cryostat) metav1.Condition {
+	availableCondition := metav1.Condition{Type: string(cryostatv1beta1.ConditionTypeMainDeploymentAvailable)}
+	for _, condition := range cryostat.Status.Conditions {
+		if condition.Type == string(cryostatv1beta1.ConditionTypeMainDeploymentAvailable) {
+			availableCondition = condition
+			break
+		}
+	}
+	return availableCondition
 }

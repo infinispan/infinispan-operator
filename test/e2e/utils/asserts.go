@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func LogError(err error) {
@@ -44,5 +45,13 @@ func SkipForMajor(t *testing.T, infinispanMajor uint64, message string) {
 		if operand.UpstreamVersion.Major == infinispanMajor {
 			t.Skip(message)
 		}
+	}
+}
+
+func AssumeGVKAvailable(t *testing.T, testKube *TestKubernetes, gvk schema.GroupVersionKind) {
+	if exists, err := testKube.Kubernetes.IsGroupVersionKindSupported(gvk); err != nil {
+		t.Error(err)
+	} else if !exists {
+		t.Skipf("%s not available. Skipping test", gvk)
 	}
 }
