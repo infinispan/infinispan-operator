@@ -12,13 +12,11 @@ RUN mkdir /.m2 && mkdir /.kube/
 
 # Add required permissions for OpenShift
 RUN chgrp -R 0 /infinispan-operator && \
-    chmod -R g=u /infinispan-operator
-RUN chgrp -R 0 /.m2 && \
-    chmod -R g=u /.m2
-RUN chgrp -R 0 /.kube && \
+    chmod -R g=u /infinispan-operator && \
+    chgrp -R 0 /.m2 && \
+    chmod -R g=u /.m2 && \
+    chgrp -R 0 /.kube && \
     chmod -R g=u /.kube
-RUN chgrp -R 0 /usr && \
-    chmod -R g=u /usr
 
 
 WORKDIR /infinispan-operator/test-integration
