@@ -10,6 +10,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
 	// +kubebuilder:scaffold:imports
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -281,6 +282,21 @@ var _ = Describe("Infinispan Webhooks", func() {
 						Memory:  "1Gi:5Gi",
 						CPU:     "1000m:2000m",
 					},
+					Service: InfinispanServiceSpec{
+						Type: ServiceTypeDataGrid,
+						Sites: &InfinispanSitesSpec{
+							Local: InfinispanSitesLocalSpec{
+								Name: "site1",
+								Expose: CrossSiteExposeSpec{
+									Type: CrossSiteExposeTypeClusterIP,
+								},
+								Discovery: &DiscoverySiteSpec{
+									Memory: "1Gi:5Gi",
+									CPU:    "1000m:2000m",
+								},
+							},
+						},
+					},
 				},
 			}
 
@@ -293,6 +309,10 @@ var _ = Describe("Infinispan Webhooks", func() {
 				metav1.CauseTypeFieldValueInvalid, "spec.configListener.cpu", "exceeds limit",
 			}, {
 				metav1.CauseTypeFieldValueInvalid, "spec.configListener.memory", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.service.sites.local.discovery.cpu", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.service.sites.local.discovery.memory", "exceeds limit",
 			}}...)
 		})
 

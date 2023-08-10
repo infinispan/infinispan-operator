@@ -317,6 +317,35 @@ func (i *Infinispan) validate() error {
 		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
 	}
 
+	// validate Gossip Router resources requests
+	if i.HasSites() {
+		gr := i.Spec.Service.Sites.Local.Discovery
+		path := field.NewPath("spec").Child("service").Child("sites").Child("local").Child("discovery")
+		if gr.CPU != "" {
+			req, limit, err := gr.CpuResources()
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(path.Child("cpu"), gr.CPU, err.Error()))
+			}
+
+			if req.Cmp(limit) > 0 {
+				msg := fmt.Sprintf("CPU request '%s' exceeds limit '%s'", req.String(), limit.String())
+				allErrs = append(allErrs, field.Invalid(path.Child("cpu"), gr.CPU, msg))
+			}
+		}
+
+		if gr.Memory != "" {
+			req, limit, err := gr.MemoryResources()
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(path.Child("memory"), gr.Memory, err.Error()))
+			}
+
+			if req.Cmp(limit) > 0 {
+				msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", req.String(), limit.String())
+				allErrs = append(allErrs, field.Invalid(path.Child("memory"), gr.Memory, msg))
+			}
+		}
+	}
+
 	return errorListToError(i, allErrs)
 }
 

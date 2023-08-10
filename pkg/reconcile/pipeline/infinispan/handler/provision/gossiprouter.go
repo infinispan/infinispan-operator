@@ -129,6 +129,25 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 
 		router.Labels = routerLabels
+
+		container := &corev1.Container{
+			Name:           GossipRouterContainer,
+			Image:          i.ImageName(),
+			Command:        []string{"/opt/gossiprouter/bin/launch.sh"},
+			Args:           args,
+			Env:            []corev1.EnvVar{{Name: "ROUTER_JAVA_OPTIONS", Value: i.Spec.Container.RouterExtraJvmOpts}},
+			Ports:          containerPorts,
+			LivenessProbe:  TcpProbe(probePort, 5, 5, 0, 1, 60),
+			ReadinessProbe: TcpProbe(probePort, 5, 5, 0, 1, 60),
+			StartupProbe:   TcpProbe(probePort, 15, 1, 1, 1, 60),
+		}
+
+		if podResources, err := gossipRouterPodResources(i.Spec.Service.Sites.Local.Discovery); err != nil {
+			return err
+		} else if podResources != nil {
+			container.Resources = *podResources
+		}
+
 		router.Spec = appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: routerLabels,
@@ -141,21 +160,12 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					Annotations: routerAnnotations,
 				},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Name:           GossipRouterContainer,
-						Image:          i.ImageName(),
-						Command:        []string{"/opt/gossiprouter/bin/launch.sh"},
-						Args:           args,
-						Env:            []corev1.EnvVar{{Name: "ROUTER_JAVA_OPTIONS", Value: i.Spec.Container.RouterExtraJvmOpts}},
-						Ports:          containerPorts,
-						LivenessProbe:  TcpProbe(probePort, 5, 5, 0, 1, 60),
-						ReadinessProbe: TcpProbe(probePort, 5, 5, 0, 1, 60),
-						StartupProbe:   TcpProbe(probePort, 5, 1, 1, 1, 60),
-					}},
+					Containers: []corev1.Container{*container},
 				},
 			},
 			Replicas: replicas,
 		}
+
 		if addKeystoreVolume {
 			AddSecretVolume(i.GetSiteRouterSecretName(), SiteRouterKeystoreVolumeName, consts.SiteRouterKeyStoreRoot, &router.Spec.Template.Spec, GossipRouterContainer)
 		}
@@ -202,4 +212,33 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	_ = ctx.UpdateInfinispan(func() {
 		i.SetCondition(ispnv1.ConditionGossipRouterReady, metav1.ConditionTrue, "")
 	})
+}
+
+func gossipRouterPodResources(spec *ispnv1.DiscoverySiteSpec) (*corev1.ResourceRequirements, error) {
+	if spec.CPU == "" && spec.Memory == "" {
+		return nil, nil
+	}
+
+	req := &corev1.ResourceRequirements{
+		Limits:   corev1.ResourceList{},
+		Requests: corev1.ResourceList{},
+	}
+	if spec.Memory != "" {
+		memRequests, memLimits, err := spec.MemoryResources()
+		if err != nil {
+			return req, err
+		}
+		req.Requests[corev1.ResourceMemory] = memRequests
+		req.Limits[corev1.ResourceMemory] = memLimits
+	}
+
+	if spec.CPU != "" {
+		cpuRequests, cpuLimits, err := spec.CpuResources()
+		if err != nil {
+			return req, err
+		}
+		req.Requests[corev1.ResourceCPU] = cpuRequests
+		req.Limits[corev1.ResourceCPU] = cpuLimits
+	}
+	return req, nil
 }

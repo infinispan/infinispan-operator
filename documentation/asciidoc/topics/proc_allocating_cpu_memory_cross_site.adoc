@@ -1,0 +1,24 @@
+[id='allocating-cpu-and-memory-cross-site_{context}']
+= Allocating CPU and memory for Gossip router pod
+
+[role="_abstract"]
+Allocate CPU and memory resources to {brandname} Gossip router.
+
+.Prerequisite
+* Have Gossip router enabled. The `service.sites.local.discovery.launchGossipRouter` property must be set to `true`, which is the default value.
+
+.Procedure
+
+. Allocate the number of CPU units using the `service.sites.local.discovery.cpu` field.
+. Allocate the amount of memory, in bytes, using the `service.sites.local.discovery.memory` field.
++
+The `cpu` and `memory` fields have values in the format of `<limit>:<requests>`.
+For example, `cpu: "2000m:1000m"` limits pods to a maximum of `2000m` of CPU and requests `1000m` of CPU for each pod at startup.
+Specifying a single value sets both the limit and request.
++
+. Apply your `Infinispan` CR.
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/xsite_gossip_router_resources.yaml[]
+----

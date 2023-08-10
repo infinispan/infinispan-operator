@@ -175,6 +175,12 @@ type DiscoverySiteSpec struct {
 	// Enables (default) or disables the Gossip Router pod and cross-site services
 	// +optional
 	LaunchGossipRouter *bool `json:"launchGossipRouter,omitempty"`
+	// Memory resource request for Gossip Router if enabled
+	// +optional
+	Memory string `json:"memory,omitempty"`
+	// CPU resource request for Gossip Router if enabled
+	// +optional
+	CPU string `json:"cpu,omitempty"`
 }
 
 // Specifies the discovery mode for cross-site configuration
