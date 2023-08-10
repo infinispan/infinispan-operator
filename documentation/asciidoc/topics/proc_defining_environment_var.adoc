@@ -1,0 +1,51 @@
+[id='defining-environment-variables_{context}']
+= Defining environment variables in the {ispn_operator} subscription
+
+[role="_abstract"]
+Define environment variables in your {ispn_operator} subscription that automatically propagate to each {brandname} po and service managed by the corresponding Operator.
+
+`spec.config.env` field is an array of environment variable definitions.
+You can add one or more environment variable names and corresponding values.
+
+.Prerequisites
+* Ensure the Operator Lifecycle Manager (OLM) is installed.
+
+.Procedure
+
+Define environment variables in your {ispn_operator} subscription using the `spec.config.env` field:
+
+. Use the `{oc_edit} subscription` command.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_edit} subscription {subscription_name} -n {example_namespace}
+----
+. Define the environment variables using the `spec.config.env` field.
+
+.Environment variables in the subscription YAML
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/subscription_env_var.yaml[]
+----
+
+//Downstream content
+ifdef::downstream[]
+
+* Use the {openshift} Console.
+. Select the *Administrator* perspective.
+. Navigate to *Operators* > *Installed Operators* > click the *{ispn_operator}*.
+. Select *Edit Subscription* from the *Actions* menu.
+. Update the subscription details and click *Save*.
+endif::downstream[]
+
+.Verification
+
+* Retrieve the environment variables from the subscription YAML:
+[source,options="nowrap",subs=attributes+]
+----
+{oc} get subscription {subscription_name} -n {example_namespace} -o jsonpath='{.spec.config.env[*].name}'
+----
+
+[discrete]
+== Reference
+//add specific example
