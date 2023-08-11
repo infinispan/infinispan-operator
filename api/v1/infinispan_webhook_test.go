@@ -614,6 +614,28 @@ var _ = Describe("Infinispan Webhooks", func() {
 				statusDetailCause{"FieldValueForbidden", "spec.jmx", "JMX configuration is immutable and cannot be updated after initial Infinispan creation"},
 			)
 		})
+
+		It("Should prevent incompatible TLS configuration", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Security: InfinispanSecurity{
+						EndpointEncryption: &EndpointEncryption{
+							CertSecretName:  "secret-name",
+							CertServiceName: "service.com",
+							Type:            CertificateSourceTypeSecret,
+						},
+					},
+				},
+			}
+			expectInvalidErrStatus(k8sClient.Create(ctx, ispn),
+				statusDetailCause{"FieldValueForbidden", "spec.security.endpointEncryption.certServiceName", ".certServiceName cannot be configured with Encryption .type=Secret"},
+			)
+		})
 	})
 })
 

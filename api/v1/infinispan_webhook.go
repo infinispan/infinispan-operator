@@ -252,10 +252,19 @@ func (i *Infinispan) validate() error {
 		allErrs = append(allErrs, err)
 	}
 
-	if i.IsEncryptionEnabled() && i.Spec.Security.EndpointEncryption.CertSecretName == "" {
-		msg := fmt.Sprintf("field must be provided for 'spec.security.endpointEncryption.certificateSourceType=%s' to be configured", CertificateSourceTypeSecret)
-		err := field.Required(field.NewPath("spec").Child("security").Child("endpointEncryption").Child("certSecretName"), msg)
-		allErrs = append(allErrs, err)
+	if i.IsEncryptionEnabled() {
+		e := i.Spec.Security.EndpointEncryption
+		if e.CertSecretName == "" {
+			msg := fmt.Sprintf("field must be provided for 'spec.security.endpointEncryption.certificateSourceType=%s' to be configured", CertificateSourceTypeSecret)
+			err := field.Required(field.NewPath("spec").Child("security").Child("endpointEncryption").Child("certSecretName"), msg)
+			allErrs = append(allErrs, err)
+		}
+
+		if e.CertServiceName != "" && e.Type == CertificateSourceTypeSecret {
+			msg := fmt.Sprintf(".certServiceName cannot be configured with Encryption .type=%s", CertificateSourceTypeSecret)
+			err := field.Forbidden(field.NewPath("spec").Child("security").Child("endpointEncryption").Child("certServiceName"), msg)
+			allErrs = append(allErrs, err)
+		}
 	}
 
 	if cl := i.Spec.ConfigListener; cl != nil {
