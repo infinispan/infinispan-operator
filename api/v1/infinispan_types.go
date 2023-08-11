@@ -414,6 +414,13 @@ type JmxSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
 }
 
+type SchedulingSpec struct {
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// +optional
+	PriorityClassName string `json:"PriorityClassName,omitempty"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	// The number of nodes in the Infinispan cluster.
@@ -438,6 +445,7 @@ type InfinispanSpec struct {
 	// +optional
 	Autoscale *Autoscale `json:"autoscale,omitempty"`
 	// +optional
+	// Deprecated. Use scheduling.affinity instead
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// +optional
 	CloudEvents *InfinispanCloudEvents `json:"cloudEvents,omitempty"`
@@ -452,6 +460,8 @@ type InfinispanSpec struct {
 	ConfigListener *ConfigListenerSpec `json:"configListener,omitempty"`
 	// +optional
 	Jmx *JmxSpec `json:"jmx,omitempty"`
+	// +optional
+	Scheduling *SchedulingSpec `json:"scheduling,omitempty"`
 }
 
 // InfinispanUpgradesSpec defines the Infinispan upgrade strategy

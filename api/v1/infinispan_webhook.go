@@ -93,24 +93,33 @@ func (i *Infinispan) Default() {
 		}
 	}
 
-	if i.Spec.Affinity == nil {
-		// The user hasn't configured Affinity, so we utilise the default strategy of preferring pods are deployed on distinct nodes
-		i.Spec.Affinity = &corev1.Affinity{
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
-					Weight: 100,
-					PodAffinityTerm: corev1.PodAffinityTerm{
-						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"infinispan_cr": i.Name,
-								"clusterName":   i.Name,
-								"app":           "infinispan-pod",
+	if i.Spec.Scheduling == nil {
+		i.Spec.Scheduling = &SchedulingSpec{}
+	}
+
+	if i.Spec.Scheduling.Affinity == nil {
+		if i.Spec.Affinity != nil {
+			i.Spec.Scheduling.Affinity = i.Spec.Affinity
+			i.Spec.Affinity = nil
+		} else {
+			// The user hasn't configured Affinity, so we utilise the default strategy of preferring pods are deployed on distinct nodes
+			i.Spec.Scheduling.Affinity = &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"infinispan_cr": i.Name,
+									"clusterName":   i.Name,
+									"app":           "infinispan-pod",
+								},
 							},
+							TopologyKey: "kubernetes.io/hostname",
 						},
-						TopologyKey: "kubernetes.io/hostname",
-					},
-				}},
-			},
+					}},
+				},
+			}
 		}
 	}
 

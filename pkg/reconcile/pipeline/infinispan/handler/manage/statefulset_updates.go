@@ -93,8 +93,13 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
-	if !reflect.DeepEqual(spec.Affinity, i.Spec.Affinity) {
-		spec.Affinity = i.Spec.Affinity
+	if !reflect.DeepEqual(spec.Affinity, i.Affinity()) {
+		spec.Affinity = i.Affinity()
+		updateNeeded = true
+	}
+
+	if spec.PriorityClassName != i.PriorityClassName() {
+		spec.PriorityClassName = i.PriorityClassName()
 		updateNeeded = true
 	}
 

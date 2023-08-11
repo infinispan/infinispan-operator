@@ -101,7 +101,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Annotations: annotationsForPod,
 				},
 				Spec: corev1.PodSpec{
-					Affinity: i.Spec.Affinity,
+					Affinity: i.Affinity(),
 					Containers: []corev1.Container{{
 						Image: i.ImageName(),
 						Args:  BuildServerContainerArgs(ctx.ConfigFiles()),
@@ -127,6 +127,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 							MountPath: DataMountPath,
 						}},
 					}},
+					PriorityClassName: i.PriorityClassName(),
 					Volumes: []corev1.Volume{{
 						Name: ConfigVolumeName,
 						VolumeSource: corev1.VolumeSource{
