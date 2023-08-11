@@ -956,3 +956,17 @@ func (ispn *Infinispan) IsJmxExposed() bool {
 	// TODO update
 	return ispn.Spec.Jmx != nil && ispn.Spec.Jmx.Enabled
 }
+
+func (ispn *Infinispan) Affinity() *corev1.Affinity {
+	if ispn.Spec.Scheduling != nil && ispn.Spec.Scheduling.Affinity != nil {
+		return ispn.Spec.Scheduling.Affinity
+	}
+	return ispn.Spec.Affinity
+}
+
+func (ispn *Infinispan) PriorityClassName() string {
+	if ispn.Spec.Scheduling != nil {
+		return ispn.Spec.Scheduling.PriorityClassName
+	}
+	return ""
+}

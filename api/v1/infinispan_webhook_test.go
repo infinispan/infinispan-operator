@@ -10,6 +10,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 
 	// +kubebuilder:scaffold:imports
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -635,6 +636,43 @@ var _ = Describe("Infinispan Webhooks", func() {
 			expectInvalidErrStatus(k8sClient.Create(ctx, ispn),
 				statusDetailCause{"FieldValueForbidden", "spec.security.endpointEncryption.certServiceName", ".certServiceName cannot be configured with Encryption .type=Secret"},
 			)
+		})
+
+		It("Should transform affinity spec", func() {
+			affinitySpec := &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"infinispan_cr": key.Name,
+									"clusterName":   key.Namespace,
+									"app":           "infinispan-pod",
+								},
+							},
+							TopologyKey: "check-value",
+						},
+					}},
+				},
+			}
+
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Affinity: affinitySpec,
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			updated := &Infinispan{}
+			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
+			Expect(updated.Spec.Affinity).Should(BeNil())
+			Expect(updated.Spec.Scheduling.Affinity).Should(BeEquivalentTo(affinitySpec))
 		})
 	})
 })
