@@ -1,0 +1,74 @@
+[id='defining-environment-variables_{context}']
+= Defining environment variables in the {ispn_operator} subscription
+
+[role="_abstract"]
+You can define environment variables in your {ispn_operator} subscription either when you create the subscription or by editing it later on.
+
+//Downstream content
+ifdef::downstream[]
+NOTE: If you are using the {openshift} Console, you must first install the {ispn_operator} and then edit the existing subscription.
+endif::downstream[]
+
+Environment variables in your subscription automatically propagate to each {brandname} pod that is managed by the corresponding Operator.
+The `spec.config.env` field is an array of environment variable definitions.
+When one environment variable references another, you must define the variables in a specific order for proper referencing and processing.
+The referenced variable must be available when the variable that refers to it is processed.
+
+.Prerequisites
+* Ensure the Operator Lifecycle Manager (OLM) is installed.
+//Community
+ifdef::community[]
+* Have an `oc` or a `kubectl` client.
+endif::community[]
+//Downstream
+ifdef::downstream[]
+* Have an `oc` client.
+endif::downstream[]
+
+.Procedure
+
+. Create a subscription definition YAML for your {ispn_operator}:
++
+.subscription-{subscription_name}.yaml
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/env_var_subscription.yaml[]
+----
++
+For example, use `spec.config.env` field to set the local timezone:
++
+.subscription-{subscription_name}.yaml
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/env_var_timezone.yaml[]
+----
+
+. Create a subscription for {ispn_operator}.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_apply_cr} subscription-{subscription_name}.yaml
+----
+
+.Verification
+
+* Retrieve the environment variables from the `subscription-{subscription_name}.yaml`:
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc} get subscription {subscription_name} -n {subscription_namespace} -o jsonpath='{.spec.config.env[*].name}'
+----
+
+.Next steps
+* Use the `{oc_edit} subscription` command to modify the environment variable:
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_edit} subscription {subscription_name} -n {subscription_namespace}
+----
+
+//Downstream content
+ifdef::downstream[]
+* In the {openshift} Console, navigate to *Operators* > *Installed Operators* > click the *{ispn_operator}*.
+Then select *Edit Subscription* from the *Actions* menu.
+endif::downstream[]

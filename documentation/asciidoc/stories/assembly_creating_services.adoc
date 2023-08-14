@@ -43,6 +43,7 @@ include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
 //Labeling
 include::{topics}/proc_adding_labels_annotations.adoc[leveloffset=+1]
 include::{topics}/proc_adding_labels_annotations_env.adoc[leveloffset=+1]
+include::{topics}/proc_defining_environment_var.adoc[leveloffset=+1]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

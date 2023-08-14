@@ -13,6 +13,10 @@
 
 :example_crd_name: infinispan
 :example_namespace: rhdg-namespace
+:subscription_namespace: openshift-operators
+:source_namespace: openshift-marketplace
+:subscription_name: datagrid
+:operator_source: redhat-operators
 :pv_path: /opt/infinispan/server/data
 :conf_path: /opt/infinispan/server/conf
 :backup_path: /opt/infinispan/backups
