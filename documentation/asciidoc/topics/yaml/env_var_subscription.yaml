@@ -5,11 +5,10 @@ metadata:
   namespace: {subscription_namespace}
 spec:
   channel: {operator_channel}
-    operator_channel: null
   installPlanApproval: Automatic
   name: {subscription_name}
   source: {operator_source}
-  sourceNamespace: openshift-marketplace
+  sourceNamespace: {source_namespace}
   config:
     env:
     - name: VAR_NAME

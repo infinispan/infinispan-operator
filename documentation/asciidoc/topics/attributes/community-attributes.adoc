@@ -17,8 +17,10 @@
 
 :example_crd_name: infinispan
 :example_namespace: ispn-namespace
+:subscription_name: infinispan
 :subscription_namespace: operators
-:operator_source: community operators
+:source_namespace: olm
+:operator_source: operatorhubio-catalog
 :pv_path: /opt/infinispan/server/data
 :conf_path: /opt/infinispan/server/conf
 :lib_path: /opt/infinispan/server/lib
@@ -33,7 +35,6 @@
 :schemaversion: 14.0
 :brandname: Infinispan
 :fullbrandname: Infinispan
-:subscription_name: infinispan
 :datagridservice: Data Grid Service
 :cacheservice: Cache Service
 
