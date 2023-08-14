@@ -1,6 +1,0 @@
-spec:
-  env:
-    - name: VAR_NAME
-      value: $(VAR_NAME_VALUE)
-    - name: ANOTHER_VAR
-      value: $(ANOTHER_VAR_VALUE)
