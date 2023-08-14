@@ -58,6 +58,9 @@
 // Doc links
 //
 
+//Operator
+:k8s_docs: https://infinispan.org/docs/infinispan-operator/main/operator.html
+
 //HotRod Java client
 :hotrod_docs: https://infinispan.org/docs/stable/titles/hotrod_java/hotrod_java.html
 
