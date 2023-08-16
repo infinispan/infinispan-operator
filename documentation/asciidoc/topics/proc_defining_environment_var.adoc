@@ -2,7 +2,7 @@
 = Defining environment variables in the {ispn_operator} subscription
 
 [role="_abstract"]
-You can define environment variables in your {ispn_operator} subscription either when you create the subscription or by editing it later on.
+You can define environment variables in your {ispn_operator} subscription either when you create or edit the subscription.
 
 //Downstream content
 ifdef::downstream[]
@@ -35,7 +35,7 @@ endif::downstream[]
 include::yaml/env_var_subscription.yaml[]
 ----
 +
-For example, use `spec.config.env` field to set the local timezone:
+For example, use the `spec.config.env` field to set the local time zone:
 +
 .subscription-{subscription_name}.yaml
 [source,options="nowrap",subs=attributes+]
@@ -43,7 +43,7 @@ For example, use `spec.config.env` field to set the local timezone:
 include::yaml/env_var_timezone.yaml[]
 ----
 
-. Create a subscription for {ispn_operator}.
+. Create a subscription for {ispn_operator}:
 +
 [source,options="nowrap",subs=attributes+]
 ----
@@ -69,6 +69,6 @@ include::yaml/env_var_timezone.yaml[]
 
 //Downstream content
 ifdef::downstream[]
-* In the {openshift} Console, navigate to *Operators* > *Installed Operators* > click the *{ispn_operator}*.
-Then select *Edit Subscription* from the *Actions* menu.
+* In the {openshift} Console, navigate to *Operators* > *Installed Operators* > *{ispn_operator}*.
+From the *Actions* menu, select *Edit Subscription*.
 endif::downstream[]
