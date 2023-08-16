@@ -17,8 +17,8 @@ Add labels and annotations to your {ispn_operator} subscription with the `spec.c
 
 * Use the {openshift} Console.
 +
-. Navigate to **Operators** > **Installed Operators** > click the *{ispn_operator}*.
-. Select **Edit Subscription** from the **Actions** menu.
+. Navigate to **Operators** > **Installed Operators** >  *{ispn_operator}*.
+. From the *Actions* menu, select *Edit Subscription*.
 
 .Labels and annotations with environment variables
 [source,yaml,options="nowrap",subs=attributes+]
