@@ -1519,6 +1519,25 @@ spec:
                                 description: CPU resource request for Gossip Router
                                   if enabled
                                 type: string
+                              heartbeats:
+                                description: Configures the Gossip Router heartbeats
+                                  to keep the connection open
+                                properties:
+                                  enabled:
+                                    description: Enables the Gossip Router heartbeats
+                                    type: boolean
+                                  interval:
+                                    description: Sends a heartbeat to the GossipRouter
+                                      every interval milliseconds
+                                    format: int64
+                                    type: integer
+                                  timeout:
+                                    description: Max time (millsecoonds) with no received
+                                      message or heartbeat after which the connection
+                                      to a GossipRouter is closed
+                                    format: int64
+                                    type: integer
+                                type: object
                               launchGossipRouter:
                                 description: Enables (default) or disables the Gossip
                                   Router pod and cross-site services
@@ -1527,6 +1546,10 @@ spec:
                                 description: Memory resource request for Gossip Router
                                   if enabled
                                 type: string
+                              suspectEvents:
+                                description: Enables the JGroups suspect events if
+                                  the Gossip Router detects a connectio closed
+                                type: boolean
                               type:
                                 description: Configures the discovery mode for cross-site
                                   replication

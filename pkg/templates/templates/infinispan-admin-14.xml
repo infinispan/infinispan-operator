@@ -29,6 +29,10 @@
             diag.enabled="{{ .JGroups.Diagnostics }}"
             port_range="0"
             {{ if .JGroups.FastMerge }}reconnect_interval="1000"{{ end }}
+            {{- if .XSite.HeartbeatEnabled }}
+            heartbeat_interval="{{.XSite.HeartbeatInterval}}"
+            heartbeat_timeout="{{.XSite.HeartbeatTimeout}}"
+            {{- end}}
             stack.combine="REPLACE"
             stack.position="UDP"
         />

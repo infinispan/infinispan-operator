@@ -181,6 +181,24 @@ type DiscoverySiteSpec struct {
 	// CPU resource request for Gossip Router if enabled
 	// +optional
 	CPU string `json:"cpu,omitempty"`
+	// Enables the JGroups suspect events if the Gossip Router detects a connection closed
+	// +optional
+	SuspectEvents bool `json:"suspectEvents,omitempty"`
+	// Configures the Gossip Router heartbeats to keep the connection open
+	// +optional
+	Heartbeats *GossipRouterHeartbeatSpec `json:"heartbeats,omitempty"`
+}
+
+type GossipRouterHeartbeatSpec struct {
+	// Enables the Gossip Router heartbeats
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// Sends a heartbeat to the GossipRouter every interval milliseconds
+	// +optional
+	Interval *int64 `json:"interval,omitempty"`
+	// Max time (millsecoonds) with no received message or heartbeat after which the connection to a GossipRouter is closed
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty"`
 }
 
 // Specifies the discovery mode for cross-site configuration

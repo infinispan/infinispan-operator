@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/iancoleman/strcase"
@@ -255,6 +256,103 @@ func TestRestoreValidatingWebhook(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	err := testKube.Kubernetes.Client.Create(ctx, restore)
+	assertInvalidErr(testifyAssert.New(t), err)
+}
+
+func TestXSiteDefaultingWebhook(t *testing.T) {
+	t.Parallel()
+	ispn := &ispnv1.Infinispan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   strcase.ToKebab(t.Name()),
+			Labels: map[string]string{"test-name": t.Name()},
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Service: ispnv1.InfinispanServiceSpec{
+				Type: ispnv1.ServiceTypeDataGrid,
+				Sites: &ispnv1.InfinispanSitesSpec{
+					Local: ispnv1.InfinispanSitesLocalSpec{
+						Name: "local",
+						Expose: ispnv1.CrossSiteExposeSpec{
+							Type: ispnv1.CrossSiteExposeTypeClusterIP,
+						},
+					},
+				},
+			},
+		},
+	}
+	testKube.CreateInfinispan(ispn, tutils.Namespace)
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	createdIspn := testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionPrelimChecksPassed)
+
+	assert := testifyAssert.New(t)
+	assert.Equal(ispnv1.GossipRouterType, createdIspn.Spec.Service.Sites.Local.Discovery.Type)
+	assert.Equal(true, *createdIspn.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter)
+	assert.Equal(false, createdIspn.Spec.Service.Sites.Local.Discovery.SuspectEvents)
+	assert.Equal(true, *createdIspn.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled)
+	assert.Equal(int64(10000), *createdIspn.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval)
+	assert.Equal(int64(30000), *createdIspn.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout)
+}
+
+func TestXSiteNegativeHeartbeatIntervalWebhook(t *testing.T) {
+	t.Parallel()
+	heartbeatValidtionTest(t, pointer.Int64(-1), nil)
+}
+
+func TestXSiteZeroHeartbeatIntervalWebhook(t *testing.T) {
+	t.Parallel()
+	heartbeatValidtionTest(t, pointer.Int64(0), nil)
+}
+
+func TestXSiteNegativeHeartbeatTimeoutWebhook(t *testing.T) {
+	t.Parallel()
+	heartbeatValidtionTest(t, nil, pointer.Int64(-1))
+}
+
+func TestXSiteZeroHeartbeatTimeoutWebhook(t *testing.T) {
+	t.Parallel()
+	heartbeatValidtionTest(t, nil, pointer.Int64(0))
+}
+
+func TestXSiteSameHeartbeatIntervalAndTimeoutWebhook(t *testing.T) {
+	t.Parallel()
+	heartbeatValidtionTest(t, pointer.Int64(10), pointer.Int64(10))
+}
+
+func TestXSiteHigherHeartbeatIntervalThanTimeoutWebhook(t *testing.T) {
+	t.Parallel()
+	heartbeatValidtionTest(t, pointer.Int64(11), pointer.Int64(10))
+}
+
+func heartbeatValidtionTest(t *testing.T, interval, timeout *int64) {
+	ispn := &ispnv1.Infinispan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      strcase.ToKebab(t.Name()),
+			Labels:    map[string]string{"test-name": t.Name()},
+			Namespace: tutils.Namespace,
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Service: ispnv1.InfinispanServiceSpec{
+				Type: ispnv1.ServiceTypeDataGrid,
+				Sites: &ispnv1.InfinispanSitesSpec{
+					Local: ispnv1.InfinispanSitesLocalSpec{
+						Name: "local",
+						Expose: ispnv1.CrossSiteExposeSpec{
+							Type: ispnv1.CrossSiteExposeTypeClusterIP,
+						},
+						Discovery: &ispnv1.DiscoverySiteSpec{
+							Heartbeats: &ispnv1.GossipRouterHeartbeatSpec{
+								Interval: interval,
+								Timeout:  timeout,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+	err := testKube.Kubernetes.Client.Create(ctx, ispn)
 	assertInvalidErr(testifyAssert.New(t), err)
 }
 

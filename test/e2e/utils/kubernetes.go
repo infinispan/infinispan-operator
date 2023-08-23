@@ -793,6 +793,16 @@ func (k TestKubernetes) UpdateConfigMap(configMap *corev1.ConfigMap) {
 	ExpectNoError(err)
 }
 
+func (k TestKubernetes) GetConfigMap(name, namespace string) *corev1.ConfigMap {
+	configMap := &corev1.ConfigMap{}
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+	ExpectNoError(k.Kubernetes.Client.Get(context.TODO(), key, configMap))
+	return configMap
+}
+
 // RunOperator runs an operator on a Kubernetes cluster
 func (k TestKubernetes) RunOperator(namespace, crdsPath string) context.CancelFunc {
 	k.installCRD(crdsPath + "infinispan.org_infinispans.yaml")
