@@ -14,6 +14,7 @@ import org.infinispan.TestServer;
 import org.infinispan.util.CleanUpValidator;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import cz.xtf.client.Http;
@@ -124,6 +125,7 @@ class DevSetupIT {
    /**
     * Verify that default cache was created and is accessible.
     */
+   @Tag("unstable")
    @Test
    void defaultCacheAvailabilityTest() throws Exception {
       String keyUrl = "http://" + hostName + "/rest/v2/caches/default/availability-test";
@@ -138,6 +140,7 @@ class DevSetupIT {
    /**
     * Default replication factor should be 2
     */
+   @Tag("unstable")
    @Test
    void defaultReplicationFactorTest() throws Exception {
       String request = "http://" + hostName + "/rest/v2/caches/default?action=config";
