@@ -8,7 +8,7 @@ KIND_KUBEAPI_PORT=6443
 METALLB_VERSION=v0.9.6
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
-SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:13.0'}
+SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:14.0'}
 KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.17.17'}
 
 # Cleanup any existing clusters

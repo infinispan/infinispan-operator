@@ -267,9 +267,12 @@ type Transport struct {
 }
 
 type XSite struct {
-	GossipRouter  GossipRouter
-	MaxRelayNodes int32
-	Sites         []BackupSite
+	GossipRouter      GossipRouter
+	MaxRelayNodes     int32
+	Sites             []BackupSite
+	HeartbeatEnabled  bool
+	HeartbeatInterval int64
+	HeartbeatTimeout  int64
 }
 
 type GossipRouter struct {

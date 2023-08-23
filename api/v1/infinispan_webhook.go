@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
@@ -146,6 +147,18 @@ func (i *Infinispan) Default() {
 		}
 		if i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter == nil {
 			i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter = pointer.Bool(true)
+		}
+		if i.Spec.Service.Sites.Local.Discovery.Heartbeats == nil {
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats = &GossipRouterHeartbeatSpec{}
+		}
+		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled == nil {
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled = pointer.Bool(true)
+		}
+		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval == nil {
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval = pointer.Int64(10000)
+		}
+		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout == nil {
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout = pointer.Int64(30000)
 		}
 	}
 
@@ -338,28 +351,58 @@ func (i *Infinispan) validate() error {
 	// validate Gossip Router resources requests
 	if i.HasSites() {
 		gr := i.Spec.Service.Sites.Local.Discovery
-		path := field.NewPath("spec").Child("service").Child("sites").Child("local").Child("discovery")
-		if gr.CPU != "" {
-			req, limit, err := gr.CpuResources()
-			if err != nil {
-				allErrs = append(allErrs, field.Invalid(path.Child("cpu"), gr.CPU, err.Error()))
+		if gr != nil {
+			path := field.NewPath("spec").Child("service").Child("sites").Child("local").Child("discovery")
+			if gr.CPU != "" {
+				req, limit, err := gr.CpuResources()
+				if err != nil {
+					allErrs = append(allErrs, field.Invalid(path.Child("cpu"), gr.CPU, err.Error()))
+				}
+
+				if req.Cmp(limit) > 0 {
+					msg := fmt.Sprintf("CPU request '%s' exceeds limit '%s'", req.String(), limit.String())
+					allErrs = append(allErrs, field.Invalid(path.Child("cpu"), gr.CPU, msg))
+				}
 			}
 
-			if req.Cmp(limit) > 0 {
-				msg := fmt.Sprintf("CPU request '%s' exceeds limit '%s'", req.String(), limit.String())
-				allErrs = append(allErrs, field.Invalid(path.Child("cpu"), gr.CPU, msg))
-			}
-		}
+			if gr.Memory != "" {
+				req, limit, err := gr.MemoryResources()
+				if err != nil {
+					allErrs = append(allErrs, field.Invalid(path.Child("memory"), gr.Memory, err.Error()))
+				}
 
-		if gr.Memory != "" {
-			req, limit, err := gr.MemoryResources()
-			if err != nil {
-				allErrs = append(allErrs, field.Invalid(path.Child("memory"), gr.Memory, err.Error()))
+				if req.Cmp(limit) > 0 {
+					msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", req.String(), limit.String())
+					allErrs = append(allErrs, field.Invalid(path.Child("memory"), gr.Memory, msg))
+				}
 			}
 
-			if req.Cmp(limit) > 0 {
-				msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", req.String(), limit.String())
-				allErrs = append(allErrs, field.Invalid(path.Child("memory"), gr.Memory, msg))
+			// validate heartbeats interval and timeout
+			if gr.Heartbeats != nil && gr.Heartbeats.Enabled != nil && *gr.Heartbeats.Enabled {
+				var interval, timeout int64
+				if gr.Heartbeats.Interval == nil {
+					interval = 10000
+				} else {
+					interval = *gr.Heartbeats.Interval
+				}
+				if gr.Heartbeats.Timeout == nil {
+					timeout = 30000
+				} else {
+					timeout = *gr.Heartbeats.Timeout
+				}
+				if interval <= 0 {
+					msg := fmt.Sprintf("Heartbeats interval must be a positive integer ('%s')", strconv.FormatInt(interval, 10))
+					allErrs = append(allErrs, field.Invalid(path.Child("hearbeats").Child("interval"), interval, msg))
+				}
+				if timeout <= 0 {
+					msg := fmt.Sprintf("Heartbeats timeout must be a positive integer ('%s')", strconv.FormatInt(timeout, 10))
+					allErrs = append(allErrs, field.Invalid(path.Child("hearbeats").Child("timeout"), timeout, msg))
+				}
+				if interval >= timeout {
+					msg := fmt.Sprintf("Heartbeats interval ('%s') must be less than timeout ('%s')", strconv.FormatInt(interval, 10), strconv.FormatInt(timeout, 10))
+					allErrs = append(allErrs, field.Invalid(path.Child("hearbeats").Child("interval"), interval, msg))
+					allErrs = append(allErrs, field.Invalid(path.Child("hearbeats").Child("timeout"), timeout, msg))
+				}
 			}
 		}
 	}

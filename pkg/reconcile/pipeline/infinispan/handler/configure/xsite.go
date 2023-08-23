@@ -21,6 +21,15 @@ import (
 
 func XSite(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	xSite := &pipeline.XSite{}
+
+	// Heartbeat configuration available only for ISPN 14+
+	if ctx.Operand().UpstreamVersion.Major > 13 {
+		xSite.HeartbeatEnabled = *i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled
+		xSite.HeartbeatInterval = *i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval
+		xSite.HeartbeatTimeout = *i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout
+	} else {
+		xSite.HeartbeatEnabled = false
+	}
 	if i.IsGossipRouterEnabled() {
 		svc := &corev1.Service{}
 		if err := ctx.Resources().Load(i.GetSiteServiceName(), svc, pipeline.RetryOnErr); err != nil {

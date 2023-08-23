@@ -40,8 +40,11 @@ type AuthorizationRole struct {
 }
 
 type XSite struct {
-	MaxRelayNodes int32
-	Sites         []BackupSite
+	MaxRelayNodes     int32
+	Sites             []BackupSite
+	HeartbeatEnabled  bool
+	HeartbeatInterval int64
+	HeartbeatTimeout  int64
 }
 
 type BackupSite struct {

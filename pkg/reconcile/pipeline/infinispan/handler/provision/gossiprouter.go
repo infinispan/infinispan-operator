@@ -68,6 +68,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		args := []string{
 			"-port", strconv.Itoa(consts.CrossSitePort),
 			"-dump_msgs", "registration",
+			"-suspect", strconv.FormatBool(i.Spec.Service.Sites.Local.Discovery.SuspectEvents),
 		}
 
 		var addKeystoreVolume, addTruststoreVolume bool

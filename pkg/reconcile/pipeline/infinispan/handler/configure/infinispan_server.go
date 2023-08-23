@@ -81,7 +81,10 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if i.HasSites() {
 		// Convert the pipeline ConfigFiles to the config struct
 		xSite := &config.XSite{
-			MaxRelayNodes: configFiles.XSite.MaxRelayNodes,
+			MaxRelayNodes:     configFiles.XSite.MaxRelayNodes,
+			HeartbeatEnabled:  configFiles.XSite.HeartbeatEnabled,
+			HeartbeatInterval: configFiles.XSite.HeartbeatInterval,
+			HeartbeatTimeout:  configFiles.XSite.HeartbeatTimeout,
 		}
 		configSpec.XSite = xSite
 		xSite.Sites = make([]config.BackupSite, len(configFiles.XSite.Sites))
