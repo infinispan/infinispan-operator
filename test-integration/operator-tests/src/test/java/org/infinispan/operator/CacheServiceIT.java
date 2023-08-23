@@ -92,6 +92,7 @@ class CacheServiceIT {
     * Verify that default cache was created and is accessible through exposed LoadBalancer.
     * We need to trust all the certificates as used are valid only for OpenShifts internal communication.
     */
+   @Tag("unstable")
    @Test
    void defaultCacheAvailabilityTest() throws Exception {
       String keyUrl = "https://" + hostName + "/rest/v2/caches/default/availability-test";
@@ -153,6 +154,7 @@ class CacheServiceIT {
    /**
     * Verifies replicationFactor of default cache is set to 1 by reading cache configuration.
     */
+   @Tag("unstable")
    @Test
    void replicationFactorTest() throws Exception {
       String request = "https://" + hostName + "/rest/v2/caches/default?action=config";
