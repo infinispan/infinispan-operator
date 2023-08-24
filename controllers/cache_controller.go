@@ -322,8 +322,7 @@ func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) erro
 	spec := r.cache.Spec
 
 	if spec.Template == "" && spec.TemplateName == "" {
-		r.log.Info("ignoring cache as 'spec.template' and 'spec.TemplateName' are undefined")
-		return nil
+		return fmt.Errorf("unable to reconcile Cache as both 'spec.template' and 'spec.templateName' are undefined")
 	}
 
 	if cacheExists {
