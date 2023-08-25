@@ -9,10 +9,10 @@ ifdef::downstream[]
 NOTE: If you are using the {openshift} Console, you must first install the {ispn_operator} and then edit the existing subscription.
 endif::downstream[]
 
-Environment variables in your subscription automatically propagate to each {brandname} pod that is managed by the corresponding Operator.
-The `spec.config.env` field is an array of environment variable definitions.
-When one environment variable references another, you must define the variables in a specific order for proper referencing and processing.
-The referenced variable must be available when the variable that refers to it is processed.
+`spec.config.env` field:: Includes the `name` and `value` fields to define environment variables.
+
+`ADDITIONAL_VARS` variable:: Includes the names of environment variables in a format of JSON array.
+Environment variables within the `value` of the `ADDITIONAL_VARS` variable automatically propagate to each {brandname} Server pod managed by the associated Operator.
 
 .Prerequisites
 * Ensure the Operator Lifecycle Manager (OLM) is installed.
@@ -28,6 +28,8 @@ endif::downstream[]
 .Procedure
 
 . Create a subscription definition YAML for your {ispn_operator}:
+.. Use the `spec.config.env` field to define environment variables.
+.. Within the `ADDITIONAL_VARS` variable, include environment variable names in a JSON array.
 +
 .subscription-{subscription_name}.yaml
 [source,options="nowrap",subs=attributes+]
@@ -35,7 +37,7 @@ endif::downstream[]
 include::yaml/env_var_subscription.yaml[]
 ----
 +
-For example, use the `spec.config.env` field to set the local time zone:
+For example, use the environment variables to set the local time zone:
 +
 .subscription-{subscription_name}.yaml
 [source,options="nowrap",subs=attributes+]
@@ -60,12 +62,15 @@ include::yaml/env_var_timezone.yaml[]
 ----
 
 .Next steps
-* Use the `{oc_edit} subscription` command to modify the environment variable:
+. Use the `{oc_edit} subscription` command to modify the environment variable:
 +
 [source,options="nowrap",subs=attributes+]
 ----
 {oc_edit} subscription {subscription_name} -n {subscription_namespace}
 ----
+
+. To ensure the changes take effect on your {brandname} clusters, you must recreate the existing clusters.
+Terminate the pods by deleting the `StatefulSet` associated with the existing `Infinispan` CRs.
 
 //Downstream content
 ifdef::downstream[]
