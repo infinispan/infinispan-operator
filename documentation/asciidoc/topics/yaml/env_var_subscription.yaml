@@ -11,6 +11,8 @@ spec:
   sourceNamespace: {source_namespace}
   config:
     env:
+    - name: ADDITIONAL_VARS
+      value: "[\"VAR_NAME\", \"ANOTHER_VAR\"]"
     - name: VAR_NAME
       value: $(VAR_NAME_VALUE)
     - name: ANOTHER_VAR
