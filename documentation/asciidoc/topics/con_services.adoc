@@ -26,7 +26,7 @@ endif::downstream[]
 [IMPORTANT]
 ====
 The `Cache` service type was designed to provide a convenient way to create a low-latency data store with minimal configuration.
-Additional development on the `Infinispan` CRD has shown that the `Cache` CR offers a better approach to achieving this goal, ultimately giving users more choice and less deployment overhead.
+Additional development on the `Infinispan` CRD has shown that the `DataGrid` CR offers a better approach to achieving this goal, ultimately giving users more choice and less deployment overhead.
 For this reason, the `Cache` service type is planned for removal in the next version of the `Infinispan` CRD and is no longer under active development.
 
 The `DataGrid` service type continues to benefit from new features and improved tooling to automate complex operations such as cluster upgrades and data migration.
