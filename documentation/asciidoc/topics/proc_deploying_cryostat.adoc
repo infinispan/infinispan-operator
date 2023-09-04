@@ -9,7 +9,7 @@ Depending on your requirements, you can store and analyze your recordings using 
 .Prerequisites
 
 * Install the Cryostat Operator. You can install the Cryostat Operator in your {k8s} project by using Operator Lifecycle Manager (OLM).
-* link:{k8s_docs}#enabling-jmx_monitor[Enable JMX] on your cluster.
+* Have JMX enabled on your {brandname} cluster. You must enable JMX before deploying the cluster, as JMX settings cannot be modified after deployment.
 
 .Procedure
 
@@ -19,19 +19,26 @@ Depending on your requirements, you can store and analyze your recordings using 
 ----
 include::yaml/cryostat.yaml[]
 ----
++
+[NOTE]
+====
+The Cryostat Operator requires cert-manager for traffic encryption.
+If the cert-manager is enabled but not installed, the deployment fails.
+For details, see the {cryostat_installation} guide.
+====
 
 . Wait for the `Cryostat` CR to be ready.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-{oc} wait -n <namespace> --for=condition=MainDeploymentAvailable cryostat/test-cryostat-provisioning-cs
+{oc} wait -n <namespace> --for=condition=MainDeploymentAvailable cryostat/cryostat-sample
 ----
 
 . Open the Cryostat `status.applicationUrl`.
 +
 [source,options="nowrap",subs=attributes+]
 ----
-{oc} -n <namespace> get cryostat {example_crd_name}-cs
+{oc} -n <namespace> get cryostat cryostat-sample
 ----
 
 . Retrieve the Operator user credentials to authenticate client JMX connections in the Cryostat UI.
@@ -41,7 +48,10 @@ include::yaml/cryostat.yaml[]
 include::cmd_examples/oc_get_secret_operator_creds_jp.adoc[]
 ----
 
-. Optionally store the credentials from the previous step, using the following "Match Expression":
+. In the Cryostat UI, navigate to the *Security* menu.
+. In the *Store Credentials* window, click the *Add* button.
+The *Store Credentials* window opens.
+. In the *Match Expression* filed, enter match expression details in the following format:
 +
 [source]
 ----
@@ -51,3 +61,4 @@ target.labels['infinispan_cr'] == '<cluster_name>'
 .Additional resources
 * link:{cryostat_installation}
 * link:{cryostat_security_configuration}
+* link:{k8s_docs}#enabling-jmx_monitor[Enabling JMX remote ports for {brandname} clusters]
