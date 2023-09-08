@@ -1548,7 +1548,7 @@ spec:
                                 type: string
                               suspectEvents:
                                 description: Enables the JGroups suspect events if
-                                  the Gossip Router detects a connectio closed
+                                  the Gossip Router detects a connection closed
                                 type: boolean
                               type:
                                 description: Configures the discovery mode for cross-site
