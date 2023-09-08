@@ -39,6 +39,11 @@
         <!-- we are unable to use FD_SOCK with openshift -->
         <!-- otherwise, we would need 1 external service per pod -->
         <FD_SOCK2 stack.combine="REMOVE"/>
+        <!-- defaults: https://github.com/belaban/JGroups/blob/25394fdc3e781814dfdd9c9006ba0c0de3b62071/src/org/jgroups/protocols/FailureDetection.java#L27-L32 -->
+        <FD_ALL3
+            interval="${jgroups.xsite.fd.interval:8000}"
+            timeout="${jgroups.xsite.fd.timeout:40000}"
+            stack.combine="COMBINE"/>
         {{ if .JGroups.FastMerge }}
         <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
         {{ end }}
