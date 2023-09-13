@@ -8,10 +8,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
+	runtimeDebug "runtime/debug"
 	"strings"
 
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 )
+
+const DEBUG = false
 
 type Credentials struct {
 	Username string
@@ -135,23 +139,34 @@ func (c *Client) executeCurlNoAuth(httpURL, headers, args string) (*http.Respons
 }
 
 func (c *Client) exec(cmd string) (bytes.Buffer, error) {
-	return c.Kubernetes.ExecWithOptions(
+	debug(func() {
+		fmt.Printf("DEBUG: Curl exec='%s'\n", cmd)
+	})
+
+	execOut, err := c.Kubernetes.ExecWithOptions(
 		kube.ExecOptions{
 			Container: c.Config.Container,
 			Command:   []string{"bash", "-c", cmd},
 			PodName:   c.Config.Podname,
 			Namespace: c.Config.Namespace,
 		})
+
+	debug(func() {
+		fmt.Printf("DEBUG: execOut='%s'", execOut.String())
+	})
+	return execOut, err
 }
 
 func handleContent(reader *bufio.Reader) (*http.Response, error) {
 	rsp, err := http.ReadResponse(reader, nil)
+	debugRsp(rsp, err)
 	if err != nil {
 		return nil, err
 	}
 
 	for rsp.StatusCode == http.StatusContinue {
 		rsp, err = http.ReadResponse(reader, nil)
+		debugRsp(rsp, err)
 		if err != nil {
 			return nil, err
 		}
@@ -178,4 +193,26 @@ func headerString(headers map[string]string) string {
 		fmt.Fprintf(b, "-H \"%s: %s\" ", key, value)
 	}
 	return b.String()
+}
+
+func debug(debugFn func()) {
+	if DEBUG {
+		debugFn()
+	}
+}
+
+func debugRsp(rsp *http.Response, err error) {
+	debug(func() {
+		if err != nil {
+			runtimeDebug.PrintStack()
+			fmt.Printf("DEBUG: response err: %s", err.Error())
+			return
+		}
+		dump, err := httputil.DumpResponse(rsp, true)
+		if err != nil {
+			runtimeDebug.PrintStack()
+			dump = []byte(fmt.Errorf("unable to obtain http dump: %w", err).Error())
+		}
+		fmt.Printf("DEBUG: Rsp<<<<<<<<<<<<<<<<\n%s\n\n", string(dump))
+	})
 }
