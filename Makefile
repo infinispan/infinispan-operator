@@ -254,7 +254,8 @@ bundle-push:
 
 .PHONY: opm
 export OPM = ./bin/opm
-opm: ## Download opm locally if necessary.
+## Download opm locally if necessary.
+opm:
 ifeq (,$(wildcard $(OPM)))
 ifeq (,$(shell which opm 2>/dev/null))
 	@{ \
@@ -271,7 +272,8 @@ endif
 
 .PHONY: jq
 export JQ = ./bin/jq
-jq: ## Download opm locally if necessary.
+## Download jq locally if necessary.
+jq:
 ifeq (,$(wildcard $(JQ)))
 ifeq (,$(shell which jq 2>/dev/null))
 	@{ \
@@ -282,6 +284,57 @@ ifeq (,$(shell which jq 2>/dev/null))
 	}
 else
 JQ = $(shell which jq)
+endif
+endif
+
+.PHONY: yq
+export YQ = ./bin/yq
+## Download yq locally if necessary.
+yq:
+ifeq (,$(wildcard $(YQ)))
+ifeq (,$(shell which yq 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(YQ)) ;\
+	curl -sSLo $(YQ) https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_linux_amd64 ;\
+	chmod +x $(YQ) ;\
+	}
+else
+yq = $(shell which yq)
+endif
+endif
+
+.PHONY: oc
+export OC = ./bin/oc
+## Download oc locally if necessary.
+oc:
+ifeq (,$(wildcard $(OC)))
+ifeq (,$(shell which oc 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OC)) ;\
+	curl -sSLo oc.tar.gz https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.11.6/openshift-client-linux.tar.gz ;\
+	tar -xf oc.tar.gz -C $(dir $(OC)) oc ;\
+	}
+else
+OC = $(shell which oc)
+endif
+endif
+
+.PHONY: operator-sdk
+## Download operator-sdk locally if necessary.
+export OPERATOR_SDK = ./bin/operator-sdk
+operator-sdk:
+ifeq (,$(wildcard $(OPERATOR_SDK)))
+ifeq (,$(shell which operator-sdk 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPERATOR_SDK)) ;\
+	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.3.2/operator-sdk_linux_amd64 ;\
+	chmod +x $(OPERATOR_SDK) ;\
+	}
+else
+OPERATOR_SDK = $(shell which operator-sdk)
 endif
 endif
 
