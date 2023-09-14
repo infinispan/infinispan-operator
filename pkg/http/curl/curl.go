@@ -4,6 +4,7 @@ package curl
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,7 +50,15 @@ func (c *Client) Get(path string, headers map[string]string) (*http.Response, er
 }
 
 func (c *Client) Head(path string, headers map[string]string) (*http.Response, error) {
-	return c.executeCurlCommand(path, headers, "--head")
+	rsp, err := c.executeCurlCommand(path, headers, "--head")
+	// ISPN-15173 Workaround
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return &http.Response{
+			Status: http.StatusText(http.StatusInternalServerError),
+			Body:   io.NopCloser(strings.NewReader("EOF. Unable to propagate error due to ISPN-15173, check Infinispan server logs")),
+		}, nil
+	}
+	return rsp, err
 }
 
 func (c *Client) Post(path, payload string, headers map[string]string) (*http.Response, error) {
