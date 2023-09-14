@@ -82,8 +82,9 @@ func status(url, name, op string, client httpClient.HttpClient) (api.Status, err
 	bodyOrStatus := func(rsp *http.Response) interface{} {
 		if body, err := io.ReadAll(rsp.Body); err != nil || string(body) == "" {
 			return rsp.Status
+		} else {
+			return body
 		}
-		return rsp.Body
 	}
 
 	switch rsp.StatusCode {
