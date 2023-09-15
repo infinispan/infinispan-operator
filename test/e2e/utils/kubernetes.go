@@ -185,6 +185,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		k.WriteAllResourcesToFile(dir, namespace, "Restore", &ispnv2.RestoreList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Batch", &ispnv2.BatchList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Cache", &ispnv2.CacheList{}, map[string]string{})
+		k.WriteAllMetricsToFile(dir, namespace)
 	}
 
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
