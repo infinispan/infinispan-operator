@@ -174,8 +174,15 @@ func (c *httpClientConfig) request(url *url.URL, method, payload string, headers
 }
 
 func getAuthorization(username, password string, resp *http.Response) *authenticationRealm {
-	header := resp.Header.Get("www-authenticate")
-	parts := strings.SplitN(header, " ", 2)
+	var digestRealm string
+	for _, realm := range resp.Header.Values("www-authenticate") {
+		if strings.HasPrefix(realm, "Digest realm") {
+			digestRealm = realm
+			break
+		}
+	}
+
+	parts := strings.SplitN(digestRealm, " ", 2)
 	parts = strings.Split(parts[1], ", ")
 	opts := make(map[string]string)
 
