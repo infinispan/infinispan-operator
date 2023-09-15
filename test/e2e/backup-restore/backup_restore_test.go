@@ -181,6 +181,14 @@ func datagridService(t *testing.T, name string, replicas int) *v1.Infinispan {
 	return tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
 		i.Name = name
 		i.Spec.Replicas = int32(replicas)
+		//i.Spec.Logging.Categories["org.jgroups"] = v1.LoggingLevelTrace
+		i.Spec.Logging.Categories["org.infinispan.remoting.transport.jgroups"] = v1.LoggingLevelTrace
+		i.Spec.Logging.Categories["org.infinispan.server.core.backup"] = v1.LoggingLevelTrace
+		i.Spec.Logging.Categories["org.infinispan.topology"] = v1.LoggingLevelTrace
+		i.Spec.Logging.Categories["org.infinispan.globalstate.impl"] = v1.LoggingLevelTrace
+		i.Spec.Logging.Categories["org.infinispan.statetransfer"] = v1.LoggingLevelTrace
+		i.Spec.Logging.Categories["org.infinispan.remoting"] = v1.LoggingLevelTrace
+		i.Spec.Logging.Categories["org.infinispan.interceptors"] = v1.LoggingLevelTrace
 	})
 }
 
