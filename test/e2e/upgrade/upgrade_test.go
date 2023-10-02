@@ -214,38 +214,38 @@ func TestUpgrade(t *testing.T) {
 					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 			})
 			assertOperandImage(latestOperand.Image)
-		}
 
-		// Ensure that persistent cache entries have survived the upgrade(s)
-		// Refresh the hostAddr and client as the url will change if NodePort is used.
-		client = tutils.HTTPClientForCluster(spec, testKube)
-		tutils.NewCacheHelper(peristentCache, client).AssertSize(numEntries)
+			// Ensure that persistent cache entries have survived the upgrade(s)
+			// Refresh the hostAddr and client as the url will change if NodePort is used.
+			client = tutils.HTTPClientForCluster(spec, testKube)
+			tutils.NewCacheHelper(peristentCache, client).AssertSize(numEntries)
 
-		// Restore the backup and ensure that the cache exists with the expected number of entries
-		restore := &v2.Restore{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "infinispan.org/v2alpha1",
-				Kind:       "Restore",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade-restore-" + strings.ReplaceAll(strings.TrimLeft(sub.Status.CurrentCSV, olm.SubName+".v"), ".", "-"),
-				Namespace: tutils.Namespace,
-				Labels:    map[string]string{"test-name": t.Name()},
-			},
-			Spec: v2.RestoreSpec{
-				Backup:  backup.Name,
-				Cluster: spec.Name,
-			},
-		}
-		testKube.Create(restore)
+			// Restore the backup and ensure that the cache exists with the expected number of entries
+			restore := &v2.Restore{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "infinispan.org/v2alpha1",
+					Kind:       "Restore",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "upgrade-restore-" + strings.ReplaceAll(strings.TrimLeft(sub.Status.CurrentCSV, olm.SubName+".v"), ".", "-"),
+					Namespace: tutils.Namespace,
+					Labels:    map[string]string{"test-name": t.Name()},
+				},
+				Spec: v2.RestoreSpec{
+					Backup:  backup.Name,
+					Cluster: spec.Name,
+				},
+			}
+			testKube.Create(restore)
 
-		if restore, err := waitForValidRestorePhase(restore.Name, restore.Namespace, v2.RestoreSucceeded); err != nil {
-			tutils.ExpectNoError(
-				ignoreRestoreError(sub.Status.InstalledCSV, &latestOperand, spec, restore, client, err),
-			)
-			// We must recreate the caches that should have been restored if the Restore CR had succeeded
-			// so that the Backup CR executed in the next loop has the expected content
-			createAndPopulateVolatileCache(client)
+			if restore, err := waitForValidRestorePhase(restore.Name, restore.Namespace, v2.RestoreSucceeded); err != nil {
+				tutils.ExpectNoError(
+					ignoreRestoreError(sub.Status.InstalledCSV, &latestOperand, spec, restore, client, err),
+				)
+				// We must recreate the caches that should have been restored if the Restore CR had succeeded
+				// so that the Backup CR executed in the next loop has the expected content
+				createAndPopulateVolatileCache(client)
+			}
 		}
 		tutils.NewCacheHelper(volatileCache, client).AssertSize(numEntries)
 	}
