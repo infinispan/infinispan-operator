@@ -141,6 +141,7 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, su
 			k.WriteAllResourcesToFile(dir, subNamespace, "OperatorGroup", &coreosv1.OperatorGroupList{}, map[string]string{})
 			k.WriteAllResourcesToFile(dir, subNamespace, "Subscription", &coreos.SubscriptionList{}, map[string]string{})
 			k.WriteAllResourcesToFile(dir, subNamespace, "ClusterServiceVersion", &coreos.ClusterServiceVersionList{}, map[string]string{})
+			k.WriteAllResourcesToFile(dir, subNamespace, "Deployment", &appsv1.DeploymentList{}, map[string]string{})
 			// Print 2.1.x Operator pod logs
 			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
 			// Print latest Operator logs
