@@ -147,6 +147,15 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, su
 			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
 			// Print latest Operator logs
 			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+			// OLM Operator Logs
+			var olmNs string
+			if k.NamespaceExists("olm") {
+				olmNs = "olm"
+			} else {
+				olmNs = "openshift-operator-lifecycle-manager"
+			}
+			k.WriteAllResourcesToFile(dir, olmNs, "Pod", &corev1.PodList{}, map[string]string{"app": "olm-operator"})
+			k.WriteAllResourcesToFile(dir, olmNs, "Pod", &corev1.PodList{}, map[string]string{"app": "catalog-operator"})
 		}
 
 		// Cleanup OLM resources
