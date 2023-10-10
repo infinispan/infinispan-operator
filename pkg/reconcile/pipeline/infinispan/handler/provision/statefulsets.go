@@ -111,6 +111,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 							{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)},
 							{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename},
 						}),
+						Lifecycle:      PodLifecycle(),
 						LivenessProbe:  PodLivenessProbe(),
 						Ports:          PodPortsWithXsite(i),
 						ReadinessProbe: PodReadinessProbe(),

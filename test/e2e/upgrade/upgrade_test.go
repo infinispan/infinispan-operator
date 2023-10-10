@@ -54,6 +54,11 @@ func TestUpgrade(t *testing.T) {
 			InstallPlanApproval:    coreos.ApprovalManual,
 			Package:                olm.SubPackage,
 			StartingCSV:            olm.SubStartingCSV,
+			Config: coreos.SubscriptionConfig{
+				Env: []corev1.EnvVar{
+					{Name: "THREAD_DUMP_PRE_STOP", Value: "TRUE"},
+				},
+			},
 		},
 	}
 

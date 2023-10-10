@@ -316,6 +316,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 				Image:         ispn.ImageName(),
 				Name:          InfinispanContainer,
 				Env:           PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename}}),
+				Lifecycle:     PodLifecycle(),
 				LivenessProbe: PodLivenessProbe(),
 				Ports: []corev1.ContainerPort{
 					{ContainerPort: consts.InfinispanAdminPort, Name: consts.InfinispanAdminPortName, Protocol: corev1.ProtocolTCP},
