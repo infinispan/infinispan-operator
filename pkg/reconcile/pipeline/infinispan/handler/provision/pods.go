@@ -29,6 +29,25 @@ func PodPortsWithXsite(i *ispnv1.Infinispan) []corev1.ContainerPort {
 	return ports
 }
 
+func PodLifecycle() *corev1.Lifecycle {
+	if !consts.ThreadDumpPreStopFlag {
+		return nil
+	}
+
+	return &corev1.Lifecycle{
+		// Execute kill -3 on the Server process to obtain a thread dump in the logs
+		PreStop: &corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"/bin/bash",
+					"-c",
+					"kill -3 1",
+				},
+			},
+		},
+	}
+}
+
 func PodLivenessProbe() *corev1.Probe {
 	return probe(5, 0, 10, 1, 80)
 }

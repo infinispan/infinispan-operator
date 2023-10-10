@@ -1,7 +1,9 @@
 package constants
 
 import (
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +20,9 @@ var (
 	ConfigListenerEnvName   = "CONFIG_LISTENER_IMAGE"
 
 	// JGroupsDiagnosticsFlag is used to enable traces for JGroups
-	JGroupsDiagnosticsFlag = strings.ToUpper(GetEnvWithDefault("JGROUPS_DIAGNOSTICS", "FALSE"))
+	JGroupsDiagnosticsFlag = GetEnvBool("JGROUPS_DIAGNOSTICS")
+	// ThreadDumpPreStopFlag is used to print a server thread dump on container stop
+	ThreadDumpPreStopFlag = GetEnvBool("THREAD_DUMP_PRE_STOP")
 
 	// DefaultMemorySize string with default size for memory
 	DefaultMemorySize = resource.MustParse("1Gi")
@@ -144,4 +148,16 @@ func GetWithDefault(value, defValue string) string {
 // GetEnvWithDefault return os.Getenv(name) if exists else return defValue
 func GetEnvWithDefault(name, defValue string) string {
 	return GetWithDefault(os.Getenv(name), defValue)
+}
+
+func GetEnvBool(name string) bool {
+	env := os.Getenv(name)
+	if env == "" {
+		return false
+	}
+	v, err := strconv.ParseBool(env)
+	if err != nil {
+		panic(fmt.Errorf("unable to parse bool env '%s': %w", name, err))
+	}
+	return v
 }
