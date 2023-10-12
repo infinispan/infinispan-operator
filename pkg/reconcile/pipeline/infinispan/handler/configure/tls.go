@@ -9,6 +9,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -48,8 +49,18 @@ func Keystore(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		} else if isUserProvidedPrivateKey() {
 			keystore.Path = consts.ServerOperatorSecurity + "/" + EncryptPemKeystoreName
 			keystore.PemFile = append(keystoreSecret.Data["tls.key"], keystoreSecret.Data["tls.crt"]...)
+		} else {
+			errMsg := fmt.Sprintf("Failed to setup TLS keystore from secret %s", keystoreSecret.Name)
+			_ = ctx.UpdateInfinispan(func() {
+				i.SetCondition(ispnv1.ConditionTLSSecretValid, metav1.ConditionFalse, errMsg)
+			})
+			ctx.Requeue(fmt.Errorf(errMsg))
+			return
 		}
 	}
+	_ = ctx.UpdateInfinispan(func() {
+		i.SetCondition(ispnv1.ConditionTLSSecretValid, metav1.ConditionTrue, "")
+	})
 	ctx.ConfigFiles().Keystore = keystore
 }
 

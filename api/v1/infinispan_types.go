@@ -508,6 +508,7 @@ const (
 	ConditionWellFormed          ConditionType = "WellFormed"
 	ConditionCrossSiteViewFormed ConditionType = "CrossSiteViewFormed"
 	ConditionGossipRouterReady   ConditionType = "GossipRouterReady"
+	ConditionTLSSecretValid      ConditionType = "TLSSecretValid"
 )
 
 // InfinispanCondition define a condition of the cluster
