@@ -50,7 +50,7 @@ func Keystore(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			keystore.Path = consts.ServerOperatorSecurity + "/" + EncryptPemKeystoreName
 			keystore.PemFile = append(keystoreSecret.Data["tls.key"], keystoreSecret.Data["tls.crt"]...)
 		} else {
-			errMsg := fmt.Sprintf("Failed to setup TLS keystore from secret %s", keystoreSecret.Name)
+			errMsg := fmt.Sprintf("Failed to setup TLS. Secret %s must contain a keystore.p12 or a tls.key/tls.crt pair", keystoreSecret.Name)
 			_ = ctx.UpdateInfinispan(func() {
 				i.SetCondition(ispnv1.ConditionTLSSecretValid, metav1.ConditionFalse, errMsg)
 			})

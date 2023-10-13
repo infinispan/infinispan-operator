@@ -51,9 +51,7 @@ func TestTLSConditionWithBadKeystore(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	// Create a resource without passing any config
-	replicas := 2
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Replicas = int32(replicas)
 		i.Spec.Security = ispnv1.InfinispanSecurity{
 			EndpointEncryption: tutils.EndpointEncryption(i.Name),
 		}
