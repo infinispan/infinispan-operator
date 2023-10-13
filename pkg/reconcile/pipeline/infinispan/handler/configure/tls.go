@@ -54,7 +54,7 @@ func Keystore(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			_ = ctx.UpdateInfinispan(func() {
 				i.SetCondition(ispnv1.ConditionTLSSecretValid, metav1.ConditionFalse, errMsg)
 			})
-			ctx.Requeue(fmt.Errorf(errMsg))
+			ctx.Requeue(nil)
 			return
 		}
 	}

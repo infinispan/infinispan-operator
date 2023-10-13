@@ -638,7 +638,16 @@ func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps
 	return podList
 }
 
-func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace string, condition ispnv1.ConditionType, timeout time.Duration) *ispnv1.Infinispan {
+func (k TestKubernetes) WaitForInfinispanConditionWithTimeout(name, namespace string, condition ispnv1.ConditionType, timeout time.Duration, value ...string) *ispnv1.Infinispan {
+	if len(value) > 0 && value[0] == string(metav1.ConditionFalse) {
+		return k.WaitForInfinispanStateWithTimeout(name, namespace, timeout, func(i *ispnv1.Infinispan) bool {
+			if i.IsConditionFalse(condition) {
+				log.Info("infinispan condition met", "condition", condition, "status", metav1.ConditionTrue)
+				return true
+			}
+			return false
+		})
+	}
 	return k.WaitForInfinispanStateWithTimeout(name, namespace, timeout, func(i *ispnv1.Infinispan) bool {
 		if i.IsConditionTrue(condition) {
 			log.Info("infinispan condition met", "condition", condition, "status", metav1.ConditionTrue)
@@ -670,6 +679,10 @@ func (k TestKubernetes) WaitForInfinispanStateWithTimeout(name, namespace string
 
 func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condition ispnv1.ConditionType) *ispnv1.Infinispan {
 	return k.WaitForInfinispanConditionWithTimeout(name, namespace, condition, ConditionWaitTimeout)
+}
+
+func (k TestKubernetes) WaitForInfinispanConditionFalse(name, namespace string, condition ispnv1.ConditionType) *ispnv1.Infinispan {
+	return k.WaitForInfinispanConditionWithTimeout(name, namespace, condition, ConditionWaitTimeout, string(metav1.ConditionFalse))
 }
 
 func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {

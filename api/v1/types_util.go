@@ -219,6 +219,10 @@ func (ispn *Infinispan) IsConditionTrue(name ConditionType) bool {
 	return ispn.GetCondition(name).Status == metav1.ConditionTrue
 }
 
+func (ispn *Infinispan) IsConditionFalse(name ConditionType) bool {
+	return ispn.GetCondition(name).Status == metav1.ConditionFalse
+}
+
 func (ispn *Infinispan) IsUpgradeCondition() bool {
 	return ispn.IsConditionTrue(ConditionUpgrade)
 }
