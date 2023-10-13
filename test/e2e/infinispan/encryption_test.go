@@ -60,7 +60,9 @@ func TestTLSConditionWithBadKeystore(t *testing.T) {
 	// Create secret
 	serverName := tutils.GetServerName(spec)
 	keystore, _ := tutils.CreateKeystore(serverName)
-	secret := tutils.EncryptionBadSecretKeystore(spec.Name, tutils.Namespace, keystore)
+	secret := tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+	// Corrupt secret
+	delete(secret.Data, "keystore.p12")
 	testKube.CreateSecret(secret)
 	defer testKube.DeleteSecret(secret)
 
