@@ -44,3 +44,6 @@ You can also delete {brandname} clusters with `kubectl-infinispan` and re-create
 ----
 {kube_client} infinispan delete cluster infinispan
 ----
+
+.Additional resources
+* link:{k8s_docs}#native-cli-usage_installing-native-cli-plugin[kubectl-infinispan command reference]

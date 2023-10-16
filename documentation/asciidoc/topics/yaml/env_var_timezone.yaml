@@ -1,0 +1,9 @@
+kind: Subscription
+spec:
+  ...
+  config:
+    env:
+    - name: ADDITIONAL_VARS
+      value: "[\"TZ\"]"
+    - name: TZ
+      value: "Asia/Tokyo"

@@ -1,0 +1,19 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: {subscription_name}
+  namespace: {subscription_namespace}
+spec:
+  channel: {operator_channel}
+  installPlanApproval: Automatic
+  name: {subscription_name}
+  source: {operator_source}
+  sourceNamespace: {source_namespace}
+  config:
+    env:
+    - name: ADDITIONAL_VARS
+      value: "[\"VAR_NAME\", \"ANOTHER_VAR\"]"
+    - name: VAR_NAME
+      value: $(VAR_NAME_VALUE)
+    - name: ANOTHER_VAR
+      value: $(ANOTHER_VAR_VALUE)

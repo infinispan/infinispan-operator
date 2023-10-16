@@ -175,6 +175,30 @@ type DiscoverySiteSpec struct {
 	// Enables (default) or disables the Gossip Router pod and cross-site services
 	// +optional
 	LaunchGossipRouter *bool `json:"launchGossipRouter,omitempty"`
+	// Memory resource request for Gossip Router if enabled
+	// +optional
+	Memory string `json:"memory,omitempty"`
+	// CPU resource request for Gossip Router if enabled
+	// +optional
+	CPU string `json:"cpu,omitempty"`
+	// Enables the JGroups suspect events if the Gossip Router detects a connection closed
+	// +optional
+	SuspectEvents bool `json:"suspectEvents,omitempty"`
+	// Configures the Gossip Router heartbeats to keep the connection open
+	// +optional
+	Heartbeats *GossipRouterHeartbeatSpec `json:"heartbeats,omitempty"`
+}
+
+type GossipRouterHeartbeatSpec struct {
+	// Enables the Gossip Router heartbeats
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// Sends a heartbeat to the GossipRouter every interval milliseconds
+	// +optional
+	Interval *int64 `json:"interval,omitempty"`
+	// Max time (millsecoonds) with no received message or heartbeat after which the connection to a GossipRouter is closed
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty"`
 }
 
 // Specifies the discovery mode for cross-site configuration
@@ -401,6 +425,20 @@ type ConfigListenerLoggingSpec struct {
 	Level ConfigListenerLogLevel `json:"level"`
 }
 
+type JmxSpec struct {
+	// If true, a JMX endpoint is exposed on the admin service
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Toggle Jmx",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	Enabled bool `json:"enabled,omitempty"`
+}
+
+type SchedulingSpec struct {
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+	// +optional
+	PriorityClassName string `json:"PriorityClassName,omitempty"`
+}
+
 // InfinispanSpec defines the desired state of Infinispan
 type InfinispanSpec struct {
 	// The number of nodes in the Infinispan cluster.
@@ -425,6 +463,7 @@ type InfinispanSpec struct {
 	// +optional
 	Autoscale *Autoscale `json:"autoscale,omitempty"`
 	// +optional
+	// Deprecated. Use scheduling.affinity instead
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// +optional
 	CloudEvents *InfinispanCloudEvents `json:"cloudEvents,omitempty"`
@@ -437,6 +476,10 @@ type InfinispanSpec struct {
 	Upgrades *InfinispanUpgradesSpec `json:"upgrades,omitempty"`
 	// +optional
 	ConfigListener *ConfigListenerSpec `json:"configListener,omitempty"`
+	// +optional
+	Jmx *JmxSpec `json:"jmx,omitempty"`
+	// +optional
+	Scheduling *SchedulingSpec `json:"scheduling,omitempty"`
 }
 
 // InfinispanUpgradesSpec defines the Infinispan upgrade strategy

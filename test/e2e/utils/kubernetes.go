@@ -586,8 +586,8 @@ func isTemporary(err error) bool {
 	return errors.As(err, &temporary) || errors.As(err, &timeout)
 }
 
-func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) {
-	k.WaitForPods(required, timeout, &client.ListOptions{
+func (k TestKubernetes) WaitForInfinispanPods(required int, timeout time.Duration, cluster, namespace string) *corev1.PodList {
+	return k.WaitForPods(required, timeout, &client.ListOptions{
 		Namespace:     namespace,
 		LabelSelector: labels.SelectorFromSet(map[string]string{"clusterName": cluster, "app": "infinispan-pod"}),
 	}, nil)
@@ -791,6 +791,16 @@ func (k TestKubernetes) DeleteConfigMap(configMap *corev1.ConfigMap) {
 func (k TestKubernetes) UpdateConfigMap(configMap *corev1.ConfigMap) {
 	err := k.Kubernetes.Client.Update(context.TODO(), configMap)
 	ExpectNoError(err)
+}
+
+func (k TestKubernetes) GetConfigMap(name, namespace string) *corev1.ConfigMap {
+	configMap := &corev1.ConfigMap{}
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+	ExpectNoError(k.Kubernetes.Client.Get(context.TODO(), key, configMap))
+	return configMap
 }
 
 // RunOperator runs an operator on a Kubernetes cluster

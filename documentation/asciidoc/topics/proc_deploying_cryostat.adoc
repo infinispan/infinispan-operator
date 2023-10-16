@@ -1,0 +1,64 @@
+[id='deploying-cryostat_{context}']
+= Setting up JFR recordings with Cryostat
+Enable JDK Flight Recorder (JFR) monitoring for your {brandname} clusters that run on {k8s}.
+
+.JFR recordings with Cryostat
+JFR provides insights into various aspects of JVM performance to ease cluster inspection and debugging.
+Depending on your requirements, you can store and analyze your recordings using the integrated tools provided by Cryostat or export the recordings to an external monitoring application.
+
+.Prerequisites
+
+* Install the Cryostat Operator. You can install the Cryostat Operator in your {k8s} project by using Operator Lifecycle Manager (OLM).
+* Have JMX enabled on your {brandname} cluster. You must enable JMX before deploying the cluster, as JMX settings cannot be modified after deployment.
+
+.Procedure
+
+. Create a Cryostat CR in the same namespace as your `Infinispan` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/cryostat.yaml[]
+----
++
+[NOTE]
+====
+The Cryostat Operator requires cert-manager for traffic encryption.
+If the cert-manager is enabled but not installed, the deployment fails.
+For details, see the {cryostat_installation} guide.
+====
+
+. Wait for the `Cryostat` CR to be ready.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc} wait -n <namespace> --for=condition=MainDeploymentAvailable cryostat/cryostat-sample
+----
+
+. Open the Cryostat `status.applicationUrl`.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc} -n <namespace> get cryostat cryostat-sample
+----
+
+. Retrieve the Operator user credentials to authenticate client JMX connections in the Cryostat UI.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/oc_get_secret_operator_creds_jp.adoc[]
+----
+
+. In the Cryostat UI, navigate to the *Security* menu.
+. In the *Store Credentials* window, click the *Add* button.
+The *Store Credentials* window opens.
+. In the *Match Expression* filed, enter match expression details in the following format:
++
+[source]
+----
+target.labels['infinispan_cr'] == '<cluster_name>'
+----
+
+.Additional resources
+* link:{cryostat_installation}
+* link:{cryostat_security_configuration}
+* link:{k8s_docs}#enabling-jmx_monitor[Enabling JMX remote ports for {brandname} clusters]

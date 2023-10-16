@@ -10,6 +10,8 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+
 	// +kubebuilder:scaffold:imports
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,6 +80,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
 			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
 			Expect(spec.ConfigListener.Logging.Level).Should(Equal(ConfigListenerLoggingInfo))
+			Expect(spec.Jmx.Enabled).Should(Equal(false))
 		})
 
 		It("Should initiate DataGrid defaults", func() {
@@ -109,6 +112,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
 			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
 			Expect(spec.ConfigListener.Logging.Level).Should(Equal(ConfigListenerLoggingInfo))
+			Expect(spec.Jmx.Enabled).Should(Equal(false))
 		})
 
 		It("Should calculate default Labels", func() {
@@ -279,6 +283,21 @@ var _ = Describe("Infinispan Webhooks", func() {
 						Memory:  "1Gi:5Gi",
 						CPU:     "1000m:2000m",
 					},
+					Service: InfinispanServiceSpec{
+						Type: ServiceTypeDataGrid,
+						Sites: &InfinispanSitesSpec{
+							Local: InfinispanSitesLocalSpec{
+								Name: "site1",
+								Expose: CrossSiteExposeSpec{
+									Type: CrossSiteExposeTypeClusterIP,
+								},
+								Discovery: &DiscoverySiteSpec{
+									Memory: "1Gi:5Gi",
+									CPU:    "1000m:2000m",
+								},
+							},
+						},
+					},
 				},
 			}
 
@@ -291,6 +310,10 @@ var _ = Describe("Infinispan Webhooks", func() {
 				metav1.CauseTypeFieldValueInvalid, "spec.configListener.cpu", "exceeds limit",
 			}, {
 				metav1.CauseTypeFieldValueInvalid, "spec.configListener.memory", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.service.sites.local.discovery.cpu", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.service.sites.local.discovery.memory", "exceeds limit",
 			}}...)
 		})
 
@@ -573,6 +596,83 @@ var _ = Describe("Infinispan Webhooks", func() {
 			expectInvalidErrStatus(k8sClient.Create(ctx, ispn), statusDetailCause{
 				metav1.CauseTypeFieldValueInvalid, "spec.version", "should match",
 			})
+		})
+
+		It("Should prevent immutable fields being updated", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, key, ispn)).Should(Succeed())
+			ispn.Spec.Jmx.Enabled = true
+			expectInvalidErrStatus(k8sClient.Update(ctx, ispn),
+				statusDetailCause{"FieldValueForbidden", "spec.jmx", "JMX configuration is immutable and cannot be updated after initial Infinispan creation"},
+			)
+		})
+
+		It("Should prevent incompatible TLS configuration", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Security: InfinispanSecurity{
+						EndpointEncryption: &EndpointEncryption{
+							CertSecretName:  "secret-name",
+							CertServiceName: "service.com",
+							Type:            CertificateSourceTypeSecret,
+						},
+					},
+				},
+			}
+			expectInvalidErrStatus(k8sClient.Create(ctx, ispn),
+				statusDetailCause{"FieldValueForbidden", "spec.security.endpointEncryption.certServiceName", ".certServiceName cannot be configured with Encryption .type=Secret"},
+			)
+		})
+
+		It("Should transform affinity spec", func() {
+			affinitySpec := &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"infinispan_cr": key.Name,
+									"clusterName":   key.Namespace,
+									"app":           "infinispan-pod",
+								},
+							},
+							TopologyKey: "check-value",
+						},
+					}},
+				},
+			}
+
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Affinity: affinitySpec,
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			updated := &Infinispan{}
+			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
+			Expect(updated.Spec.Affinity).Should(BeNil())
+			Expect(updated.Spec.Scheduling.Affinity).Should(BeEquivalentTo(affinitySpec))
 		})
 	})
 })

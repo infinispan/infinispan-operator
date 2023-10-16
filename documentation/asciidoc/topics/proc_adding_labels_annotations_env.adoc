@@ -12,13 +12,13 @@ Add labels and annotations to your {ispn_operator} subscription with the `spec.c
 +
 [source,options="nowrap",subs=attributes+]
 ----
-{oc_edit} subscription {subscription_name} -n openshift-operators
+{oc_edit} subscription {subscription_name} -n {subscription_namespace}
 ----
 
 * Use the {openshift} Console.
 +
-. Navigate to **Operators** > **Installed Operators** > **Subscription**.
-. Select **Edit Subscription** from the **Actions** menu.
+. Navigate to **Operators** > **Installed Operators** >  *{ispn_operator}*.
+. From the *Actions* menu, select *Edit Subscription*.
 
 .Labels and annotations with environment variables
 [source,yaml,options="nowrap",subs=attributes+]

@@ -459,6 +459,16 @@ func (spec *ConfigListenerSpec) MemoryResources() (requests resource.Quantity, l
 	return getRequestLimits(spec.Memory)
 }
 
+// CpuResources returns the CPU request and limit values to be used by by Gossip Router pod
+func (spec *DiscoverySiteSpec) CpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+	return getRequestLimits(spec.CPU)
+}
+
+// MemoryResources returns the Memory request and limit values to be used by Gossip Router pod
+func (spec *DiscoverySiteSpec) MemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+	return getRequestLimits(spec.Memory)
+}
+
 func getRequestLimits(str string) (requests resource.Quantity, limits resource.Quantity, err error) {
 	if str == "" {
 		err = fmt.Errorf("resource string cannot be empty")
@@ -940,4 +950,23 @@ func (ispn *Infinispan) LaunchGossipRouterEnabled() bool {
 
 func (ispn *Infinispan) IsGossipRouterEnabled() bool {
 	return ispn.CrossSiteDiscoveryType() == GossipRouterType && ispn.LaunchGossipRouterEnabled()
+}
+
+func (ispn *Infinispan) IsJmxExposed() bool {
+	// TODO update
+	return ispn.Spec.Jmx != nil && ispn.Spec.Jmx.Enabled
+}
+
+func (ispn *Infinispan) Affinity() *corev1.Affinity {
+	if ispn.Spec.Scheduling != nil && ispn.Spec.Scheduling.Affinity != nil {
+		return ispn.Spec.Scheduling.Affinity
+	}
+	return ispn.Spec.Affinity
+}
+
+func (ispn *Infinispan) PriorityClassName() string {
+	if ispn.Spec.Scheduling != nil {
+		return ispn.Spec.Scheduling.PriorityClassName
+	}
+	return ""
 }

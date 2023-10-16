@@ -49,7 +49,7 @@ lint: golangci-lint
 
 .PHONY: test
 ## Execute tests
-test: manager manifests envtest
+test: manager manifests generate-mocks envtest
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./api/... ./controllers/... ./pkg/... -coverprofile cover.out
 
 .PHONY: infinispan-test
@@ -159,6 +159,11 @@ generate: controller-gen rice
 	$(RICE) embed-go -i controllers/grafana.go -i pkg/templates/templates.go
 	find . -type f -name 'rice-box.go' -exec sed -i "s|time.Unix(.*, 0)|time.Unix(1620137619, 0)|" {} \;
 
+.PHONY: generate-mocks
+## Generate testing mocks
+generate-mocks: mockgen
+	$(MOCKGEN) -source=./pkg/reconcile/pipeline/infinispan/api.go -destination=./pkg/reconcile/pipeline/infinispan/api_mocks.go -package=infinispan
+
 .PHONY: operator-build
 ## Build the operator image
 operator-build: manager
@@ -198,6 +203,12 @@ export GO_JUNIT_REPORT = $(shell pwd)/bin/go-junit-report
 ## Download go-junit-report locally if necessary
 go-junit-report:
 	$(call go-get-tool,$(GO_JUNIT_REPORT),github.com/jstemmer/go-junit-report@latest)
+
+export MOCKGEN = $(shell pwd)/bin/mockgen
+.PHONY: mockgen
+## Download mockgen locally if necessary
+mockgen:
+	$(call go-get-tool,$(MOCKGEN),github.com/golang/mock/mockgen@v1.6.0)
 
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest

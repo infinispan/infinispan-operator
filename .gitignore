@@ -102,3 +102,6 @@ tls.crt
 ## Ignore OLM generated bundles
 bundle/
 bundle.Dockerfile
+
+# Ignore directory created by scripts/create-olm-catalog.sh
+infinispan-olm-catalog/

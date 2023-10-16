@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/iancoleman/strcase"
@@ -60,6 +62,10 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 							Port: exposePort,
 						},
 						MaxRelayNodes: 2,
+						Discovery: &ispnv1.DiscoverySiteSpec{
+							Memory: "500Mi",
+							CPU:    "500m",
+						},
 					},
 					Locations: []ispnv1.InfinispanSiteLocationSpec{
 						{
@@ -367,7 +373,69 @@ func TestSingleGossipRouter(t *testing.T) {
 
 	assertGossipRouterPodCount(t, tesKubes["xsite2"], 1)
 	expectsCrossSiteService(tesKubes["xsite2"])
+}
 
+func TestSuspectAndHearbeatConfig(t *testing.T) {
+	// single cluster cross-site is enough.
+	// testing both configuration in the same test to save time
+	// test inspects the configmap and the arguments list of Gossip Router
+
+	testName := tutils.TestName(t)
+	testKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
+	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+
+	for _, testKube := range testKubes {
+		testKube.context = clientConfig.CurrentContext
+		testKube.namespace = fmt.Sprintf("%s-xsite2", tutils.Namespace)
+		testKube.kube = tutils.NewTestKubernetes(testKube.context)
+	}
+
+	defer testKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, testKubes["xsite1"].namespace)
+	defer testKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, testKubes["xsite2"].namespace)
+
+	testKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite1", "xsite2", "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
+	testKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite2", "xsite1", "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
+
+	testKubes["xsite1"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
+	testKubes["xsite2"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
+
+	// site 1 configuration
+	// enable suspect events (disabled by default) and disable hearbeats (enabled by default)
+	testKubes["xsite1"].crossSite.Spec.Service.Sites.Local.Discovery.SuspectEvents = true
+	testKubes["xsite1"].crossSite.Spec.Service.Sites.Local.Discovery.Heartbeats = &ispnv1.GossipRouterHeartbeatSpec{
+		Enabled: pointer.Bool(false),
+	}
+
+	// site 2 configuration
+	// check heartbeats values to test parsers and to check if they are in the correct attributes
+	// validation already tested in the webhook tests
+	hbInterval := pointer.Int64(20000)
+	hbTimeout := pointer.Int64(50000)
+	testKubes["xsite2"].crossSite.Spec.Service.Sites.Local.Discovery.Heartbeats = &ispnv1.GossipRouterHeartbeatSpec{
+		Interval: hbInterval,
+		Timeout:  hbTimeout,
+	}
+
+	testKubes["xsite1"].kube.CreateInfinispan(&testKubes["xsite1"].crossSite, testKubes["xsite1"].namespace)
+	testKubes["xsite2"].kube.CreateInfinispan(&testKubes["xsite2"].crossSite, testKubes["xsite2"].namespace)
+
+	testKubes["xsite1"].kube.WaitForInfinispanPods(int(1), tutils.SinglePodTimeout, testKubes["xsite1"].crossSite.Name, testKubes["xsite1"].namespace)
+	testKubes["xsite2"].kube.WaitForInfinispanPods(int(1), tutils.SinglePodTimeout, testKubes["xsite2"].crossSite.Name, testKubes["xsite2"].namespace)
+
+	testKubes["xsite1"].kube.WaitForInfinispanCondition(testKubes["xsite1"].crossSite.Name, testKubes["xsite1"].namespace, ispnv1.ConditionWellFormed)
+	testKubes["xsite2"].kube.WaitForInfinispanCondition(testKubes["xsite2"].crossSite.Name, testKubes["xsite2"].namespace, ispnv1.ConditionWellFormed)
+
+	ispnXSite1 := testKubes["xsite1"].kube.WaitForInfinispanCondition(testKubes["xsite1"].crossSite.Name, testKubes["xsite1"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+	ispnXSite2 := testKubes["xsite2"].kube.WaitForInfinispanCondition(testKubes["xsite2"].crossSite.Name, testKubes["xsite2"].namespace, ispnv1.ConditionCrossSiteViewFormed)
+
+	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+	assert.Contains(t, ispnXSite2.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+
+	expectGossipRouterSupectValue(t, testKubes["xsite1"], true)
+	expectGossipRouterSupectValue(t, testKubes["xsite2"], false)
+
+	expectHeartBeatConfiguration(t, testKubes["xsite1"], false, nil, nil)
+	expectHeartBeatConfiguration(t, testKubes["xsite2"], true, hbInterval, hbTimeout)
 }
 
 func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
@@ -559,4 +627,23 @@ func expectsCrossSiteService(testkube *crossSiteKubernetes) {
 		Namespace: testkube.crossSite.Namespace,
 	}, &corev1.Service{})
 	tutils.ExpectNoError(err)
+}
+
+func expectGossipRouterSupectValue(t *testing.T, siteKube *crossSiteKubernetes, expectValue bool) {
+	deployment := siteKube.kube.WaitForDeployment(siteKube.crossSite.GetGossipRouterDeploymentName(), siteKube.namespace)
+	args := strings.Join(deployment.Spec.Template.Spec.Containers[0].Args, " ")
+	expect := fmt.Sprintf("-suspect %s", strconv.FormatBool(expectValue))
+	assert.True(t, strings.Contains(args, expect), "Wrong '-suspect' argument. Expects=%s. Args=%s", strconv.FormatBool(expectValue), args)
+}
+
+func expectHeartBeatConfiguration(t *testing.T, siteKube *crossSiteKubernetes, enabled bool, interval, timeout *int64) {
+	confgMap := siteKube.kube.GetConfigMap(siteKube.crossSite.GetConfigName(), siteKube.namespace)
+	data := confgMap.Data["infinispan-admin.xml"]
+	if enabled {
+		assert.True(t, strings.Contains(data, fmt.Sprintf("heartbeat_interval=\"%s\"", strconv.FormatInt(*interval, 10))), "TUNNEL hearbeat configuration expected")
+		assert.True(t, strings.Contains(data, fmt.Sprintf("heartbeat_timeout=\"%s\"", strconv.FormatInt(*timeout, 10))), "TUNNEL hearbeat configuration expected")
+	} else {
+		assert.False(t, strings.Contains(data, "heartbeat_interval"), "TUNNEL hearbeat configuration not expected")
+		assert.False(t, strings.Contains(data, "heartbeat_timeout"), "TUNNEL hearbeat configuration not expected")
+	}
 }

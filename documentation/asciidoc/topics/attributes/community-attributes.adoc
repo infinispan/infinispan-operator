@@ -17,21 +17,24 @@
 
 :example_crd_name: infinispan
 :example_namespace: ispn-namespace
+:subscription_name: infinispan
+:subscription_namespace: operators
+:source_namespace: olm
+:operator_source: operatorhubio-catalog
 :pv_path: /opt/infinispan/server/data
 :conf_path: /opt/infinispan/server/conf
 :lib_path: /opt/infinispan/server/lib
 :backup_path: /opt/infinispan/backups
 :server_image: quay.io/infinispan/server
-:server_image_version: 14.0.10
-:operand_version: 14.0.10
+:server_image_version: 14.0.17
+:operand_version: 14.0.17
 
 :ispn_operator: Infinispan Operator
 :ispn_operator_version: 2.3
-:operator_channel: 2.3
+:operator_channel: 2.3.x
 :schemaversion: 14.0
 :brandname: Infinispan
 :fullbrandname: Infinispan
-:subscription_name: infinispan
 :datagridservice: Data Grid Service
 :cacheservice: Cache Service
 
@@ -58,6 +61,9 @@
 // Doc links
 //
 
+//Operator
+:k8s_docs: https://infinispan.org/docs/infinispan-operator/main/operator.html
+
 //HotRod Java client
 :hotrod_docs: https://infinispan.org/docs/stable/titles/hotrod_java/hotrod_java.html
 
@@ -78,3 +84,6 @@
 
 //Helm chart
 :helm_chart_docs: https://infinispan.org/docs/helm-chart/main/helm-chart.html
+
+:cryostat_installation: https://cryostat.io/get-started/#installing-cryostat-operator[Installing Cryostat Operator]
+:cryostat_security_configuration: https://cryostat.io/guides/#store-credentials[Configuring Cryostat Credentials]

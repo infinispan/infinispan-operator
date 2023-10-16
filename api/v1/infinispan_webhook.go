@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
@@ -93,24 +94,33 @@ func (i *Infinispan) Default() {
 		}
 	}
 
-	if i.Spec.Affinity == nil {
-		// The user hasn't configured Affinity, so we utilise the default strategy of preferring pods are deployed on distinct nodes
-		i.Spec.Affinity = &corev1.Affinity{
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
-					Weight: 100,
-					PodAffinityTerm: corev1.PodAffinityTerm{
-						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"infinispan_cr": i.Name,
-								"clusterName":   i.Name,
-								"app":           "infinispan-pod",
+	if i.Spec.Scheduling == nil {
+		i.Spec.Scheduling = &SchedulingSpec{}
+	}
+
+	if i.Spec.Scheduling.Affinity == nil {
+		if i.Spec.Affinity != nil {
+			i.Spec.Scheduling.Affinity = i.Spec.Affinity
+			i.Spec.Affinity = nil
+		} else {
+			// The user hasn't configured Affinity, so we utilise the default strategy of preferring pods are deployed on distinct nodes
+			i.Spec.Scheduling.Affinity = &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"infinispan_cr": i.Name,
+									"clusterName":   i.Name,
+									"app":           "infinispan-pod",
+								},
 							},
+							TopologyKey: "kubernetes.io/hostname",
 						},
-						TopologyKey: "kubernetes.io/hostname",
-					},
-				}},
-			},
+					}},
+				},
+			}
 		}
 	}
 
@@ -138,6 +148,22 @@ func (i *Infinispan) Default() {
 		if i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter == nil {
 			i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter = pointer.Bool(true)
 		}
+		if i.Spec.Service.Sites.Local.Discovery.Heartbeats == nil {
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats = &GossipRouterHeartbeatSpec{}
+		}
+		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled == nil {
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled = pointer.Bool(true)
+		}
+		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval == nil {
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval = pointer.Int64(10000)
+		}
+		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout == nil {
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout = pointer.Int64(30000)
+		}
+	}
+
+	if i.Spec.Jmx == nil {
+		i.Spec.Jmx = &JmxSpec{}
 	}
 }
 
@@ -183,6 +209,10 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 				}
 			}
 		}
+	}
+
+	if old.Spec.Jmx != nil && old.Spec.Jmx.Enabled != i.Spec.Jmx.Enabled {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("jmx"), "JMX configuration is immutable and cannot be updated after initial Infinispan creation"))
 	}
 	return errorListToError(i, allErrs)
 }
@@ -244,10 +274,19 @@ func (i *Infinispan) validate() error {
 		allErrs = append(allErrs, err)
 	}
 
-	if i.IsEncryptionEnabled() && i.Spec.Security.EndpointEncryption.CertSecretName == "" {
-		msg := fmt.Sprintf("field must be provided for 'spec.security.endpointEncryption.certificateSourceType=%s' to be configured", CertificateSourceTypeSecret)
-		err := field.Required(field.NewPath("spec").Child("security").Child("endpointEncryption").Child("certSecretName"), msg)
-		allErrs = append(allErrs, err)
+	if i.IsEncryptionEnabled() {
+		e := i.Spec.Security.EndpointEncryption
+		if e.CertSecretName == "" {
+			msg := fmt.Sprintf("field must be provided for 'spec.security.endpointEncryption.certificateSourceType=%s' to be configured", CertificateSourceTypeSecret)
+			err := field.Required(field.NewPath("spec").Child("security").Child("endpointEncryption").Child("certSecretName"), msg)
+			allErrs = append(allErrs, err)
+		}
+
+		if e.CertServiceName != "" && e.Type == CertificateSourceTypeSecret {
+			msg := fmt.Sprintf(".certServiceName cannot be configured with Encryption .type=%s", CertificateSourceTypeSecret)
+			err := field.Forbidden(field.NewPath("spec").Child("security").Child("endpointEncryption").Child("certServiceName"), msg)
+			allErrs = append(allErrs, err)
+		}
 	}
 
 	if cl := i.Spec.ConfigListener; cl != nil {
@@ -307,6 +346,65 @@ func (i *Infinispan) validate() error {
 		errMsg := "Ephemeral storage configured. All data will be lost on cluster shutdown and restart."
 		eventRec.Event(i, corev1.EventTypeWarning, "EphemeralStorageEnables", "Ephemeral storage configured. All data will be lost on cluster shutdown and restart.")
 		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+	}
+
+	// validate Gossip Router resources requests
+	if i.HasSites() {
+		gr := i.Spec.Service.Sites.Local.Discovery
+		if gr != nil {
+			path := field.NewPath("spec").Child("service").Child("sites").Child("local").Child("discovery")
+			if gr.CPU != "" {
+				req, limit, err := gr.CpuResources()
+				if err != nil {
+					allErrs = append(allErrs, field.Invalid(path.Child("cpu"), gr.CPU, err.Error()))
+				}
+
+				if req.Cmp(limit) > 0 {
+					msg := fmt.Sprintf("CPU request '%s' exceeds limit '%s'", req.String(), limit.String())
+					allErrs = append(allErrs, field.Invalid(path.Child("cpu"), gr.CPU, msg))
+				}
+			}
+
+			if gr.Memory != "" {
+				req, limit, err := gr.MemoryResources()
+				if err != nil {
+					allErrs = append(allErrs, field.Invalid(path.Child("memory"), gr.Memory, err.Error()))
+				}
+
+				if req.Cmp(limit) > 0 {
+					msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", req.String(), limit.String())
+					allErrs = append(allErrs, field.Invalid(path.Child("memory"), gr.Memory, msg))
+				}
+			}
+
+			// validate heartbeats interval and timeout
+			if gr.Heartbeats != nil && gr.Heartbeats.Enabled != nil && *gr.Heartbeats.Enabled {
+				var interval, timeout int64
+				if gr.Heartbeats.Interval == nil {
+					interval = 10000
+				} else {
+					interval = *gr.Heartbeats.Interval
+				}
+				if gr.Heartbeats.Timeout == nil {
+					timeout = 30000
+				} else {
+					timeout = *gr.Heartbeats.Timeout
+				}
+				if interval <= 0 {
+					msg := fmt.Sprintf("Heartbeats interval must be a positive integer ('%s')", strconv.FormatInt(interval, 10))
+					allErrs = append(allErrs, field.Invalid(path.Child("hearbeats").Child("interval"), interval, msg))
+				}
+				if timeout <= 0 {
+					msg := fmt.Sprintf("Heartbeats timeout must be a positive integer ('%s')", strconv.FormatInt(timeout, 10))
+					allErrs = append(allErrs, field.Invalid(path.Child("hearbeats").Child("timeout"), timeout, msg))
+				}
+				if interval >= timeout {
+					msg := fmt.Sprintf("Heartbeats interval ('%s') must be less than timeout ('%s')", strconv.FormatInt(interval, 10), strconv.FormatInt(timeout, 10))
+					allErrs = append(allErrs, field.Invalid(path.Child("hearbeats").Child("interval"), interval, msg))
+					allErrs = append(allErrs, field.Invalid(path.Child("hearbeats").Child("timeout"), timeout, msg))
+				}
+			}
+		}
 	}
 
 	return errorListToError(i, allErrs)

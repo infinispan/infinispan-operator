@@ -1,0 +1,10 @@
+spec:
+  service:
+    type: DataGrid
+    sites:
+      local:
+        name: LON
+        discovery:
+          launchGossipRouter: true
+          memory: "2Gi:1Gi"
+          cpu: "2000m:1000m"

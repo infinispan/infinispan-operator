@@ -216,6 +216,7 @@ func SkipEventRec(config *ResourcesConfig) {
 // ConfigFiles is used to hold all configuration required by the Operand in provisioned resources
 type ConfigFiles struct {
 	ConfigSpec             config.Spec
+	Jmx                    bool
 	ServerAdminConfig      string
 	ServerBaseConfig       string
 	ZeroConfig             string
@@ -266,9 +267,12 @@ type Transport struct {
 }
 
 type XSite struct {
-	GossipRouter  GossipRouter
-	MaxRelayNodes int32
-	Sites         []BackupSite
+	GossipRouter      GossipRouter
+	MaxRelayNodes     int32
+	Sites             []BackupSite
+	HeartbeatEnabled  bool
+	HeartbeatInterval int64
+	HeartbeatTimeout  int64
 }
 
 type GossipRouter struct {

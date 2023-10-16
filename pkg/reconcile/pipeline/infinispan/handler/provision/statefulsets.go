@@ -101,10 +101,10 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Annotations: annotationsForPod,
 				},
 				Spec: corev1.PodSpec{
-					Affinity: i.Spec.Affinity,
+					Affinity: i.Affinity(),
 					Containers: []corev1.Container{{
 						Image: i.ImageName(),
-						Args:  BuildServerContainerArgs(ctx.ConfigFiles().UserConfig),
+						Args:  BuildServerContainerArgs(ctx.ConfigFiles()),
 						Name:  InfinispanContainer,
 						Env: PodEnv(i, &[]corev1.EnvVar{
 							{Name: "CONFIG_HASH", Value: hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)},
@@ -127,6 +127,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 							MountPath: DataMountPath,
 						}},
 					}},
+					PriorityClassName: i.PriorityClassName(),
 					Volumes: []corev1.Volume{{
 						Name: ConfigVolumeName,
 						VolumeSource: corev1.VolumeSource{
@@ -258,14 +259,18 @@ func addUserConfigVolumes(ctx pipeline.Context, i *ispnv1.Infinispan, statefulse
 	})
 }
 
-func BuildServerContainerArgs(userConfig pipeline.UserConfig) []string {
+func BuildServerContainerArgs(config *pipeline.ConfigFiles) []string {
 	var args strings.Builder
 
 	// Preallocate a buffer to speed up string building (saves code from growing the memory dynamically)
 	args.Grow(110)
 
+	if config.Jmx {
+		args.WriteString(" --jmx ")
+	}
 	// Check if the user defined a custom log4j config
 	args.WriteString(" -l ")
+	userConfig := config.UserConfig
 	if userConfig.Log4j != "" {
 		args.WriteString("user/log4j.xml")
 	} else {

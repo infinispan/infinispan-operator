@@ -46,6 +46,7 @@ func UserConfigMap(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	configFiles := ctx.ConfigFiles()
+	configFiles.Jmx = i.IsJmxExposed()
 
 	var roleMapper string
 	if i.IsClientCertEnabled() && i.Spec.Security.EndpointEncryption.ClientCert == ispnv1.ClientCertAuthenticate {
@@ -72,15 +73,18 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			Authenticate: i.IsAuthenticationEnabled(),
 			ClientCert:   string(ispnv1.ClientCertNone),
 		},
-		UserCredentialStore: len(ctx.ConfigFiles().CredentialStoreEntries) > 0,
+		UserCredentialStore: len(configFiles.CredentialStoreEntries) > 0,
 	}
 	// Save the spec for later so that we can reuse it for HR rolling upgrades
-	ctx.ConfigFiles().ConfigSpec = *configSpec
+	configFiles.ConfigSpec = *configSpec
 
 	if i.HasSites() {
 		// Convert the pipeline ConfigFiles to the config struct
 		xSite := &config.XSite{
-			MaxRelayNodes: configFiles.XSite.MaxRelayNodes,
+			MaxRelayNodes:     configFiles.XSite.MaxRelayNodes,
+			HeartbeatEnabled:  configFiles.XSite.HeartbeatEnabled,
+			HeartbeatInterval: configFiles.XSite.HeartbeatInterval,
+			HeartbeatTimeout:  configFiles.XSite.HeartbeatTimeout,
 		}
 		configSpec.XSite = xSite
 		xSite.Sites = make([]config.BackupSite, len(configFiles.XSite.Sites))
