@@ -672,6 +672,16 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condi
 	return k.WaitForInfinispanConditionWithTimeout(name, namespace, condition, ConditionWaitTimeout)
 }
 
+func (k TestKubernetes) WaitForInfinispanConditionFalse(name, namespace string, condition ispnv1.ConditionType) *ispnv1.Infinispan {
+	return k.WaitForInfinispanStateWithTimeout(name, namespace, ConditionWaitTimeout, func(i *ispnv1.Infinispan) bool {
+		if i.IsConditionFalse(condition) {
+			log.Info("infinispan condition met", "condition", condition, "status", metav1.ConditionFalse)
+			return true
+		}
+		return false
+	})
+}
+
 func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
 	curr := ispnv1.Infinispan{}
 	// Wait for the operator to populate Infinispan CR data
