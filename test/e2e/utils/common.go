@@ -52,21 +52,22 @@ var VersionManager = func() *version.Manager {
 		},{
 			"downstream-version": "0.2.2-1",
 			"upstream-version": "14.0.9",
-			"image": "quay.io/infinispan/server:14.0.9.Final",
-			"cve": true
+			"image": "quay.io/infinispan/server:14.0.9.Final"
 		},{
 			"downstream-version": "0.2.3-1",
 			"upstream-version": "14.0.13",
-			"image": "quay.io/infinispan/server:14.0.13.Final",
-			"cve": true
+			"image": "quay.io/infinispan/server:14.0.13.Final"
 		},{
 			"downstream-version": "0.2.4-1",
 			"upstream-version": "14.0.17",
-			"image": "quay.io/infinispan/server:14.0.17.Final",
-			"cve": true
+			"image": "quay.io/infinispan/server:14.0.17.Final"
 		},{
-			"downstream-version": "0.2.4-2",
-			"upstream-version": "14.0.17",
+			"downstream-version": "0.2.5-1",
+			"upstream-version": "14.0.19",
+			"image": "quay.io/infinispan/server:14.0.19.Final"
+		},{
+			"downstream-version": "0.2.5-2",
+			"upstream-version": "14.0.19",
 			"image": "quay.io/infinispan/server:14.0",
 			"cve": true
 		}]`)
