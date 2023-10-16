@@ -60,6 +60,10 @@ func (k *TestKubernetes) WriteInfinispanMetricsToFile(i *v1.Infinispan, dir stri
 }
 
 func (k *TestKubernetes) writeMetricsToFile(dir string, pod *corev1.Pod, client HTTPClient) error {
+	if pod.Status.Phase != corev1.PodRunning {
+		return fmt.Errorf("pod not running. status.phase='%s'", pod.Status.Phase)
+	}
+
 	// Forward pod port
 	client.SetHostAndPort("localhost:11223")
 	stopChan, err := k.PortForward(pod.Name, pod.Namespace, []string{"11223:11223"})
