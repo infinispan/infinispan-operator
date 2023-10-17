@@ -22,7 +22,6 @@ env:
   CONFIG_LISTENER_IMAGE: localhost:5001/infinispan-operator
   KUBECONFIG: ${{ github.workspace }}/kind-kube-config.yaml
   TESTING_LOG_DIR: ${{ github.workspace }}/test/reports
-  # v1.17.17 fails on GH actions for some reason
   KINDEST_NODE_VERSION: v1.24.7
 
 jobs:
