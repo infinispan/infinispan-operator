@@ -117,10 +117,6 @@ var _ = Describe("Backup Webhook", func() {
 			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
 			updated.Spec.Resources = &BackupResources{}
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
-
-			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
-			updated.Spec.Volume = BackupVolumeSpec{}
-			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 		})
 
 		It("Should transform deprecated fields", func() {

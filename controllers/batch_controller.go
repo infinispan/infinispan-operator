@@ -289,7 +289,7 @@ func (r *batchRequest) UpdatePhase(phase v2.BatchPhase, phaseErr error) error {
 
 func (r *batchRequest) update(mutate func() error) (bool, error) {
 	batch := r.batch
-	res, err := kube.CreateOrPatch(r.ctx, r.Client, batch, func() error {
+	res, err := controllerutil.CreateOrPatch(r.ctx, r.Client, batch, func() error {
 		if batch.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(schema.ParseGroupResource("batch.infinispan.org"), batch.Name)
 		}
