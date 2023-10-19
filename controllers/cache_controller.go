@@ -652,7 +652,7 @@ func (cl *CacheListener) Delete(data []byte) error {
 }
 
 func updateCache(cache *v2alpha1.Cache, ctx context.Context, client client.Client, mutate func() error) error {
-	_, err := kube.CreateOrPatch(ctx, client, cache, func() error {
+	_, err := controllerutil.CreateOrPatch(ctx, client, cache, func() error {
 		if cache.CreationTimestamp.IsZero() {
 			return errors.NewNotFound(schema.ParseGroupResource("cache.infinispan.org"), cache.Name)
 		}

@@ -36,7 +36,7 @@ func PodLifecycle() *corev1.Lifecycle {
 
 	return &corev1.Lifecycle{
 		// Execute kill -3 on the Server process to obtain a thread dump in the logs
-		PreStop: &corev1.Handler{
+		PreStop: &corev1.LifecycleHandler{
 			Exec: &corev1.ExecAction{
 				Command: []string{
 					"/bin/bash",
@@ -63,7 +63,7 @@ func PodStartupProbe() *corev1.Probe {
 
 func probe(failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
 	return &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Scheme: corev1.URISchemeHTTP,
 				Path:   "rest/v2/cache-managers/default/health/status",
@@ -79,7 +79,7 @@ func probe(failureThreshold, initialDelay, period, successThreshold, timeout int
 
 func TcpProbe(port, failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
 	return &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{IntVal: port},
 			},

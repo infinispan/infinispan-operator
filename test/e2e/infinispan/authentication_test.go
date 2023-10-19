@@ -14,7 +14,6 @@ import (
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // TestExternalServiceWithAuth starts a cluster and checks application
@@ -205,7 +205,7 @@ func TestUpdateOperatorPassword(t *testing.T) {
 	newPassword := "supersecretoperatorpassword"
 	secret, err := testKube.Kubernetes.GetSecret(spec.GetAdminSecretName(), spec.Namespace, context.TODO())
 	tutils.ExpectNoError(err)
-	_, err = kube.CreateOrPatch(context.TODO(), testKube.Kubernetes.Client, secret, func() error {
+	_, err = controllerutil.CreateOrPatch(context.TODO(), testKube.Kubernetes.Client, secret, func() error {
 		secret.Data["password"] = []byte(newPassword)
 		return nil
 	})

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -50,7 +49,7 @@ func (r resources) CreateOrUpdate(obj client.Object, setControllerRef bool, muta
 }
 
 func (r resources) CreateOrPatch(obj client.Object, setControllerRef bool, mutate func() error, opts ...func(config *pipeline.ResourcesConfig)) (pipeline.OperationResult, error) {
-	res, err := kube.CreateOrPatch(r.ctx, r.Client, obj, func() error {
+	res, err := k8sctrlutil.CreateOrPatch(r.ctx, r.Client, obj, func() error {
 		if mutate != nil {
 			if err := mutate(); err != nil {
 				return err
