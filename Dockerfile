@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/go-toolset:1.17.7 AS build
+FROM registry.access.redhat.com/ubi9/go-toolset:1.19 AS build
 ARG OPERATOR_VERSION
 ARG SKAFFOLD_GO_GCFLAGS
 WORKDIR /workspace
