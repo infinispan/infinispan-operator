@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -158,64 +159,64 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 	if t != nil {
 		specLabel["test-name"] = TestName(t)
 	}
-	//
-	//// Store pod output if a panic has occurred
-	//testFailed := t != nil && t.Failed()
-	//if panicVal != nil || testFailed {
-	//	dir := fmt.Sprintf("%s/%s", LogOutputDir, TestName(t))
-	//	err := os.RemoveAll(dir)
-	//	LogError(err)
-	//
-	//	eventDir := fmt.Sprintf("%s/events", dir)
-	//	err = os.MkdirAll(eventDir, os.ModePerm)
-	//	LogError(err)
-	//
-	//	k.WriteAllResourcesToFile(eventDir, namespace, "Event", &corev1.EventList{}, map[string]string{})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-zero-pod"})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-router-pod"})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-config-listener-pod"})
-	//	k.WriteAllResourcesToFile(dir, namespace, "ConfigMap", &corev1.ConfigMapList{}, map[string]string{})
-	//	k.WriteAllResourcesToFile(dir, namespace, "StatefulSet", &appsv1.StatefulSetList{}, map[string]string{})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Infinispan", &ispnv1.InfinispanList{}, map[string]string{})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Backup", &ispnv2.BackupList{}, map[string]string{})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Restore", &ispnv2.RestoreList{}, map[string]string{})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Batch", &ispnv2.BatchList{}, map[string]string{})
-	//	k.WriteAllResourcesToFile(dir, namespace, "Cache", &ispnv2.CacheList{}, map[string]string{})
-	//	k.WriteAllMetricsToFile(dir, namespace)
-	//}
-	//
-	//if CleanupInfinispan == "TRUE" || panicVal == nil {
-	//	var opts []client.DeleteAllOfOption
-	//	ctx := context.TODO()
-	//	opts = []client.DeleteAllOfOption{
-	//		client.InNamespace(namespace),
-	//		client.MatchingLabels(specLabel),
-	//	}
-	//
-	//	ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
-	//	ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
-	//	ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
-	//	ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
-	//	ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
-	//	k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod", "infinispan_cr": specLabel["test-name"]})}, nil)
-	//	k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
-	//	k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-router-pod"})}, nil)
-	//
-	//	// Remove the events otherwise we are storing the events for unrelated tests in case of failure
-	//	optsEvents := []client.DeleteAllOfOption{
-	//		client.InNamespace(namespace),
-	//	}
-	//	ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &corev1.Event{}, optsEvents...))
-	//}
-	//
-	//if t != nil && panicVal != nil {
-	//	// Fail the test and pass the panic value to the output if panic occurred
-	//	fmt.Println(string(debug.Stack()))
-	//	t.Fatal(panicVal, "\n")
-	//}
+
+	// Store pod output if a panic has occurred
+	testFailed := t != nil && t.Failed()
+	if panicVal != nil || testFailed {
+		dir := fmt.Sprintf("%s/%s", LogOutputDir, TestName(t))
+		err := os.RemoveAll(dir)
+		LogError(err)
+
+		eventDir := fmt.Sprintf("%s/events", dir)
+		err = os.MkdirAll(eventDir, os.ModePerm)
+		LogError(err)
+
+		k.WriteAllResourcesToFile(eventDir, namespace, "Event", &corev1.EventList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-zero-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-router-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-config-listener-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "ConfigMap", &corev1.ConfigMapList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "StatefulSet", &appsv1.StatefulSetList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Infinispan", &ispnv1.InfinispanList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Backup", &ispnv2.BackupList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Restore", &ispnv2.RestoreList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Batch", &ispnv2.BatchList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, namespace, "Cache", &ispnv2.CacheList{}, map[string]string{})
+		k.WriteAllMetricsToFile(dir, namespace)
+	}
+
+	if CleanupInfinispan == "TRUE" || panicVal == nil {
+		var opts []client.DeleteAllOfOption
+		ctx := context.TODO()
+		opts = []client.DeleteAllOfOption{
+			client.InNamespace(namespace),
+			client.MatchingLabels(specLabel),
+		}
+
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
+		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-pod", "infinispan_cr": specLabel["test-name"]})}, nil)
+		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-batch-pod"})}, nil)
+		k.WaitForPods(0, 3*SinglePodTimeout, &client.ListOptions{Namespace: namespace, LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-router-pod"})}, nil)
+
+		// Remove the events otherwise we are storing the events for unrelated tests in case of failure
+		optsEvents := []client.DeleteAllOfOption{
+			client.InNamespace(namespace),
+		}
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &corev1.Event{}, optsEvents...))
+	}
+
+	if t != nil && panicVal != nil {
+		// Fail the test and pass the panic value to the output if panic occurred
+		fmt.Println(string(debug.Stack()))
+		t.Fatal(panicVal, "\n")
+	}
 }
 
 func (k TestKubernetes) WriteAllResourcesToFile(dir, namespace, suffix string, list runtime.Object, set labels.Set) {
