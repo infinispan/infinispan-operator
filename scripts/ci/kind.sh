@@ -3,7 +3,7 @@
 set -o errexit
 
 SERVER_TAGS=${SERVER_TAGS:-'13.0.10.Final 14.0.1.Final 14.0.6.Final 14.0.9.Final 14.0.13.Final 14.0.17.Final 14.0.19.Final 14.0'}
-KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.22.17'}
+KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.17.17'}
 KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
 
 docker network create kind --subnet "${KIND_SUBNET}/16" || true
