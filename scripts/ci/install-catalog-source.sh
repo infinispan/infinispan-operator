@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}
+KUBECONFIG=${KUBECONFIG-~/.kube/config}
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 IMG_REGISTRY=${IMG_REGISTRY-"localhost:5001"}
 
