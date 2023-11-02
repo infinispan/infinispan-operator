@@ -87,3 +87,4 @@
 
 :cryostat_installation: https://cryostat.io/get-started/#installing-cryostat-operator[Installing Cryostat Operator]
 :cryostat_security_configuration: https://cryostat.io/guides/#store-credentials[Configuring Cryostat Credentials]
+:pod_priority_reference: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/[Kubernetes: Pod Priority and Preemption]
