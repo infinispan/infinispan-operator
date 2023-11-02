@@ -15,10 +15,12 @@ import (
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
+	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/utils/pointer"
@@ -460,16 +462,13 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
 		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
-			serviceAccount := tutils.OperatorSAName
 			operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite1"].namespace)
-			tokenSecretXsite1, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite1, tesKubes["xsite1"].kube.Kubernetes.Client, context.TODO())
-			tutils.ExpectNoError(err)
 			operatorNamespaceSite2 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite2"].namespace)
-			tokenSecretXsite2, err := kube.LookupServiceAccountTokenSecret(serviceAccount, operatorNamespaceSite2, tesKubes["xsite2"].kube.Kubernetes.Client, context.TODO())
-			tutils.ExpectNoError(err)
+			xsite1Token := getServiceAccountToken(operatorNamespaceSite1, tesKubes["xsite1"].kube)
+			xsite2Token := getServiceAccountToken(operatorNamespaceSite2, tesKubes["xsite2"].kube)
 
-			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, tokenSecretXsite2.Data["token"]))
-			tesKubes["xsite2"].kube.CreateSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, tokenSecretXsite1.Data["token"]))
+			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, xsite2Token))
+			tesKubes["xsite2"].kube.CreateSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, xsite1Token))
 
 			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, []byte("")))
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, []byte("")))
@@ -646,4 +645,20 @@ func expectHeartBeatConfiguration(t *testing.T, siteKube *crossSiteKubernetes, e
 		assert.False(t, strings.Contains(data, "heartbeat_interval"), "TUNNEL hearbeat configuration not expected")
 		assert.False(t, strings.Contains(data, "heartbeat_timeout"), "TUNNEL hearbeat configuration not expected")
 	}
+}
+
+func getServiceAccountToken(namespace string, k8s *tutils.TestKubernetes) []byte {
+	response, err := corev1client.New(k8s.Kubernetes.RestClient).
+		ServiceAccounts(namespace).
+		CreateToken(
+			context.TODO(),
+			tutils.OperatorSAName,
+			&authenticationv1.TokenRequest{},
+			metav1.CreateOptions{},
+		)
+	tutils.ExpectNoError(err)
+	if len(response.Status.Token) == 0 {
+		panic(fmt.Errorf("failed to create token: no token in server response"))
+	}
+	return []byte(response.Status.Token)
 }

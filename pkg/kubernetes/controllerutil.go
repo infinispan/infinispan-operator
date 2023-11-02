@@ -47,43 +47,6 @@ func LookupResource(name, namespace string, resource, caller client.Object, clie
 	return nil, nil
 }
 
-func LookupServiceAccountTokenSecret(name, namespace string, client client.Client, ctx context.Context) (*corev1.Secret, error) {
-	serviceAccount := &corev1.ServiceAccount{}
-	if err := client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, serviceAccount); err != nil {
-		return nil, err
-	}
-	for _, secretReference := range serviceAccount.Secrets {
-		secret := &corev1.Secret{}
-		if err := client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: secretReference.Name}, secret); err != nil {
-			continue
-		}
-		if isServiceAccountToken(secret, serviceAccount) {
-			return secret, nil
-		}
-	}
-	return nil, fmt.Errorf("could not find a service account token secret for service account %q", serviceAccount.Name)
-}
-
-// isServiceAccountToken returns true if the secret is a valid api token for the service account
-func isServiceAccountToken(secret *corev1.Secret, sa *corev1.ServiceAccount) bool {
-	if secret.Type != corev1.SecretTypeServiceAccountToken {
-		return false
-	}
-
-	name := secret.Annotations[corev1.ServiceAccountNameKey]
-	uid := secret.Annotations[corev1.ServiceAccountUIDKey]
-	if name != sa.Name {
-		// Name must match
-		return false
-	}
-	if len(uid) > 0 && uid != string(sa.UID) {
-		// If UID is specified, it must match
-		return false
-	}
-
-	return true
-}
-
 func IsControlledByGVK(refs []metav1.OwnerReference, gvk schema.GroupVersionKind) bool {
 	for _, ref := range refs {
 		if ref.Controller != nil && *ref.Controller && ref.APIVersion == gvk.GroupVersion().String() && ref.Kind == gvk.Kind {
