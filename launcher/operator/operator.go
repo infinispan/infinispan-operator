@@ -2,11 +2,14 @@ package operator
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/infinispan/infinispan-operator/controllers"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -78,6 +81,13 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		HealthProbeBindAddress: p.HealthProbeBindAddress,
 		LeaderElection:         p.LeaderElection,
 		LeaderElectionID:       "632512e4.infinispan.org",
+		WebhookServer: &webhook.Server{
+			TLSOpts: []func(config *tls.Config){
+				func(c *tls.Config) {
+					c.NextProtos = []string{"http/1.1"}
+				},
+			},
+		},
 	}
 
 	if strings.Contains(namespace, ",") {
