@@ -292,19 +292,17 @@ func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) (re
 func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infinispan, restore *v2.Restore, client tutils.HTTPClient, err error) error {
 	fmt.Println(err)
 	switch restore.Status.Phase {
+	case v2.RestoreInitializing:
 	case v2.RestoreInitialized:
-	case v2.RestoreRunning:
-	case v2.RestoreSucceeded:
-	case v2.RestoreUnknown:
-		return err
-	}
-
-	if restore.Status.Phase == v2.RestoreInitializing {
 		// Ignore errors where the Restore state is stuck initializing due to a MERGED cluster view from PublishNotReadyAddresses=false
 		// Fixed in Operator 2.3.2, but ISPN-14793 should fix this for Operands >= 14.0.9 even with PublishNotReadyAddresses=false
 		if semver.MustParse(csv).LT(semver.Version{Major: 2, Minor: 3, Patch: 2}) {
 			return nil
 		}
+		fallthrough
+	case v2.RestoreRunning:
+	case v2.RestoreSucceeded:
+	case v2.RestoreUnknown:
 		return err
 	}
 
