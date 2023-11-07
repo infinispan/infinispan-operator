@@ -160,8 +160,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	// Validate extra Java options changes
-	if updateStatefulSetEnv(container, statefulSet, "EXTRA_JAVA_OPTIONS", ispnContr.ExtraJvmOpts) {
-		updateStatefulSetEnv(container, statefulSet, "JAVA_OPTIONS", i.GetJavaOptions())
+	if updateStatefulSetEnv(container, statefulSet, "JAVA_OPTIONS", i.GetJavaOptions()) {
 		updateNeeded = true
 	}
 	if updateStatefulSetEnv(container, statefulSet, "CLI_JAVA_OPTIONS", ispnContr.CliExtraJvmOpts) {

@@ -77,6 +77,31 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
+func TestInfinispanMigrateFromCacheToDatagrid(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Service.Type = ispnv1.ServiceTypeDataGrid
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		env := ss.Spec.Template.Spec.Containers[0].Env
+		for _, value := range env {
+			if value.Name == "JAVA_OPTIONS" {
+				if value.Value != "" {
+					panic("Expected empty JAVA_OPTIONS. Migration failed?")
+				} else {
+					return
+				}
+			}
+		}
+		panic("JAVA_OPTIONS not found")
+	}
+	spec := tutils.DefaultSpec(t, testKube, nil)
+	spec.Spec.Service.Type = ispnv1.ServiceTypeCache
+	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
 func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan, *appsv1.StatefulSet)) {
 	testKube.CreateInfinispan(&ispn, tutils.Namespace)
 	testKube.WaitForInfinispanPods(int(ispn.Spec.Replicas), tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
