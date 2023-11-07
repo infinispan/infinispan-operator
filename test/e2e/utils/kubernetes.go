@@ -1069,3 +1069,19 @@ func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase i
 	}
 	ExpectNoError(err)
 }
+
+// GetUsedNodePorts returns a set of NodePorts currently in use by the cluster
+func (k TestKubernetes) GetUsedNodePorts() map[int32]struct{} {
+	services := &corev1.ServiceList{}
+	err := k.Kubernetes.Client.List(context.TODO(), services, &client.ListOptions{})
+	ExpectNoError(err)
+	usedPorts := make(map[int32]struct{}, 0)
+	for _, svc := range services.Items {
+		for _, port := range svc.Spec.Ports {
+			if port.NodePort > 0 {
+				usedPorts[port.NodePort] = struct{}{}
+			}
+		}
+	}
+	return usedPorts
+}

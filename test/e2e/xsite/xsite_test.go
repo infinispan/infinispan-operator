@@ -46,7 +46,7 @@ type crossSiteKubernetes struct {
 	apiServer string
 }
 
-func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNamespace string, exposeType ispnv1.CrossSiteExposeType, exposePort int32) *ispnv1.Infinispan {
+func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNamespace string, exposeType ispnv1.CrossSiteExposeType, exposePort, nodePort int32) *ispnv1.Infinispan {
 	infinispan := &ispnv1.Infinispan{
 		TypeMeta: tutils.InfinispanTypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
@@ -90,6 +90,10 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 				Enabled: false,
 			},
 		},
+	}
+
+	if nodePort > 0 {
+		infinispan.Spec.Service.Sites.Local.Expose.NodePort = nodePort
 	}
 
 	if tutils.OperandVersion != "" {
@@ -179,79 +183,84 @@ func createGenericTLSSecret(data []byte, secretName, namespace, password, filena
 }
 
 func TestCrossSiteViewInternal(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, NoTLS, nil)
+	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSInternal tests if the TLS connection works for internal cross-site communication
 func TestDefaultTLSInternal(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, nil)
+	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, nil)
 }
 
 // TestDefaultTLSInternalVersion3 tests if the TLSv1.3 connection works for internal cross-site communication
 func TestDefaultTLSInternalVersion3(t *testing.T) {
 	protocol := ispnv1.TLSVersion13
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, &protocol)
+	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, DefaultTLS, &protocol)
 }
 
 // TestSingleTLSInternal tests if the TLS connection works for internal cross-site communication and custom keystore and truststore
 func TestSingleTLSInternal(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, nil)
+	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, nil)
 }
 
 // TestSingleTLSInternalVersion3 tests if the TLSv1.3 connection works for internal cross-site communication and custom keystore and truststore
 func TestSingleTLSInternalVersion3(t *testing.T) {
 	protocol := ispnv1.TLSVersion13
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, &protocol)
+	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 1, SingleKeyStoreTLS, &protocol)
 }
 
 func TestCrossSiteViewInternalMultiPod(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, NoTLS, nil)
+	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, NoTLS, nil)
 }
 
 // TestDefaultTLSInternalMultiPod tests if the TLS connection works for internal cross-site communication and multi pod clusters
 func TestDefaultTLSInternalMultiPod(t *testing.T) {
-	testCrossSiteView(t, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, DefaultTLS, nil)
+	testCrossSiteView(t, false, false, "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 2, DefaultTLS, nil)
 }
 
 func TestCrossSiteViewKubernetesNodePort(t *testing.T) {
 	// Cross-Site between clusters will need to setup two instances of the Kind for Travis CI
 	// Not be able to test on the separate OCP/OKD instance (probably with AWS/Azure LoadBalancer support only)
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS, nil)
+}
+
+// TestCrossSiteViewKubernetesNodePortE is the same as TestCrossSiteViewKubernetesNodePort except the NodePort value is explicitly configured
+func TestCrossSiteViewKubernetesNodePortE(t *testing.T) {
+	testCrossSiteView(t, true, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, -1, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSKubernetesNodePort tests if the TLS connection works with NodePort.
 func TestDefaultTLSKubernetesNodePort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, DefaultTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, DefaultTLS, nil)
 }
 
 func TestCrossSiteViewOpenshiftNodePort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS, nil)
 }
 
 func TestCrossSiteViewKubernetesLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSKubernetesLoadBalancer tests if the TLS connection works with LoadBalancer.
 func TestDefaultTLSKubernetesLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, DefaultTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, DefaultTLS, nil)
 }
 
 func TestCrossSiteViewOpenshiftLoadBalancer(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS, nil)
 }
 
 func TestCrossSiteViewLoadBalancerWithPort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, NoTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSLoadBalancerWithPort tests if the TLS connection works with LoadBalancer and a custom port
 func TestDefaultTLSLoadBalancerWithPort(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, DefaultTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeLoadBalancer, 1443, 1, DefaultTLS, nil)
 }
 
 func TestDefaultTLSOpenshiftRoute(t *testing.T) {
-	testCrossSiteView(t, true, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeRoute, 0, 1, DefaultTLS, nil)
+	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeRoute, 0, 1, DefaultTLS, nil)
 }
 
 func TestCrossSiteGracefulShutdown(t *testing.T) {
@@ -259,8 +268,8 @@ func TestCrossSiteGracefulShutdown(t *testing.T) {
 	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
 	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
 
-	tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 2, "xsite1", "xsite2", "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
-	tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 2, "xsite2", "xsite1", "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
+	tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 2, "xsite1", "xsite2", "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 0)
+	tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 2, "xsite2", "xsite1", "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 0)
 	for _, testKube := range tesKubes {
 		testKube.context = clientConfig.CurrentContext
 		testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, "xsite2")
@@ -335,8 +344,8 @@ func TestSingleGossipRouter(t *testing.T) {
 	defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
 	defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
 
-	tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite1", "xsite2", tesKubes["xsite2"].namespace, ispnv1.CrossSiteExposeTypeNodePort, 0)
-	tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite2", "xsite1", tesKubes["xsite1"].namespace, ispnv1.CrossSiteExposeTypeNodePort, 0)
+	tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite1", "xsite2", tesKubes["xsite2"].namespace, ispnv1.CrossSiteExposeTypeNodePort, 0, 0)
+	tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite2", "xsite1", tesKubes["xsite1"].namespace, ispnv1.CrossSiteExposeTypeNodePort, 0, 0)
 
 	tesKubes["xsite1"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
 	tesKubes["xsite2"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
@@ -395,8 +404,8 @@ func TestSuspectAndHearbeatConfig(t *testing.T) {
 	defer testKubes["xsite1"].kube.CleanNamespaceAndLogOnPanic(t, testKubes["xsite1"].namespace)
 	defer testKubes["xsite2"].kube.CleanNamespaceAndLogOnPanic(t, testKubes["xsite2"].namespace)
 
-	testKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite1", "xsite2", "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
-	testKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite2", "xsite1", "", ispnv1.CrossSiteExposeTypeClusterIP, 0)
+	testKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite1", "xsite2", "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 0)
+	testKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite2", "xsite1", "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 0)
 
 	testKubes["xsite1"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
 	testKubes["xsite2"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
@@ -440,10 +449,11 @@ func TestSuspectAndHearbeatConfig(t *testing.T) {
 	expectHeartBeatConfiguration(t, testKubes["xsite2"], true, hbInterval, hbTimeout)
 }
 
-func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
+func testCrossSiteView(t *testing.T, isMultiCluster bool, explicitNodePort bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
 	testName := tutils.TestName(t)
 	tesKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
 	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	nodePort := int32(0)
 
 	if isMultiCluster {
 		for instance, testKube := range tesKubes {
@@ -456,31 +466,48 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 			testKube.apiServer = apiServerUrl.Host
 		}
 		if schemeType == ispnv1.CrossSiteSchemeTypeKubernetes {
-			tesKubes["xsite1"].kube.CreateSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
-			tesKubes["xsite2"].kube.CreateSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
-
 			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
+
+			tesKubes["xsite1"].kube.CreateSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
+			tesKubes["xsite2"].kube.CreateSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
 		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
 			operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite1"].namespace)
 			operatorNamespaceSite2 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite2"].namespace)
 			xsite1Token := getServiceAccountToken(operatorNamespaceSite1, tesKubes["xsite1"].kube)
 			xsite2Token := getServiceAccountToken(operatorNamespaceSite2, tesKubes["xsite2"].kube)
 
-			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, xsite2Token))
-			tesKubes["xsite2"].kube.CreateSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, xsite1Token))
-
 			defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, []byte("")))
 			defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, []byte("")))
+
+			tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, xsite2Token))
+			tesKubes["xsite2"].kube.CreateSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, xsite1Token))
 		}
-		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite1", "xsite2", tesKubes["xsite2"].namespace, exposeType, exposePort)
-		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite2", "xsite1", tesKubes["xsite1"].namespace, exposeType, exposePort)
+
+		// Find a free node port on both clusters and configure it in the xsite expose spec
+		if exposeType == ispnv1.CrossSiteExposeTypeNodePort && explicitNodePort {
+			usedPorts := tesKubes["xsite1"].kube.GetUsedNodePorts()
+			for k, v := range tesKubes["xsite2"].kube.GetUsedNodePorts() {
+				usedPorts[k] = v
+			}
+			// Obtain a NodePort within the range 30000-32767 that is not currently used by either cluster
+			for i := int32(30000); i < 32768; i++ {
+				if _, usedPort := usedPorts[i]; !usedPort {
+					nodePort = i
+					break
+				}
+			}
+			fmt.Printf("Configuring xsite with NodePort=%d\n", nodePort)
+		}
+
+		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite1", "xsite2", tesKubes["xsite2"].namespace, exposeType, exposePort, nodePort)
+		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite2", "xsite1", tesKubes["xsite1"].namespace, exposeType, exposePort, nodePort)
 
 		tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, tesKubes["xsite2"].apiServer)
 		tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", schemeType, tesKubes["xsite1"].apiServer)
 	} else {
-		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite1", "xsite2", "", exposeType, exposePort)
-		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite2", "xsite1", "", exposeType, exposePort)
+		tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite1", "xsite2", "", exposeType, exposePort, nodePort)
+		tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite2", "xsite1", "", exposeType, exposePort, nodePort)
 		for _, testKube := range tesKubes {
 			testKube.context = clientConfig.CurrentContext
 			testKube.namespace = fmt.Sprintf("%s-%s", tutils.Namespace, "xsite2")
@@ -600,6 +627,25 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, schemeType ispnv1.Cros
 
 	assert.Contains(t, ispnXSite1.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
 	assert.Contains(t, ispnXSite2.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
+
+	if explicitNodePort {
+		verifyNodePort := func(site *crossSiteKubernetes) {
+			i := &site.crossSite
+			service := &corev1.Service{}
+			tutils.ExpectNoError(
+				site.kube.Kubernetes.Client.Get(
+					context.TODO(),
+					types.NamespacedName{
+						Namespace: i.Namespace,
+						Name:      i.GetSiteServiceName(),
+					},
+					service),
+			)
+			assert.Equal(t, nodePort, service.Spec.Ports[0].NodePort)
+		}
+		verifyNodePort(tesKubes["xsite1"])
+		verifyNodePort(tesKubes["xsite2"])
+	}
 }
 
 func assertGossipRouterPodCount(t *testing.T, testkube *crossSiteKubernetes, expected int) {

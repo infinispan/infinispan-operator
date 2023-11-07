@@ -323,6 +323,9 @@ func XSiteService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		} else {
 			servicePort.Port = consts.CrossSitePort
 		}
+		if exposeType == ispnv1.CrossSiteExposeTypeNodePort && exposeConf.NodePort > 0 {
+			servicePort.NodePort = exposeConf.NodePort
+		}
 		servicePort.TargetPort = intstr.IntOrString{IntVal: consts.CrossSitePort}
 		return nil
 	}
