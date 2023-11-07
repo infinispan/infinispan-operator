@@ -296,7 +296,8 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 	case v2.RestoreInitialized:
 		// Ignore errors where the Restore state is stuck initializing due to a MERGED cluster view from PublishNotReadyAddresses=false
 		// Fixed in Operator 2.3.2, but ISPN-14793 should fix this for Operands >= 14.0.9 even with PublishNotReadyAddresses=false
-		if semver.MustParse(csv).LT(semver.Version{Major: 2, Minor: 3, Patch: 2}) {
+		operatorVersion := semver.MustParse(strings.Split(csv, "v")[1])
+		if operatorVersion.LT(semver.Version{Major: 2, Minor: 3, Patch: 2}) {
 			return nil
 		}
 		fallthrough
