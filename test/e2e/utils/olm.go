@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -278,6 +279,16 @@ func (k TestKubernetes) InstalledCSVEnv(envName string, sub *coreos.Subscription
 	return envVars[index].Value
 }
 
+func (k TestKubernetes) DeleteCSV(name, namespace string) {
+	csv := &coreos.ClusterServiceVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	ExpectNoError(k.Kubernetes.Client.Delete(context.TODO(), csv, DeleteOpts...))
+}
+
 func (k TestKubernetes) SetRelatedImagesEnvs(sub *coreos.Subscription) {
 	csv, err := k.InstalledCSV(sub)
 	ExpectNoError(err)
@@ -336,10 +347,24 @@ func (k TestKubernetes) WaitForSubscriptionState(state coreos.SubscriptionState,
 }
 
 func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate func() (done bool)) {
-	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
-		k.Subscription(sub)
-		return predicate(), nil
-	})
+	poll := func() error {
+		return wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+			k.Subscription(sub)
+			return predicate(), nil
+		})
+	}
+	err := poll()
+	if errors.Is(err, wait.ErrWaitTimeout) {
+		for _, condition := range sub.Status.Conditions {
+			// Delete CSV and retry polling on ResolutionFailed
+			// https://github.com/operator-framework/operator-lifecycle-manager/issues/2201
+			if condition.Type == "ResolutionFailed" && condition.Status == corev1.ConditionTrue {
+				k.DeleteCSV(sub.Status.CurrentCSV, sub.Namespace)
+				err = poll()
+				break
+			}
+		}
+	}
 	ExpectNoError(err)
 }
 
