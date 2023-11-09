@@ -130,5 +130,5 @@ jobs:
         uses: actions/upload-artifact@v3
         if: success() || failure()
         with:
-          name: test-results
+          name: test-logs
           path: ${{ env.TESTING_LOG_DIR }}
