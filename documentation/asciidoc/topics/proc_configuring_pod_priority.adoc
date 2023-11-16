@@ -1,4 +1,4 @@
-[id='setting-priority_{context}']
+[id='configuring-pod-priority_{context}']
 = Configuring pod priority
 
 [role="_abstract"]
@@ -35,21 +35,6 @@ include::yaml/priority_class_CR.yaml[]
 You must reference an existing priority class name, otherwise the pod is rejected.
 
 . Apply the changes.
-
-.PriorityClass fields
-[%header,cols=2*]
-|===
-| Field | Description
-
-| `PriorityClassName`
-| The name of the priority class.
-
-| `PriorityClassValue`
-| An integer indicating the priority level. The higher the value, the higher the priority.
-
-| `PriorityClassDescription`
-| An optional field for providing context about the priority class.
-|===
 
 [role="_additional-resources"]
 .Additional resources
