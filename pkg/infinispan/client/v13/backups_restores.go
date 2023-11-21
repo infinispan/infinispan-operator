@@ -75,6 +75,9 @@ func status(url, name, op string, client httpClient.HttpClient) (api.Status, err
 	}
 
 	rsp, err := client.Head(url, nil)
+	defer func() {
+		err = httpClient.CloseBody(rsp, err)
+	}()
 	if err != nil {
 		return api.StatusUnknown, err
 	}
