@@ -1,6 +1,6 @@
 module github.com/infinispan/infinispan-operator
 
-go 1.17
+go 1.18
 
 require (
 	github.com/GeertJohan/go.rice v1.0.2
