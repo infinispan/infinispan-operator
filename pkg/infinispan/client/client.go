@@ -16,6 +16,7 @@ To prevent duplicated code, newer api implementation packages should use composi
 function as expected on newer server versions.
 
 For example, if v14 can reuse a new `api.Cache` implementation but requires a new `api.Caches` implementation:
+
 	package v14
 	...
 	type infinispan struct {

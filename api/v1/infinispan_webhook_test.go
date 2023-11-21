@@ -403,7 +403,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			}
 
 			err := k8sClient.Create(ctx, ispn.DeepCopy())
-			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts.hash", "in body should match"})
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts[0].hash", "in body should match"})
 
 			ispn.Spec.Dependencies.Artifacts[0].Hash = "sha1:" + hash.HashString("made up")
 			Expect(k8sClient.Create(ctx, ispn.DeepCopy())).Should(Succeed())
@@ -417,7 +417,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			// Invalid Http
 			ispn.Spec.Dependencies.Artifacts[0].Url = "httasfap://test.com"
 			err = k8sClient.Create(ctx, ispn.DeepCopy())
-			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts.url", "should match"})
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts[0].url", "should match"})
 
 			// FTP
 			ispn.Spec.Dependencies.Artifacts[0].Url = "ftp://test.com"
@@ -436,7 +436,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 				Maven: "http://org.postgresql:postgresql:42.3.1",
 			}
 			err = k8sClient.Create(ctx, ispn.DeepCopy())
-			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts.maven", "should match"})
+			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.dependencies.artifacts[0].maven", "should match"})
 
 			// Ensure that an artifacts Url and Maven field can't be set at the same time
 			ispn.Spec.Dependencies.Artifacts[0] = InfinispanExternalArtifacts{

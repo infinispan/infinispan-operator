@@ -37,7 +37,8 @@ spec:
       - description: Current phase of the backup operation
         displayName: Phase
         path: phase
-      - description: The name of the created PersistentVolumeClaim used to store the backup
+      - description: The name of the created PersistentVolumeClaim used to store the
+          backup
         displayName: Persistent Volume Claim
         path: pvc
       - description: Reason indicates the reason for any backup related failures.
@@ -57,11 +58,13 @@ spec:
       - description: Batch string to be executed
         displayName: Config Command
         path: config
-      - description: Name of the ConfigMap containing the batch and resource files to be executed
+      - description: Name of the ConfigMap containing the batch and resource files
+          to be executed
         displayName: ConfigMap Name
         path: configMap
       statusDescriptors:
-      - description: The UUID of the Infinispan instance that the Batch is associated with
+      - description: The UUID of the Infinispan instance that the Batch is associated
+          with
         displayName: Cluster UUID
         path: clusterUID
       - description: Current phase of the batch operation
@@ -86,7 +89,8 @@ spec:
         path: clusterName
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan
-      - description: How updates to Cache CR template should be applied on the Infinispan server
+      - description: How updates to Cache CR template should be applied on the Infinispan
+          server
         displayName: Update Strategy
         path: updates.strategy
         x-descriptors:
@@ -98,7 +102,8 @@ spec:
       kind: Infinispan
       name: infinispans.infinispan.org
       specDescriptors:
-      - description: If true, a dedicated pod is used to ensure that all config resources created on the Infinispan server have a matching CR resource
+      - description: If true, a dedicated pod is used to ensure that all config resources
+          created on the Infinispan server have a matching CR resource
         displayName: Toggle Config Listener
         path: configListener.enabled
         x-descriptors:
@@ -187,7 +192,8 @@ spec:
         path: service.replicationFactor
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:number
-      - description: Deprecated and to be removed on subsequent release. Use .URL with infinispan+xsite schema instead.
+      - description: Deprecated and to be removed on subsequent release. Use .URL
+          with infinispan+xsite schema instead.
         displayName: Node Port
         path: service.sites.locations[0].port
         x-descriptors:

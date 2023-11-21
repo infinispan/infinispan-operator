@@ -1,7 +1,8 @@
 # Current Operator version
 VERSION ?= $(shell git describe --tags --always --dirty)
 # Default bundle image tag
-BUNDLE_IMG ?= infinispan-operator-bundle:v$(VERSION)
+IMAGE_TAG_BASE ?= infinispan-operator
+BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 export KUBECONFIG ?= ${HOME}/.kube/config
 export WATCH_NAMESPACE ?= namespace-for-testing
 
@@ -14,17 +15,25 @@ BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= --version $(VERSION) $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
+# BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
+BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+
+# USE_IMAGE_DIGESTS defines if images are resolved via tags or digests
+# You can enable this value if you would like to use SHA Based Digests
+# To enable set flag to true
+USE_IMAGE_DIGESTS ?= false
+ifeq ($(USE_IMAGE_DIGESTS), true)
+    BUNDLE_GEN_FLAGS += --use-image-digests
+endif
+
 # The namespace to deploy the infinispan-operator
 DEPLOYMENT_NAMESPACE ?= infinispan-operator-system
 
 # Image URL to use all building/pushing image targets
 IMG ?= operator:latest
 
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
-
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.19
+ENVTEST_K8S_VERSION = 1.24
 
 export CONTAINER_TOOL ?= docker
 
@@ -35,7 +44,29 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-PATH ?= $(PATH):./bin
+##@ Build Dependencies
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+## Tool Binaries
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
+export GO_JUNIT_REPORT ?= $(LOCALBIN)/go-junit-report
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+MOCKGEN ?= $(LOCALBIN)/mockgen
+RICE ?= $(LOCALBIN)/rice
+
+## Tool Versions
+CONTROLLER_TOOLS_VERSION ?= v0.9.2
+GO_JUNIT_REPORT_VERSION ?= latest
+GOLANGCI_LINT_VERSION ?= v1.53.3
+KUSTOMIZE_VERSION ?= v3.8.7
+RICE_VERSION ?= v1.0.2
+YQ_VERSION ?= v4.31.1
 
 .DEFAULT_GOAL := help
 
@@ -140,7 +171,7 @@ undeploy:
 .PHONY: manifests
 ## Generate manifests locally e.g. CRD, RBAC etc.
 manifests: controller-gen operator-sdk
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	$(OPERATOR_SDK) generate kustomize manifests -q
 
 .PHONY: fmt
@@ -176,57 +207,41 @@ operator-build: manager
 operator-push:
 	$(CONTAINER_TOOL) push $(IMG)
 
-RICE = $(shell pwd)/bin/rice
 .PHONY: rice
-## Download Rice locally if necessary
-rice:
-	$(call go-get-tool,$(RICE),github.com/GeertJohan/go.rice/rice@v1.0.2)
+rice: $(RICE) ## Download Rice locally if necessary.
+$(RICE): $(LOCALBIN)
+	test -s $(RICE) || GOBIN=$(LOCALBIN) go install github.com/GeertJohan/go.rice/rice@$(RICE_VERSION)
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-.PHONY: controller-gen
-## Download controller-gen locally if necessary
-controller-gen:
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
-
-KUSTOMIZE = $(shell pwd)/bin/kustomize
+KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
-## Download kustomize locally if necessary
-kustomize:
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
+$(KUSTOMIZE): $(LOCALBIN)
+	test -s $(KUSTOMIZE) || { curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
-GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
-.PHONY: golanci-lint
-## Download golanci-lint locally if necessary
-golangci-lint:
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.53.3)
+.PHONY: controller-gen
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(CONTROLLER_GEN) || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
-export GO_JUNIT_REPORT = $(shell pwd)/bin/go-junit-report
-.PHONY: GO_JUNIT_REPORT
-## Download go-junit-report locally if necessary
-go-junit-report:
-	$(call go-get-tool,$(GO_JUNIT_REPORT),github.com/jstemmer/go-junit-report@latest)
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
+$(GOLANGCI_LINT): $(LOCALBIN)
+	test -s $(GOLANGCI_LINT) || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
-export MOCKGEN = $(shell pwd)/bin/mockgen
+.PHONY: go-junit-report
+go-junit-report: $(GO_JUNIT_REPORT) ## Download go-junit-report locally if necessary.
+$(GO_JUNIT_REPORT): $(LOCALBIN)
+	test -s $(GO_JUNIT_REPORT) || GOBIN=$(LOCALBIN) go install github.com/jstemmer/go-junit-report@$(GO_JUNIT_REPORT_VERSION)
+
 .PHONY: mockgen
-## Download mockgen locally if necessary
-mockgen:
-	$(call go-get-tool,$(MOCKGEN),github.com/golang/mock/mockgen@v1.6.0)
+mockgen: $(MOCKGEN) ## Download mockgen locally if necessary
+$(MOCKGEN): $(LOCALBIN)
+	test -s $(MOCKGEN) || GOBIN=$(LOCALBIN) go install github.com/golang/mock/mockgen@v1.6.0
 
-ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
-## Download envtest-setup locally if necessary.
-envtest:
-	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
-
-# go-get-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
-}
-endef
+envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
+$(ENVTEST): $(LOCALBIN)
+	test -s $(ENVTEST) || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 .PHONY: bundle
 ## Generate bundle manifests and metadata, then validate generated files.
@@ -234,13 +249,12 @@ bundle: manifests kustomize yq
 # Remove old bundle as old files aren't always cleaned up by operator-sdk
 	rm -rf bundle
 	cd config/manager && $(KUSTOMIZE) edit set image operator=$(IMG)
-	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 # TODO is there a better way todo this with operator-sdk and/or kustomize. `commonAnnotations` adds annotations to all resources, not just CSV.
 	sed -i -e "s,<IMAGE>,$(IMG)," bundle/manifests/infinispan-operator.clusterserviceversion.yaml
 # Hack to set the metadata package name to "infinispan". `operator-sdk --package infinispan` can't be used as it
 # changes the csv name from  infinispan-operator.v0.0.0 -> infinispan.v0.0.0
 	sed -i -e 's/infinispan-operator/infinispan/' bundle/metadata/annotations.yaml bundle.Dockerfile
-	rm bundle/manifests/infinispan-operator-controller-manager_v1_serviceaccount.yaml
 	rm bundle/manifests/infinispan-operator-webhook-service_v1_service.yaml
 # Minimum Openshift version must correspond to `minKubeVersion` set in CSV
 	$(YQ) -i '.annotations += {"com.redhat.openshift.versions": "v4.11"}' bundle/metadata/annotations.yaml
@@ -264,7 +278,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.21.0/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.23.0/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
