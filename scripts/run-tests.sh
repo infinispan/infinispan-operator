@@ -11,7 +11,7 @@ PARALLEL_COUNT=${PARALLEL_COUNT:-1}
 VERSION=$(git describe --tags --always --dirty)
 GO_LDFLAGS="-X github.com/infinispan/infinispan-operator/launcher.Version=${VERSION}"
 
-go clean -testcache ./test/e2e
+go clean -testcache
 if [ -z "${TEST_NAME}" ]; then
   go test -v ./test/e2e/"${TEST_BUNDLE}" -timeout ${TIMEOUT} -ldflags "${GO_LDFLAGS}" -parallel "${PARALLEL_COUNT}" 2>&1 | tee /tmp/testOutput
   testExitCode=${PIPESTATUS[0]}
