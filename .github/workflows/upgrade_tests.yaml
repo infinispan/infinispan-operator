@@ -42,7 +42,7 @@ jobs:
           repository: ${{ inputs.repository }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - if: ${{ inputs.operandArtifact != '' }}
         name: Download operand artifact
