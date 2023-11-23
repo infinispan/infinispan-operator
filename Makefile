@@ -66,6 +66,7 @@ GO_JUNIT_REPORT_VERSION ?= latest
 GOLANGCI_LINT_VERSION ?= v1.53.3
 KUSTOMIZE_VERSION ?= v3.8.7
 RICE_VERSION ?= v1.0.2
+JQ_VERSION ?= 1.7
 YQ_VERSION ?= v4.31.1
 
 .DEFAULT_GOAL := help
@@ -273,6 +274,7 @@ bundle-push:
 .PHONY: opm
 export OPM = ./bin/opm
 opm: ## Download opm locally if necessary.
+ifeq (,$(wildcard $(OPM)))
 ifeq (,$(shell which opm 2>/dev/null))
 	@{ \
 	set -e ;\
@@ -284,40 +286,44 @@ ifeq (,$(shell which opm 2>/dev/null))
 else
 OPM = $(shell which opm)
 endif
-
+endif
 
 .PHONY: jq
 export JQ = ./bin/jq
 jq: ## Download opm locally if necessary.
+ifeq (,$(wildcard $(JQ)))
 ifeq (,$(shell which jq 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(JQ)) ;\
-	curl -sSLo $(JQ) https://github.com/stedolan/jq/releases/download/jq-1.7/jq-linux64 ;\
+	curl -sSLo $(JQ) https://github.com/stedolan/jq/releases/download/jq-$(JQ_VERSION)/jq-linux64 ;\
 	chmod +x $(JQ) ;\
 	}
 else
 JQ = $(shell which jq)
 endif
+endif
 
 .PHONY: yq
 export YQ = ./bin/yq
-## Download yq locally if necessary.
-yq: jq
+yq: ## Download yq locally if necessary.
+ifeq (,$(wildcard $(YQ)))
 ifeq (,$(shell which yq 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(YQ)) ;\
-	curl -sSLo $(YQ) https://github.com/mikefarah/yq/releases/download/v4.40.2/yq_linux_amd64 ;\
+	curl -sSLo $(YQ) https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_linux_amd64 ;\
 	chmod +x $(YQ) ;\
 	}
 else
 YQ = $(shell which yq)
 endif
+endif
 
 .PHONY: oc
 export OC = ./bin/oc
 oc: ## Download oc locally if necessary.
+ifeq (,$(wildcard $(OC)))
 ifeq (,$(shell which oc 2>/dev/null))
 	@{ \
 	set -e ;\
@@ -328,10 +334,13 @@ ifeq (,$(shell which oc 2>/dev/null))
 else
 OC = $(shell which oc)
 endif
+endif
 
 .PHONY: operator-sdk
+## Download operator-sdk locally if necessary.
 export OPERATOR_SDK = ./bin/operator-sdk
-operator-sdk: ## Download operator-sdk locally if necessary.
+operator-sdk:
+ifeq (,$(wildcard $(OPERATOR_SDK)))
 ifeq (,$(shell which operator-sdk 2>/dev/null))
 	@{ \
 	set -e ;\
@@ -341,6 +350,7 @@ ifeq (,$(shell which operator-sdk 2>/dev/null))
 	}
 else
 OPERATOR_SDK = $(shell which operator-sdk)
+endif
 endif
 
 # A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
