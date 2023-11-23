@@ -130,9 +130,9 @@ class CacheServiceIT {
    void hotrodAuthTest() throws Exception {
       String encodedPass = URLEncoder.encode(pass, StandardCharsets.UTF_8.toString());
 
-      String authorizedGet = String.format("http://" + testServer.host() + "/hotrod/auth?username=%s&password=%s&servicename=%s&encrypted=%s", user, encodedPass, appName, "true");
-      String unauthorizedGet = String.format("http://" + testServer.host() + "/hotrod/auth?username=%s&password=%s&servicename=%s&encrypted=%s", user, "invalid", appName, "true");
-      String noAuthGet = String.format("http://" + testServer.host() + "/hotrod/auth?servicename=%s&encrypted=%s", appName, "true");
+      String authorizedGet = String.format("http://" + testServer.host() + "/hotrod/auth?username=%s&password=%s&servicename=%s&namespace=%s&encrypted=%s", user, encodedPass, appName, openShift.getNamespace(), "true");
+      String unauthorizedGet = String.format("http://" + testServer.host() + "/hotrod/auth?username=%s&password=%s&servicename=%s&namespace=%s&encrypted=%s", user, "invalid", appName, openShift.getNamespace(), "true");
+      String noAuthGet = String.format("http://" + testServer.host() + "/hotrod/auth?servicename=%s&namespace=%s&encrypted=%s", appName, openShift.getNamespace(), "true");
 
       Assertions.assertThat(Http.get(authorizedGet).execute().code()).isEqualTo(200);
       Assertions.assertThat(Http.get(unauthorizedGet).execute().code()).isEqualTo(401);

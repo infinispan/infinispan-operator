@@ -36,6 +36,7 @@ public class ClientCertificateValidationServlet extends HttpServlet {
          }
 
          builder.security().ssl()
+                  .sniHostName(serviceName)
                   .trustStoreFileName("/etc/test-server-cert-secret/truststore.p12")
                   .trustStorePassword("password".toCharArray());
 

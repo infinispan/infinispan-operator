@@ -27,6 +27,7 @@ public class HotRodServlet extends HttpServlet {
 
       try {
          String serviceName = request.getParameter("servicename");
+         String namespace = request.getParameter("namespace");
          String username = request.getParameter("username");
          String password = request.getParameter("password");
          String encrypted = request.getParameter("encrypted");
@@ -39,7 +40,7 @@ public class HotRodServlet extends HttpServlet {
          }
 
          if(encrypted != null) {
-            builder.security().ssl().trustStorePath("/etc/" + serviceName + "-cert-secret/tls.crt");
+            builder.security().ssl().sniHostName(serviceName + "." + namespace + ".svc").trustStorePath("/etc/" + serviceName + "-cert-secret/tls.crt");
          }
 
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());

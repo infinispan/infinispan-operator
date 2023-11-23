@@ -31,6 +31,7 @@ public class ClientCertificateAuthenticationServlet extends HttpServlet {
                  .security().ssl().authentication().saslMechanism("EXTERNAL");
 
          builder.security().ssl()
+            .sniHostName(serviceName)
             .trustStoreFileName("/etc/test-server-cert-secret/truststore.p12")
             .trustStorePassword("password".toCharArray());
 
