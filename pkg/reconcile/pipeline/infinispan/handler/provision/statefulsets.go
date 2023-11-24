@@ -1,6 +1,8 @@
 package provision
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -70,8 +72,10 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 	labelsForSelector[consts.StatefulSetPodLabel] = statefulSetName
 
 	configFiles := ctx.ConfigFiles()
+	podEnvs, podEnvsHash := PodEnvsAndHash(i, configFiles)
 	statefulSetAnnotations := consts.DeploymentAnnotations
 	statefulSetAnnotations["checksum/credentialStore"] = hash.HashMap(configFiles.CredentialStoreEntries)
+	statefulSetAnnotations["checksum/podEnvs"] = podEnvsHash
 	annotationsForPod := i.PodAnnotations()
 	annotationsForPod["updateDate"] = time.Now().String()
 
@@ -102,14 +106,10 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 				Spec: corev1.PodSpec{
 					Affinity: i.Affinity(),
 					Containers: []corev1.Container{{
-						Image: i.ImageName(),
-						Args:  BuildServerContainerArgs(ctx.ConfigFiles()),
-						Name:  InfinispanContainer,
-						Env: PodEnv(i, &[]corev1.EnvVar{
-							{Name: "CONFIG_HASH", Value: hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)},
-							{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)},
-							{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename},
-						}),
+						Image:          i.ImageName(),
+						Args:           BuildServerContainerArgs(ctx.ConfigFiles()),
+						Name:           InfinispanContainer,
+						Env:            podEnvs,
 						Lifecycle:      PodLifecycle(),
 						LivenessProbe:  PodLivenessProbe(),
 						Ports:          PodPortsWithXsite(i),
@@ -163,6 +163,20 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 	addTLS(ctx, i, statefulSet)
 	addXSiteTLS(ctx, i, statefulSet)
 	return statefulSet, nil
+}
+
+func PodEnvsAndHash(i *ispnv1.Infinispan, configFiles *pipeline.ConfigFiles) ([]corev1.EnvVar, string) {
+	envs := PodEnv(i, &[]corev1.EnvVar{
+		{Name: "CONFIG_HASH", Value: hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)},
+		{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)},
+		{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename},
+	})
+	hash := sha1.New()
+	for _, e := range envs {
+		hash.Write([]byte(e.Name))
+		hash.Write([]byte(e.Value))
+	}
+	return envs, hex.EncodeToString(hash.Sum(nil))
 }
 
 func StatefulSetPodLabels(statefulSetName string, i *ispnv1.Infinispan) map[string]string {
