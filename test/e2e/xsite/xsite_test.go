@@ -218,6 +218,8 @@ func TestDefaultTLSInternalMultiPod(t *testing.T) {
 }
 
 func TestCrossSiteViewKubernetesNodePort(t *testing.T) {
+	tutils.SkipForOpenShift(t, "Kubernetes scheme is unsupported by the testsuite running against the OpenShift at the moment")
+	tutils.SkipForAWS(t, "Nodes hostnames and IPs are private and not accessible on AWS")
 	// Cross-Site between clusters will need to setup two instances of the Kind for Travis CI
 	// Not be able to test on the separate OCP/OKD instance (probably with AWS/Azure LoadBalancer support only)
 	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS, nil)
@@ -225,24 +227,31 @@ func TestCrossSiteViewKubernetesNodePort(t *testing.T) {
 
 // TestCrossSiteViewKubernetesNodePortE is the same as TestCrossSiteViewKubernetesNodePort except the NodePort value is explicitly configured
 func TestCrossSiteViewKubernetesNodePortE(t *testing.T) {
+	tutils.SkipForOpenShift(t, "Kubernetes scheme is unsupported by the testsuite running against the OpenShift at the moment")
+	tutils.SkipForAWS(t, "Nodes hostnames and IPs are private and not accessible on AWS")
 	testCrossSiteView(t, true, true, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, -1, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSKubernetesNodePort tests if the TLS connection works with NodePort.
 func TestDefaultTLSKubernetesNodePort(t *testing.T) {
+	tutils.SkipForOpenShift(t, "Kubernetes scheme is unsupported by the testsuite running against the OpenShift at the moment")
+	tutils.SkipForAWS(t, "Nodes hostnames and IPs are private and not accessible on AWS")
 	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, DefaultTLS, nil)
 }
 
 func TestCrossSiteViewOpenshiftNodePort(t *testing.T) {
+	tutils.SkipForAWS(t, "Nodes hostnames and IPs are private and not accessible on AWS")
 	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeOpenShift, ispnv1.CrossSiteExposeTypeNodePort, 0, 1, NoTLS, nil)
 }
 
 func TestCrossSiteViewKubernetesLoadBalancer(t *testing.T) {
+	tutils.SkipForOpenShift(t, "Kubernetes scheme is unsupported by the testsuite running against the OpenShift at the moment")
 	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, NoTLS, nil)
 }
 
 // TestDefaultTLSKubernetesLoadBalancer tests if the TLS connection works with LoadBalancer.
 func TestDefaultTLSKubernetesLoadBalancer(t *testing.T) {
+	tutils.SkipForOpenShift(t, "Kubernetes scheme is unsupported by the testsuite running against the OpenShift at the moment")
 	testCrossSiteView(t, true, false, ispnv1.CrossSiteSchemeTypeKubernetes, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 1, DefaultTLS, nil)
 }
 
@@ -338,14 +347,19 @@ func TestSingleGossipRouter(t *testing.T) {
 	}
 
 	// create secrets
-	tesKubes["xsite1"].kube.CreateSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
-	tesKubes["xsite2"].kube.CreateSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
+	operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite1"].namespace)
+	operatorNamespaceSite2 := constants.GetWithDefault(tutils.OperatorNamespace, tesKubes["xsite2"].namespace)
+	xsite1Token := getServiceAccountToken(operatorNamespaceSite1, tesKubes["xsite1"].kube)
+	xsite2Token := getServiceAccountToken(operatorNamespaceSite2, tesKubes["xsite2"].kube)
 
-	defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", tesKubes["xsite1"].namespace, clientConfig, tesKubes["xsite2"].context))
-	defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", tesKubes["xsite2"].namespace, clientConfig, tesKubes["xsite1"].context))
+	defer tesKubes["xsite1"].kube.DeleteSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, []byte("")))
+	defer tesKubes["xsite2"].kube.DeleteSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, []byte("")))
 
-	tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite1", "xsite2", tesKubes["xsite2"].namespace, ispnv1.CrossSiteExposeTypeNodePort, 0, 0)
-	tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite2", "xsite1", tesKubes["xsite1"].namespace, ispnv1.CrossSiteExposeTypeNodePort, 0, 0)
+	tesKubes["xsite1"].kube.CreateSecret(crossSiteTokenSecret("xsite2", tesKubes["xsite1"].namespace, xsite2Token))
+	tesKubes["xsite2"].kube.CreateSecret(crossSiteTokenSecret("xsite1", tesKubes["xsite2"].namespace, xsite1Token))
+
+	tesKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite1", "xsite2", tesKubes["xsite2"].namespace, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 0)
+	tesKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 1, "xsite2", "xsite1", tesKubes["xsite1"].namespace, ispnv1.CrossSiteExposeTypeLoadBalancer, 0, 0)
 
 	tesKubes["xsite1"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
 	tesKubes["xsite2"].crossSite.ObjectMeta.Labels = map[string]string{"test-name": testName}
@@ -354,7 +368,7 @@ func TestSingleGossipRouter(t *testing.T) {
 	tesKubes["xsite1"].crossSite.Spec.Service.Sites.Local.Discovery = &ispnv1.DiscoverySiteSpec{
 		LaunchGossipRouter: pointer.Bool(false),
 	}
-	tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", ispnv1.CrossSiteSchemeTypeKubernetes, tesKubes["xsite2"].apiServer)
+	tesKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", ispnv1.CrossSiteSchemeTypeOpenShift, tesKubes["xsite2"].apiServer)
 
 	// Prevent site2 from trying to fetch the Gossip Router from site1
 	tesKubes["xsite2"].crossSite.Spec.Service.Sites.Locations[0].Namespace = ""
