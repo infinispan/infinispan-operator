@@ -46,3 +46,15 @@ func SkipForMajor(t *testing.T, infinispanMajor uint64, message string) {
 		}
 	}
 }
+
+func SkipForAWS(t *testing.T, message string) {
+	if Infrastructure == "AWS" {
+		t.Skip(message)
+	}
+}
+
+func SkipForOpenShift(t *testing.T, message string) {
+	if Platform == "OpenShift" {
+		t.Skip(message)
+	}
+}
