@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/blang/semver"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -42,6 +43,16 @@ func SkipForMajor(t *testing.T, infinispanMajor uint64, message string) {
 	if OperandVersion != "" {
 		operand, _ := VersionManager().WithRef(OperandVersion)
 		if operand.UpstreamVersion.Major == infinispanMajor {
+			t.Skip(message)
+		}
+	}
+}
+
+func SkipPriorTo(t *testing.T, version, message string) {
+	if OperandVersion != "" {
+		operand_cur, _ := VersionManager().WithRef(OperandVersion)
+		version_min, _ := semver.Parse(version)
+		if operand_cur.UpstreamVersion.LE(version_min) {
 			t.Skip(message)
 		}
 	}

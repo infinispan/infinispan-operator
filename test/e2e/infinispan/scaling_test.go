@@ -66,7 +66,8 @@ func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
 	volatileKey := "volatileKey"
 	volatileValue := "volatileValue"
 
-	volatileCacheHelper.TestBasicUsage(volatileKey, volatileValue)
+	// Attempt to put entry right after the cluster went back online may result in EOF sometimes due to request not reaching the cluster
+	volatileCacheHelper.TestBasicUsageWithRetry(volatileKey, volatileValue, 5)
 
 	volatileCacheHelper.Delete()
 

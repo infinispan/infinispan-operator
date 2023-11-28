@@ -1055,7 +1055,7 @@ func (k TestKubernetes) WaitForValidBackupPhase(name, namespace string, phase is
 	ExpectNoError(err)
 }
 
-func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase ispnv2.RestorePhase) {
+func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase ispnv2.RestorePhase) error {
 	var restore *ispnv2.Restore
 	err := wait.Poll(10*time.Millisecond, TestTimeout, func() (bool, error) {
 		restore = k.GetRestore(name, namespace)
@@ -1067,7 +1067,7 @@ func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase i
 	if err != nil {
 		println(fmt.Sprintf("Expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason))
 	}
-	ExpectNoError(err)
+	return err
 }
 
 // GetUsedNodePorts returns a set of NodePorts currently in use by the cluster
