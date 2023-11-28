@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/iancoleman/strcase"
@@ -159,7 +160,14 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	testKube.Create(restoreSpec)
 
 	// Ensure the restore pod has joined the cluster
-	testKube.WaitForValidRestorePhase(restoreName, namespace, v2.RestoreSucceeded)
+	err = testKube.WaitForValidRestorePhase(restoreName, namespace, v2.RestoreSucceeded)
+	if err != nil {
+		// Known issue with older operands that won't be fixed, skip the test to reduce noise in the test results
+		if strings.Contains(err.Error(), "ISPN-15173") {
+			tutils.SkipPriorTo(t, "14.0.18", "Known issue: "+err.Error())
+		}
+		panic(err.Error())
+	}
 
 	// Ensure that the restore pod has left the cluster, by checking a cluster pod's size
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)

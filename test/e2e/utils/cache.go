@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
@@ -68,6 +69,17 @@ func (c *CacheHelper) TestBasicUsage(key, value string) {
 	}
 }
 
+func (c *CacheHelper) TestBasicUsageWithRetry(key, value string, retries int) {
+	c.PutWithRetry(key, value, mime.TextPlain, retries)
+	actual, exists := c.Get(key)
+	if !exists {
+		panic(fmt.Errorf("entry with key '%s' doesn't exist", key))
+	}
+	if actual != value {
+		panic(fmt.Errorf("unexpected actual returned: %v (value %v)", actual, value))
+	}
+}
+
 func (c *CacheHelper) Delete() {
 	ExpectNoError(c.CacheClient.Delete())
 }
@@ -80,6 +92,19 @@ func (c *CacheHelper) Get(key string) (string, bool) {
 
 func (c *CacheHelper) Put(key, value string, contentType mime.MimeType) {
 	ExpectNoError(c.CacheClient.Put(key, value, contentType))
+}
+
+func (c *CacheHelper) PutWithRetry(key, value string, contentType mime.MimeType, retries int) {
+	err := c.CacheClient.Put(key, value, contentType)
+	for i := 0; i < retries; i++ {
+		if err == nil {
+			return
+		}
+		fmt.Println("Attempt ", i, " failed on", err.Error(), ". Retrying...")
+		time.Sleep(time.Second)
+		err = c.CacheClient.Put(key, value, contentType)
+	}
+	ExpectNoError(err)
 }
 
 func (c *CacheHelper) Populate(numEntries int) {

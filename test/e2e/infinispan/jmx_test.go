@@ -13,6 +13,7 @@ import (
 )
 
 func TestJmxEnabled(t *testing.T) {
+	tutils.SkipForMajor(t, 13, "Enabling JMX in Infinispan 13 is not implemented.")
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	replicas := 1
