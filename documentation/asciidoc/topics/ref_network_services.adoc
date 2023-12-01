@@ -16,6 +16,12 @@ Reference information for network services that {ispn_operator} creates and mana
 | TCP
 | Access to {brandname} endpoints within the {k8s} cluster or from an {openshiftshort} `Route`.
 
+| `<cluster_name>-admin`
+| `11223`
+| TCP
+| Access to {brandname} endpoints within the {k8s} cluster for internal {ispn_operator} use. This port utilises a different
+security-realm to port 11222 and should not be accessed by user applications.
+
 | `<cluster_name>-ping`
 | `8888`
 | TCP
@@ -32,3 +38,5 @@ Reference information for network services that {ispn_operator} creates and mana
 | JGroups RELAY2 channel for cross-site communication.
 
 |===
+
+NOTE: The {brandname} Console should only be accessed via {k8s} services or an {openshiftshort} `Route` exposing port 11222.

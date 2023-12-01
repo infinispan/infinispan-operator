@@ -14,3 +14,5 @@ For example, configure a `LoadBalancer` service or create a `Route`.
 * Access the console from any browser at `$HOSTNAME:$PORT`.
 +
 Replace `$HOSTNAME:$PORT` with the network location where {brandname} is available.
+
+NOTE: The {brandname} Console should only be accessed via {k8s} services or an {openshiftshort} `Route` exposing port 11222.
