@@ -27,4 +27,10 @@ EOF
 {oc_apply_cr} mybatch.yaml
 ----
 +
-. Check the `status.Phase` field in the `Batch` CR to verify the operations completed successfully.
+. Wait for the `Batch` CR to succeed.
++
+[source,options="nowrap",subs=attributes+]
+----
+kubectl wait --for=jsonpath='{.status.phase}'=Succeeded Batch/mybatch
+----
++
