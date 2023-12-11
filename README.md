@@ -6,7 +6,7 @@ This is a Kubernetes operator to manage Infinispan clusters.
 
 * [go 1.19](https://github.com/golang/go) or higher.
 * Docker | Podman
-* [Operator SDK 1.3.2](https://github.com/operator-framework/operator-sdk/releases/download/v1.3.2/operator-sdk_linux_amd64)
+* [Operator SDK 1.24.1](https://github.com/operator-framework/operator-sdk/releases/download/v1.24.1/operator-sdk_linux_amd64)
 * A running Kubernetes cluster
 
 # Usage
