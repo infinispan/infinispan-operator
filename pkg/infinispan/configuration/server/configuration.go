@@ -145,5 +145,5 @@ func funcMap() template.FuncMap {
 }
 
 func supportedMajorVersion(v uint64) bool {
-	return v == 13 || v == 14
+	return v >= 13 && v <= 15
 }

@@ -15,9 +15,7 @@ public class Caches {
             "                <value media-type=\"text/plain\"/>\n" +
             "            </encoding>\n" +
             "            <transaction mode=\"NONE\"/>\n" +
-            "            <memory>\n" +
-            "                <off-heap strategy=\"REMOVE\" eviction=\"MEMORY\" size=\"96468992\"/>\n" +
-            "            </memory>\n" +
+            "            <memory storage=\"OFF_HEAP\" max-count=\"96468992\" when-full=\"REMOVE\"/>\n" +
             "            <partition-handling when-split=\"ALLOW_READ_WRITES\" merge-policy=\"REMOVE_ALL\"/>\n" +
             "        </distributed-cache>" +
             "    </cache-container>\n" +
