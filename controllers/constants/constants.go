@@ -97,9 +97,7 @@ const (
 	DefaultCacheTemplate = `<infinispan>
 		<cache-container>
 			<distributed-cache name="%v" mode="SYNC" owners="%d" statistics="true">
-				<memory>
-					<off-heap size="%d" eviction="MEMORY" strategy="REMOVE"/>
-				</memory>
+				<memory storage="OFF_HEAP" max-count="%d" when-full="REMOVE"/>
 				<partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL" />
 			</distributed-cache>
 		</cache-container>
