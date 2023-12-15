@@ -3,7 +3,6 @@ module github.com/infinispan/infinispan-operator
 go 1.20
 
 require (
-	github.com/GeertJohan/go.rice v1.0.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/go-logr/logr v1.2.0
 	github.com/go-playground/validator/v10 v10.8.0
@@ -54,7 +53,6 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/daaku/go.zipexe v1.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
