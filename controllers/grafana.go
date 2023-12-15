@@ -2,10 +2,10 @@ package controllers
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 
-	rice "github.com/GeertJohan/go.rice"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	grafanav1alpha1 "github.com/infinispan/infinispan-operator/pkg/apis/integreatly/v1alpha1"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -14,6 +14,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+//go:embed resources/grafana_dashboard.json
+var dashboardJSON string
 
 const (
 	grafanaDashboardNamespaceKey  = "grafana.dashboard.namespace"
@@ -83,20 +86,12 @@ func emptyDashboard(config map[string]string) *grafanav1alpha1.GrafanaDashboard 
 }
 
 func populateDashboard(dashboard *grafanav1alpha1.GrafanaDashboard, config map[string]string) error {
-	box, err := rice.FindBox("resources")
-	if err != nil {
-		return err
-	}
-	dashboardJSONData, err := box.String("grafana_dashboard.json")
-	if err != nil {
-		return err
-	}
 	dashboard.Labels = map[string]string{
 		"monitoring-key": config[grafanaDashboardMonitoringKey],
 		"app":            "grafana",
 	}
 	dashboard.Spec = grafanav1alpha1.GrafanaDashboardSpec{
-		Json: dashboardJSONData,
+		Json: dashboardJSON,
 		// TODO migration to 1.22. No more needed Name field?
 		// Name: "infinispan.json",
 		Datasources: []grafanav1alpha1.GrafanaDashboardDatasource{
