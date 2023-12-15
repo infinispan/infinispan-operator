@@ -58,14 +58,12 @@ export GO_JUNIT_REPORT ?= $(LOCALBIN)/go-junit-report
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 MOCKGEN ?= $(LOCALBIN)/mockgen
-RICE ?= $(LOCALBIN)/rice
 
 ## Tool Versions
 CONTROLLER_TOOLS_VERSION ?= v0.9.2
 GO_JUNIT_REPORT_VERSION ?= latest
 GOLANGCI_LINT_VERSION ?= v1.53.3
 KUSTOMIZE_VERSION ?= v3.8.7
-RICE_VERSION ?= v1.0.2
 JQ_VERSION ?= 1.7
 YQ_VERSION ?= v4.31.1
 
@@ -187,11 +185,8 @@ vet:
 
 .PHONY: generate
 ## Generate code
-generate: controller-gen rice
+generate: controller-gen
 	$(CONTROLLER_GEN) object paths="./..."
-# Generate rice-box files and fix timestamp value
-	$(RICE) embed-go -i controllers/grafana.go -i pkg/templates/templates.go
-	find . -type f -name 'rice-box.go' -exec sed -i "s|time.Unix(.*, 0)|time.Unix(1620137619, 0)|" {} \;
 
 .PHONY: generate-mocks
 ## Generate testing mocks
@@ -207,11 +202,6 @@ operator-build: manager
 ## Push the operator image
 operator-push:
 	$(CONTAINER_TOOL) push $(IMG)
-
-.PHONY: rice
-rice: $(RICE) ## Download Rice locally if necessary.
-$(RICE): $(LOCALBIN)
-	test -s $(RICE) || GOBIN=$(LOCALBIN) go install github.com/GeertJohan/go.rice/rice@$(RICE_VERSION)
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
