@@ -10,6 +10,11 @@ updates:
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
     # 2.3.x branch
   - package-ecosystem: maven
     directory: "/"
@@ -18,6 +23,12 @@ updates:
     open-pull-requests-limit: 10
     target-branch: 2.3.x
   - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    target-branch: 2.3.x
+  - package-ecosystem: gomod
     directory: "/"
     schedule:
       interval: daily
