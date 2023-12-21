@@ -120,14 +120,14 @@ jobs:
         run: oc adm inspect ns
 
       - name: Inspect Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: oc-inspect
           path: inspect.*
 
       - name: Test Logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: test-logs
