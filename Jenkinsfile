@@ -62,7 +62,7 @@ pipeline {
                     }
 
                     expression {
-                        return sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
+                        return sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore|.github))/\'', returnStatus: true) == 0
                     }
                 }
             }
