@@ -189,6 +189,8 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			i.Name,
 			"-zap-log-level",
 			string(i.Spec.ConfigListener.Logging.Level),
+			"-zap-time-encoding",
+			"rfc3339",
 		},
 		Env: []corev1.EnvVar{{Name: "INFINISPAN_OPERAND_VERSIONS", Value: operandVersions}},
 	}

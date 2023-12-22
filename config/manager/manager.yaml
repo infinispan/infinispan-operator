@@ -31,6 +31,8 @@ spec:
           args:
             - operator
             - --leader-elect
+            - --zap-time-encoding
+            - rfc3339
           imagePullPolicy: Always
           livenessProbe:
             httpGet:
