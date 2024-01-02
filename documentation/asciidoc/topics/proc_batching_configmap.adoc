@@ -31,6 +31,5 @@ EOF
 +
 [source,options="nowrap",subs=attributes+]
 ----
-kubectl wait --for=jsonpath='{.status.phase}'=Succeeded Batch/mybatch
+{oc_wait} --for=jsonpath='{.status.phase}'=Succeeded Batch/mybatch
 ----
-+
