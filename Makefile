@@ -366,3 +366,8 @@ catalog-build: opm jq ## Build a catalog image.
 ## Push the catalog image.
 catalog-push: ## Push a catalog image.
 	$(CONTAINER_TOOL) push $(CATALOG_IMG)
+
+.PHONY: documentation
+## Generate the documentation page.
+documentation: ## Generate the documentation page.
+	asciidoctor ./documentation/asciidoc/titles/operator.asciidoc
