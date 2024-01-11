@@ -33,7 +33,9 @@ endif::community[]
 //OpenShift documentation
 //
 
-:link_os_sa_tokens: https://docs.openshift.com/container-platform/4.9/authentication/using-service-accounts-in-applications.html[Using service accounts in applications]
+:link_os_sa_tokens: https://docs.openshift.com/container-platform/4.14/nodes/pods/nodes-pods-secrets.html#nodes-pods-secrets-creating-sa_nodes-pods-secrets[Creating a service account token secret]
+
+:link_os_sa_bound_tokens: https://docs.openshift.com/container-platform/4.14/authentication/bound-service-account-tokens.html#bound-sa-tokens-configuring-externally_bound-service-account-tokens[Creating bound service account tokens]
 
 :link_os_monitoring: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.9/html-single/monitoring/index#enabling-monitoring-for-user-defined-projects[Enabling monitoring for user-defined projects]
 

@@ -18,7 +18,7 @@ endif::community[]
 [NOTE]
 ====
 {ispn_operator} does not modify remote {brandname} clusters.
-The service account tokens provide read only access through the Kubernetes API.
+The service account tokens provide read-only access through the Kubernetes API.
 ====
 
 .Procedure
@@ -30,27 +30,22 @@ For example, create a service account at **LON**:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-oc create sa lon
-serviceaccount/lon created
+oc create sa -n <namespace> lon
 ----
 +
 . Add the view role to the service account with the following command:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-oc policy add-role-to-user view system:serviceaccount:<namespace>:lon
+oc policy add-role-to-user view -n <namespace> -z lon
 ----
 +
 . If you use a `NodePort` service to expose {brandname} clusters on the network, you must also add the `cluster-reader` role to the service account:
 +
 [source,options="nowrap",subs=attributes+]
 ----
-oc adm policy add-cluster-role-to-user cluster-reader -z <service-account-name> -n <namespace>
+oc adm policy add-cluster-role-to-user cluster-reader -z lon -n <namespace>
 ----
 +
 . Repeat the preceding steps on your other {openshiftshort} clusters.
 . Exchange service account tokens on each {openshiftshort} cluster.
-
-[role="_additional-resources"]
-.Additional resources
-* link:{link_os_sa_tokens}
