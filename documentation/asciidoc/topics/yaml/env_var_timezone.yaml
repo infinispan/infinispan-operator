@@ -6,4 +6,4 @@ spec:
     - name: ADDITIONAL_VARS
       value: "[\"TZ\"]"
     - name: TZ
-      value: "Asia/Tokyo"
+      value: "JST-9"
