@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blang/semver"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -42,6 +43,13 @@ var (
 	}
 
 	JGroupsFastMerge = strings.ToUpper(GetEnvWithDefault("TEST_ENVIRONMENT", "false")) == "TRUE"
+
+	// 14.0.24.Final required to enable expiry in Gossip Router
+	GossipRouterHeartBeatMinVersion = semver.Version{
+		Major: 14,
+		Minor: 0,
+		Patch: 24,
+	}
 )
 
 const (
