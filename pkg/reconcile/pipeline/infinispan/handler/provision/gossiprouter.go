@@ -52,8 +52,9 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	mutateFn := func() error {
 		routerLabels := i.GossipRouterPodLabels()
 		routerAnnotations := i.GossipRouterAnnotations()
+		upstreamVersion := ctx.Operand().UpstreamVersion
 		// Gossip Router Diagnostics is only available for JGroups 5+ (ISPN 14)
-		enableJgrpDiag := consts.JGroupsDiagnosticsFlag && ctx.Operand().UpstreamVersion.Major > 13
+		enableJgrpDiag := consts.JGroupsDiagnosticsFlag && upstreamVersion.Major > 13
 		// Port to be used by k8s probe, by default the cross-site port
 		var probePort int32 = consts.CrossSitePort
 
@@ -71,10 +72,20 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			"-suspect", strconv.FormatBool(i.Spec.Service.Sites.Local.Discovery.SuspectEvents),
 		}
 
+		// arguments available since 14.0.24.Final
+		if upstreamVersion.GTE(consts.GossipRouterHeartBeatMinVersion) {
+			if *i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled {
+				args = append(args, []string{
+					"-expiry", strconv.FormatInt(*i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout, 10),
+					"-reaper_interval", strconv.FormatInt(*i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval, 10),
+				}...)
+			}
+		}
+
 		var addKeystoreVolume, addTruststoreVolume bool
 		if i.IsSiteTLSEnabled() {
 			// enable diagnostic for k8s probes
-			if ctx.Operand().UpstreamVersion.Major > 13 {
+			if upstreamVersion.Major > 13 {
 				// with JGroups 5 (ISPN 14) we can use the diagnostic probe to avoid the SSL handshake exceptions
 				enableJgrpDiag = true
 				probePort = consts.GossipRouterDiagPort
