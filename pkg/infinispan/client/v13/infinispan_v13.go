@@ -39,6 +39,14 @@ func (i *infinispan) Metrics() api.Metrics {
 	return &metrics{i.HttpClient}
 }
 
+func (i *infinispan) ProtobufMetadataCacheName() string {
+	return "___protobuf_metadata"
+}
+
+func (i *infinispan) ScriptCacheName() string {
+	return "___script_cache"
+}
+
 func (i *infinispan) Server() api.Server {
 	return &server{i.HttpClient}
 }

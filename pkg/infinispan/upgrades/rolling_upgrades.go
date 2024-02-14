@@ -14,7 +14,7 @@ import (
 func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, targetClient api.Infinispan, logger logr.Logger) error {
 
 	// Obtain all cache names from the source cluster
-	names, err := sourceClient.Caches().Names()
+	names, err := cacheNames(sourceClient)
 	if err != nil {
 		return fmt.Errorf("failed to get cache names from the source cluster: %w", err)
 	}
@@ -68,7 +68,7 @@ func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, tar
 
 // SyncCaches Do a sync data operation for each cache in a cluster
 func SyncCaches(targetClient api.Infinispan, logger logr.Logger) error {
-	names, err := targetClient.Caches().Names()
+	names, err := cacheNames(targetClient)
 	if err != nil {
 		return fmt.Errorf("failed to get cache names from the target cluster: %w", err)
 	}
@@ -80,7 +80,7 @@ func SyncCaches(targetClient api.Infinispan, logger logr.Logger) error {
 		if err != nil {
 			return fmt.Errorf("failed to sync data for cache'%s': %w", cacheName, err)
 		}
-		logger.Info(fmt.Sprintf("Sync result %s:'", count))
+		logger.Info(fmt.Sprintf("Sync result for '%s' %s:'", cacheName, count))
 
 		if err = upgrade.DisconnectSource(); err != nil {
 			return fmt.Errorf("failed to disconnect source for cache'%s': %w", cacheName, err)
@@ -88,4 +88,24 @@ func SyncCaches(targetClient api.Infinispan, logger logr.Logger) error {
 		logger.Info("Disconnected source")
 	}
 	return nil
+}
+
+// We must ensure that internal Infinispan caches are processed before user caches
+func cacheNames(targetClient api.Infinispan) ([]string, error) {
+	names, err := targetClient.Caches().Names()
+	if err != nil {
+		return nil, err
+	}
+	orderedNames := make([]string, len(names))
+	orderedNames[0] = targetClient.ProtobufMetadataCacheName()
+	orderedNames[1] = targetClient.ScriptCacheName()
+
+	i := 2
+	for _, name := range names {
+		if name != orderedNames[0] && name != orderedNames[1] {
+			orderedNames[i] = name
+			i++
+		}
+	}
+	return orderedNames, nil
 }
