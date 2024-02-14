@@ -56,6 +56,13 @@ func (o Operand) EQ(other Operand) bool {
 	return o.UpstreamVersion.EQ(*other.UpstreamVersion)
 }
 
+func (o Operand) GTE(other Operand) bool {
+	if o.DownstreamVersion != nil {
+		return o.DownstreamVersion.GTE(*other.DownstreamVersion)
+	}
+	return o.UpstreamVersion.GTE(*other.UpstreamVersion)
+}
+
 func (o Operand) LT(other Operand) bool {
 	if o.DownstreamVersion != nil {
 		return o.DownstreamVersion.LT(*other.DownstreamVersion)

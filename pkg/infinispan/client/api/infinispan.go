@@ -15,6 +15,8 @@ type Infinispan interface {
 	Container() Container
 	Logging() Logging
 	Metrics() Metrics
+	ProtobufMetadataCacheName() string
+	ScriptCacheName() string
 	Server() Server
 }
 
