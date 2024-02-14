@@ -41,6 +41,14 @@ func (i *infinispan) Metrics() api.Metrics {
 	return i.ispn13.Metrics()
 }
 
+func (i *infinispan) ProtobufMetadataCacheName() string {
+	return i.ispn13.ProtobufMetadataCacheName()
+}
+
+func (i *infinispan) ScriptCacheName() string {
+	return i.ispn13.ScriptCacheName()
+}
+
 func (i *infinispan) Server() api.Server {
 	return i.ispn13.Server()
 }
