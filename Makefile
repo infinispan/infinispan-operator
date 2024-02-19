@@ -92,7 +92,7 @@ infinispan-test: manager manifests
 .PHONY: cache-test
 ## Execute end to end (e2e) tests for Cache CRs
 cache-test: manager manifests
-	scripts/run-tests.sh cache
+	TEST_NAME="TestCacheWithServerLifecycle" scripts/run-tests.sh cache
 
 .PHONY: multinamespace-test
 ## Execute end to end (e2e) tests in multinamespace mode
