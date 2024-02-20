@@ -696,32 +696,31 @@ func unmarshallEventConfig(data []byte) (string, string, error) {
 }
 
 func configChanged(a, b string, i *v1.Infinispan, caches api.Caches, vm *version.Manager) (bool, error) {
-	// Reinstate EqualConfiguration call once ISPN-14470 has been resolved
-	// If Operand is >= 14.0.5.Final we can use the cache compare endpoint to avoid unnecessary updates to the
+	// If Operand is >= 14.0.7.Final we can use the cache compare endpoint to avoid unnecessary updates to the
 	// Infinispan spec.template field
-	//operand, _ := vm.WithRef(i.Spec.Version)
-	//if operand.UpstreamVersion.Major >= 14 && operand.UpstreamVersion.Patch >= 5 {
-	//	// Check if Cache configuration is semantically the same as that already present in the Cache CR
-	//	equalConfig, err := caches.EqualConfiguration(a, b)
-	//	if err != nil {
-	//		return false, err
-	//	}
-	//	return !equalConfig, nil
-	//} else {
-	// Hack use the same source and destination media type in order to get the server representation of a configuration
-	// so that we can just compare the strings directly
-	aMarkup := mime.GuessMarkup(a)
-	aServerConfig, err := caches.ConvertConfiguration(a, aMarkup, mime.ApplicationJson)
-	if err != nil {
-		return false, err
-	}
+	operand, _ := vm.WithRef(i.Spec.Version)
+	if operand.UpstreamVersion.Major >= 14 && operand.UpstreamVersion.Patch >= 7 {
+		// Check if Cache configuration is semantically the same as that already present in the Cache CR
+		equalConfig, err := caches.EqualConfiguration(a, b)
+		if err != nil {
+			return false, err
+		}
+		return !equalConfig, nil
+	} else {
+		// Hack use the same source and destination media type in order to get the server representation of a configuration
+		// so that we can just compare the strings directly
+		aMarkup := mime.GuessMarkup(a)
+		aServerConfig, err := caches.ConvertConfiguration(a, aMarkup, mime.ApplicationJson)
+		if err != nil {
+			return false, err
+		}
 
-	bMarkup := mime.GuessMarkup(b)
-	bServerConfig, err := caches.ConvertConfiguration(b, bMarkup, mime.ApplicationJson)
-	if err != nil {
-		return false, err
+		bMarkup := mime.GuessMarkup(b)
+		bServerConfig, err := caches.ConvertConfiguration(b, bMarkup, mime.ApplicationJson)
+		if err != nil {
+			return false, err
+		}
+		// Compare the two server-side representations of the provided configurations
+		return aServerConfig != bServerConfig, nil
 	}
-	// Compare the two server-side representations of the provided configurations
-	return aServerConfig != bServerConfig, nil
-	//}
 }
