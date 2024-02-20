@@ -8,6 +8,7 @@
     xmlns:ce="urn:infinispan:config:cloudevents:15.0">
 
 <cache-container name="default" statistics="true">
+    <global-state unclean-shutdown-action="IGNORE" />
     {{ if .Infinispan.Authorization.Enabled }}
     <security>
         <authorization group-only-mapping="false">
