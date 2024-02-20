@@ -271,21 +271,19 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	testifyAssert.True(t, kubernetes.IsOwnedBy(cr, ispn), "Cache has unexpected owner reference")
 
 	// Update cache configuration via REST
-
 	updatedConfig := fmt.Sprintf(yamlTemplate, 50)
-	// Assert CR spec.Template updated, two retries max
-	err := wait.PollImmediate(10*time.Second, 11*time.Second, func() (bool, error) {
-		cacheHelper.Update(updatedConfig, mime.ApplicationYaml)
-		cache := testKube.FindCacheResource(cacheName, ispn.Name, tutils.Namespace)
-		return cache != nil && cache.Spec.Template == updatedConfig, nil
+	cacheHelper.Update(updatedConfig, mime.ApplicationYaml)
+
+	// Assert CR spec.Template updated
+	testKube.WaitForCacheState(cacheName, ispn.Name, tutils.Namespace, func(cache *v2alpha1.Cache) bool {
+		return cache.Spec.Template == updatedConfig
 	})
-	tutils.ExpectNoError(err)
 
 	// Delete cache via REST
 	cacheHelper.Delete()
 
 	// Assert CR deleted
-	err = wait.Poll(10*time.Millisecond, tutils.MaxWaitTimeout, func() (bool, error) {
+	err := wait.Poll(10*time.Millisecond, tutils.MaxWaitTimeout, func() (bool, error) {
 		return !testKube.AssertK8ResourceExists(cr.Name, tutils.Namespace, &v2alpha1.Cache{}), nil
 	})
 	tutils.ExpectNoError(err)
