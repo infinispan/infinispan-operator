@@ -466,6 +466,7 @@ type InfinispanSpec struct {
 	// Deprecated. Use scheduling.affinity instead
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// +optional
+	// Deprecated. Has no effect starting with Infinispan 15.0.0 servers
 	CloudEvents *InfinispanCloudEvents `json:"cloudEvents,omitempty"`
 	// External dependencies needed by the Infinispan cluster
 	// +optional

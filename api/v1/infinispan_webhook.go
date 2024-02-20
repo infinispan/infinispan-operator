@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/blang/semver"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -405,6 +406,12 @@ func (i *Infinispan) validate() error {
 				}
 			}
 		}
+	}
+
+	if i.Spec.CloudEvents != nil && operand.UpstreamVersion.GTE(semver.Version{Major: 15}) {
+		errMsg := "CloudEvents have been removed since Infinispan 15.0.0, ignoring configuration."
+		eventRec.Event(i, corev1.EventTypeWarning, "CloudEventsRemoved", errMsg)
+		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
 	}
 
 	return errorListToError(i, allErrs)
