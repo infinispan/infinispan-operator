@@ -15,7 +15,7 @@ import (
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 )
 
-const DEBUG = false
+const DEBUG = true
 
 type Credentials struct {
 	Username string
