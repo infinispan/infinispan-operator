@@ -14,7 +14,7 @@ jobs:
     steps:
       - if: contains(github.event.pull_request.labels.*.name, '2.3.x')
         name: 2.3.x Backport
-        uses: kiegroup/git-backporting@v4.5.0
+        uses: kiegroup/git-backporting@v4.5.1
         with:
           target-branch: 2.3.x
           pull-request: ${{ github.event.pull_request.url }}
