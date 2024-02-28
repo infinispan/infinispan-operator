@@ -20,7 +20,7 @@ The following tables provides fields and descriptions for encrypting cross-site 
 |Configures a keystore secret for router pods.
 
 |`service.type.sites.local.encryption.trustStore`
-|Configures an optional trust store secret for relay pods and router pods.
+|Configures a trust store secret for relay pods and router pods.
 
 |===
 
@@ -71,8 +71,8 @@ The default value is `keystore.p12`.
 |Description
 
 |`secretName`
-|Optionally specifies the secret that contains a trust store to verify public certificates for relay pods and router pods.
-The default value is `<cluster-name>-truststore-site-tls-secret`.
+|Specifies the secret that contains a trust store to verify public certificates for relay pods and router pods.
+This field is required.
 
 |`filename`
 |Optionally specifies the filename of the trust store.

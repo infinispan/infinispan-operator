@@ -406,6 +406,13 @@ func (i *Infinispan) validate() error {
 				}
 			}
 		}
+
+		// print a warning if the truststore is not configured
+		if i.IsSiteTLSEnabled() && i.Spec.Service.Sites.Local.Encryption.TrustStore == nil {
+			errMsg := "The Trust Store for Cross-Site Encryption is recommended but it is not configured. It will fallback to the JVM default Trust Store."
+			eventRec.Event(i, corev1.EventTypeWarning, "CrossSiteTrustStoreMissing", errMsg)
+			log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+		}
 	}
 
 	if i.Spec.CloudEvents != nil && operand.UpstreamVersion.GTE(semver.Version{Major: 15}) {
