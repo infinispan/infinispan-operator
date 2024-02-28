@@ -886,8 +886,8 @@ spec:
                 - minReplicas
                 type: object
               cloudEvents:
-                description: InfinispanCloudEvents describes how Infinispan is connected
-                  with Cloud Event, see Kafka docs for more info
+                description: Deprecated. Has no effect starting with Infinispan 15.0.0
+                  servers
                 properties:
                   acks:
                     description: Acks configuration for the producer ack-value
