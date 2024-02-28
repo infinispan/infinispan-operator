@@ -20,15 +20,13 @@ You must provide a keystore for relay pods and router pods to secure cross-site 
 The keystore can be the same for relay pods and router pods or you can provide separate keystores for each. +
 You can also use the same keystore for each {brandname} cluster or a unique keystore for each cluster.
 
-* Optionally have a trust store that contains part of the certificate chain or root CA certificate that verifies public certificates for {brandname} relay pods and router pods.
-+
-By default, {brandname} uses the Java trust store to verify public certificates.
+* Have a PKCS12 trust store that contains part of the certificate chain or root CA certificate that verifies public certificates for {brandname} relay pods and router pods.
 
 .Procedure
 
 . Create cross-site encryption secrets.
 .. Create keystore secrets.
-.. Create trust store secrets if you do not want to use the default Java trust store.
+.. Create trust store secrets.
 . Modify the `Infinispan` CR for each {brandname} cluster to specify the secret name for the `encryption.transportKeyStore.secretName` and `encryption.routerKeyStore.secretName` fields.
 . Configure any other fields to encrypt RELAY messages as required and then apply the changes.
 +
