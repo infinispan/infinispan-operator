@@ -99,6 +99,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				"-tls_keystore_type", ks.Type,
 				"-tls_keystore_alias", ks.Alias,
 				"-tls_keystore_path", ks.Path,
+				"-tls_client_auth", "need",
 			}...)
 			addKeystoreVolume = true
 
