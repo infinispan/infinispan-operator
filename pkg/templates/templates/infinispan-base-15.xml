@@ -23,10 +23,8 @@
         </authorization>
     </security>
     {{ end }}
-    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}"
-    {{if .XSite }}{{if .XSite.Sites }}stack="xsite"{{ else }}stack="image-tcp"{{ end }}{{ else }}stack="image-tcp"{{ end }}
-    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}
-    />
+    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}" stack="image-tcp"    
+    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}/>
 </cache-container>
 <server xmlns="urn:infinispan:server:15.0">
     <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">

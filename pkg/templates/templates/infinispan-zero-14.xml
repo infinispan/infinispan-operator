@@ -6,19 +6,6 @@
     xmlns:server="urn:infinispan:server:14.0">
 
 <jgroups>
-    <stack name="image-tcp" extends="tcp">
-        <TCP bind_addr="${jgroups.bind.address:SITE_LOCAL}"
-             bind_port="${jgroups.bind.port,jgroups.tcp.port:7800}"
-             diag.enabled="{{ .JGroups.Diagnostics }}"
-             port_range="0"
-        />
-        <dns.DNS_PING dns_query="{{ .StatefulSetName }}-ping.{{ .Namespace }}.svc.cluster.local"
-                      dns_record_type="A"
-                      stack.combine="REPLACE" stack.position="MPING"/>
-        {{ if .JGroups.FastMerge }}
-        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
-        {{ end }}
-    </stack>
     {{ if .XSite }} {{ if .XSite.Sites }}
     <stack name="relay-tunnel" extends="udp">
         <TUNNEL
@@ -47,13 +34,23 @@
         <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
         {{ end }}
     </stack>
-    <stack name="xsite" extends="image-tcp">
-        <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ (index .XSite.Sites 0).Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}" can_become_site_master="false"/>
+    {{ end }} {{ end }}
+    <stack name="image-tcp" extends="kubernetes">
+        <!-- overwrite diagnostics-->
+        <TCP diag.enabled="${jgroups.diag.enabled:{{ .JGroups.Diagnostics }}}" stack.combine="COMBINE" />
+        <!-- overwrite DNS query (only required attribute) -->
+        <dns.DNS_PING dns_query="${jgroups.dns.query:{{ .StatefulSetName }}-ping.{{ .Namespace }}.svc.cluster.local}" stack.combine="COMBINE" />
+        {{- if .JGroups.FastMerge }}
+        <!-- for testing, detects partitions quickly -->
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE" />
+        {{ end }}
+        {{- if .XSite }} {{- if .XSite.Sites }}
+        <!-- RELAY2 for cross-site feature -->
+        <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ (index .XSite.Sites 0).Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}" />
         <remote-sites default-stack="relay-tunnel">{{ range $it := .XSite.Sites }}
             <remote-site name="{{ $it.Name }}"/>
-        {{ end }}</remote-sites>
+        {{ end }}</remote-sites> {{ end }}{{ end }}
     </stack>
-    {{ end }} {{ end }}
 </jgroups>
 <cache-container name="default" statistics="true" zero-capacity-node="true">
     {{ if .Infinispan.Authorization.Enabled }}
@@ -72,10 +69,8 @@
         </authorization>
     </security>
     {{ end }}
-    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}"
-    {{if .XSite }}{{if .XSite.Sites }}stack="xsite"{{ else }}stack="image-tcp"{{ end }}{{ else }}stack="image-tcp"{{ end }}
-    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}
-    />
+    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}" stack="image-tcp"
+    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}/>
 </cache-container>
 <server xmlns="urn:infinispan:server:14.0">
     <interfaces>
