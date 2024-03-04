@@ -55,8 +55,10 @@ var _ = Describe("Provision", func() {
 						EphemeralStorage: true,
 					},
 				},
+				Version: "IGNORED. Required so we can call Default()",
 			},
 		}
+		ispn.Default()
 
 		// Assert PriorityClassName set when specified
 		ss, err := ClusterStatefulSetSpec("statefulset", ispn, ctx)

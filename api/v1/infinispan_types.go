@@ -106,6 +106,39 @@ type InfinispanServiceContainerSpec struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Class Name",xDescriptors={"urn:alm:descriptor:io.kubernetes:StorageClass", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:service.container.ephemeralStorage:false"}
 	StorageClassName string `json:"storageClassName,omitempty"`
+	// Periodic probe of container liveness.
+	// Container will be restarted if the probe fails.
+	// +optional
+	LivenessProbe ContainerProbeSpec `json:"livenessProbe,omitempty"`
+	// Periodic probe of container service readiness.
+	// Container will be removed from service endpoints if the probe fails.
+	// +optional
+	ReadinessProbe ContainerProbeSpec `json:"readinessProbe,omitempty"`
+	// StartupProbe indicates that the Pod has successfully initialized.
+	// If specified, no other probes are executed until this completes successfully.
+	// If this probe fails, the Pod will be restarted, just as if the livenessProbe failed.
+	// This can be used to provide different probe parameters at the beginning of a Pod's lifecycle,
+	// when it might take a long time to load data or warm a cache, than during steady-state operation.
+	// +optional
+	StartupProbe ContainerProbeSpec `json:"startupProbe,omitempty"`
+}
+
+type ContainerProbeSpec struct {
+	// Number of seconds after the container has started before liveness probes are initiated.
+	// +optional
+	InitialDelaySeconds *int32 `json:"initialDelaySeconds,omitempty"`
+	// Number of seconds after which the probe times out.
+	// +optional
+	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
+	// How often (in seconds) to perform the probe.
+	// +optional
+	PeriodSeconds *int32 `json:"periodSeconds,omitempty"`
+	// Minimum consecutive successes for the probe to be considered successful after having failed.
+	// +optional
+	SuccessThreshold *int32 `json:"successThreshold,omitempty"`
+	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
+	// +optional
+	FailureThreshold *int32 `json:"failureThreshold,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=DataGrid;Cache
