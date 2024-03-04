@@ -48,20 +48,19 @@ func PodLifecycle() *corev1.Lifecycle {
 	}
 }
 
-func PodLivenessProbe() *corev1.Probe {
-	return probe(5, 0, 10, 1, 80)
+func PodLivenessProbe(i *ispnv1.Infinispan) *corev1.Probe {
+	return probe(i.Spec.Service.Container.LivenessProbe)
 }
 
-func PodReadinessProbe() *corev1.Probe {
-	return probe(5, 0, 10, 1, 80)
+func PodReadinessProbe(i *ispnv1.Infinispan) *corev1.Probe {
+	return probe(i.Spec.Service.Container.ReadinessProbe)
 }
 
-func PodStartupProbe() *corev1.Probe {
-	// Maximum 10 minutes (600 * 1s) to finish startup
-	return probe(600, 1, 1, 1, 80)
+func PodStartupProbe(i *ispnv1.Infinispan) *corev1.Probe {
+	return probe(i.Spec.Service.Container.StartupProbe)
 }
 
-func probe(failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
+func probe(p ispnv1.ContainerProbeSpec) *corev1.Probe {
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
@@ -69,11 +68,11 @@ func probe(failureThreshold, initialDelay, period, successThreshold, timeout int
 				Path:   "rest/v2/cache-managers/default/health/status",
 				Port:   intstr.FromInt(consts.InfinispanAdminPort)},
 		},
-		FailureThreshold:    failureThreshold,
-		InitialDelaySeconds: initialDelay,
-		PeriodSeconds:       period,
-		SuccessThreshold:    successThreshold,
-		TimeoutSeconds:      timeout,
+		FailureThreshold:    *p.FailureThreshold,
+		InitialDelaySeconds: *p.InitialDelaySeconds,
+		PeriodSeconds:       *p.PeriodSeconds,
+		SuccessThreshold:    *p.SuccessThreshold,
+		TimeoutSeconds:      *p.TimeoutSeconds,
 	}
 }
 

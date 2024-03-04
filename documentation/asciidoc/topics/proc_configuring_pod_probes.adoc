@@ -1,0 +1,26 @@
+[id='configuring-pod-probes{context}']
+= Configuring pod probes
+
+[role="_abstract"]
+
+Optionally configure the values of the Liveness, Readiness and Startup probes used by {brandname} pods.
+
+The {ispn_operator} automatically configures the probe values to sensible defaults. We only recommend providing your own
+values once you have determined that the default values do not match your requirements.
+
+.Procedure
+. Configure probe values using the `spec.service.container.*Probe` fields:
++
+[source,yaml]
+----
+include::yaml/probes.yaml[]
+----
++
+[IMPORTANT]
+====
+If no value is specified for a given probe value, then the {ispn_operator} default is used.
+====
++
+. Apply your `Infinispan` CR.
++
+If your cluster is running, {ispn_operator} restarts the {brandname} pods in order for the changes to take effect.

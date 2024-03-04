@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/pointer"
 )
 
 // Test if spec.container.cpu update is handled
@@ -119,6 +120,30 @@ func TestUpdatePodTargetLabels(t *testing.T) {
 		if _, exists := labels[podLabel]; !exists {
 			panic(fmt.Sprintf("'%s' label not found in StatefulSet spec", podLabel))
 		}
+	}
+	spec := tutils.DefaultSpec(t, testKube, nil)
+	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
+func TestProbeUpdates(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Service.Container.LivenessProbe.TimeoutSeconds = pointer.Int32(1000)
+		ispn.Spec.Service.Container.ReadinessProbe.TimeoutSeconds = pointer.Int32(1000)
+		ispn.Spec.Service.Container.StartupProbe.TimeoutSeconds = pointer.Int32(1000)
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		verify := func(val int32) {
+			if val != 1000 {
+				panic("Probe values not updated")
+			}
+		}
+		c := ss.Spec.Template.Spec.Containers[0]
+		verify(c.ReadinessProbe.TimeoutSeconds)
+		verify(c.LivenessProbe.TimeoutSeconds)
+		verify(c.StartupProbe.TimeoutSeconds)
 	}
 	spec := tutils.DefaultSpec(t, testKube, nil)
 	genericTestForContainerUpdated(*spec, modifier, verifier)

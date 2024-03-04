@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
 type ImageType string
@@ -973,4 +974,22 @@ func (ispn *Infinispan) PriorityClassName() string {
 		return ispn.Spec.Scheduling.PriorityClassName
 	}
 	return ""
+}
+
+func (c *ContainerProbeSpec) AssignDefaults(failureThreshold, initialDelay, period, successThreshold, timeout int32) {
+	if c.FailureThreshold == nil {
+		c.FailureThreshold = pointer.Int32(failureThreshold)
+	}
+	if c.InitialDelaySeconds == nil {
+		c.InitialDelaySeconds = pointer.Int32(initialDelay)
+	}
+	if c.PeriodSeconds == nil {
+		c.PeriodSeconds = pointer.Int32(period)
+	}
+	if c.SuccessThreshold == nil {
+		c.SuccessThreshold = pointer.Int32(successThreshold)
+	}
+	if c.TimeoutSeconds == nil {
+		c.TimeoutSeconds = pointer.Int32(timeout)
+	}
 }

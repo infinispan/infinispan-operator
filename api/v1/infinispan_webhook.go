@@ -63,14 +63,21 @@ func (i *Infinispan) Default() {
 	if i.Spec.Container.Memory == "" {
 		i.Spec.Container.Memory = consts.DefaultMemorySize.String()
 	}
+	if i.Spec.Service.Container == nil {
+		i.Spec.Service.Container = &InfinispanServiceContainerSpec{}
+	}
+
+	svcContainer := i.Spec.Service.Container
+	svcContainer.LivenessProbe.AssignDefaults(5, 0, 10, 1, 80)
+	svcContainer.ReadinessProbe.AssignDefaults(5, 0, 10, 1, 80)
+	svcContainer.StartupProbe.AssignDefaults(600, 1, 1, 1, 80)
+
 	if i.IsDataGrid() {
-		if i.Spec.Service.Container == nil {
-			i.Spec.Service.Container = &InfinispanServiceContainerSpec{}
-		}
 		if i.Spec.Service.Container.Storage == nil {
 			i.Spec.Service.Container.Storage = pointer.StringPtr(consts.DefaultPVSize.String())
 		}
 	}
+
 	if i.Spec.Security.EndpointAuthentication == nil {
 		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
 	}
@@ -420,6 +427,30 @@ func (i *Infinispan) validate() error {
 		eventRec.Event(i, corev1.EventTypeWarning, "CloudEventsRemoved", errMsg)
 		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
 	}
+
+	validateProbes := func(c *ContainerProbeSpec, path *field.Path, readinessProbe bool) {
+		checkMinVal := func(val, min int32, path *field.Path) {
+			if val < min {
+				msg := fmt.Sprintf("Probe value must be greater than or equal to '%d'", min)
+				allErrs = append(allErrs, field.Invalid(path, val, msg))
+			}
+		}
+		checkMinVal(*c.InitialDelaySeconds, 0, path.Child("initialDelaySeconds"))
+		checkMinVal(*c.FailureThreshold, 1, path.Child("failureThreshold"))
+		checkMinVal(*c.PeriodSeconds, 1, path.Child("periodSeconds"))
+		checkMinVal(*c.TimeoutSeconds, 1, path.Child("timeoutSeconds"))
+
+		path = path.Child("successThreshold")
+		if val := *c.SuccessThreshold; readinessProbe {
+			checkMinVal(val, 1, path)
+		} else if val != 1 {
+			allErrs = append(allErrs, field.Invalid(path, val, "Value must be equal to 1"))
+		}
+	}
+	path := field.NewPath("spec").Child("service").Child("container")
+	validateProbes(&i.Spec.Service.Container.LivenessProbe, path.Child("livenessProbe"), false)
+	validateProbes(&i.Spec.Service.Container.ReadinessProbe, path.Child("readinessProbe"), true)
+	validateProbes(&i.Spec.Service.Container.StartupProbe, path.Child("startupProbe"), false)
 
 	return errorListToError(i, allErrs)
 }

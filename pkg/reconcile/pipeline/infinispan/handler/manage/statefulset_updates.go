@@ -84,6 +84,18 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
+	// Changes to probes
+	probedChanged := func(current, new *corev1.Probe) bool {
+		if reflect.DeepEqual(current, new) {
+			return false
+		}
+		*current = *new
+		return true
+	}
+	updateNeeded = probedChanged(container.LivenessProbe, provision.PodLivenessProbe(i)) || updateNeeded
+	updateNeeded = probedChanged(container.ReadinessProbe, provision.PodReadinessProbe(i)) || updateNeeded
+	updateNeeded = probedChanged(container.StartupProbe, provision.PodStartupProbe(i)) || updateNeeded
+
 	// Check if the base-image has been upgraded due to a CVE
 	requestedOperand := ctx.Operand()
 	userProvidedImage := i.Spec.Image != nil
