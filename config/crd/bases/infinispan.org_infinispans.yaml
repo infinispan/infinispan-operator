@@ -1979,6 +1979,100 @@ spec:
                       ephemeralStorage:
                         description: Enable/disable container ephemeral storage
                         type: boolean
+                      livenessProbe:
+                        description: Periodic probe of container liveness. Container
+                          will be restarted if the probe fails.
+                        properties:
+                          failureThreshold:
+                            description: Minimum consecutive failures for the probe
+                              to be considered failed after having succeeded.
+                            format: int32
+                            type: integer
+                          initialDelaySeconds:
+                            description: Number of seconds after the container has
+                              started before liveness probes are initiated.
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            description: How often (in seconds) to perform the probe.
+                            format: int32
+                            type: integer
+                          successThreshold:
+                            description: Minimum consecutive successes for the probe
+                              to be considered successful after having failed.
+                            format: int32
+                            type: integer
+                          timeoutSeconds:
+                            description: Number of seconds after which the probe times
+                              out.
+                            format: int32
+                            type: integer
+                        type: object
+                      readinessProbe:
+                        description: Periodic probe of container service readiness.
+                          Container will be removed from service endpoints if the
+                          probe fails.
+                        properties:
+                          failureThreshold:
+                            description: Minimum consecutive failures for the probe
+                              to be considered failed after having succeeded.
+                            format: int32
+                            type: integer
+                          initialDelaySeconds:
+                            description: Number of seconds after the container has
+                              started before liveness probes are initiated.
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            description: How often (in seconds) to perform the probe.
+                            format: int32
+                            type: integer
+                          successThreshold:
+                            description: Minimum consecutive successes for the probe
+                              to be considered successful after having failed.
+                            format: int32
+                            type: integer
+                          timeoutSeconds:
+                            description: Number of seconds after which the probe times
+                              out.
+                            format: int32
+                            type: integer
+                        type: object
+                      startupProbe:
+                        description: StartupProbe indicates that the Pod has successfully
+                          initialized. If specified, no other probes are executed
+                          until this completes successfully. If this probe fails,
+                          the Pod will be restarted, just as if the livenessProbe
+                          failed. This can be used to provide different probe parameters
+                          at the beginning of a Pod's lifecycle, when it might take
+                          a long time to load data or warm a cache, than during steady-state
+                          operation.
+                        properties:
+                          failureThreshold:
+                            description: Minimum consecutive failures for the probe
+                              to be considered failed after having succeeded.
+                            format: int32
+                            type: integer
+                          initialDelaySeconds:
+                            description: Number of seconds after the container has
+                              started before liveness probes are initiated.
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            description: How often (in seconds) to perform the probe.
+                            format: int32
+                            type: integer
+                          successThreshold:
+                            description: Minimum consecutive successes for the probe
+                              to be considered successful after having failed.
+                            format: int32
+                            type: integer
+                          timeoutSeconds:
+                            description: Number of seconds after which the probe times
+                              out.
+                            format: int32
+                            type: integer
+                        type: object
                       storage:
                         description: The amount of storage for the persistent volume
                           claim.
