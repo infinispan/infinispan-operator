@@ -105,6 +105,21 @@ var _ = Describe("Infinispan Webhooks", func() {
 			// Ensure default values correctly set
 			Expect(spec.Service.Type).Should(Equal(ServiceTypeDataGrid))
 			Expect(spec.Service.Container.Storage).Should(Equal(pointer.StringPtr(consts.DefaultPVSize.String())))
+			Expect(*spec.Service.Container.LivenessProbe.FailureThreshold).Should(Equal(int32(5)))
+			Expect(*spec.Service.Container.LivenessProbe.InitialDelaySeconds).Should(Equal(int32(0)))
+			Expect(*spec.Service.Container.LivenessProbe.PeriodSeconds).Should(Equal(int32(10)))
+			Expect(*spec.Service.Container.LivenessProbe.SuccessThreshold).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.LivenessProbe.TimeoutSeconds).Should(Equal(int32(80)))
+			Expect(*spec.Service.Container.ReadinessProbe.FailureThreshold).Should(Equal(int32(5)))
+			Expect(*spec.Service.Container.ReadinessProbe.InitialDelaySeconds).Should(Equal(int32(0)))
+			Expect(*spec.Service.Container.ReadinessProbe.PeriodSeconds).Should(Equal(int32(10)))
+			Expect(*spec.Service.Container.ReadinessProbe.SuccessThreshold).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.ReadinessProbe.TimeoutSeconds).Should(Equal(int32(80)))
+			Expect(*spec.Service.Container.StartupProbe.FailureThreshold).Should(Equal(int32(600)))
+			Expect(*spec.Service.Container.StartupProbe.InitialDelaySeconds).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.StartupProbe.PeriodSeconds).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.StartupProbe.SuccessThreshold).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.StartupProbe.TimeoutSeconds).Should(Equal(int32(80)))
 			Expect(spec.Service.ReplicationFactor).Should(BeZero())
 			Expect(spec.Container.Memory).Should(Equal(consts.DefaultMemorySize.String()))
 			Expect(spec.Security.EndpointAuthentication).Should(Equal(pointer.BoolPtr(true)))
@@ -673,6 +688,75 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
 			Expect(updated.Spec.Affinity).Should(BeNil())
 			Expect(updated.Spec.Scheduling.Affinity).Should(BeEquivalentTo(affinitySpec))
+		})
+
+		It("Should only update explicitly configured probes", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Service: InfinispanServiceSpec{
+						Container: &InfinispanServiceContainerSpec{
+							LivenessProbe: ContainerProbeSpec{
+								InitialDelaySeconds: pointer.Int32Ptr(0),
+							},
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			updated := &Infinispan{}
+			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
+			Expect(*updated.Spec.Service.Container.LivenessProbe.InitialDelaySeconds).Should(BeZero())
+		})
+
+		It("Should prevent invalid probe values", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Service: InfinispanServiceSpec{
+						Container: &InfinispanServiceContainerSpec{
+							LivenessProbe: ContainerProbeSpec{
+								InitialDelaySeconds: pointer.Int32Ptr(-1),
+								SuccessThreshold:    pointer.Int32Ptr(2),
+							},
+							ReadinessProbe: ContainerProbeSpec{
+								TimeoutSeconds:   pointer.Int32Ptr(0),
+								SuccessThreshold: pointer.Int32Ptr(2),
+							},
+							StartupProbe: ContainerProbeSpec{
+								PeriodSeconds:    pointer.Int32Ptr(-1),
+								SuccessThreshold: pointer.Int32Ptr(2),
+							},
+						},
+					},
+				},
+			}
+			expectInvalidErrStatus(k8sClient.Create(ctx, ispn),
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.livenessProbe.initialDelaySeconds", "Probe value must be greater than or equal to",
+				},
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.livenessProbe.successThreshold", "Value must be equal to 1",
+				},
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.readinessProbe.timeoutSeconds", "Probe value must be greater than or equal to",
+				},
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.startupProbe.periodSeconds", "Probe value must be greater than or equal to",
+				},
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.startupProbe.successThreshold", "Value must be equal to 1",
+				},
+			)
 		})
 	})
 })

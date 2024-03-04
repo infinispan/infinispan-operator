@@ -111,10 +111,10 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 						Name:           InfinispanContainer,
 						Env:            podEnvs,
 						Lifecycle:      PodLifecycle(),
-						LivenessProbe:  PodLivenessProbe(),
+						LivenessProbe:  PodLivenessProbe(i),
 						Ports:          PodPortsWithXsite(i),
-						ReadinessProbe: PodReadinessProbe(),
-						StartupProbe:   PodStartupProbe(),
+						ReadinessProbe: PodReadinessProbe(i),
+						StartupProbe:   PodStartupProbe(i),
 						Resources:      *podResources,
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      ConfigVolumeName,
