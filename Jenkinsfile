@@ -35,6 +35,7 @@ pipeline {
         TEST_REPORT_DIR = "$WORKSPACE/test/reports"
         CHANGE_TARGET = "${env.CHANGE_TARGET}"
         THREAD_DUMP_PRE_STOP = 'true'
+        KUSTOMIZE = '/opt/go/bin/kustomize'
     }
 
     options {
