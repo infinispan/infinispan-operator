@@ -68,9 +68,9 @@ func (i *Infinispan) Default() {
 	}
 
 	svcContainer := i.Spec.Service.Container
-	svcContainer.LivenessProbe.AssignDefaults(5, 0, 10, 1, 80)
-	svcContainer.ReadinessProbe.AssignDefaults(5, 0, 10, 1, 80)
-	svcContainer.StartupProbe.AssignDefaults(600, 1, 1, 1, 80)
+	svcContainer.LivenessProbe.AssignDefaults(5, 0, 10, 1, 1)
+	svcContainer.ReadinessProbe.AssignDefaults(5, 0, 10, 1, 1)
+	svcContainer.StartupProbe.AssignDefaults(600, 3, 1, 1, 1)
 
 	if i.IsDataGrid() {
 		if i.Spec.Service.Container.Storage == nil {
