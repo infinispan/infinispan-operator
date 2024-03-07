@@ -20,6 +20,7 @@ import (
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -884,6 +885,7 @@ func runOperatorLocally(ctx context.Context, namespace string) {
 	operator.NewWithContext(ctx, operator.Parameters{
 		ZapOptions: &zap.Options{
 			Development: true,
+			TimeEncoder: zapcore.ISO8601TimeEncoder,
 		},
 	})
 }
