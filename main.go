@@ -8,6 +8,7 @@ import (
 
 	"github.com/infinispan/infinispan-operator/launcher/listener"
 	"github.com/infinispan/infinispan-operator/launcher/operator"
+	"go.uber.org/zap/zapcore"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
 )
@@ -19,6 +20,7 @@ func main() {
 
 	zapOpts := zap.Options{
 		Development: true,
+		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 
 	// Operator Flags
