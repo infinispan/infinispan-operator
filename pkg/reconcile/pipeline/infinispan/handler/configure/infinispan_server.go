@@ -66,7 +66,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			},
 		},
 		JGroups: config.JGroups{
-			Diagnostics: consts.JGroupsDiagnosticsFlag == "TRUE",
+			Diagnostics: consts.JGroupsDiagnosticsFlag,
 			FastMerge:   consts.JGroupsFastMerge,
 		},
 		Endpoints: config.Endpoints{

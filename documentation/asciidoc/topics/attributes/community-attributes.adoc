@@ -26,8 +26,8 @@
 :lib_path: /opt/infinispan/server/lib
 :backup_path: /opt/infinispan/backups
 :server_image: quay.io/infinispan/server
-:server_image_version: 14.0.17
-:operand_version: 14.0.17
+:server_image_version: 14.0.20
+:operand_version: 14.0.20
 
 :ispn_operator: Infinispan Operator
 :ispn_operator_version: 2.3
@@ -87,3 +87,4 @@
 
 :cryostat_installation: https://cryostat.io/get-started/#installing-cryostat-operator[Installing Cryostat Operator]
 :cryostat_security_configuration: https://cryostat.io/guides/#store-credentials[Configuring Cryostat Credentials]
+:pod_priority_reference: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/[Kubernetes: Pod Priority and Preemption]

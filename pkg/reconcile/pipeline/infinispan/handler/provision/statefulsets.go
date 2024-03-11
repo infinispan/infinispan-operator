@@ -65,10 +65,9 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 }
 
 func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pipeline.Context) (*appsv1.StatefulSet, error) {
-	labelsForPod := i.PodLabels()
+	labelsForPod := StatefulSetPodLabels(statefulSetName, i)
 	labelsForSelector := i.PodSelectorLabels()
 	labelsForSelector[consts.StatefulSetPodLabel] = statefulSetName
-	labelsForPod[consts.StatefulSetPodLabel] = statefulSetName
 
 	configFiles := ctx.ConfigFiles()
 	statefulSetAnnotations := consts.DeploymentAnnotations
@@ -111,6 +110,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 							{Name: "ADMIN_IDENTITIES_HASH", Value: hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)},
 							{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename},
 						}),
+						Lifecycle:      PodLifecycle(),
 						LivenessProbe:  PodLivenessProbe(),
 						Ports:          PodPortsWithXsite(i),
 						ReadinessProbe: PodReadinessProbe(),
@@ -163,6 +163,12 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 	addTLS(ctx, i, statefulSet)
 	addXSiteTLS(ctx, i, statefulSet)
 	return statefulSet, nil
+}
+
+func StatefulSetPodLabels(statefulSetName string, i *ispnv1.Infinispan) map[string]string {
+	labelsForPod := i.PodLabels()
+	labelsForPod[consts.StatefulSetPodLabel] = statefulSetName
+	return labelsForPod
 }
 
 func addUserIdentities(ctx pipeline.Context, i *ispnv1.Infinispan, statefulset *appsv1.StatefulSet) {

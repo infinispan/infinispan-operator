@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -140,11 +141,22 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, su
 
 			k.WriteAllResourcesToFile(dir, subNamespace, "OperatorGroup", &coreosv1.OperatorGroupList{}, map[string]string{})
 			k.WriteAllResourcesToFile(dir, subNamespace, "Subscription", &coreos.SubscriptionList{}, map[string]string{})
+			k.WriteAllResourcesToFile(dir, subNamespace, "InstallPlan", &coreos.InstallPlanList{}, map[string]string{})
 			k.WriteAllResourcesToFile(dir, subNamespace, "ClusterServiceVersion", &coreos.ClusterServiceVersionList{}, map[string]string{})
+			k.WriteAllResourcesToFile(dir, subNamespace, "Deployment", &appsv1.DeploymentList{}, map[string]string{})
 			// Print 2.1.x Operator pod logs
 			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"name": "infinispan-operator"})
 			// Print latest Operator logs
 			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+			// OLM Operator Logs
+			var olmNs string
+			if k.NamespaceExists("olm") {
+				olmNs = "olm"
+			} else {
+				olmNs = "openshift-operator-lifecycle-manager"
+			}
+			k.WriteAllResourcesToFile(dir, olmNs, "Pod", &corev1.PodList{}, map[string]string{"app": "olm-operator"})
+			k.WriteAllResourcesToFile(dir, olmNs, "Pod", &corev1.PodList{}, map[string]string{"app": "catalog-operator"})
 		}
 
 		// Cleanup OLM resources
@@ -267,6 +279,16 @@ func (k TestKubernetes) InstalledCSVEnv(envName string, sub *coreos.Subscription
 	return envVars[index].Value
 }
 
+func (k TestKubernetes) DeleteCSV(name, namespace string) {
+	csv := &coreos.ClusterServiceVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	ExpectNoError(k.Kubernetes.Client.Delete(context.TODO(), csv, DeleteOpts...))
+}
+
 func (k TestKubernetes) SetRelatedImagesEnvs(sub *coreos.Subscription) {
 	csv, err := k.InstalledCSV(sub)
 	ExpectNoError(err)
@@ -325,10 +347,24 @@ func (k TestKubernetes) WaitForSubscriptionState(state coreos.SubscriptionState,
 }
 
 func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate func() (done bool)) {
-	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
-		k.Subscription(sub)
-		return predicate(), nil
-	})
+	poll := func() error {
+		return wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+			k.Subscription(sub)
+			return predicate(), nil
+		})
+	}
+	err := poll()
+	if errors.Is(err, wait.ErrWaitTimeout) {
+		for _, condition := range sub.Status.Conditions {
+			// Delete CSV and retry polling on ResolutionFailed
+			// https://github.com/operator-framework/operator-lifecycle-manager/issues/2201
+			if condition.Type == "ResolutionFailed" && condition.Status == corev1.ConditionTrue {
+				k.DeleteCSV(sub.Status.CurrentCSV, sub.Namespace)
+				err = poll()
+				break
+			}
+		}
+	}
 	ExpectNoError(err)
 }
 

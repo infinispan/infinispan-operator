@@ -178,12 +178,14 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-zero-pod"})
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-router-pod"})
 		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-config-listener-pod"})
+		k.WriteAllResourcesToFile(dir, namespace, "ConfigMap", &corev1.ConfigMapList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "StatefulSet", &appsv1.StatefulSetList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Infinispan", &ispnv1.InfinispanList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Backup", &ispnv2.BackupList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Restore", &ispnv2.RestoreList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Batch", &ispnv2.BatchList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, namespace, "Cache", &ispnv2.CacheList{}, map[string]string{})
+		k.WriteAllMetricsToFile(dir, namespace)
 	}
 
 	if CleanupInfinispan == "TRUE" || panicVal == nil {
@@ -254,6 +256,13 @@ func (k TestKubernetes) WriteAllResourcesToFile(dir, namespace, suffix string, l
 			os.WriteFile(dir+"/"+item.GetName()+"-"+suffix+".yaml", yaml_, 0666),
 		)
 	}
+}
+
+func (k TestKubernetes) NamespaceExists(namespace string) bool {
+	key := types.NamespacedName{Name: namespace}
+	err := k.Kubernetes.Client.Get(context.TODO(), key, &corev1.Namespace{})
+	ExpectMaybeNotFound(err)
+	return err == nil
 }
 
 // DeleteNamespace deletes a namespace
@@ -670,6 +679,16 @@ func (k TestKubernetes) WaitForInfinispanCondition(name, namespace string, condi
 	return k.WaitForInfinispanConditionWithTimeout(name, namespace, condition, ConditionWaitTimeout)
 }
 
+func (k TestKubernetes) WaitForInfinispanConditionFalse(name, namespace string, condition ispnv1.ConditionType) *ispnv1.Infinispan {
+	return k.WaitForInfinispanStateWithTimeout(name, namespace, ConditionWaitTimeout, func(i *ispnv1.Infinispan) bool {
+		if i.IsConditionFalse(condition) {
+			log.Info("infinispan condition met", "condition", condition, "status", metav1.ConditionFalse)
+			return true
+		}
+		return false
+	})
+}
+
 func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
 	curr := ispnv1.Infinispan{}
 	// Wait for the operator to populate Infinispan CR data
@@ -1049,4 +1068,20 @@ func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase i
 		println(fmt.Sprintf("Expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason))
 	}
 	ExpectNoError(err)
+}
+
+// GetUsedNodePorts returns a set of NodePorts currently in use by the cluster
+func (k TestKubernetes) GetUsedNodePorts() map[int32]struct{} {
+	services := &corev1.ServiceList{}
+	err := k.Kubernetes.Client.List(context.TODO(), services, &client.ListOptions{})
+	ExpectNoError(err)
+	usedPorts := make(map[int32]struct{}, 0)
+	for _, svc := range services.Items {
+		for _, port := range svc.Spec.Ports {
+			if port.NodePort > 0 {
+				usedPorts[port.NodePort] = struct{}{}
+			}
+		}
+	}
+	return usedPorts
 }

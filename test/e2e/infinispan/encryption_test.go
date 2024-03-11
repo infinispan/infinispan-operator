@@ -37,12 +37,38 @@ func TestTLSWithExistingKeystore(t *testing.T) {
 
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionTLSSecretValid)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
 	client_ := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
 	checkRestConnection(client_)
+}
+
+func TestTLSConditionWithBadKeystore(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	// Create a resource without passing any config
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Security = ispnv1.InfinispanSecurity{
+			EndpointEncryption: tutils.EndpointEncryption(i.Name),
+		}
+	})
+
+	// Create secret
+	serverName := tutils.GetServerName(spec)
+	keystore, _ := tutils.CreateKeystore(serverName)
+	secret := tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
+	// Corrupt secret
+	delete(secret.Data, "keystore.p12")
+	testKube.CreateSecret(secret)
+	defer testKube.DeleteSecret(secret)
+
+	// Register it
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	testKube.WaitForInfinispanConditionFalse(spec.Name, spec.Namespace, ispnv1.ConditionTLSSecretValid)
 }
 
 func checkRestConnection(client tutils.HTTPClient) {

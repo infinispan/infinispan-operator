@@ -2,10 +2,12 @@ package utils
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
+	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -25,11 +27,15 @@ func NewCacheHelper(cacheName string, client HTTPClient) *CacheHelper {
 }
 
 func (c *CacheHelper) AssertCacheExists() {
-	exists, err := c.CacheClient.Exists()
-	ExpectNoError(err)
-	if !exists {
+	if !c.Exists() {
 		panic(fmt.Sprintf("Caches %s does not exist", c.CacheName))
 	}
+}
+
+func (c *CacheHelper) Exists() bool {
+	exists, err := c.CacheClient.Exists()
+	ExpectNoError(err)
+	return exists
 }
 
 func (c *CacheHelper) AssertSize(expectedEntries int) {
@@ -111,5 +117,17 @@ func (c *CacheHelper) WaitForCacheToNotExist() {
 		}
 		return !exists, nil
 	})
+	ExpectNoError(err)
+}
+
+func (c *CacheHelper) Available(available bool) {
+	var availability string
+	if available {
+		availability = "AVAILABLE"
+	} else {
+		availability = "DEGRADED_MODE"
+	}
+	path := fmt.Sprintf("%s/%s?action=set-availability&availability=%s", v13.CachesPath, url.PathEscape(c.CacheName), availability)
+	_, err := c.Client.Post(path, "", nil)
 	ExpectNoError(err)
 }

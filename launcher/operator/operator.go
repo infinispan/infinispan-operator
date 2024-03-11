@@ -2,11 +2,14 @@ package operator
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/infinispan/infinispan-operator/controllers"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -78,6 +81,13 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		HealthProbeBindAddress: p.HealthProbeBindAddress,
 		LeaderElection:         p.LeaderElection,
 		LeaderElectionID:       "632512e4.infinispan.org",
+		WebhookServer: &webhook.Server{
+			TLSOpts: []func(config *tls.Config){
+				func(c *tls.Config) {
+					c.NextProtos = []string{"http/1.1"}
+				},
+			},
+		},
 	}
 
 	if strings.Contains(namespace, ",") {
@@ -122,16 +132,6 @@ func NewWithContext(ctx context.Context, p Parameters) {
 
 	// Setup webhooks if enabled
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-
-		webhookServer := mgr.GetWebhookServer()
-		if _, err := os.Stat("/tmp/k8s-webhook-server/serving-certs"); os.IsNotExist(err) {
-			// Use the old webhook cert directory if running on Openshift 4.6 or older
-			webhookServer.CertDir = "/apiserver.local.config/certificates"
-			webhookServer.CertName = "apiserver.crt"
-			webhookServer.KeyName = "apiserver.key"
-			setupLog.Info("Using legacy webhook certificate mounts", "CertDir", webhookServer.CertDir, "CertName", webhookServer.CertName, "KeyName", webhookServer.KeyName)
-		}
-
 		if err = (&infinispanv1.Infinispan{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Infinispan")
 			os.Exit(1)

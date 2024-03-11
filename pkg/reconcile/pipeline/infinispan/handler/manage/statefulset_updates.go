@@ -47,6 +47,13 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		rollingUpgrade = false
 	}
 
+	// Changes to podLabels
+	currentLabels := provision.StatefulSetPodLabels(i.GetStatefulSetName(), i)
+	previousLabels := statefulSet.Spec.Template.ObjectMeta.Labels
+	if !reflect.DeepEqual(currentLabels, previousLabels) {
+		updateNeeded = true
+	}
+
 	// Changes to statefulset.spec.template.spec.containers[].resources
 	spec := &statefulSet.Spec.Template.Spec
 	container := kube.GetContainer(provision.InfinispanContainer, spec)
@@ -160,8 +167,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	// Validate extra Java options changes
-	if updateStatefulSetEnv(container, statefulSet, "EXTRA_JAVA_OPTIONS", ispnContr.ExtraJvmOpts) {
-		updateStatefulSetEnv(container, statefulSet, "JAVA_OPTIONS", i.GetJavaOptions())
+	if updateStatefulSetEnv(container, statefulSet, "JAVA_OPTIONS", i.GetJavaOptions()) {
 		updateNeeded = true
 	}
 	if updateStatefulSetEnv(container, statefulSet, "CLI_JAVA_OPTIONS", ispnContr.CliExtraJvmOpts) {

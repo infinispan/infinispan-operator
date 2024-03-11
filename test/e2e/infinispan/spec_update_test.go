@@ -2,6 +2,7 @@ package infinispan
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -72,6 +73,54 @@ func TestContainerJavaOptsUpdate(t *testing.T) {
 			}
 		}
 		panic("JAVA_OPTIONS not updated")
+	}
+	spec := tutils.DefaultSpec(t, testKube, nil)
+	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
+func TestInfinispanMigrateFromCacheToDatagrid(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Service.Type = ispnv1.ServiceTypeDataGrid
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		env := ss.Spec.Template.Spec.Containers[0].Env
+		for _, value := range env {
+			if value.Name == "JAVA_OPTIONS" {
+				if value.Value != "" {
+					panic("Expected empty JAVA_OPTIONS. Migration failed?")
+				} else {
+					return
+				}
+			}
+		}
+		panic("JAVA_OPTIONS not found")
+	}
+	spec := tutils.DefaultSpec(t, testKube, nil)
+	spec.Spec.Service.Type = ispnv1.ServiceTypeCache
+	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
+func TestUpdatePodTargetLabels(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	podLabel := "pod-label-1"
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.ObjectMeta.Annotations = map[string]string{
+			ispnv1.PodTargetLabels: podLabel,
+		}
+		ispn.ObjectMeta.Labels = map[string]string{
+			podLabel: "value",
+		}
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		labels := ss.Spec.Template.ObjectMeta.Labels
+		if _, exists := labels[podLabel]; !exists {
+			panic(fmt.Sprintf("'%s' label not found in StatefulSet spec", podLabel))
+		}
 	}
 	spec := tutils.DefaultSpec(t, testKube, nil)
 	genericTestForContainerUpdated(*spec, modifier, verifier)

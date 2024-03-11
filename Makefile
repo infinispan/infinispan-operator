@@ -35,6 +35,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+PATH ?= $(PATH):./bin
+
 .DEFAULT_GOAL := help
 
 help:
@@ -137,9 +139,9 @@ undeploy:
 
 .PHONY: manifests
 ## Generate manifests locally e.g. CRD, RBAC etc.
-manifests: controller-gen
+manifests: controller-gen operator-sdk
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	operator-sdk generate kustomize manifests -q
+	$(OPERATOR_SDK) generate kustomize manifests -q
 
 .PHONY: fmt
 ## Run go fmt against code
@@ -228,11 +230,11 @@ endef
 
 .PHONY: bundle
 ## Generate bundle manifests and metadata, then validate generated files.
-bundle: manifests kustomize
+bundle: manifests kustomize yq
 # Remove old bundle as old files aren't always cleaned up by operator-sdk
 	rm -rf bundle
 	cd config/manager && $(KUSTOMIZE) edit set image operator=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite $(BUNDLE_METADATA_OPTS)
 # TODO is there a better way todo this with operator-sdk and/or kustomize. `commonAnnotations` adds annotations to all resources, not just CSV.
 	sed -i -e "s,<IMAGE>,$(IMG)," bundle/manifests/infinispan-operator.clusterserviceversion.yaml
 # Hack to set the metadata package name to "infinispan". `operator-sdk --package infinispan` can't be used as it
@@ -240,7 +242,9 @@ bundle: manifests kustomize
 	sed -i -e 's/infinispan-operator/infinispan/' bundle/metadata/annotations.yaml bundle.Dockerfile
 	rm bundle/manifests/infinispan-operator-controller-manager_v1_serviceaccount.yaml
 	rm bundle/manifests/infinispan-operator-webhook-service_v1_service.yaml
-	operator-sdk bundle validate ./bundle
+# Minimum Openshift version must correspond to `minKubeVersion` set in CSV
+	$(YQ) -i '.annotations += {"com.redhat.openshift.versions": "v4.11"}' bundle/metadata/annotations.yaml
+	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build
 ## Build the bundle image.
@@ -255,7 +259,6 @@ bundle-push:
 .PHONY: opm
 export OPM = ./bin/opm
 opm: ## Download opm locally if necessary.
-ifeq (,$(wildcard $(OPM)))
 ifeq (,$(shell which opm 2>/dev/null))
 	@{ \
 	set -e ;\
@@ -267,22 +270,63 @@ ifeq (,$(shell which opm 2>/dev/null))
 else
 OPM = $(shell which opm)
 endif
-endif
+
 
 .PHONY: jq
 export JQ = ./bin/jq
 jq: ## Download opm locally if necessary.
-ifeq (,$(wildcard $(JQ)))
 ifeq (,$(shell which jq 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(JQ)) ;\
-	curl -sSLo $(JQ) https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 ;\
+	curl -sSLo $(JQ) https://github.com/stedolan/jq/releases/download/jq-1.7/jq-linux64 ;\
 	chmod +x $(JQ) ;\
 	}
 else
 JQ = $(shell which jq)
 endif
+
+.PHONY: yq
+export YQ = ./bin/yq
+## Download yq locally if necessary.
+yq: jq
+ifeq (,$(shell which yq 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(YQ)) ;\
+	curl -sSLo $(YQ) https://github.com/mikefarah/yq/releases/download/v4.40.2/yq_linux_amd64 ;\
+	chmod +x $(YQ) ;\
+	}
+else
+YQ = $(shell which yq)
+endif
+
+.PHONY: oc
+export OC = ./bin/oc
+oc: ## Download oc locally if necessary.
+ifeq (,$(shell which oc 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OC)) ;\
+	curl -sSLo oc.tar.gz https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.11.6/openshift-client-linux.tar.gz ;\
+	tar -xf oc.tar.gz -C $(dir $(OC)) oc ;\
+	}
+else
+OC = $(shell which oc)
+endif
+
+.PHONY: operator-sdk
+export OPERATOR_SDK = ./bin/operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+ifeq (,$(shell which operator-sdk 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPERATOR_SDK)) ;\
+	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.3.2/operator-sdk_linux_amd64 ;\
+	chmod +x $(OPERATOR_SDK) ;\
+	}
+else
+OPERATOR_SDK = $(shell which operator-sdk)
 endif
 
 # A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).

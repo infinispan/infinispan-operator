@@ -1,0 +1,41 @@
+[id='configuring-pod-priority_{context}']
+= Configuring pod priority
+
+[role="_abstract"]
+Create one or more priority classes to indicate the importance of a pod relative to other pods.
+Pods with higher priority are scheduled ahead of pods with lower priority, ensuring prioritization of pods running critical workloads, especially when resources become constrained.
+
+.Prerequisites
+* Have `cluster-admin` access to {k8s}.
+
+.Procedure
+. Define a `PriorityClass` object by specifying its name and value.
++
+
+.high-priority.yaml
+[source,yaml]
+----
+include::yaml/priority_class.yaml[]
+----
+. Create the priority class.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_create} -f high-priority.yaml
+----
+
+. Reference the priority class name in the pod configuration.
++
+.Infinispan CR
+[source,yaml]
+----
+include::yaml/priority_class_CR.yaml[]
+----
++
+You must reference an existing priority class name, otherwise the pod is rejected.
+
+. Apply the changes.
+
+[role="_additional-resources"]
+.Additional resources
+* link:{pod_priority_reference}

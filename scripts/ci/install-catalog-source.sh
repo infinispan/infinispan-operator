@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-KUBECONFIG=${KUBECONFIG-~/kind-kube-config.yaml}
+KUBECONFIG=${KUBECONFIG-~/.kube/config}
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 IMG_REGISTRY=${IMG_REGISTRY-"localhost:5001"}
 
 export CHANNELS=2.3.x
 export DEFAULT_CHANNEL=2.3.x
-export VERSION=2.3.4
+export VERSION=2.3.7
 
 BUNDLE_IMG_NAME=infinispan-operator-bundle
 

@@ -32,3 +32,4 @@
 //
 :cryostat_installation: https://access.redhat.com/documentation/en-us/red_hat_build_of_cryostat/2/html/installing_cryostat/index[Installing Cryostat]
 :cryostat_security_configuration: https://access.redhat.com/documentation/en-us/red_hat_build_of_cryostat/2/html-single/using_cryostat_to_manage_a_jfr_recording/index#proc_storing-managing-jmx-credentials_assembly_security-options[Configuring Cryostat Credentials]
+:pod_priority_reference: https://docs.openshift.com/container-platform/4.14/nodes/pods/nodes-pods-priority.html[Including pod priority in pod scheduling decisions]

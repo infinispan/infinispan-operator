@@ -1,0 +1,134 @@
+name: Upgrade Tests
+
+on:
+  workflow_call:
+    inputs:
+      operand:
+        description: 'The FQN of the Operand image to be used. If left blank the most recent Operand defined in the Operator repository is used.'
+        required: false
+        type: string
+      operandArtifact:
+        description: 'The name of the GH artifact containing the Operand image'
+        required: false
+        type: string
+      ref:
+        type: string
+        required: false
+      repository:
+        type: string
+        required: false
+
+env:
+  CONFIG_LISTENER_IMAGE: localhost:5001/infinispan-operator
+  KUBECONFIG: ${{ github.workspace }}/kind-kube-config.yaml
+  TESTING_LOG_DIR: ${{ github.workspace }}/test/reports
+  KINDEST_NODE_VERSION: v1.24.15
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - if: ${{ inputs.operandArtifact != '' }}
+        name: Download operand artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.operandArtifact }}
+          path: /tmp/operand
+
+      - if: ${{ inputs.operandArtifact != '' }}
+        name: Load Operand image from Artifact
+        run:  docker load --input /tmp/operand/${{ inputs.operandArtifact }}.tar
+
+      - name: Init variables action variables
+        id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+      # Cache go build cache, used to speedup go test
+      - name: Go Build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+      # Cache go mod cache, used to speedup builds
+      - name: Go Mod Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+
+      # Cache local bin dependencies
+      - name: Local Dependencies Cache
+        uses: actions/cache@v2
+        with:
+          path: bin
+          key: ${{ runner.os }}-bin-${{ hashFiles('Makefile') }}
+
+      - name: Install Local Dependencies
+        run: |
+          make oc operator-sdk yq jq
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+
+      - name: Update Operands
+        if: ${{ inputs.operand != '' }}
+        run: ./scripts/ci/add_operand_to_csv.sh ${{ inputs.operand }}
+
+      - name: Log CSV Deployment
+        run: yq config/manager/manager.yaml
+
+      - name: Install Kind
+        run: go install sigs.k8s.io/kind@v0.14.0
+
+      - name: Create Kind Cluster
+        run: ./scripts/ci/kind-with-olm.sh
+
+      - if: ${{ inputs.operandArtifact != '' }}
+        name: Push Operand image to kind cluster
+        run:  |
+          docker push ${{ inputs.operand }}
+          kind load docker-image ${{ inputs.operand }}
+
+      - name: Build Operator Image
+        run: make operator-build operator-push IMG=${{ env.CONFIG_LISTENER_IMAGE }}
+
+      - name: Create OLM Catalog Source
+        run: ./scripts/ci/install-catalog-source.sh
+
+      - name: Run GracefulShutdown Upgrade Tests
+        run: make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.2
+
+      - name: Inspect Cluster
+        if: failure()
+        run: oc adm inspect ns
+
+      - name: Inspect Artifacts
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: oc-inspect
+          path: inspect.*
+
+      - name: Test Logs
+        uses: actions/upload-artifact@v3
+        if: success() || failure()
+        with:
+          name: test-logs
+          path: ${{ env.TESTING_LOG_DIR }}

@@ -3,7 +3,7 @@ set -o errexit
 
 SCRIPT_DIR=$(dirname "$0")
 
-OLM_VERSION="v0.21.2"
+OLM_VERSION="latest"
 
 source $SCRIPT_DIR/kind.sh
 

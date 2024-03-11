@@ -29,6 +29,25 @@ func PodPortsWithXsite(i *ispnv1.Infinispan) []corev1.ContainerPort {
 	return ports
 }
 
+func PodLifecycle() *corev1.Lifecycle {
+	if !consts.ThreadDumpPreStopFlag {
+		return nil
+	}
+
+	return &corev1.Lifecycle{
+		// Execute kill -3 on the Server process to obtain a thread dump in the logs
+		PreStop: &corev1.LifecycleHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"/bin/bash",
+					"-c",
+					"kill -3 1",
+				},
+			},
+		},
+	}
+}
+
 func PodLivenessProbe() *corev1.Probe {
 	return probe(5, 0, 10, 1, 80)
 }
@@ -44,7 +63,7 @@ func PodStartupProbe() *corev1.Probe {
 
 func probe(failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
 	return &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Scheme: corev1.URISchemeHTTP,
 				Path:   "rest/v2/cache-managers/default/health/status",
@@ -60,7 +79,7 @@ func probe(failureThreshold, initialDelay, period, successThreshold, timeout int
 
 func TcpProbe(port, failureThreshold, initialDelay, period, successThreshold, timeout int32) *corev1.Probe {
 	return &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{IntVal: port},
 			},
@@ -104,7 +123,6 @@ func PodEnv(i *ispnv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {
 		// Prevent the image from generating a user if authentication disabled
 		{Name: "MANAGED_ENV", Value: "TRUE"},
 		{Name: "JAVA_OPTIONS", Value: i.GetJavaOptions()},
-		{Name: "EXTRA_JAVA_OPTIONS", Value: i.Spec.Container.ExtraJvmOpts},
 		{Name: "CLI_JAVA_OPTIONS", Value: i.Spec.Container.CliExtraJvmOpts},
 	}
 

@@ -63,6 +63,9 @@ func TestMain(m *testing.M) {
 				}, {
 					Name:  ispnv1.OperatorPodTargetAnnotationsEnvVarName,
 					Value: "{\"pod-annotation\":\"pod-value\"}",
+				}, {
+					Name:  "THREAD_DUMP_PRE_STOP",
+					Value: "TRUE",
 				}},
 			},
 		},

@@ -52,21 +52,26 @@ var VersionManager = func() *version.Manager {
 		},{
 			"downstream-version": "0.2.2-1",
 			"upstream-version": "14.0.9",
-			"image": "quay.io/infinispan/server:14.0.9.Final",
-			"cve": true
+			"image": "quay.io/infinispan/server:14.0.9.Final"
 		},{
 			"downstream-version": "0.2.3-1",
 			"upstream-version": "14.0.13",
-			"image": "quay.io/infinispan/server:14.0.13.Final",
-			"cve": true
+			"image": "quay.io/infinispan/server:14.0.13.Final"
 		},{
 			"downstream-version": "0.2.4-1",
 			"upstream-version": "14.0.17",
-			"image": "quay.io/infinispan/server:14.0.17.Final",
-			"cve": true
+			"image": "quay.io/infinispan/server:14.0.17.Final"
 		},{
-			"downstream-version": "0.2.4-2",
-			"upstream-version": "14.0.17",
+			"downstream-version": "0.2.5-1",
+			"upstream-version": "14.0.19",
+			"image": "quay.io/infinispan/server:14.0.19.Final"
+		},{
+			"downstream-version": "0.2.6-1",
+			"upstream-version": "14.0.20",
+			"image": "quay.io/infinispan/server:14.0.20.Final"
+		},{
+			"downstream-version": "0.2.6-2",
+			"upstream-version": "14.0.20",
 			"image": "quay.io/infinispan/server:14.0",
 			"cve": true
 		}]`)
@@ -259,7 +264,7 @@ func WebServerDeployment(name, namespace, configName, mountPath, imageName strin
 							Name:      "data",
 						}},
 						ReadinessProbe: &corev1.Probe{
-							Handler: corev1.Handler{
+							ProbeHandler: corev1.ProbeHandler{
 								HTTPGet: &corev1.HTTPGetAction{
 									Scheme: corev1.URISchemeHTTP,
 									Path:   "/index.html",
