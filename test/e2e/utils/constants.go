@@ -37,6 +37,9 @@ var (
 	SuiteMode, _      = strconv.ParseBool(constants.GetEnvWithDefault("SUITE_MODE", "false"))
 	ExposeServiceType = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", string(ispnv1.ExposeTypeNodePort))
 
+	Infrastructure = os.Getenv("TESTING_INFRASTRUCTURE")
+	Platform       = os.Getenv("TESTING_PLATFORM")
+
 	WebServerName       = "external-libs-web-server"
 	WebServerImageName  = "quay.io/openshift-scale/nginx"
 	WebServerRootFolder = "/usr/share/nginx/html"

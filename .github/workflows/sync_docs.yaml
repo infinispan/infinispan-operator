@@ -3,15 +3,14 @@ name: Synchronize documentation to the website
 on:
   push:
     branches:
-      - 'main'
-      - '2.2.x'
+      - '*'
 
 jobs:
   upload:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: oraNod/asciidocjs-action@v1.3
       with:
         docs_path: documentation/asciidoc/titles
@@ -23,15 +22,8 @@ jobs:
         ref: master
         path: infinispan.github.io
 
-    - if: github.ref == 'refs/heads/main'
-      name: Copy docs to main
-      run: |
-        cp -r documentation/asciidoc/titles/operator.html infinispan.github.io/docs/infinispan-operator/main
-
-    - if: github.ref == 'refs/heads/2.2.x'
-      name: Copy docs to main
-      run: |
-        cp -r documentation/asciidoc/titles/operator.html infinispan.github.io/docs/infinispan-operator/2.2.x
+    - name: Copy Docs
+      run: cp -r documentation/asciidoc/titles/operator.html infinispan.github.io/docs/infinispan-operator/${{ github.ref_name }}
 
     - name: Commit files
       run: |

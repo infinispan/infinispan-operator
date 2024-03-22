@@ -6,18 +6,50 @@
     xmlns:server="urn:infinispan:server:14.0">
 
 <jgroups>
-    <stack name="image-tcp" extends="tcp">
-        <TCP bind_addr="${jgroups.bind.address:SITE_LOCAL}"
-             bind_port="${jgroups.bind.port,jgroups.tcp.port:7800}"
-             diag.enabled="{{ .JGroups.Diagnostics }}"
-             port_range="0"
+    {{ if .XSite }} {{ if .XSite.Sites }}
+    <stack name="relay-tunnel" extends="udp">
+        <TUNNEL
+            bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
+            bind_port="${jgroups.relay.bind.port:0}"
+            gossip_router_hosts="{{RemoteSites .XSite.Sites}}"
+            diag.enabled="{{ .JGroups.Diagnostics }}"
+            port_range="0"
+            {{ if .JGroups.FastMerge }}reconnect_interval="1000"{{ end }}
+            {{- if .XSite.HeartbeatEnabled }}
+            heartbeat_interval="{{.XSite.HeartbeatInterval}}"
+            heartbeat_timeout="{{.XSite.HeartbeatTimeout}}"
+            {{- end}}
+            stack.combine="REPLACE"
+            stack.position="UDP"
         />
-        <dns.DNS_PING dns_query="{{ .StatefulSetName }}-ping.{{ .Namespace }}.svc.cluster.local"
-                      dns_record_type="A"
-                      stack.combine="REPLACE" stack.position="MPING"/>
+        <!-- we are unable to use FD_SOCK with openshift -->
+        <!-- otherwise, we would need 1 external service per pod -->
+        <FD_SOCK2 stack.combine="REMOVE"/>
+        <!-- defaults: https://github.com/belaban/JGroups/blob/25394fdc3e781814dfdd9c9006ba0c0de3b62071/src/org/jgroups/protocols/FailureDetection.java#L27-L32 -->
+        <FD_ALL3
+            interval="${jgroups.xsite.fd.interval:8000}"
+            timeout="${jgroups.xsite.fd.timeout:40000}"
+            stack.combine="COMBINE"/>
         {{ if .JGroups.FastMerge }}
         <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE"/>
         {{ end }}
+    </stack>
+    {{ end }} {{ end }}
+    <stack name="image-tcp" extends="kubernetes">
+        <!-- overwrite diagnostics-->
+        <TCP diag.enabled="${jgroups.diag.enabled:{{ .JGroups.Diagnostics }}}" stack.combine="COMBINE" />
+        <!-- overwrite DNS query (only required attribute) -->
+        <dns.DNS_PING dns_query="${jgroups.dns.query:{{ .StatefulSetName }}-ping.{{ .Namespace }}.svc.cluster.local}" stack.combine="COMBINE" />
+        {{- if .JGroups.FastMerge }}
+        <!-- for testing, detects partitions quickly -->
+        <MERGE3 min_interval="1000" max_interval="3000" check_interval="5000" stack.combine="COMBINE" />
+        {{ end }}
+        {{- if .XSite }} {{- if .XSite.Sites }}
+        <!-- RELAY2 for cross-site feature -->
+        <relay.RELAY2 xmlns="urn:org:jgroups" site="{{ (index .XSite.Sites 0).Name }}" max_site_masters="{{ .XSite.MaxRelayNodes }}" />
+        <remote-sites default-stack="relay-tunnel">{{ range $it := .XSite.Sites }}
+            <remote-site name="{{ $it.Name }}"/>
+        {{ end }}</remote-sites> {{ end }}{{ end }}
     </stack>
 </jgroups>
 <cache-container name="default" statistics="true" zero-capacity-node="true">
@@ -37,8 +69,8 @@
         </authorization>
     </security>
     {{ end }}
-    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}"
-    stack="image-tcp" />
+    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}" stack="image-tcp"
+    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}/>
 </cache-container>
 <server xmlns="urn:infinispan:server:14.0">
     <interfaces>
@@ -57,6 +89,23 @@
                     <group-properties path="cli-admin-groups.properties" relative-to="infinispan.server.config.path"/>
                 </properties-realm>
             </security-realm>
+            {{ if .Transport.TLS.Enabled }}
+            <security-realm name="transport">
+                <server-identities>
+                    <ssl>
+                        {{ if .Transport.TLS.KeyStore.Path }}
+                        <keystore path="{{ .Transport.TLS.KeyStore.Path }}"
+                                    keystore-password="{{ .Transport.TLS.KeyStore.Password }}"
+                                    alias="{{ .Transport.TLS.KeyStore.Alias }}" />
+                        {{ end }}
+                        {{ if .Transport.TLS.TrustStore.Path }}
+                        <truststore path="{{ .Transport.TLS.TrustStore.Path }}"
+                                    password="{{ .Transport.TLS.TrustStore.Password }}" />
+                        {{ end }}
+                    </ssl>
+                </server-identities>
+            </security-realm>
+            {{ end }}
         </security-realms>
     </security>
     <endpoints>

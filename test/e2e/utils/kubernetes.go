@@ -20,6 +20,7 @@ import (
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -884,6 +885,7 @@ func runOperatorLocally(ctx context.Context, namespace string) {
 	operator.NewWithContext(ctx, operator.Parameters{
 		ZapOptions: &zap.Options{
 			Development: true,
+			TimeEncoder: zapcore.ISO8601TimeEncoder,
 		},
 	})
 }
@@ -1055,7 +1057,7 @@ func (k TestKubernetes) WaitForValidBackupPhase(name, namespace string, phase is
 	ExpectNoError(err)
 }
 
-func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase ispnv2.RestorePhase) {
+func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase ispnv2.RestorePhase) error {
 	var restore *ispnv2.Restore
 	err := wait.Poll(10*time.Millisecond, TestTimeout, func() (bool, error) {
 		restore = k.GetRestore(name, namespace)
@@ -1067,7 +1069,7 @@ func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase i
 	if err != nil {
 		println(fmt.Sprintf("Expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason))
 	}
-	ExpectNoError(err)
+	return err
 }
 
 // GetUsedNodePorts returns a set of NodePorts currently in use by the cluster

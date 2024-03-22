@@ -112,9 +112,7 @@ func TestUpdatePodTargetLabels(t *testing.T) {
 		ispn.ObjectMeta.Annotations = map[string]string{
 			ispnv1.PodTargetLabels: podLabel,
 		}
-		ispn.ObjectMeta.Labels = map[string]string{
-			podLabel: "value",
-		}
+		ispn.ObjectMeta.Labels[podLabel] = "value"
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		labels := ss.Spec.Template.ObjectMeta.Labels

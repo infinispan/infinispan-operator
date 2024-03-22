@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.apps.StatefulSet;
+
 import org.apache.http.entity.ContentType;
 import org.assertj.core.api.Assertions;
 import org.infinispan.Caches;
@@ -38,7 +39,7 @@ import cz.xtf.core.http.Https;
 import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
 import cz.xtf.core.openshift.PodShell;
-import cz.xtf.core.waiting.Waiters;
+import cz.xtf.core.waiting.SimpleWaiter;
 import cz.xtf.junit5.annotations.CleanBeforeAll;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -106,20 +107,7 @@ class DataGridServiceIT {
     */
    @Test
    void serviceMonitorTest() throws IOException {
-      // Give Prometheus some time to reload the config and make the first scrape
-      Waiters.sleep(TimeUnit.SECONDS, 60);
-
-      // Check ServiceMonitor targets
-      OpenShift monitoringShift = OpenShifts.master("openshift-user-workload-monitoring");
-      Pod prometheus = monitoringShift.getAnyPod("prometheus", "user-workload");
-      PodShell shell = new PodShell(monitoringShift, prometheus, "prometheus");
-      String targets = shell.executeWithBash("curl http://localhost:9090/api/v1/targets?state=active").getOutput();
-      JsonNode activeTargets = new ObjectMapper().readTree(targets).get("data").get("activeTargets");
-
-      List<JsonNode> actualList = StreamSupport.stream(activeTargets.spliterator(), false).collect(Collectors.toList());
-      List<String> targetIPs = actualList.stream().map(t -> t.get("discoveredLabels").get("__meta_kubernetes_pod_ip").asText()).collect(Collectors.toList());
-      List<String> targetHealths = actualList.stream().map(t -> t.get("health").asText()).collect(Collectors.toList());
-
+      // Retrieve Pod IPs
       Map<String, String> labels = new HashMap<>();
       labels.put("clusterName", infinispan.getClusterName());
       labels.put("app", "infinispan-pod");
@@ -127,9 +115,34 @@ class DataGridServiceIT {
       List<Pod> clusterPods = openShift.getLabeledPods(labels);
       List<String> podIPs = clusterPods.stream().map(p -> p.getStatus().getPodIP()).collect(Collectors.toList());
 
+      // Check ServiceMonitor targets
+      OpenShift monitoringShift = OpenShifts.master("openshift-user-workload-monitoring");
+      Pod prometheus = monitoringShift.getAnyPod("prometheus", "user-workload");
+      PodShell shell = new PodShell(monitoringShift, prometheus, "prometheus");
+
       // Assert that all the targets are up and that infinispan cluster pods are between the targets
-      Assertions.assertThat(targetHealths).allMatch("up"::equals);
-      Assertions.assertThat(targetIPs).containsAll(podIPs);
+      SimpleWaiter sw = new SimpleWaiter(() -> {
+         String targets = shell.executeWithBash("curl http://localhost:9090/api/v1/targets?state=active").getOutput();
+         JsonNode activeTargets;
+         try {
+            activeTargets = new ObjectMapper().readTree(targets).get("data").get("activeTargets");
+         } catch (IOException e) {
+            throw new IllegalStateException("Invalid targets: " + targets);
+         }
+
+         List<JsonNode> actualList = StreamSupport.stream(activeTargets.spliterator(), false).collect(Collectors.toList());
+         List<String> targetIPs = actualList.stream().map(t -> t.get("discoveredLabels").get("__meta_kubernetes_pod_ip").asText()).collect(Collectors.toList());
+         List<String> targetHealths = actualList.stream().map(t -> t.get("health").asText()).collect(Collectors.toList());
+
+         if(targetIPs.size() == 2 && targetHealths.stream().allMatch("up"::equals)) {
+            Assertions.assertThat(targetIPs).containsAll(podIPs);
+            return true;
+         }
+
+         return false;
+      });
+
+      sw.timeout(TimeUnit.MINUTES, 5).interval(30000).waitFor();
    }
 
    /**

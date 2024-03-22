@@ -19,6 +19,8 @@ spec:
   replicas: 1
   template:
     metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: controller-manager
     spec:
@@ -81,6 +83,18 @@ spec:
                   {
                     "upstream-version": "14.0.20",
                     "image": "quay.io/infinispan/server:14.0.20.Final"
+                  },
+                  {
+                    "upstream-version": "14.0.21",
+                    "image": "quay.io/infinispan/server:14.0.21.Final"
+                  },
+                  {
+                    "upstream-version": "14.0.24",
+                    "image": "quay.io/infinispan/server:14.0.24.Final"
+                  },
+                  {
+                    "upstream-version": "14.0.27",
+                    "image": "quay.io/infinispan/server:14.0.27.Final"
                   }
                 ]
             - name: POD_NAME

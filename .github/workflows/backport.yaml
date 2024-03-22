@@ -1,0 +1,22 @@
+name: Automated Backporting
+
+on:
+  pull_request_target:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  create_backport:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(github.event.pull_request.labels.*.name, '2.3.x')
+        name: 2.3.x Backport
+        uses: kiegroup/git-backporting@v4.5.2
+        with:
+          target-branch: 2.3.x
+          pull-request: ${{ github.event.pull_request.url }}
+          auth: ${{ secrets.GITHUB_TOKEN }}
+          no-squash: true

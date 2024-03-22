@@ -110,10 +110,6 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		updateNeeded = true
 	}
 
-	// Validate ConfigMap changes (by the hash of the i.yaml key value)
-	updateNeeded = updateStatefulSetEnv(container, statefulSet, "CONFIG_HASH", hash.HashString(configFiles.ServerBaseConfig, configFiles.ServerAdminConfig)) || updateNeeded
-	updateNeeded = updateStatefulSetEnv(container, statefulSet, "ADMIN_IDENTITIES_HASH", hash.HashByte(configFiles.AdminIdentities.IdentitiesFile)) || updateNeeded
-
 	if updateCmdArgs, err := updateStartupArgs(container, configFiles); err != nil {
 		ctx.Requeue(err)
 		return
@@ -127,6 +123,11 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 	updateNeeded = updateStatefulSetAnnotations(statefulSet, "checksum/overlayConfig", hashVal) || updateNeeded
 	updateNeeded = updateStatefulSetAnnotations(statefulSet, "checksum/credentialStore", hash.HashMap(configFiles.CredentialStoreEntries)) || updateNeeded
+	podEnvs, podEnvHash := provision.PodEnvsAndHash(i, configFiles)
+	if updateStatefulSetAnnotations(statefulSet, "checksum/podEnvs", podEnvHash) {
+		updateNeeded = true
+		container.Env = podEnvs
+	}
 	updateNeeded = applyOverlayConfigVolume(container, i.Spec.ConfigMapName, spec) || updateNeeded
 
 	externalArtifactsUpd, err := provision.ApplyExternalArtifactsDownload(i, container, spec)
@@ -164,14 +165,6 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if i.IsClientCertEnabled() {
 			updateNeeded = updateStatefulSetEnv(container, statefulSet, "TRUSTSTORE_HASH", hash.HashByte(configFiles.Truststore.File)) || updateNeeded
 		}
-	}
-
-	// Validate extra Java options changes
-	if updateStatefulSetEnv(container, statefulSet, "JAVA_OPTIONS", i.GetJavaOptions()) {
-		updateNeeded = true
-	}
-	if updateStatefulSetEnv(container, statefulSet, "CLI_JAVA_OPTIONS", ispnContr.CliExtraJvmOpts) {
-		updateNeeded = true
 	}
 
 	if updateNeeded {

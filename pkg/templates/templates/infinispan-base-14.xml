@@ -24,10 +24,8 @@
         </authorization>
     </security>
     {{ end }}
-    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}"
-    {{if .XSite }}{{if .XSite.Sites }}stack="xsite"{{ else }}stack="image-tcp"{{ end }}{{ else }}stack="image-tcp"{{ end }}
-    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}
-    />
+    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}" stack="image-tcp"    
+    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}/>
     {{ if .CloudEvents }}
         <ce:cloudevents bootstrap-servers="{{ .CloudEvents.BootstrapServers }}" {{if .CloudEvents.Acks }} acks="{{ .CloudEvents.Acks }}" {{ end }} {{if .CloudEvents.CacheEntriesTopic }} cache-entries-topic="{{ .CloudEvents.CacheEntriesTopic }}" {{ end }}/>
     {{ end }}

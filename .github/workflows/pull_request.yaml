@@ -10,4 +10,4 @@ on:
 
 jobs:
   test:
-    uses: /.github/workflows/upgrade_tests.yaml
+    uses: ./.github/workflows/upgrade_tests.yaml

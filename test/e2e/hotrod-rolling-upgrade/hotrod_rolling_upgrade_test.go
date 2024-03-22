@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/blang/semver"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
@@ -17,6 +18,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const IndexedCacheName = "IndexedCache"
 
 var (
 	ctx              = context.TODO()
@@ -72,6 +75,9 @@ func TestRollingUpgrade(t *testing.T) {
 		i.Spec.Upgrades = &ispnv1.InfinispanUpgradesSpec{
 			Type: ispnv1.UpgradeTypeHotRodRolling,
 		}
+		i.Spec.Security.Authorization = &ispnv1.Authorization{
+			Enabled: true,
+		}
 	})
 	// Explicitly reset the Version so that it will be set by the Operator webhook
 	spec.Spec.Version = ""
@@ -85,11 +91,9 @@ func TestRollingUpgrade(t *testing.T) {
 	createCache("textCache", mime.TextPlain, client)
 	createCache("jsonCache", mime.ApplicationJson, client)
 	createCache("javaCache", mime.ApplicationJavaObject, client)
-	createCache("indexedCache", mime.ApplicationProtostream, client)
 
 	// Add data to some caches
 	addData("textCache", entriesPerCache, client)
-	addData("indexedCache", entriesPerCache, client)
 
 	// Upgrade the Subscription channel if required
 	if sourceChannel != targetChannel {
@@ -125,7 +129,7 @@ func TestRollingUpgrade(t *testing.T) {
 			return versionManager
 		}
 
-		assertMigration := func(expectedImage string, isRollingUpgrade bool) {
+		assertMigration := func(expectedImage string, isRollingUpgrade, indexedSupported bool) {
 			if !isRollingUpgrade {
 				clusterCounter++
 				currentStatefulSetName := newStatefulSetName
@@ -149,9 +153,12 @@ func TestRollingUpgrade(t *testing.T) {
 
 			// Check data
 			assert.Equal(t, entriesPerCache, cacheSize("textCache", client))
-			assert.Equal(t, entriesPerCache, cacheSize("indexedCache", client))
 			assert.Equal(t, 0, cacheSize("jsonCache", client))
 			assert.Equal(t, 0, cacheSize("javaCache", client))
+
+			if indexedSupported {
+				assert.Equal(t, entriesPerCache, cacheSize(IndexedCacheName, client))
+			}
 		}
 
 		if ispnPreUpgrade.Spec.Version == "" {
@@ -159,7 +166,7 @@ func TestRollingUpgrade(t *testing.T) {
 			if relatedImageJdk != "" {
 				// The latest Operator version still doesn't support multi-operand so check that the RELATED_IMAGE_OPENJDK
 				// image has been installed on all pods
-				assertMigration(relatedImageJdk, false)
+				assertMigration(relatedImageJdk, false, false)
 				continue
 			}
 
@@ -181,9 +188,19 @@ func TestRollingUpgrade(t *testing.T) {
 			}
 		}
 
-		latestOperand := operands().Latest()
-		if ispnPreUpgrade.Spec.Version != latestOperand.Ref() {
+		versionManager := operands()
+		latestOperand := versionManager.Latest()
+		currentOperand, err := versionManager.WithRef(ispnPreUpgrade.Spec.Version)
+		tutils.ExpectNoError(err)
+		if !currentOperand.EQ(latestOperand) {
 			ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+
+			// ISPN-15651 Test migrating Indexed caches from 14.0.25.Final onwards
+			indexSupported := latestOperand.GTE(version.Operand{UpstreamVersion: &semver.Version{Major: 14, Minor: 0, Patch: 25}})
+			if indexSupported {
+				createIndexedCache(entriesPerCache, client)
+			}
+
 			tutils.ExpectNoError(
 				testKube.UpdateInfinispan(ispn, func() {
 					ispn.Spec.Version = latestOperand.Ref()
@@ -199,7 +216,8 @@ func TestRollingUpgrade(t *testing.T) {
 			})
 			lastOperand, err := operands().WithRef(ispnPreUpgrade.Status.Operand.Version)
 			tutils.ExpectNoError(err)
-			assertMigration(latestOperand.Image, latestOperand.CVE && lastOperand.UpstreamVersion.EQ(*latestOperand.UpstreamVersion))
+			isRolling := latestOperand.CVE && lastOperand.UpstreamVersion.EQ(*latestOperand.UpstreamVersion)
+			assertMigration(latestOperand.Image, isRolling, indexSupported)
 		}
 	}
 }
@@ -221,4 +239,44 @@ func addData(cacheName string, entries int, client tutils.HTTPClient) {
 		cache.Put(data, data, mime.TextPlain)
 	}
 	fmt.Printf("Populated cache %s with %d entries\n", cacheName, entries)
+}
+
+func createIndexedCache(entries int, client tutils.HTTPClient) {
+	proto := `
+package book_sample;
+
+/* @Indexed */
+message Book {
+	/* @Field(store = Store.YES, analyze = Analyze.YES) */
+	/* @Text(projectable = true) */
+	optional string title = 1;
+
+	/* @Text(projectable = true) */
+	optional string description = 2;
+
+	// no native Date type available in Protobuf
+	optional int32 publicationYear = 3;
+
+	repeated Author authors = 4;
+}
+
+message Author {
+	optional string name = 1;
+	optional string surname = 2;
+}
+`
+	headers := map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
+	}
+	_, err := client.Post("rest/v2/caches/___protobuf_metadata/schema.proto", proto, headers)
+	tutils.ExpectNoError(err)
+
+	config := "{\"distributed-cache\":{\"encoding\":{\"media-type\":\"application/x-protostream\"},\"persistence\":{\"file-store\":{}},\"indexing\":{\"indexed-entities\":[\"book_sample.Book\"]}}}"
+	cache := tutils.NewCacheHelper(IndexedCacheName, client)
+	cache.Create(config, mime.ApplicationJson)
+	for i := 0; i < entries; i++ {
+		data := fmt.Sprintf("{\"_type\":\"book_sample.Book\",\"title\":\"book%d\"}", i)
+		cache.Put(data, data, mime.ApplicationJson)
+	}
+	fmt.Printf("Populated cache %s with %d entries\n", IndexedCacheName, entries)
 }

@@ -234,6 +234,19 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 			return reconcile.Result{}, fmt.Errorf("unable to setControllerReference for zero-capacity pod: %w", err)
 		}
 
+		if infinispan.IsSiteTLSEnabled() {
+			// JGroups uses SSL sockets with cross-site so we need to mount the keystore and truststore
+			AddSecretVolume(infinispan.GetSiteTransportSecretName(), SiteTransportKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, &pod.Spec, InfinispanContainer)
+			// check if truststore exists
+			trustStoreSecret := &corev1.Secret{}
+			err := z.Get(ctx, types.NamespacedName{Namespace: namespace, Name: infinispan.GetSiteTrustoreSecretName()}, trustStoreSecret)
+			if err == nil {
+				// truststore secret exists, mount the volume
+				AddSecretVolume(infinispan.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, &pod.Spec, InfinispanContainer)
+			} else if !errors.IsNotFound(err) {
+				return reconcile.Result{}, fmt.Errorf("unable to create zero-capacity pod: %w", err)
+			}
+		}
 		if err := z.Create(ctx, pod); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to create zero-capacity pod: %w", err)
 		}

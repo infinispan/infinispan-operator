@@ -149,14 +149,9 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, su
 			// Print latest Operator logs
 			k.WriteAllResourcesToFile(dir, subNamespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
 			// OLM Operator Logs
-			var olmNs string
-			if k.NamespaceExists("olm") {
-				olmNs = "olm"
-			} else {
-				olmNs = "openshift-operator-lifecycle-manager"
-			}
-			k.WriteAllResourcesToFile(dir, olmNs, "Pod", &corev1.PodList{}, map[string]string{"app": "olm-operator"})
-			k.WriteAllResourcesToFile(dir, olmNs, "Pod", &corev1.PodList{}, map[string]string{"app": "catalog-operator"})
+			olmNamespace := k.OLMNamespace()
+			k.WriteAllResourcesToFile(dir, olmNamespace, "Pod", &corev1.PodList{}, map[string]string{"app": "olm-operator"})
+			k.WriteAllResourcesToFile(dir, olmNamespace, "Pod", &corev1.PodList{}, map[string]string{"app": "catalog-operator"})
 		}
 
 		// Cleanup OLM resources
@@ -358,8 +353,27 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 		for _, condition := range sub.Status.Conditions {
 			// Delete CSV and retry polling on ResolutionFailed
 			// https://github.com/operator-framework/operator-lifecycle-manager/issues/2201
+			// https://issues.redhat.com/browse/OCPBUGS-5080
 			if condition.Type == "ResolutionFailed" && condition.Status == corev1.ConditionTrue {
-				k.DeleteCSV(sub.Status.CurrentCSV, sub.Namespace)
+				// Restart OLM pods to clear the cache
+				olmNamespace := k.OLMNamespace()
+				ExpectNoError(
+					k.Kubernetes.Client.DeleteAllOf(
+						context.TODO(),
+						&corev1.Pod{},
+						client.InNamespace(olmNamespace),
+						client.MatchingLabels(map[string]string{"app": "olm-operator"}),
+					),
+				)
+
+				ExpectNoError(
+					k.Kubernetes.Client.DeleteAllOf(
+						context.TODO(),
+						&corev1.Pod{},
+						client.InNamespace(olmNamespace),
+						client.MatchingLabels(map[string]string{"app": "catalog-operator"}),
+					),
+				)
 				err = poll()
 				break
 			}
@@ -375,6 +389,13 @@ func (k TestKubernetes) WaitForCSVSucceeded(sub *coreos.Subscription) {
 		return csv.Status.Phase == "Succeeded", nil
 	})
 	ExpectNoError(err)
+}
+
+func (k TestKubernetes) OLMNamespace() string {
+	if k.NamespaceExists("olm") {
+		return "olm"
+	}
+	return "openshift-operator-lifecycle-manager"
 }
 
 func retryOnConflict(update func() error) {
