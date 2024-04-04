@@ -458,6 +458,11 @@ func (i *Infinispan) validate() error {
 	validateProbes(&i.Spec.Service.Container.LivenessProbe, path.Child("livenessProbe"), false)
 	validateProbes(&i.Spec.Service.Container.ReadinessProbe, path.Child("readinessProbe"), true)
 	validateProbes(&i.Spec.Service.Container.StartupProbe, path.Child("startupProbe"), false)
+	if i.IsCache() {
+		errMsg := "ServiceType Cache configured is deprecated and will be removed in future releases. ServiceType DataGrid is recomended"
+		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedCacheService", errMsg)
+		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+	}
 
 	return errorListToError(i, allErrs)
 }
