@@ -144,9 +144,10 @@ func (b *builder) Build() pipeline.Pipeline {
 		handlers: make([]pipeline.HandlerFunc, 0),
 	}
 
+	// Do operator status checks
+	handlers.Add(manage.OperatorStatusChecks)
 	// Apply default meta before doing anything else
 	handlers.Add(manage.InitialiseOperandVersion)
-	handlers.Add(manage.PostOperatorRestartChecks)
 	handlers.Add(manage.PreliminaryChecks)
 
 	// Provision/Remove the XSite service before performing configuration so that Remote site information can be retrieved

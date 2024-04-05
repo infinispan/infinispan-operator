@@ -591,8 +591,9 @@ type InfinispanStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operand Status"
 	Operand OperandStatus `json:"operand,omitempty"`
-	// Operator operating this resource
+	// The Operator status
 	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operator Status"
 	Operator Operator `json:"operator,omitempty"`
 }
 
@@ -636,8 +637,9 @@ const (
 )
 
 type Operator struct {
-	Pod     string `json:"pod,omitempty"`
-	Version string `json:"version,omitempty"`
+	// The name of the pod reconciling this resource
+	// +optional
+	Pod string `json:"pod,omitempty"`
 }
 
 // +kubebuilder:object:root=true
