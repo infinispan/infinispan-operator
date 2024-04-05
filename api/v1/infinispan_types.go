@@ -591,6 +591,9 @@ type InfinispanStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operand Status"
 	Operand OperandStatus `json:"operand,omitempty"`
+	// Operator operating this resource
+	// +optional
+	Operator Operator `json:"operator,omitempty"`
 }
 
 type OperandPhase string
@@ -631,6 +634,11 @@ const (
 	HotRodRollingStageStatefulSetReplace HotRodRollingUpgradeStage = "HotRodRollingStageStatefulSetReplace"
 	HotRodRollingStageCleanup            HotRodRollingUpgradeStage = "HotRodRollingStageCleanup"
 )
+
+type Operator struct {
+	Pod     string `json:"pod,omitempty"`
+	Version string `json:"version,omitempty"`
+}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

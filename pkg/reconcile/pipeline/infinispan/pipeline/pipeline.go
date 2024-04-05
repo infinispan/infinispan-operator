@@ -146,6 +146,7 @@ func (b *builder) Build() pipeline.Pipeline {
 
 	// Apply default meta before doing anything else
 	handlers.Add(manage.InitialiseOperandVersion)
+	handlers.Add(manage.PostOperatorRestartChecks)
 	handlers.Add(manage.PreliminaryChecks)
 
 	// Provision/Remove the XSite service before performing configuration so that Remote site information can be retrieved

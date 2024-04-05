@@ -222,6 +222,13 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 	if old.Spec.Jmx != nil && old.Spec.Jmx.Enabled != i.Spec.Jmx.Enabled {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("jmx"), "JMX configuration is immutable and cannot be updated after initial Infinispan creation"))
 	}
+
+	if old.IsDataGrid() && i.IsCache() {
+		errMsg := "ServiceType Cache configured is deprecated and will be removed in future releases. ServiceType DataGrid is recomended."
+		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedCacheService", errMsg)
+		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+	}
+
 	return errorListToError(i, allErrs)
 }
 
@@ -451,11 +458,6 @@ func (i *Infinispan) validate() error {
 	validateProbes(&i.Spec.Service.Container.LivenessProbe, path.Child("livenessProbe"), false)
 	validateProbes(&i.Spec.Service.Container.ReadinessProbe, path.Child("readinessProbe"), true)
 	validateProbes(&i.Spec.Service.Container.StartupProbe, path.Child("startupProbe"), false)
-	if i.IsCache() {
-		errMsg := "ServiceType Cache configured is deprecated and will be removed in future releases. ServiceType DataGrid is recomended"
-		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedCacheService", errMsg)
-		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
-	}
 
 	return errorListToError(i, allErrs)
 }
