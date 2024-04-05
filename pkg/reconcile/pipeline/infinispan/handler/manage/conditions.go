@@ -41,7 +41,7 @@ func PreliminaryChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 }
 
-func OperatorStatusChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
+func PostOperatorRestartChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	operatorPod := kube.GetOperatorPodName()
 	// Pod name is changed, means operator restarted
 	if i.Status.Operator.Pod != operatorPod {

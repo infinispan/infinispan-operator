@@ -2333,10 +2333,11 @@ spec:
                     type: string
                 type: object
               operator:
-                description: The Operator status
+                description: Operator operating this resource
                 properties:
                   pod:
-                    description: The name of the pod reconciling this resource
+                    type: string
+                  version:
                     type: string
                 type: object
               podStatus:
