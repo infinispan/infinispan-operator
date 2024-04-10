@@ -64,7 +64,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 			if containerStatuses.LastTerminationState.Terminated != nil {
 				terminatedPod := containerStatuses.LastTerminationState.Terminated
 
-				if terminatedPod.Reason == "OOMKilled" {
+				if terminatedPod.Reason == "OOMKilled" || terminatedPod.ExitCode == 137 {
 					hasOOMhappened = true
 					fmt.Printf("ExitCode='%d' Reason='%s' Message='%s'\n", terminatedPod.ExitCode, terminatedPod.Reason, terminatedPod.Message)
 					break out
