@@ -107,7 +107,7 @@ func GetPod(ctx context.Context, client crclient.Client, ns string) (*corev1.Pod
 	if isRunModeLocal() {
 		return nil, ErrRunLocal
 	}
-	podName := os.Getenv(PodNameEnvVar)
+	podName := GetOperatorPodName()
 	if podName == "" {
 		return nil, fmt.Errorf("required env %s not set, please configure downward API", PodNameEnvVar)
 	}
@@ -130,6 +130,10 @@ func GetPod(ctx context.Context, client crclient.Client, ns string) (*corev1.Pod
 	log.V(1).Info("Found Pod", "Pod.Namespace", ns, "Pod.Name", pod.Name)
 
 	return pod, nil
+}
+
+func GetOperatorPodName() string {
+	return os.Getenv(PodNameEnvVar)
 }
 
 func isRunModeLocal() bool {

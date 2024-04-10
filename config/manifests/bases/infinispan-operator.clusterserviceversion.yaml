@@ -219,6 +219,9 @@ spec:
       - description: The Operand status
         displayName: Operand Status
         path: operand
+      - description: The Operator status
+        displayName: Operator Status
+        path: operator
       - description: The Pod's currently in the cluster
         displayName: Pod Status
         path: podStatus

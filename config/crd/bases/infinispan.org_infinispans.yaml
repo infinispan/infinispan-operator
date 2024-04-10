@@ -2332,6 +2332,13 @@ spec:
                     description: The Operand version to be reconciled
                     type: string
                 type: object
+              operator:
+                description: The Operator status
+                properties:
+                  pod:
+                    description: The name of the pod reconciling this resource
+                    type: string
+                type: object
               podStatus:
                 description: The Pod's currently in the cluster
                 properties:
