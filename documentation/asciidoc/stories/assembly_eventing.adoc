@@ -14,7 +14,21 @@ Sending cloud events with {openshift} Serverless is available as a technology pr
 ====
 
 include::{topics}/ref_tech_preview.adoc[leveloffset=+1]
+
+[IMPORTANT]
+====
+This feature is deprecated and will have no effect on {brandname} releases after RHDG 8.4.x.
+====
+
 endif::downstream[]
+
+ifndef::downstream[]
+
+[IMPORTANT]
+====
+This feature is deprecated and has no effect when using {brandname} 15 or higher.
+====
+endif::[]
 
 include::{topics}/con_cloud_events.adoc[leveloffset=+1]
 include::{topics}/proc_enabling_cloud_events.adoc[leveloffset=+1]
