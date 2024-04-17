@@ -35,6 +35,7 @@ public class CustomLibsIT {
 
         buildLibs();
         uploadLibs();
+        deletePod();
 
         infinispan.deploy();
         infinispan.waitFor();
@@ -44,7 +45,6 @@ public class CustomLibsIT {
     static void undeploy() throws Exception {
         infinispan.delete();
 
-        openShift.pods().withLabel("app", "infinispan-libs").delete();
         openShift.persistentVolumeClaims().withLabel("app", "infinispan-libs").delete();
         openShift.events().delete();
     }
@@ -121,5 +121,9 @@ public class CustomLibsIT {
         File file = new File("src/test/resources/libs/custom-filter/target/custom-filter-1.0.jar");
 
         openShift.pods().withName("infinispan-libs").file("/tmp/libs/custom-filter-1.0.jar").upload(file.toPath());
+    }
+
+    private static void deletePod() {
+        openShift.pods().withLabel("app", "infinispan-libs").delete();
     }
 }
