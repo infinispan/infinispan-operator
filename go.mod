@@ -24,7 +24,7 @@ require (
 	k8s.io/cloud-provider v0.19.4
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	sigs.k8s.io/controller-runtime v0.12.3
-	software.sslmate.com/src/go-pkcs12 v0.2.0
+	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
 
 require (
