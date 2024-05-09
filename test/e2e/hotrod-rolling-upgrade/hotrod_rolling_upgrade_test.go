@@ -242,6 +242,11 @@ func addData(cacheName string, entries int, client tutils.HTTPClient) {
 }
 
 func createIndexedCache(entries int, client tutils.HTTPClient) {
+	cache := tutils.NewCacheHelper(IndexedCacheName, client)
+	if cache.Exists() {
+		fmt.Printf("Cache '%s' already exists", IndexedCacheName)
+		return
+	}
 	proto := `
 package book_sample;
 
@@ -272,7 +277,6 @@ message Author {
 	tutils.ExpectNoError(err)
 
 	config := "{\"distributed-cache\":{\"encoding\":{\"media-type\":\"application/x-protostream\"},\"persistence\":{\"file-store\":{}},\"indexing\":{\"indexed-entities\":[\"book_sample.Book\"]}}}"
-	cache := tutils.NewCacheHelper(IndexedCacheName, client)
 	cache.Create(config, mime.ApplicationJson)
 	for i := 0; i < entries; i++ {
 		data := fmt.Sprintf("{\"_type\":\"book_sample.Book\",\"title\":\"book%d\"}", i)
