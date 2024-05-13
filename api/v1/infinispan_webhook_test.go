@@ -55,32 +55,20 @@ var _ = Describe("Infinispan Webhooks", func() {
 	})
 
 	Context("Infinispan", func() {
-		It("Should initiate Cache Service defaults", func() {
+		It("Should return an error if CR is CacheService", func() {
 
-			created := &Infinispan{
+			failed := &Infinispan{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.Name,
 					Namespace: key.Namespace,
 				},
 				Spec: InfinispanSpec{
+					Service:  InfinispanServiceSpec{Type: ServiceTypeCache},
 					Replicas: 1,
 				},
 			}
-
-			Expect(k8sClient.Create(ctx, created)).Should(Succeed())
-
-			Expect(k8sClient.Get(ctx, key, created)).Should(Succeed())
-			spec := created.Spec
-			// Ensure default values correctly set
-			Expect(spec.Service.Type).Should(Equal(ServiceTypeCache))
-			Expect(spec.Service.ReplicationFactor).Should(Equal(int32(2)))
-			Expect(spec.Container.Memory).Should(Equal(consts.DefaultMemorySize.String()))
-			Expect(spec.Security.EndpointAuthentication).Should(Equal(pointer.BoolPtr(true)))
-			Expect(spec.Security.EndpointSecretName).Should(Equal(created.GetSecretName()))
-			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
-			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
-			Expect(spec.ConfigListener.Logging.Level).Should(Equal(ConfigListenerLoggingInfo))
-			Expect(spec.Jmx.Enabled).Should(Equal(false))
+			err := k8sClient.Create(ctx, failed)
+			expectInvalidErrStatus(err, statusDetailCause{"FieldValueForbidden", "spec.service.type", "CacheService is no longer supported."})
 		})
 
 		It("Should initiate DataGrid defaults", func() {
@@ -261,25 +249,6 @@ var _ = Describe("Infinispan Webhooks", func() {
 			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueRequired, "spec.security.endpointEncryption.certSecretName", "certificateSourceType=Secret' to be configured"})
 		})
 
-		It("Should return error if Cache Service does not have sufficient memory", func() {
-
-			failed := &Infinispan{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      key.Name,
-					Namespace: key.Namespace,
-				},
-				Spec: InfinispanSpec{
-					Replicas: 1,
-					Container: InfinispanContainerSpec{
-						Memory: "1Mi",
-					},
-				},
-			}
-
-			err := k8sClient.Create(ctx, failed)
-			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.container.memory", "Not enough memory allocated"})
-		})
-
 		It("Should return error if malformed memory or CPU request is greater than limit", func() {
 
 			failed := &Infinispan{
@@ -358,8 +327,6 @@ var _ = Describe("Infinispan Webhooks", func() {
 
 			err := k8sClient.Create(ctx, failed)
 			expectInvalidErrStatus(err, []statusDetailCause{{
-				"FieldValueForbidden", "spec.service.type", "spec.service.type=DataGrid",
-			}, {
 				"FieldValueForbidden", "spec.service.sites", "XSite not supported",
 			}}...)
 		})

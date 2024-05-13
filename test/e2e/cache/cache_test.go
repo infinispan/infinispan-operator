@@ -588,27 +588,6 @@ func TestSameCacheNameInMultipleClusters(t *testing.T) {
 	testifyAssert.Equal(t, cluster2.Name, cluster2CR.Spec.ClusterName)
 }
 
-func TestCacheCRCacheService(t *testing.T) {
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	ispn := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
-		i.Spec.Service.Type = v1.ServiceTypeCache
-	})
-	testKube.CreateInfinispan(ispn, tutils.Namespace)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
-
-	cache := cacheCR("some-cache", ispn)
-	testKube.Create(cache)
-	testKube.WaitForCacheConditionReady(cache.Spec.Name, cache.Spec.ClusterName, cache.Namespace)
-	client := tutils.HTTPClientForCluster(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper(cache.Spec.Name, client)
-	cacheHelper.WaitForCacheToExist()
-	cacheHelper.TestBasicUsage("testkey", "test-operator")
-	testKube.DeleteCache(cache)
-	// Assert that the Cache is removed from the server once the Cache CR has been deleted
-	cacheHelper.WaitForCacheToNotExist()
-}
-
 func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
 	cache := &v2alpha1.Cache{
 		TypeMeta: metav1.TypeMeta{

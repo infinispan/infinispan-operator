@@ -100,11 +100,5 @@ func TestCacheService(t *testing.T) {
 	})
 
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-
-	client_ := tutils.HTTPClientForCluster(ispn, testKube)
-	cacheHelper := tutils.NewCacheHelper("default", client_)
-	cacheHelper.WaitForCacheToExist()
-	cacheHelper.TestBasicUsage("test", "test-operator")
+	testKube.WaitForInfinispanConditionFalse(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 }

@@ -214,13 +214,11 @@ func (b *builder) Build() pipeline.Pipeline {
 		manage.AwaitPodIps,
 		manage.EnableRebalanceAfterScaleUp,
 	)
-	handlers.AddFeatureSpecific(i.IsCache(), manage.AutoScaling)
 	handlers.Add(
 		manage.AwaitWellFormedCondition,
 		manage.ConfigureLoggers,
 		provision.ConfigListener,
 	)
-	handlers.AddFeatureSpecific(i.IsCache(), manage.CacheService)
 	handlers.Add(
 		manage.ConsoleUrl,
 	)

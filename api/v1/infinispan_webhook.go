@@ -55,10 +55,7 @@ func (i *Infinispan) Default() {
 		i.Spec.Version = versionManager.Latest().Ref()
 	}
 	if i.Spec.Service.Type == "" {
-		i.Spec.Service.Type = ServiceTypeCache
-	}
-	if i.Spec.Service.Type == ServiceTypeCache && i.Spec.Service.ReplicationFactor == 0 {
-		i.Spec.Service.ReplicationFactor = 2
+		i.Spec.Service.Type = ServiceTypeDataGrid
 	}
 	if i.Spec.Container.Memory == "" {
 		i.Spec.Container.Memory = consts.DefaultMemorySize.String()
@@ -224,9 +221,9 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 	}
 
 	if old.IsDataGrid() && i.IsCache() {
-		errMsg := "ServiceType Cache configured is deprecated and will be removed in future releases. ServiceType DataGrid is recomended."
-		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedCacheService", errMsg)
-		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+		msg := "CacheService is no longer supported."
+		err := field.Forbidden(field.NewPath("spec").Child("service").Child("type"), msg)
+		allErrs = append(allErrs, err)
 	}
 
 	return errorListToError(i, allErrs)
@@ -285,7 +282,9 @@ func (i *Infinispan) validate() error {
 		}
 	}
 
-	if err := i.validateCacheService(); err != nil {
+	if i.IsCache() {
+		msg := "CacheService is no longer supported."
+		err := field.Forbidden(field.NewPath("spec").Child("service").Child("type"), msg)
 		allErrs = append(allErrs, err)
 	}
 
@@ -467,24 +466,6 @@ func errorListToError(i *Infinispan, allErrs field.ErrorList) error {
 		return apierrors.NewInvalid(
 			schema.GroupKind{Group: GroupVersion.Group, Kind: "Infinispan"},
 			i.Name, allErrs)
-	}
-	return nil
-}
-
-func (i *Infinispan) validateCacheService() *field.Error {
-	// If a CacheService is requested, checks that the pods have enough memory
-	if i.Spec.Service.Type == ServiceTypeCache {
-		// We can ignore error here as we have already checked Memory spec is valid
-		_, memoryQ, _ := i.Spec.Container.GetMemoryResources()
-		memory := memoryQ.Value()
-		nativeMemoryOverhead := (memory * consts.CacheServiceJvmNativePercentageOverhead) / 100
-		occupiedMemory := (consts.CacheServiceJvmNativeMb * 1024 * 1024) +
-			(consts.CacheServiceFixedMemoryXmxMb * 1024 * 1024) +
-			nativeMemoryOverhead
-		if memory < occupiedMemory {
-			msg := fmt.Sprintf("Not enough memory allocated. The Cache Service requires at least %d bytes", occupiedMemory)
-			return field.Invalid(field.NewPath("spec").Child("container").Child("memory"), i.Spec.Container.Memory, msg)
-		}
 	}
 	return nil
 }

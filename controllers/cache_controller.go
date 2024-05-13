@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
-	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/manage"
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/go-logr/logr"
@@ -193,6 +192,11 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
+	if infinispan.IsCache() {
+		reqLogger.Info("Ignoring Cache CR as cluster is marked as CacheService")
+		return ctrl.Result{}, nil
+	}
+
 	ispnClient, err := NewInfinispan(ctx, infinispan, r.versionManager, r.kubernetes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to create Infinispan client: %w", err)
@@ -274,48 +278,11 @@ func (r *cacheRequest) ispnCreateOrUpdate() (*ctrl.Result, error) {
 		return &ctrl.Result{}, err
 	}
 
-	if r.infinispan.IsDataGrid() {
-		err = r.reconcileDataGrid(cacheExists, cacheClient)
-	} else {
-		err = r.reconcileCacheService(cacheExists, cacheClient)
-	}
+	err = r.reconcileDataGrid(cacheExists, cacheClient)
 	if err != nil {
 		return &ctrl.Result{Requeue: true}, err
 	}
 	return nil, nil
-}
-
-func (r *cacheRequest) reconcileCacheService(cacheExists bool, cache api.Cache) error {
-	spec := r.cache.Spec
-	if spec.TemplateName != "" || spec.Template != "" {
-		err := fmt.Errorf("cannot create a cache with a template in a CacheService cluster")
-		r.reqLogger.Error(err, "Error creating cache")
-		return err
-	}
-
-	if cacheExists {
-		r.reqLogger.Info("cache already exists")
-		return nil
-	}
-
-	podList, err := PodList(r.infinispan, r.kubernetes, r.ctx)
-	if err != nil {
-		r.reqLogger.Error(err, "failed to list pods")
-		return err
-	}
-
-	template, err := manage.DefaultCacheTemplateXML(podList.Items[0].Name, r.infinispan, r.kubernetes, r.reqLogger)
-	if err != nil {
-		err = fmt.Errorf("unable to obtain default cache template: %w", err)
-		r.reqLogger.Error(err, "Error getting default XML")
-		return err
-	}
-	if err = cache.Create(template, mime.ApplicationXml); err != nil {
-		err = fmt.Errorf("unable to create cache using default template: %w", err)
-		r.reqLogger.Error(err, "Error in creating cache")
-		return err
-	}
-	return nil
 }
 
 func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) error {

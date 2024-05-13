@@ -111,7 +111,7 @@ func TestInfinispanDefaultingWebhook(t *testing.T) {
 	createdIspn := testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionPrelimChecksPassed)
 
 	assert := testifyAssert.New(t)
-	assert.Equal(ispnv1.ServiceTypeCache, createdIspn.Spec.Service.Type)
+	assert.Equal(ispnv1.ServiceTypeDataGrid, createdIspn.Spec.Service.Type)
 	assert.Equal("pod-value", createdIspn.ObjectMeta.Labels["pod-label"], "Operator labels haven't been propagated to CR")
 	assert.Equal("svc-value", createdIspn.ObjectMeta.Labels["svc-label"], "Operator labels haven't been propagated to CR")
 	assert.Equal("pod-value", createdIspn.Annotations["pod-annotation"], "Operator annotations haven't been propagated to CR")
