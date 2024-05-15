@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/blang/semver"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -48,24 +50,30 @@ func PodLifecycle() *corev1.Lifecycle {
 	}
 }
 
-func PodLivenessProbe(i *ispnv1.Infinispan) *corev1.Probe {
-	return probe(i.Spec.Service.Container.LivenessProbe)
+func PodLivenessProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
+	return probe(i.Spec.Service.Container.LivenessProbe, operand)
 }
 
-func PodReadinessProbe(i *ispnv1.Infinispan) *corev1.Probe {
-	return probe(i.Spec.Service.Container.ReadinessProbe)
+func PodReadinessProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
+	return probe(i.Spec.Service.Container.ReadinessProbe, operand)
 }
 
-func PodStartupProbe(i *ispnv1.Infinispan) *corev1.Probe {
-	return probe(i.Spec.Service.Container.StartupProbe)
+func PodStartupProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
+	return probe(i.Spec.Service.Container.StartupProbe, operand)
 }
 
-func probe(p ispnv1.ContainerProbeSpec) *corev1.Probe {
+func probe(p ispnv1.ContainerProbeSpec, operand version.Operand) *corev1.Probe {
+	var path string
+	if operand.UpstreamVersion.GTE(semver.Version{Major: 15}) {
+		path = "rest/v2/container/health/status"
+	} else {
+		path = "rest/v2/cache-managers/default/health/status"
+	}
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Scheme: corev1.URISchemeHTTP,
-				Path:   "rest/v2/cache-managers/default/health/status",
+				Path:   path,
 				Port:   intstr.FromInt(consts.InfinispanAdminPort)},
 		},
 		FailureThreshold:    *p.FailureThreshold,

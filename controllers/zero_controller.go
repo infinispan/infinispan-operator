@@ -306,6 +306,7 @@ func (z *zeroCapacityController) isZeroPodReady(request reconcile.Request, ctx c
 }
 
 func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurityCtx *corev1.PodSecurityContext, ispn *v1.Infinispan, zeroSpec *zeroCapacitySpec) (*corev1.Pod, error) {
+	operand, _ := z.VersionManager.WithRef(ispn.Spec.Version)
 	podResources, err := PodResources(zeroSpec.Container)
 	if err != nil {
 		return nil, err
@@ -330,14 +331,14 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 				Name:          InfinispanContainer,
 				Env:           PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename}}),
 				Lifecycle:     PodLifecycle(),
-				LivenessProbe: PodLivenessProbe(ispn),
+				LivenessProbe: PodLivenessProbe(ispn, operand),
 				Ports: []corev1.ContainerPort{
 					{ContainerPort: consts.InfinispanAdminPort, Name: consts.InfinispanAdminPortName, Protocol: corev1.ProtocolTCP},
 					{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
 				},
-				ReadinessProbe: PodReadinessProbe(ispn),
+				ReadinessProbe: PodReadinessProbe(ispn, operand),
 				Resources:      *podResources,
-				StartupProbe:   PodStartupProbe(ispn),
+				StartupProbe:   PodStartupProbe(ispn, operand),
 				Args:           []string{"-c", "operator/infinispan-zero.xml", "-l", OperatorConfMountPath + "/log4j.xml"},
 				VolumeMounts: []corev1.VolumeMount{
 					{

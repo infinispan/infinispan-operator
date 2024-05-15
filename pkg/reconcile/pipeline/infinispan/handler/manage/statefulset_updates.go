@@ -84,6 +84,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
+	requestedOperand := ctx.Operand()
 	// Changes to probes
 	probedChanged := func(current, new *corev1.Probe) bool {
 		if reflect.DeepEqual(current, new) {
@@ -92,12 +93,11 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		*current = *new
 		return true
 	}
-	updateNeeded = probedChanged(container.LivenessProbe, provision.PodLivenessProbe(i)) || updateNeeded
-	updateNeeded = probedChanged(container.ReadinessProbe, provision.PodReadinessProbe(i)) || updateNeeded
-	updateNeeded = probedChanged(container.StartupProbe, provision.PodStartupProbe(i)) || updateNeeded
+	updateNeeded = probedChanged(container.LivenessProbe, provision.PodLivenessProbe(i, requestedOperand)) || updateNeeded
+	updateNeeded = probedChanged(container.ReadinessProbe, provision.PodReadinessProbe(i, requestedOperand)) || updateNeeded
+	updateNeeded = probedChanged(container.StartupProbe, provision.PodStartupProbe(i, requestedOperand)) || updateNeeded
 
 	// Check if the base-image has been upgraded due to a CVE
-	requestedOperand := ctx.Operand()
 	userProvidedImage := i.Spec.Image != nil
 	if !userProvidedImage && requestedOperand.CVE && container.Image != requestedOperand.Image {
 		ctx.Log().Info(fmt.Sprintf("CVE release '%s'. StatefulSet Rolling upgrade required", requestedOperand.Ref()))
