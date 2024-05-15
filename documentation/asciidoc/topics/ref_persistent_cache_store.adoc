@@ -7,10 +7,6 @@
 
 .Caches
 When you create caches, {brandname} permanently stores their configuration so your caches are available after cluster restarts.
-This applies to both {cacheservice} and {datagridservice} pods.
 
 .Data
-Data is always volatile in clusters of {cacheservice} pods.
-When you shutdown the cluster, you permanently lose the data.
-
 Use a file-based cache store, by adding the `<file-store/>` element to your {brandname} cache configuration, if you want {datagridservice} pods to persist data during cluster shutdown.

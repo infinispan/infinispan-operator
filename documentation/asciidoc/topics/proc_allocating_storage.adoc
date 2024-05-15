@@ -2,8 +2,6 @@
 = Allocating storage resources
 
 [role="_abstract"]
-You can allocate storage for {datagridservice} pods but not {cacheservice} pods.
-
 By default, {ispn_operator} allocates `1Gi` for the persistent volume claim.
 However you should adjust the amount of storage available to {datagridservice} pods so that {brandname} can preserve cluster state during shutdown.
 

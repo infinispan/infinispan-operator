@@ -4,7 +4,7 @@ ifdef::context[:parent-context: {context}]
 = Setting up {brandname} services
 
 [role="_abstract"]
-Use {ispn_operator} to create clusters of either {cacheservice} or {datagridservice} pods.
+Use {ispn_operator} to create clusters of {datagridservice} pods.
 
 include::{topics}/con_services.adoc[leveloffset=+1]
 
@@ -33,14 +33,6 @@ include::{topics}/ref_logging.adoc[leveloffset=+2]
 ifdef::community[]
 include::{topics}/proc_specifying_server_image.adoc[leveloffset=+1]
 endif::community[]
-
-//Cache Service
-include::{topics}/proc_creating_cache_service.adoc[leveloffset=+1]
-include::{topics}/ref_cache_service_resources.adoc[leveloffset=+2]
-
-//Automatic scaling
-include::{topics}/con_automatic_scaling.adoc[leveloffset=+1]
-include::{topics}/proc_configuring_autoscaling.adoc[leveloffset=+2]
 
 //Labeling
 include::{topics}/proc_adding_labels_annotations.adoc[leveloffset=+1]

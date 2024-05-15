@@ -36,7 +36,6 @@
 :brandname: Infinispan
 :fullbrandname: Infinispan
 :datagridservice: Data Grid Service
-:cacheservice: Cache Service
 
 //
 // Clients and CLI
