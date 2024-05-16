@@ -31,12 +31,18 @@ func InitialiseOperandVersion(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				i.Status.Operand = OperandStatus(i, ispnv1.OperandPhaseRunning, operand)
 			}),
 		)
-	} else if _, err := ctx.Operands().WithRef(i.Spec.Version); err != nil {
+	} else if operand, err := ctx.Operands().WithRef(i.Spec.Version); err != nil {
 		// Version is not known to the Operator. State not possible when a CR is created for this Operator version as
 		// the webhook should prevent the resource being created/updated. The only way this state can be reached is if
 		// the Operator was upgraded from a previous release containing the spec.Version Operand, which is now no longer
 		// supported with this Operator release.
 		ctx.Stop(fmt.Errorf("unable to continue reconcilliation. Operand spec.version='%s' is not supported by this Operator version", i.Spec.Version))
+	} else if operand.Deprecated != i.Status.Operand.Deprecated {
+		ctx.Requeue(
+			ctx.UpdateInfinispan(func() {
+				i.Status.Operand.Deprecated = operand.Deprecated
+			}),
+		)
 	}
 }
 

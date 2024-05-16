@@ -243,8 +243,9 @@ func OperandStatus(i *ispnv1.Infinispan, phase ispnv1.OperandPhase, operand vers
 	}
 
 	return ispnv1.OperandStatus{
-		Image:   img,
-		Phase:   phase,
-		Version: operand.Ref(),
+		Deprecated: operand.Deprecated,
+		Image:      img,
+		Phase:      phase,
+		Version:    operand.Ref(),
 	}
 }
