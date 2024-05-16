@@ -113,8 +113,6 @@ const (
 )
 
 const (
-	// DefaultMinimumAutoscalePollPeriod minimum period for autoscaler polling loop
-	DefaultMinimumAutoscalePollPeriod = 5 * time.Second
 	//DefaultWaitOnCluster delay for the Infinispan cluster wait if it not created while Cache creation
 	DefaultWaitOnCluster = 10 * time.Second
 	// DefaultWaitOnCreateResource delay for wait until resource (Secret, ConfigMap, Service) is created

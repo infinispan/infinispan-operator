@@ -288,6 +288,12 @@ func (i *Infinispan) validate() error {
 		allErrs = append(allErrs, err)
 	}
 
+	if i.Spec.Autoscale != nil {
+		msg := "Autoscale is no longer supported. Please remove spec.autoscale field."
+		err := field.Forbidden(field.NewPath("spec").Child("autoscale"), msg)
+		allErrs = append(allErrs, err)
+	}
+
 	if i.IsEncryptionEnabled() {
 		e := i.Spec.Security.EndpointEncryption
 		if e.CertSecretName == "" {

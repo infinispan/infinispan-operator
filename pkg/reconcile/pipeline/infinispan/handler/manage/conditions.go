@@ -54,6 +54,11 @@ func OperatorStatusChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 	// Pod name is changed, means operator restarted
 	if i.Status.Operator.Pod != operatorPod {
+		if i.Spec.Autoscale != nil {
+			errMsg := "Autoscale is no longer supported. Please remove spec.autoscale field."
+			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "AutoscaleNotSupported", errMsg)
+			ctx.Log().Error(fmt.Errorf("AutoscaleNotSupported"), errMsg)
+		}
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
 				i.Status.Operator.Pod = operatorPod

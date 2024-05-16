@@ -71,6 +71,22 @@ var _ = Describe("Infinispan Webhooks", func() {
 			expectInvalidErrStatus(err, statusDetailCause{"FieldValueForbidden", "spec.service.type", "CacheService is no longer supported."})
 		})
 
+		It("Should return an error if spec.autoscale is enabled", func() {
+
+			failed := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas:  1,
+					Autoscale: &Autoscale{MaxReplicas: 3},
+				},
+			}
+			err := k8sClient.Create(ctx, failed)
+			expectInvalidErrStatus(err, statusDetailCause{"FieldValueForbidden", "spec.autoscale", "Autoscale is no longer supported."})
+		})
+
 		It("Should initiate DataGrid defaults", func() {
 
 			created := &Infinispan{
