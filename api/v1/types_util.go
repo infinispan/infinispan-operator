@@ -504,19 +504,7 @@ func getRequestLimits(str string) (requests resource.Quantity, limits resource.Q
 }
 
 func (ispn *Infinispan) GetJavaOptions() string {
-	switch ispn.Spec.Service.Type {
-	case ServiceTypeDataGrid:
-		return ispn.Spec.Container.ExtraJvmOpts
-	case ServiceTypeCache:
-		switch ispn.ImageType() {
-		case ImageTypeJVM:
-			return fmt.Sprintf(consts.CacheServiceJavaOptions, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceMaxRamMb,
-				consts.CacheServiceMinHeapFreeRatio, consts.CacheServiceMaxHeapFreeRatio, ispn.Spec.Container.ExtraJvmOpts)
-		case ImageTypeNative:
-			return fmt.Sprintf(consts.CacheServiceNativeJavaOptions, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceFixedMemoryXmxMb, ispn.Spec.Container.ExtraJvmOpts)
-		}
-	}
-	return ""
+	return ispn.Spec.Container.ExtraJvmOpts
 }
 
 // GetLogCategoriesForConfig return a map of log category for the Infinispan configuration

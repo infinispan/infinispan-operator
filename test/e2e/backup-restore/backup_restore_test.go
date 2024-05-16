@@ -59,12 +59,9 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	cacheName := "someCache"
 
 	cache := tutils.NewCacheHelper(cacheName, client)
-	if infinispan.Spec.Service.Type == v1.ServiceTypeCache {
-		cache.CreateWithDefault()
-	} else {
-		config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
-		cache.Create(config, mime.ApplicationJson)
-	}
+
+	config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
+	cache.Create(config, mime.ApplicationJson)
 	cache.Populate(numEntries)
 	cache.AssertSize(numEntries)
 

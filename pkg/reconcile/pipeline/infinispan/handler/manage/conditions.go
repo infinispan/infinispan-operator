@@ -43,20 +43,23 @@ func PreliminaryChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 func OperatorStatusChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	operatorPod := kube.GetOperatorPodName()
+	// CacheService is no longer supported. Set WellFormed = false and stop reconciliation
+	if i.IsCache() {
+		_ = ctx.UpdateInfinispan(func() {
+			i.SetCondition(ispnv1.ConditionWellFormed, metav1.ConditionFalse, "Please change to service type DataGrid. CacheService is no longer supported.")
+			i.Status.Operator.Pod = operatorPod
+		})
+		ctx.Stop(nil)
+		return
+	}
 	// Pod name is changed, means operator restarted
 	if i.Status.Operator.Pod != operatorPod {
-		if i.IsCache() {
-			errMsg := "ServiceType Cache configured is deprecated and will be removed in future releases. ServiceType DataGrid is recomended."
-			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "DeprecatedCacheService", errMsg)
-			ctx.Log().Info(errMsg)
-		}
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
 				i.Status.Operator.Pod = operatorPod
 			}),
 		)
 	}
-
 }
 
 func PodStatus(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -118,6 +121,7 @@ func wellFormedCondition(i *ispnv1.Infinispan, ctx pipeline.Context, podList *co
 	clusterViews := make(map[string]bool)
 	numPods := int32(len(podList.Items))
 	var podErrors []string
+
 	// Avoid contacting the server(s) if we're still waiting for pods
 	if numPods < i.Spec.Replicas {
 		podErrors = append(podErrors, fmt.Sprintf("Running %d pods. Needed %d", numPods, i.Spec.Replicas))

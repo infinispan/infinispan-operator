@@ -3,31 +3,12 @@
 
 [role="_abstract"]
 Services are stateful applications, based on the {brandname} Server image, that provide flexible and robust in-memory data storage.
-When you create {brandname} clusters you specify either `DataGrid` or `Cache` as the service type with the `spec.service.type` field.
+{brandname} operator supports only `DataGrid` service type which deploys {brandname} clusters with full configuration and capabilities. `Cache` service type is no longer supported.
 
-`DataGrid` service type:: Deploy {brandname} clusters with full configuration and capabilities.
-`Cache` service type:: Deploy {brandname} clusters with minimal configuration.
-
-//Community content
-ifdef::community[]
-The {brandname} team recommends the `DataGrid` service type for clusters because it lets you:
-endif::community[]
-//Downstream content
-ifdef::downstream[]
-Red Hat recommends the `DataGrid` service type for clusters because it lets you:
-endif::downstream[]
+DataGrid` service type for clusters lets you:
 
 * Back up data across global clusters with cross-site replication.
 * Create caches with any valid configuration.
 * Add file-based cache stores to save data in a persistent volume.
 * Query values across caches using the {brandname} Query API.
 * Use advanced {brandname} features and capabilities.
-
-[IMPORTANT]
-====
-The `Cache` service type was designed to provide a convenient way to create a low-latency data store with minimal configuration.
-Additional development on the `Infinispan` CRD has shown that the `DataGrid` CR offers a better approach to achieving this goal, ultimately giving users more choice and less deployment overhead.
-For this reason, the `Cache` service type is planned for removal in the next version of the `Infinispan` CRD and is no longer under active development.
-
-The `DataGrid` service type continues to benefit from new features and improved tooling to automate complex operations such as cluster upgrades and data migration.
-====
