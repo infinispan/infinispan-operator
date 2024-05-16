@@ -37,6 +37,7 @@ func TestOperandUpgrade(t *testing.T) {
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	assert.True(t, ispn.Status.Operand.Deprecated)
 
 	// Follow the support Operand graph, updating the cluster to each non-cve release
 	for i := 1; i < len(versionManager.Operands); i++ {
