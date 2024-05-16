@@ -13,7 +13,7 @@ func Generate(operand version.Operand, spec *Spec) (string, error) {
 	v := operand.UpstreamVersion
 
 	if v.Major < 13 && v.Major > 15 {
-		return "", version.UnknownError(v)
+		return "", version.NewUnknownError(v)
 	}
 	return templates.LoadAndExecute("log4j.xml", nil, spec)
 }

@@ -11,11 +11,11 @@ import (
 	"github.com/go-logr/logr"
 )
 
-type unknownError struct {
+type UnknownError struct {
 	version *semver.Version
 }
 
-func (e *unknownError) Error() string {
+func (e *UnknownError) Error() string {
 	return fmt.Sprintf("unknown version: %v", e.version)
 }
 
@@ -70,8 +70,8 @@ func (o Operand) LT(other Operand) bool {
 	return o.UpstreamVersion.LT(*other.UpstreamVersion)
 }
 
-func UnknownError(v *semver.Version) error {
-	return &unknownError{v}
+func NewUnknownError(v *semver.Version) error {
+	return &UnknownError{v}
 }
 
 type Manager struct {
@@ -86,7 +86,7 @@ func (m *Manager) WithRef(version string) (Operand, error) {
 		if err != nil {
 			return Operand{}, err
 		}
-		return Operand{}, UnknownError(&v)
+		return Operand{}, NewUnknownError(&v)
 	}
 	return *operand, nil
 }

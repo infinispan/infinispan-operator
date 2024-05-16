@@ -1,10 +1,12 @@
 package manage
 
 import (
+	"errors"
 	"fmt"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
@@ -12,7 +14,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	ingressv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -65,8 +67,16 @@ func UpgradeRequired(i *ispnv1.Infinispan, ctx pipeline.Context) bool {
 		// If the status version is not set, then this means we're upgrading from an older Operator version
 		return true
 	} else {
-		installedOperand, _ := ctx.Operands().WithRef(i.Status.Operand.Version)
+		installedOperand, err := ctx.Operands().WithRef(i.Status.Operand.Version)
 		requestedOperand := ctx.Operand()
+
+		// If the installed Operand version can't be found, then this means that the Operand was installed using
+		// an older Operator version and support for the Operand has been removed. In this case we must trigger an upgrade
+		// as we can no longer reconcile the unsupported version.
+		var unknown *version.UnknownError
+		if errors.As(err, &unknown) {
+			return true
+		}
 
 		// If the Operand is marked as a CVE base-image release, then we perform the upgrade as a StatefulSet rolling upgrade
 		// as the server components are not changed.
@@ -148,7 +158,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		// GracefulShutdown complete, proceed with the upgrade
 		if statefulSet.Status.CurrentReplicas == 0 {
 
-			if err := provision.ScaleConfigListener(0, i, ctx); err != nil && !errors.IsNotFound(err) {
+			if err := provision.ScaleConfigListener(0, i, ctx); err != nil && !apierrors.IsNotFound(err) {
 				ctx.Requeue(err)
 				return
 			}
