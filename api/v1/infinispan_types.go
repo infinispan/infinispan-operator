@@ -607,6 +607,9 @@ const (
 )
 
 type OperandStatus struct {
+	// Whether the Operand has been deprecated and is subject for removal in a subsequent release
+	// +optional
+	Deprecated bool `json:"deprecated,omitempty"`
 	// The Image being used by the Operand currently being reconciled
 	// +optional
 	Image string `json:"image,omitempty"`

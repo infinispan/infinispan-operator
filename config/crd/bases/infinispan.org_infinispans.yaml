@@ -2321,6 +2321,10 @@ spec:
               operand:
                 description: The Operand status
                 properties:
+                  deprecated:
+                    description: Whether the Operand has been deprecated and is subject
+                      for removal in a subsequent release
+                    type: boolean
                   image:
                     description: The Image being used by the Operand currently being
                       reconciled

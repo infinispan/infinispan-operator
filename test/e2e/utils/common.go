@@ -40,7 +40,8 @@ var VersionManager = func() *version.Manager {
 		_ = os.Setenv(ispnv1.OperatorOperandVersionEnvVarName, `[{
 			"downstream-version": "0.1.0",
 			"upstream-version": "13.0.10",
-			"image": "quay.io/infinispan/server:13.0.10.Final"
+			"image": "quay.io/infinispan/server:13.0.10.Final",
+			"deprecated": true
 		},{
 			"downstream-version": "0.2.0-1",
 			"upstream-version": "14.0.1",
