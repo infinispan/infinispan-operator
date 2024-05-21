@@ -45,10 +45,16 @@ func OperatorStatusChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	operatorPod := kube.GetOperatorPodName()
 	// Pod name is changed, means operator restarted
 	if i.Status.Operator.Pod != operatorPod {
-		if i.IsCache() {
-			errMsg := "ServiceType Cache configured is deprecated and will be removed in future releases. ServiceType DataGrid is recomended."
-			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "DeprecatedCacheService", errMsg)
-			ctx.Log().Info(errMsg)
+		if ctx.Operand().Deprecated {
+			msg := fmt.Sprintf("Infinispan version '%s' will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.", i.Spec.Version)
+			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", msg)
+			ctx.Log().Error(nil, msg)
+		}
+
+		if i.Spec.Autoscale != nil {
+			errMsg := "Autoscale is no longer supported. Please remove spec.autoscale field."
+			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "AutoscaleNotSupported", errMsg)
+			ctx.Log().Error(fmt.Errorf("AutoscaleNotSupported"), errMsg)
 		}
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
