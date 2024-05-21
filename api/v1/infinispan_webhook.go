@@ -244,9 +244,9 @@ func (i *Infinispan) validate() error {
 	operand, err := versionManager.WithRef(i.Spec.Version)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("version"), i.Spec.Version, err.Error()))
-	}
-	if operand.Deprecated {
-		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", "Configured Infinispan version will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.")
+	} else if operand.Deprecated {
+		msg := fmt.Sprintf("Infinispan version '%s' will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.", i.Spec.Version)
+		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", msg)
 	}
 
 	if i.Spec.Container.CPU != "" {
