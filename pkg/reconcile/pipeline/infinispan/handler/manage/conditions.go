@@ -54,6 +54,12 @@ func OperatorStatusChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 	// Pod name is changed, means operator restarted
 	if i.Status.Operator.Pod != operatorPod {
+		if ctx.Operand().Deprecated {
+			msg := fmt.Sprintf("Infinispan version '%s' will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.", i.Spec.Version)
+			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", msg)
+			ctx.Log().Error(nil, msg)
+		}
+
 		if i.Spec.Autoscale != nil {
 			errMsg := "Autoscale is no longer supported. Please remove spec.autoscale field."
 			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "AutoscaleNotSupported", errMsg)
