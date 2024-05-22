@@ -14,19 +14,19 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 )
 
-const CachesPath = BasePath + "/caches"
-
 type cache struct {
+	api.PathResolver
 	httpClient.HttpClient
 	name string
 }
 
 type caches struct {
+	api.PathResolver
 	httpClient.HttpClient
 }
 
 func (c *cache) url() string {
-	return fmt.Sprintf("%s/%s", CachesPath, url.PathEscape(c.name))
+	return fmt.Sprintf("%s/%s", c.Caches(""), url.PathEscape(c.name))
 }
 
 func (c *cache) entryUrl(key string) string {
@@ -172,7 +172,7 @@ func (c *cache) UpdateConfig(config string, contentType mime.MimeType) (err erro
 }
 
 func (c *caches) ConvertConfiguration(config string, contentType mime.MimeType, reqType mime.MimeType) (transformed string, err error) {
-	path := CachesPath + "?action=convert"
+	path := c.Caches("?action=convert")
 	headers := map[string]string{
 		"Accept":       string(reqType),
 		"Content-Type": string(contentType),
@@ -196,7 +196,7 @@ func (c *caches) EqualConfiguration(_, _ string) (bool, error) {
 }
 
 func (c *caches) Names() (names []string, err error) {
-	rsp, err := c.Get(CachesPath, nil)
+	rsp, err := c.Get(c.Caches(""), nil)
 	if err = httpClient.ValidateResponse(rsp, err, "getting caches", http.StatusOK); err != nil {
 		return
 	}

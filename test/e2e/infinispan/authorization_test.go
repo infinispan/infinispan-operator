@@ -115,7 +115,7 @@ func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identi
 	schema := testKube.GetSchemaForRest(ispn)
 	user := identities.Credentials[0].Username
 	pass := identities.Credentials[0].Password
-	client_ := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, tutils.NewHTTPClient(user, pass, schema))
+	client_ := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, tutils.NewHTTPClient(user, pass, schema), nil)
 
 	// Verify authorization works as expected
 	verify(client_)

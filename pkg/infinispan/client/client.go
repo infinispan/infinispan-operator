@@ -43,19 +43,50 @@ For example, if v14 can reuse a new `api.Cache` implementation but requires a ne
 package client
 
 import (
-	"github.com/infinispan/infinispan-operator/pkg/http"
+	"fmt"
+	"regexp"
+
+	"github.com/blang/semver"
+	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
 	v14 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
+	v15 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v15"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 )
 
 // New Factory to obtain Infinispan implementation
-func New(operand version.Operand, client http.HttpClient) api.Infinispan {
-	switch operand.UpstreamVersion.Major {
+func New(operand version.Operand, client httpClient.HttpClient) api.Infinispan {
+	return ispnClient(operand.UpstreamVersion.Major, client)
+}
+
+func NewUnknownVersion(client httpClient.HttpClient) (api.Infinispan, error) {
+	wrapError := func(e error) error {
+		return fmt.Errorf("unable to determine server version: %w", e)
+	}
+	info, err := v15.New(client).Container().Info()
+	if err != nil {
+		info, err = v14.New(client).Container().Info()
+		if err != nil {
+			return nil, wrapError(err)
+		}
+	}
+	re := regexp.MustCompile(`\d+(\.\d+){2,}`)
+	versionStr := re.FindStringSubmatch(info.Version)
+	_version, err := semver.Parse(versionStr[0])
+	if err != nil {
+		return nil, wrapError(fmt.Errorf("unable to parse server version: %w", err))
+	}
+	return ispnClient(_version.Major, client), nil
+}
+
+func ispnClient(majorVersion uint64, client httpClient.HttpClient) api.Infinispan {
+	switch majorVersion {
 	case 13:
 		return v13.New(client)
-	default:
+	case 14:
 		return v14.New(client)
+	default:
+		return v15.New(client)
 	}
 }

@@ -84,7 +84,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
 	numEntries := 100
-	client := tutils.HTTPClientForCluster(spec, testKube)
+	client := tutils.HTTPClientForClusterWithVersionManager(spec, testKube, testKube.VersionManagerFromCSV(sub))
 
 	peristentCache := "persistentCache"
 	cache := tutils.NewCacheHelper(peristentCache, client)
@@ -156,17 +156,7 @@ func TestUpgrade(t *testing.T) {
 			}
 		}
 
-		operands := func() *version.Manager {
-			testKube.SetRelatedImagesEnvs(sub)
-			operandVersions := testKube.InstalledCSVEnv(ispnv1.OperatorOperandVersionEnvVarName, sub)
-			if operandVersions == "" {
-				panic(fmt.Sprintf("%s env empty, cannot continue", ispnv1.OperatorOperandVersionEnvVarName))
-			}
-			versionManager, err := version.ManagerFromJson(operandVersions)
-			tutils.ExpectNoError(err)
-			return versionManager
-		}
-
+		versionManager := testKube.VersionManagerFromCSV(sub)
 		if ispnPreUpgrade.Spec.Version == "" {
 			relatedImageJdk := testKube.InstalledCSVEnv("RELATED_IMAGE_OPENJDK", sub)
 			if relatedImageJdk != "" {
@@ -185,7 +175,7 @@ func TestUpgrade(t *testing.T) {
 			}
 
 			// This is the first upgrade to an Operator with multi-operand support, so wait for the oldest Operand
-			oldestOperand := operands().Oldest()
+			oldestOperand := versionManager.Oldest()
 			ispnPreUpgrade = testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 					i.Status.Operand.Version == oldestOperand.Ref() &&
@@ -196,7 +186,7 @@ func TestUpgrade(t *testing.T) {
 		}
 
 		// Upgrade to the latest available Operand
-		latestOperand := operands().Latest()
+		latestOperand := versionManager.Latest()
 		if ispnPreUpgrade.Spec.Version != latestOperand.Ref() {
 			ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 			tutils.ExpectNoError(
@@ -222,7 +212,7 @@ func TestUpgrade(t *testing.T) {
 
 			// Ensure that persistent cache entries have survived the upgrade(s)
 			// Refresh the hostAddr and client as the url will change if NodePort is used.
-			client = tutils.HTTPClientForCluster(spec, testKube)
+			client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 			tutils.NewCacheHelper(peristentCache, client).AssertSize(numEntries)
 
 			// Restore the backup and ensure that the cache exists with the expected number of entries
@@ -270,7 +260,8 @@ func TestUpgrade(t *testing.T) {
 	testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 	// Ensure that persistent cache entries still contain the expected numEntries
-	client = tutils.HTTPClientForCluster(spec, testKube)
+	versionManager := testKube.VersionManagerFromCSV(sub)
+	client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 	tutils.NewCacheHelper(peristentCache, client).AssertSize(numEntries)
 }
 

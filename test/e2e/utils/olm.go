@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -110,6 +112,10 @@ func (k TestKubernetes) CreateSubscriptionAndApproveInitialVersion(olm OLMEnv, s
 	k.WaitForPods(1, ConditionWaitTimeout, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{"app.kubernetes.io/name": "infinispan-operator"}),
 	}, nil)
+
+	k.WaitForSubscription(sub, func() bool {
+		return sub.Status.InstalledCSV != ""
+	})
 }
 
 func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, subNamespace, subPackage string) {
@@ -410,4 +416,15 @@ func retryOnConflict(update func() error) {
 		return true, nil
 	})
 	ExpectNoError(err)
+}
+
+func (k TestKubernetes) VersionManagerFromCSV(sub *coreos.Subscription) *version.Manager {
+	k.SetRelatedImagesEnvs(sub)
+	operandVersions := k.InstalledCSVEnv(ispnv1.OperatorOperandVersionEnvVarName, sub)
+	if operandVersions == "" {
+		panic(fmt.Sprintf("%s env empty, cannot continue", ispnv1.OperatorOperandVersionEnvVarName))
+	}
+	versionManager, err := version.ManagerFromJson(operandVersions)
+	ExpectNoError(err)
+	return versionManager
 }

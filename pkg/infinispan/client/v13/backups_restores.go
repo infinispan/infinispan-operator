@@ -12,39 +12,40 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 )
 
-const (
-	BackupPath  = CacheManagerPath + "/backups"
-	RestorePath = CacheManagerPath + "/restores"
-)
-
 var validator = inputValidator.New()
 
 type backups struct {
+	api.PathResolver
 	httpClient.HttpClient
 }
 
 type restores struct {
+	api.PathResolver
 	httpClient.HttpClient
 }
 
 func (b backups) Create(name string, config *api.BackupConfig) (err error) {
-	url := fmt.Sprintf("%s/%s", BackupPath, name)
-	return create(url, name, "backup", config, b)
+	return create(b.backup(name), name, "backup", config, b)
 }
 
 func (b backups) Status(name string) (api.Status, error) {
-	url := fmt.Sprintf("%s/%s", BackupPath, name)
-	return status(url, name, "Backup", b)
+	return status(b.backup(name), name, "Backup", b)
 }
 
 func (r restores) Create(name string, config *api.RestoreConfig) (err error) {
-	url := fmt.Sprintf("%s/%s", RestorePath, name)
-	return create(url, name, "restore", config, r)
+	return create(r.restore(name), name, "restore", config, r)
 }
 
 func (r restores) Status(name string) (api.Status, error) {
-	url := fmt.Sprintf("%s/%s", RestorePath, name)
-	return status(url, name, "Restore", r)
+	return status(r.restore(name), name, "Restore", r)
+}
+
+func (b backups) backup(name string) string {
+	return b.CacheManager("/backups/" + name)
+}
+
+func (r restores) restore(name string) string {
+	return r.CacheManager("/restores/" + name)
 }
 
 func create(url, name, op string, config interface{}, client httpClient.HttpClient) (err error) {

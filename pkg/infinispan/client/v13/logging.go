@@ -7,16 +7,16 @@ import (
 	"strings"
 
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 )
 
-const LoggersPath = BasePath + "/logging/loggers"
-
 type logging struct {
+	api.PathResolver
 	httpClient.HttpClient
 }
 
 func (l *logging) GetLoggers() (lm map[string]string, err error) {
-	rsp, err := l.Get(LoggersPath, nil)
+	rsp, err := l.Get(l.Logging(""), nil)
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)
 	}()
@@ -43,7 +43,7 @@ func (l *logging) GetLoggers() (lm map[string]string, err error) {
 }
 
 func (l *logging) SetLogger(name, level string) error {
-	path := fmt.Sprintf("%s/%s?level=%s", LoggersPath, name, strings.ToUpper(level))
+	path := l.Logging(fmt.Sprintf("/%s?level=%s", name, strings.ToUpper(level)))
 	rsp, err := l.Put(path, "", nil)
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)

@@ -9,12 +9,18 @@ import (
 type infinispan struct {
 	http.HttpClient
 	ispn13 api.Infinispan
+	api.PathResolver
 }
 
 func New(client http.HttpClient) api.Infinispan {
+	return NewWithPathResolver(client, v13.NewPathResolver())
+}
+
+func NewWithPathResolver(client http.HttpClient, pathResolver api.PathResolver) api.Infinispan {
 	return &infinispan{
-		HttpClient: client,
-		ispn13:     v13.New(client),
+		HttpClient:   client,
+		ispn13:       v13.NewWithPathResolver(client, pathResolver),
+		PathResolver: pathResolver,
 	}
 }
 
@@ -24,8 +30,9 @@ func (i *infinispan) Cache(name string) api.Cache {
 
 func (i *infinispan) Caches() api.Caches {
 	return &caches{
-		HttpClient: i.HttpClient,
-		Caches:     i.ispn13.Caches(),
+		HttpClient:   i.HttpClient,
+		Caches:       i.ispn13.Caches(),
+		PathResolver: i.PathResolver,
 	}
 }
 

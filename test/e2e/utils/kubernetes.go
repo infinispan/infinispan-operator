@@ -18,6 +18,7 @@ import (
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/launcher/operator"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
 	"go.uber.org/zap/zapcore"
@@ -493,7 +494,7 @@ func (k TestKubernetes) WaitForCrd(crd *apiextv1.CustomResourceDefinition) {
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
 // The HostAndPort of the provided HTTPClient is updated to use the external service when available
-func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout time.Duration, client HTTPClient) HTTPClient {
+func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout time.Duration, client HTTPClient, versionManager *version.Manager) HTTPClient {
 	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
 		var hostAndPort string
 		switch ispn.GetExposeType() {
@@ -524,7 +525,12 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 			return false, nil
 		}
 		client.SetHostAndPort(hostAndPort)
-		return CheckExternalAddress(client), nil
+
+		if versionManager == nil {
+			versionManager = VersionManager()
+		}
+		operand := Operand(ispn.Spec.Version, versionManager)
+		return CheckExternalAddress(client, operand), nil
 	})
 	ExpectNoError(err)
 	return client
@@ -570,8 +576,8 @@ func getNodePort(service *corev1.Service) int32 {
 	return service.Spec.Ports[0].NodePort
 }
 
-func CheckExternalAddress(client HTTPClient) bool {
-	status, err := ispnClient.New(LatestOperand, client).Container().HealthStatus()
+func CheckExternalAddress(client HTTPClient, operand version.Operand) bool {
+	status, err := ispnClient.New(operand, client).Container().HealthStatus()
 	if isTemporary(err) {
 		return false
 	}

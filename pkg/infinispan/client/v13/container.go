@@ -10,19 +10,13 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 )
 
-const (
-	CacheManagerPath = BasePath + "/cache-managers/default"
-	ContainerPath    = BasePath + "/container"
-	HealthPath       = CacheManagerPath + "/health"
-	HealthStatusPath = HealthPath + "/status"
-)
-
-type container struct {
+type Container struct {
+	api.PathResolver
 	httpClient.HttpClient
 }
 
-func (c *container) Info() (info *api.ContainerInfo, err error) {
-	rsp, err := c.Get(CacheManagerPath, nil)
+func (c *Container) Info() (info *api.ContainerInfo, err error) {
+	rsp, err := c.Get(c.CacheManager(""), nil)
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)
 	}()
@@ -37,8 +31,8 @@ func (c *container) Info() (info *api.ContainerInfo, err error) {
 	return
 }
 
-func (c *container) HealthStatus() (status api.HealthStatus, err error) {
-	rsp, err := c.Get(HealthStatusPath, nil)
+func (c *Container) HealthStatus() (status api.HealthStatus, err error) {
+	rsp, err := c.Get(c.CacheManager("/health/status"), nil)
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)
 	}()
@@ -53,8 +47,8 @@ func (c *container) HealthStatus() (status api.HealthStatus, err error) {
 	return api.HealthStatus(string(all)), nil
 }
 
-func (c *container) Members() (members []string, err error) {
-	rsp, err := c.Get(HealthPath, nil)
+func (c *Container) Members() (members []string, err error) {
+	rsp, err := c.Get(c.CacheManager("/health"), nil)
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)
 	}()
@@ -76,20 +70,20 @@ func (c *container) Members() (members []string, err error) {
 	return health.ClusterHealth.Nodes, nil
 }
 
-func (c *container) Backups() api.Backups {
-	return &backups{c.HttpClient}
+func (c *Container) Backups() api.Backups {
+	return &backups{c.PathResolver, c.HttpClient}
 }
 
-func (c *container) RebalanceDisable() error {
+func (c *Container) RebalanceDisable() error {
 	return c.rebalance("disable-rebalancing")
 }
 
-func (c *container) RebalanceEnable() error {
+func (c *Container) RebalanceEnable() error {
 	return c.rebalance("enable-rebalancing")
 }
 
-func (c *container) rebalance(action string) error {
-	rsp, err := c.Post(CacheManagerPath+"?action="+action, "", nil)
+func (c *Container) rebalance(action string) error {
+	rsp, err := c.Post(c.CacheManager("?action="+action), "", nil)
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)
 	}()
@@ -97,12 +91,12 @@ func (c *container) rebalance(action string) error {
 	return err
 }
 
-func (c *container) Restores() api.Restores {
-	return &restores{c.HttpClient}
+func (c *Container) Restores() api.Restores {
+	return &restores{c.PathResolver, c.HttpClient}
 }
 
-func (c *container) Shutdown() (err error) {
-	rsp, err := c.Post(ContainerPath+"?action=shutdown", "", nil)
+func (c *Container) Shutdown() (err error) {
+	rsp, err := c.Post(c.Container("?action=shutdown"), "", nil)
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)
 	}()
@@ -110,6 +104,6 @@ func (c *container) Shutdown() (err error) {
 	return err
 }
 
-func (c *container) Xsite() api.Xsite {
-	return &xsite{c.HttpClient}
+func (c *Container) Xsite() api.Xsite {
+	return &xsite{c.HttpClient, c.PathResolver}
 }

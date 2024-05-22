@@ -5,16 +5,16 @@ import (
 
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
-	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
 )
 
 type caches struct {
 	httpClient.HttpClient
 	api.Caches
+	api.PathResolver
 }
 
 func (c *caches) EqualConfiguration(a, b string) (bool, error) {
-	path := v13.CachesPath + "?action=compare"
+	path := c.PathResolver.Caches("?action=compare")
 	parts := map[string]string{
 		"a": a,
 		"b": b,
