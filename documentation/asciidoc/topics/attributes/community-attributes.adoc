@@ -30,8 +30,8 @@
 :operand_version: 15.0.4
 
 :ispn_operator: Infinispan Operator
-:ispn_operator_version: 2.3
-:operator_channel: 2.3.x
+:ispn_operator_version: 2.4
+:operator_channel: stable
 :schemaversion: 15.0
 :brandname: Infinispan
 :fullbrandname: Infinispan
