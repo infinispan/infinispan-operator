@@ -12,6 +12,8 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	ispnv2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
+	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -828,7 +830,8 @@ func testBackupCrossSiteCache(t *testing.T, useTLS bool) {
 	assert.Contains(t, ispnXSite2.GetCondition(ispnv1.ConditionCrossSiteViewFormed).Message, "xsite1,xsite2")
 
 	//Populate the cluster with some data to backup
-	client := tutils.HTTPClientForCluster(&testKubes["xsite1"].crossSite, testKubes["xsite1"].kube)
+	versionManager := getVersionManager(t, testKubes["xsite1"].kube)
+	client := tutils.HTTPClientForClusterWithVersionManager(&testKubes["xsite1"].crossSite, testKubes["xsite1"].kube, versionManager)
 	cacheName := "xsiteCache"
 
 	cache := tutils.NewCacheHelper(cacheName, client)
@@ -866,4 +869,20 @@ func backupSpec(testName, name, namespace, cluster string) *ispnv2.Backup {
 	}
 	spec.Default()
 	return spec
+}
+
+func getVersionManager(t *testing.T, kube *tutils.TestKubernetes) *version.Manager {
+	podList := kube.WaitForPods(1, tutils.SinglePodTimeout, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"control-plane": "controller-manager",
+		})},
+		nil,
+	)
+	assert.Equal(t, 1, len(podList.Items))
+	envVars := podList.Items[0].Spec.Containers[0].Env
+	index := kubernetes.GetEnvVarIndex(ispnv1.OperatorOperandVersionEnvVarName, &envVars)
+	assert.GreaterOrEqual(t, index, 0)
+	versionManager, err := version.ManagerFromJson(envVars[index].Value)
+	tutils.ExpectNoError(err)
+	return versionManager
 }

@@ -395,7 +395,11 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 }
 
 func HTTPClientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
-	return kube.WaitForExternalService(i, RouteTimeout, clientForCluster(i, kube))
+	return HTTPClientForClusterWithVersionManager(i, kube, nil)
+}
+
+func HTTPClientForClusterWithVersionManager(i *ispnv1.Infinispan, kube *TestKubernetes, manager *version.Manager) HTTPClient {
+	return kube.WaitForExternalService(i, RouteTimeout, clientForCluster(i, kube), manager)
 }
 
 func HTTPSClientForCluster(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) HTTPClient {
@@ -424,5 +428,15 @@ func HTTPSClientForCluster(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *Te
 			client = NewClient(authNone, nil, nil, "https", tlsConfig)
 		}
 	}
-	return kube.WaitForExternalService(i, RouteTimeout, client)
+	return kube.WaitForExternalService(i, RouteTimeout, client, nil)
+}
+
+// Operand replicates the semantics of InitialiseOperandVersion pipeline handler for determing Operand version when no version is explicitly provided
+func Operand(ref string, manager *version.Manager) version.Operand {
+	if ref == "" {
+		return manager.Oldest()
+	}
+	operand, err := manager.WithRef(ref)
+	ExpectNoError(err)
+	return operand
 }

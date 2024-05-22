@@ -6,16 +6,17 @@ import (
 	"net/http"
 
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 )
-
-const XSitePath = CacheManagerPath + "/x-site/backups"
 
 type xsite struct {
 	httpClient.HttpClient
+	api.PathResolver
 }
 
 func (x *xsite) PushAllState() (err error) {
-	rsp, err := x.Get(XSitePath, nil)
+	xsitePath := x.CacheManager("/x-site/backups")
+	rsp, err := x.Get(xsitePath, nil)
 	if err = httpClient.ValidateResponse(rsp, err, "Retrieving xsite status", http.StatusOK); err != nil {
 		return
 	}
@@ -38,7 +39,7 @@ func (x *xsite) PushAllState() (err error) {
 	// Statuses will be empty if no xsite caches are configured
 	for k, v := range statuses {
 		if v.Status == "online" {
-			url := fmt.Sprintf("%s/%s?action=start-push-state", XSitePath, k)
+			url := fmt.Sprintf("%s/%s?action=start-push-state", xsitePath, k)
 			rsp, err = x.Post(url, "", nil)
 			if err = httpClient.ValidateResponse(rsp, err, "Pushing xsite state", http.StatusOK); err != nil {
 				return

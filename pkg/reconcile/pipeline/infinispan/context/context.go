@@ -113,6 +113,11 @@ func (c *contextImpl) InfinispanClientForPod(podName string) api.Infinispan {
 	return ispnClient.New(c.Operand(), curlClient)
 }
 
+func (c *contextImpl) InfinispanClientUnknownVersion(podName string) (api.Infinispan, error) {
+	curlClient := c.curlClient(podName)
+	return ispnClient.NewUnknownVersion(curlClient)
+}
+
 func (c *contextImpl) InfinispanPods() (*corev1.PodList, error) {
 	if c.ispnPods == nil {
 		statefulSet := &appsv1.StatefulSet{}

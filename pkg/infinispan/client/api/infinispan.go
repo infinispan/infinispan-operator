@@ -154,6 +154,7 @@ type BackupRestoreResources struct {
 type ContainerInfo struct {
 	Coordinator bool           `json:"coordinator"`
 	SitesView   *[]interface{} `json:"sites_view,omitempty"`
+	Version     string         `json:"version"`
 }
 
 type NotSupportedError struct {
@@ -162,4 +163,12 @@ type NotSupportedError struct {
 
 func (n *NotSupportedError) Error() string {
 	return fmt.Sprintf("Operation not supported with Operand Major Version'%s'", n.Version)
+}
+
+type PathResolver interface {
+	Caches(string) string
+	CacheManager(string) string
+	Container(string) string
+	Logging(string) string
+	Server(string) string
 }

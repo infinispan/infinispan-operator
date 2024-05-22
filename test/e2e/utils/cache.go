@@ -152,7 +152,7 @@ func (c *CacheHelper) Available(available bool) {
 	} else {
 		availability = "DEGRADED_MODE"
 	}
-	path := fmt.Sprintf("%s/%s?action=set-availability&availability=%s", v13.CachesPath, url.PathEscape(c.CacheName), availability)
+	path := v13.NewPathResolver().Caches(fmt.Sprintf("/%s?action=set-availability&availability=%s", url.PathEscape(c.CacheName), availability))
 	_, err := c.Client.Post(path, "", nil)
 	ExpectNoError(err)
 }

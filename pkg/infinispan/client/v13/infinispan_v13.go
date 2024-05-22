@@ -7,32 +7,36 @@ import (
 )
 
 const (
-	BasePath     = "rest/v2"
 	MajorVersion = "13"
 )
 
 type infinispan struct {
+	api.PathResolver
 	http.HttpClient
 }
 
 func New(client http.HttpClient) api.Infinispan {
-	return &infinispan{client}
+	return NewWithPathResolver(client, NewPathResolver())
+}
+
+func NewWithPathResolver(client http.HttpClient, pathResolver api.PathResolver) api.Infinispan {
+	return &infinispan{pathResolver, client}
 }
 
 func (i *infinispan) Cache(name string) api.Cache {
-	return &cache{i.HttpClient, name}
+	return &cache{i.PathResolver, i.HttpClient, name}
 }
 
 func (i *infinispan) Caches() api.Caches {
-	return &caches{i.HttpClient}
+	return &caches{i.PathResolver, i.HttpClient}
 }
 
 func (i *infinispan) Container() api.Container {
-	return &container{i.HttpClient}
+	return &Container{i.PathResolver, i.HttpClient}
 }
 
 func (i *infinispan) Logging() api.Logging {
-	return &logging{i.HttpClient}
+	return &logging{i.PathResolver, i.HttpClient}
 }
 
 func (i *infinispan) Metrics() api.Metrics {
@@ -48,5 +52,5 @@ func (i *infinispan) ScriptCacheName() string {
 }
 
 func (i *infinispan) Server() api.Server {
-	return &server{i.HttpClient}
+	return &server{i.PathResolver, i.HttpClient}
 }

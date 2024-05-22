@@ -83,6 +83,9 @@ type Context interface {
 	// InfinispanClientForPod returns a client for the specific pod
 	InfinispanClientForPod(podName string) ispnApi.Infinispan
 
+	// InfinispanClientUnknownVersion returns a client for a specified pod based upon the version returned by the server
+	InfinispanClientUnknownVersion(podName string) (ispnApi.Infinispan, error)
+
 	// InfinispanPods returns all pods associated with the Infinispan cluster's StatefulSet
 	// The list is created Lazily and cached per Pipeline execution to prevent repeated calls to retrieve the cluster pods
 	// If an error is returned, then RetryProcessing is automatically set

@@ -270,6 +270,21 @@ func (mr *MockContextMockRecorder) InfinispanClientForPod(podName interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InfinispanClientForPod", reflect.TypeOf((*MockContext)(nil).InfinispanClientForPod), podName)
 }
 
+// InfinispanClientUnknownVersion mocks base method.
+func (m *MockContext) InfinispanClientUnknownVersion(podName string) (api.Infinispan, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InfinispanClientUnknownVersion", podName)
+	ret0, _ := ret[0].(api.Infinispan)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InfinispanClientUnknownVersion indicates an expected call of InfinispanClientUnknownVersion.
+func (mr *MockContextMockRecorder) InfinispanClientUnknownVersion(podName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InfinispanClientUnknownVersion", reflect.TypeOf((*MockContext)(nil).InfinispanClientUnknownVersion), podName)
+}
+
 // InfinispanPods mocks base method.
 func (m *MockContext) InfinispanPods() (*v10.PodList, error) {
 	m.ctrl.T.Helper()

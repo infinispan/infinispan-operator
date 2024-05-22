@@ -122,7 +122,11 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				}
 
 				for idx, pod := range podList.Items {
-					ispnClient := ctx.InfinispanClientForPod(pod.Name)
+					ispnClient, err := ctx.InfinispanClientUnknownVersion(pod.Name)
+					if err != nil {
+						ctx.Requeue(fmt.Errorf("unable to create Infinispan client for cluster being upgraded: %w", err))
+						return
+					}
 					if idx == 0 {
 						if err := ispnClient.Container().RebalanceDisable(); err != nil {
 							ctx.Requeue(fmt.Errorf("unable to disable rebalancing: %w", err))
