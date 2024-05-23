@@ -10,6 +10,7 @@ import (
 
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/controllers"
 	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
@@ -41,7 +42,7 @@ func TestBatchInlineConfig(t *testing.T) {
 func testBatchInlineConfig(t *testing.T, infinispan *v1.Infinispan) {
 	name := infinispan.Name
 	batchScript := batchString()
-	batch := helper.CreateBatch(t, name, name, &batchScript, nil)
+	batch := helper.CreateBatch(t, name, name, &batchScript, nil, nil)
 
 	helper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 
@@ -73,7 +74,7 @@ func TestBatchConfigMap(t *testing.T) {
 	testKube.CreateConfigMap(configMap)
 	defer testKube.DeleteConfigMap(configMap)
 
-	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, nil, &configMapName)
+	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, nil, &configMapName, nil)
 
 	helper.WaitForValidBatchPhase(infinispan.Name, v2.BatchSucceeded)
 	testKube.DeleteBatch(batch)
@@ -92,9 +93,31 @@ func TestBatchFail(t *testing.T) {
 	infinispan := createCluster(t)
 
 	batchScript := "SOME INVALID BATCH CMD!"
-	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, &batchScript, nil)
+	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, &batchScript, nil, nil)
 
 	helper.WaitForValidBatchPhase(infinispan.Name, v2.BatchFailed)
+	testKube.DeleteBatch(batch)
+	waitForK8sResourceCleanup(infinispan.Name)
+}
+
+func TestBatchWithResources(t *testing.T) {
+	infinispan := createCluster(t)
+	batchScript := batchString()
+	bcSpec := &v2.BatchContainerSpec{Memory: "1Gi:1Gi", CPU: "500m:500m"}
+	podRes := controllers.BatchResources(bcSpec)
+	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, &batchScript, nil, bcSpec)
+
+	helper.WaitForValidBatchPhase(infinispan.Name, v2.BatchRunning)
+
+	job := testKube.GetJob(infinispan.Name, tutils.Namespace)
+	limits := job.Spec.Template.Spec.Containers[0].Resources.Limits
+	requests := job.Spec.Template.Spec.Containers[0].Resources.Requests
+	if !limits.Cpu().Equal(*podRes.Limits.Cpu()) ||
+		!limits.Memory().Equal(*podRes.Limits.Memory()) ||
+		!requests.Cpu().Equal(*podRes.Requests.Cpu()) ||
+		!requests.Memory().Equal(*podRes.Requests.Memory()) {
+		panic(fmt.Errorf("unexpected error"))
+	}
 	testKube.DeleteBatch(batch)
 	waitForK8sResourceCleanup(infinispan.Name)
 }

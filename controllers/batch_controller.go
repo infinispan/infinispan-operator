@@ -194,6 +194,7 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 								MountPath: consts.ServerAdminIdentitiesRoot,
 							},
 						},
+						Resources: *BatchResources(batch.Spec.Container),
 					}},
 					RestartPolicy: corev1.RestartPolicyNever,
 					Volumes: []corev1.Volume{
@@ -317,4 +318,27 @@ func batchLabels(name string) map[string]string {
 		"infinispan_batch": name,
 		"app":              "infinispan-batch-pod",
 	}
+}
+
+func BatchResources(spec *v2.BatchContainerSpec) *corev1.ResourceRequirements {
+	if spec == nil {
+		return &corev1.ResourceRequirements{}
+	}
+	memRequests, memLimits, _ := spec.MemoryResources()
+
+	req := &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: memRequests,
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: memLimits,
+		},
+	}
+
+	if spec.CPU != "" {
+		cpuRequests, cpuLimits, _ := spec.CpuResources()
+		req.Requests[corev1.ResourceCPU] = cpuRequests
+		req.Limits[corev1.ResourceCPU] = cpuLimits
+	}
+	return req
 }
