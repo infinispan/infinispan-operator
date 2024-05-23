@@ -16,6 +16,18 @@ type BatchSpec struct {
 	// Name of the ConfigMap containing the batch and resource files to be executed
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ConfigMap Name"
 	ConfigMap *string `json:"configMap,omitempty"`
+	// +optional
+	// Specify resource requirements per container
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Container Spec"
+	Container *BatchContainerSpec `json:"container,omitempty"`
+}
+
+// BatchContainerSpec specify resource requirements per container
+type BatchContainerSpec struct {
+	// +optional
+	Memory string `json:"memory,omitempty"`
+	// +optional
+	CPU string `json:"cpu,omitempty"`
 }
 
 type BatchPhase string
