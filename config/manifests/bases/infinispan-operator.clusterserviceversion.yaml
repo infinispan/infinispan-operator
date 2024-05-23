@@ -62,6 +62,9 @@ spec:
           to be executed
         displayName: ConfigMap Name
         path: configMap
+      - description: Specify resource requirements per container
+        displayName: Container Spec
+        path: container
       statusDescriptors:
       - description: The UUID of the Infinispan instance that the Batch is associated
           with
