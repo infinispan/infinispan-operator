@@ -45,6 +45,14 @@ spec:
                 description: Name of the ConfigMap containing the batch and resource
                   files to be executed
                 type: string
+              container:
+                description: Specify resource requirements per container
+                properties:
+                  cpu:
+                    type: string
+                  memory:
+                    type: string
+                type: object
             required:
             - cluster
             type: object
