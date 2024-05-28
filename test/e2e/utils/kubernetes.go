@@ -23,7 +23,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -68,7 +67,6 @@ func init() {
 	addToScheme(&ispnv2.SchemeBuilder.SchemeBuilder, Scheme)
 	addToScheme(&appsv1.SchemeBuilder, Scheme)
 	addToScheme(&storagev1.SchemeBuilder, Scheme)
-	addToScheme(&batchv1.SchemeBuilder, Scheme)
 	ExpectNoError(routev1.AddToScheme(Scheme))
 }
 
@@ -1088,15 +1086,4 @@ func (k TestKubernetes) GetUsedNodePorts() map[int32]struct{} {
 		}
 	}
 	return usedPorts
-}
-
-// GetStatefulSet gets an Infinispan resource in the given namespace
-func (k TestKubernetes) GetJob(name, namespace string) *batchv1.Job {
-	job := &batchv1.Job{}
-	key := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
-	}
-	ExpectMaybeNotFound(k.Kubernetes.Client.Get(context.TODO(), key, job))
-	return job
 }

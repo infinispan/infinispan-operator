@@ -135,29 +135,5 @@ var _ = Describe("Batch Webhook", func() {
 			updated.Spec.ConfigMap = pointer.String("New ConfigMap")
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 		})
-
-		It("Should return error if malformed memory or CPU request is greater than limit", func() {
-			created := &Batch{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      key.Name,
-					Namespace: key.Namespace,
-				},
-				Spec: BatchSpec{
-					Cluster: "some-cluster",
-					Config:  pointer.String("create cache --template=org.infinispan.DIST_SYNC batch-cache"),
-					Container: &BatchContainerSpec{
-						Memory: "1Gi:5Gi",
-						CPU:    "1000m:2000m",
-					},
-				},
-			}
-
-			err := k8sClient.Create(ctx, created)
-			expectInvalidErrStatus(err, []statusDetailCause{{
-				metav1.CauseTypeFieldValueInvalid, "spec.container.cpu", "exceeds limit",
-			}, {
-				metav1.CauseTypeFieldValueInvalid, "spec.container.memory", "exceeds limit",
-			}}...)
-		})
 	})
 })

@@ -377,6 +377,6 @@ func checkBatch(t *testing.T, name string) {
 	// Run a batch in the migrated cluster
 	batchHelper := batchtest.NewBatchHelper(testKube)
 	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
-	batchHelper.CreateBatch(t, name, name, &config, nil, nil)
+	batchHelper.CreateBatch(t, name, name, &config, nil)
 	batchHelper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 }

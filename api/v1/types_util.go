@@ -446,35 +446,35 @@ func (ispn *Infinispan) GetTruststoreSecretName() string {
 
 // GetCpuResources returns the CPU request and limit values to be used by pods
 func (spec *InfinispanContainerSpec) GetCpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
-	return GetRequestLimits(spec.CPU)
+	return getRequestLimits(spec.CPU)
 }
 
 // GetMemoryResources returns the Memory request and limit values to be used by pods
 func (spec *InfinispanContainerSpec) GetMemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
-	return GetRequestLimits(spec.Memory)
+	return getRequestLimits(spec.Memory)
 }
 
 // CpuResources returns the CPU request and limit values to be used by pods
 func (spec *ConfigListenerSpec) CpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
-	return GetRequestLimits(spec.CPU)
+	return getRequestLimits(spec.CPU)
 }
 
 // MemoryResources returns the Memory request and limit values to be used by pods
 func (spec *ConfigListenerSpec) MemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
-	return GetRequestLimits(spec.Memory)
+	return getRequestLimits(spec.Memory)
 }
 
 // CpuResources returns the CPU request and limit values to be used by by Gossip Router pod
 func (spec *DiscoverySiteSpec) CpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
-	return GetRequestLimits(spec.CPU)
+	return getRequestLimits(spec.CPU)
 }
 
 // MemoryResources returns the Memory request and limit values to be used by Gossip Router pod
 func (spec *DiscoverySiteSpec) MemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
-	return GetRequestLimits(spec.Memory)
+	return getRequestLimits(spec.Memory)
 }
 
-func GetRequestLimits(str string) (requests resource.Quantity, limits resource.Quantity, err error) {
+func getRequestLimits(str string) (requests resource.Quantity, limits resource.Quantity, err error) {
 	if str == "" {
 		err = fmt.Errorf("resource string cannot be empty")
 		return

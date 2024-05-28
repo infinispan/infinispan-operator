@@ -3,8 +3,6 @@ package v2alpha1
 import (
 	"strings"
 
-	v1 "github.com/infinispan/infinispan-operator/api/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -58,14 +56,4 @@ func (b *Batch) ConfigMapName() string {
 // equals compares two ConditionType's case insensitive
 func (a CacheConditionType) equals(b CacheConditionType) bool {
 	return strings.EqualFold(strings.ToLower(string(a)), strings.ToLower(string(b)))
-}
-
-// CpuResources returns the CPU request and limit values to be used by Batch pod
-func (spec *BatchContainerSpec) CpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
-	return v1.GetRequestLimits(spec.CPU)
-}
-
-// MemoryResources returns the Memory request and limit values to be used by by Batch pod
-func (spec *BatchContainerSpec) MemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
-	return v1.GetRequestLimits(spec.Memory)
 }

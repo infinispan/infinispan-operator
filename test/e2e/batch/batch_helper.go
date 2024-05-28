@@ -21,7 +21,7 @@ func NewBatchHelper(testKube *tutils.TestKubernetes) *BatchHelper {
 	}
 }
 
-func (b BatchHelper) CreateBatch(t *testing.T, name, cluster string, config, configMap *string, containerSpec *v2.BatchContainerSpec) *v2.Batch {
+func (b BatchHelper) CreateBatch(t *testing.T, name, cluster string, config, configMap *string) *v2.Batch {
 	testName := tutils.TestName(t)
 	batch := &v2.Batch{
 		TypeMeta: metav1.TypeMeta{
@@ -37,7 +37,6 @@ func (b BatchHelper) CreateBatch(t *testing.T, name, cluster string, config, con
 			Cluster:   cluster,
 			Config:    config,
 			ConfigMap: configMap,
-			Container: containerSpec,
 		},
 	}
 	b.testKube.Create(batch)
