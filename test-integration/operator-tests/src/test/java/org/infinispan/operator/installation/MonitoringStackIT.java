@@ -47,7 +47,7 @@ public class MonitoringStackIT {
 
     private static final OpenShiftWaiters grafanaWaiter = OpenShiftWaiters.get(grafanaShift, () -> false);
 
-    private static final Infinispan infinispan = Infinispans.cacheService();
+    private static final Infinispan infinispan = Infinispans.ocpCerts();
 
     @BeforeAll
     static void prepare() throws IOException {
