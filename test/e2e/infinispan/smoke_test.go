@@ -90,6 +90,10 @@ func verifyDefaultAuthention(require *require.Assertions, ispn *v1.Infinispan) {
 }
 
 func TestCacheService(t *testing.T) {
+	// The Operator must be running locally to avoid webhook checks
+	if tutils.RunLocalOperator != "TRUE" {
+		t.SkipNow()
+	}
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
