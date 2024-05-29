@@ -121,32 +121,4 @@ class DevSetupIT {
    void disableServiceMonitorTest() {
       Assertions.assertThat(openShift.monitoring().serviceMonitors().withName(appName + "monitor").get()).isEqualTo(null);
    }
-
-   /**
-    * Verify that default cache was created and is accessible.
-    */
-   @Tag("unstable")
-   @Test
-   void defaultCacheAvailabilityTest() throws Exception {
-      String keyUrl = "http://" + hostName + "/rest/v2/caches/default/availability-test";
-
-      Http put = Http.put(keyUrl).data("default-cache-value", ContentType.TEXT_PLAIN);
-      Http get = Http.get(keyUrl);
-
-      Assertions.assertThat(put.execute().code()).isEqualTo(204);
-      Assertions.assertThat(get.execute().response()).isEqualTo("default-cache-value");
-   }
-
-   /**
-    * Default replication factor should be 2
-    */
-   @Tag("unstable")
-   @Test
-   void defaultReplicationFactorTest() throws Exception {
-      String request = "http://" + hostName + "/rest/v2/caches/default?action=config";
-      String config = Http.get(request).execute().response();
-      String[] owners = Stream.of(config.split(",")).filter(s -> s.contains("owners")).map(s -> s.trim().split(":")).findFirst().orElseThrow(() -> new IllegalStateException("Unable to retrieve owners"));
-
-      Assertions.assertThat(owners[owners.length -1 ].replace("\"", "")).isEqualTo("2");
-   }
 }

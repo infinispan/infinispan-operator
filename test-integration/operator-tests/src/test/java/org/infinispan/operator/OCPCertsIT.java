@@ -6,13 +6,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import cz.xtf.core.waiting.SimpleWaiter;
 import io.fabric8.kubernetes.api.model.Pod;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.http.entity.ContentType;
 import org.assertj.core.api.Assertions;
 import org.infinispan.Caches;
@@ -23,15 +19,12 @@ import org.infinispan.identities.Credentials;
 import org.infinispan.util.CleanUpValidator;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import cz.xtf.client.Http;
 import cz.xtf.core.http.Https;
 import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
-import cz.xtf.core.waiting.Waiters;
 import cz.xtf.junit5.annotations.CleanBeforeAll;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,9 +35,9 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @CleanBeforeAll
-class CacheServiceIT {
+class OCPCertsIT {
    private static final OpenShift openShift = OpenShifts.master();
-   private static final Infinispan infinispan = Infinispans.cacheService();
+   private static final Infinispan infinispan = Infinispans.ocpCerts();
    private static final TestServer testServer = TestServer.get();
 
    private static String appName;
@@ -86,22 +79,6 @@ class CacheServiceIT {
       new CleanUpValidator(openShift, appName).withExposedRoute().withDefaultCredentials().withOpenShiftCerts().withServiceMonitor().validate();
 
       openShift.events().delete();
-   }
-
-   /**
-    * Verify that default cache was created and is accessible through exposed LoadBalancer.
-    * We need to trust all the certificates as used are valid only for OpenShifts internal communication.
-    */
-   @Tag("unstable")
-   @Test
-   void defaultCacheAvailabilityTest() throws Exception {
-      String keyUrl = "https://" + hostName + "/rest/v2/caches/default/availability-test";
-
-      Http put = Http.put(keyUrl).basicAuth(user, pass).data("default-cache-value", ContentType.TEXT_PLAIN).trustAll();
-      Http get = Http.get(keyUrl).basicAuth(user, pass).trustAll();
-
-      Assertions.assertThat(put.execute().code()).isEqualTo(204);
-      Assertions.assertThat(get.execute().response()).isEqualTo("default-cache-value");
    }
 
    /**
@@ -149,55 +126,5 @@ class CacheServiceIT {
       Set<String> nodeNames = clusterPods.stream().map(p -> p.getSpec().getNodeName()).collect(Collectors.toSet());
 
       Assertions.assertThat(nodeNames).hasSize(3);
-   }
-
-   /**
-    * Verifies replicationFactor of default cache is set to 1 by reading cache configuration.
-    */
-   @Tag("unstable")
-   @Test
-   void replicationFactorTest() throws Exception {
-      String request = "https://" + hostName + "/rest/v2/caches/default?action=config";
-      String config = Http.get(request).basicAuth(user, pass).trustAll().execute().response();
-      String[] owners = Stream.of(config.split(",")).filter(s -> s.contains("owners")).map(s -> s.trim().split(":")).findFirst().orElseThrow(() -> new IllegalStateException("Unable to retrieve owners"));
-
-      Assertions.assertThat(owners[owners.length -1 ].replace("\"", "")).isEqualTo("3");
-   }
-
-   /**
-    * Verifies autoscaling feature of default cache.
-    */
-   @Test
-   @Tag("unstable")
-   @Disabled
-   void autoscalingTest() throws Exception {
-      String request = "https://" + hostName + "/rest/v2/caches/default/autoscaling-key-";
-      int i = 0;
-
-      System.out.print("Loading");
-      while (openShift.pods().withLabel("clusterName", appName).list().getItems().size() < 5) {
-         i++;
-         Http.put(request + i).basicAuth(user, pass).data(RandomStringUtils.randomAlphanumeric(1048576), ContentType.TEXT_PLAIN).trustAll().execute();
-         System.out.print(".");
-         Waiters.sleep(300);
-      }
-      System.out.println();
-      System.out.println("Loading finished");
-
-      // Wait for WellFormed. Cycle above exits moment last pod is created but not ready.
-      infinispan.waitFor();
-
-      System.out.print("Deleting");
-      while (i > 1) {
-         Http.delete(request + i).basicAuth(user, pass).trustAll().execute();
-         i--;
-         System.out.print(".");
-         Waiters.sleep(300);
-      }
-      System.out.println();
-      System.out.println("Deleting finished");
-
-      BooleanSupplier bs = () -> openShift.pods().withLabel("clusterName", appName).list().getItems().size() == 3;
-      new SimpleWaiter(bs, TimeUnit.MINUTES, 3, "Waiting for cluster stabilization").waitFor();
    }
 }

@@ -1,18 +1,13 @@
 apiVersion: infinispan.org/v1
 kind: Infinispan
 metadata:
-  name: cache-service
+  name: ocp-certs
 spec:
-  # autoscale:
-  #   maxMemUsagePercent: 40
-  #   maxReplicas: 5
-  #   minMemUsagePercent: 20
-  #   minReplicas: 3
   container:
     memory: 512Mi
   expose:
     type: Route
   service:
-    type: Cache
+    type: DataGrid
     replicationFactor: 3
   replicas: 3
