@@ -964,6 +964,14 @@ func (ispn *Infinispan) PriorityClassName() string {
 	return ""
 }
 
+func (ispn *Infinispan) Tolerations() []corev1.Toleration {
+	return ispn.Spec.Scheduling.Tolerations
+}
+
+func (ispn *Infinispan) TopologySpreadConstraints() []corev1.TopologySpreadConstraint {
+	return ispn.Spec.Scheduling.TopologySpreadConstraints
+}
+
 func (c *ContainerProbeSpec) AssignDefaults(failureThreshold, initialDelay, period, successThreshold, timeout int32) {
 	if c.FailureThreshold == nil {
 		c.FailureThreshold = pointer.Int32(failureThreshold)

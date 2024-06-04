@@ -470,6 +470,10 @@ type SchedulingSpec struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// +optional
 	PriorityClassName string `json:"PriorityClassName,omitempty"`
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// +optional
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan
