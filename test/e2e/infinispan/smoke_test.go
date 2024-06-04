@@ -3,6 +3,7 @@ package infinispan
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -39,6 +40,18 @@ func TestBaseFunctionality(t *testing.T) {
 		i.Annotations["my-pod-annotation"] = "my-pod-value"
 		i.Annotations[v1.RouterAnnotations] = "my-router-annotation"
 		i.Annotations["my-router-annotation"] = "my-router-value"
+		i.Spec.Scheduling = &v1.SchedulingSpec{Tolerations: []corev1.Toleration{{
+			Key:      "gpu",
+			Operator: "Equal",
+			Value:    "True",
+			Effect:   "NoSchedule",
+		}},
+			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{{
+				MaxSkew:           1,
+				TopologyKey:       "topKey",
+				WhenUnsatisfiable: "ScheduleAnyway",
+			}},
+		}
 	})
 
 	// Create the cluster
@@ -52,6 +65,7 @@ func TestBaseFunctionality(t *testing.T) {
 	verifyNoPVCs(assert, ispn)
 	verifyLabelsAndAnnotations(assert, require, ispn)
 	verifyDefaultAuthention(require, ispn)
+	verifyScheduling(assert, require, ispn)
 }
 
 // Make sure no PVCs were created
@@ -87,6 +101,22 @@ func verifyDefaultAuthention(require *require.Assertions, ispn *v1.Infinispan) {
 	require.NoError(err)
 
 	testAuthentication(ispn, schema, user, pass)
+}
+
+// Make sure Scheduling settings are propagated created
+func verifyScheduling(assert *assert.Assertions, require *require.Assertions, ispn *v1.Infinispan) {
+	pod := corev1.Pod{}
+	require.NoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: ispn.Name + "-0", Namespace: tutils.Namespace}, &pod))
+	// From Infinispan CR to pods
+	areEqual := false
+	for _, v := range pod.Spec.Tolerations {
+		if reflect.DeepEqual(v, ispn.Spec.Scheduling.Tolerations[0]) {
+			areEqual = true
+			break
+		}
+	}
+	assert.True(areEqual)
+	assert.EqualValues(pod.Spec.TopologySpreadConstraints, ispn.Spec.Scheduling.TopologySpreadConstraints)
 }
 
 func TestCacheService(t *testing.T) {

@@ -117,6 +117,16 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		updateNeeded = true
 	}
 
+	if !reflect.DeepEqual(spec.Tolerations, i.Tolerations()) {
+		spec.Tolerations = i.Tolerations()
+		updateNeeded = true
+	}
+
+	if !reflect.DeepEqual(spec.TopologySpreadConstraints, i.TopologySpreadConstraints()) {
+		spec.TopologySpreadConstraints = i.TopologySpreadConstraints()
+		updateNeeded = true
+	}
+
 	if spec.PriorityClassName != i.PriorityClassName() {
 		spec.PriorityClassName = i.PriorityClassName()
 		updateNeeded = true
