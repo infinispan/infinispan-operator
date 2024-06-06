@@ -386,6 +386,18 @@ type InfinispanExternalDependencies struct {
 	VolumeClaimName string `json:"volumeClaimName,omitempty"`
 	// +optional
 	Artifacts []InfinispanExternalArtifacts `json:"artifacts,omitempty"`
+	// +optional
+	InitContainerSpec InitDependenciesContainerSpec `json:"initContainer"`
+}
+
+// Dependencies describes the configuration options for the dependency download init container
+type InitDependenciesContainerSpec struct {
+	// +optional
+	// Memory in limit:request format
+	Memory string `json:"memory,omitempty"`
+	// +optional
+	// CPU in limit:request format
+	CPU string `json:"cpu,omitempty"`
 }
 
 // ExternalArtifactType defines external artifact file type

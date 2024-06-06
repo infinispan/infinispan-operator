@@ -39,6 +39,10 @@ func TestExternalDependenciesHttp(t *testing.T) {
 				{Url: fmt.Sprintf("http://%s:%d/task01-1.0.0.jar", tutils.WebServerName, tutils.WebServerPortNumber)},
 				{Url: fmt.Sprintf("http://%s:%d/task02-1.0.0.zip", tutils.WebServerName, tutils.WebServerPortNumber)},
 			},
+			InitContainerSpec: ispnv1.InitDependenciesContainerSpec{
+				Memory: "512Mi:64Mi",
+				CPU:    "1000m:100m",
+			},
 		}
 	})
 

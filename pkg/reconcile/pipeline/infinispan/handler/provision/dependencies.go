@@ -1,6 +1,7 @@
 package provision
 
 import (
+	"fmt"
 	"strings"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -38,6 +39,11 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 	volumes := &spec.Volumes
 	volumeMounts := &ispnContainer.VolumeMounts
 	containerPosition := kube.ContainerIndex(*initContainers, ExternalArtifactsDownloadInitContainer)
+	initContainerResources, err := initContainerResources(&ispn.Spec.Dependencies.InitContainerSpec)
+	if err != nil {
+		return false, fmt.Errorf("unable to calculate dependencies download init container resources: %w", err)
+	}
+
 	if ispn.HasExternalArtifacts() {
 		serverLibs := serverLibs(ispn)
 		if containerPosition >= 0 {
@@ -45,8 +51,13 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 				spec.InitContainers[containerPosition].Env[0].Value = serverLibs
 				updated = true
 			}
+			if !resourceEquals(&spec.InitContainers[containerPosition].Resources, initContainerResources) {
+				spec.InitContainers[containerPosition].Resources = *initContainerResources
+				updated = true
+			}
+
 		} else {
-			*initContainers = append(*initContainers, corev1.Container{
+			container := corev1.Container{
 				Image: ispn.ImageName(),
 				Name:  ExternalArtifactsDownloadInitContainer,
 				Env: []corev1.EnvVar{
@@ -59,7 +70,11 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 					Name:      ExternalArtifactsVolumeName,
 					MountPath: ExternalArtifactsMountPath,
 				}},
-			})
+			}
+			if initContainerResources != nil {
+				container.Resources = *initContainerResources
+			}
+			*initContainers = append(*initContainers, container)
 			*volumeMounts = append(*volumeMounts, corev1.VolumeMount{Name: ExternalArtifactsVolumeName, MountPath: ExternalArtifactsMountPath, ReadOnly: true})
 			*volumes = append(*volumes, corev1.Volume{Name: ExternalArtifactsVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}})
 			updated = true
@@ -73,6 +88,69 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 		updated = true
 	}
 	return
+}
+
+func resourceEquals(res1 *corev1.ResourceRequirements, res2 *corev1.ResourceRequirements) bool {
+	if res1 == nil && res2 != nil {
+		return false
+	}
+	if res1 != nil && res2 == nil {
+		return false
+	}
+	if res1 == nil && res2 == nil {
+		return true
+	}
+	if !(res1 == nil && res2 == nil) {
+		if len(res1.Requests) != len(res2.Requests) {
+			return false
+		}
+		if len(res1.Limits) != len(res2.Limits) {
+			return false
+		}
+		for k, v := range res1.Requests {
+			if v.Cmp(res2.Requests[k]) != 0 {
+				return false
+			}
+		}
+		for k, v := range res1.Limits {
+			if v.Cmp(res2.Limits[k]) != 0 {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func initContainerResources(spec *ispnv1.InitDependenciesContainerSpec) (*corev1.ResourceRequirements, error) {
+
+	if spec.CPU == "" && spec.Memory == "" {
+		return &corev1.ResourceRequirements{}, nil
+	}
+
+	req := &corev1.ResourceRequirements{
+		Limits:   corev1.ResourceList{},
+		Requests: corev1.ResourceList{},
+	}
+
+	if spec.Memory != "" {
+		memRequests, memLimits, err := spec.MemoryResources()
+		if err != nil {
+			return req, err
+		}
+		req.Requests[corev1.ResourceMemory] = memRequests
+		req.Limits[corev1.ResourceMemory] = memLimits
+	}
+
+	if spec.CPU != "" {
+		cpuRequests, cpuLimits, err := spec.CpuResources()
+		if err != nil {
+			return req, err
+		}
+		req.Requests[corev1.ResourceCPU] = cpuRequests
+		req.Limits[corev1.ResourceCPU] = cpuLimits
+	}
+	return req, nil
 }
 
 func serverLibs(i *ispnv1.Infinispan) string {
