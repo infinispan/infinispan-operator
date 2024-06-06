@@ -60,15 +60,8 @@ func (i *Infinispan) Default() {
 	if i.Spec.Container.Memory == "" {
 		i.Spec.Container.Memory = consts.DefaultMemorySize.String()
 	}
-	if i.Spec.Service.Container == nil {
-		i.Spec.Service.Container = &InfinispanServiceContainerSpec{}
-	}
 
-	svcContainer := i.Spec.Service.Container
-	svcContainer.LivenessProbe.AssignDefaults(5, 0, 10, 1, 1)
-	svcContainer.ReadinessProbe.AssignDefaults(5, 0, 10, 1, 1)
-	svcContainer.StartupProbe.AssignDefaults(600, 3, 1, 1, 1)
-
+	i.InitServiceContainer()
 	if i.IsDataGrid() {
 		if i.Spec.Service.Container.Storage == nil {
 			i.Spec.Service.Container.Storage = pointer.StringPtr(consts.DefaultPVSize.String())
