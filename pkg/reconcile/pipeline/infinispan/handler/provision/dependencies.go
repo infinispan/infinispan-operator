@@ -39,9 +39,16 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 	volumes := &spec.Volumes
 	volumeMounts := &ispnContainer.VolumeMounts
 	containerPosition := kube.ContainerIndex(*initContainers, ExternalArtifactsDownloadInitContainer)
-	initContainerResources, err := initContainerResources(&ispn.Spec.Dependencies.InitContainerSpec)
-	if err != nil {
-		return false, fmt.Errorf("unable to calculate dependencies download init container resources: %w", err)
+	var initContainerResources *corev1.ResourceRequirements
+	if ispn.Spec.Dependencies != nil {
+		initContainerRes, err := getInitContainerResources(&ispn.Spec.Dependencies.InitContainerSpec)
+
+		if err != nil {
+			return false, fmt.Errorf("unable to calculate dependencies download init container resources: %w", err)
+		}
+		initContainerResources = initContainerRes
+	} else {
+		initContainerResources = nil
 	}
 
 	if ispn.HasExternalArtifacts() {
@@ -122,7 +129,7 @@ func resourceEquals(res1 *corev1.ResourceRequirements, res2 *corev1.ResourceRequ
 	return true
 }
 
-func initContainerResources(spec *ispnv1.InitDependenciesContainerSpec) (*corev1.ResourceRequirements, error) {
+func getInitContainerResources(spec *ispnv1.InitDependenciesContainerSpec) (*corev1.ResourceRequirements, error) {
 
 	if spec.CPU == "" && spec.Memory == "" {
 		return &corev1.ResourceRequirements{}, nil
