@@ -51,14 +51,17 @@ func PodLifecycle() *corev1.Lifecycle {
 }
 
 func PodLivenessProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
+	i.InitServiceContainer()
 	return probe(i.Spec.Service.Container.LivenessProbe, operand)
 }
 
 func PodReadinessProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
+	i.InitServiceContainer()
 	return probe(i.Spec.Service.Container.ReadinessProbe, operand)
 }
 
 func PodStartupProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
+	i.InitServiceContainer()
 	return probe(i.Spec.Service.Container.StartupProbe, operand)
 }
 

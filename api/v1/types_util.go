@@ -981,3 +981,14 @@ func (c *ContainerProbeSpec) AssignDefaults(failureThreshold, initialDelay, peri
 		c.TimeoutSeconds = pointer.Int32(timeout)
 	}
 }
+
+func (ispn *Infinispan) InitServiceContainer() {
+	if ispn.Spec.Service.Container == nil {
+		ispn.Spec.Service.Container = &InfinispanServiceContainerSpec{}
+	}
+
+	c := ispn.Spec.Service.Container
+	c.LivenessProbe.AssignDefaults(5, 0, 10, 1, 1)
+	c.ReadinessProbe.AssignDefaults(5, 0, 10, 1, 1)
+	c.StartupProbe.AssignDefaults(600, 3, 1, 1, 1)
+}
