@@ -72,7 +72,7 @@ func TestTLSConditionWithBadKeystore(t *testing.T) {
 }
 
 func checkRestConnection(client tutils.HTTPClient) {
-	_, err := ispnClient.New(tutils.LatestOperand, client).Container().Members()
+	_, err := ispnClient.New(tutils.CurrentOperand, client).Container().Members()
 	tutils.ExpectNoError(err)
 }
 

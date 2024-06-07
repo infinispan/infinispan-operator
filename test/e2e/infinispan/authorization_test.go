@@ -31,7 +31,7 @@ func TestAuthorizationDisabledByDefault(t *testing.T) {
 	}
 
 	verify := func(client tutils.HTTPClient) {
-		_, err := ispnClient.New(tutils.LatestOperand, client).Caches().Names()
+		_, err := ispnClient.New(tutils.CurrentOperand, client).Caches().Names()
 		tutils.ExpectNoError(err)
 	}
 	testAuthorization(ispn, identities, verify)
