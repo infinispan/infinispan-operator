@@ -387,10 +387,10 @@ type InfinispanExternalDependencies struct {
 	// +optional
 	Artifacts []InfinispanExternalArtifacts `json:"artifacts,omitempty"`
 	// +optional
-	InitContainerSpec InitDependenciesContainerSpec `json:"initContainer"`
+	InitContainer InitDependenciesContainerSpec `json:"initContainer"`
 }
 
-// Dependencies describes the configuration options for the dependency download init container
+// InitDependenciesContainerSpec describes the configuration options for the dependency download init container
 type InitDependenciesContainerSpec struct {
 	// +optional
 	// Memory in limit:request format

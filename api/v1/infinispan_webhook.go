@@ -246,29 +246,19 @@ func (i *Infinispan) validate() error {
 		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", msg)
 	}
 
-	if i.Spec.Container.CPU != "" {
-		req, limit, err := i.Spec.Container.GetCpuResources()
-		if err != nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("cpu"), i.Spec.Container.CPU, err.Error()))
-		}
+	validateRequestLimits(
+		i.Spec.Container.CPU,
+		i.Spec.Container.GetCpuResources,
+		field.NewPath("spec").Child("container").Child("cpu"),
+		&allErrs,
+	)
 
-		if req.Cmp(limit) > 0 {
-			msg := fmt.Sprintf("CPU request '%s' exceeds limit '%s'", req.String(), limit.String())
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("cpu"), i.Spec.Container.CPU, msg))
-		}
-	}
-
-	memReq, memLimit, err := i.Spec.Container.GetMemoryResources()
-	if i.Spec.Container.Memory != "" {
-		if err != nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("memory"), i.Spec.Container.Memory, err.Error()))
-		}
-
-		if memReq.Cmp(memLimit) > 0 {
-			msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", memReq.String(), memLimit.String())
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("memory"), i.Spec.Container.Memory, msg))
-		}
-	}
+	_, memLimit := validateRequestLimits(
+		i.Spec.Container.Memory,
+		i.Spec.Container.GetMemoryResources,
+		field.NewPath("spec").Child("container").Child("memory"),
+		&allErrs,
+	)
 
 	// Warn if memory size exceeds persistent vol
 	if i.IsDataGrid() && !i.IsEphemeralStorage() && i.StorageSize() != "" {
@@ -352,14 +342,29 @@ func (i *Infinispan) validate() error {
 	}
 
 	if i.HasExternalArtifacts() {
+		path := field.NewPath("spec").Child("dependencies")
 		for i, artifact := range i.Spec.Dependencies.Artifacts {
-			f := field.NewPath("spec").Child("dependencies").Child("artifacts").Index(i)
+			f := path.Child("artifacts").Index(i)
 			if artifact.Url == "" && artifact.Maven == "" {
 				allErrs = append(allErrs, field.Required(f, "'artifact.Url' OR 'artifact.Maven' must be supplied"))
 			} else if artifact.Url != "" && artifact.Maven != "" {
 				allErrs = append(allErrs, field.Duplicate(f, "At most one of ['artifact.Url', 'artifact.Maven'] must be configured"))
 			}
 		}
+
+		validateRequestLimits(
+			i.Spec.Dependencies.InitContainer.CPU,
+			i.Spec.Dependencies.InitContainer.CpuResources,
+			path.Child("initContainer").Child("cpu"),
+			&allErrs,
+		)
+
+		validateRequestLimits(
+			i.Spec.Dependencies.InitContainer.Memory,
+			i.Spec.Dependencies.InitContainer.MemoryResources,
+			path.Child("initContainer").Child("memory"),
+			&allErrs,
+		)
 	}
 
 	if i.IsEphemeralStorage() {
@@ -465,6 +470,23 @@ func (i *Infinispan) validate() error {
 	validateProbes(&i.Spec.Service.Container.StartupProbe, path.Child("startupProbe"), false)
 
 	return errorListToError(i, allErrs)
+}
+
+func validateRequestLimits(val string, fn func() (req, limit resource.Quantity, err error), path *field.Path, allErrs *field.ErrorList) (req resource.Quantity, limit resource.Quantity) {
+	if val == "" {
+		return
+	}
+
+	req, limit, err := fn()
+	if err != nil {
+		*allErrs = append(*allErrs, field.Invalid(path, val, err.Error()))
+	}
+
+	if req.Cmp(limit) > 0 {
+		msg := fmt.Sprintf("Request '%s' exceeds limit '%s'", req.String(), limit.String())
+		*allErrs = append(*allErrs, field.Invalid(path, val, msg))
+	}
+	return
 }
 
 func errorListToError(i *Infinispan, allErrs field.ErrorList) error {

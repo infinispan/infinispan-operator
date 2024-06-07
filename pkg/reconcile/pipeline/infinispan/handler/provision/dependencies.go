@@ -2,6 +2,7 @@ package provision
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -39,26 +40,20 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 	volumes := &spec.Volumes
 	volumeMounts := &ispnContainer.VolumeMounts
 	containerPosition := kube.ContainerIndex(*initContainers, ExternalArtifactsDownloadInitContainer)
-	var initContainerResources *corev1.ResourceRequirements
-	if ispn.Spec.Dependencies != nil {
-		initContainerRes, err := getInitContainerResources(&ispn.Spec.Dependencies.InitContainerSpec)
-
-		if err != nil {
-			return false, fmt.Errorf("unable to calculate dependencies download init container resources: %w", err)
-		}
-		initContainerResources = initContainerRes
-	} else {
-		initContainerResources = nil
-	}
 
 	if ispn.HasExternalArtifacts() {
+		initContainerResources, err := getInitContainerResources(ispn)
+		if err != nil {
+			return false, fmt.Errorf("unable to calculate dependencies initContainer resources: %w", err)
+		}
+
 		serverLibs := serverLibs(ispn)
 		if containerPosition >= 0 {
 			if spec.InitContainers[containerPosition].Env[0].Value != serverLibs {
 				spec.InitContainers[containerPosition].Env[0].Value = serverLibs
 				updated = true
 			}
-			if !resourceEquals(&spec.InitContainers[containerPosition].Resources, initContainerResources) {
+			if !reflect.DeepEqual(&spec.InitContainers[containerPosition].Resources, initContainerResources) {
 				spec.InitContainers[containerPosition].Resources = *initContainerResources
 				updated = true
 			}
@@ -97,40 +92,12 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 	return
 }
 
-func resourceEquals(res1 *corev1.ResourceRequirements, res2 *corev1.ResourceRequirements) bool {
-	if res1 == nil && res2 != nil {
-		return false
-	}
-	if res1 != nil && res2 == nil {
-		return false
-	}
-	if res1 == nil && res2 == nil {
-		return true
-	}
-	if !(res1 == nil && res2 == nil) {
-		if len(res1.Requests) != len(res2.Requests) {
-			return false
-		}
-		if len(res1.Limits) != len(res2.Limits) {
-			return false
-		}
-		for k, v := range res1.Requests {
-			if v.Cmp(res2.Requests[k]) != 0 {
-				return false
-			}
-		}
-		for k, v := range res1.Limits {
-			if v.Cmp(res2.Limits[k]) != 0 {
-				return false
-			}
-		}
+func getInitContainerResources(i *ispnv1.Infinispan) (*corev1.ResourceRequirements, error) {
+	if i.Spec.Dependencies == nil {
+		return nil, nil
 	}
 
-	return true
-}
-
-func getInitContainerResources(spec *ispnv1.InitDependenciesContainerSpec) (*corev1.ResourceRequirements, error) {
-
+	spec := i.Spec.Dependencies.InitContainer
 	if spec.CPU == "" && spec.Memory == "" {
 		return &corev1.ResourceRequirements{}, nil
 	}
