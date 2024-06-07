@@ -108,7 +108,16 @@ var VersionManager = func() *version.Manager {
 	}
 }
 
-var LatestOperand = VersionManager().Latest()
+var CurrentOperand = GetCurrentOperand()
+
+func GetCurrentOperand() version.Operand {
+	if OperandVersion != "" {
+		operand, err := VersionManager().WithRef(OperandVersion)
+		ExpectNoError(err)
+		return operand
+	}
+	return VersionManager().Latest()
+}
 
 func EndpointEncryption(name string) *ispnv1.EndpointEncryption {
 	return &ispnv1.EndpointEncryption{
