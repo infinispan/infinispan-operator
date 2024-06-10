@@ -152,5 +152,18 @@ To test locally in running Kind clusters, run:
 $ go test -v ./test/e2e/xsite/ -timeout 30m
 ```
 
+## Arm Support
+In order to test on ARM machines locally, it's necessary for a few changes to be made.
+
+1. `scripts/ci/kind.sh` needs to be executed with the following env variables:
+
+```bash
+DOCKER_REGISTRY_IMAGE="registry:2"
+KINDEST_IMAGE="kindest/node"
+KINDEST_NODE_VERSION="v1.28.7" # Must be >= 1.28.x to ensure ARM support works as expected
+```
+
+2. When executing `make infinispan-test`, set `TEST_NGINX_IMAGE="nginx"` so a multi-arch nginx container is used.
+
 ## Java Integration Tests
 TODO
