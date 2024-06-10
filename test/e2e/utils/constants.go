@@ -41,7 +41,7 @@ var (
 	Platform       = os.Getenv("TESTING_PLATFORM")
 
 	WebServerName       = "external-libs-web-server"
-	WebServerImageName  = "quay.io/openshift-scale/nginx"
+	WebServerImageName  = constants.GetEnvWithDefault("TEST_NGINX_IMAGE", "quay.io/openshift-scale/nginx")
 	WebServerRootFolder = "/usr/share/nginx/html"
 	WebServerPortNumber = 8080
 
