@@ -30,9 +30,6 @@ func TestOperandUpgrade(t *testing.T) {
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Version = oldest
-		// Ensure that FIPS is disabled when testing 13.0.x Operand
-		i.Spec.Container.CliExtraJvmOpts = "-Dcom.redhat.fips=false"
-		i.Spec.Container.ExtraJvmOpts = "-Dcom.redhat.fips=false"
 	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
@@ -132,9 +129,6 @@ func TestOperandCVEGracefulShutdown(t *testing.T) {
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Version = versionManager.Operands[0].Ref()
-		// Ensure that FIPS is disabled when testing 13.0.x Operand
-		i.Spec.Container.CliExtraJvmOpts = "-Dcom.redhat.fips=false"
-		i.Spec.Container.ExtraJvmOpts = "-Dcom.redhat.fips=false"
 	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
