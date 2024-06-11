@@ -976,8 +976,8 @@ spec:
                       type: object
                     type: array
                   initContainer:
-                    description: Dependencies describes the configuration options
-                      for the dependency download init container
+                    description: InitDependenciesContainerSpec describes the configuration
+                      options for the dependency download init container
                     properties:
                       cpu:
                         description: CPU in limit:request format

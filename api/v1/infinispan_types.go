@@ -387,7 +387,7 @@ type InfinispanExternalDependencies struct {
 	// +optional
 	Artifacts []InfinispanExternalArtifacts `json:"artifacts,omitempty"`
 	// +optional
-	InitContainer InitDependenciesContainerSpec `json:"initContainer"`
+	InitContainer InitDependenciesContainerSpec `json:"initContainer,omitempty"`
 }
 
 // InitDependenciesContainerSpec describes the configuration options for the dependency download init container
