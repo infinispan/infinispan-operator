@@ -283,6 +283,15 @@ var _ = Describe("Infinispan Webhooks", func() {
 						Memory:  "1Gi:5Gi",
 						CPU:     "1000m:2000m",
 					},
+					Dependencies: &InfinispanExternalDependencies{
+						Artifacts: []InfinispanExternalArtifacts{
+							{Maven: "org.example:dependency:1.0.0"},
+						},
+						InitContainer: InitDependenciesContainerSpec{
+							Memory: "1Gi:5Gi",
+							CPU:    "1000m:2000m",
+						},
+					},
 					Service: InfinispanServiceSpec{
 						Type: ServiceTypeDataGrid,
 						Sites: &InfinispanSitesSpec{
@@ -310,6 +319,10 @@ var _ = Describe("Infinispan Webhooks", func() {
 				metav1.CauseTypeFieldValueInvalid, "spec.configListener.cpu", "exceeds limit",
 			}, {
 				metav1.CauseTypeFieldValueInvalid, "spec.configListener.memory", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.dependencies.initContainer.cpu", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.dependencies.initContainer.memory", "exceeds limit",
 			}, {
 				metav1.CauseTypeFieldValueInvalid, "spec.service.sites.local.discovery.cpu", "exceeds limit",
 			}, {

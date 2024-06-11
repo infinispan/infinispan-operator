@@ -153,6 +153,15 @@ func GetContainer(name string, spec *corev1.PodSpec) *corev1.Container {
 	return nil
 }
 
+func GetInitContainer(name string, spec *corev1.PodSpec) *corev1.Container {
+	for i, c := range spec.InitContainers {
+		if c.Name == name {
+			return &spec.InitContainers[i]
+		}
+	}
+	return nil
+}
+
 func GetPodMemoryLimitBytes(container, podName, namespace string, kube *Kubernetes) (uint64, error) {
 	execOut, err := kube.ExecWithOptions(ExecOptions{
 		Container: container,

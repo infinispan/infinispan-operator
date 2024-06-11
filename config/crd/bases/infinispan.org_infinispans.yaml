@@ -975,6 +975,17 @@ spec:
                           type: string
                       type: object
                     type: array
+                  initContainer:
+                    description: InitDependenciesContainerSpec describes the configuration
+                      options for the dependency download init container
+                    properties:
+                      cpu:
+                        description: CPU in limit:request format
+                        type: string
+                      memory:
+                        description: Memory in limit:request format
+                        type: string
+                    type: object
                   volumeClaimName:
                     description: The Persistent Volume Claim that holds custom libraries
                     type: string
