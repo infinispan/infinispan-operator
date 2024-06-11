@@ -3,59 +3,49 @@ package v14
 import (
 	"github.com/infinispan/infinispan-operator/pkg/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
-	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
 )
 
 type infinispan struct {
-	http.HttpClient
-	ispn13 api.Infinispan
 	api.PathResolver
+	http.HttpClient
 }
 
 func New(client http.HttpClient) api.Infinispan {
-	return NewWithPathResolver(client, v13.NewPathResolver())
+	return NewWithPathResolver(client, NewPathResolver())
 }
 
 func NewWithPathResolver(client http.HttpClient, pathResolver api.PathResolver) api.Infinispan {
-	return &infinispan{
-		HttpClient:   client,
-		ispn13:       v13.NewWithPathResolver(client, pathResolver),
-		PathResolver: pathResolver,
-	}
+	return &infinispan{pathResolver, client}
 }
 
 func (i *infinispan) Cache(name string) api.Cache {
-	return i.ispn13.Cache(name)
+	return &cache{i.PathResolver, i.HttpClient, name}
 }
 
 func (i *infinispan) Caches() api.Caches {
-	return &caches{
-		HttpClient:   i.HttpClient,
-		Caches:       i.ispn13.Caches(),
-		PathResolver: i.PathResolver,
-	}
+	return &caches{i.PathResolver, i.HttpClient}
 }
 
 func (i *infinispan) Container() api.Container {
-	return i.ispn13.Container()
+	return &Container{i.PathResolver, i.HttpClient}
 }
 
 func (i *infinispan) Logging() api.Logging {
-	return i.ispn13.Logging()
+	return &logging{i.PathResolver, i.HttpClient}
 }
 
 func (i *infinispan) Metrics() api.Metrics {
-	return i.ispn13.Metrics()
+	return &metrics{i.HttpClient}
 }
 
 func (i *infinispan) ProtobufMetadataCacheName() string {
-	return i.ispn13.ProtobufMetadataCacheName()
+	return "___protobuf_metadata"
 }
 
 func (i *infinispan) ScriptCacheName() string {
-	return i.ispn13.ScriptCacheName()
+	return "___script_cache"
 }
 
 func (i *infinispan) Server() api.Server {
-	return i.ispn13.Server()
+	return &server{i.PathResolver, i.HttpClient}
 }

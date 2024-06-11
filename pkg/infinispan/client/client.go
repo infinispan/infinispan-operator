@@ -10,29 +10,29 @@ A new client should be created by calling the New factory method:
 The api package defines all types and interfaces required to interact with the Infinispan server(s).
 
 Version specific implementations of the api package should be created in their own sub-package using the scheme `v<major-version>`.
-For example, the Infinispan 13.x client implementation resides in the `client/v13` package.
+For example, the Infinispan 14.x client implementation resides in the `client/v14` package.
 
 To prevent duplicated code, newer api implementation packages should use composition to use older implementations that still
 function as expected on newer server versions.
 
-For example, if v14 can reuse a new `api.Cache` implementation but requires a new `api.Caches` implementation:
+For example, if v15 can reuse a new `api.Cache` implementation but requires a new `api.Caches` implementation:
 
-	package v14
+	package v15
 	...
 	type infinispan struct {
 		http.HttpClient
-		ispn13 api.Infinispan
+		ispn14 api.Infinispan
 	}
 
 	func New(client http.HttpClient) api.Infinispan {
 		return &infinispan{
 			HttpClient: client,
-			ispn13: v13.New(client),
+			ispn14: v14.New(client),
 		}
 	}
 
 	func (i *infinispan) Cache(name string) api.Cache {
-		return i.ispn13.Cache(name)
+		return i.ispn14.Cache(name)
 	}
 
 	func (i *infinispan) Caches() api.Caches {
@@ -49,7 +49,6 @@ import (
 	"github.com/blang/semver"
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
-	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
 	v14 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
 	v15 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v15"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
@@ -82,8 +81,6 @@ func NewUnknownVersion(client httpClient.HttpClient) (api.Infinispan, error) {
 
 func ispnClient(majorVersion uint64, client httpClient.HttpClient) api.Infinispan {
 	switch majorVersion {
-	case 13:
-		return v13.New(client)
 	case 14:
 		return v14.New(client)
 	default:
