@@ -53,11 +53,6 @@ spec:
               value: |-
                 [
                   {
-                    "upstream-version": "13.0.10",
-                    "image": "quay.io/infinispan/server:13.0.10.Final",
-                    "deprecated": true
-                  },
-                  {
                     "upstream-version": "14.0.1",
                     "image": "quay.io/infinispan/server:14.0.1.Final"
                   },

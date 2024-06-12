@@ -242,10 +242,10 @@ func newCustomConfigMap(name, format string) *corev1.ConfigMap {
 	case "xml":
 		userCacheContainer = `<infinispan
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-xsi:schemaLocation="urn:infinispan:config:13.0 http://www.infinispan.org/schemas/infinispan-config-13.0.xsd
-					urn:infinispan:server:13.0 http://www.infinispan.org/schemas/infinispan-server-13.0.xsd"
-xmlns="urn:infinispan:config:13.0"
-xmlns:server="urn:infinispan:server:13.0">
+xsi:schemaLocation="urn:infinispan:config:14.0 http://www.infinispan.org/schemas/infinispan-config-14.0.xsd
+					urn:infinispan:server:14.0 http://www.infinispan.org/schemas/infinispan-server-14.0.xsd"
+xmlns="urn:infinispan:config:14.0"
+xmlns:server="urn:infinispan:server:14.0">
 	<cache-container name="default" statistics="true">
 		<distributed-cache name="` + name + `"/>
 	</cache-container>

@@ -53,8 +53,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		routerLabels := i.GossipRouterPodLabels()
 		routerAnnotations := i.GossipRouterAnnotations()
 		upstreamVersion := ctx.Operand().UpstreamVersion
-		// Gossip Router Diagnostics is only available for JGroups 5+ (ISPN 14)
-		enableJgrpDiag := consts.JGroupsDiagnosticsFlag && upstreamVersion.Major > 13
+		enableJgrpDiag := consts.JGroupsDiagnosticsFlag
 		// Port to be used by k8s probe, by default the cross-site port
 		var probePort int32 = consts.CrossSitePort
 
@@ -84,12 +83,9 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 		var addKeystoreVolume, addTruststoreVolume bool
 		if i.IsSiteTLSEnabled() {
-			// enable diagnostic for k8s probes
-			if upstreamVersion.Major > 13 {
-				// with JGroups 5 (ISPN 14) we can use the diagnostic probe to avoid the SSL handshake exceptions
-				enableJgrpDiag = true
-				probePort = consts.GossipRouterDiagPort
-			}
+			// with JGroups 5 (ISPN 14) we can use the diagnostic probe to avoid the SSL handshake exceptions
+			enableJgrpDiag = true
+			probePort = consts.GossipRouterDiagPort
 
 			ks := ctx.ConfigFiles().XSite.GossipRouter.Keystore
 			args = append(args, []string{

@@ -34,18 +34,15 @@ var VersionManager = func() *version.Manager {
 	if os.Getenv(ispnv1.OperatorOperandVersionEnvVarName) == "" {
 		// Operand versions must be updated whenever the supported Operands change as the Operands are executed
 		// during the integration tests.
+		// The first release must be marked as deprecated to ensure TestOperandUpgrade passes.
 		// The final release must be a cve release in order for TestOperandCVEUpgrade to pass. This does not have to be
 		// a real release, but the image tag must differ from the oldest Operand release so that we can ensure the
 		// Pod Image was correctly updated.
 		_ = os.Setenv(ispnv1.OperatorOperandVersionEnvVarName, `[{
-			"downstream-version": "0.1.0",
-			"upstream-version": "13.0.10",
-			"image": "quay.io/infinispan/server:13.0.10.Final",
-			"deprecated": true
-		},{
 			"downstream-version": "0.2.0-1",
 			"upstream-version": "14.0.1",
-			"image": "quay.io/infinispan/server:14.0.1.Final"
+			"image": "quay.io/infinispan/server:14.0.1.Final",
+			"deprecated": true
 		},{
 			"downstream-version": "0.2.1-1",
 			"upstream-version": "14.0.6",

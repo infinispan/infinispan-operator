@@ -2,11 +2,11 @@ package v15
 
 import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
-	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
 )
 
 func NewPathResolver() api.PathResolver {
-	return &pathResolver{v13.NewPathResolver()}
+	return &pathResolver{v14.NewPathResolver()}
 }
 
 type pathResolver struct {
