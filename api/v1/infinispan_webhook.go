@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -185,25 +186,29 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 	if old.Spec.Version != "" {
 		// We know the versions must be valid as they have already been validated, so the error will always be nil
 		operand, _ := versionManager.WithRef(i.Spec.Version)
-		oldOperand, _ := versionManager.WithRef(old.Spec.Version)
+		oldOperand, err := versionManager.WithRef(old.Spec.Version)
 
-		if i.GracefulShutdownUpgrades() {
-			// Version downgrades are not supported with Graceful Shutdown
-			if operand.LT(oldOperand) {
-				detail := fmt.Sprintf("Version downgrading not supported. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
-				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
-			}
-		} else if operand.LT(oldOperand) {
-			if old.Status.HotRodRollingUpgradeStatus == nil {
-				detail := fmt.Sprintf("Version rollback only supported when a Hot Rolling Upgrade is in progress. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
-				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
-			} else {
-				// Only allow upgrades to be rolled back to the original source version
-				validRollbackOperand, _ := versionManager.WithRef(i.Status.HotRodRollingUpgradeStatus.SourceVersion)
-				if !validRollbackOperand.EQ(operand) {
-					detail := fmt.Sprintf("Hot Rod Rolling Upgrades can only be rolled back to the original source version. Existing='%s', Source='%s', Requested='%s'.",
-						oldOperand.Ref(), validRollbackOperand.Ref(), operand.Ref())
+		var unknown *version.UnknownError
+		// If the oldOperand has been removed, then no validation required as we must upgrade to a newer version
+		if !errors.As(err, &unknown) {
+			if i.GracefulShutdownUpgrades() {
+				// Version downgrades are not supported with Graceful Shutdown
+				if operand.LT(oldOperand) {
+					detail := fmt.Sprintf("Version downgrading not supported. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
 					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+				}
+			} else if operand.LT(oldOperand) {
+				if old.Status.HotRodRollingUpgradeStatus == nil {
+					detail := fmt.Sprintf("Version rollback only supported when a Hot Rolling Upgrade is in progress. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
+					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+				} else {
+					// Only allow upgrades to be rolled back to the original source version
+					validRollbackOperand, _ := versionManager.WithRef(i.Status.HotRodRollingUpgradeStatus.SourceVersion)
+					if !validRollbackOperand.EQ(operand) {
+						detail := fmt.Sprintf("Hot Rod Rolling Upgrades can only be rolled back to the original source version. Existing='%s', Source='%s', Requested='%s'.",
+							oldOperand.Ref(), validRollbackOperand.Ref(), operand.Ref())
+						allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+					}
 				}
 			}
 		}
