@@ -81,7 +81,10 @@ func NewUnknownVersion(client httpClient.HttpClient) (api.Infinispan, error) {
 
 func ispnClient(majorVersion uint64, client httpClient.HttpClient) api.Infinispan {
 	switch majorVersion {
-	case 14:
+	// We must still return a client for the dropped Infinispan 13 so that we can interact with the server when upgrading
+	// to a supported version. The only difference between the 13 and 14 client was the Cache EqualConfiguration implementation
+	// which is not required for upgrades.
+	case 13, 14:
 		return v14.New(client)
 	default:
 		return v15.New(client)
