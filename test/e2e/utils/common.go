@@ -17,6 +17,7 @@ import (
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/redis/go-redis/v9"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -394,10 +395,8 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 		return NewHTTPClientNoAuth(protocol)
 	}
 
-	user := constants.DefaultDeveloperUser
-	pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
-	ExpectNoError(err)
-	return NewHTTPClient(user, pass, protocol)
+	user, pass := userAndPassword(i, kube)
+	return NewHTTPClient(*user, *pass, protocol)
 }
 
 func HTTPClientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
@@ -409,32 +408,38 @@ func HTTPClientForClusterWithVersionManager(i *ispnv1.Infinispan, kube *TestKube
 }
 
 func HTTPSClientForCluster(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) HTTPClient {
-
-	userAndPassword := func() (*string, *string) {
-		user := constants.DefaultDeveloperUser
-		pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
-		ExpectNoError(err)
-		return &user, &pass
-	}
-
 	var client HTTPClient
 	clientCert := i.Spec.Security.EndpointEncryption.ClientCert
 	if clientCert != "" && clientCert != ispnv1.ClientCertNone {
 		if clientCert == ispnv1.ClientCertAuthenticate || !i.IsAuthenticationEnabled() {
 			client = NewClient(authCert, nil, nil, "https", tlsConfig)
 		} else {
-			user, pass := userAndPassword()
+			user, pass := userAndPassword(i, kube)
 			client = NewClient(authDigest, user, pass, "https", tlsConfig)
 		}
 	} else {
 		if i.IsAuthenticationEnabled() {
-			user, pass := userAndPassword()
+			user, pass := userAndPassword(i, kube)
 			client = NewClient(authDigest, user, pass, "https", tlsConfig)
 		} else {
 			client = NewClient(authNone, nil, nil, "https", tlsConfig)
 		}
 	}
 	return kube.WaitForExternalService(i, RouteTimeout, client, nil)
+}
+
+func RedisClientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) *redis.Client {
+	// Create a HTTPClient as this waits for the external service to be ready and prevents unnecessary duplication of code
+	// We can then use the host and port of the client to initialize the redis client as access is via the Single port
+	httpClient := HTTPClientForClusterWithVersionManager(i, kube, nil)
+	user, pass := userAndPassword(i, kube)
+	httpClient.GetHostAndPort()
+	return redis.NewClient(&redis.Options{
+		Addr:     httpClient.GetHostAndPort(),
+		Username: *user,
+		Password: *pass,
+		DB:       0, // use default DB
+	})
 }
 
 // Operand replicates the semantics of InitialiseOperandVersion pipeline handler for determing Operand version when no version is explicitly provided
@@ -445,4 +450,11 @@ func Operand(ref string, manager *version.Manager) version.Operand {
 	operand, err := manager.WithRef(ref)
 	ExpectNoError(err)
 	return operand
+}
+
+func userAndPassword(i *ispnv1.Infinispan, kube *TestKubernetes) (*string, *string) {
+	user := constants.DefaultDeveloperUser
+	pass, err := users.UserPassword(user, i.GetSecretName(), i.Namespace, kube.Kubernetes, context.TODO())
+	ExpectNoError(err)
+	return &user, &pass
 }

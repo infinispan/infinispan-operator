@@ -98,18 +98,7 @@
         </security-realms>
     </security>
     <endpoints>
-        <endpoint socket-binding="default" security-realm="default" {{ if ne .Endpoints.ClientCert "None" }}require-ssl-client-auth="true"{{ end }}>
-            {{ if .Endpoints.Authenticate }}
-            <hotrod-connector>
-                <authentication>
-                    <sasl qop="auth" server-name="infinispan"/>
-                </authentication>
-            </hotrod-connector>
-            {{ else }}
-            <hotrod-connector />
-            {{ end }}
-            <rest-connector />
-        </endpoint>
+        <endpoint socket-binding="default" security-realm="default" {{ if ne .Endpoints.ClientCert "None" }}require-ssl-client-auth="true"{{ end }} />
     </endpoints>
 </server>
 </infinispan>
