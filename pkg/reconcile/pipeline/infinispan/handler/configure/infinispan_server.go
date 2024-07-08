@@ -75,8 +75,6 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		},
 		UserCredentialStore: len(configFiles.CredentialStoreEntries) > 0,
 	}
-	// Save the spec for later so that we can reuse it for HR rolling upgrades
-	configFiles.ConfigSpec = *configSpec
 
 	if i.HasSites() {
 		// Convert the pipeline ConfigFiles to the config struct
@@ -148,6 +146,8 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			configSpec.Truststore.Path = fmt.Sprintf("%s/%s", consts.ServerEncryptTruststoreRoot, consts.EncryptTruststoreKey)
 		}
 	}
+	// Save the spec for later so that we can reuse it for HR rolling upgrades
+	configFiles.ConfigSpec = *configSpec
 
 	if baseCfg, adminCfg, err := config.Generate(ctx.Operand(), configSpec); err == nil {
 		configFiles.ServerAdminConfig = adminCfg
