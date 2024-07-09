@@ -82,4 +82,5 @@ You can upgrade the version of your cluster between supported {brandname} versio
 15.0.0
 15.0.3
 15.0.4
+15.0.5
 |===
