@@ -181,11 +181,16 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	if i.IsEncryptionEnabled() {
-		provision.AddVolumesForEncryption(i, spec)
-		updateNeeded = updateStatefulSetEnv(container, statefulSet, "KEYSTORE_HASH", hash.HashByte(configFiles.Keystore.PemFile)+hash.HashByte(configFiles.Keystore.File)) || updateNeeded
+		updateNeeded = provision.AddVolumesForEncryption(i, spec) || updateNeeded
 
-		if i.IsClientCertEnabled() {
-			updateNeeded = updateStatefulSetEnv(container, statefulSet, "TRUSTSTORE_HASH", hash.HashByte(configFiles.Truststore.File)) || updateNeeded
+		// Only trigger a StatefulSet rolling upgrade for Keystore and Truststore updates from 15.0.7 onwards as
+		// Infinispan and JGroups automatically reload certificate changes
+		if requestedOperand.UpstreamVersion.LT(consts.MinVersionAutomaticCertificateReloading) {
+			updateNeeded = updateStatefulSetEnv(container, statefulSet, "KEYSTORE_HASH", hash.HashByte(configFiles.Keystore.PemFile)+hash.HashByte(configFiles.Keystore.File)) || updateNeeded
+
+			if i.IsClientCertEnabled() {
+				updateNeeded = updateStatefulSetEnv(container, statefulSet, "TRUSTSTORE_HASH", hash.HashByte(configFiles.Truststore.File)) || updateNeeded
+			}
 		}
 	}
 
@@ -224,6 +229,7 @@ func updateStatefulSetEnv(ispnContainer *corev1.Container, statefulSet *appsv1.S
 	}
 	return false
 }
+
 func updateStartupArgs(ispnContainer *corev1.Container, config *pipeline.ConfigFiles) (bool, error) {
 	newArgs := provision.BuildServerContainerArgs(config)
 	if len(newArgs) == len(ispnContainer.Args) {
