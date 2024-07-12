@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/blang/semver"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -202,16 +203,17 @@ func chmodInitContainer(containerName, volumeName, mountPath string) corev1.Cont
 	}
 }
 
-func AddVolumesForEncryption(i *ispnv1.Infinispan, spec *corev1.PodSpec) {
-	AddSecretVolume(i.GetKeystoreSecretName(), EncryptKeystoreVolumeName, consts.ServerEncryptKeystoreRoot, spec, InfinispanContainer)
+func AddVolumesForEncryption(i *ispnv1.Infinispan, spec *corev1.PodSpec) bool {
+	updated := AddSecretVolume(i.GetKeystoreSecretName(), EncryptKeystoreVolumeName, consts.ServerEncryptKeystoreRoot, spec, InfinispanContainer)
 
 	if i.IsClientCertEnabled() {
-		AddSecretVolume(i.GetTruststoreSecretName(), EncryptTruststoreVolumeName, consts.ServerEncryptTruststoreRoot, spec, InfinispanContainer)
+		updated = AddSecretVolume(i.GetTruststoreSecretName(), EncryptTruststoreVolumeName, consts.ServerEncryptTruststoreRoot, spec, InfinispanContainer) || updated
 	}
+	return updated
 }
 
 // AddSecretVolume creates a volume to a secret
-func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodSpec, containerName string) {
+func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodSpec, containerName string) (updated bool) {
 	v := &spec.Volumes
 
 	if _, index := findSecretInVolume(spec, volumeName); index < 0 {
@@ -222,6 +224,7 @@ func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodS
 				},
 			},
 		})
+		updated = true
 	}
 
 	volumeMount := corev1.VolumeMount{
@@ -240,9 +243,12 @@ func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodS
 
 	if index < 0 {
 		*volumeMounts = append(*volumeMounts, volumeMount)
+		updated = true
 	} else {
+		updated = reflect.DeepEqual((*volumeMounts)[index], volumeMount) || updated
 		(*volumeMounts)[index] = volumeMount
 	}
+	return
 }
 
 func findSecretInVolume(pod *corev1.PodSpec, volumeName string) (string, int) {

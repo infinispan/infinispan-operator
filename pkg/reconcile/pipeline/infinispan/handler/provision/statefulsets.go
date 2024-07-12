@@ -317,6 +317,11 @@ func BuildServerContainerArgs(config *pipeline.ConfigFiles) []string {
 func addTLS(ctx pipeline.Context, i *ispnv1.Infinispan, statefulSet *appsv1.StatefulSet) {
 	if i.IsEncryptionEnabled() {
 		AddVolumesForEncryption(i, &statefulSet.Spec.Template.Spec)
+		// Only add the _HASH env variables for Infinispan servers that don't support automatic cert reloading
+		if ctx.Operand().UpstreamVersion.GTE(consts.MinVersionAutomaticCertificateReloading) {
+			return
+		}
+
 		configFiles := ctx.ConfigFiles()
 		ispnContainer := kube.GetContainer(InfinispanContainer, &statefulSet.Spec.Template.Spec)
 		ispnContainer.Env = append(ispnContainer.Env,
