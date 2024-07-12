@@ -45,10 +45,17 @@ var (
 	JGroupsFastMerge = strings.ToUpper(GetEnvWithDefault("TEST_ENVIRONMENT", "false")) == "TRUE"
 
 	// 14.0.24.Final required to enable expiry in Gossip Router
-	GossipRouterHeartBeatMinVersion = semver.Version{
+	MinVersionGossipRouterHeartBeat = semver.Version{
 		Major: 14,
 		Minor: 0,
 		Patch: 24,
+	}
+
+	// 15.0.7.Final required to support the automatic reloading of TLS certs
+	MinVersionAutomaticCertificateReloading = semver.Version{
+		Major: 15,
+		Minor: 0,
+		Patch: 7,
 	}
 )
 

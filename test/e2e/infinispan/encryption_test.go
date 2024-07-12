@@ -119,6 +119,7 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 		i.Spec.Security = ispnv1.InfinispanSecurity{
 			EndpointEncryption: tutils.EndpointEncryption(i.Name),
 		}
+		i.Spec.Logging.Categories["org.infinispan.SECURITY"] = ispnv1.LoggingLevelDebug
 	})
 
 	// Create secret
@@ -160,21 +161,30 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	keystoreSecret.Data[cconsts.EncryptTruststoreKey] = newKeystore
 	testKube.UpdateSecret(truststoreSecret)
 
-	// Wait for a new generation to appear
-	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
-		return ss.Status.ObservedGeneration >= originalGeneration+1, nil
-	})
-	tutils.ExpectNoError(err)
-
-	// Wait that current and update revisions match. This ensures that the rolling upgrade completes
-	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
-		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
-		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
-	})
-	tutils.ExpectNoError(err)
-
 	// Ensure that we can connect to the endpoint with the new TLS settings
 	client_ = tutils.HTTPSClientForCluster(spec, newTlsConfig, testKube)
-	checkRestConnection(client_)
+	if tutils.CurrentOperand.UpstreamVersion.LT(cconsts.MinVersionAutomaticCertificateReloading) {
+		// Wait for a new StatefulSet generation to appear
+		err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+			tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
+			return ss.Status.ObservedGeneration >= originalGeneration+1, nil
+		})
+		tutils.ExpectNoError(err)
+
+		// Wait that current and update revisions match. This ensures that the rolling upgrade completes
+		err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+			tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
+			return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
+		})
+		tutils.ExpectNoError(err)
+		checkRestConnection(client_)
+	} else {
+		// Client connect attempt should eventually succeed once the Secret changes have been propagated to the Server pods
+		tutils.ExpectNoError(
+			wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+				_, err = ispnClient.New(tutils.CurrentOperand, client_).Container().Members()
+				return err == nil, nil
+			}),
+		)
+	}
 }

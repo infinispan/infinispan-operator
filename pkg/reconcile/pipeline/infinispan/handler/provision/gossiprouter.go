@@ -72,7 +72,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 
 		// arguments available since 14.0.24.Final
-		if upstreamVersion.GTE(consts.GossipRouterHeartBeatMinVersion) {
+		if upstreamVersion.GTE(consts.MinVersionGossipRouterHeartBeat) {
 			if *i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled {
 				args = append(args, []string{
 					"-expiry", strconv.FormatInt(*i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout, 10),
