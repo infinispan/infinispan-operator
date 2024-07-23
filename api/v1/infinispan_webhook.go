@@ -2,9 +2,11 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
+	"github.com/blang/semver"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
@@ -54,22 +56,19 @@ func (i *Infinispan) Default() {
 		i.Spec.Version = versionManager.Latest().Ref()
 	}
 	if i.Spec.Service.Type == "" {
-		i.Spec.Service.Type = ServiceTypeCache
-	}
-	if i.Spec.Service.Type == ServiceTypeCache && i.Spec.Service.ReplicationFactor == 0 {
-		i.Spec.Service.ReplicationFactor = 2
+		i.Spec.Service.Type = ServiceTypeDataGrid
 	}
 	if i.Spec.Container.Memory == "" {
 		i.Spec.Container.Memory = consts.DefaultMemorySize.String()
 	}
+
+	i.InitServiceContainer()
 	if i.IsDataGrid() {
-		if i.Spec.Service.Container == nil {
-			i.Spec.Service.Container = &InfinispanServiceContainerSpec{}
-		}
 		if i.Spec.Service.Container.Storage == nil {
 			i.Spec.Service.Container.Storage = pointer.StringPtr(consts.DefaultPVSize.String())
 		}
 	}
+
 	if i.Spec.Security.EndpointAuthentication == nil {
 		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
 	}
@@ -187,25 +186,29 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 	if old.Spec.Version != "" {
 		// We know the versions must be valid as they have already been validated, so the error will always be nil
 		operand, _ := versionManager.WithRef(i.Spec.Version)
-		oldOperand, _ := versionManager.WithRef(old.Spec.Version)
+		oldOperand, err := versionManager.WithRef(old.Spec.Version)
 
-		if i.GracefulShutdownUpgrades() {
-			// Version downgrades are not supported with Graceful Shutdown
-			if operand.LT(oldOperand) {
-				detail := fmt.Sprintf("Version downgrading not supported. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
-				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
-			}
-		} else if operand.LT(oldOperand) {
-			if old.Status.HotRodRollingUpgradeStatus == nil {
-				detail := fmt.Sprintf("Version rollback only supported when a Hot Rolling Upgrade is in progress. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
-				allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
-			} else {
-				// Only allow upgrades to be rolled back to the original source version
-				validRollbackOperand, _ := versionManager.WithRef(i.Status.HotRodRollingUpgradeStatus.SourceVersion)
-				if !validRollbackOperand.EQ(operand) {
-					detail := fmt.Sprintf("Hot Rod Rolling Upgrades can only be rolled back to the original source version. Existing='%s', Source='%s', Requested='%s'.",
-						oldOperand.Ref(), validRollbackOperand.Ref(), operand.Ref())
+		var unknown *version.UnknownError
+		// If the oldOperand has been removed, then no validation required as we must upgrade to a newer version
+		if !errors.As(err, &unknown) {
+			if i.GracefulShutdownUpgrades() {
+				// Version downgrades are not supported with Graceful Shutdown
+				if operand.LT(oldOperand) {
+					detail := fmt.Sprintf("Version downgrading not supported. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
 					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+				}
+			} else if operand.LT(oldOperand) {
+				if old.Status.HotRodRollingUpgradeStatus == nil {
+					detail := fmt.Sprintf("Version rollback only supported when a Hot Rolling Upgrade is in progress. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
+					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+				} else {
+					// Only allow upgrades to be rolled back to the original source version
+					validRollbackOperand, _ := versionManager.WithRef(i.Status.HotRodRollingUpgradeStatus.SourceVersion)
+					if !validRollbackOperand.EQ(operand) {
+						detail := fmt.Sprintf("Hot Rod Rolling Upgrades can only be rolled back to the original source version. Existing='%s', Source='%s', Requested='%s'.",
+							oldOperand.Ref(), validRollbackOperand.Ref(), operand.Ref())
+						allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+					}
 				}
 			}
 		}
@@ -214,6 +217,13 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 	if old.Spec.Jmx != nil && old.Spec.Jmx.Enabled != i.Spec.Jmx.Enabled {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("jmx"), "JMX configuration is immutable and cannot be updated after initial Infinispan creation"))
 	}
+
+	if old.IsDataGrid() && i.IsCache() {
+		msg := "CacheService is no longer supported."
+		err := field.Forbidden(field.NewPath("spec").Child("service").Child("type"), msg)
+		allErrs = append(allErrs, err)
+	}
+
 	return errorListToError(i, allErrs)
 }
 
@@ -229,34 +239,24 @@ func (i *Infinispan) validate() error {
 	operand, err := versionManager.WithRef(i.Spec.Version)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("version"), i.Spec.Version, err.Error()))
-	}
-	if operand.Deprecated {
-		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", "Configured Infinispan version will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.")
-	}
-
-	if i.Spec.Container.CPU != "" {
-		req, limit, err := i.Spec.Container.GetCpuResources()
-		if err != nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("cpu"), i.Spec.Container.CPU, err.Error()))
-		}
-
-		if req.Cmp(limit) > 0 {
-			msg := fmt.Sprintf("CPU request '%s' exceeds limit '%s'", req.String(), limit.String())
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("cpu"), i.Spec.Container.CPU, msg))
-		}
+	} else if operand.Deprecated {
+		msg := fmt.Sprintf("Infinispan version '%s' will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.", i.Spec.Version)
+		eventRec.Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", msg)
 	}
 
-	memReq, memLimit, err := i.Spec.Container.GetMemoryResources()
-	if i.Spec.Container.Memory != "" {
-		if err != nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("memory"), i.Spec.Container.Memory, err.Error()))
-		}
+	validateRequestLimits(
+		i.Spec.Container.CPU,
+		i.Spec.Container.GetCpuResources,
+		field.NewPath("spec").Child("container").Child("cpu"),
+		&allErrs,
+	)
 
-		if memReq.Cmp(memLimit) > 0 {
-			msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", memReq.String(), memLimit.String())
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("container").Child("memory"), i.Spec.Container.Memory, msg))
-		}
-	}
+	_, memLimit := validateRequestLimits(
+		i.Spec.Container.Memory,
+		i.Spec.Container.GetMemoryResources,
+		field.NewPath("spec").Child("container").Child("memory"),
+		&allErrs,
+	)
 
 	// Warn if memory size exceeds persistent vol
 	if i.IsDataGrid() && !i.IsEphemeralStorage() && i.StorageSize() != "" {
@@ -270,7 +270,15 @@ func (i *Infinispan) validate() error {
 		}
 	}
 
-	if err := i.validateCacheService(); err != nil {
+	if i.IsCache() {
+		msg := "CacheService is no longer supported."
+		err := field.Forbidden(field.NewPath("spec").Child("service").Child("type"), msg)
+		allErrs = append(allErrs, err)
+	}
+
+	if i.Spec.Autoscale != nil {
+		msg := "Autoscale is no longer supported. Please remove spec.autoscale field."
+		err := field.Forbidden(field.NewPath("spec").Child("autoscale"), msg)
 		allErrs = append(allErrs, err)
 	}
 
@@ -332,14 +340,29 @@ func (i *Infinispan) validate() error {
 	}
 
 	if i.HasExternalArtifacts() {
+		path := field.NewPath("spec").Child("dependencies")
 		for i, artifact := range i.Spec.Dependencies.Artifacts {
-			f := field.NewPath("spec").Child("dependencies").Child("artifacts").Index(i)
+			f := path.Child("artifacts").Index(i)
 			if artifact.Url == "" && artifact.Maven == "" {
 				allErrs = append(allErrs, field.Required(f, "'artifact.Url' OR 'artifact.Maven' must be supplied"))
 			} else if artifact.Url != "" && artifact.Maven != "" {
 				allErrs = append(allErrs, field.Duplicate(f, "At most one of ['artifact.Url', 'artifact.Maven'] must be configured"))
 			}
 		}
+
+		validateRequestLimits(
+			i.Spec.Dependencies.InitContainer.CPU,
+			i.Spec.Dependencies.InitContainer.CpuResources,
+			path.Child("initContainer").Child("cpu"),
+			&allErrs,
+		)
+
+		validateRequestLimits(
+			i.Spec.Dependencies.InitContainer.Memory,
+			i.Spec.Dependencies.InitContainer.MemoryResources,
+			path.Child("initContainer").Child("memory"),
+			&allErrs,
+		)
 	}
 
 	if i.IsEphemeralStorage() {
@@ -414,7 +437,54 @@ func (i *Infinispan) validate() error {
 		}
 	}
 
+	if i.Spec.CloudEvents != nil && operand.UpstreamVersion.GTE(semver.Version{Major: 15}) {
+		errMsg := "CloudEvents have been removed since Infinispan 15.0.0, ignoring configuration."
+		eventRec.Event(i, corev1.EventTypeWarning, "CloudEventsRemoved", errMsg)
+		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+	}
+
+	validateProbes := func(c *ContainerProbeSpec, path *field.Path, readinessProbe bool) {
+		checkMinVal := func(val, min int32, path *field.Path) {
+			if val < min {
+				msg := fmt.Sprintf("Probe value must be greater than or equal to '%d'", min)
+				allErrs = append(allErrs, field.Invalid(path, val, msg))
+			}
+		}
+		checkMinVal(*c.InitialDelaySeconds, 0, path.Child("initialDelaySeconds"))
+		checkMinVal(*c.FailureThreshold, 1, path.Child("failureThreshold"))
+		checkMinVal(*c.PeriodSeconds, 1, path.Child("periodSeconds"))
+		checkMinVal(*c.TimeoutSeconds, 1, path.Child("timeoutSeconds"))
+
+		path = path.Child("successThreshold")
+		if val := *c.SuccessThreshold; readinessProbe {
+			checkMinVal(val, 1, path)
+		} else if val != 1 {
+			allErrs = append(allErrs, field.Invalid(path, val, "Value must be equal to 1"))
+		}
+	}
+	path := field.NewPath("spec").Child("service").Child("container")
+	validateProbes(&i.Spec.Service.Container.LivenessProbe, path.Child("livenessProbe"), false)
+	validateProbes(&i.Spec.Service.Container.ReadinessProbe, path.Child("readinessProbe"), true)
+	validateProbes(&i.Spec.Service.Container.StartupProbe, path.Child("startupProbe"), false)
+
 	return errorListToError(i, allErrs)
+}
+
+func validateRequestLimits(val string, fn func() (req, limit resource.Quantity, err error), path *field.Path, allErrs *field.ErrorList) (req resource.Quantity, limit resource.Quantity) {
+	if val == "" {
+		return
+	}
+
+	req, limit, err := fn()
+	if err != nil {
+		*allErrs = append(*allErrs, field.Invalid(path, val, err.Error()))
+	}
+
+	if req.Cmp(limit) > 0 {
+		msg := fmt.Sprintf("Request '%s' exceeds limit '%s'", req.String(), limit.String())
+		*allErrs = append(*allErrs, field.Invalid(path, val, msg))
+	}
+	return
 }
 
 func errorListToError(i *Infinispan, allErrs field.ErrorList) error {
@@ -422,24 +492,6 @@ func errorListToError(i *Infinispan, allErrs field.ErrorList) error {
 		return apierrors.NewInvalid(
 			schema.GroupKind{Group: GroupVersion.Group, Kind: "Infinispan"},
 			i.Name, allErrs)
-	}
-	return nil
-}
-
-func (i *Infinispan) validateCacheService() *field.Error {
-	// If a CacheService is requested, checks that the pods have enough memory
-	if i.Spec.Service.Type == ServiceTypeCache {
-		// We can ignore error here as we have already checked Memory spec is valid
-		_, memoryQ, _ := i.Spec.Container.GetMemoryResources()
-		memory := memoryQ.Value()
-		nativeMemoryOverhead := (memory * consts.CacheServiceJvmNativePercentageOverhead) / 100
-		occupiedMemory := (consts.CacheServiceJvmNativeMb * 1024 * 1024) +
-			(consts.CacheServiceFixedMemoryXmxMb * 1024 * 1024) +
-			nativeMemoryOverhead
-		if memory < occupiedMemory {
-			msg := fmt.Sprintf("Not enough memory allocated. The Cache Service requires at least %d bytes", occupiedMemory)
-			return field.Invalid(field.NewPath("spec").Child("container").Child("memory"), i.Spec.Container.Memory, msg)
-		}
 	}
 	return nil
 }

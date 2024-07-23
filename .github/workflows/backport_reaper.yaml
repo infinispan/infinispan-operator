@@ -5,7 +5,7 @@ on:
     types:
       - closed
     branches:
-      - '*.0.x'
+      - '*.x'
 
 jobs:
   remove_backport_branch:

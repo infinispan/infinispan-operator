@@ -19,7 +19,7 @@ func TestCustomImage(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	img := "quay.io/infinispan/server:latest"
+	img := "quay.io/infinispan/server:15.0"
 
 	// Attempting to use latest Infinispan Server image while having version set to different major will result in misconfiguration by Operator
 	if tutils.OperandVersion != "" {

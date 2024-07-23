@@ -12,8 +12,8 @@ type Spec struct {
 func Generate(operand version.Operand, spec *Spec) (string, error) {
 	v := operand.UpstreamVersion
 
-	if v.Major != 13 && v.Major != 14 {
-		return "", version.UnknownError(v)
+	if v.Major < 14 && v.Major > 15 {
+		return "", version.NewUnknownError(v)
 	}
 	return templates.LoadAndExecute("log4j.xml", nil, spec)
 }

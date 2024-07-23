@@ -5,9 +5,9 @@ KUBECONFIG=${KUBECONFIG-~/.kube/config}
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 IMG_REGISTRY=${IMG_REGISTRY-"localhost:5001"}
 
-export CHANNELS=2.3.x
-export DEFAULT_CHANNEL=2.3.x
-export VERSION=2.3.8
+export CHANNELS=stable
+export DEFAULT_CHANNEL=stable
+export VERSION=2.4.3
 
 BUNDLE_IMG_NAME=infinispan-operator-bundle
 

@@ -81,6 +81,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 
 	// We can ignore the err here as the validating webhook ensures that the resources are valid
 	podResources, _ := PodResources(i.Spec.Container)
+	operand := ctx.Operand()
 	statefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -104,17 +105,19 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Annotations: annotationsForPod,
 				},
 				Spec: corev1.PodSpec{
-					Affinity: i.Affinity(),
+					Affinity:                  i.Affinity(),
+					Tolerations:               i.Tolerations(),
+					TopologySpreadConstraints: i.TopologySpreadConstraints(),
 					Containers: []corev1.Container{{
 						Image:          i.ImageName(),
 						Args:           BuildServerContainerArgs(ctx.ConfigFiles()),
 						Name:           InfinispanContainer,
 						Env:            podEnvs,
 						Lifecycle:      PodLifecycle(),
-						LivenessProbe:  PodLivenessProbe(),
+						LivenessProbe:  PodLivenessProbe(i, operand),
 						Ports:          PodPortsWithXsite(i),
-						ReadinessProbe: PodReadinessProbe(),
-						StartupProbe:   PodStartupProbe(),
+						ReadinessProbe: PodReadinessProbe(i, operand),
+						StartupProbe:   PodStartupProbe(i, operand),
 						Resources:      *podResources,
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      ConfigVolumeName,

@@ -111,7 +111,7 @@ func TestExplicitCredentials(t *testing.T) {
 }
 
 func testAuthentication(ispn *ispnv1.Infinispan, schema, usr, pass string) {
-	client_ := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, tutils.NewHTTPClient(usr, pass, schema))
+	client_ := testKube.WaitForExternalService(ispn, tutils.RouteTimeout, tutils.NewHTTPClient(usr, pass, schema), nil)
 
 	badCredClient := tutils.NewHTTPClient("badUser", "badPass", schema)
 	badCredClient.SetHostAndPort(client_.GetHostAndPort())
@@ -131,7 +131,7 @@ func testAuthentication(ispn *ispnv1.Infinispan, schema, usr, pass string) {
 }
 
 func createCacheBadCreds(cacheName string, client tutils.HTTPClient) {
-	err := ispnClient.New(tutils.LatestOperand, client).Cache(cacheName).Create("", mime.ApplicationYaml)
+	err := ispnClient.New(tutils.CurrentOperand, client).Cache(cacheName).Create("", mime.ApplicationYaml)
 	if err == nil {
 		panic("Cache creation should fail")
 	}
@@ -168,7 +168,7 @@ func TestAuthenticationDisabled(t *testing.T) {
 
 	// Ensure that rest requests do not require authentication
 	schema := testKube.GetSchemaForRest(spec)
-	client_ := testKube.WaitForExternalService(spec, tutils.RouteTimeout, tutils.NewHTTPClientNoAuth(schema))
+	client_ := testKube.WaitForExternalService(spec, tutils.RouteTimeout, tutils.NewHTTPClientNoAuth(schema), nil)
 	rsp, err := client_.Get("rest/v2/caches", nil)
 	tutils.ExpectNoError(err)
 	if rsp.StatusCode != http.StatusOK {

@@ -31,7 +31,7 @@ pipeline {
         RUN_SA_OPERATOR = 'true'
         MAKE_DATADIR_WRITABLE = 'true'
         CONFIG_LISTENER_IMAGE = 'localhost:5001/infinispan-operator'
-        SERVER_TAGS = '13.0.10.Final 14.0.1.Final 14.0.6.Final 14.0.9.Final 14.0.13.Final 14.0.17.Final 14.0.19.Final 14.0.20.Final 14.0.21.Final 14.0.24.Final 14.0.27.Final 14.0'
+        SERVER_TAGS = '14.0.1.Final 14.0.6.Final 14.0.9.Final 14.0.13.Final 14.0.17.Final 14.0.19.Final 14.0.20.Final 14.0.21.Final 14.0.24.Final 14.0.27.Final 14.0 15.0.0.Final 15.0.3.Final 15.0.4.Final 15.0'
         TEST_REPORT_DIR = "$WORKSPACE/test/reports"
         CHANGE_TARGET = "${env.CHANGE_TARGET}"
         THREAD_DUMP_PRE_STOP = 'true'
@@ -63,7 +63,7 @@ pipeline {
                     }
 
                     expression {
-                        return sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore))/\'', returnStatus: true) == 0
+                        return sh(script: 'git fetch origin $CHANGE_TARGET && git diff --name-only FETCH_HEAD | grep -qvE \'(\\.md$)|(^(documentation|test-integration|.gitignore|.github))/\'', returnStatus: true) == 0
                     }
                 }
             }
@@ -162,7 +162,7 @@ pipeline {
                         stage('Hot Rod Rolling Upgrade') {
                             steps {
                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'make hotrod-upgrade-test SUBSCRIPTION_CHANNEL_SOURCE=2.2.x SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.5'
+                                    sh 'make hotrod-upgrade-test SUBSCRIPTION_CHANNEL_SOURCE=2.3.x SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.0'
                                 }
                             }
                         }
@@ -170,7 +170,7 @@ pipeline {
                         stage('Upgrade') {
                             steps {
                                 catchError (buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                                    sh 'make upgrade-test SUBSCRIPTION_CHANNEL_SOURCE=2.2.x SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.2.5 INFINISPAN_CPU=1.0'
+                                    sh 'make upgrade-test SUBSCRIPTION_CHANNEL_SOURCE=2.3.x SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.0 INFINISPAN_CPU=1.0'
                                 }
                             }
                         }

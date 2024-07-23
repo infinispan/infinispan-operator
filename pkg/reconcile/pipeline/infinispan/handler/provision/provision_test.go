@@ -3,8 +3,10 @@ package provision
 import (
 	"testing"
 
+	"github.com/blang/semver"
 	"github.com/golang/mock/gomock"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -35,6 +37,7 @@ var _ = Describe("Provision", func() {
 			},
 		)
 		ctx.EXPECT().Resources().Return(resources)
+		ctx.EXPECT().Operand().AnyTimes().Return(version.Operand{UpstreamVersion: &semver.Version{Major: 15, Minor: 0, Patch: 0}})
 
 		ispn := &ispnv1.Infinispan{
 			ObjectMeta: metav1.ObjectMeta{
@@ -55,8 +58,10 @@ var _ = Describe("Provision", func() {
 						EphemeralStorage: true,
 					},
 				},
+				Version: "IGNORED. Required so we can call Default()",
 			},
 		}
+		ispn.Default()
 
 		// Assert PriorityClassName set when specified
 		ss, err := ClusterStatefulSetSpec("statefulset", ispn, ctx)

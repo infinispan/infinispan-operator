@@ -99,7 +99,7 @@ type Endpoints struct {
 func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg string, err error) {
 	v := operand.UpstreamVersion
 	if !supportedMajorVersion(v.Major) {
-		return "", "", version.UnknownError(v)
+		return "", "", version.NewUnknownError(v)
 	}
 
 	baseTemplate := fmt.Sprintf("infinispan-base-%d.xml", v.Major)
@@ -116,7 +116,7 @@ func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg st
 func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
 	v := operand.UpstreamVersion
 	if !supportedMajorVersion(v.Major) {
-		return "", version.UnknownError(v)
+		return "", version.NewUnknownError(v)
 	}
 
 	zeroTemplate := fmt.Sprintf("infinispan-zero-%d.xml", v.Major)
@@ -145,5 +145,5 @@ func funcMap() template.FuncMap {
 }
 
 func supportedMajorVersion(v uint64) bool {
-	return v == 13 || v == 14
+	return v >= 14 && v <= 15
 }

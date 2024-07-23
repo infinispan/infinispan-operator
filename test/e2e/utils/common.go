@@ -34,17 +34,15 @@ var VersionManager = func() *version.Manager {
 	if os.Getenv(ispnv1.OperatorOperandVersionEnvVarName) == "" {
 		// Operand versions must be updated whenever the supported Operands change as the Operands are executed
 		// during the integration tests.
+		// The first release must be marked as deprecated to ensure TestOperandUpgrade passes.
 		// The final release must be a cve release in order for TestOperandCVEUpgrade to pass. This does not have to be
 		// a real release, but the image tag must differ from the oldest Operand release so that we can ensure the
 		// Pod Image was correctly updated.
 		_ = os.Setenv(ispnv1.OperatorOperandVersionEnvVarName, `[{
-			"downstream-version": "0.1.0",
-			"upstream-version": "13.0.10",
-			"image": "quay.io/infinispan/server:13.0.10.Final"
-		},{
 			"downstream-version": "0.2.0-1",
 			"upstream-version": "14.0.1",
-			"image": "quay.io/infinispan/server:14.0.1.Final"
+			"image": "quay.io/infinispan/server:14.0.1.Final",
+			"deprecated": true
 		},{
 			"downstream-version": "0.2.1-1",
 			"upstream-version": "14.0.6",
@@ -82,9 +80,21 @@ var VersionManager = func() *version.Manager {
 			"upstream-version": "14.0.27",
 			"image": "quay.io/infinispan/server:14.0.27.Final"
 		},{
-			"downstream-version": "0.2.9-2",
-			"upstream-version": "14.0.27",
-			"image": "quay.io/infinispan/server:14.0",
+			"downstream-version": "0.3.0-1",
+			"upstream-version": "15.0.0",
+			"image": "quay.io/infinispan/server:15.0.0.Final"
+		},{
+			"downstream-version": "0.3.1-1",
+			"upstream-version": "15.0.3",
+			"image": "quay.io/infinispan/server:15.0.3.Final"
+		},{
+			"downstream-version": "0.3.2-1",
+			"upstream-version": "15.0.4",
+			"image": "quay.io/infinispan/server:15.0.4.Final"
+		},{
+			"downstream-version": "0.3.2-2",
+			"upstream-version": "15.0.4",
+			"image": "quay.io/infinispan/server:15.0",
 			"cve": true
 		}]`)
 	}
@@ -95,7 +105,16 @@ var VersionManager = func() *version.Manager {
 	}
 }
 
-var LatestOperand = VersionManager().Latest()
+var CurrentOperand = GetCurrentOperand()
+
+func GetCurrentOperand() version.Operand {
+	if OperandVersion != "" {
+		operand, err := VersionManager().WithRef(OperandVersion)
+		ExpectNoError(err)
+		return operand
+	}
+	return VersionManager().Latest()
+}
 
 func EndpointEncryption(name string) *ispnv1.EndpointEncryption {
 	return &ispnv1.EndpointEncryption{
@@ -382,7 +401,11 @@ func clientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
 }
 
 func HTTPClientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) HTTPClient {
-	return kube.WaitForExternalService(i, RouteTimeout, clientForCluster(i, kube))
+	return HTTPClientForClusterWithVersionManager(i, kube, nil)
+}
+
+func HTTPClientForClusterWithVersionManager(i *ispnv1.Infinispan, kube *TestKubernetes, manager *version.Manager) HTTPClient {
+	return kube.WaitForExternalService(i, RouteTimeout, clientForCluster(i, kube), manager)
 }
 
 func HTTPSClientForCluster(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *TestKubernetes) HTTPClient {
@@ -411,5 +434,15 @@ func HTTPSClientForCluster(i *ispnv1.Infinispan, tlsConfig *tls.Config, kube *Te
 			client = NewClient(authNone, nil, nil, "https", tlsConfig)
 		}
 	}
-	return kube.WaitForExternalService(i, RouteTimeout, client)
+	return kube.WaitForExternalService(i, RouteTimeout, client, nil)
+}
+
+// Operand replicates the semantics of InitialiseOperandVersion pipeline handler for determing Operand version when no version is explicitly provided
+func Operand(ref string, manager *version.Manager) version.Operand {
+	if ref == "" {
+		return manager.Oldest()
+	}
+	operand, err := manager.WithRef(ref)
+	ExpectNoError(err)
+	return operand
 }

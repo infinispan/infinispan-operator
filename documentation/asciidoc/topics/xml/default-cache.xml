@@ -1,9 +1,0 @@
-<distributed-cache name="default"
-                   mode="SYNC"
-                   owners="2">
-  <memory storage="OFF_HEAP"
-          max-size="<maximum_size_in_bytes>"
-          when-full="REMOVE" />
-  <partition-handling when-split="ALLOW_READ_WRITES"
-                      merge-policy="REMOVE_ALL"/>
-</distributed-cache>

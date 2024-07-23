@@ -105,9 +105,7 @@ const (
 	DefaultCacheTemplate = `<infinispan>
 		<cache-container>
 			<distributed-cache name="%v" mode="SYNC" owners="%d" statistics="true">
-				<memory>
-					<off-heap size="%d" eviction="MEMORY" strategy="REMOVE"/>
-				</memory>
+				<memory storage="OFF_HEAP" max-count="%d" when-full="REMOVE"/>
 				<partition-handling when-split="ALLOW_READ_WRITES" merge-policy="REMOVE_ALL" />
 			</distributed-cache>
 		</cache-container>
@@ -115,8 +113,6 @@ const (
 )
 
 const (
-	// DefaultMinimumAutoscalePollPeriod minimum period for autoscaler polling loop
-	DefaultMinimumAutoscalePollPeriod = 5 * time.Second
 	//DefaultWaitOnCluster delay for the Infinispan cluster wait if it not created while Cache creation
 	DefaultWaitOnCluster = 10 * time.Second
 	// DefaultWaitOnCreateResource delay for wait until resource (Secret, ConfigMap, Service) is created

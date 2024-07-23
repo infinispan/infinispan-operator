@@ -55,32 +55,36 @@ var _ = Describe("Infinispan Webhooks", func() {
 	})
 
 	Context("Infinispan", func() {
-		It("Should initiate Cache Service defaults", func() {
+		It("Should return an error if CR is CacheService", func() {
 
-			created := &Infinispan{
+			failed := &Infinispan{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.Name,
 					Namespace: key.Namespace,
 				},
 				Spec: InfinispanSpec{
+					Service:  InfinispanServiceSpec{Type: ServiceTypeCache},
 					Replicas: 1,
 				},
 			}
+			err := k8sClient.Create(ctx, failed)
+			expectInvalidErrStatus(err, statusDetailCause{"FieldValueForbidden", "spec.service.type", "CacheService is no longer supported."})
+		})
 
-			Expect(k8sClient.Create(ctx, created)).Should(Succeed())
+		It("Should return an error if spec.autoscale is enabled", func() {
 
-			Expect(k8sClient.Get(ctx, key, created)).Should(Succeed())
-			spec := created.Spec
-			// Ensure default values correctly set
-			Expect(spec.Service.Type).Should(Equal(ServiceTypeCache))
-			Expect(spec.Service.ReplicationFactor).Should(Equal(int32(2)))
-			Expect(spec.Container.Memory).Should(Equal(consts.DefaultMemorySize.String()))
-			Expect(spec.Security.EndpointAuthentication).Should(Equal(pointer.BoolPtr(true)))
-			Expect(spec.Security.EndpointSecretName).Should(Equal(created.GetSecretName()))
-			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
-			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
-			Expect(spec.ConfigListener.Logging.Level).Should(Equal(ConfigListenerLoggingInfo))
-			Expect(spec.Jmx.Enabled).Should(Equal(false))
+			failed := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas:  1,
+					Autoscale: &Autoscale{MaxReplicas: 3},
+				},
+			}
+			err := k8sClient.Create(ctx, failed)
+			expectInvalidErrStatus(err, statusDetailCause{"FieldValueForbidden", "spec.autoscale", "Autoscale is no longer supported."})
 		})
 
 		It("Should initiate DataGrid defaults", func() {
@@ -105,6 +109,21 @@ var _ = Describe("Infinispan Webhooks", func() {
 			// Ensure default values correctly set
 			Expect(spec.Service.Type).Should(Equal(ServiceTypeDataGrid))
 			Expect(spec.Service.Container.Storage).Should(Equal(pointer.StringPtr(consts.DefaultPVSize.String())))
+			Expect(*spec.Service.Container.LivenessProbe.FailureThreshold).Should(Equal(int32(5)))
+			Expect(*spec.Service.Container.LivenessProbe.InitialDelaySeconds).Should(Equal(int32(0)))
+			Expect(*spec.Service.Container.LivenessProbe.PeriodSeconds).Should(Equal(int32(10)))
+			Expect(*spec.Service.Container.LivenessProbe.SuccessThreshold).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.LivenessProbe.TimeoutSeconds).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.ReadinessProbe.FailureThreshold).Should(Equal(int32(5)))
+			Expect(*spec.Service.Container.ReadinessProbe.InitialDelaySeconds).Should(Equal(int32(0)))
+			Expect(*spec.Service.Container.ReadinessProbe.PeriodSeconds).Should(Equal(int32(10)))
+			Expect(*spec.Service.Container.ReadinessProbe.SuccessThreshold).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.ReadinessProbe.TimeoutSeconds).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.StartupProbe.FailureThreshold).Should(Equal(int32(600)))
+			Expect(*spec.Service.Container.StartupProbe.InitialDelaySeconds).Should(Equal(int32(3)))
+			Expect(*spec.Service.Container.StartupProbe.PeriodSeconds).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.StartupProbe.SuccessThreshold).Should(Equal(int32(1)))
+			Expect(*spec.Service.Container.StartupProbe.TimeoutSeconds).Should(Equal(int32(1)))
 			Expect(spec.Service.ReplicationFactor).Should(BeZero())
 			Expect(spec.Container.Memory).Should(Equal(consts.DefaultMemorySize.String()))
 			Expect(spec.Security.EndpointAuthentication).Should(Equal(pointer.BoolPtr(true)))
@@ -246,25 +265,6 @@ var _ = Describe("Infinispan Webhooks", func() {
 			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueRequired, "spec.security.endpointEncryption.certSecretName", "certificateSourceType=Secret' to be configured"})
 		})
 
-		It("Should return error if Cache Service does not have sufficient memory", func() {
-
-			failed := &Infinispan{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      key.Name,
-					Namespace: key.Namespace,
-				},
-				Spec: InfinispanSpec{
-					Replicas: 1,
-					Container: InfinispanContainerSpec{
-						Memory: "1Mi",
-					},
-				},
-			}
-
-			err := k8sClient.Create(ctx, failed)
-			expectInvalidErrStatus(err, statusDetailCause{metav1.CauseTypeFieldValueInvalid, "spec.container.memory", "Not enough memory allocated"})
-		})
-
 		It("Should return error if malformed memory or CPU request is greater than limit", func() {
 
 			failed := &Infinispan{
@@ -282,6 +282,15 @@ var _ = Describe("Infinispan Webhooks", func() {
 						Enabled: true,
 						Memory:  "1Gi:5Gi",
 						CPU:     "1000m:2000m",
+					},
+					Dependencies: &InfinispanExternalDependencies{
+						Artifacts: []InfinispanExternalArtifacts{
+							{Maven: "org.example:dependency:1.0.0"},
+						},
+						InitContainer: InitDependenciesContainerSpec{
+							Memory: "1Gi:5Gi",
+							CPU:    "1000m:2000m",
+						},
 					},
 					Service: InfinispanServiceSpec{
 						Type: ServiceTypeDataGrid,
@@ -310,6 +319,10 @@ var _ = Describe("Infinispan Webhooks", func() {
 				metav1.CauseTypeFieldValueInvalid, "spec.configListener.cpu", "exceeds limit",
 			}, {
 				metav1.CauseTypeFieldValueInvalid, "spec.configListener.memory", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.dependencies.initContainer.cpu", "exceeds limit",
+			}, {
+				metav1.CauseTypeFieldValueInvalid, "spec.dependencies.initContainer.memory", "exceeds limit",
 			}, {
 				metav1.CauseTypeFieldValueInvalid, "spec.service.sites.local.discovery.cpu", "exceeds limit",
 			}, {
@@ -343,8 +356,6 @@ var _ = Describe("Infinispan Webhooks", func() {
 
 			err := k8sClient.Create(ctx, failed)
 			expectInvalidErrStatus(err, []statusDetailCause{{
-				"FieldValueForbidden", "spec.service.type", "spec.service.type=DataGrid",
-			}, {
 				"FieldValueForbidden", "spec.service.sites", "XSite not supported",
 			}}...)
 		})
@@ -673,6 +684,75 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
 			Expect(updated.Spec.Affinity).Should(BeNil())
 			Expect(updated.Spec.Scheduling.Affinity).Should(BeEquivalentTo(affinitySpec))
+		})
+
+		It("Should only update explicitly configured probes", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Service: InfinispanServiceSpec{
+						Container: &InfinispanServiceContainerSpec{
+							LivenessProbe: ContainerProbeSpec{
+								InitialDelaySeconds: pointer.Int32Ptr(0),
+							},
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			updated := &Infinispan{}
+			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
+			Expect(*updated.Spec.Service.Container.LivenessProbe.InitialDelaySeconds).Should(BeZero())
+		})
+
+		It("Should prevent invalid probe values", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Service: InfinispanServiceSpec{
+						Container: &InfinispanServiceContainerSpec{
+							LivenessProbe: ContainerProbeSpec{
+								InitialDelaySeconds: pointer.Int32Ptr(-1),
+								SuccessThreshold:    pointer.Int32Ptr(2),
+							},
+							ReadinessProbe: ContainerProbeSpec{
+								TimeoutSeconds:   pointer.Int32Ptr(0),
+								SuccessThreshold: pointer.Int32Ptr(2),
+							},
+							StartupProbe: ContainerProbeSpec{
+								PeriodSeconds:    pointer.Int32Ptr(-1),
+								SuccessThreshold: pointer.Int32Ptr(2),
+							},
+						},
+					},
+				},
+			}
+			expectInvalidErrStatus(k8sClient.Create(ctx, ispn),
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.livenessProbe.initialDelaySeconds", "Probe value must be greater than or equal to",
+				},
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.livenessProbe.successThreshold", "Value must be equal to 1",
+				},
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.readinessProbe.timeoutSeconds", "Probe value must be greater than or equal to",
+				},
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.startupProbe.periodSeconds", "Probe value must be greater than or equal to",
+				},
+				statusDetailCause{
+					metav1.CauseTypeFieldValueInvalid, "spec.service.container.startupProbe.successThreshold", "Value must be equal to 1",
+				},
+			)
 		})
 	})
 })

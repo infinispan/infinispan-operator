@@ -85,7 +85,8 @@ func TestRollingUpgrade(t *testing.T) {
 	testKube.Create(spec)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	spec = testKube.WaitForInfinispanCondition(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed)
-	client := tutils.HTTPClientForCluster(spec, testKube)
+	versionManager := testKube.VersionManagerFromCSV(sub)
+	client := tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 
 	// Create caches
 	createCache("textCache", mime.TextPlain, client)
@@ -118,17 +119,7 @@ func TestRollingUpgrade(t *testing.T) {
 		// https://github.com/infinispan/infinispan-operator/issues/1719
 		time.Sleep(time.Minute)
 
-		operands := func() *version.Manager {
-			testKube.SetRelatedImagesEnvs(sub)
-			operandVersions := testKube.InstalledCSVEnv(ispnv1.OperatorOperandVersionEnvVarName, sub)
-			if operandVersions == "" {
-				panic(fmt.Sprintf("%s env empty, cannot continue", ispnv1.OperatorOperandVersionEnvVarName))
-			}
-			versionManager, err := version.ManagerFromJson(operandVersions)
-			tutils.ExpectNoError(err)
-			return versionManager
-		}
-
+		versionManager = testKube.VersionManagerFromCSV(sub)
 		assertMigration := func(expectedImage string, isRollingUpgrade, indexedSupported bool) {
 			if !isRollingUpgrade {
 				clusterCounter++
@@ -147,7 +138,8 @@ func TestRollingUpgrade(t *testing.T) {
 				}
 			}
 
-			if !tutils.CheckExternalAddress(client) {
+			operand := tutils.Operand(spec.Spec.Version, versionManager)
+			if !tutils.CheckExternalAddress(client, operand) {
 				panic("Error contacting server")
 			}
 
@@ -171,7 +163,7 @@ func TestRollingUpgrade(t *testing.T) {
 			}
 
 			// This is the first upgrade to an Operator with multi-operand support, so wait for the oldest Operand
-			oldestOperand := operands().Oldest()
+			oldestOperand := versionManager.Oldest()
 			ispnPreUpgrade = testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 					i.Status.Operand.Version == oldestOperand.Ref() &&
@@ -188,9 +180,9 @@ func TestRollingUpgrade(t *testing.T) {
 			}
 		}
 
-		versionManager := operands()
 		latestOperand := versionManager.Latest()
 		currentOperand, err := versionManager.WithRef(ispnPreUpgrade.Spec.Version)
+		client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 		tutils.ExpectNoError(err)
 		if !currentOperand.EQ(latestOperand) {
 			ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
@@ -214,7 +206,7 @@ func TestRollingUpgrade(t *testing.T) {
 					i.Status.Operand.Image == latestOperand.Image &&
 					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 			})
-			lastOperand, err := operands().WithRef(ispnPreUpgrade.Status.Operand.Version)
+			lastOperand, err := versionManager.WithRef(ispnPreUpgrade.Status.Operand.Version)
 			tutils.ExpectNoError(err)
 			isRolling := latestOperand.CVE && lastOperand.UpstreamVersion.EQ(*latestOperand.UpstreamVersion)
 			assertMigration(latestOperand.Image, isRolling, indexSupported)
@@ -242,6 +234,11 @@ func addData(cacheName string, entries int, client tutils.HTTPClient) {
 }
 
 func createIndexedCache(entries int, client tutils.HTTPClient) {
+	cache := tutils.NewCacheHelper(IndexedCacheName, client)
+	if cache.Exists() {
+		fmt.Printf("Cache '%s' already exists", IndexedCacheName)
+		return
+	}
 	proto := `
 package book_sample;
 
@@ -272,7 +269,6 @@ message Author {
 	tutils.ExpectNoError(err)
 
 	config := "{\"distributed-cache\":{\"encoding\":{\"media-type\":\"application/x-protostream\"},\"persistence\":{\"file-store\":{}},\"indexing\":{\"indexed-entities\":[\"book_sample.Book\"]}}}"
-	cache := tutils.NewCacheHelper(IndexedCacheName, client)
 	cache.Create(config, mime.ApplicationJson)
 	for i := 0; i < entries; i++ {
 		data := fmt.Sprintf("{\"_type\":\"book_sample.Book\",\"title\":\"book%d\"}", i)

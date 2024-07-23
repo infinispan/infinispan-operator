@@ -11,8 +11,8 @@
     <packaging>war</packaging>
 
     <properties>
-        <version.infinispan.hotrod>14.0.21.Final</version.infinispan.hotrod>
-        <version.jboss.servlet>1.0.2.Final</version.jboss.servlet>
+        <version.infinispan.hotrod>15.0.3.Final</version.infinispan.hotrod>
+        <version.jakarta.servlet>6.0.0</version.jakarta.servlet>
         <version.maven.war>3.2.2</version.maven.war>
 
         <maven.compiler.target>1.8</maven.compiler.target>
@@ -28,9 +28,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.jboss.spec.javax.servlet</groupId>
-            <artifactId>jboss-servlet-api_3.0_spec</artifactId>
-            <version>${version.jboss.servlet}</version>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>${version.jakarta.servlet}</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

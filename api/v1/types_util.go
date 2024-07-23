@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
 type ImageType string
@@ -473,6 +474,16 @@ func (spec *DiscoverySiteSpec) MemoryResources() (requests resource.Quantity, li
 	return getRequestLimits(spec.Memory)
 }
 
+// CpuResources returns the CPU request and limit values to be used by by External Dependencies Downloader Init container
+func (spec *InitDependenciesContainerSpec) CpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+	return getRequestLimits(spec.CPU)
+}
+
+// MemoryResources returns the Memory request and limit values to be used by External Dependencies Downloader Init container
+func (spec *InitDependenciesContainerSpec) MemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+	return getRequestLimits(spec.Memory)
+}
+
 func getRequestLimits(str string) (requests resource.Quantity, limits resource.Quantity, err error) {
 	if str == "" {
 		err = fmt.Errorf("resource string cannot be empty")
@@ -503,19 +514,7 @@ func getRequestLimits(str string) (requests resource.Quantity, limits resource.Q
 }
 
 func (ispn *Infinispan) GetJavaOptions() string {
-	switch ispn.Spec.Service.Type {
-	case ServiceTypeDataGrid:
-		return ispn.Spec.Container.ExtraJvmOpts
-	case ServiceTypeCache:
-		switch ispn.ImageType() {
-		case ImageTypeJVM:
-			return fmt.Sprintf(consts.CacheServiceJavaOptions, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceMaxRamMb,
-				consts.CacheServiceMinHeapFreeRatio, consts.CacheServiceMaxHeapFreeRatio, ispn.Spec.Container.ExtraJvmOpts)
-		case ImageTypeNative:
-			return fmt.Sprintf(consts.CacheServiceNativeJavaOptions, consts.CacheServiceFixedMemoryXmxMb, consts.CacheServiceFixedMemoryXmxMb, ispn.Spec.Container.ExtraJvmOpts)
-		}
-	}
-	return ""
+	return ispn.Spec.Container.ExtraJvmOpts
 }
 
 // GetLogCategoriesForConfig return a map of log category for the Infinispan configuration
@@ -851,7 +850,7 @@ func (ispn *Infinispan) GetSiteTLSProtocol() string {
 	if !ispn.IsSiteTLSEnabled() {
 		return ""
 	}
-	return consts.GetWithDefault(string(ispn.Spec.Service.Sites.Local.Encryption.Protocol), string(TLSVersion12))
+	return consts.GetWithDefault(string(ispn.Spec.Service.Sites.Local.Encryption.Protocol), string(TLSVersion13))
 }
 
 // GetSiteTransportSecretName returns the secret name for the transport TLS keystore
@@ -973,4 +972,41 @@ func (ispn *Infinispan) PriorityClassName() string {
 		return ispn.Spec.Scheduling.PriorityClassName
 	}
 	return ""
+}
+
+func (ispn *Infinispan) Tolerations() []corev1.Toleration {
+	return ispn.Spec.Scheduling.Tolerations
+}
+
+func (ispn *Infinispan) TopologySpreadConstraints() []corev1.TopologySpreadConstraint {
+	return ispn.Spec.Scheduling.TopologySpreadConstraints
+}
+
+func (c *ContainerProbeSpec) AssignDefaults(failureThreshold, initialDelay, period, successThreshold, timeout int32) {
+	if c.FailureThreshold == nil {
+		c.FailureThreshold = pointer.Int32(failureThreshold)
+	}
+	if c.InitialDelaySeconds == nil {
+		c.InitialDelaySeconds = pointer.Int32(initialDelay)
+	}
+	if c.PeriodSeconds == nil {
+		c.PeriodSeconds = pointer.Int32(period)
+	}
+	if c.SuccessThreshold == nil {
+		c.SuccessThreshold = pointer.Int32(successThreshold)
+	}
+	if c.TimeoutSeconds == nil {
+		c.TimeoutSeconds = pointer.Int32(timeout)
+	}
+}
+
+func (ispn *Infinispan) InitServiceContainer() {
+	if ispn.Spec.Service.Container == nil {
+		ispn.Spec.Service.Container = &InfinispanServiceContainerSpec{}
+	}
+
+	c := ispn.Spec.Service.Container
+	c.LivenessProbe.AssignDefaults(5, 0, 10, 1, 1)
+	c.ReadinessProbe.AssignDefaults(5, 0, 10, 1, 1)
+	c.StartupProbe.AssignDefaults(600, 3, 1, 1, 1)
 }

@@ -8,7 +8,7 @@ import (
 
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
-	v13 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v13"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -21,7 +21,7 @@ type CacheHelper struct {
 
 func NewCacheHelper(cacheName string, client HTTPClient) *CacheHelper {
 	return &CacheHelper{
-		CacheClient: ispnClient.New(LatestOperand, client).Cache(cacheName),
+		CacheClient: ispnClient.New(CurrentOperand, client).Cache(cacheName),
 		CacheName:   cacheName,
 		Client:      client,
 	}
@@ -152,7 +152,7 @@ func (c *CacheHelper) Available(available bool) {
 	} else {
 		availability = "DEGRADED_MODE"
 	}
-	path := fmt.Sprintf("%s/%s?action=set-availability&availability=%s", v13.CachesPath, url.PathEscape(c.CacheName), availability)
+	path := v14.NewPathResolver().Caches(fmt.Sprintf("/%s?action=set-availability&availability=%s", url.PathEscape(c.CacheName), availability))
 	_, err := c.Client.Post(path, "", nil)
 	ExpectNoError(err)
 }

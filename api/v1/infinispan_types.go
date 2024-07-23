@@ -106,6 +106,39 @@ type InfinispanServiceContainerSpec struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Class Name",xDescriptors={"urn:alm:descriptor:io.kubernetes:StorageClass", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:service.container.ephemeralStorage:false"}
 	StorageClassName string `json:"storageClassName,omitempty"`
+	// Periodic probe of container liveness.
+	// Container will be restarted if the probe fails.
+	// +optional
+	LivenessProbe ContainerProbeSpec `json:"livenessProbe,omitempty"`
+	// Periodic probe of container service readiness.
+	// Container will be removed from service endpoints if the probe fails.
+	// +optional
+	ReadinessProbe ContainerProbeSpec `json:"readinessProbe,omitempty"`
+	// StartupProbe indicates that the Pod has successfully initialized.
+	// If specified, no other probes are executed until this completes successfully.
+	// If this probe fails, the Pod will be restarted, just as if the livenessProbe failed.
+	// This can be used to provide different probe parameters at the beginning of a Pod's lifecycle,
+	// when it might take a long time to load data or warm a cache, than during steady-state operation.
+	// +optional
+	StartupProbe ContainerProbeSpec `json:"startupProbe,omitempty"`
+}
+
+type ContainerProbeSpec struct {
+	// Number of seconds after the container has started before liveness probes are initiated.
+	// +optional
+	InitialDelaySeconds *int32 `json:"initialDelaySeconds,omitempty"`
+	// Number of seconds after which the probe times out.
+	// +optional
+	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
+	// How often (in seconds) to perform the probe.
+	// +optional
+	PeriodSeconds *int32 `json:"periodSeconds,omitempty"`
+	// Minimum consecutive successes for the probe to be considered successful after having failed.
+	// +optional
+	SuccessThreshold *int32 `json:"successThreshold,omitempty"`
+	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
+	// +optional
+	FailureThreshold *int32 `json:"failureThreshold,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=DataGrid;Cache
@@ -353,6 +386,18 @@ type InfinispanExternalDependencies struct {
 	VolumeClaimName string `json:"volumeClaimName,omitempty"`
 	// +optional
 	Artifacts []InfinispanExternalArtifacts `json:"artifacts,omitempty"`
+	// +optional
+	InitContainer InitDependenciesContainerSpec `json:"initContainer,omitempty"`
+}
+
+// InitDependenciesContainerSpec describes the configuration options for the dependency download init container
+type InitDependenciesContainerSpec struct {
+	// +optional
+	// Memory in limit:request format
+	Memory string `json:"memory,omitempty"`
+	// +optional
+	// CPU in limit:request format
+	CPU string `json:"cpu,omitempty"`
 }
 
 // ExternalArtifactType defines external artifact file type
@@ -437,6 +482,10 @@ type SchedulingSpec struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// +optional
 	PriorityClassName string `json:"PriorityClassName,omitempty"`
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// +optional
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // InfinispanSpec defines the desired state of Infinispan
@@ -466,6 +515,7 @@ type InfinispanSpec struct {
 	// Deprecated. Use scheduling.affinity instead
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// +optional
+	// Deprecated. Has no effect starting with Infinispan 15.0.0 servers
 	CloudEvents *InfinispanCloudEvents `json:"cloudEvents,omitempty"`
 	// External dependencies needed by the Infinispan cluster
 	// +optional
@@ -557,6 +607,10 @@ type InfinispanStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operand Status"
 	Operand OperandStatus `json:"operand,omitempty"`
+	// The Operator status
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operator Status"
+	Operator Operator `json:"operator,omitempty"`
 }
 
 type OperandPhase string
@@ -569,6 +623,9 @@ const (
 )
 
 type OperandStatus struct {
+	// Whether the Operand has been deprecated and is subject for removal in a subsequent release
+	// +optional
+	Deprecated bool `json:"deprecated,omitempty"`
 	// The Image being used by the Operand currently being reconciled
 	// +optional
 	Image string `json:"image,omitempty"`
@@ -597,6 +654,12 @@ const (
 	HotRodRollingStageStatefulSetReplace HotRodRollingUpgradeStage = "HotRodRollingStageStatefulSetReplace"
 	HotRodRollingStageCleanup            HotRodRollingUpgradeStage = "HotRodRollingStageCleanup"
 )
+
+type Operator struct {
+	// The name of the pod reconciling this resource
+	// +optional
+	Pod string `json:"pod,omitempty"`
+}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

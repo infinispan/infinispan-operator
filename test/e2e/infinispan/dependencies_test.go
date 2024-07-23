@@ -12,9 +12,12 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,8 +25,6 @@ import (
 )
 
 func TestExternalDependenciesHttp(t *testing.T) {
-	tutils.SkipForMajor(t, 13, "Downloading artifacts dependencies via url is broken with Infinispan 13.")
-
 	if os.Getenv("NO_NGINX") != "" {
 		t.Skip("Skipping test, no Nginx available.")
 	}
@@ -39,13 +40,24 @@ func TestExternalDependenciesHttp(t *testing.T) {
 				{Url: fmt.Sprintf("http://%s:%d/task01-1.0.0.jar", tutils.WebServerName, tutils.WebServerPortNumber)},
 				{Url: fmt.Sprintf("http://%s:%d/task02-1.0.0.zip", tutils.WebServerName, tutils.WebServerPortNumber)},
 			},
+			InitContainer: ispnv1.InitDependenciesContainerSpec{
+				Memory: "512Mi:64Mi",
+				CPU:    "900m:100m",
+			},
 		}
 	})
 
 	// Create the cluster
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, namespace)
+	pod := testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, namespace).Items[0]
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	// Assert that the initContainer has the specified re
+	container := kube.GetInitContainer(provision.ExternalArtifactsDownloadInitContainer, &pod.Spec)
+	assert.Equal(t, resource.MustParse("512Mi"), *container.Resources.Limits.Memory())
+	assert.Equal(t, resource.MustParse("64Mi"), *container.Resources.Requests.Memory())
+	assert.Equal(t, resource.MustParse("900m"), *container.Resources.Limits.Cpu())
+	assert.Equal(t, resource.MustParse("100m"), *container.Resources.Requests.Cpu())
 
 	client_ := tutils.HTTPClientForCluster(ispn, testKube)
 
@@ -71,6 +83,23 @@ func TestExternalDependenciesHttp(t *testing.T) {
 	for _, task := range []string{"01", "02"} {
 		validateTaskExecution("task-"+task, "World", http.StatusOK, "Hello World")
 	}
+
+	// Ensure that updates to InitContainer resources result in a StatefulSet rollout and the appropriate values are configured
+	verifyStatefulSetUpdate(
+		*ispn,
+		func(ispn *ispnv1.Infinispan) {
+			ispn.Spec.Dependencies.InitContainer.CPU = ""
+			ispn.Spec.Dependencies.InitContainer.Memory = ""
+		},
+		func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+			testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+			container = kube.GetInitContainer(provision.ExternalArtifactsDownloadInitContainer, &ss.Spec.Template.Spec)
+			assert.True(t, container.Resources.Limits.Memory().IsZero())
+			assert.True(t, container.Resources.Requests.Memory().IsZero())
+			assert.True(t, container.Resources.Limits.Cpu().IsZero())
+			assert.True(t, container.Resources.Requests.Cpu().IsZero())
+		},
+	)
 
 	var externalLibraryAddModify = func(ispn *ispnv1.Infinispan) {
 		libs := &ispn.Spec.Dependencies.Artifacts

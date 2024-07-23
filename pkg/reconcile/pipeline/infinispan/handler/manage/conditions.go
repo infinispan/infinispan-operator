@@ -41,6 +41,38 @@ func PreliminaryChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 }
 
+func OperatorStatusChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	operatorPod := kube.GetOperatorPodName()
+	// CacheService is no longer supported. Set WellFormed = false and stop reconciliation
+	if i.IsCache() {
+		_ = ctx.UpdateInfinispan(func() {
+			i.SetCondition(ispnv1.ConditionWellFormed, metav1.ConditionFalse, "Please change to service type DataGrid. CacheService is no longer supported.")
+			i.Status.Operator.Pod = operatorPod
+		})
+		ctx.Stop(nil)
+		return
+	}
+	// Pod name is changed, means operator restarted
+	if i.Status.Operator.Pod != operatorPod {
+		if ctx.Operand().Deprecated {
+			msg := fmt.Sprintf("Infinispan version '%s' will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.", i.Spec.Version)
+			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", msg)
+			ctx.Log().Error(nil, msg)
+		}
+
+		if i.Spec.Autoscale != nil {
+			errMsg := "Autoscale is no longer supported. Please remove spec.autoscale field."
+			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "AutoscaleNotSupported", errMsg)
+			ctx.Log().Error(fmt.Errorf("AutoscaleNotSupported"), errMsg)
+		}
+		ctx.Requeue(
+			ctx.UpdateInfinispan(func() {
+				i.Status.Operator.Pod = operatorPod
+			}),
+		)
+	}
+}
+
 func PodStatus(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	ss := &appsv1.StatefulSet{}
 	if err := ctx.Resources().Load(i.GetStatefulSetName(), ss, pipeline.RetryOnErr); err != nil {
@@ -100,6 +132,7 @@ func wellFormedCondition(i *ispnv1.Infinispan, ctx pipeline.Context, podList *co
 	clusterViews := make(map[string]bool)
 	numPods := int32(len(podList.Items))
 	var podErrors []string
+
 	// Avoid contacting the server(s) if we're still waiting for pods
 	if numPods < i.Spec.Replicas {
 		podErrors = append(podErrors, fmt.Sprintf("Running %d pods. Needed %d", numPods, i.Spec.Replicas))
@@ -225,8 +258,9 @@ func OperandStatus(i *ispnv1.Infinispan, phase ispnv1.OperandPhase, operand vers
 	}
 
 	return ispnv1.OperandStatus{
-		Image:   img,
-		Phase:   phase,
-		Version: operand.Ref(),
+		Deprecated: operand.Deprecated,
+		Image:      img,
+		Phase:      phase,
+		Version:    operand.Ref(),
 	}
 }

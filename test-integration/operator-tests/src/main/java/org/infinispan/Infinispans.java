@@ -2,8 +2,8 @@ package org.infinispan;
 
 public class Infinispans {
 
-   public static Infinispan cacheService() {
-      return new Infinispan("src/test/resources/infinispans/cache_service.yaml");
+   public static Infinispan ocpCerts() {
+      return new Infinispan("src/test/resources/infinispans/ocp_certs.yaml");
    }
 
    public static Infinispan customLibs() {
