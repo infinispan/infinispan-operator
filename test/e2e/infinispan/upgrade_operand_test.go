@@ -22,19 +22,22 @@ func TestOperandUpgrade(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	versionManager := tutils.VersionManager()
-	oldest := versionManager.Oldest().Ref()
-	fmt.Println(t.Name() + " will be performed from " + oldest)
+	oldest := versionManager.Oldest()
+	fmt.Println(t.Name() + " will be performed from " + oldest.Ref())
 
 	// Create Infinispan Cluster using the oldest Operand release
 	replicas := 1
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
-		i.Spec.Version = oldest
+		i.Spec.Version = oldest.Ref()
 	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-	assert.True(t, ispn.Status.Operand.Deprecated)
+
+	if oldest.Deprecated {
+		assert.True(t, ispn.Status.Operand.Deprecated)
+	}
 
 	// Follow the support Operand graph, updating the cluster to each non-cve release
 	for i := 1; i < len(versionManager.Operands); i++ {
