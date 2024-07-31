@@ -53,45 +53,56 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	listenerExists := r.Load(name, deployment) == nil
 	if listenerExists {
 		container := kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
-		if container != nil && container.Image == configListenerImage {
-			if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0 {
-				if err := ScaleConfigListener(1, i, ctx); err != nil {
-					ctx.Requeue(err)
-					return
+		if container != nil {
+			if container.Image == configListenerImage {
+				if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0 {
+					if err := ScaleConfigListener(1, i, ctx); err != nil {
+						ctx.Requeue(err)
+						return
+					}
 				}
-			}
 
-			// Update the deployment args if the ConfigListener log level has been updated
-			logLevel := string(i.Spec.ConfigListener.Logging.Level)
-			if container.Args[len(container.Args)-1] != logLevel {
+				// Update the deployment args if the ConfigListener log level has been updated
+				logLevel := string(i.Spec.ConfigListener.Logging.Level)
+				if container.Args[len(container.Args)-1] != logLevel {
+					err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
+						container = kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
+						container.Args[len(container.Args)-1] = logLevel
+					})
+
+					if err != nil {
+						ctx.Requeue(fmt.Errorf("unable to update ConfigListener log level: %w", err))
+						return
+					}
+				}
+
+				if podResources, err := podResources(i); err != nil {
+					ctx.Requeue(fmt.Errorf("unable to calculate ConfigListener pod resources on update: %w", err))
+					return
+				} else if podResources != nil && !reflect.DeepEqual(*podResources, container.Resources) {
+					err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
+						container = kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
+						container.Resources = *podResources
+					})
+
+					if err != nil {
+						ctx.Requeue(fmt.Errorf("unable to update ConfigListener resources: %w", err))
+						return
+					}
+				}
+				// The Deployment already exists with the expected spec, do nothing
+			} else {
+				// Deployed configListener has different image, redeploying...
+				ctx.Log().Info("ConfigListener deployment, new image detected", "image", configListenerImage)
 				err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
-					container = kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
-					container.Args[len(container.Args)-1] = logLevel
+					deployment.Spec.Template.Spec.Containers[0].Image = configListenerImage
 				})
-
 				if err != nil {
-					ctx.Requeue(fmt.Errorf("unable to update ConfigListener log level: %w", err))
+					ctx.Requeue(fmt.Errorf("unable to update ConfigListener image: %w", err))
 					return
 				}
-			}
-
-			if podResources, err := podResources(i); err != nil {
-				ctx.Requeue(fmt.Errorf("unable to calculate ConfigListener pod resources on update: %w", err))
 				return
-			} else if podResources != nil && !reflect.DeepEqual(*podResources, container.Resources) {
-				err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
-					container = kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec)
-					container.Resources = *podResources
-				})
-
-				if err != nil {
-					ctx.Requeue(fmt.Errorf("unable to update ConfigListener resources: %w", err))
-					return
-				}
 			}
-
-			// The Deployment already exists with the expected spec, do nothing
-			return
 		}
 	}
 
