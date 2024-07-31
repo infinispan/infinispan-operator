@@ -663,6 +663,7 @@ type Operator struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
 // +operator-sdk:csv:customresourcedefinitions:displayName="Infinispan Cluster"
 
 // Infinispan is the Schema for the infinispans API
