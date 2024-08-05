@@ -1,4 +1,4 @@
-FROM maven:3.8-openjdk-11
+FROM maven:3.9-eclipse-temurin-21
 
 ENV JAVA_TOOL_OPTIONS="-XX:+IgnoreUnrecognizedVMOptions --add-exports java.base/jdk.compiler=ALL-UNNAMED"
 
