@@ -611,6 +611,9 @@ type InfinispanStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operator Status"
 	Operator Operator `json:"operator,omitempty"`
+	// The Operator Selector
+	// +optional
+	Selector string  `json:"selector"`
 }
 
 type OperandPhase string
@@ -663,7 +666,7 @@ type Operator struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
 // +operator-sdk:csv:customresourcedefinitions:displayName="Infinispan Cluster"
 
 // Infinispan is the Schema for the infinispans API
