@@ -474,9 +474,13 @@ func (r *HotRodRollingUpgradeRequest) syncData() error {
 		return fmt.Errorf("failed to obtain pods from the target cluster: %w", err)
 	}
 
+	sourceClient, err := ctx.InfinispanClient()
+	if err != nil {
+		return err
+	}
 	// Clone the source curl client as the credentials are the same, updating the pod to one from the target statefulset
 	targetClient := ctx.InfinispanClientForPod(podList.Items[0].Name)
-	if err = upgrades.SyncCaches(targetClient, r.log); err != nil {
+	if err = upgrades.SyncCaches(sourceClient, targetClient, r.log); err != nil {
 		return err
 	}
 

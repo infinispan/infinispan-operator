@@ -67,8 +67,8 @@ func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, tar
 }
 
 // SyncCaches Do a sync data operation for each cache in a cluster
-func SyncCaches(targetClient api.Infinispan, logger logr.Logger) error {
-	names, err := cacheNames(targetClient)
+func SyncCaches(sourceClient, targetClient api.Infinispan, logger logr.Logger) error {
+	names, err := cacheNames(sourceClient)
 	if err != nil {
 		return fmt.Errorf("failed to get cache names from the target cluster: %w", err)
 	}
