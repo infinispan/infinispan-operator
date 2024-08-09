@@ -60,9 +60,16 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
+	selector, err := metav1.LabelSelectorAsSelector(statefulSet.Spec.Selector)
+
+	if err != nil {
+		ctx.Requeue(fmt.Errorf("error retrieving StatefulSet labels: %w", err))
+		return
+	}
 	_ = ctx.UpdateInfinispan(func() {
 		i.Status.Replicas = &i.Spec.Replicas
 		i.Status.StatefulSetName = statefulSet.Name
+		i.Status.Selector = selector.String()
 	})
 }
 
