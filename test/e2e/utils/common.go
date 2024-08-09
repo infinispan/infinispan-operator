@@ -97,8 +97,12 @@ var VersionManager = func() *version.Manager {
 			"upstream-version": "15.0.5",
 			"image": "quay.io/infinispan/server:15.0.5.Final"
 		},{
-			"downstream-version": "0.3.3-2",
-			"upstream-version": "15.0.5",
+			"downstream-version": "0.3.4-1",
+			"upstream-version": "15.0.8",
+			"image": "quay.io/infinispan/server:15.0.8.Final"
+		},{
+			"downstream-version": "0.3.4-2",
+			"upstream-version": "15.0.8",
 			"image": "quay.io/infinispan/server:15.0",
 			"cve": true
 		}]`)
