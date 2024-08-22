@@ -101,7 +101,12 @@ var VersionManager = func() *version.Manager {
 			"upstream-version": "15.0.5",
 			"image": "quay.io/infinispan/server:15.0",
 			"cve": true
-		}]`)
+		},{
+         "downstream-version": "0.3.3-3",
+         "upstream-version": "15.0.8",
+         "image": "quay.io/infinispan/server:15.0",
+         "cve": true
+      }]`)
 	}
 	if manager, err := version.ManagerFromEnv(ispnv1.OperatorOperandVersionEnvVarName); err != nil {
 		panic(err)
