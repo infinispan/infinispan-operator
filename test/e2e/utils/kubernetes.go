@@ -518,7 +518,11 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 			err = k.Kubernetes.ResourcesList(ispn.Namespace, ispn.ExternalServiceSelectorLabels(), routeList, context.TODO())
 			ExpectNoError(err)
 			if len(routeList.Items) > 0 {
-				hostAndPort = routeList.Items[0].Spec.Host
+				if routeList.Items[0].Spec.TLS != nil {
+					hostAndPort = routeList.Items[0].Spec.Host + ":443"
+				} else {
+					hostAndPort = routeList.Items[0].Spec.Host + ":80"
+				}
 			}
 		}
 		if hostAndPort == "" {

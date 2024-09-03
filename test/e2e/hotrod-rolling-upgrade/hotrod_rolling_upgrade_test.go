@@ -188,7 +188,7 @@ func TestRollingUpgrade(t *testing.T) {
 			ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
 			// ISPN-15651 Test migrating Indexed caches from 14.0.25.Final onwards
-			indexSupported := latestOperand.GTE(version.Operand{UpstreamVersion: &semver.Version{Major: 14, Minor: 0, Patch: 25}})
+			indexSupported := latestOperand.UpstreamVersion.GTE(*version.Operand{UpstreamVersion: &semver.Version{Major: 14, Minor: 0, Patch: 25}}.UpstreamVersion)
 			if indexSupported {
 				createIndexedCache(entriesPerCache, client)
 			}

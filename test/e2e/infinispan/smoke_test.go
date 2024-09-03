@@ -67,11 +67,13 @@ func TestBaseFunctionality(t *testing.T) {
 	verifyDefaultAuthention(require, ispn)
 	verifyScheduling(assert, require, ispn)
 
-	// Verify that the Redis endpoint is accessible
-	redis := tutils.RedisClientForCluster(ispn, testKube)
-	size, err := redis.DBSize(context.TODO()).Result()
-	tutils.ExpectNoError(err)
-	assert.Equal(int64(0), size)
+	if tutils.IsVersionAtLeast("15.0.0") {
+		// Verify that the Redis endpoint is accessible
+		redis := tutils.RedisClientForCluster(ispn, testKube)
+		size, err := redis.DBSize(context.TODO()).Result()
+		tutils.ExpectNoError(err)
+		assert.Equal(int64(0), size)
+	}
 }
 
 // Make sure no PVCs were created
