@@ -441,13 +441,22 @@ func RedisClientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) *redis.Cl
 	// We can then use the host and port of the client to initialize the redis client as access is via the Single port
 	httpClient := HTTPClientForClusterWithVersionManager(i, kube, nil)
 	user, pass := userAndPassword(i, kube)
-	httpClient.GetHostAndPort()
-	return redis.NewClient(&redis.Options{
-		Addr:     httpClient.GetHostAndPort(),
+	hostAndPort := httpClient.GetHostAndPort()
+
+	options := &redis.Options{
+		Addr:     hostAndPort,
 		Username: *user,
 		Password: *pass,
 		DB:       0, // use default DB
-	})
+	}
+
+	if i.Spec.Security.EndpointEncryption != nil && i.Spec.Security.EndpointEncryption.Type != "None" {
+		options.TLSConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+
+	return redis.NewClient(options)
 }
 
 // Operand replicates the semantics of InitialiseOperandVersion pipeline handler for determing Operand version when no version is explicitly provided

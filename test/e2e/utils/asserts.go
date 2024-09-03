@@ -48,13 +48,20 @@ func SkipForMajor(t *testing.T, infinispanMajor uint64, message string) {
 	}
 }
 
-func SkipPriorTo(t *testing.T, version, message string) {
+func IsVersionAtLeast(version string) bool {
 	if OperandVersion != "" {
 		operand_cur, _ := VersionManager().WithRef(OperandVersion)
 		version_min, _ := semver.Parse(version)
-		if operand_cur.UpstreamVersion.LE(version_min) {
-			t.Skip(message)
-		}
+		return operand_cur.UpstreamVersion.GE(version_min)
+	}
+
+	// Assume yes if OperandVersion isn't specified
+	return true
+}
+
+func SkipPriorTo(t *testing.T, version, message string) {
+	if !IsVersionAtLeast(version) {
+		t.Skip(message)
 	}
 }
 
