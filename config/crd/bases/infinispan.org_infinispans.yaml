@@ -2457,6 +2457,9 @@ spec:
                     description: The secret that contains user credentials.
                     type: string
                 type: object
+              selector:
+                description: The Operator Selector
+                type: string
               statefulSetName:
                 type: string
             type: object
@@ -2465,6 +2468,7 @@ spec:
     storage: true
     subresources:
       scale:
+        labelSelectorPath: .status.selector
         specReplicasPath: .spec.replicas
         statusReplicasPath: .status.replicas
       status: {}
