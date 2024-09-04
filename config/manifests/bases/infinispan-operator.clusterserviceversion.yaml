@@ -136,6 +136,8 @@ spec:
         path: replicas
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:podCount
+      - displayName: Replicas
+        path: Replicas
       - description: A secret that contains CredentialStore alias and password combinations
         displayName: CredentialStore Secret
         path: security.credentialStoreSecretName
