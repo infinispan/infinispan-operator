@@ -611,7 +611,7 @@ type InfinispanStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Operator Status"
 	Operator Operator `json:"operator,omitempty"`
-	// The Operator Selector
+	// The Selector used to identify Infinispan cluster pods
 	// +optional
 	Selector string  `json:"selector"`
 }
