@@ -250,17 +250,19 @@ func getCrossSiteViewCondition(ctx pipeline.Context, podList *corev1.PodList, si
 }
 
 func OperandStatus(i *ispnv1.Infinispan, phase ispnv1.OperandPhase, operand version.Operand) ispnv1.OperandStatus {
+	customImg := i.Spec.Image != nil
 	var img string
-	if i.Spec.Image != nil {
+	if customImg {
 		img = *i.Spec.Image
 	} else {
 		img = operand.Image
 	}
 
 	return ispnv1.OperandStatus{
-		Deprecated: operand.Deprecated,
-		Image:      img,
-		Phase:      phase,
-		Version:    operand.Ref(),
+		CustomImage: customImg,
+		Deprecated:  operand.Deprecated,
+		Image:       img,
+		Phase:       phase,
+		Version:     operand.Ref(),
 	}
 }

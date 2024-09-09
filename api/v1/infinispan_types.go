@@ -623,6 +623,9 @@ const (
 )
 
 type OperandStatus struct {
+	// Whether the Operand installed/pending is using a custom image
+	// +optional
+	CustomImage bool `json:"customImage,omitempty"`
 	// Whether the Operand has been deprecated and is subject for removal in a subsequent release
 	// +optional
 	Deprecated bool `json:"deprecated,omitempty"`

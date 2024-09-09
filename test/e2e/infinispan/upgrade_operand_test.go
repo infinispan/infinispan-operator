@@ -9,6 +9,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"k8s.io/utils/pointer"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -209,4 +210,84 @@ func TestOperandCVEHotRodRolling(t *testing.T) {
 		})
 	}
 	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
+func TestSpecImageUpdate(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	// Create Infinispan Cluster using the penultimate Operand release as this will have a different image name to the latest
+	// release. We can then manually specify spec.image using the FQN of the latest image to simulate a user specifying
+	// custom images
+	replicas := 1
+	versionManager := tutils.VersionManager()
+	operand := versionManager.Operands[len(versionManager.Operands)-2]
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = int32(replicas)
+		i.Spec.Version = operand.Ref()
+	})
+
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	customImage := versionManager.Latest().Image
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			// Update the spec to install the custom image
+			ispn.Spec.Image = pointer.String(customImage)
+		}),
+	)
+	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+		return !i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.Version == operand.Ref() &&
+			i.Status.Operand.Image == customImage &&
+			i.Status.Operand.Phase == ispnv1.OperandPhasePending
+	})
+
+	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.Version == operand.Ref() &&
+			i.Status.Operand.Image == customImage &&
+			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+	})
+
+	// Ensure that the newly created cluster pods have the correct Operand image
+	podList := &corev1.PodList{}
+	tutils.ExpectNoError(testKube.Kubernetes.ResourcesList(tutils.Namespace, ispn.PodSelectorLabels(), podList, context.TODO()))
+	for _, pod := range podList.Items {
+		container := kubernetes.GetContainer(provision.InfinispanContainer, &pod.Spec)
+		assert.Equal(t, customImage, container.Image)
+	}
+
+	// Ensure that the StatefulSet is on its first generation, i.e. a RollingUpgrade has not been performed
+	ss := appsv1.StatefulSet{}
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetStatefulSetName()}, &ss))
+	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
+
+	latestOperand := versionManager.Latest()
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			// Update the spec to move to the latest Operand version to ensure that a new GracefulShutdown is triggered
+			ispn.Spec.Image = nil
+			ispn.Spec.Version = latestOperand.Ref()
+		}),
+	)
+	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+		return !i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.Version == latestOperand.Ref() &&
+			i.Status.Operand.Image == latestOperand.Image &&
+			i.Status.Operand.Phase == ispnv1.OperandPhasePending
+	})
+
+	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.Version == latestOperand.Ref() &&
+			i.Status.Operand.Image == latestOperand.Image &&
+			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+	})
+
+	// Ensure that the StatefulSet is on its first generation, i.e. a RollingUpgrade has not been performed
+	ss = appsv1.StatefulSet{}
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetStatefulSetName()}, &ss))
+	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
 }
