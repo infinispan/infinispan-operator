@@ -2347,6 +2347,10 @@ spec:
               operand:
                 description: The Operand status
                 properties:
+                  customImage:
+                    description: Whether the Operand installed/pending is using a
+                      custom image
+                    type: boolean
                   deprecated:
                     description: Whether the Operand has been deprecated and is subject
                       for removal in a subsequent release
