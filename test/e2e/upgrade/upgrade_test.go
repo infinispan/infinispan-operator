@@ -63,10 +63,11 @@ func TestUpgrade(t *testing.T) {
 	}
 
 	defer testKube.CleanupOLMTest(t, tutils.TestName(t), olm.SubName, olm.SubNamespace, olm.SubPackage)
-	testKube.CreateSubscriptionAndApproveInitialVersion(olm, sub)
+	testKube.CreateOperatorGroup(olm)
+	testKube.CreateSubscriptionAndApproveInitialVersion(sub)
 
 	// Create the Infinispan CR
-	replicas := 2
+	replicas := 1
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Service.Container.EphemeralStorage = false

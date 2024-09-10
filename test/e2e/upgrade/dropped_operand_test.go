@@ -43,7 +43,8 @@ func TestUpgradeFromDroppedOperand(t *testing.T) {
 		},
 	}
 	defer testKube.CleanupOLMTest(t, tutils.TestName(t), olm.SubName, olm.SubNamespace, olm.SubPackage)
-	testKube.CreateSubscriptionAndApproveInitialVersion(olm, sub)
+	testKube.CreateOperatorGroup(olm)
+	testKube.CreateSubscriptionAndApproveInitialVersion(sub)
 
 	replicas := 1
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
