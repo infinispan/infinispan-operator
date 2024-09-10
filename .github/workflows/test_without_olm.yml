@@ -1,0 +1,56 @@
+name: Local Operator Test
+
+on:
+  workflow_call:
+    inputs:
+      args:
+        description: 'Arguments to pass to make in order to execute the tests'
+        required: true
+        type: string
+      artifactPrefix:
+        description: 'The prefix to be applied to all artifacts uploaded by this workflow'
+        required: true
+        type: string
+
+env:
+  CONFIG_LISTENER_IMAGE: 'localhost:5001/infinispan-operator'
+  KUBECONFIG: ${{ github.workspace }}/kind-kube-config.yaml
+  MAKE_DATADIR_WRITABLE: 'true'
+  RUN_SA_OPERATOR: 'true'
+  TESTING_LOG_DIR: ${{ github.workspace }}/test/reports
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        uses: ./.github/actions/dependencies
+
+      - name: Initialize Kubernetes Cluster
+        uses: ./.github/actions/kind
+        with:
+          olm: 'false'
+
+      - name: Run Tests
+        run: |
+          kubectl create namespace namespace-for-testing
+          make ${MAKE_TARGET}
+        env:
+          MAKE_TARGET: ${{ inputs.args }}
+
+      - name: Inspect Cluster
+        if: failure()
+        uses: ./.github/actions/inspect
+        with:
+          artifactPrefix: ${{ inputs.artifactPrefix }}
+
+      - name: Test Logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ${{ inputs.artifactPrefix}}-test-logs
+          path: ${{ env.TESTING_LOG_DIR }}

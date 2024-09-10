@@ -1,0 +1,43 @@
+name: Hot Rod Rolling Upgrade Tests
+
+on:
+  workflow_call:
+
+env:
+  TESTING_LOG_DIR: ${{ github.workspace }}/test/reports
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        uses: ./.github/actions/dependencies
+
+      - name: Install Kind
+        run: go install sigs.k8s.io/kind@v0.24.0
+        shell: bash
+
+      - name: Initialize Kind Clusters
+        run: |
+          docker pull quay.io/infinispan/server:latest
+          ./scripts/ci/configure-xsite.sh
+
+      - name: Run XSite Tests
+        run: make xsite-test
+
+      - name: Inspect Cluster
+        if: failure()
+        uses: ./.github/actions/inspect
+        with:
+          artifactPrefix: "xsite"
+
+      - name: Test Logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: xsite-test-logs
+          path: ${{ env.TESTING_LOG_DIR }}

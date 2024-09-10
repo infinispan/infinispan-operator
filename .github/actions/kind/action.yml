@@ -1,0 +1,29 @@
+name: Initialize Kind Cluster
+description: Initialize Kind Cluster with Operator image and optional OLM CatalogSource
+
+inputs:
+  olm:
+    description: 'Install OLM Operator if true'
+    default: 'true'
+    required: false
+
+runs:
+  using: composite
+  steps:
+
+    - name: Install Kind
+      run: go install sigs.k8s.io/kind@v0.24.0
+      shell: bash
+
+    - name: Create Kind Cluster
+      run: ./scripts/ci/kind-with-olm.sh
+      shell: bash
+
+    - name: Build Operator Image
+      run: make operator-build operator-push IMG="localhost:5001/infinispan-operator"
+      shell: bash
+
+    - name: Create OLM Catalog Source
+      if: ${{ inputs.olm == 'true' }}
+      run: ./scripts/ci/install-catalog-source.sh
+      shell: bash

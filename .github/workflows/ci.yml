@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        uses: ./.github/actions/dependencies
+
+      - name: Lint
+        run: make lint
+
+      - name: Unit Test
+        run: make test
+
+      - name: Check for unstaged changes
+        run: git diff --name-only --exit-code
+
+  infinispan:
+    needs: unit
+    uses: ./.github/workflows/test_without_olm.yml
+    with:
+      args: 'infinispan-test PARALLEL_COUNT=5'
+      artifactPrefix: 'infinispan'
+
+  cache:
+    needs: unit
+    uses: ./.github/workflows/test_without_olm.yml
+    with:
+      args: 'cache-test PARALLEL_COUNT=5'
+      artifactPrefix: 'cache'
+
+  batch:
+    needs: unit
+    uses: ./.github/workflows/test_without_olm.yml
+    with:
+      args: 'batch-test PARALLEL_COUNT=5'
+      artifactPrefix: 'batch'
+
+  multinamespace:
+    needs: unit
+    uses: ./.github/workflows/test_without_olm.yml
+    with:
+      args: 'multinamespace-test'
+      artifactPrefix: 'multinamespace'
+
+  backup-restore:
+    needs: unit
+    uses: ./.github/workflows/test_without_olm.yml
+    with:
+      args: 'backuprestore-test'
+      artifactPrefix: 'backup-restore'
+
+  webhook:
+    needs: unit
+    uses: ./.github/workflows/test_webhooks.yml
+
+  upgrades:
+    needs: unit
+    uses: ./.github/workflows/test_upgrades.yml
+
+  hr-rolling-upgrades:
+    needs: unit
+    uses: ./.github/workflows/test_hr_rolling_upgrades.yml
+
+  xsite:
+    needs: unit
+    uses: ./.github/workflows/test_xsite.yml

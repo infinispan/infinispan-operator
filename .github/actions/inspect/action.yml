@@ -1,0 +1,20 @@
+name: OC Inspect
+description: Inspect k8s cluster to obtain debugging data in the event of failure
+
+inputs:
+  artifactPrefix:
+    description: 'The prefix to be applied to all artifacts uploaded by this action'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Inspect Cluster
+      run: oc adm inspect ns
+      shell: bash
+
+    - name: Inspect Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifactPrefix}}-oc-inspect
+        path: inspect.*
