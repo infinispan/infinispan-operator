@@ -9,7 +9,7 @@ METALLB_VERSION=v0.9.6
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
 SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:15.0'}
-KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.24.15'}
+KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.25.16'}
 
 # Cleanup any existing clusters
 kind delete clusters --all
