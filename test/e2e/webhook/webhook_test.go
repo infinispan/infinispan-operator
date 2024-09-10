@@ -73,7 +73,8 @@ func TestMain(m *testing.M) {
 	// Defer in case a panic is encountered by one of the tests
 	defer testKube.CleanupOLMTest(nil, "webhook_test_main_defer", olm.SubName, olm.SubNamespace, olm.SubPackage)
 
-	testKube.CreateSubscriptionAndApproveInitialVersion(olm, sub)
+	testKube.CreateOperatorGroup(olm)
+	testKube.CreateSubscriptionAndApproveInitialVersion(sub)
 	testKube.WaitForDeployment("infinispan-operator-controller-manager", olm.SubNamespace)
 
 	// We must ensure that the Operator pods have the defined environment variables available

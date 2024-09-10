@@ -94,11 +94,7 @@ func getChannel(env string, manifest *manifests.PackageManifest) manifests.Packa
 	return manifests.PackageChannel{}
 }
 
-func (k TestKubernetes) CreateSubscriptionAndApproveInitialVersion(olm OLMEnv, sub *coreos.Subscription) {
-	// Create OperatorGroup only if Subscription is created in non-global namespace
-	if olm.SubNamespace != "openshift-operators" && olm.SubNamespace != "operators" {
-		k.CreateOperatorGroup(olm.SubName, olm.SubNamespace, olm.SubNamespace)
-	}
+func (k TestKubernetes) CreateSubscriptionAndApproveInitialVersion(sub *coreos.Subscription) {
 	k.CreateSubscription(sub)
 	// Approve the initial startingCSV InstallPlan
 	k.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
@@ -183,17 +179,22 @@ func (k TestKubernetes) CleanupOLMTest(t *testing.T, testIdentifier, subName, su
 	}
 }
 
-func (k TestKubernetes) CreateOperatorGroup(name, namespace string, targetNamespaces ...string) {
+func (k TestKubernetes) CreateOperatorGroup(olm OLMEnv) {
+	// Create OperatorGroup only if Subscription is created in non-global namespace
+	if olm.SubNamespace == "openshift-operators" || olm.SubNamespace == "operators" {
+		return
+	}
+
 	operatorGroup := &coreosv1.OperatorGroup{
 		TypeMeta: metav1.TypeMeta{
 			Kind: coreosv1.OperatorGroupKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:      olm.SubName,
+			Namespace: olm.SubNamespace,
 		},
 		Spec: coreosv1.OperatorGroupSpec{
-			TargetNamespaces: targetNamespaces,
+			TargetNamespaces: []string{olm.SubNamespace},
 		},
 	}
 	err := k.Kubernetes.Client.Create(context.TODO(), operatorGroup)
@@ -361,7 +362,22 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 			// https://github.com/operator-framework/operator-lifecycle-manager/issues/2201
 			// https://issues.redhat.com/browse/OCPBUGS-5080
 			if condition.Type == "ResolutionFailed" && condition.Status == corev1.ConditionTrue {
+				fmt.Printf("CSV '%s' ResolutionFailed: %s\n", sub.Status.InstalledCSV, condition.Message)
+				fmt.Printf("Deleting Subscription '%s:%s'", sub.Name, sub.Namespace)
+				// Delete Subscription and CSV
+				k.DeleteSubscription(sub.Name, sub.Namespace)
+
+				csv := &coreos.ClusterServiceVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      sub.Status.InstalledCSV,
+						Namespace: sub.Namespace,
+					},
+				}
+				fmt.Printf("Deleting CSV '%s:%s'", csv.Name, csv.Namespace)
+				ExpectMaybeNotFound(k.Kubernetes.Client.Delete(context.TODO(), csv, DeleteOpts...))
+
 				// Restart OLM pods to clear the cache
+				fmt.Println("Restarting OLM and Catalog Operator")
 				olmNamespace := k.OLMNamespace()
 				ExpectNoError(
 					k.Kubernetes.Client.DeleteAllOf(
@@ -380,6 +396,19 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 						client.MatchingLabels(map[string]string{"app": "catalog-operator"}),
 					),
 				)
+
+				// Create new Subscription with the startingCSV set to the failed version
+				fmt.Println("Attempting to recreate Subscription")
+				startingCSV := sub.Status.InstalledCSV
+				sub = &coreos.Subscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      sub.Name,
+						Namespace: sub.Namespace,
+					},
+					Spec: sub.Spec,
+				}
+				sub.Spec.StartingCSV = startingCSV
+				k.CreateSubscriptionAndApproveInitialVersion(sub)
 				err = poll()
 				break
 			}
