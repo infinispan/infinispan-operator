@@ -76,8 +76,8 @@ help:
 .PHONY: lint
 ## Invoke linter to promote Go lang best practices.
 lint: golangci-lint
-	$(GOLANGCI_LINT) run --enable errorlint
-	$(GOLANGCI_LINT) run --disable-all --enable bodyclose --skip-dirs test
+	$(GOLANGCI_LINT) run --enable errorlint --timeout 5m
+	$(GOLANGCI_LINT) run --disable-all --enable bodyclose --skip-dirs test --timeout 5m
 
 .PHONY: test
 ## Execute tests

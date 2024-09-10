@@ -1,0 +1,79 @@
+name: Upgrade Tests
+
+on:
+  workflow_call:
+    inputs:
+      operand:
+        description: 'The FQN of the Operand image to be used. If left blank the most recent Operand defined in the Operator repository is used.'
+        required: false
+        type: string
+      operandArtifact:
+        description: 'The name of the GH artifact containing the Operand image'
+        required: false
+        type: string
+      ref:
+        type: string
+        required: false
+      repository:
+        type: string
+        required: false
+
+env:
+  TESTING_LOG_DIR: ${{ github.workspace }}/test/reports
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
+
+      - name: Install Dependencies
+        uses: ./.github/actions/dependencies
+
+      - if: ${{ inputs.operandArtifact != '' }}
+        name: Download operand artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.operandArtifact }}
+          path: /tmp/operand
+
+      - if: ${{ inputs.operandArtifact != '' }}
+        name: Load Operand image from Artifact
+        run:  docker load --input /tmp/operand/${{ inputs.operandArtifact }}.tar
+
+      - name: Update Operands
+        if: ${{ inputs.operand != '' }}
+        run: ./scripts/ci/add_operand_to_csv.sh ${{ inputs.operand }}
+
+      - name: Log CSV Deployment
+        run: yq config/manager/manager.yaml
+
+      - if: ${{ inputs.operandArtifact != '' }}
+        name: Push Operand image to kind cluster
+        run:  |
+          docker push ${{ inputs.operand }}
+          kind load docker-image ${{ inputs.operand }}
+
+      - name: Initialize Kubernetes Cluster
+        uses: ./.github/actions/kind
+
+      - name: Run GracefulShutdown Upgrade Tests
+        run: make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.2
+
+      - name: Inspect Cluster
+        if: failure()
+        uses: ./.github/actions/inspect
+        with:
+          artifactPrefix: "upgrades"
+
+      - name: Test Logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: upgrade-test-logs
+          path: ${{ env.TESTING_LOG_DIR }}

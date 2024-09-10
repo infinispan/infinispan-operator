@@ -1,0 +1,42 @@
+name: Operator Build Dependencies
+description: Install Operator Build Dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Init variables action variables
+      id: go-cache-paths
+      shell: bash
+      run: |
+        echo "::set-output name=go-build::$(go env GOCACHE)"
+        echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+    # Cache go build cache, used to speedup go test
+    - name: Go Build Cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-build }}
+        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+    # Cache go mod cache, used to speedup builds
+    - name: Go Mod Cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-mod }}
+        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+
+    # Cache local bin dependencies
+    - name: Local Dependencies Cache
+      uses: actions/cache@v4
+      with:
+        path: bin
+        key: ${{ runner.os }}-bin-${{ hashFiles('Makefile') }}
+
+    - name: Install Local Dependencies
+      shell: bash
+      run: |
+        make oc operator-sdk yq jq
+        echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
