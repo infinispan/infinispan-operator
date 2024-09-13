@@ -89,10 +89,12 @@ func UpgradeRequired(i *ispnv1.Infinispan, ctx pipeline.Context) bool {
 			return false
 		}
 
-		// If the Operand is marked as a CVE base-image release, then we perform the upgrade as a StatefulSet rolling upgrade
-		// as the server components are not changed.
-		customImage := i.Status.Operand.CustomImage
-		if !customImage && requestedOperand.CVE && installedOperand.UpstreamVersion.EQ(*requestedOperand.UpstreamVersion) {
+		// If the Operand is marked as a CVE base-image release and no custom image is installed/requested, then we perform the
+		// upgrade as a StatefulSet rolling upgrade as the server components are not changed.
+		if requestedOperand.CVE &&
+			installedOperand.UpstreamVersion.EQ(*requestedOperand.UpstreamVersion) &&
+			i.Spec.Image == nil &&
+			!i.Status.Operand.CustomImage {
 			return false
 		}
 
@@ -100,11 +102,11 @@ func UpgradeRequired(i *ispnv1.Infinispan, ctx pipeline.Context) bool {
 			if i.Spec.Image == nil {
 				// If the currently installed Operand was a custom image, but spec.Image is now nil, then we need to
 				// initiate a new upgrade to ensure that the default image associated with the Operand is installed
-				return customImage
+				return i.Status.Operand.CustomImage
 			}
 			// If operand versions match, but the FQN of the image differ, then we must schedule an upgrade so the user
 			// can transition to a custom/patched version of the Operand without having to recreate the Infinispan CR
-			return *i.Spec.Image != installedOperand.Image
+			return *i.Spec.Image != i.Status.Operand.Image
 		}
 		return true
 	}

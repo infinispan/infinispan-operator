@@ -212,6 +212,28 @@ func TestOperandCVEHotRodRolling(t *testing.T) {
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
+func TestSpecImage(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	// Create Infinispan Cluster using the latest Operand version, but using the image of the preceding Operand
+	// Ensures that creating a cluster with an initial spec.image value does not cause infinite StatefulSet updates
+	versionManager := tutils.VersionManager()
+	operand := versionManager.Operands[len(versionManager.Operands)-2]
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Image = pointer.String(operand.Image)
+	})
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.CustomImage &&
+			i.Status.Operand.Version == versionManager.Latest().Ref() &&
+			i.Status.Operand.Image == operand.Image &&
+			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+	})
+}
+
 func TestSpecImageUpdate(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
@@ -237,15 +259,10 @@ func TestSpecImageUpdate(t *testing.T) {
 			ispn.Spec.Image = pointer.String(customImage)
 		}),
 	)
-	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-		return !i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-			i.Status.Operand.Version == operand.Ref() &&
-			i.Status.Operand.Image == customImage &&
-			i.Status.Operand.Phase == ispnv1.OperandPhasePending
-	})
 
 	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.CustomImage &&
 			i.Status.Operand.Version == operand.Ref() &&
 			i.Status.Operand.Image == customImage &&
 			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
@@ -272,17 +289,33 @@ func TestSpecImageUpdate(t *testing.T) {
 			ispn.Spec.Version = latestOperand.Ref()
 		}),
 	)
-	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-		return !i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-			i.Status.Operand.Version == latestOperand.Ref() &&
-			i.Status.Operand.Image == latestOperand.Image &&
-			i.Status.Operand.Phase == ispnv1.OperandPhasePending
-	})
 
 	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			!i.Status.Operand.CustomImage &&
 			i.Status.Operand.Version == latestOperand.Ref() &&
 			i.Status.Operand.Image == latestOperand.Image &&
+			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+	})
+
+	// Ensure that the StatefulSet is on its first generation, i.e. a RollingUpgrade has not been performed
+	ss = appsv1.StatefulSet{}
+	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetStatefulSetName()}, &ss))
+	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
+
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			// Update the spec to move to back to the penultimate Operand version to ensure that an upgrade is still
+			// triggered when the Operand is marked as CVE=true
+			ispn.Spec.Image = pointer.String(operand.Image)
+		}),
+	)
+
+	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.CustomImage &&
+			i.Status.Operand.Version == latestOperand.Ref() &&
+			i.Status.Operand.Image == operand.Image &&
 			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 	})
 
