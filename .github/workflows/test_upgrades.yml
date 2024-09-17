@@ -53,14 +53,14 @@ jobs:
       - name: Log CSV Deployment
         run: yq config/manager/manager.yaml
 
-      - if: ${{ inputs.operandArtifact != '' }}
-        name: Push Operand image to kind cluster
-        run:  |
-          docker push ${{ inputs.operand }}
-          kind load docker-image ${{ inputs.operand }}
-
       - name: Initialize Kubernetes Cluster
         uses: ./.github/actions/kind
+
+      - if: ${{ inputs.operandArtifact != '' }}
+        name: Push Operand image to kind cluster
+        run: |
+          docker push ${{ inputs.operand }}
+          kind load docker-image ${{ inputs.operand }}
 
       - name: Run GracefulShutdown Upgrade Tests
         run: make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.2
