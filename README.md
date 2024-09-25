@@ -90,7 +90,7 @@ make bundle-build bundle-push VERSION=<latest-version> IMG=<operator-image> BUND
 To create an Operator release perform the following:
 
 1. Update Operand references:
-   - `SERVER_TAGS` in `Jenkinsfile` and `scripts/ci/kind.sh` to include the image tage all supported Operands
+   - `SERVER_TAGS` in `scripts/ci/kind.sh` to include the image tage all supported Operands
    - `INFINISPAN_OPERAND_VERSIONS` json in `config/manager/manager.yaml` includes the latest Infinispan Server releases. Do not use the floating tags for an Operand image, e.g. `13.0`.
    - `server_image_version` in `documentation/asciidoc/topics/attributes/community-attributes.adoc` to point to the latest Operand version
    - `test/e2e/utils/common.go` VersionManager JSON to include the latest Operand
@@ -144,8 +144,6 @@ Cross-Site tests require you to create two k8s Kind clusters or utilize already 
 ```
 $ source scripts/ci/configure-xsite.sh $KIND_VERSION $METALLB_VERSION
 ```
-
-Actual `$KIND_VERSION` and `$METALLB_VERSION` values can be explored inside the `Jenkinsfile` file 
 
 To test locally in running Kind clusters, run:
 ```
