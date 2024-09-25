@@ -2,7 +2,7 @@
 # Modified version of the script found at https://kind.sigs.k8s.io/docs/user/local-registry/#create-a-cluster-and-registry
 set -o errexit
 
-SERVER_TAGS=${SERVER_TAGS:-'14.0.1.Final 14.0.6.Final 14.0.9.Final 14.0.13.Final 14.0.17.Final 14.0.19.Final 14.0.20.Final 14.0.21.Final 14.0.24.Final 14.0.27.Final 14.0 15.0.0.Final 15.0.3.Final 15.0.4.Final 15.0.5.Final 15.0.8.Final 15.0'}
+SERVER_TAGS=${SERVER_TAGS:-'14.0.1.Final 14.0.6.Final 14.0.9.Final 14.0.13.Final 14.0.17.Final 14.0.19.Final 14.0.20.Final 14.0.21.Final 14.0.24.Final 14.0.27.Final 14.0.32.Final 14.0 15.0.0.Final 15.0.3.Final 15.0.4.Final 15.0.5.Final 15.0.8.Final 15.0'}
 DOCKER_REGISTRY_IMAGE=${DOCKER_REGISTRY_IMAGE:-"quay.io/infinispan-test/registry:2"}
 KINDEST_IMAGE=${KINDEST_IMAGE:-"quay.io/infinispan-test/kindest-node"}
 KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.25.16'}
