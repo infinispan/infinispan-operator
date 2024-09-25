@@ -95,6 +95,7 @@ You can upgrade the version of your cluster between supported {brandname} versio
 14.0.21
 14.0.24
 14.0.27
+14.0.32
 15.0.0
 15.0.3
 15.0.4
