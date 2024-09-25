@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -465,6 +466,65 @@ func TestSuspectAndHearbeatConfig(t *testing.T) {
 
 	expectHeartBeatConfiguration(t, testKubes["xsite1"], false, nil, nil)
 	expectHeartBeatConfiguration(t, testKubes["xsite2"], true, hbInterval, hbTimeout)
+}
+
+func TestMultipleSiteDefinitions(t *testing.T) {
+	// single cluster cross-site is enough.
+	// Testing issue https://github.com/infinispan/infinispan-operator/issues/1834
+	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	kube := tutils.NewTestKubernetes(clientConfig.CurrentContext)
+	namespace := fmt.Sprintf("%s-xsite2", tutils.Namespace)
+
+	defer kube.CleanNamespaceAndLogOnPanic(t, namespace)
+
+	infinispan := tutils.DefaultSpec(t, kube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = 3
+		i.Spec.Service.Sites = &ispnv1.InfinispanSitesSpec{
+			Local: ispnv1.InfinispanSitesLocalSpec{
+				Name: "local",
+				Expose: ispnv1.CrossSiteExposeSpec{
+					Type: ispnv1.CrossSiteExposeTypeClusterIP,
+				},
+				MaxRelayNodes: 1,
+				Discovery: &ispnv1.DiscoverySiteSpec{
+					Memory: "500Mi",
+					CPU:    "500m",
+				},
+			},
+			Locations: []ispnv1.InfinispanSiteLocationSpec{
+				{
+					Name: "remote-site-1",
+					URL:  "infinispan+xsite://fake-site-1.svc.local:7900",
+				},
+				{
+					Name: "remote-site-2",
+					URL:  "infinispan+xsite://fake-site-2.svc.local:7900",
+				},
+				{
+					Name: "remote-site-3",
+					URL:  "infinispan+xsite://fake-site-3.svc.local:7900",
+				},
+				{
+					Name: "remote-site-4",
+					URL:  "infinispan+xsite://fake-site-4.svc.local:7900",
+				},
+			},
+		}
+	})
+
+	kube.CreateInfinispan(infinispan, namespace)
+	kube.WaitForInfinispanPods(3, tutils.SinglePodTimeout, infinispan.Name, namespace)
+	kube.WaitForInfinispanCondition(infinispan.Name, namespace, ispnv1.ConditionWellFormed)
+	// cannot check for cross-site view since it won't be formed
+
+	version := kube.GetStatefulSet(infinispan.Name, infinispan.Namespace).Status.ObservedGeneration
+
+	time.Sleep(10 * time.Second)
+	kube.WaitForInfinispanPods(3, tutils.SinglePodTimeout, infinispan.Name, namespace)
+	kube.WaitForInfinispanCondition(infinispan.Name, namespace, ispnv1.ConditionWellFormed)
+
+	otherVersion := kube.GetStatefulSet(infinispan.Name, infinispan.Namespace).Status.ObservedGeneration
+	assert.Equal(t, version, otherVersion)
 }
 
 func TestBackupPodWithoutTLS(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
 	"strconv"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -70,7 +71,16 @@ func XSite(i *ispnv1.Infinispan, ctx pipeline.Context) {
 }
 
 func searchRemoteSites(i *ispnv1.Infinispan, ctx pipeline.Context, xSite *pipeline.XSite) error {
-	for _, remoteLocation := range i.GetRemoteSiteLocations() {
+	remoteLocations := i.GetRemoteSiteLocations()
+	siteNames := make([]string, len(remoteLocations))
+	idx := 0
+	for k := range remoteLocations {
+		siteNames[idx] = k
+		idx++
+	}
+	sort.Strings(siteNames)
+	for _, siteName := range siteNames {
+		remoteLocation := remoteLocations[siteName]
 		remoteName := remoteLocation.Name
 		backupSiteURL, err := url.Parse(remoteLocation.URL)
 		if err != nil {
