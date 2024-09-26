@@ -86,29 +86,29 @@ The bundle image can be created and pushed to a repository with:
 make bundle-build bundle-push VERSION=<latest-version> IMG=<operator-image> BUNDLE_IMG=<bundle-image>
 ```
 
+# Operator Version
+The next version of the Operator to be released is stored in the `./version.txt` at the root of the project. The content
+of this file are used to control the generation of documentation and other resources. This file must be updated after an
+Operator release.
+
+# Add a new Infinispan Operand
+1. Call the "Add Operand" GitHub Action
+
 # Release
 To create an Operator release perform the following:
-
-1. Update Operand references:
-   - `SERVER_TAGS` in `scripts/ci/kind.sh` to include the image tage all supported Operands
-   - `INFINISPAN_OPERAND_VERSIONS` json in `config/manager/manager.yaml` includes the latest Infinispan Server releases. Do not use the floating tags for an Operand image, e.g. `13.0`.
-   - `server_image_version` in `documentation/asciidoc/topics/attributes/community-attributes.adoc` to point to the latest Operand version
-   - `test/e2e/utils/common.go` VersionManager JSON to include the latest Operand
-   - `documentation/asciidoc/topics/ref_supported_versions.adoc` to include all supported Operands
-   - `documentation/asciidoc/topics/community-attributes.adoc` to use the latest supported Operand
-2. Commit changes with appropriate commit message, e.g "Releasing Operator <x.y.z>.Final"
-3. Tag the release `git tag <x.y.z>` and push to GitHub
-4. Create and push the multi-arch image using the created tag via the "Image Release" GitHub Action
-5. Remove the old bundle from local `rm -rf bundle`
-6. Create OLM bundle `make bundle VERSION=<x.y.z> CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:<x.y.z>.Final`
-7. Copy contents of `bundle/` and issue PRs to:
+1. Tag the release `git tag <x.y.z>` and push to GitHub
+2. Create and push the multi-arch image using the created tag via the "Image Release" GitHub Action
+3. Remove the old bundle from local `rm -rf bundle`
+4. Create OLM bundle `make bundle VERSION=<x.y.z> CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:<x.y.z>.Final`
+5. Copy contents of `bundle/` and issue PRs to:
     - https://github.com/k8s-operatorhub/community-operators
     - https://github.com/redhat-openshift-ecosystem/community-operators-prod
-8. Once PR in 5 has been merged and Operator has been released to OperatorHub, update the "replaces" field in `config/manifests/bases/infinispan-operator.clusterserviceversion.yaml`
+6. Once PR in 5 has been merged and Operator has been released to OperatorHub, update the "replaces" field in `config/manifests/bases/infinispan-operator.clusterserviceversion.yaml`
 to `replaces: infinispan-operator.v<x.y.z>`
-9. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
-10. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS` and the next release version in the update graph
-11. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
+7. Update the `version.text` file to the next release version
+8. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
+9. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS` and the next release version in the update graph
+10. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
 
 # Testing
 

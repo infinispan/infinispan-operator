@@ -2,7 +2,12 @@
 # Modified version of the script found at https://kind.sigs.k8s.io/docs/user/local-registry/#create-a-cluster-and-registry
 set -o errexit
 
-SERVER_TAGS=${SERVER_TAGS:-'14.0.1.Final 14.0.6.Final 14.0.9.Final 14.0.13.Final 14.0.17.Final 14.0.19.Final 14.0.20.Final 14.0.21.Final 14.0.24.Final 14.0.27.Final 14.0.32.Final 14.0 15.0.0.Final 15.0.3.Final 15.0.4.Final 15.0.5.Final 15.0.8.Final 15.0'}
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/operand_common.sh"
+
+if [[ -z "${SERVER_IMAGES}" ]]; then
+  SERVER_IMAGES=$(operandJson | jq -r '.[].image')
+fi
 DOCKER_REGISTRY_IMAGE=${DOCKER_REGISTRY_IMAGE:-"quay.io/infinispan-test/registry:2"}
 KINDEST_IMAGE=${KINDEST_IMAGE:-"quay.io/infinispan-test/kindest-node"}
 KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.25.16'}
@@ -41,8 +46,8 @@ EOF
 docker network connect "kind" "${reg_name}" || true
 
 # Attempt to load the servers image to prevent them being pulled again
-for tag in ${SERVER_TAGS}; do
-  kind load docker-image "quay.io/infinispan/server:${tag}" || true
+for img in ${SERVER_IMAGES}; do
+  kind load docker-image "${img}" || true
 done
 
 # Document the local registry

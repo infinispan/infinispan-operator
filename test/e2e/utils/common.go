@@ -11,11 +11,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/blang/semver"
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
+	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redis/go-redis/v9"
 	appsv1 "k8s.io/api/apps/v1"
@@ -32,90 +34,73 @@ const (
 )
 
 var VersionManager = func() *version.Manager {
-	if os.Getenv(ispnv1.OperatorOperandVersionEnvVarName) == "" {
-		// Operand versions must be updated whenever the supported Operands change as the Operands are executed
-		// during the integration tests.
-		// The first release must be marked as deprecated to ensure TestOperandUpgrade passes.
-		// The final release must be a cve release in order for TestOperandCVEUpgrade to pass. This does not have to be
-		// a real release, but the image tag must differ from the oldest Operand release so that we can ensure the
-		// Pod Image was correctly updated.
-		_ = os.Setenv(ispnv1.OperatorOperandVersionEnvVarName, `[{
-			"downstream-version": "0.2.0-1",
-			"upstream-version": "14.0.1",
-			"image": "quay.io/infinispan/server:14.0.1.Final",
-			"deprecated": true
-		},{
-			"downstream-version": "0.2.1-1",
-			"upstream-version": "14.0.6",
-			"image": "quay.io/infinispan/server:14.0.6.Final"
-		},{
-			"downstream-version": "0.2.2-1",
-			"upstream-version": "14.0.9",
-			"image": "quay.io/infinispan/server:14.0.9.Final"
-		},{
-			"downstream-version": "0.2.3-1",
-			"upstream-version": "14.0.13",
-			"image": "quay.io/infinispan/server:14.0.13.Final"
-		},{
-			"downstream-version": "0.2.4-1",
-			"upstream-version": "14.0.17",
-			"image": "quay.io/infinispan/server:14.0.17.Final"
-		},{
-			"downstream-version": "0.2.5-1",
-			"upstream-version": "14.0.19",
-			"image": "quay.io/infinispan/server:14.0.19.Final"
-		},{
-			"downstream-version": "0.2.6-1",
-			"upstream-version": "14.0.20",
-			"image": "quay.io/infinispan/server:14.0.20.Final"
-		},{
-			"downstream-version": "0.2.7-1",
-			"upstream-version": "14.0.21",
-			"image": "quay.io/infinispan/server:14.0.21.Final"
-		},{
-			"downstream-version": "0.2.8-1",
-			"upstream-version": "14.0.24",
-			"image": "quay.io/infinispan/server:14.0.24.Final"
-		},{
-			"downstream-version": "0.2.9-1",
-			"upstream-version": "14.0.27",
-			"image": "quay.io/infinispan/server:14.0.27.Final"
-		},{
-			"downstream-version": "0.2.10-1",
-			"upstream-version": "14.0.32",
-			"image": "quay.io/infinispan/server:14.0.32.Final"
-		},{
-			"downstream-version": "0.3.0-1",
-			"upstream-version": "15.0.0",
-			"image": "quay.io/infinispan/server:15.0.0.Final"
-		},{
-			"downstream-version": "0.3.1-1",
-			"upstream-version": "15.0.3",
-			"image": "quay.io/infinispan/server:15.0.3.Final"
-		},{
-			"downstream-version": "0.3.2-1",
-			"upstream-version": "15.0.4",
-			"image": "quay.io/infinispan/server:15.0.4.Final"
-		},{
-			"downstream-version": "0.3.3-1",
-			"upstream-version": "15.0.5",
-			"image": "quay.io/infinispan/server:15.0.5.Final"
-		},{
-			"downstream-version": "0.3.4-1",
-			"upstream-version": "15.0.8",
-			"image": "quay.io/infinispan/server:15.0.8.Final"
-		},{
-			"downstream-version": "0.3.4-2",
-			"upstream-version": "15.0.8",
-			"image": "quay.io/infinispan/server:15.0",
-			"cve": true
-		}]`)
-	}
-	if manager, err := version.ManagerFromEnv(ispnv1.OperatorOperandVersionEnvVarName); err != nil {
-		panic(err)
-	} else {
+	if os.Getenv(ispnv1.OperatorOperandVersionEnvVarName) != "" {
+		manager, err := version.ManagerFromEnv(ispnv1.OperatorOperandVersionEnvVarName)
+		ExpectNoError(err)
 		return manager
 	}
+	deployment := &appsv1.Deployment{}
+	LoadResourceFromYaml("./../../../config/manager/manager.yaml", &corev1.Namespace{}, deployment)
+	container := kubernetes.GetContainer("manager", &deployment.Spec.Template.Spec)
+	idx := kubernetes.GetEnvVarIndex(ispnv1.OperatorOperandVersionEnvVarName, &container.Env)
+	operandJson := container.Env[idx].Value
+	manager, err := version.ManagerFromJson(operandJson)
+	ExpectNoError(err)
+
+	operands := manager.Operands
+	// The first release must be marked as deprecated to ensure TestOperandUpgrade passes.
+	operands[0].Deprecated = true
+
+	// The final release must be a cve release in order for TestOperandCVEUpgrade to pass. This does not have to be
+	// a real release, but the image tag must differ from the oldest Operand release so that we can ensure the
+	// Pod Image was correctly updated.
+	lastOperand := operands[len(operands)-1]
+	operands = append(operands,
+		&version.Operand{
+			CVE:             true,
+			Image:           fmt.Sprintf("%s:%d.%d", strings.Split(lastOperand.Image, ":")[0], lastOperand.UpstreamVersion.Major, lastOperand.UpstreamVersion.Minor),
+			UpstreamVersion: lastOperand.UpstreamVersion,
+		},
+	)
+
+	// Add downstream version to each Operand
+	previousOp := operands[0]
+	downstreamVer := semver.MustParse("0.2.0-1")
+	operands[0].DownstreamVersion = &downstreamVer
+	for i := 1; i < len(operands)-1; i++ {
+		op := operands[i]
+		if op.UpstreamVersion.Major == previousOp.UpstreamVersion.Major {
+			// Increment patch version
+			op.DownstreamVersion = &semver.Version{
+				Major: previousOp.DownstreamVersion.Major,
+				Minor: previousOp.DownstreamVersion.Minor,
+				Patch: previousOp.DownstreamVersion.Patch + 1,
+				Pre:   previousOp.DownstreamVersion.Pre,
+			}
+		} else {
+			// Increment minor and reset patch
+			op.DownstreamVersion = &semver.Version{
+				Major: previousOp.DownstreamVersion.Major,
+				Minor: previousOp.DownstreamVersion.Minor + 1,
+				Patch: 0,
+				Pre:   previousOp.DownstreamVersion.Pre,
+			}
+		}
+		previousOp = op
+	}
+	operands[len(operands)-1].DownstreamVersion = &semver.Version{
+		Major: previousOp.DownstreamVersion.Major,
+		Minor: previousOp.DownstreamVersion.Minor,
+		Patch: previousOp.DownstreamVersion.Patch,
+		Pre: []semver.PRVersion{{
+			IsNum:      true,
+			VersionNum: previousOp.DownstreamVersion.Pre[0].VersionNum + 1,
+		}},
+	}
+	versionJson, err := manager.Json()
+	ExpectNoError(err)
+	ExpectNoError(os.Setenv(ispnv1.OperatorOperandVersionEnvVarName, versionJson))
+	return manager
 }
 
 var CurrentOperand = GetCurrentOperand()
