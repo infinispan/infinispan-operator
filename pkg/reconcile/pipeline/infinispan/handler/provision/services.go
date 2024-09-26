@@ -299,7 +299,7 @@ func XSiteService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	var annotations map[string]string
-	if exposeConf.Annotations != nil && len(exposeConf.Annotations) > 0 {
+	if len(exposeConf.Annotations) > 0 {
 		annotations = exposeConf.Annotations
 	} else {
 		annotations = i.ServiceAnnotations()
