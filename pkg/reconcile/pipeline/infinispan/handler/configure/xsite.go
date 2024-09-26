@@ -1,6 +1,7 @@
 package configure
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -13,7 +14,7 @@ import (
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/cloud-provider/service/helpers"
@@ -255,7 +256,7 @@ func getCrossSiteServiceHostPort(service *corev1.Service, ctx pipeline.Context, 
 		if !helpers.HasLBFinalizer(service) {
 			errMsg := "LoadBalancer expose type is not supported on the target platform for x-site"
 			ctx.EventRecorder().Event(service, corev1.EventTypeWarning, reason, errMsg)
-			return "", port, fmt.Errorf(errMsg)
+			return "", port, errors.New(errMsg)
 		}
 		return "", port, nil
 	case corev1.ServiceTypeClusterIP:
@@ -300,7 +301,7 @@ func TransportTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	trustStoreSecret := &corev1.Secret{}
 	// Only configure Truststore if the Secret exists
 	if err := ctx.Resources().Load(i.GetSiteTrustoreSecretName(), trustStoreSecret); err != nil {
-		if !errors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			ctx.Requeue(err)
 		}
 		return
