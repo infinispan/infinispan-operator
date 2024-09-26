@@ -100,7 +100,7 @@ To create an Operator release perform the following:
 3. Tag the release `git tag <x.y.z>` and push to GitHub
 4. Create and push the multi-arch image using the created tag via the "Image Release" GitHub Action
 5. Remove the old bundle from local `rm -rf bundle`
-6. Create OLM bundle `make bundle VERSION=<x.y.z> CHANNELS=2.3.x DEFAULT_CHANNEL=2.3.x IMG=quay.io/infinispan/operator:<x.y.z>.Final`
+6. Create OLM bundle `make bundle VERSION=<x.y.z> CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:<x.y.z>.Final`
 7. Copy contents of `bundle/` and issue PRs to:
     - https://github.com/k8s-operatorhub/community-operators
     - https://github.com/redhat-openshift-ecosystem/community-operators-prod
