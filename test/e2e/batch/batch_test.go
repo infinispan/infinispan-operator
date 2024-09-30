@@ -101,6 +101,9 @@ func TestBatchFail(t *testing.T) {
 }
 
 func TestBatchWithResources(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
 	infinispan := createCluster(t)
 	batchScript := batchString()
 	bcSpec := &v2.BatchContainerSpec{Memory: "1Gi:1Gi", CPU: "500m:500m"}
