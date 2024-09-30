@@ -1,0 +1,18 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: infinispan-auto
+spec:
+  scaleTargetRef:
+    apiVersion: infinispan.org/v1
+    kind: Infinispan
+    name: example # <1>
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50

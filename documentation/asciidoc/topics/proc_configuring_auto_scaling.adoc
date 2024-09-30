@@ -1,0 +1,18 @@
+[id='configuring_auto-scaling-{context}']
+= Configuring HorizontalPodAutoscaler
+
+[role="_abstract"]
+Create a HorizontalPodAutoScaler resource that targets your Infinispan CR.
+
+.Procedure
+
+. Define a `HorizontalPodAutoscaler` resource in the same namespace as your `Infinispan` CR
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/horizontal_pod_autoscaler.yaml[]
+----
++
+<1> The name of your `Infinispan` CR
+
+NOTE: If using metric resource of type `cpu` or `memory`, you must configure request/limits for this resource in your `Infinispan` CR.

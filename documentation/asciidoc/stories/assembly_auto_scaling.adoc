@@ -1,0 +1,27 @@
+ifdef::context[:parent-context: {context}]
+[id='auto-scaling']
+:context: scaling
+= Auto Scaling
+
+[role="_abstract"]
+Kubernetes includes the `HorizontalPodAutoscaler` which allows StatefulSets or Deployments to be automatically scaled up or
+down based upon specified metrics. The Infinispan CR exposes the `.status.scale` sub-resource, which enables `HorizontalPodAutoscaler`
+resources to target the Infinispan CR.
+
+Before defining a `HorizontalPodAutoscaler` configuration, consider the types of {brandname} caches that you define. Distributed
+and Replicated caches have very different scaling requirements, so defining a `HorizontalPodAutoscaler` for server's running
+a combination of these cache types may not be advantageous. For example, defining a `HorizontalPodAutoscaler` that scales
+when memory usage reaches a certain percentage will allow overall cache capacity to be increased when defining Distributed
+caches as cache entries are spread across pods, however it will not work with replicated cache as every pod hosts all cache
+entries. Conversely, configuring a `HorizontalPodAutoscaler` based upon CPU usage will be more beneficial for clusters
+with replicated cache as every pod contains all cache entries and so distributing read requests across additional nodes
+will allow a greater number of requests to be processed simultaneously.
+
+include::{topics}/proc_configuring_auto_scaling.adoc[leveloffset=+1]
+
+IMPORTANT: HorizontalPodAutoscaler should be removed when upgrading a {brandname} cluster, as the automatic scaling will
+cause the upgrade process to enter unexpected state, as the Operator needs to scale the cluster down to 0 pods.
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]
