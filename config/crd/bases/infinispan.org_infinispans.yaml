@@ -2462,7 +2462,7 @@ spec:
                     type: string
                 type: object
               selector:
-                description: The Operator Selector
+                description: The Selector used to identify Infinispan cluster pods
                 type: string
               statefulSetName:
                 type: string

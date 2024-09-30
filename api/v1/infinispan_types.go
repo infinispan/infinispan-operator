@@ -613,7 +613,7 @@ type InfinispanStatus struct {
 	Operator Operator `json:"operator,omitempty"`
 	// The Selector used to identify Infinispan cluster pods
 	// +optional
-	Selector string  `json:"selector"`
+	Selector string `json:"selector"`
 }
 
 type OperandPhase string
