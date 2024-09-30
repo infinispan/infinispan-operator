@@ -21,7 +21,7 @@ import (
 func TestBaseFunctionality(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	// Infinispan cluster defintion with extra labels to be propagated to the service and pods
+	// Infinispan cluster definition with extra labels to be propagated to the service and pods
 	replicas := 2
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		// Ensure that cluster creation using the limit:request format works on initial creation
@@ -66,6 +66,7 @@ func TestBaseFunctionality(t *testing.T) {
 	verifyLabelsAndAnnotations(assert, require, ispn)
 	verifyDefaultAuthention(require, ispn)
 	verifyScheduling(assert, require, ispn)
+	verifyLogPattern(assert, ispn, v1.DefaultLoggingPattern)
 
 	if tutils.IsVersionAtLeast("15.0.0") {
 		// Verify that the Redis endpoint is accessible
@@ -74,6 +75,26 @@ func TestBaseFunctionality(t *testing.T) {
 		tutils.ExpectNoError(err)
 		assert.Equal(int64(0), size)
 	}
+}
+
+func TestCustomLoggingPattern(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Logging.Pattern = "custom_log_pattern_for_test"
+	})
+
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	assert := assert.New(t)
+
+	verifyLogPattern(assert, ispn, "custom_log_pattern_for_test")
+}
+
+func verifyLogPattern(assert *assert.Assertions, ispn *v1.Infinispan, pattern string) {
+	configMap := testKube.GetConfigMap(ispn.GetConfigName(), ispn.GetNamespace())
+	assert.Containsf(configMap.Data["log4j.xml"], "<PatternLayout pattern=\""+pattern+"\"/>", "logging pattern not found in the config map")
 }
 
 // Make sure no PVCs were created

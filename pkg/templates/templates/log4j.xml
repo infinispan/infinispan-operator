@@ -3,7 +3,7 @@
     <Appenders>
         <!-- Colored output on the console -->
         <Console name="STDOUT">
-            <PatternLayout pattern="%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n"/>
+            <PatternLayout pattern="{{ .Pattern }}"/>
         </Console>
     </Appenders>
 

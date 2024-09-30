@@ -167,6 +167,7 @@ func InfinispanServer(i *ispnv1.Infinispan, ctx pipeline.Context) {
 func Logging(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	loggingSpec := &logging.Spec{
 		Categories: i.GetLogCategoriesForConfig(),
+		Pattern:    i.GetLogPatternForConfig(),
 	}
 	log4jXml, err := logging.Generate(ctx.Operand(), loggingSpec)
 	if err != nil {

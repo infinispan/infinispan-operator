@@ -6,6 +6,7 @@ import (
 )
 
 type Spec struct {
+	Pattern    string
 	Categories map[string]string
 }
 

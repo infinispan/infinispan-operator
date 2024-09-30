@@ -71,6 +71,8 @@ const (
 	SiteServiceFQNTemplate  = "%s.%s.svc.cluster.local"
 
 	GossipRouterDeploymentNameTemplate = "%s-router"
+
+	DefaultLoggingPattern = "%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n"
 )
 
 type ExternalDependencyType string
@@ -529,6 +531,14 @@ func (ispn *Infinispan) GetLogCategoriesForConfig() map[string]string {
 		copied[category] = string(level)
 	}
 	return copied
+}
+
+// GetLogPatternForConfig returns the user configured log pattern or the DefaultLoggingPattern.
+func (ispn *Infinispan) GetLogPatternForConfig() string {
+	if ispn.Spec.Logging != nil && ispn.Spec.Logging.Pattern != "" {
+		return ispn.Spec.Logging.Pattern
+	}
+	return DefaultLoggingPattern
 }
 
 // IsWellFormed return true if cluster is well formed
