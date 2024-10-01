@@ -105,7 +105,7 @@ To create an Operator release perform the following:
     - https://github.com/redhat-openshift-ecosystem/community-operators-prod
 6. Once PR in 5 has been merged and Operator has been released to OperatorHub, update the "replaces" field in `config/manifests/bases/infinispan-operator.clusterserviceversion.yaml`
 to `replaces: infinispan-operator.v<x.y.z>`
-7. Update the `version.text` file to the next release version
+7. Update the `version.txt` file to the next release version
 8. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
 9. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS` and the next release version in the update graph
 10. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
