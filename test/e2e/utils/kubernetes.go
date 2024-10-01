@@ -849,20 +849,23 @@ func (k TestKubernetes) RunOperator(namespace, crdsPath string) context.CancelFu
 
 func (k TestKubernetes) installCRD(path string) {
 	crd := &apiextv1.CustomResourceDefinition{}
-	k.LoadResourceFromYaml(path, crd)
+	LoadResourceFromYaml(path, crd)
 	k.CreateOrUpdateAndWaitForCRD(crd)
 }
 
-func (k TestKubernetes) LoadResourceFromYaml(path string, obj runtime.Object) {
+func LoadResourceFromYaml(path string, objects ...runtime.Object) {
 	yamlReader, err := GetYamlReaderFromFile(path)
 	ExpectNoError(err)
 	// TODO: seems that new sdk puts a new line and a separator at the crd start
-	y, err := yamlReader.Read()
-	if y[0] == '\n' {
-		y, err = yamlReader.Read()
+	for i := 0; i < len(objects); i++ {
+		y, err := yamlReader.Read()
+		if y[0] == '\n' {
+			y, err = yamlReader.Read()
+		}
+		ExpectNoError(err)
+		obj := objects[i]
+		ExpectNoError(k8syaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&obj))
 	}
-	ExpectNoError(err)
-	ExpectNoError(k8syaml.NewYAMLToJSONDecoder(strings.NewReader(string(y))).Decode(&obj))
 }
 
 func RunOperator(m *testing.M, k *TestKubernetes) {

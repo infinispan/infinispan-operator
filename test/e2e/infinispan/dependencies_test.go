@@ -167,7 +167,7 @@ func TestExternalDependenciesHttp(t *testing.T) {
 
 func prepareWebServer() *corev1.ConfigMap {
 	webServerConfig := &corev1.ConfigMap{}
-	testKube.LoadResourceFromYaml("../utils/data/external-libs-config.yaml", webServerConfig)
+	tutils.LoadResourceFromYaml("../utils/data/external-libs-config.yaml", webServerConfig)
 	webServerConfig.Namespace = tutils.Namespace
 	testKube.Create(webServerConfig)
 

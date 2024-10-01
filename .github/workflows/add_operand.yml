@@ -1,0 +1,73 @@
+name: Add Operand
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: "The FQN of the Operand image"
+        required: true
+        type: string
+      version:
+        description: "The upstream-version of the Operand"
+        required: true
+        type: string
+      ref:
+        description: "The git reference to checkout"
+        required: false
+        default: main
+        type: string
+      repository:
+        description: "The git repository to checkout"
+        required: false
+        type: string
+
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "The FQN of the Operand image"
+        required: true
+        type: string
+      version:
+        description: "The upstream-version of the Operand"
+        required: true
+        type: string
+      ref:
+        description: "The git reference to checkout"
+        required: false
+        default: main
+        type: string
+      repository:
+        description: "The git repository to checkout"
+        required: false
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
+
+      - name: Add Operand
+        run: ./scripts/ci/add_operand.sh
+        env:
+          IMAGE: ${{ inputs.image }}
+          VERSION: ${{ inputs.version }}
+
+      - name: Commit changes and create tag
+        run: |
+          git config user.email "infinispan@infinispan.org"
+          git config user.name "Infinispan"
+          git add config/manager/manager.yaml documentation/asciidoc/topics/attributes/community-attributes.adoc documentation/asciidoc/topics/supported_operands/
+          git commit -m "Add Operand ${{ inputs.version }}"
+
+      - name: Push Git changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}

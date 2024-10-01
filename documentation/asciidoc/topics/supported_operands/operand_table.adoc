@@ -1,0 +1,32 @@
+////
+Auto-generated file, do not update this manually, instead update `scripts/ci/docs_generate_operator_operand_table.sh`
+////
+[%header,cols=2*]
+|===
+| {ispn_operator} version
+| {brandname} Server versions
+|
+2.3.7
+|
+include::2_3_7.adoc[]
+|
+2.4.0
+|
+include::2_4_0.adoc[]
+|
+2.4.1
+|
+include::2_4_1.adoc[]
+|
+2.4.2
+|
+include::2_4_2.adoc[]
+|
+2.4.3
+|
+include::2_4_3.adoc[]
+|
+2.4.4
+|
+include::2_4_4.adoc[]
+|===
