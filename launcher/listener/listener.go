@@ -57,9 +57,12 @@ func New(ctx context.Context, p Parameters) {
 	}
 
 	infinispan := &v1.Infinispan{}
-	if err = k8s.Client.Get(ctx, types.NamespacedName{Namespace: p.Namespace, Name: p.Cluster}, infinispan); err != nil {
-		log.Fatalf("unable to load Infinispan cluster %s in Namespace %s: %v", p.Cluster, p.Namespace, err)
+	loadInfinispan := func() {
+		if err = k8s.Client.Get(ctx, types.NamespacedName{Namespace: p.Namespace, Name: p.Cluster}, infinispan); err != nil {
+			log.Fatalf("unable to load Infinispan cluster %s in Namespace %s: %v", p.Cluster, p.Namespace, err)
+		}
 	}
+	loadInfinispan()
 
 	secret := &corev1.Secret{}
 	if err = k8s.Client.Get(ctx, types.NamespacedName{Namespace: p.Namespace, Name: infinispan.GetAdminSecretName()}, secret); err != nil {
@@ -131,6 +134,8 @@ func New(ctx context.Context, p Parameters) {
 	containerSse.ReconnectStrategy = backoff.NewConstantBackOff(time.Second)
 	containerSse.ReconnectNotify = func(e error, t time.Duration) {
 		log.Warnf("Cache stream connection lost. Reconnecting: %v", e)
+		// Reload the Infinispan CR as the StatefulSet may have been updated due to a Hot Rod rolling upgrade
+		loadInfinispan()
 	}
 
 	go func() {

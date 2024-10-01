@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"k8s.io/utils/pointer"
@@ -171,6 +173,79 @@ func TestOperandCVEGracefulShutdown(t *testing.T) {
 	ss := appsv1.StatefulSet{}
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetStatefulSetName()}, &ss))
 	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
+}
+
+func TestOperandHotRodRolling(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+	versionManager := tutils.VersionManager()
+
+	// Create Infinispan Cluster using first Operand and then upgrade to the next Operand that is not marked as a CVE as
+	// we want to ensure that a StatefulSet rolling upgrade does not occur.
+	// The actual Operand versions deployed should not impact the test as we're only verifying the HR upgrade procedure
+	// which is controlled by the Operator
+	replicas := 1
+	operands := versionManager.Operands
+	startingOperand := operands[0]
+	var upgradeOperand *version.Operand
+	for i := 1; i < len(operands); i++ {
+		op := operands[i]
+		if !op.CVE {
+			upgradeOperand = operands[i]
+			break
+		}
+	}
+	assert.NotNil(t, upgradeOperand)
+
+	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.ConfigListener.Enabled = true
+		i.Spec.Replicas = int32(replicas)
+		i.Spec.Version = startingOperand.Ref()
+		i.Spec.Upgrades = &ispnv1.InfinispanUpgradesSpec{
+			Type: ispnv1.UpgradeTypeHotRodRolling,
+		}
+	})
+
+	originalStatefulSetName := ispn.Name
+	testKube.CreateInfinispan(ispn, tutils.Namespace)
+	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+	testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
+		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.Version == startingOperand.Ref() &&
+			i.Status.Operand.Image == startingOperand.Image &&
+			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning &&
+			i.Status.StatefulSetName == originalStatefulSetName
+	})
+
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.Version = upgradeOperand.Ref()
+			ispn.Default()
+		}),
+	)
+
+	newStatefulSetName := ispn.Name + "-1"
+	testKube.WaitForStateFulSetRemoval(originalStatefulSetName, tutils.Namespace)
+	testKube.WaitForInfinispanPodsCreatedBy(0, tutils.SinglePodTimeout, originalStatefulSetName, tutils.Namespace)
+	testKube.WaitForStateFulSet(newStatefulSetName, tutils.Namespace)
+	testKube.WaitForInfinispanPodsCreatedBy(replicas, tutils.SinglePodTimeout, newStatefulSetName, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+	testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
+		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+			i.Status.Operand.Version == upgradeOperand.Ref() &&
+			i.Status.Operand.Image == upgradeOperand.Image &&
+			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning &&
+			i.Status.StatefulSetName == newStatefulSetName
+	})
+
+	// Ensure that the Cache ConfigListener is still able to receive updates after the upgrade has completed by creating
+	// a cache on the server and waiting for it's corresponding Cache CR to be created.
+	client := tutils.HTTPClientForClusterWithVersionManager(ispn, testKube, versionManager)
+	cacheName := "config-listener"
+	cacheConfig := "localCache: \n  memory: \n    maxCount: \"100\"\n"
+	cacheHelper := tutils.NewCacheHelper(cacheName, client)
+	cacheHelper.Create(cacheConfig, mime.ApplicationYaml)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 }
 
 // TestOperandCVEHotRodRolling tests that Operands marked as CVE releases, with the same upstream version as the currently
