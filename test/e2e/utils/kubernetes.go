@@ -508,8 +508,13 @@ func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout 
 			if len(routeList.Items) > 0 {
 				switch ispn.GetExposeType() {
 				case ispnv1.ExposeTypeNodePort:
-					host, err := k.Kubernetes.GetNodeHost(log, context.TODO())
-					ExpectNoError(err)
+					var host string
+					if ispn.GetExposeHost() != "" {
+						host = ispn.GetExposeHost()
+					} else {
+						host, err = k.Kubernetes.GetNodeHost(log, context.TODO())
+						ExpectNoError(err)
+					}
 					hostAndPort = fmt.Sprintf("%s:%d", host, getNodePort(&routeList.Items[0]))
 				case ispnv1.ExposeTypeLoadBalancer:
 					hostAndPort = k.Kubernetes.GetExternalAddress(&routeList.Items[0])

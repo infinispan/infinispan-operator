@@ -347,7 +347,15 @@ func WebServerService(name, namespace string) *corev1.Service {
 func ExposeServiceSpec(testKube *TestKubernetes) *ispnv1.ExposeSpec {
 	return &ispnv1.ExposeSpec{
 		Type: exposeServiceType(testKube),
+		Host: exposeServiceHost(),
 	}
+}
+
+func exposeServiceHost() string {
+	if ExposeServiceHost != "" {
+		return ExposeServiceHost
+	}
+	return ""
 }
 
 func exposeServiceType(testKube *TestKubernetes) ispnv1.ExposeType {
