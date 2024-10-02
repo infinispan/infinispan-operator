@@ -36,9 +36,9 @@ var (
 	CleanupInfinispan = strings.ToUpper(constants.GetEnvWithDefault("CLEANUP_INFINISPAN_ON_FINISH", "true"))
 	SuiteMode, _      = strconv.ParseBool(constants.GetEnvWithDefault("SUITE_MODE", "false"))
 	ExposeServiceType = constants.GetEnvWithDefault("EXPOSE_SERVICE_TYPE", string(ispnv1.ExposeTypeNodePort))
-
-	Infrastructure = os.Getenv("TESTING_INFRASTRUCTURE")
-	Platform       = os.Getenv("TESTING_PLATFORM")
+	ExposeServiceHost = constants.GetEnvWithDefault("EXPOSE_SERVICE_HOST", "")
+	Infrastructure    = os.Getenv("TESTING_INFRASTRUCTURE")
+	Platform          = os.Getenv("TESTING_PLATFORM")
 
 	WebServerName       = "external-libs-web-server"
 	WebServerImageName  = constants.GetEnvWithDefault("TEST_NGINX_IMAGE", "quay.io/openshift-scale/nginx")

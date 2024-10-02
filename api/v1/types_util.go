@@ -303,6 +303,10 @@ func (ispn *Infinispan) IsExposed() bool {
 	return ispn.Spec.Expose != nil && ispn.Spec.Expose.Type != ""
 }
 
+func (ispn *Infinispan) GetExposeHost() string {
+	return ispn.Spec.Expose.Host
+}
+
 func (ispn *Infinispan) GetExposeType() ExposeType {
 	return ispn.Spec.Expose.Type
 }
