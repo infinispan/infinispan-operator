@@ -194,6 +194,8 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
+	updateNeeded = provision.AddXSiteTLSVolumes(ctx, i, statefulSet) || updateNeeded
+
 	if updateNeeded {
 		log.Info("updateNeeded")
 		// If updating the parameters results in a rolling upgrade, we can update the labels here too
