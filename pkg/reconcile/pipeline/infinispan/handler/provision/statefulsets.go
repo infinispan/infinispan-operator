@@ -171,7 +171,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 	addUserIdentities(ctx, i, statefulSet)
 	addUserConfigVolumes(ctx, i, statefulSet)
 	addTLS(ctx, i, statefulSet)
-	addXSiteTLS(ctx, i, statefulSet)
+	AddXSiteTLSVolumes(ctx, i, statefulSet)
 	return statefulSet, nil
 }
 
@@ -348,12 +348,13 @@ func addTLS(ctx pipeline.Context, i *ispnv1.Infinispan, statefulSet *appsv1.Stat
 	}
 }
 
-func addXSiteTLS(ctx pipeline.Context, i *ispnv1.Infinispan, statefulset *appsv1.StatefulSet) {
+func AddXSiteTLSVolumes(ctx pipeline.Context, i *ispnv1.Infinispan, statefulset *appsv1.StatefulSet) (updated bool) {
 	if i.IsSiteTLSEnabled() {
 		spec := &statefulset.Spec.Template.Spec
-		AddSecretVolume(i.GetSiteTransportSecretName(), SiteTransportKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, spec, InfinispanContainer)
+		updated = AddSecretVolume(i.GetSiteTransportSecretName(), SiteTransportKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, spec, InfinispanContainer)
 		if ctx.ConfigFiles().Transport.Truststore != nil {
-			AddSecretVolume(i.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, spec, InfinispanContainer)
+			updated = AddSecretVolume(i.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, spec, InfinispanContainer) || updated
 		}
 	}
+	return
 }

@@ -6,9 +6,15 @@ import (
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
@@ -122,6 +128,83 @@ func TestProbeUpdates(t *testing.T) {
 	}
 	spec := tutils.DefaultSpec(t, testKube, nil)
 	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
+func TestXSiteUpdates(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	spec := tutils.DefaultSpec(t, testKube, nil)
+	transport, router, trust := tutils.CreateDefaultCrossSiteKeyAndTrustStore()
+	keystoreSecret := xsiteTlsSecret(spec.Name+"-transport", spec.Namespace, consts.DefaultSiteKeyStoreFileName, transport)
+	routerSecret := xsiteTlsSecret(spec.Name+"-router", spec.Namespace, consts.DefaultSiteKeyStoreFileName, router)
+	trustSecret := xsiteTlsSecret(spec.Name+"-trust", spec.Namespace, consts.DefaultSiteTrustStoreFileName, trust)
+
+	var modifier = func(ispn *ispnv1.Infinispan) {
+		ispn.Spec.Service.Sites = &ispnv1.InfinispanSitesSpec{
+			Local: ispnv1.InfinispanSitesLocalSpec{
+				Name: "local",
+				Expose: ispnv1.CrossSiteExposeSpec{
+					Type: ispnv1.CrossSiteExposeTypeClusterIP,
+				},
+				MaxRelayNodes: 1,
+				Discovery: &ispnv1.DiscoverySiteSpec{
+					Memory: "500Mi",
+					CPU:    "500m",
+				},
+				Encryption: &ispnv1.EncryptionSiteSpec{
+					TransportKeyStore: ispnv1.CrossSiteKeyStore{
+						SecretName: keystoreSecret.Name,
+					},
+					TrustStore: &ispnv1.CrossSiteTrustStore{
+						SecretName: trustSecret.Name,
+					},
+					RouterKeyStore: ispnv1.CrossSiteKeyStore{
+						SecretName: routerSecret.Name,
+					},
+				},
+			},
+			Locations: []ispnv1.InfinispanSiteLocationSpec{
+				{
+					Name: "remote-site-1",
+					URL:  "infinispan+xsite://fake-site-1.svc.local:7900",
+				},
+			},
+		}
+	}
+	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		podSpec := &ss.Spec.Template.Spec
+		container := kubernetes.GetContainer(provision.InfinispanContainer, podSpec)
+		_assert := assert.New(t)
+		_assert.True(kubernetes.VolumeExists(provision.SiteTransportKeystoreVolumeName, podSpec))
+		_assert.True(kubernetes.VolumeMountExists(provision.SiteTruststoreVolumeName, container))
+		_assert.True(kubernetes.VolumeExists(provision.SiteTruststoreVolumeName, podSpec))
+		_assert.True(kubernetes.VolumeMountExists(provision.SiteTruststoreVolumeName, container))
+
+	}
+	genericTestForContainerUpdated(*spec, modifier, verifier)
+}
+
+func xsiteTlsSecret(name, namespace, filename string, file []byte) *corev1.Secret {
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		StringData: map[string]string{
+			"password": tutils.KeystorePassword,
+		},
+		Data: map[string][]byte{
+			filename: file,
+		},
+	}
+	testKube.CreateSecret(secret)
+	return secret
 }
 
 func genericTestForContainerUpdated(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infinispan), verifier func(*ispnv1.Infinispan, *appsv1.StatefulSet)) {
