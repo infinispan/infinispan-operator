@@ -977,6 +977,10 @@ spec:
                       - error
                       type: string
                     type: object
+                  pattern:
+                    description: A custom pattern to be applied to the Log4j STDOUT
+                      output
+                    type: string
                 type: object
               replicas:
                 description: The number of nodes in the Infinispan cluster.

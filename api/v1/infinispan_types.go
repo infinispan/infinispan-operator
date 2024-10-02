@@ -283,6 +283,9 @@ const (
 )
 
 type InfinispanLoggingSpec struct {
+	// A custom pattern to be applied to the Log4j STDOUT output
+	// +optional
+	Pattern    string                      `json:"pattern,omitempty"`
 	Categories map[string]LoggingLevelType `json:"categories,omitempty"`
 }
 

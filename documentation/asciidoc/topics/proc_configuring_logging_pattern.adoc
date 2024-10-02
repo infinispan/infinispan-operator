@@ -1,0 +1,24 @@
+[id='configuring-logging_{context}']
+= Adjusting log pattern
+
+[role="_abstract"]
+To customize the log display for {brandname} log traces, update the log pattern.
+If no custom pattern is set, the default format is:
+`%d{HH:mm:ss,SSS} %-5p (%t) [%c] %m%throwable%n`
+
+.Procedure
+
+. Configure {brandname} logging with the `spec.logging.pattern` field in your `Infinispan` CR.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/logging_pattern.yaml[]
+----
++
+. Apply the changes.
+. Retrieve logs from {brandname} pods as required.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_logs} -f $POD_NAME
+----

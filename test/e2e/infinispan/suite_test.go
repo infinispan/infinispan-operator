@@ -15,6 +15,7 @@ func TestOpenShiftIntegration(t *testing.T) {
 
 	// Smoke tests
 	t.Run("TestBaseFunctionality", TestBaseFunctionality)
+	t.Run("TestCustomLoggingPattern", TestCustomLoggingPattern)
 	t.Run("TestExplicitCredentials", TestExplicitCredentials)
 	t.Run("TestAuthorizationWithCustomRoles", TestAuthorizationWithCustomRoles)
 
