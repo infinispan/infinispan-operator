@@ -48,7 +48,9 @@ jobs:
 
       - name: Update Operands
         if: ${{ inputs.operand != '' }}
-        run: ./scripts/ci/add_operand_to_csv.sh ${{ inputs.operand }}
+        run: ./scripts/ci/add_operand_to_csv.sh
+        env:
+          IMAGE: ${{ inputs.operand }}
 
       - name: Log CSV Deployment
         run: yq config/manager/manager.yaml
