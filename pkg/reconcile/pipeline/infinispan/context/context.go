@@ -189,10 +189,16 @@ func (c *contextImpl) IsTypeSupported(gvk schema.GroupVersionKind) bool {
 
 func (c *contextImpl) UpdateInfinispan(updateFn func()) error {
 	i := c.infinispan
+	resourceVersion := i.ResourceVersion
 	mutateFn := func() error {
 		if i.CreationTimestamp.IsZero() || i.GetDeletionTimestamp() != nil {
 			return errors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), i.Name)
 		}
+
+		if i.ResourceVersion != resourceVersion {
+			return errors.NewConflict(schema.ParseGroupResource("infinispan.infinispan.org"), i.Name, fmt.Errorf("stale resource version"))
+		}
+
 		updateFn()
 		return nil
 	}
