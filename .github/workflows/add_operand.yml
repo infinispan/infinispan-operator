@@ -9,7 +9,6 @@ on:
         type: string
       version:
         description: "The upstream-version of the Operand"
-        required: true
         type: string
       ref:
         description: "The git reference to checkout"
@@ -29,7 +28,6 @@ on:
         type: string
       version:
         description: "The upstream-version of the Operand"
-        required: true
         type: string
       ref:
         description: "The git reference to checkout"
@@ -42,7 +40,7 @@ on:
         type: string
 
 jobs:
-  release:
+  add-operand:
     runs-on: ubuntu-latest
 
     steps:
@@ -52,18 +50,28 @@ jobs:
           ref: ${{ inputs.ref }}
           repository: ${{ inputs.repository }}
 
+      - name: Determine Upstream Version
+        run: |
+          if [[ -z "${{ inputs.version }}" ]]; then
+            IMAGE=${{ inputs.image }}
+            TAG=${IMAGE#*:}
+            echo VERSION=${TAG%.Final} >> ${GITHUB_ENV}
+          else
+            echo VERSION=${{ inputs.version }} >> ${GITHUB_ENV}
+          fi
+
       - name: Add Operand
         run: ./scripts/ci/add_operand.sh
         env:
           IMAGE: ${{ inputs.image }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ env.VERSION }}
 
       - name: Commit changes and create tag
         run: |
           git config user.email "infinispan@infinispan.org"
           git config user.name "Infinispan"
           git add config/manager/manager.yaml documentation/asciidoc/topics/attributes/community-attributes.adoc documentation/asciidoc/topics/supported_operands/
-          git commit -m "Add Operand ${{ inputs.version }}"
+          git commit -m "Add Operand ${{ env.VERSION }}"
 
       - name: Push Git changes
         uses: ad-m/github-push-action@master
