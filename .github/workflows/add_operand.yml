@@ -76,6 +76,6 @@ jobs:
       - name: Push Git changes
         uses: ad-m/github-push-action@master
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           branch: ${{ inputs.ref }}
           repository: ${{ inputs.repository }}
