@@ -49,6 +49,7 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           repository: ${{ inputs.repository }}
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
 
       - name: Determine Upstream Version
         run: |
@@ -66,16 +67,10 @@ jobs:
           IMAGE: ${{ inputs.image }}
           VERSION: ${{ env.VERSION }}
 
-      - name: Commit changes and create tag
+      - name: Commit changes and push to repository
         run: |
           git config user.email "infinispan@infinispan.org"
           git config user.name "Infinispan"
           git add config/manager/manager.yaml documentation/asciidoc/topics/attributes/community-attributes.adoc documentation/asciidoc/topics/supported_operands/
           git commit -m "Add Operand ${{ env.VERSION }}"
-
-      - name: Push Git changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
-          branch: ${{ inputs.ref }}
-          repository: ${{ inputs.repository }}
+          git push
