@@ -609,7 +609,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			})
 		})
 
-		It("Should prevent immutable fields being updated", func() {
+		It("Should prevent JMX immutable field being updated", func() {
 			ispn := &Infinispan{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      key.Name,
@@ -624,6 +624,24 @@ var _ = Describe("Infinispan Webhooks", func() {
 			ispn.Spec.Jmx.Enabled = true
 			expectInvalidErrStatus(k8sClient.Update(ctx, ispn),
 				statusDetailCause{"FieldValueForbidden", "spec.jmx", "JMX configuration is immutable and cannot be updated after initial Infinispan creation"},
+			)
+		})
+
+		It("Should prevent spec.service.container.storage immutable field being updated", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, key, ispn)).Should(Succeed())
+			*ispn.Spec.Service.Container.Storage = "2Gi" // Default is "1Gi"
+			expectInvalidErrStatus(k8sClient.Update(ctx, ispn),
+				statusDetailCause{"FieldValueForbidden", "spec.service.container.storage", "Storage configuration is immutable and cannot be updated after initial Infinispan creation"},
 			)
 		})
 

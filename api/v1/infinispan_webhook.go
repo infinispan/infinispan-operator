@@ -224,6 +224,10 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 		allErrs = append(allErrs, err)
 	}
 
+	if i.Spec.Service.Container != nil && i.Spec.Service.Container.Storage != nil && *old.Spec.Service.Container.Storage != *i.Spec.Service.Container.Storage {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("service").Child("container").Child("storage"), "Storage configuration is immutable and cannot be updated after initial Infinispan creation"))
+	}
+
 	return errorListToError(i, allErrs)
 }
 
