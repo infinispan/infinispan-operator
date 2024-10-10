@@ -506,7 +506,6 @@ func TestConfigListenerFailover(t *testing.T) {
 }
 
 func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
-	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	ispn := initCluster(t, true)
@@ -542,6 +541,7 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 	cr.Spec.Template = cacheConfig
 	tutils.ExpectNoError(controllerutil.SetControllerReference(ispn, cr, testKube.Kubernetes.Client.Scheme()))
 	testKube.Create(cr)
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Delete the cache on the server so the CR becomes stale
 	cacheHelper.Delete()
