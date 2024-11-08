@@ -297,13 +297,19 @@ func TestSpecImage(t *testing.T) {
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Image = pointer.String(operand.Image)
 	})
+
+	statusVersionRef := versionManager.Latest().Ref()
+	if tutils.OperandVersion != "" {
+		statusVersionRef = tutils.OperandVersion
+	}
+
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 			i.Status.Operand.CustomImage &&
-			i.Status.Operand.Version == versionManager.Latest().Ref() &&
+			i.Status.Operand.Version == statusVersionRef &&
 			i.Status.Operand.Image == operand.Image &&
 			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 	})
