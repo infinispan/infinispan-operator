@@ -1,4 +1,4 @@
-# ![Infinispan Operator](./infinispanOperator.png)
+# ![Infinispan Operator](./infinispan_operator_stacked.png)
 [![License](https://img.shields.io/github/license/infinispan/infinispan?style=for-the-badge&logo=apache)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Project Chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg?style=for-the-badge&logo=zulip)](https://infinispan.zulipchat.com/)
 
