@@ -67,7 +67,7 @@ func TestUpgrade(t *testing.T) {
 	testKube.CreateSubscriptionAndApproveInitialVersion(sub)
 
 	// Create the Infinispan CR
-	replicas := 1
+	replicas := 2
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Service.Container.EphemeralStorage = false
