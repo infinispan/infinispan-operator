@@ -1,4 +1,4 @@
-[id='configuring-logging_{context}']
+[id='configuring-logging-pattern_{context}']
 = Adjusting log pattern
 
 [role="_abstract"]
