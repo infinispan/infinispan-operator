@@ -33,4 +33,8 @@ include::2_4_4.adoc[]
 2.4.5
 |
 include::2_4_5.adoc[]
+|
+2.4.6
+|
+include::2_4_6.adoc[]
 |===
