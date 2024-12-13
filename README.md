@@ -85,6 +85,14 @@ The different categories of integration tests can be executed with the following
 
 The target cluster should be specified by exporting or explicitly providing `KUBECONFIG`, e.g. `make infinispan-test KUBECONFIG=/path/to/admin.kubeconfig`.
 
+### End to End OLM integration tests
+
+Important thing to test when transitioning to a new version are the OLM based tests:
+
+- `make hotrod-rolling-upgrade`
+- `make upgrade`
+- `make webhook`
+
 #### Env Variables
 The following variables can be exported or provided as part of the `make *test` call.
 
@@ -190,3 +198,4 @@ to `replaces: infinispan-operator.v<x.y.z>`
 8. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
 9. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS` and the next release version in the update graph
 10. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
+11. Optinally, run locally the [End to End OLM integration tests](#End-to-End-OLM-integration-tests)
