@@ -41,4 +41,8 @@ include::2_4_6.adoc[]
 2.4.7
 |
 include::2_4_7.adoc[]
+|
+2.4.8
+|
+include::2_4_8.adoc[]
 |===
