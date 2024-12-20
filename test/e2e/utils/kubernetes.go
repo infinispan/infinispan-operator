@@ -1062,7 +1062,7 @@ func (k TestKubernetes) WaitForResourceRemoval(name, namespace string, obj clien
 	)
 }
 
-func (k TestKubernetes) WaitForValidBackupPhase(name, namespace string, phase ispnv2.BackupPhase) {
+func (k TestKubernetes) WaitForValidBackupPhase(name, namespace string, phase ispnv2.BackupPhase) *ispnv2.Backup {
 	var backup *ispnv2.Backup
 	err := wait.Poll(10*time.Millisecond, TestTimeout, func() (bool, error) {
 		backup = k.GetBackup(name, namespace)
@@ -1075,6 +1075,7 @@ func (k TestKubernetes) WaitForValidBackupPhase(name, namespace string, phase is
 		println(fmt.Sprintf("Expected Backup Phase %s, got %s:%s", phase, backup.Status.Phase, backup.Status.Reason))
 	}
 	ExpectNoError(err)
+	return backup
 }
 
 func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase ispnv2.RestorePhase) error {

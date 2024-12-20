@@ -194,6 +194,13 @@ func TestRollingUpgrade(t *testing.T) {
 				createIndexedCache(entriesPerCache, client)
 			}
 
+			skippedOperands := tutils.OperandSkipSet()
+			if _, skip := skippedOperands[latestOperand.Ref()]; skip {
+				// Skip Operand upgrade if explicitly ignored
+				fmt.Printf("Skipping Operand %s\n", latestOperand.Ref())
+				continue
+			}
+
 			tutils.ExpectNoError(
 				testKube.UpdateInfinispan(ispn, func() {
 					ispn.Spec.Version = latestOperand.Ref()

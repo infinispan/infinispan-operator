@@ -2,15 +2,18 @@ package upgrade
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/blang/semver"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const DroppedOperandVersionEnv = "TESTING_DROPPED_OPERAND_VERSION"
 
 func TestUpgradeFromDroppedOperand(t *testing.T) {
 	olm := testKube.OLMTestEnv()
@@ -18,30 +21,16 @@ func TestUpgradeFromDroppedOperand(t *testing.T) {
 	sourceChannel := olm.SourceChannel
 	targetChannel := olm.TargetChannel
 
-	testKube.NewNamespace(tutils.Namespace)
-	sub := &coreos.Subscription{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: coreos.SubscriptionCRDAPIVersion,
-			Kind:       coreos.SubscriptionKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      olm.SubName,
-			Namespace: olm.SubNamespace,
-		},
-		Spec: &coreos.SubscriptionSpec{
-			Channel:                olm.SourceChannel.Name,
-			CatalogSource:          olm.CatalogSource,
-			CatalogSourceNamespace: olm.CatalogSourceNamespace,
-			InstallPlanApproval:    coreos.ApprovalManual,
-			Package:                olm.SubPackage,
-			StartingCSV:            olm.SubStartingCSV,
-			Config: coreos.SubscriptionConfig{
-				Env: []corev1.EnvVar{
-					{Name: "THREAD_DUMP_PRE_STOP", Value: "TRUE"},
-				},
-			},
-		},
+	// Skip the test when the specified starting CSV makes the test invalid
+	if os.Getenv("DroppedOperandVersionEnv") == "" && strings.HasPrefix(olm.SubStartingCSV, "infinispan") {
+		csv := semver.MustParse(strings.Split(olm.SubStartingCSV, "infinispan-operator.v")[1])
+		if csv.Major >= 2 && csv.Minor >= 4 && csv.Patch >= 3 {
+			t.Skipf("Skipping test as specified CSV '%s' does not contain dropped Operand 13.0.10", olm.SubStartingCSV)
+		}
 	}
+
+	testKube.NewNamespace(tutils.Namespace)
+	sub := subscription(olm)
 	defer testKube.CleanupOLMTest(t, tutils.TestName(t), olm.SubName, olm.SubNamespace, olm.SubPackage)
 	testKube.CreateOperatorGroup(olm)
 	testKube.CreateSubscriptionAndApproveInitialVersion(sub)
@@ -49,7 +38,7 @@ func TestUpgradeFromDroppedOperand(t *testing.T) {
 	replicas := 1
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
-		i.Spec.Version = constants.GetEnvWithDefault("TESTING_DROPPED_OPERAND_VERSION", "13.0.10")
+		i.Spec.Version = constants.GetEnvWithDefault(DroppedOperandVersionEnv, "13.0.10")
 	})
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
