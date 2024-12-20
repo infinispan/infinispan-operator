@@ -26,7 +26,10 @@ name: stable
 package: infinispan
 entries:
   - name: infinispan-operator.v2.4.9
-    replaces: infinispan-operator.v2.4.8
+    replaces: infinispan-operator.v2.4.6
+    skips:
+      - infinispan-operator.v2.4.8
+      - infinispan-operator.v2.4.7
   - name: infinispan-operator.v2.4.8
     replaces: infinispan-operator.v2.4.7
   - name: infinispan-operator.v2.4.7
