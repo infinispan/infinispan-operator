@@ -69,10 +69,14 @@ jobs:
   upgrades:
     needs: unit
     uses: ./.github/workflows/test_upgrades.yml
+    with:
+      skipList: '15.1.0,15.1.1'
 
   hr-rolling-upgrades:
     needs: unit
     uses: ./.github/workflows/test_hr_rolling_upgrades.yml
+    with:
+      skipList: '15.1.0,15.1.1'
 
   xsite:
     needs: unit

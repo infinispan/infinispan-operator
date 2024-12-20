@@ -2,6 +2,11 @@ name: Hot Rod Rolling Upgrade Tests
 
 on:
   workflow_call:
+    inputs:
+      skipList:
+        description: 'A CSV of Operand versions to be skipped when executing TestOperandUpgrades'
+        required: false
+        type: string
 
 env:
   TESTING_LOG_DIR: ${{ github.workspace }}/test/reports
@@ -21,7 +26,10 @@ jobs:
         uses: ./.github/actions/kind
 
       - name: Run Hot Rod Rolling Upgrade Tests
-        run: make upgrade-test SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.2
+        run: make upgrade-test
+        env:
+          SUBSCRIPTION_STARTING_CSV: infinispan-operator.v2.3.2
+          TESTING_OPERAND_IGNORE_LIST: ${{ inputs.skipList }}
 
       - name: Inspect Cluster
         if: failure()

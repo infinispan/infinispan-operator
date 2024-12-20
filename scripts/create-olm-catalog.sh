@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 CATALOG_DIR=infinispan-olm-catalog
 DOCKERFILE=${CATALOG_DIR}.Dockerfile
 CATALOG=${CATALOG_DIR}/catalog.yaml
@@ -14,76 +15,7 @@ done
 rm -rf ${CATALOG_DIR}
 mkdir ${CATALOG_DIR}
 
-# Define OLM update graph
-cat <<EOF >> ${CATALOG}
----
-schema: olm.package
-name: infinispan
-defaultChannel: stable
----
-schema: olm.channel
-name: stable
-package: infinispan
-entries:
-  - name: infinispan-operator.v2.4.9
-    replaces: infinispan-operator.v2.4.8
-  - name: infinispan-operator.v2.4.8
-    replaces: infinispan-operator.v2.4.7
-  - name: infinispan-operator.v2.4.7
-    replaces: infinispan-operator.v2.4.6
-  - name: infinispan-operator.v2.4.6
-    replaces: infinispan-operator.v2.4.5
-  - name: infinispan-operator.v2.4.5
-    replaces: infinispan-operator.v2.4.4
-  - name: infinispan-operator.v2.4.4
-    replaces: infinispan-operator.v2.4.3
-  - name: infinispan-operator.v2.4.3
-    replaces: infinispan-operator.v2.4.2
-  - name: infinispan-operator.v2.4.2
-    replaces: infinispan-operator.v2.4.1
-  - name: infinispan-operator.v2.4.1
-    replaces: infinispan-operator.v2.4.0
-  - name: infinispan-operator.v2.4.0
-    replaces: infinispan-operator.v2.3.7
-  - name: infinispan-operator.v2.3.7
-    replaces: infinispan-operator.v2.3.6
-  - name: infinispan-operator.v2.3.6
-    replaces: infinispan-operator.v2.3.5
-  - name: infinispan-operator.v2.3.5
-    replaces: infinispan-operator.v2.3.4
-  - name: infinispan-operator.v2.3.4
-    replaces: infinispan-operator.v2.3.3
-  - name: infinispan-operator.v2.3.3
-    replaces: infinispan-operator.v2.3.2
-  - name: infinispan-operator.v2.3.2
-    replaces: infinispan-operator.v2.3.1
-  - name: infinispan-operator.v2.3.1
-    replaces: infinispan-operator.v2.3.0
-  - name: infinispan-operator.v2.3.0
-    replaces: infinispan-operator.v2.2.5
----
-schema: olm.channel
-name: 2.3.x
-package: infinispan
-entries:
-- name: infinispan-operator.v2.3.7
-  replaces: infinispan-operator.v2.3.6
-- name: infinispan-operator.v2.3.6
-  replaces: infinispan-operator.v2.3.5
-- name: infinispan-operator.v2.3.5
-  replaces: infinispan-operator.v2.3.4
-- name: infinispan-operator.v2.3.4
-  replaces: infinispan-operator.v2.3.3
-- name: infinispan-operator.v2.3.3
-  replaces: infinispan-operator.v2.3.2
-- name: infinispan-operator.v2.3.2
-  replaces: infinispan-operator.v2.3.1
-- name: infinispan-operator.v2.3.1
-  replaces: infinispan-operator.v2.3.0
-- name: infinispan-operator.v2.3.0
-  replaces: infinispan-operator.v2.2.5
-EOF
-
+cp ${SCRIPT_DIR}/test-catalog.yml ${CATALOG}
 ${OPM} render --use-http -o yaml ${BUNDLE_IMGS} >> ${CATALOG}
 
 ${OPM} validate ${CATALOG_DIR}

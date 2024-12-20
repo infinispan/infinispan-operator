@@ -56,6 +56,13 @@ func (o Operand) EQ(other Operand) bool {
 	return o.UpstreamVersion.EQ(*other.UpstreamVersion)
 }
 
+func (o Operand) GT(other Operand) bool {
+	if o.DownstreamVersion != nil {
+		return o.DownstreamVersion.GT(*other.DownstreamVersion)
+	}
+	return o.UpstreamVersion.GT(*other.UpstreamVersion)
+}
+
 func (o Operand) GTE(other Operand) bool {
 	if o.DownstreamVersion != nil {
 		return o.DownstreamVersion.GTE(*other.DownstreamVersion)
@@ -94,6 +101,21 @@ func (m *Manager) WithRef(version string) (Operand, error) {
 // Latest returns the most recent Operand release
 func (m *Manager) Latest() Operand {
 	return *m.Operands[len(m.Operands)-1]
+}
+
+// LatestUpstreamPatch returns the most recent Operand patch release associated with the upstream stream, e.g. 15.0.x
+func (m *Manager) LatestUpstreamPatch(stream semver.Version) (Operand, error) {
+	var latest *Operand
+	for _, v := range m.Operands {
+		if v.UpstreamVersion.Major == stream.Major && v.UpstreamVersion.Minor == stream.Minor {
+			latest = v
+		}
+	}
+
+	if latest != nil {
+		return *latest, nil
+	}
+	return Operand{}, fmt.Errorf("no Operands found in upstream stream '%d.%d'", stream.Major, stream.Minor)
 }
 
 func (m *Manager) Oldest() Operand {
