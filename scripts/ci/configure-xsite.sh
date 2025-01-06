@@ -17,6 +17,13 @@ kind delete clusters --all
 # Common part for both nodes
 make operator-build IMG=$IMG
 
+if ! [ -x "$(docker -v)" ]; then
+    echo "docker not installed, trying podman"
+    function docker() {
+        podman "$@"
+    }
+fi
+
 # Create the Kind network with subnet.
 docker network rm kind || true
 docker network create kind --subnet "${KIND_SUBNET}/16"
