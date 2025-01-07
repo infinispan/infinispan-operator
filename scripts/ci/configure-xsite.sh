@@ -17,7 +17,7 @@ kind delete clusters --all
 # Common part for both nodes
 make operator-build IMG=$IMG
 
-if ! [ -x "$(docker -v)" ]; then
+if ! command -v docker &> /dev/null; then
     echo "docker not installed, trying podman"
     function docker() {
         podman "$@"
