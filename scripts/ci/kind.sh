@@ -26,9 +26,9 @@ docker network create kind --subnet "${KIND_SUBNET}/16" || true
 reg_name='kind-registry'
 reg_port=${KIND_PORT-'5001'}
 reg_running="$(docker container inspect -f '{{.State.Running}}' ${reg_name} || echo 'create' | xargs)"
-if [ "${reg_running}" == "create" ]; then
+if [ $reg_running = "create" ]; then
   docker run -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" "${DOCKER_REGISTRY_IMAGE}"
-elif [ "${reg_running}" == "false" ]; then
+elif [ $reg_running = "false" ]; then
   docker container restart ${reg_name}
 fi
 
