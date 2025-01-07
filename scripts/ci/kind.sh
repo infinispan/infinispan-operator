@@ -25,11 +25,11 @@ docker network create kind --subnet "${KIND_SUBNET}/16" || true
 # create registry container unless it already exists
 reg_name='kind-registry'
 reg_port=${KIND_PORT-'5001'}
-running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
-if [ "${running}" != 'true' ]; then
-  docker run \
-    -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" \
-    ${DOCKER_REGISTRY_IMAGE}
+reg_running="$(docker container inspect -f '{{.State.Running}}' ${reg_name} || echo 'create')"
+if [ "${reg_running}" == "create" ]; then
+  docker run -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" "${DOCKER_REGISTRY_IMAGE}"
+elif [ "${reg_running}" == "false" ]; then
+  docker container restart ${reg_name}
 fi
 
 # create a cluster with the local registry enabled in containerd
