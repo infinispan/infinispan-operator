@@ -11,6 +11,10 @@ on:
         description: 'The name of the GH artifact containing the Operand image'
         required: false
         type: string
+      operandVersion:
+        description: 'The upstream version of the Operand image'
+        required: false
+        type: string
       skipList:
         description: 'A CSV of Operand versions to be skipped when executing TestOperandUpgrades'
         required: false
@@ -39,6 +43,10 @@ on:
         type: string
       operandArtifact:
         description: 'The name of the GH artifact containing the Operand image'
+        required: false
+        type: string
+      operandVersion:
+        description: 'The upstream version of the Operand image'
         required: false
         type: string
       skipList:
@@ -94,6 +102,7 @@ jobs:
         run: ./scripts/ci/add_operand_to_csv.sh
         env:
           IMAGE: ${{ inputs.operand }}
+          VERSION: ${{ inputs.operandVersion }}
 
       - name: Log CSV Deployment
         run: yq config/manager/manager.yaml
