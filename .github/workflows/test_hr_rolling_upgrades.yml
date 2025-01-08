@@ -26,7 +26,7 @@ jobs:
         uses: ./.github/actions/kind
 
       - name: Run Hot Rod Rolling Upgrade Tests
-        run: make upgrade-test
+        run: make hotrod-upgrade-test
         env:
           SUBSCRIPTION_STARTING_CSV: infinispan-operator.v2.3.2
           TESTING_OPERAND_IGNORE_LIST: ${{ inputs.skipList }}
