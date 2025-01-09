@@ -71,7 +71,6 @@ func TestRollingUpgrade(t *testing.T) {
 	entriesPerCache := 100
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
-		i.Spec.Container.CPU = "1000m"
 		i.Spec.Service.Container.EphemeralStorage = false
 		i.Spec.Upgrades = &ispnv1.InfinispanUpgradesSpec{
 			Type: ispnv1.UpgradeTypeHotRodRolling,
