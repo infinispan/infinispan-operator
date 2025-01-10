@@ -6,3 +6,9 @@ Since version 2.3.0 {ispn_operator} supports multiple {brandname} Server version
 You can upgrade the version of your cluster between supported {brandname} versions:
 
 include::supported_operands/operand_table.adoc[]
+
+[IMPORTANT]
+====
+Operand versions `15.1.0` and `15.1.1` should be skipped when upgrading from the `15.0.x` stream, 
+due to https://github.com/infinispan/infinispan/issues/13519[#13519] which may cause issues if invalidation caches are present or if attempting to restore from backups created with prior Infinispan versions.
+====
