@@ -196,6 +196,7 @@ Follow these steps to release the Infinispan Operator:
 to `replaces: infinispan-operator.v<x.y.z>`
 7. **Update the `version.txt` file to the next release version**
 8. Update `scripts/ci/install-catalog-source.sh` `VERSION` field to the next release version
-9. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS` and the next release version in the update graph
-10. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
-11. Optinally, run locally the [End to End OLM integration tests](#End-to-End-OLM-integration-tests)
+9. Update `scripts/create-olm-catalog.sh` to include the just released version in `BUNDLE_IMGS`
+10. Update `scripts/test-catalog.yml` to include the next release version in the update graph
+11. Commit changes with appropriate commit message, e.g "Next Version <x.y.z>"
+12. Optinally, run locally the [End to End OLM integration tests](#End-to-End-OLM-integration-tests)
