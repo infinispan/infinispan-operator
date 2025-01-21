@@ -10,6 +10,12 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
+# $rootfs will contain the libraries to manually export to the runtime container
+ENV rootfs=/tmp/rootfs
+RUN dnf install -y --installroot $rootfs openssl && \
+    dnf --installroot $rootfs clean all && \
+    rm -rf $rootfs/var/cache/* $rootfs/var/log/dnf* $rootfs/var/log/yum.*
+
 # Copy the go source
 COPY main.go main.go
 COPY api/ api/
@@ -23,6 +29,9 @@ RUN CGO_ENABLED=1 GOOS=linux GO111MODULE=on \
 
 FROM registry.access.redhat.com/ubi9/ubi-micro
 COPY --from=build /bin/infinispan-operator /usr/local/bin/infinispan-operator
+# Open SSL library is not directly used by our operator, 
+# but it may be invoked by OCP using FIPS with GoLang 1.22
+COPY --from=build /tmp/rootfs/ /
 # Define GOTRACEBACK to mark this container as using the Go language runtime
 # for `skaffold debug` (https://skaffold.dev/docs/workflows/debug/).
 ENV GOTRACEBACK=single
