@@ -15,6 +15,7 @@ import (
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	testifyAssert "github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -113,7 +114,7 @@ func assertConfigListenerHasNoErrorsOrRestarts(t *testing.T, i *v1.Infinispan) {
 
 	pod := podList.Items[0]
 	testifyAssert.Equal(t, int32(0), pod.Status.ContainerStatuses[0].RestartCount)
-	logs, err := k8s.Logs(pod.Name, tutils.Namespace, false, ctx)
+	logs, err := k8s.Logs(provision.InfinispanListenerContainer, pod.Name, tutils.Namespace, false, ctx)
 	tutils.ExpectNoError(err)
 	testifyAssert.NotContains(t, logs, "ERROR", "Error(s) exist in ConfigListener logs")
 }

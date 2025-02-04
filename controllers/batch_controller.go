@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	BatchContainer            = "batch"
 	BatchFilename             = "batch"
 	BatchVolumeName           = "batch-volume"
 	BatchVolumeRoot           = "/etc/batch"
@@ -181,7 +182,7 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Name:    batch.Name,
+						Name:    BatchContainer,
 						Image:   infinispan.ImageName(),
 						Command: []string{"/opt/infinispan/bin/cli.sh", cliArgs},
 						VolumeMounts: []corev1.VolumeMount{
@@ -255,7 +256,7 @@ func (r *batchRequest) waitToComplete() (reconcile.Result, error) {
 				if err != nil {
 					reason = err.Error()
 				} else {
-					reason, err = r.kubernetes.Logs(podName, batch.Namespace, false, r.ctx)
+					reason, err = r.kubernetes.Logs(BatchContainer, podName, batch.Namespace, false, r.ctx)
 					if err != nil {
 						reason = fmt.Errorf("unable to retrive logs for batch %s: %w", batch.Name, err).Error()
 					}

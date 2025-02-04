@@ -15,11 +15,13 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	ispnv2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	"github.com/infinispan/infinispan-operator/controllers"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/launcher/operator"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	routev1 "github.com/openshift/api/route/v1"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
@@ -175,20 +177,20 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		err = os.MkdirAll(eventDir, os.ModePerm)
 		LogError(err)
 
-		k.WriteAllResourcesToFile(eventDir, namespace, "Event", &corev1.EventList{}, map[string]string{})
-		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
-		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
-		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
-		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-zero-pod"})
-		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-router-pod"})
-		k.WriteAllResourcesToFile(dir, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-config-listener-pod"})
-		k.WriteAllResourcesToFile(dir, namespace, "ConfigMap", &corev1.ConfigMapList{}, map[string]string{})
-		k.WriteAllResourcesToFile(dir, namespace, "StatefulSet", &appsv1.StatefulSetList{}, map[string]string{})
-		k.WriteAllResourcesToFile(dir, namespace, "Infinispan", &ispnv1.InfinispanList{}, map[string]string{})
-		k.WriteAllResourcesToFile(dir, namespace, "Backup", &ispnv2.BackupList{}, map[string]string{})
-		k.WriteAllResourcesToFile(dir, namespace, "Restore", &ispnv2.RestoreList{}, map[string]string{})
-		k.WriteAllResourcesToFile(dir, namespace, "Batch", &ispnv2.BatchList{}, map[string]string{})
-		k.WriteAllResourcesToFile(dir, namespace, "Cache", &ispnv2.CacheList{}, map[string]string{})
+		k.WriteAllResourcesToFile(eventDir, "", namespace, "Event", &corev1.EventList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, "manager", namespace, "Pod", &corev1.PodList{}, map[string]string{"app.kubernetes.io/name": "infinispan-operator"})
+		k.WriteAllResourcesToFile(dir, provision.InfinispanContainer, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-pod"})
+		k.WriteAllResourcesToFile(dir, controllers.BatchContainer, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-batch-pod"})
+		k.WriteAllResourcesToFile(dir, provision.InfinispanContainer, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-zero-pod"})
+		k.WriteAllResourcesToFile(dir, provision.GossipRouterContainer, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-router-pod"})
+		k.WriteAllResourcesToFile(dir, provision.InfinispanListenerContainer, namespace, "Pod", &corev1.PodList{}, map[string]string{"app": "infinispan-config-listener-pod"})
+		k.WriteAllResourcesToFile(dir, "", namespace, "ConfigMap", &corev1.ConfigMapList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, "", namespace, "StatefulSet", &appsv1.StatefulSetList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, "", namespace, "Infinispan", &ispnv1.InfinispanList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, "", namespace, "Backup", &ispnv2.BackupList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, "", namespace, "Restore", &ispnv2.RestoreList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, "", namespace, "Batch", &ispnv2.BatchList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, "", namespace, "Cache", &ispnv2.CacheList{}, map[string]string{})
 		k.WriteAllMetricsToFile(dir, namespace)
 	}
 
@@ -223,7 +225,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 	}
 }
 
-func (k TestKubernetes) WriteAllResourcesToFile(dir, namespace, suffix string, list runtime.Object, set labels.Set) {
+func (k TestKubernetes) WriteAllResourcesToFile(dir, container, namespace, suffix string, list runtime.Object, set labels.Set) {
 	err := k.Kubernetes.ResourcesList(namespace, set, list, context.TODO())
 	LogError(err)
 
@@ -238,7 +240,7 @@ func (k TestKubernetes) WriteAllResourcesToFile(dir, namespace, suffix string, l
 		if strings.Contains(reflect.TypeOf(list).String(), "PodList") {
 
 			writeLog := func(previous bool) {
-				log, err := k.Kubernetes.Logs(item.GetName(), namespace, previous, context.TODO())
+				log, err := k.Kubernetes.Logs(container, item.GetName(), namespace, previous, context.TODO())
 				if previous && k8serrors.IsNotFound(err) {
 					return
 				}
