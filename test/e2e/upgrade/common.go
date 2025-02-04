@@ -168,7 +168,7 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 		for _, pod := range podList.Items {
 			for _, c := range pod.Status.ContainerStatuses {
 				if c.Name == provision.InfinispanContainer && c.RestartCount > 0 {
-					logs, err := testKube.Kubernetes.Logs(pod.Name, pod.Namespace, true, ctx)
+					logs, err := testKube.Kubernetes.Logs(provision.InfinispanContainer, pod.Name, pod.Namespace, true, ctx)
 					tutils.ExpectNoError(err)
 
 					if r.MatchString(logs) {
@@ -183,7 +183,7 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 	}
 
 	if strings.Contains(restore.Status.Reason, "EOF") {
-		logs, err := testKube.Kubernetes.Logs(restore.Name, restore.Namespace, false, ctx)
+		logs, err := testKube.Kubernetes.Logs(provision.InfinispanContainer, restore.Name, restore.Namespace, false, ctx)
 		tutils.ExpectNoError(err)
 
 		if operand.UpstreamVersion.LT(semver.Version{Major: 14, Minor: 0, Patch: 18}) {
@@ -207,7 +207,7 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 	}
 
 	if strings.Contains(restore.Status.Reason, "unable to retrieve Restore with name") {
-		logs, err := testKube.Kubernetes.Logs(restore.Name, restore.Namespace, false, ctx)
+		logs, err := testKube.Kubernetes.Logs(provision.InfinispanContainer, restore.Name, restore.Namespace, false, ctx)
 		tutils.ExpectNoError(err)
 
 		// Ignore https://github.com/infinispan/infinispan/issues/13571

@@ -10,6 +10,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -193,7 +194,7 @@ func XSiteViewCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if crossSiteViewCondition.Status == metav1.ConditionTrue {
 		podName := podList.Items[0].Name
 		k8s := ctx.Kubernetes()
-		logs, err := k8s.Logs(podName, i.Namespace, false, ctx.Ctx())
+		logs, err := k8s.Logs(provision.InfinispanContainer, podName, i.Namespace, false, ctx.Ctx())
 		if err != nil {
 			ctx.Log().Error(err, fmt.Sprintf("Unable to retrive logs for i pod %s", podName))
 		}
