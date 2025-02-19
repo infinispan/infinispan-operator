@@ -1,0 +1,24 @@
+name: Labeller
+
+on:
+  pull_request_target:
+    types: [closed]
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+        contents: read
+        issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: infinispan/infinispan-operator
+
+      - name: Add release labels on merge
+        run: scripts/ci/pr-label-issues.sh "${{ github.event.pull_request.number }}" "$GITHUB_REPOSITORY" >> "$GITHUB_STEP_SUMMARY"
+        if: github.event.pull_request.merged == true && github.base_ref == 'main'
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
