@@ -25,7 +25,7 @@ for op in $(ls "${DOCS_OPERAND_DIR}" | grep -Po '([\d+]?)_([\d+]?)_(\d+]?).adoc'
   cat >> "${DOCS_OPERAND_TABLE_FILE}" << EOF
 |
 ${version}
-|
+a|
 include::${op}[]
 EOF
 done
