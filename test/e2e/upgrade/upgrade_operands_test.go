@@ -17,6 +17,7 @@ func TestOperandUpgrades(t *testing.T) {
 	olm := testKube.OLMTestEnv()
 	// Only test Operands in the most recent CSV
 	olm.SubStartingCSV = olm.TargetChannel.CurrentCSVName
+	olm.SourceChannel = olm.TargetChannel
 	olm.PrintManifest()
 
 	testKube.NewNamespace(tutils.Namespace)
