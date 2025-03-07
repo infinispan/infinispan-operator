@@ -400,7 +400,7 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 				// Create new Subscription with the startingCSV set to the failed version
 				fmt.Println("Attempting to recreate Subscription")
 				startingCSV := sub.Status.InstalledCSV
-				sub = &coreos.Subscription{
+				*sub = coreos.Subscription{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      sub.Name,
 						Namespace: sub.Namespace,
