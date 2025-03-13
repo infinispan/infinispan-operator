@@ -43,6 +43,7 @@ func TestUpgrade(t *testing.T) {
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+	assertNoDegradedCaches()
 
 	numEntries := 100
 	client := tutils.HTTPClientForClusterWithVersionManager(spec, testKube, testKube.VersionManagerFromCSV(sub))
@@ -141,6 +142,7 @@ func TestUpgrade(t *testing.T) {
 			// Ensure that persistent cache entries have survived the upgrade(s)
 			// Refresh the hostAddr and client as the url will change if NodePort is used.
 			client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
+			assertNoDegradedCaches()
 			tutils.NewCacheHelper(persistentCacheName, client).AssertSize(numEntries)
 
 			// Restore the backup and ensure that the cache exists with the expected number of entries
