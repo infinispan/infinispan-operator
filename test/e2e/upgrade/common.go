@@ -250,3 +250,18 @@ func checkBatch(t *testing.T, name string) {
 	batchHelper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
 	testKube.DeleteBatch(batch)
 }
+
+func assertNoDegradedCaches() {
+	podList := &corev1.PodList{}
+	tutils.ExpectNoError(
+		testKube.Kubernetes.ResourcesList(tutils.Namespace, map[string]string{"app": "infinispan-pod"}, podList, ctx),
+	)
+
+	for _, pod := range podList.Items {
+		log, err := testKube.Kubernetes.Logs(provision.InfinispanContainer, pod.GetName(), pod.GetNamespace(), false, ctx)
+		tutils.ExpectNoError(err)
+		if strings.Contains(log, "DEGRADED_MODE") {
+			panic("Detected a cache in DEGRADED_MODE, unable to continue with test")
+		}
+	}
+}

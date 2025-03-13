@@ -62,6 +62,7 @@ func TestOperandUpgrades(t *testing.T) {
 	// Add a volatile cache with data to ensure contents can be backed up and then restored after upgrade(s)
 	createAndPopulateVolatileCache(volatileCacheName, numEntries, client)
 
+	assertNoDegradedCaches()
 	backup := createBackupAndWaitToSucceed(ispn.Name, t)
 
 	skippedOperands := tutils.OperandSkipSet()
@@ -88,6 +89,7 @@ func TestOperandUpgrades(t *testing.T) {
 				i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 		})
 		assertOperandImage(operand.Image, ispn)
+		assertNoDegradedCaches()
 
 		// Ensure that persistent cache entries have survived the upgrade(s)
 		// Refresh the hostAddr and client as the url will change if NodePort is used.
@@ -95,7 +97,6 @@ func TestOperandUpgrades(t *testing.T) {
 		tutils.NewCacheHelper(persistentCacheName, client).AssertSize(numEntries)
 
 		// Restore the backup and ensure that the cache exists with the expected number of entries
-
 		restoreName := strings.ReplaceAll(operand.Ref(), ".", "-")
 		if restore, err := createRestoreAndWaitToSucceed(restoreName, backup, t); err != nil {
 			tutils.ExpectNoError(
