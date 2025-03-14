@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -19,14 +20,15 @@ func TestCustomImage(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	img := "quay.io/infinispan/server:15.0"
-
+	var operand version.Operand
+	versionManager := tutils.VersionManager()
 	// Attempting to use latest Infinispan Server image while having version set to different major will result in misconfiguration by Operator
 	if tutils.OperandVersion != "" {
-		operand, _ := tutils.VersionManager().WithRef(tutils.OperandVersion)
-		version := operand.UpstreamVersion
-		img = "quay.io/infinispan/server:" + strconv.FormatUint(version.Major, 10) + "." + strconv.FormatUint(version.Minor, 10)
+		operand, _ = versionManager.WithRef(tutils.OperandVersion)
+	} else {
+		operand = versionManager.Latest()
 	}
+	img := "quay.io/infinispan/server:" + strconv.FormatUint(operand.UpstreamVersion.Major, 10) + "." + strconv.FormatUint(operand.UpstreamVersion.Minor, 10)
 
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Image = pointer.String(img)

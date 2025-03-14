@@ -102,8 +102,8 @@ func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg st
 		return "", "", version.NewUnknownError(v)
 	}
 
-	baseTemplate := fmt.Sprintf("infinispan-base-%d.xml", v.Major)
-	adminTemplate := fmt.Sprintf("infinispan-admin-%d.xml", v.Major)
+	baseTemplate := fmt.Sprintf("infinispan-base-%d-%d.xml", v.Major, v.Minor)
+	adminTemplate := fmt.Sprintf("infinispan-admin-%d-%d.xml", v.Major, v.Minor)
 
 	if baseCfg, err = templates.LoadAndExecute(baseTemplate, funcMap(), spec); err != nil {
 		return
@@ -119,7 +119,7 @@ func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
 		return "", version.NewUnknownError(v)
 	}
 
-	zeroTemplate := fmt.Sprintf("infinispan-zero-%d.xml", v.Major)
+	zeroTemplate := fmt.Sprintf("infinispan-zero-%d-%d.xml", v.Major, v.Minor)
 	return templates.LoadAndExecute(zeroTemplate, funcMap(), spec)
 }
 
