@@ -211,7 +211,7 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 		tutils.ExpectNoError(err)
 
 		// Ignore https://github.com/infinispan/infinispan/issues/13571
-		r := regexp.MustCompile(`ISPN000436: Cache 'volatileCache' has been requested, but no matching cache configuration exists`)
+		r := regexp.MustCompile(`ISPN000436: Cache '.*.' has been requested, but no matching cache configuration exists`)
 		if r.MatchString(logs) {
 			fmt.Printf("Ignoring Restore failure caused by https://github.com/infinispan/infinispan/issues/13571 on Operand %s\n", operand)
 			return nil
