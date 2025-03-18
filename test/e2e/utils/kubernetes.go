@@ -123,7 +123,8 @@ func resolveConfig(ctx string) *rest.Config {
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfig},
 			&configOvr)
-		external, _ := clientConfig.ClientConfig()
+		external, err := clientConfig.ClientConfig()
+		ExpectNoError(err)
 		return external
 	}
 	return internal
