@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sort"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/go-logr/logr"
-	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -162,7 +162,12 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, error) {
 
 // FindKubeConfig returns local Kubernetes configuration
 func FindKubeConfig() string {
-	return consts.GetEnvWithDefault("KUBECONFIG", consts.DefaultKubeConfig)
+	config, exists := os.LookupEnv("KUBECONFIG")
+	if exists {
+		return config
+	}
+	homedir, _ := os.UserHomeDir()
+	return homedir + "/.kube/config"
 }
 
 func SetConfigDefaults(config *rest.Config, scheme *runtime.Scheme) *rest.Config {
