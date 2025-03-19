@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/go-logr/logr"
-	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -158,11 +157,6 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, error) {
 		return execOut, &execError{err, execErr.String()}
 	}
 	return execOut, err
-}
-
-// FindKubeConfig returns local Kubernetes configuration
-func FindKubeConfig() string {
-	return consts.GetEnvWithDefault("KUBECONFIG", consts.DefaultKubeConfig)
 }
 
 func SetConfigDefaults(config *rest.Config, scheme *runtime.Scheme) *rest.Config {

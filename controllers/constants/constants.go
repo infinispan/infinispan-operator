@@ -132,8 +132,6 @@ const (
 	DefaultWaitClusterPodsNotReady = 2 * time.Second
 )
 
-const DefaultKubeConfig = "~/.kube/config"
-
 const (
 	DefaultSiteKeyStoreFileName       = "keystore.p12"
 	DefaultSiteTransportKeyStoreAlias = "transport"
