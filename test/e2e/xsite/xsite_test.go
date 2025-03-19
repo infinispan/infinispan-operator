@@ -15,7 +15,6 @@ import (
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	routev1 "github.com/openshift/api/route/v1"
@@ -280,7 +279,7 @@ func TestDefaultTLSOpenshiftRoute(t *testing.T) {
 func TestCrossSiteGracefulShutdown(t *testing.T) {
 	testName := tutils.TestName(t)
 	testKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
-	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	clientConfig := clientcmd.GetConfigFromFileOrDie(tutils.FindKubeConfig())
 
 	testKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 2, "xsite1", "xsite2", "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 0)
 	testKubes["xsite2"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), 2, "xsite2", "xsite1", "", ispnv1.CrossSiteExposeTypeClusterIP, 0, 0)
@@ -338,7 +337,7 @@ func TestCrossSiteGracefulShutdown(t *testing.T) {
 func TestSingleGossipRouter(t *testing.T) {
 	testName := tutils.TestName(t)
 	testKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
-	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	clientConfig := clientcmd.GetConfigFromFileOrDie(tutils.FindKubeConfig())
 
 	// setup instances
 	for instance, testKube := range testKubes {
@@ -412,7 +411,7 @@ func TestSuspectAndHearbeatConfig(t *testing.T) {
 
 	testName := tutils.TestName(t)
 	testKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
-	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	clientConfig := clientcmd.GetConfigFromFileOrDie(tutils.FindKubeConfig())
 
 	for _, testKube := range testKubes {
 		testKube.context = clientConfig.CurrentContext
@@ -471,7 +470,7 @@ func TestSuspectAndHearbeatConfig(t *testing.T) {
 func TestMultipleSiteDefinitions(t *testing.T) {
 	// single cluster cross-site is enough.
 	// Testing issue https://github.com/infinispan/infinispan-operator/issues/1834
-	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	clientConfig := clientcmd.GetConfigFromFileOrDie(tutils.FindKubeConfig())
 	kube := tutils.NewTestKubernetes(clientConfig.CurrentContext)
 	namespace := fmt.Sprintf("%s-xsite2", tutils.Namespace)
 
@@ -538,7 +537,7 @@ func TestBackupPodWithTLS(t *testing.T) {
 func testCrossSiteView(t *testing.T, isMultiCluster bool, explicitNodePort bool, schemeType ispnv1.CrossSiteSchemeType, exposeType ispnv1.CrossSiteExposeType, exposePort, podsPerSite int32, tlsMode TLSMode, tlsProtocol *ispnv1.TLSProtocol) {
 	testName := tutils.TestName(t)
 	testKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
-	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	clientConfig := clientcmd.GetConfigFromFileOrDie(tutils.FindKubeConfig())
 	nodePort := int32(0)
 
 	if isMultiCluster {
@@ -798,7 +797,7 @@ func getServiceAccountToken(namespace string, k8s *tutils.TestKubernetes) []byte
 func testBackupCrossSiteCache(t *testing.T, useTLS bool) {
 	testName := tutils.TestName(t)
 	testKubes := map[string]*crossSiteKubernetes{"xsite1": {}, "xsite2": {}}
-	clientConfig := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	clientConfig := clientcmd.GetConfigFromFileOrDie(tutils.FindKubeConfig())
 
 	for instance, testKube := range testKubes {
 		testKube.context = fmt.Sprintf("kind-%s", instance)

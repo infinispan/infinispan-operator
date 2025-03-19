@@ -115,7 +115,7 @@ func createOptions(scheme *runtime.Scheme, mapper meta.RESTMapper) client.Option
 func resolveConfig(ctx string) *rest.Config {
 	internal, _ := rest.InClusterConfig()
 	if internal == nil {
-		kubeConfig := kube.FindKubeConfig()
+		kubeConfig := FindKubeConfig()
 		configOvr := clientcmd.ConfigOverrides{}
 		if ctx != "" {
 			configOvr.CurrentContext = ctx
@@ -898,10 +898,21 @@ func RunOperator(m *testing.M, k *TestKubernetes) {
 	}
 }
 
+// FindKubeConfig returns local Kubernetes configuration
+func FindKubeConfig() string {
+	config, exists := os.LookupEnv("KUBECONFIG")
+	if exists {
+		return config
+	}
+	homedir, err := os.UserHomeDir()
+	ExpectNoError(err)
+	return homedir + "/.kube/config"
+}
+
 // Run the operator locally
 func runOperatorLocally(ctx context.Context, namespace string) {
 	_ = os.Setenv("WATCH_NAMESPACE", namespace)
-	_ = os.Setenv("KUBECONFIG", kube.FindKubeConfig())
+	_ = os.Setenv("KUBECONFIG", FindKubeConfig())
 	_ = os.Setenv("OSDK_FORCE_RUN_MODE", "local")
 	_ = os.Setenv("OPERATOR_NAME", OperatorName)
 	_ = os.Setenv("ENABLE_WEBHOOKS", "false")
@@ -1012,7 +1023,7 @@ func GetServerName(i *ispnv1.Infinispan) string {
 	if i.GetExposeType() != ispnv1.ExposeTypeRoute {
 		return "server"
 	}
-	c := clientcmd.GetConfigFromFileOrDie(kube.FindKubeConfig())
+	c := clientcmd.GetConfigFromFileOrDie(FindKubeConfig())
 	clusterName := c.Contexts[c.CurrentContext].Cluster
 	cluster := c.Clusters[clusterName]
 	url, err := url.Parse(cluster.Server)

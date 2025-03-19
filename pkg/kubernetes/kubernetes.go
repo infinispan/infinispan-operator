@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"sort"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -158,16 +157,6 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, error) {
 		return execOut, &execError{err, execErr.String()}
 	}
 	return execOut, err
-}
-
-// FindKubeConfig returns local Kubernetes configuration
-func FindKubeConfig() string {
-	config, exists := os.LookupEnv("KUBECONFIG")
-	if exists {
-		return config
-	}
-	homedir, _ := os.UserHomeDir()
-	return homedir + "/.kube/config"
 }
 
 func SetConfigDefaults(config *rest.Config, scheme *runtime.Scheme) *rest.Config {
