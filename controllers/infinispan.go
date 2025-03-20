@@ -11,6 +11,7 @@ import (
 	pipelineBuilder "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/pipeline"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -110,15 +111,19 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infinispanv1.Infinispan{}).
 		Owns(&corev1.ConfigMap{}).
-		Owns(&corev1.Secret{}).
+		Owns(&corev1.Secret{},
+			builder.WithPredicates(
+				predicate.Funcs{
+					CreateFunc: func(ce event.CreateEvent) bool { return false },
+				},
+			),
+		).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
 		WithEventFilter(predicate.Funcs{
 			CreateFunc: func(e event.CreateEvent) bool {
 				switch e.Object.(type) {
 				case *corev1.ConfigMap:
-					return false
-				case *corev1.Secret:
 					return false
 				case *appsv1.StatefulSet:
 					return false
