@@ -26,6 +26,7 @@ type Spec struct {
 type Infinispan struct {
 	Authorization    *Authorization
 	ZeroCapacityNode bool
+	Version          Version
 }
 
 type Authorization struct {
@@ -57,6 +58,7 @@ type BackupSite struct {
 type JGroups struct {
 	Diagnostics bool
 	FastMerge   bool
+	Version     Version
 }
 
 type CloudEvents struct {
@@ -95,6 +97,15 @@ type Endpoints struct {
 	ClientCert   string
 }
 
+type Version struct {
+	Major uint64
+	Minor uint64
+}
+
+func (version Version) String() string {
+	return fmt.Sprintf("%d.%d", version.Major, version.Minor)
+}
+
 // Generate the base and admin configuration files used by the Infinispan server
 func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg string, err error) {
 	v := operand.UpstreamVersion
@@ -102,8 +113,10 @@ func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg st
 		return "", "", version.NewUnknownError(v)
 	}
 
-	baseTemplate := fmt.Sprintf("infinispan-base-%d-%d.xml", v.Major, v.Minor)
-	adminTemplate := fmt.Sprintf("infinispan-admin-%d-%d.xml", v.Major, v.Minor)
+	mapVerstionsToSpec(operand, spec)
+
+	baseTemplate := fmt.Sprintf("infinispan-base-%d.xml", v.Major)
+	adminTemplate := "infinispan-admin.xml"
 
 	if baseCfg, err = templates.LoadAndExecute(baseTemplate, funcMap(), spec); err != nil {
 		return
@@ -119,7 +132,9 @@ func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
 		return "", version.NewUnknownError(v)
 	}
 
-	zeroTemplate := fmt.Sprintf("infinispan-zero-%d-%d.xml", v.Major, v.Minor)
+	mapVerstionsToSpec(operand, spec)
+
+	zeroTemplate := "infinispan-zero.xml"
 	return templates.LoadAndExecute(zeroTemplate, funcMap(), spec)
 }
 
@@ -146,4 +161,19 @@ func funcMap() template.FuncMap {
 
 func supportedMajorVersion(v uint64) bool {
 	return v >= 14 && v <= 15
+}
+
+func mapVerstionsToSpec(operand version.Operand, spec *Spec) {
+	v := operand.UpstreamVersion
+	spec.Infinispan.Version.Major = v.Major
+	spec.Infinispan.Version.Minor = v.Minor
+	spec.JGroups.Version.Major = 5
+
+	if v.Major <= 14 {
+		spec.JGroups.Version.Minor = 4
+	} else if v.Minor <= 1 {
+		spec.JGroups.Version.Minor = 5
+	} else {
+		spec.JGroups.Version.Minor = 6
+	}
 }
