@@ -1,6 +1,7 @@
 module github.com/infinispan/infinispan-operator
 
 go 1.22.9
+toolchain go1.23.7
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
@@ -89,7 +90,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
-	golang.org/x/text v0.21.0
+	golang.org/x/text v0.23.0
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
