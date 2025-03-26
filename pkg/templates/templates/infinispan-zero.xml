@@ -1,11 +1,6 @@
-<infinispan
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="urn:infinispan:config:15.0 https://infinispan.org/schemas/infinispan-config-15.0.xsd
-                        urn:infinispan:server:15.0 https://infinispan.org/schemas/infinispan-server-15.0.xsd"
-    xmlns="urn:infinispan:config:15.0"
-    xmlns:server="urn:infinispan:server:15.0">
+{{template "header.xml" . }}
 
-<jgroups>
+<jgroups xsi:schemaLocation="http://www.jgroups.org/schema/jgroups-{{ .JGroups.Version.Major }}.{{ .JGroups.Version.Minor }}.xsd">
     {{ if .XSite }} {{ if .XSite.Sites }}
     <stack name="relay-tunnel" extends="udp">
         <TUNNEL
@@ -53,26 +48,11 @@
     </stack>
 </jgroups>
 <cache-container name="default" statistics="true" zero-capacity-node="true">
-    {{ if .Infinispan.Authorization.Enabled }}
-    <security>
-        <authorization>
-            {{if eq .Infinispan.Authorization.RoleMapper "commonName" }}
-            <common-name-role-mapper />
-            {{ else }}
-            <cluster-role-mapper />
-            {{ end }}
-            {{ if .Infinispan.Authorization.Roles }}
-            {{ range $role :=  .Infinispan.Authorization.Roles }}
-            <role name="{{ $role.Name }}" permissions="{{ $role.Permissions }}"/>
-            {{ end }}
-            {{ end }}
-        </authorization>
-    </security>
-    {{ end }}
+    {{template "authorization.xml" . }}
     <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}" stack="image-tcp"
     {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }} />
 </cache-container>
-<server xmlns="urn:infinispan:server:15.0">
+<server xmlns="urn:infinispan:server:{{ .Infinispan.Version.Major }}.{{ .Infinispan.Version.Minor }}">
     <interfaces>
         <interface name="public">
             <inet-address value="${infinispan.bind.address}"/>

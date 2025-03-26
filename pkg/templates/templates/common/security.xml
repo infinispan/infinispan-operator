@@ -1,0 +1,67 @@
+<security>
+        {{- if .UserCredentialStore }}
+        <credential-stores>
+            <credential-store name="credentials" path="credentials.pfx">
+                <clear-text-credential clear-text="secret"/>
+            </credential-store>
+        </credential-stores>
+        {{ end }}
+        {{- if or .Keystore.Password .Truststore.Path }}
+        <credential-stores>
+            <credential-store name="internal-credentials" path="internal-credentials.pfx">
+            <clear-text-credential clear-text="secret"/>
+            </credential-store>
+        </credential-stores>
+        {{ end }}
+        <security-realms>
+            <security-realm name="default">
+                <server-identities>
+                {{- if or .Keystore.Path .Truststore.Path}}
+                <ssl>
+                {{- if .Keystore.Path }}
+                    {{- if .Keystore.Password }}
+                        <keystore path="{{  .Keystore.Path }}" {{if .Keystore.Alias }} alias="{{ .Keystore.Alias }}" {{ end }}>
+                            <credential-reference store="internal-credentials" alias="keystore"/>
+                        </keystore>
+                    {{ else }}
+                        <keystore path="{{  .Keystore.Path }}" keystore-password="" {{if .Keystore.Alias }} alias="{{ .Keystore.Alias }}" {{ end }}/>
+                    {{ end }}
+                {{ end }}
+                {{- if  .Truststore.Path }}
+                    <truststore path="{{ .Truststore.Path }}">
+                        <credential-reference store="internal-credentials" alias="truststore"/>
+                    </truststore>
+                {{ end }}
+                </ssl>
+                {{ end }}
+                </server-identities>
+                {{- if .Endpoints.Authenticate }}
+                {{- if eq .Endpoints.ClientCert "Authenticate" }}
+                <truststore-realm/>
+                {{ else }}
+                <properties-realm groups-attribute="Roles">
+                    <user-properties path="cli-users.properties" relative-to="infinispan.server.config.path"/>
+                    <group-properties path="cli-groups.properties" relative-to="infinispan.server.config.path"/>
+                </properties-realm>
+                {{ end }}
+                {{ end }}
+            </security-realm>
+            {{- if .Transport.TLS.Enabled }}
+            <security-realm name="transport">
+                <server-identities>
+                    <ssl>
+                        {{- if .Transport.TLS.KeyStore.Path }}
+                        <keystore path="{{ .Transport.TLS.KeyStore.Path }}"
+                                    keystore-password="{{ .Transport.TLS.KeyStore.Password }}"
+                                    alias="{{ .Transport.TLS.KeyStore.Alias }}" />
+                        {{ end }}
+                        {{- if .Transport.TLS.TrustStore.Path }}
+                        <truststore path="{{ .Transport.TLS.TrustStore.Path }}"
+                                    password="{{ .Transport.TLS.TrustStore.Password }}" />
+                        {{ end }}
+                    </ssl>
+                </server-identities>
+            </security-realm>
+            {{ end }}
+        </security-realms>
+    </security>

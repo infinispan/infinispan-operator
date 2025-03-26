@@ -1,0 +1,32 @@
+{{template "header.xml" . }}
+
+<cache-container name="default" statistics="true">
+    {{template "authorization.xml" . }}
+    <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}" stack="image-tcp"    
+    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}/>
+    {{ if .CloudEvents }}
+        <urn:infinispan:config:cloudevents:14.0 xsi:schemaLocation="urn:infinispan:config:cloudevents:14.0 https://infinispan.org/schemas/infinispan-cloudevents-config-14.0.xsd"
+            bootstrap-servers="{{ .CloudEvents.BootstrapServers }}" {{if .CloudEvents.Acks }} acks="{{ .CloudEvents.Acks }}" {{ end }} {{if .CloudEvents.CacheEntriesTopic }} cache-entries-topic="{{ .CloudEvents.CacheEntriesTopic }}" {{ end }}/>
+    {{ end }}
+</cache-container>
+<server xmlns="urn:infinispan:server:14.0">
+    <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">
+        <socket-binding name="default" port="${infinispan.bind.port:11222}"/>
+    </socket-bindings>
+    {{template "security.xml" . }}
+    <endpoints>
+        <endpoint socket-binding="default" security-realm="default" {{ if ne .Endpoints.ClientCert "None" }}require-ssl-client-auth="true"{{ end }}>
+            {{ if .Endpoints.Authenticate }}
+            <hotrod-connector>
+                <authentication>
+                    <sasl qop="auth" server-name="infinispan"/>
+                </authentication>
+            </hotrod-connector>
+            {{ else }}
+            <hotrod-connector />
+            {{ end }}
+            <rest-connector />
+        </endpoint>
+    </endpoints>
+</server>
+</infinispan>
