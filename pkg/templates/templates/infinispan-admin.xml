@@ -6,7 +6,7 @@
         <TUNNEL
             bind_addr="${jgroups.relay.bind.address:SITE_LOCAL}"
             bind_port="${jgroups.relay.bind.port:0}"
-            gossip_router_hosts="{{RemoteSites .XSite.Sites}}"
+            gossip_router_hosts="{{ .XSite.RemoteSites }}"
             diag.enabled="{{ .JGroups.Diagnostics }}"
             port_range="0"
             {{ if .JGroups.FastMerge }}reconnect_interval="1000"{{ end }}

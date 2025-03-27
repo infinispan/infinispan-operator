@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"text/template"
 
 	"github.com/blang/semver"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
@@ -47,6 +46,10 @@ type XSite struct {
 	HeartbeatEnabled  bool
 	HeartbeatInterval int64
 	HeartbeatTimeout  int64
+}
+
+func (xSite XSite) RemoteSites() string {
+	return remoteSites(xSite.Sites)
 }
 
 type BackupSite struct {
@@ -108,11 +111,11 @@ func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg st
 	mapVerstionsToSpec(operand, spec)
 
 	baseTemplate := fmt.Sprintf("infinispan-base-%d.xml", v.Major)
-	if baseCfg, err = templates.LoadAndExecute(baseTemplate, funcMap(), spec); err != nil {
+	if baseCfg, err = templates.LoadAndExecute(baseTemplate, spec); err != nil {
 		return
 	}
 
-	admingCfg, err = templates.LoadAndExecute("infinispan-admin.xml", funcMap(), spec)
+	admingCfg, err = templates.LoadAndExecute("infinispan-admin.xml", spec)
 	return
 }
 
@@ -124,28 +127,24 @@ func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
 
 	mapVerstionsToSpec(operand, spec)
 
-	return templates.LoadAndExecute("infinispan-zero.xml", funcMap(), spec)
+	return templates.LoadAndExecute("infinispan-zero.xml", spec)
 }
 
-func funcMap() template.FuncMap {
-	return template.FuncMap{
-		"RemoteSites": func(elems []BackupSite) string {
-			var ret string
-			first := true
-			for _, bs := range elems {
-				if bs.IgnoreGossipRouter {
-					continue
-				}
-				if !first {
-					ret += ","
-				} else {
-					first = false
-				}
-				ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
-			}
-			return ret
-		},
+func remoteSites(elems []BackupSite) string {
+	var ret string
+	first := true
+	for _, bs := range elems {
+		if bs.IgnoreGossipRouter {
+			continue
+		}
+		if !first {
+			ret += ","
+		} else {
+			first = false
+		}
+		ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
 	}
+	return ret
 }
 
 func supportedMajorVersion(v uint64) bool {
