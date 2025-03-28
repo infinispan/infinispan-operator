@@ -48,10 +48,6 @@ type XSite struct {
 	HeartbeatTimeout  int64
 }
 
-func (xSite XSite) RemoteSites() string {
-	return remoteSites(xSite.Sites)
-}
-
 type BackupSite struct {
 	Address            string
 	Name               string
@@ -108,7 +104,7 @@ func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg st
 		return "", "", version.NewUnknownError(v)
 	}
 
-	mapVerstionsToSpec(operand, spec)
+	mapVersionsToSpec(operand, spec)
 
 	baseTemplate := fmt.Sprintf("infinispan-base-%d.xml", v.Major)
 	if baseCfg, err = templates.LoadAndExecute(baseTemplate, spec); err != nil {
@@ -125,33 +121,16 @@ func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
 		return "", version.NewUnknownError(v)
 	}
 
-	mapVerstionsToSpec(operand, spec)
+	mapVersionsToSpec(operand, spec)
 
 	return templates.LoadAndExecute("infinispan-zero.xml", spec)
-}
-
-func remoteSites(elems []BackupSite) string {
-	var ret string
-	first := true
-	for _, bs := range elems {
-		if bs.IgnoreGossipRouter {
-			continue
-		}
-		if !first {
-			ret += ","
-		} else {
-			first = false
-		}
-		ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
-	}
-	return ret
 }
 
 func supportedMajorVersion(v uint64) bool {
 	return v >= 14 && v <= 15
 }
 
-func mapVerstionsToSpec(operand version.Operand, spec *Spec) {
+func mapVersionsToSpec(operand version.Operand, spec *Spec) {
 	// TODO: Make this declarative https://github.com/infinispan/infinispan-operator/issues/2240
 	v := *operand.UpstreamVersion
 	spec.Infinispan.Version = v

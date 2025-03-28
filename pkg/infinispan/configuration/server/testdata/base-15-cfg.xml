@@ -14,8 +14,7 @@
         </authorization>
     </security>
     
-    <transport cluster="${infinispan.cluster.name:}" node-name="${infinispan.node.name:}" stack="image-tcp"    
-    />
+    <transport cluster="${infinispan.cluster.name:}" node-name="${infinispan.node.name:}" stack="image-tcp"/>
 </cache-container>
 <server xmlns="urn:infinispan:server:15.1">
     <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">

@@ -3,8 +3,8 @@
 <cache-container name="default" statistics="true">
     {{template "authorization.xml" . }}
     <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}" stack="image-tcp"    
-    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}/>
-    {{ if .CloudEvents }}
+    {{- if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end -}}/>
+    {{- if .CloudEvents }}
         <urn:infinispan:config:cloudevents:14.0 xsi:schemaLocation="urn:infinispan:config:cloudevents:14.0 https://infinispan.org/schemas/infinispan-cloudevents-config-14.0.xsd"
             bootstrap-servers="{{ .CloudEvents.BootstrapServers }}" {{if .CloudEvents.Acks }} acks="{{ .CloudEvents.Acks }}" {{ end }} {{if .CloudEvents.CacheEntriesTopic }} cache-entries-topic="{{ .CloudEvents.CacheEntriesTopic }}" {{ end }}/>
     {{ end }}
@@ -16,7 +16,7 @@
     {{template "security.xml" . }}
     <endpoints>
         <endpoint socket-binding="default" security-realm="default" {{ if ne .Endpoints.ClientCert "None" }}require-ssl-client-auth="true"{{ end }}>
-            {{ if .Endpoints.Authenticate }}
+            {{- if .Endpoints.Authenticate }}
             <hotrod-connector>
                 <authentication>
                     <sasl qop="auth" server-name="infinispan"/>
@@ -24,7 +24,7 @@
             </hotrod-connector>
             {{ else }}
             <hotrod-connector />
-            {{ end }}
+            {{ end -}}
             <rest-connector />
         </endpoint>
     </endpoints>

@@ -13,9 +13,7 @@
         </authorization>
     </security>
     
-    <transport cluster="${infinispan.cluster.name:}" node-name="${infinispan.node.name:}" stack="image-tcp"    
-    />
-    
+    <transport cluster="${infinispan.cluster.name:}" node-name="${infinispan.node.name:}" stack="image-tcp"/>
 </cache-container>
 <server xmlns="urn:infinispan:server:14.0">
     <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">
@@ -31,9 +29,7 @@
     </security>
     <endpoints>
         <endpoint socket-binding="default" security-realm="default" require-ssl-client-auth="true">
-            
             <hotrod-connector />
-            
             <rest-connector />
         </endpoint>
     </endpoints>

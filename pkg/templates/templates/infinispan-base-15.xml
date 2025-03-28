@@ -4,7 +4,7 @@
     <global-state unclean-shutdown-action="IGNORE" />
     {{template "authorization.xml" . }}
     <transport cluster="${infinispan.cluster.name:{{ .ClusterName }}}" node-name="${infinispan.node.name:}" stack="image-tcp"    
-    {{ if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end }}/>
+    {{- if .Transport.TLS.Enabled }}server:security-realm="transport"{{ end -}}/>
 </cache-container>
 <server xmlns="urn:infinispan:server:{{ .Infinispan.Version.Major }}.{{ .Infinispan.Version.Minor }}">
     <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">
