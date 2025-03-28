@@ -144,3 +144,20 @@ func mapVersionsToSpec(operand version.Operand, spec *Spec) {
 		spec.JGroups.Version.Minor = 6
 	}
 }
+
+func (xSite XSite) RemoteSites() string {
+	var ret string
+	first := true
+	for _, bs := range xSite.Sites {
+		if bs.IgnoreGossipRouter {
+			continue
+		}
+		if !first {
+			ret += ","
+		} else {
+			first = false
+		}
+		ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
+	}
+	return ret
+}
