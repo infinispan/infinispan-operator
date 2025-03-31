@@ -1,0 +1,16 @@
+{{- if .Infinispan.Authorization.Enabled }}
+    <security>
+        <authorization{{ if ge .Infinispan.Version.Major 15 }} group-only-mapping="false"{{ end }}>
+            {{- if eq .Infinispan.Authorization.RoleMapper "commonName" }}
+            <common-name-role-mapper />
+            {{- else }}
+            <cluster-role-mapper />
+            {{- end -}}
+            {{- if .Infinispan.Authorization.Roles -}}
+            {{- range $role :=  .Infinispan.Authorization.Roles -}}
+            <role name="{{ $role.Name }}" permissions="{{ $role.Permissions }}"/>
+            {{- end -}}
+            {{ end }}
+        </authorization>
+    </security>
+    {{ end }}

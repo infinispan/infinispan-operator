@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
-	"text/template"
 
+	"github.com/blang/semver"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/templates"
 )
@@ -26,6 +26,7 @@ type Spec struct {
 type Infinispan struct {
 	Authorization    *Authorization
 	ZeroCapacityNode bool
+	Version          semver.Version
 }
 
 type Authorization struct {
@@ -57,6 +58,7 @@ type BackupSite struct {
 type JGroups struct {
 	Diagnostics bool
 	FastMerge   bool
+	Version     semver.Version
 }
 
 type CloudEvents struct {
@@ -102,14 +104,14 @@ func Generate(operand version.Operand, spec *Spec) (baseCfg string, admingCfg st
 		return "", "", version.NewUnknownError(v)
 	}
 
-	baseTemplate := fmt.Sprintf("infinispan-base-%d-%d.xml", v.Major, v.Minor)
-	adminTemplate := fmt.Sprintf("infinispan-admin-%d-%d.xml", v.Major, v.Minor)
+	mapVersionsToSpec(operand, spec)
 
-	if baseCfg, err = templates.LoadAndExecute(baseTemplate, funcMap(), spec); err != nil {
+	baseTemplate := fmt.Sprintf("infinispan-base-%d.xml", v.Major)
+	if baseCfg, err = templates.LoadAndExecute(baseTemplate, spec); err != nil {
 		return
 	}
 
-	admingCfg, err = templates.LoadAndExecute(adminTemplate, funcMap(), spec)
+	admingCfg, err = templates.LoadAndExecute("infinispan-admin.xml", spec)
 	return
 }
 
@@ -119,31 +121,43 @@ func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
 		return "", version.NewUnknownError(v)
 	}
 
-	zeroTemplate := fmt.Sprintf("infinispan-zero-%d-%d.xml", v.Major, v.Minor)
-	return templates.LoadAndExecute(zeroTemplate, funcMap(), spec)
-}
+	mapVersionsToSpec(operand, spec)
 
-func funcMap() template.FuncMap {
-	return template.FuncMap{
-		"RemoteSites": func(elems []BackupSite) string {
-			var ret string
-			first := true
-			for _, bs := range elems {
-				if bs.IgnoreGossipRouter {
-					continue
-				}
-				if !first {
-					ret += ","
-				} else {
-					first = false
-				}
-				ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
-			}
-			return ret
-		},
-	}
+	return templates.LoadAndExecute("infinispan-zero.xml", spec)
 }
 
 func supportedMajorVersion(v uint64) bool {
 	return v >= 14 && v <= 15
+}
+
+func mapVersionsToSpec(operand version.Operand, spec *Spec) {
+	// TODO: Make this declarative https://github.com/infinispan/infinispan-operator/issues/2240
+	v := *operand.UpstreamVersion
+	spec.Infinispan.Version = v
+	spec.JGroups.Version.Major = 5
+
+	if v.Major <= 14 {
+		spec.JGroups.Version.Minor = 4
+	} else if v.Minor <= 1 {
+		spec.JGroups.Version.Minor = 5
+	} else {
+		spec.JGroups.Version.Minor = 6
+	}
+}
+
+func (xSite XSite) RemoteSites() string {
+	var ret string
+	first := true
+	for _, bs := range xSite.Sites {
+		if bs.IgnoreGossipRouter {
+			continue
+		}
+		if !first {
+			ret += ","
+		} else {
+			first = false
+		}
+		ret += fmt.Sprintf("%s[%d]", bs.Address, bs.Port)
+	}
+	return ret
 }
