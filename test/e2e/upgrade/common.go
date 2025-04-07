@@ -94,6 +94,12 @@ func createBackupAndWaitToSucceed(name string, t *testing.T) *v2.Backup {
 		},
 		Spec: v2.BackupSpec{
 			Cluster: name,
+			Resources: &v2.BackupResources{
+				Caches:       []string{volatileCacheName},
+				CacheConfigs: []string{},
+				Templates:    []string{},
+				ProtoSchemas: []string{},
+			},
 		},
 	}
 	testKube.Create(backup)
