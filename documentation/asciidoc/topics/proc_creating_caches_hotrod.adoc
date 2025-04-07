@@ -32,7 +32,6 @@ Add cache configuration to `hotrod-client.properties` as in the following exampl
 [source,options="nowrap",subs=attributes+]
 ----
 # Add cache configuration
-infinispan.client.hotrod.cache.my-cache.template_name=org.infinispan.DIST_SYNC
-infinispan.client.hotrod.cache.another-cache.configuration=<infinispan><cache-container><distributed-cache name=\"another-cache\"/></cache-container></infinispan>
-infinispan.client.hotrod.cache.my-other-cache.configuration_uri=file:/path/to/configuration.xml
+infinispan.client.hotrod.cache.my-cache.configuration=<infinispan><cache-container><distributed-cache name=\"my-cache\"/></cache-container></infinispan>
+infinispan.client.hotrod.cache.another-cache.configuration_uri=file:/path/to/configuration.xml
 ----

@@ -16,8 +16,6 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -48,7 +46,6 @@ func testBatchInlineConfig(t *testing.T, infinispan *v1.Infinispan) {
 
 	httpClient := tutils.HTTPClientForCluster(infinispan, testKube)
 	ispn := ispnClient.New(tutils.CurrentOperand, httpClient)
-	assertCacheExists("batch-cache", ispn)
 	assertCounterExists("batch-counter", ispn)
 	testKube.DeleteBatch(batch)
 	waitForK8sResourceCleanup(name)
@@ -59,22 +56,10 @@ func TestBatchConfigMap(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	infinispan := createCluster(t)
-
-	configMapName := infinispan.Name + "-cm"
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapName,
-			Namespace: infinispan.Namespace,
-		},
-		Data: map[string]string{
-			batchCtrl.BatchFilename: batchString(),
-		},
-	}
-
-	testKube.CreateConfigMap(configMap)
+	configMap := helper.CreateBatchCM(infinispan)
 	defer testKube.DeleteConfigMap(configMap)
 
-	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, nil, &configMapName, nil)
+	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, nil, &(configMap.Name), nil)
 
 	helper.WaitForValidBatchPhase(infinispan.Name, v2.BatchSucceeded)
 	testKube.DeleteBatch(batch)
@@ -82,8 +67,7 @@ func TestBatchConfigMap(t *testing.T) {
 
 	httpClient := tutils.HTTPClientForCluster(infinispan, testKube)
 	ispn := ispnClient.New(tutils.CurrentOperand, httpClient)
-	assertCacheExists("batch-cache", ispn)
-	assertCounterExists("batch-counter", ispn)
+	assertCacheExists("mycache", ispn)
 }
 
 func TestBatchFail(t *testing.T) {
@@ -126,8 +110,7 @@ func TestBatchWithResources(t *testing.T) {
 }
 
 func batchString() string {
-	batchScript := `create cache --template=org.infinispan.DIST_SYNC batch-cache
-	create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter`
+	batchScript := `create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter`
 	return strings.ReplaceAll(batchScript, "\t", "")
 }
 

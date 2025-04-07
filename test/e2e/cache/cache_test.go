@@ -81,13 +81,8 @@ func TestCacheCR(t *testing.T) {
 		assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
 	}
 
-	//Test for CacheCR with TemplateName
-	cache := cacheCR("cache-with-static-template", ispn)
-	cache.Spec.TemplateName = "org.infinispan.DIST_SYNC"
-	test(cache)
-
 	//Test for CacheCR with TemplateXML
-	cache = cacheCR("cache-with-xml-template", ispn)
+	cache := cacheCR("cache-with-xml-template", ispn)
 	cache.Spec.Template = "<distributed-cache name=\"cache-with-xml-template\" mode=\"SYNC\"/>"
 	test(cache)
 

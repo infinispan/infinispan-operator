@@ -63,7 +63,7 @@ var _ = Describe("Batch Webhook", func() {
 				},
 				Spec: BatchSpec{
 					Cluster: "some-cluster",
-					Config:  pointer.String("create cache --template=org.infinispan.DIST_SYNC batch-cache"),
+					Config:  pointer.String("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
 				},
 			}
 
@@ -112,7 +112,7 @@ var _ = Describe("Batch Webhook", func() {
 				},
 				Spec: BatchSpec{
 					Cluster: "some-cluster",
-					Config:  pointer.String("create cache --template=org.infinispan.DIST_SYNC batch-cache"),
+					Config:  pointer.String("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
 				},
 			}
 
@@ -144,7 +144,7 @@ var _ = Describe("Batch Webhook", func() {
 				},
 				Spec: BatchSpec{
 					Cluster: "some-cluster",
-					Config:  pointer.String("create cache --template=org.infinispan.DIST_SYNC batch-cache"),
+					Config:  pointer.String("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
 					Container: &BatchContainerSpec{
 						Memory: "1Gi:5Gi",
 						CPU:    "1000m:2000m",

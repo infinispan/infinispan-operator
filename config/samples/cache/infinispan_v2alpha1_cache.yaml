@@ -5,4 +5,4 @@ metadata:
 spec:
   clusterName: example-infinispan
   name: mycache
-  templateName: org.infinispan.DIST_SYNC
+  template: <distributed-cache />

@@ -5,6 +5,4 @@ metadata:
 spec:
   cluster: example-infinispan
   config: |
-    create cache --template=org.infinispan.DIST_SYNC mycache
-    put --cache=mycache hello world
-    put --cache=mycache hola mundo
+    create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter
