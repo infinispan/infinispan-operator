@@ -109,7 +109,7 @@ func TestOperandUpgrades(t *testing.T) {
 
 		tutils.NewCacheHelper(volatileCacheName, client).AssertSize(numEntries)
 		checkServicePorts(t, ispn.Name)
-		checkBatch(t, ispn.Name)
+		checkBatch(t, ispn)
 
 		// Kill the first pod to ensure that the cluster can recover from failover after upgrade
 		err := testKube.Kubernetes.Client.Delete(ctx, &corev1.Pod{
