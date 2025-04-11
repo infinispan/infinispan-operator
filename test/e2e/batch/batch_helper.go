@@ -2,6 +2,9 @@ package batch
 
 import (
 	"fmt"
+	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
+	corev1 "k8s.io/api/core/v1"
 	"testing"
 	"time"
 
@@ -58,4 +61,23 @@ func (b BatchHelper) WaitForValidBatchPhase(name string, phase v2.BatchPhase) *v
 	}
 	tutils.ExpectNoError(err)
 	return batch
+}
+
+func (b BatchHelper) CreateBatchCM(infinispan *ispnv1.Infinispan) *corev1.ConfigMap {
+	configMapName := infinispan.Name + "-cm"
+	data := map[string]string{
+		batchCtrl.BatchFilename: "create cache --file=/etc/batch/mycache.xml mycache",
+		"mycache.xml":           "<distributed-cache />",
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName,
+			Namespace: infinispan.Namespace,
+		},
+		Data: data,
+	}
+
+	b.testKube.CreateConfigMap(configMap)
+	return configMap
 }

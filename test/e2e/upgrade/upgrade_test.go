@@ -160,7 +160,7 @@ func TestUpgrade(t *testing.T) {
 	}
 
 	checkServicePorts(t, spec.Name)
-	checkBatch(t, spec.Name)
+	checkBatch(t, spec)
 
 	// Kill the first pod to ensure that the cluster can recover from failover after upgrade
 	err := testKube.Kubernetes.Client.Delete(ctx, &corev1.Pod{
