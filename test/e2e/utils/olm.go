@@ -362,8 +362,8 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 			// https://github.com/operator-framework/operator-lifecycle-manager/issues/2201
 			// https://issues.redhat.com/browse/OCPBUGS-5080
 			if condition.Type == "ResolutionFailed" && condition.Status == corev1.ConditionTrue {
-				fmt.Printf("CSV '%s' ResolutionFailed: %s\n", sub.Status.InstalledCSV, condition.Message)
-				fmt.Printf("Deleting Subscription '%s:%s'", sub.Name, sub.Namespace)
+				Log().Warnf("CSV '%s' ResolutionFailed: %s\n", sub.Status.InstalledCSV, condition.Message)
+				Log().Infof("Deleting Subscription '%s:%s'", sub.Name, sub.Namespace)
 				// Delete Subscription and CSV
 				k.DeleteSubscription(sub.Name, sub.Namespace)
 
@@ -373,11 +373,11 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 						Namespace: sub.Namespace,
 					},
 				}
-				fmt.Printf("Deleting CSV '%s:%s'", csv.Name, csv.Namespace)
+				Log().Info("Deleting CSV '%s:%s'", csv.Name, csv.Namespace)
 				ExpectMaybeNotFound(k.Kubernetes.Client.Delete(context.TODO(), csv, DeleteOpts...))
 
 				// Restart OLM pods to clear the cache
-				fmt.Println("Restarting OLM and Catalog Operator")
+				Log().Info("Restarting OLM and Catalog Operator")
 				olmNamespace := k.OLMNamespace()
 				ExpectNoError(
 					k.Kubernetes.Client.DeleteAllOf(
@@ -398,7 +398,7 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 				)
 
 				// Create new Subscription with the startingCSV set to the failed version
-				fmt.Println("Attempting to recreate Subscription")
+				Log().Info("Attempting to recreate Subscription")
 				startingCSV := sub.Status.InstalledCSV
 				*sub = coreos.Subscription{
 					ObjectMeta: metav1.ObjectMeta{

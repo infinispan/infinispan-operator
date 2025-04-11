@@ -1,7 +1,6 @@
 package upgrade
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 
 // TestOperandUpgrades ensures that the Operand upgrade graph can be traversed for a given OLM Operator
 func TestOperandUpgrades(t *testing.T) {
+	log := tutils.Log()
 	olm := testKube.OLMTestEnv()
 	// Only test Operands in the most recent CSV
 	olm.SubStartingCSV = olm.TargetChannel.CurrentCSVName
@@ -48,7 +48,7 @@ func TestOperandUpgrades(t *testing.T) {
 		i.Spec.Version = versionManager.Operands[startingOperandIdx].Ref()
 	})
 
-	fmt.Printf("Testing upgrades from Operand '%s' to '%s'\n", ispn.Spec.Version, versionManager.Latest().Ref())
+	log.Infof("Testing upgrades from Operand '%s' to '%s'", ispn.Spec.Version, versionManager.Latest().Ref())
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	testKube.WaitForInfinispanConditionWithTimeout(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
@@ -69,16 +69,16 @@ func TestOperandUpgrades(t *testing.T) {
 	for _, operand := range versionManager.Operands[startingOperandIdx:] {
 		// Skip an Operand in the upgrade graph if there's a known issue
 		if _, skip := skippedOperands[operand.Ref()]; skip {
-			fmt.Printf("Skipping Operand %s\n", operand.Ref())
+			log.Infof("Skipping Operand %s", operand.Ref())
 			continue
 		}
-		fmt.Printf("Next Operand %s\n", operand.Ref())
+		log.Debugf("Next Operand %s", operand.Ref())
 
 		ispn = testKube.WaitForInfinispanConditionWithTimeout(ispn.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 		tutils.ExpectNoError(
 			testKube.UpdateInfinispan(ispn, func() {
 				ispn.Spec.Version = operand.Ref()
-				fmt.Printf("Upgrading Operand to %s\n", ispn.Spec.Version)
+				log.Infof("Upgrading Operand to %s", ispn.Spec.Version)
 			}),
 		)
 		testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
@@ -88,6 +88,7 @@ func TestOperandUpgrades(t *testing.T) {
 				i.Status.Operand.Image == operand.Image &&
 				i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 		})
+		log.Info("Upgrade complete")
 		assertOperandImage(operand.Image, ispn)
 		assertNoDegradedCaches()
 

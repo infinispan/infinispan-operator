@@ -18,8 +18,6 @@ import (
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 )
 
-const DEBUG = false
-
 // HTTPClient can perform HTTP operations
 type HTTPClient interface {
 	httpClient.HttpClient
@@ -126,7 +124,7 @@ func (c *httpClientConfig) exec(method, path, payload string, headers map[string
 	httpURL, err := url.Parse(fmt.Sprintf("%s://%s/%s", c.protocol, c.hostAndPort, path))
 	ExpectNoError(err)
 	if !c.quiet {
-		fmt.Printf("%s: %s\n", method, httpURL)
+		Log().Infof("%s: %s", method, httpURL)
 	}
 	rsp, err := c.request(httpURL, method, payload, headers)
 	if err != nil {
@@ -158,17 +156,17 @@ func (c *httpClientConfig) request(url *url.URL, method, payload string, headers
 		req.Header.Add(header, value)
 	}
 
-	if DEBUG {
+	if Debug {
 		dump, err := httputil.DumpRequestOut(req, true)
 		ExpectNoError(err)
-		fmt.Printf("Req>>>>>>>>>>>>>>>>\n%s\n\n", string(dump))
+		Log().Debugf("Req>>>>>>>>>>>>>>>>\n%s", string(dump))
 	}
 
 	rsp, err := c.Do(req)
-	if DEBUG && rsp != nil {
+	if Debug && rsp != nil {
 		dump, err := httputil.DumpResponse(rsp, true)
 		ExpectNoError(err)
-		fmt.Printf("Rsp<<<<<<<<<<<<<<<<\n%s\n\n", string(dump))
+		Log().Debugf("Rsp<<<<<<<<<<<<<<<<\n%s", string(dump))
 	}
 	return rsp, err
 }

@@ -8,7 +8,7 @@ import (
 
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
+	v14 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -100,7 +100,7 @@ func (c *CacheHelper) PutWithRetry(key, value string, contentType mime.MimeType,
 		if err == nil {
 			return
 		}
-		fmt.Println("Attempt ", i, " failed on", err.Error(), ". Retrying...")
+		Log().Warnln("Attempt ", i, " failed on", err.Error(), ". Retrying...")
 		time.Sleep(time.Second)
 		err = c.CacheClient.Put(key, value, contentType)
 	}

@@ -33,6 +33,7 @@ func TestMain(t *testing.M) {
 }
 
 func TestRollingUpgrade(t *testing.T) {
+	log := tutils.Log()
 	olm := testKube.OLMTestEnv()
 	olm.PrintManifest()
 	sourceChannel := olm.SourceChannel
@@ -106,7 +107,7 @@ func TestRollingUpgrade(t *testing.T) {
 
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
 	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
-		fmt.Printf("Installed csv: %s, Current CSV: %s\n", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
+		log.Infof("Installed csv: %s, Current CSV: %s", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
 		ispnPreUpgrade := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
 		testKube.ApproveInstallPlan(sub)
@@ -196,14 +197,14 @@ func TestRollingUpgrade(t *testing.T) {
 			skippedOperands := tutils.OperandSkipSet()
 			if _, skip := skippedOperands[latestOperand.Ref()]; skip {
 				// Skip Operand upgrade if explicitly ignored
-				fmt.Printf("Skipping Operand %s\n", latestOperand.Ref())
+				log.Infof("Skipping Operand %s", latestOperand.Ref())
 				continue
 			}
 
 			tutils.ExpectNoError(
 				testKube.UpdateInfinispan(ispn, func() {
 					ispn.Spec.Version = latestOperand.Ref()
-					fmt.Printf("Upgrading Operand to %s\n", ispn.Spec.Version)
+					log.Infof("Upgrading Operand to %s", ispn.Spec.Version)
 				}),
 			)
 			testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
@@ -237,13 +238,13 @@ func addData(cacheName string, entries int, client tutils.HTTPClient) {
 		data := strconv.Itoa(i)
 		cache.Put(data, data, mime.TextPlain)
 	}
-	fmt.Printf("Populated cache %s with %d entries\n", cacheName, entries)
+	tutils.Log().Infof("Populated cache %s with %d entries", cacheName, entries)
 }
 
 func createIndexedCache(entries int, client tutils.HTTPClient) {
 	cache := tutils.NewCacheHelper(IndexedCacheName, client)
 	if cache.Exists() {
-		fmt.Printf("Cache '%s' already exists", IndexedCacheName)
+		tutils.Log().Infof("Cache '%s' already exists", IndexedCacheName)
 		return
 	}
 	proto := `
@@ -281,5 +282,5 @@ message Author {
 		data := fmt.Sprintf("{\"_type\":\"book_sample.Book\",\"title\":\"book%d\"}", i)
 		cache.Put(data, data, mime.ApplicationJson)
 	}
-	fmt.Printf("Populated cache %s with %d entries\n", IndexedCacheName, entries)
+	tutils.Log().Infof("Populated cache %s with %d entries", IndexedCacheName, entries)
 }

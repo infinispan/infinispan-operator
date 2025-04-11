@@ -43,7 +43,7 @@ func (k TestKubernetes) PortForward(pod, namespace string, ports []string) (chan
 
 	go func() {
 		if err = forwarder.ForwardPorts(); err != nil {
-			fmt.Printf("error forwarding port: %s\n", err.Error())
+			Log().Warnf("error forwarding port: %s", err.Error())
 		}
 	}()
 

@@ -142,7 +142,7 @@ func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) (re
 
 // ignoreRestoreError returns nil if the Restore failure can safely be ignored for the given Operand
 func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infinispan, restore *v2.Restore, client tutils.HTTPClient, err error) error {
-	fmt.Println(err)
+	tutils.Log().Info(err)
 	switch restore.Status.Phase {
 	case v2.RestoreInitializing:
 	case v2.RestoreInitialized:
@@ -178,7 +178,7 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 					tutils.ExpectNoError(err)
 
 					if r.MatchString(logs) {
-						fmt.Printf("Ignoring Restore failure caused by ISPN-15089 on Operand %s\n", operand)
+						tutils.Log().Infof("Ignoring Restore failure caused by ISPN-15089 on Operand %s", operand)
 						// Force the org.infinispan.LOCKS cache to become available so that subsequent upgrades will proceed
 						tutils.NewCacheHelper("org.infinispan.LOCKS", client).Available(true)
 						return nil
@@ -196,7 +196,7 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 			// Ignore ISPN-15181 related errors on older Operands
 			r := regexp.MustCompile(`Error executing command PutKeyValueCommand on Cache 'org.infinispan.CONFIG'.*org.infinispan.util.concurrent.TimeoutException: ISPN000476`)
 			if r.MatchString(logs) {
-				fmt.Printf("Ignoring Restore failure caused by ISPN-15181 on Operand %s\n", operand)
+				tutils.Log().Infof("Ignoring Restore failure caused by ISPN-15181 on Operand %s", operand)
 				return nil
 			}
 		}
@@ -206,7 +206,7 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 			// template from their Restore CR
 			r := regexp.MustCompile(`ISPN000961: Incompatible attribute 'media-type.example.PROTOBUF_DIST.distributed-cache-configuration.encoding'`)
 			if r.MatchString(logs) {
-				fmt.Printf("Ignoring Restore failure caused by example.PROTOBUF_DIST template encoding incompatibility %s\n", operand)
+				tutils.Log().Infof("Ignoring Restore failure caused by example.PROTOBUF_DIST template encoding incompatibility %s", operand)
 				return nil
 			}
 		}
@@ -219,7 +219,7 @@ func ignoreRestoreError(csv string, operand *version.Operand, ispn *ispnv1.Infin
 		// Ignore https://github.com/infinispan/infinispan/issues/13571
 		r := regexp.MustCompile(`ISPN000436: Cache '.*.' has been requested, but no matching cache configuration exists`)
 		if r.MatchString(logs) {
-			fmt.Printf("Ignoring Restore failure caused by https://github.com/infinispan/infinispan/issues/13571 on Operand %s\n", operand)
+			tutils.Log().Infof("Ignoring Restore failure caused by https://github.com/infinispan/infinispan/issues/13571 on Operand %s", operand)
 			return nil
 		}
 	}

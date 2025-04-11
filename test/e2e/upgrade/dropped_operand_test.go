@@ -1,7 +1,6 @@
 package upgrade
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -63,7 +62,7 @@ func TestUpgradeFromDroppedOperand(t *testing.T) {
 	tutils.ExpectNoError(
 		testKube.UpdateInfinispan(ispn, func() {
 			ispn.Spec.Version = latestOperand.Ref()
-			fmt.Printf("Upgrading Operand to %s\n", ispn.Spec.Version)
+			tutils.Log().Infof("Upgrading Operand to %s", ispn.Spec.Version)
 		}),
 	)
 	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
