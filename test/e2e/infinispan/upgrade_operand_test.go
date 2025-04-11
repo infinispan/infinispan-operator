@@ -2,7 +2,6 @@ package infinispan
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -26,7 +25,7 @@ func TestOperandUpgrade(t *testing.T) {
 
 	versionManager := tutils.VersionManager()
 	oldest := versionManager.Oldest()
-	fmt.Println(t.Name() + " will be performed from " + oldest.Ref())
+	tutils.Log().Info(t.Name() + " will be performed from " + oldest.Ref())
 
 	// Create Infinispan Cluster using the oldest Operand release
 	replicas := 1
@@ -49,7 +48,7 @@ func TestOperandUpgrade(t *testing.T) {
 		if operand.CVE {
 			continue
 		}
-		fmt.Println("Updating version to " + operand.Ref())
+		tutils.Log().Info("Updating version to " + operand.Ref())
 		tutils.ExpectNoError(
 			testKube.UpdateInfinispan(ispn, func() {
 				ispn.Spec.Version = operand.Ref()

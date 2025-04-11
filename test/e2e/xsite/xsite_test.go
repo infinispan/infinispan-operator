@@ -582,7 +582,7 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, explicitNodePort bool,
 					break
 				}
 			}
-			fmt.Printf("Configuring xsite with NodePort=%d\n", nodePort)
+			tutils.Log().Infof("Configuring xsite with NodePort=%d", nodePort)
 		}
 
 		testKubes["xsite1"].crossSite = *crossSiteSpec(strcase.ToKebab(testName), podsPerSite, "xsite1", "xsite2", testKubes["xsite2"].namespace, exposeType, exposePort, nodePort)

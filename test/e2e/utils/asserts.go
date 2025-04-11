@@ -10,7 +10,7 @@ import (
 
 func LogError(err error) {
 	if err != nil {
-		fmt.Printf("Encountered error: %v\n", err)
+		Log().Errorf("Encountered error: %v", err)
 	}
 }
 

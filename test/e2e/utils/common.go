@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/blang/semver"
 	"github.com/iancoleman/strcase"
@@ -20,6 +21,8 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +35,25 @@ const (
 	keystoreSecretSuffix   = "keystore"
 	truststoreSecretSuffix = "truststore"
 )
+
+var logger *zap.SugaredLogger
+
+func Log() *zap.SugaredLogger {
+	if logger == nil {
+		zapConfig := zap.NewDevelopmentConfig()
+		zapConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoder(
+			func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+				enc.AppendString(t.Format(time.DateTime))
+			})
+		zapConfig.Level = zap.NewAtomicLevelAt(LogLevel)
+
+		log, _ := zapConfig.Build()
+		logger = log.Sugar()
+
+		logger.Debug("ZAP Initialized")
+	}
+	return logger
+}
 
 var VersionManager = func() *version.Manager {
 	if os.Getenv(ispnv1.OperatorOperandVersionEnvVarName) != "" {
