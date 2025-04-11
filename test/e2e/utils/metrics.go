@@ -39,7 +39,7 @@ func (k *TestKubernetes) WriteInfinispanMetricsToFile(i *v1.Infinispan, dir stri
 	getPods("infinispan-zero-pod")
 
 	if len(pods) == 0 {
-		fmt.Printf("No pods found for Infinispan '%s:%s'", i.Name, i.Namespace)
+		Log().Warnf("No pods found for Infinispan '%s:%s'", i.Name, i.Namespace)
 		return
 	}
 

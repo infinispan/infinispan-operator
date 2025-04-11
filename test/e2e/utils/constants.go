@@ -8,6 +8,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"go.uber.org/zap/zapcore"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -21,6 +22,7 @@ var (
 	MaxWaitTimeout       = timeout("TEST_MAX_WAIT_TIMEOUT", "3m") // MaxWaitTimeout is the maximum time to wait for resources
 	ConditionWaitTimeout = timeout("TEST_CONDITION_WAIT_TIMEOUT", "3m")
 
+	LogLevel     = logLevel()
 	LogOutputDir = constants.GetEnvWithDefault("TESTING_LOG_DIR", os.TempDir()+"/infinispan-operator")
 
 	CPU               = os.Getenv("INFINISPAN_CPU")
@@ -58,6 +60,12 @@ var DeleteOpts = []client.DeleteOption{
 var InfinispanTypeMeta = metav1.TypeMeta{
 	APIVersion: "infinispan.org/v1",
 	Kind:       "Infinispan",
+}
+
+func logLevel() zapcore.Level {
+	level, err := zapcore.ParseLevel(constants.GetEnvWithDefault("TESTING_LOG_LEVEL", "info"))
+	ExpectNoError(err)
+	return level
 }
 
 func timeout(env, defVal string) time.Duration {

@@ -2,7 +2,6 @@ package infinispan
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -41,7 +40,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	for key := 1; key < 50000; key++ {
 		strKey := strconv.Itoa(key)
 		if err := cacheHelper.CacheClient.Put(strKey, veryLongValue, mime.TextPlain); err != nil {
-			fmt.Printf("ERROR for key=%d, Description=%s\n", key, err)
+			tutils.Log().Infof("ERROR for key=%d, Description=%s\n", key, err)
 			break
 		}
 	}
@@ -66,7 +65,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 
 				if terminatedPod.Reason == "OOMKilled" || terminatedPod.ExitCode == 137 {
 					hasOOMhappened = true
-					fmt.Printf("ExitCode='%d' Reason='%s' Message='%s'\n", terminatedPod.ExitCode, terminatedPod.Reason, terminatedPod.Message)
+					tutils.Log().Infof("ExitCode='%d' Reason='%s' Message='%s'", terminatedPod.ExitCode, terminatedPod.Reason, terminatedPod.Message)
 					break out
 				}
 			}
@@ -74,7 +73,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	}
 
 	if kube.AreAllPodsReady(podList) && hasOOMhappened {
-		fmt.Println("All pods are ready")
+		tutils.Log().Info("All pods are ready")
 	} else if kube.AreAllPodsReady(podList) && !hasOOMhappened {
 		panic("Test finished without an OutOfMemory occurred")
 	} else {

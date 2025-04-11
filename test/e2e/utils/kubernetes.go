@@ -140,7 +140,7 @@ func NewTestKubernetes(ctx string) *TestKubernetes {
 
 // NewNamespace creates a new namespace
 func (k TestKubernetes) NewNamespace(namespace string) {
-	fmt.Printf("Create namespace %s\n", namespace)
+	Log().Infof("Create namespace %s", namespace)
 	obj := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
@@ -170,6 +170,8 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 	// Store pod output if a panic has occurred
 	testFailed := t != nil && t.Failed()
 	if panicVal != nil || testFailed {
+		Log().Error(panicVal.(string))
+
 		dir := fmt.Sprintf("%s/%s", LogOutputDir, TestName(t))
 		err := os.RemoveAll(dir)
 		LogError(err)
@@ -274,7 +276,7 @@ func (k TestKubernetes) NamespaceExists(namespace string) bool {
 
 // DeleteNamespace deletes a namespace
 func (k TestKubernetes) DeleteNamespace(namespace string) {
-	fmt.Printf("Delete namespace %s\n", namespace)
+	Log().Infof("Delete namespace %s", namespace)
 	obj := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
@@ -283,7 +285,7 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), obj, DeleteOpts...)
 	ExpectMaybeNotFound(err)
 
-	fmt.Println("Waiting for the namespace to be removed")
+	Log().Info("Waiting for the namespace to be removed")
 	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: namespace}, obj)
 		if err != nil && k8serrors.IsNotFound(err) {
@@ -414,7 +416,7 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 		})
 
 		if updErr != nil {
-			fmt.Printf("Error updating infinispan %v\n", updErr)
+			Log().Errorf("Error updating infinispan %v", updErr)
 			return false, nil
 		}
 		return true, nil
@@ -450,7 +452,7 @@ func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func())
 
 // CreateOrUpdateAndWaitForCRD creates or updates a Custom Resource Definition (CRD), waiting it to become ready.
 func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1.CustomResourceDefinition) {
-	fmt.Printf("Create or update CRD %s\n", crd.Name)
+	Log().Infof("Create or update CRD %s", crd.Name)
 
 	customResourceObject := &apiextv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
@@ -463,11 +465,11 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1.CustomResource
 	})
 	ExpectNoError(err)
 	k.WaitForCrd(crd)
-	fmt.Printf("CRD %s: %s\n", crd.Name, result)
+	Log().Infof("CRD %s: %s", crd.Name, result)
 }
 
 func (k TestKubernetes) WaitForCrd(crd *apiextv1.CustomResourceDefinition) {
-	fmt.Printf("Wait for CRD %s\n", crd.Name)
+	Log().Infof("Wait for CRD %s", crd.Name)
 	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 		if err != nil {
@@ -494,7 +496,7 @@ func (k TestKubernetes) WaitForCrd(crd *apiextv1.CustomResourceDefinition) {
 		return false, nil
 	})
 	ExpectNoError(err)
-	fmt.Printf("CRD %s established\n", crd.Name)
+	Log().Infof("CRD %s established", crd.Name)
 }
 
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
@@ -758,7 +760,7 @@ func (k TestKubernetes) DeleteCRD(name string) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), crd, DeleteOpts...)
 	ExpectMaybeNotFound(err)
 
-	fmt.Println("Waiting for the CRD to be removed")
+	Log().Info("Waiting for the CRD to be removed")
 	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: name}, crd)
 		if err != nil && k8serrors.IsNotFound(err) {

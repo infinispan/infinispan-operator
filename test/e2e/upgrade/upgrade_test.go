@@ -1,7 +1,6 @@
 package upgrade
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +14,7 @@ import (
 
 // TestUpgrade ensures that the OLM upgrade graph can be traversed and Operands installed as expected
 func TestUpgrade(t *testing.T) {
+	log := tutils.Log()
 	olm := testKube.OLMTestEnv()
 	olm.PrintManifest()
 	sourceChannel := olm.SourceChannel
@@ -64,7 +64,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
 	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
-		fmt.Printf("Installed csv: %s, Current CSV: %s\n", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
+		log.Infof("Installed csv: %s, Current CSV: %s", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
 		ispnPreUpgrade := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
 		testKube.ApproveInstallPlan(sub)
@@ -114,14 +114,14 @@ func TestUpgrade(t *testing.T) {
 			skippedOperands := tutils.OperandSkipSet()
 			if _, skip := skippedOperands[latestOperand.Ref()]; skip {
 				// Skip Operand upgrade if explicitly ignored
-				fmt.Printf("Skipping Operand %s\n", latestOperand.Ref())
+				log.Infof("Skipping Operand %s", latestOperand.Ref())
 				continue
 			}
 
 			tutils.ExpectNoError(
 				testKube.UpdateInfinispan(ispn, func() {
 					ispn.Spec.Version = latestOperand.Ref()
-					fmt.Printf("Upgrading Operand to %s\n", ispn.Spec.Version)
+					log.Infof("Upgrading Operand to %s", ispn.Spec.Version)
 				}),
 			)
 			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
