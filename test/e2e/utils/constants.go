@@ -23,6 +23,8 @@ var (
 
 	LogOutputDir = constants.GetEnvWithDefault("TESTING_LOG_DIR", os.TempDir()+"/infinispan-operator")
 
+	Debug, _ = strconv.ParseBool(constants.GetEnvWithDefault("DEBUG", "false"))
+
 	CPU               = os.Getenv("INFINISPAN_CPU")
 	Memory            = constants.GetEnvWithDefault("INFINISPAN_MEMORY", "1Gi")
 	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
