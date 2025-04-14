@@ -248,12 +248,14 @@ func checkServicePorts(t *testing.T, name string) {
 	assert.Equal(t, constants.InfinispanAdminPort, int(adminPort[0].Port))
 }
 
-func checkBatch(t *testing.T, name string) {
+func checkBatch(t *testing.T, infinispan *ispnv1.Infinispan) {
 	// Run a batch in the migrated cluster
 	batchHelper := batchtest.NewBatchHelper(testKube)
-	config := "create cache --template=org.infinispan.DIST_SYNC batch-cache"
-	batch := batchHelper.CreateBatch(t, name, name, &config, nil, nil)
-	batchHelper.WaitForValidBatchPhase(name, v2.BatchSucceeded)
+	configMap := batchHelper.CreateBatchCM(infinispan)
+	defer testKube.DeleteConfigMap(configMap)
+
+	batch := batchHelper.CreateBatch(t, infinispan.Name, infinispan.Name, nil, &(configMap.Name), nil)
+	batchHelper.WaitForValidBatchPhase(infinispan.Name, v2.BatchSucceeded)
 	testKube.DeleteBatch(batch)
 }
 
