@@ -289,15 +289,17 @@ func TestOperandCVEHotRodRolling(t *testing.T) {
 func TestSpecImage(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	// Create Infinispan Cluster using the latest Operand version, but using the image of the preceding Operand
-	// Ensures that creating a cluster with an initial spec.image value does not cause infinite StatefulSet updates
-	versionManager := tutils.VersionManager()
-	operand := versionManager.Operands[len(versionManager.Operands)-2]
+	// Create Infinispan Cluster using a newer Operand version (versionOperand),
+	// but using the image of an older Operand (imageOperand).
+	// Ensures that creating a cluster with an initial spec.image value does not cause infinite StatefulSet updates.
+	// The two version are chosen to be the last possible versions having the same major and minor.
+	imageOperand, versionOperand := specImageOperands()
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Image = pointer.String(operand.Image)
+		i.Spec.Image = pointer.String(imageOperand.Image)
+		i.Spec.Version = versionOperand.Ref()
 	})
 
-	statusVersionRef := versionManager.Latest().Ref()
+	statusVersionRef := versionOperand.Ref()
 	if tutils.OperandVersion != "" {
 		statusVersionRef = tutils.OperandVersion
 	}
@@ -309,7 +311,7 @@ func TestSpecImage(t *testing.T) {
 		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 			i.Status.Operand.CustomImage &&
 			i.Status.Operand.Version == statusVersionRef &&
-			i.Status.Operand.Image == operand.Image &&
+			i.Status.Operand.Image == imageOperand.Image &&
 			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 	})
 }
@@ -317,22 +319,22 @@ func TestSpecImage(t *testing.T) {
 func TestSpecImageUpdate(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	// Create Infinispan Cluster using the penultimate Operand release as this will have a different image name to the latest
-	// release. We can then manually specify spec.image using the FQN of the latest image to simulate a user specifying
-	// custom images
+	// Create Infinispan Cluster using an older Operand release (first operand) as this will have a different image name
+	// to a newer release (second operand). We can then manually specify spec.image using the FQN of the latest image to
+	// simulate a user specifying custom images.
+	// The two version are chosen to be the last possible versions having the same major and minor.
 	replicas := 1
-	versionManager := tutils.VersionManager()
-	operand := versionManager.Operands[len(versionManager.Operands)-2]
+	firstOperand, secondOperand := specImageOperands()
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
-		i.Spec.Version = operand.Ref()
+		i.Spec.Version = firstOperand.Ref()
 	})
 
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
-	customImage := versionManager.Latest().Image
+	customImage := secondOperand.Image
 	tutils.ExpectNoError(
 		testKube.UpdateInfinispan(ispn, func() {
 			// Update the spec to install the custom image
@@ -343,7 +345,7 @@ func TestSpecImageUpdate(t *testing.T) {
 	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
 		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 			i.Status.Operand.CustomImage &&
-			i.Status.Operand.Version == operand.Ref() &&
+			i.Status.Operand.Version == firstOperand.Ref() &&
 			i.Status.Operand.Image == customImage &&
 			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 	})
@@ -361,7 +363,7 @@ func TestSpecImageUpdate(t *testing.T) {
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetStatefulSetName()}, &ss))
 	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
 
-	latestOperand := versionManager.Latest()
+	latestOperand := secondOperand
 	tutils.ExpectNoError(
 		testKube.UpdateInfinispan(ispn, func() {
 			// Update the spec to move to the latest Operand version to ensure that a new GracefulShutdown is triggered
@@ -387,7 +389,7 @@ func TestSpecImageUpdate(t *testing.T) {
 		testKube.UpdateInfinispan(ispn, func() {
 			// Update the spec to move to back to the penultimate Operand version to ensure that an upgrade is still
 			// triggered when the Operand is marked as CVE=true
-			ispn.Spec.Image = pointer.String(operand.Image)
+			ispn.Spec.Image = pointer.String(firstOperand.Image)
 		}),
 	)
 
@@ -395,7 +397,7 @@ func TestSpecImageUpdate(t *testing.T) {
 		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
 			i.Status.Operand.CustomImage &&
 			i.Status.Operand.Version == latestOperand.Ref() &&
-			i.Status.Operand.Image == operand.Image &&
+			i.Status.Operand.Image == firstOperand.Image &&
 			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 	})
 
@@ -403,4 +405,20 @@ func TestSpecImageUpdate(t *testing.T) {
 	ss = appsv1.StatefulSet{}
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.GetStatefulSetName()}, &ss))
 	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
+}
+
+func specImageOperands() (*version.Operand, *version.Operand) {
+	operands := tutils.VersionManager().Operands
+	length := len(operands)
+
+	var latest, latestMinus1 *version.Operand
+	for i := 0; i < length-1; i++ {
+		latest = operands[length-1-i]
+		latestMinus1 = operands[length-2-i]
+		if latest.UpstreamVersion.Major == latestMinus1.UpstreamVersion.Major &&
+			latest.UpstreamVersion.Minor == latestMinus1.UpstreamVersion.Minor {
+			return latestMinus1, latest
+		}
+	}
+	panic("We expect to have at least one operand that has the same major and minor version")
 }
