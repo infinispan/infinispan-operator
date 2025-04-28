@@ -4,6 +4,7 @@ on:
   pull_request_target:
     branches:
       - 2.3.x
+      - 2.4.x
       - main
 
     types:
