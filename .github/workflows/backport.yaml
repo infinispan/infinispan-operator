@@ -21,6 +21,15 @@ jobs:
           auth: ${{ secrets.GITHUB_TOKEN }}
           no-squash: true
 
+      - if: contains(github.event.pull_request.labels.*.name, '2.4.x')
+        name: 2.4.x Backport
+        uses: kiegroup/git-backporting@v4.8.5
+        with:
+          target-branch: 2.4.x
+          pull-request: ${{ github.event.pull_request.url }}
+          auth: ${{ secrets.GITHUB_TOKEN }}
+          no-squash: true
+
       - if: contains(github.event.pull_request.labels.*.name, 'stable')
         name: Stable Backport
         uses: kiegroup/git-backporting@v4.8.5
