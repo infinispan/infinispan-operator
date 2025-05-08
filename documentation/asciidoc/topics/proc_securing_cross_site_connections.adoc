@@ -1,6 +1,14 @@
 [id='securing-cross-site-connections_{context}']
 = Securing cross-site connections
 
+:alias: server
+:keystore: keystore.p12
+:keystore_path: ./{keystore}
+:truststore: truststore.p12
+:truststore_path: ./{truststore}
+:ks_secret: keystore-tls-secret
+:ts_secret: truststore-tls-secret
+
 [role="_abstract"]
 Add keystores and trust stores so that {brandname} clusters can secure cross-site replication traffic.
 
@@ -12,25 +20,63 @@ Securing cross-site connections is optional if you use a `NodePort` or `LoadBala
 Cross-site replication does not support the {k8s} CA service. You must provide your own certificates.
 ====
 
-.Prerequisites
-
-* Have a PKCS12 keystore that {brandname} can use to encrypt and decrypt RELAY messages.
-+
-You must provide a keystore for relay pods and router pods to secure cross-site connections. +
-The keystore can be the same for relay pods and router pods or you can provide separate keystores for each. +
-You can also use the same keystore for each {brandname} cluster or a unique keystore for each cluster.
-
-* Have a PKCS12 trust store that contains part of the certificate chain or root CA certificate that verifies public certificates for {brandname} relay pods and router pods.
-
 .Procedure
 
-. Create cross-site encryption secrets.
-.. Create keystore secrets.
-.. Create trust store secrets.
-. Modify the `Infinispan` CR for each {brandname} cluster to specify the secret name for the `encryption.transportKeyStore.secretName` and `encryption.routerKeyStore.secretName` fields.
-. Configure any other fields to encrypt RELAY messages as required and then apply the changes.
+. Create the key store and trust store using Keytool (certificate management utility included with Java).
+
+.. Generate a self-signed certificate.
 +
+[source,bash,options="nowrap",subs=attributes+]
+----
+keytool -genkey -alias {alias} -keyalg RSA -storetype PKCS12 -keystore {keystore_path} -validity <days> -storepass <password>
+----
+
+.. Export the certificate from the key store, so that it can be present in the trust store
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+keytool -export -alias {alias} -keystore {keystore_path} -storetype PKCS12 -rfc -file ~/server_cert.pem -storepass <password>
+----
+
+.. Create the trust store and import the certificate
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+keytool -importcert -alias {alias} -keystore {truststore_path} -storetype PKCS12 -file ~/server_cert.pem -storepass <password> -noprompt
+----
+
+. Create cross-site encryption secret for each {brandname} cluster.
+
+.. Create keystore secrets.
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+oc create secret generic {ks_secret} \
+--from-file={keystore}={keystore_path} \
+--from-literal=password=<password> \
+--from-literal=type=pkcs12
+----
+
+.. Create trust store secrets.
++
+[source,bash,options="nowrap",subs=attributes+]
+----
+oc create secret generic {ts_secret} \
+--from-file={truststore}={truststore_path} \
+--from-literal=password=<password> \
+--from-literal=type=pkcs12
+----
+
+. Modify the Infinispan CR for each {brandname} cluster to specify the secret name for the `encryption.transportKeyStore.secretName` and `encryption.routerKeyStore.secretName` fields. 
++ 
 [source,yaml,options="nowrap",subs=attributes+]
 ----
 include::yaml/xsite_tls.yaml[]
 ----
+
+[NOTE]
+====
+The procedure describes the easier way to encrypt the communication. 
+More complex setups are possible in the CR, for example, by setting different certificates for {brandname} Pod and Gossip Router Pod.
+Ensure the truststore contains all the required certificate chain for mutual TLS authentication.
+====
