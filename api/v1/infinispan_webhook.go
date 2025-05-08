@@ -439,6 +439,10 @@ func (i *Infinispan) validate() error {
 			eventRec.Event(i, corev1.EventTypeWarning, "CrossSiteTrustStoreMissing", errMsg)
 			log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
 		}
+
+		if !i.IsSiteTLSEnabled() && i.Spec.Service.Sites.Local.Expose.Type == CrossSiteExposeTypeRoute {
+			allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("service").Child("sites").Child("local").Child("encryption").Child("transportKeyStore"), "Expose type Route requires encryption."))
+		}
 	}
 
 	if i.Spec.CloudEvents != nil && operand.UpstreamVersion.GTE(semver.Version{Major: 15}) {
