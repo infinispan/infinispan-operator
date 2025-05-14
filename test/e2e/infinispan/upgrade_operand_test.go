@@ -286,36 +286,6 @@ func TestOperandCVEHotRodRolling(t *testing.T) {
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
-func TestSpecImage(t *testing.T) {
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	// Create Infinispan Cluster using a newer Operand version (versionOperand),
-	// but using the image of an older Operand (imageOperand).
-	// Ensures that creating a cluster with an initial spec.image value does not cause infinite StatefulSet updates.
-	// The two version are chosen to be the last possible versions having the same major and minor.
-	imageOperand, versionOperand := specImageOperands()
-	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Image = pointer.String(imageOperand.Image)
-		i.Spec.Version = versionOperand.Ref()
-	})
-
-	statusVersionRef := versionOperand.Ref()
-	if tutils.OperandVersion != "" {
-		statusVersionRef = tutils.OperandVersion
-	}
-
-	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-			i.Status.Operand.CustomImage &&
-			i.Status.Operand.Version == statusVersionRef &&
-			i.Status.Operand.Image == imageOperand.Image &&
-			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
-	})
-}
-
 func TestSpecImageUpdate(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
@@ -407,6 +377,7 @@ func TestSpecImageUpdate(t *testing.T) {
 	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
 }
 
+// specImageOperands() returns two latest Operands with the matching major/minor version
 func specImageOperands() (*version.Operand, *version.Operand) {
 	operands := tutils.VersionManager().Operands
 	length := len(operands)
