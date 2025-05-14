@@ -3,7 +3,9 @@ package org.infinispan.operator;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -122,7 +124,11 @@ class OCPCertsIT {
     */
    @Test
    void antiAffinityTest() {
-      List<Pod> clusterPods = openShift.pods().withLabel("clusterName", appName).list().getItems();
+      Map<String, String> labels = new HashMap<>();
+      labels.put("app", "infinispan-pod");
+      labels.put("clusterName", appName);
+
+      List<Pod> clusterPods = openShift.pods().withLabels(labels).list().getItems();
       Set<String> nodeNames = clusterPods.stream().map(p -> p.getSpec().getNodeName()).collect(Collectors.toSet());
 
       Assertions.assertThat(nodeNames).hasSize(3);
