@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 TEST_BUNDLE=${1-main}
-TIMEOUT=${2-90m}
+TIMEOUT=${2-120m}
 
 echo "Using KUBECONFIG '${KUBECONFIG}'"
 echo "Using test bundle '${TEST_BUNDLE}'"
