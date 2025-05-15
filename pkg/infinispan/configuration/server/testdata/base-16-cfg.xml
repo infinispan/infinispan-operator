@@ -3,7 +3,7 @@
     xsi:schemaLocation="urn:infinispan:config:16.0 https://infinispan.org/schemas/infinispan-config-16.0.xsd
                         urn:infinispan:server:16.0 https://infinispan.org/schemas/infinispan-server-16.0.xsd"
     xmlns="urn:infinispan:config:16.0"
-    xmlns:server="urn:infinispan:server:16.0>
+    xmlns:server="urn:infinispan:server:16.0">
 
 <cache-container name="default" statistics="true">
     <global-state unclean-shutdown-action="IGNORE" />
