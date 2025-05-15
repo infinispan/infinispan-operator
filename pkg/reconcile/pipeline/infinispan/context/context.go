@@ -135,6 +135,8 @@ func (c *contextImpl) InfinispanPods() (*corev1.PodList, error) {
 			return nil, err
 		}
 		kube.FilterPodsByOwnerUID(podList, statefulSet.GetUID())
+		// The api-server does not guarantee the ordering of pods in the list, so sort by name to make it more deterministic
+		kube.SortPodsByName(podList)
 		c.ispnPods = podList
 	}
 	return c.ispnPods.DeepCopy(), nil
