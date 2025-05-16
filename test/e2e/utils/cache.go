@@ -9,6 +9,7 @@ import (
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	v14 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -20,8 +21,12 @@ type CacheHelper struct {
 }
 
 func NewCacheHelper(cacheName string, client HTTPClient) *CacheHelper {
+	return NewCacheHelperForOperand(cacheName, CurrentOperand, client)
+}
+
+func NewCacheHelperForOperand(cacheName string, operand version.Operand, client HTTPClient) *CacheHelper {
 	return &CacheHelper{
-		CacheClient: ispnClient.New(CurrentOperand, client).Cache(cacheName),
+		CacheClient: ispnClient.New(operand, client).Cache(cacheName),
 		CacheName:   cacheName,
 		Client:      client,
 	}
