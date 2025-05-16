@@ -1,0 +1,35 @@
+<infinispan
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="urn:infinispan:config:16.0 https://infinispan.org/schemas/infinispan-config-16.0.xsd
+                        urn:infinispan:server:16.0 https://infinispan.org/schemas/infinispan-server-16.0.xsd"
+    xmlns="urn:infinispan:config:16.0"
+    xmlns:server="urn:infinispan:server:16.0">
+
+<cache-container name="default" statistics="true">
+    <global-state unclean-shutdown-action="IGNORE" />
+    
+    <security>
+        <authorization group-only-mapping="false">
+            <cluster-role-mapper />
+        </authorization>
+    </security>
+    
+    <transport cluster="${infinispan.cluster.name:}" node-name="${infinispan.node.name:}" stack="image-tcp"/>
+</cache-container>
+<server xmlns="urn:infinispan:server:16.0">
+    <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">
+        <socket-binding name="default" port="${infinispan.bind.port:11222}"/>
+    </socket-bindings>
+    <security>
+        <security-realms>
+            <security-realm name="default">
+                <server-identities>
+                </server-identities>
+            </security-realm>
+        </security-realms>
+    </security>
+    <endpoints>
+        <endpoint socket-binding="default" security-realm="default" require-ssl-client-auth="true" />
+    </endpoints>
+</server>
+</infinispan>

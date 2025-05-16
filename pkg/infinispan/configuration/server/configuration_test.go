@@ -9,7 +9,27 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGenerateAndGenerateZeroCapacity(t *testing.T) {
+func TestGenerateAndGenerateZeroCapacity_v16(t *testing.T) {
+	baseCfg_expected := readFile("testdata/base-16-cfg.xml")
+	adminCfg_expected := readFile("testdata/admin-16-cfg.xml")
+	zeroCfg_expected := readFile("testdata/zero-16-cfg.xml")
+
+	ispn := Infinispan{Authorization: &Authorization{Enabled: true}}
+	spec := Spec{Infinispan: ispn}
+	vers := semver.Version{Major: 16, Minor: 0, Patch: 0}
+	ope := version.Operand{UpstreamVersion: &vers}
+
+	baseCfg, adminCfg, err := Generate(ope, &spec)
+	assert.Equal(t, baseCfg_expected, baseCfg)
+	assert.Equal(t, adminCfg_expected, adminCfg)
+	assert.Nil(t, err)
+
+	zeroCfg, err := GenerateZeroCapacity(ope, &spec)
+	assert.Equal(t, zeroCfg_expected, zeroCfg)
+	assert.Nil(t, err)
+}
+
+func TestGenerateAndGenerateZeroCapacity_v15(t *testing.T) {
 	baseCfg_expected := readFile("testdata/base-15-cfg.xml")
 	adminCfg_expected := readFile("testdata/admin-15-cfg.xml")
 	zeroCfg_expected := readFile("testdata/zero-15-cfg.xml")

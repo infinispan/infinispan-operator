@@ -127,7 +127,7 @@ func GenerateZeroCapacity(operand version.Operand, spec *Spec) (string, error) {
 }
 
 func supportedMajorVersion(v uint64) bool {
-	return v >= 14 && v <= 15
+	return v >= 14 && v <= 16
 }
 
 func mapVersionsToSpec(operand version.Operand, spec *Spec) {
@@ -136,12 +136,13 @@ func mapVersionsToSpec(operand version.Operand, spec *Spec) {
 	spec.Infinispan.Version = v
 	spec.JGroups.Version.Major = 5
 
-	if v.Major <= 14 {
+	switch {
+	case v.Major == 14:
+		spec.JGroups.Version.Minor = 2
+	case v.Major == 15 && v.Minor <= 1:
+		spec.JGroups.Version.Minor = 3
+	case (v.Major == 15 && v.Minor >= 2) || v.Major >= 16:
 		spec.JGroups.Version.Minor = 4
-	} else if v.Minor <= 1 {
-		spec.JGroups.Version.Minor = 5
-	} else {
-		spec.JGroups.Version.Minor = 6
 	}
 }
 
