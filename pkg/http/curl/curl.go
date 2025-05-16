@@ -120,6 +120,11 @@ func (c *Client) executeCurlWithAuth(httpURL, headers, args string) (*http.Respo
 		return nil, err
 	}
 
+	// Handle anonymous endpoints such as /health/status that will not return a 401 response
+	if rsp.StatusCode >= 200 && rsp.StatusCode < 300 {
+		return processResponse(rsp)
+	}
+
 	if rsp.StatusCode != http.StatusUnauthorized {
 		return rsp, fmt.Errorf("expected 401 DIGEST response before content. Received '%s'", rsp.Status)
 	}
@@ -172,9 +177,13 @@ func handleContent(reader *bufio.Reader) (*http.Response, error) {
 		}
 	}
 
+	return processResponse(rsp)
+}
+
+func processResponse(rsp *http.Response) (*http.Response, error) {
 	// Save response body
 	b := new(bytes.Buffer)
-	if _, err = io.Copy(b, rsp.Body); err != nil {
+	if _, err := io.Copy(b, rsp.Body); err != nil {
 		return nil, err
 	}
 	if err := rsp.Body.Close(); err != nil {
