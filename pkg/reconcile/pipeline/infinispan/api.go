@@ -83,6 +83,9 @@ type Context interface {
 	// InfinispanClientForPod returns a client for the specific pod
 	InfinispanClientForPod(podName string) ispnApi.Infinispan
 
+	// InfinispanClientForPodAnonymous returns a client for the specified pod with no credentials configured
+	InfinispanClientForPodAnonymous(podName string, operand version.Operand) ispnApi.Infinispan
+
 	// InfinispanClientUnknownVersion returns a client for a specified pod based upon the version returned by the server
 	InfinispanClientUnknownVersion(podName string) (ispnApi.Infinispan, error)
 
