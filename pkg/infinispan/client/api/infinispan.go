@@ -24,6 +24,7 @@ type Infinispan interface {
 type Container interface {
 	Info() (*ContainerInfo, error)
 	Backups() Backups
+	Health() (*Health, error)
 	HealthStatus() (HealthStatus, error)
 	Members() ([]string, error)
 	RebalanceDisable() error
@@ -101,12 +102,26 @@ type Xsite interface {
 	PushAllState() error
 }
 
+type Health struct {
+	ClusterHealth ClusterHealth `json:"cluster_health"`
+	CacheHealth   []CacheHealth `json:"cache_health"`
+}
+
+type CacheHealth struct {
+	Name   string       `json:"cache_name"`
+	Status HealthStatus `json:"status"`
+}
+
+type ClusterHealth struct {
+	Status HealthStatus `json:"health_status"`
+}
+
 // HealthStatus indicated the possible statuses of the Infinispan server
 type HealthStatus string
 
 const (
 	HealthStatusDegraded          HealthStatus = "DEGRADED"
-	HealthStatusHealth            HealthStatus = "HEALTHY"
+	HealthStatusHealthy           HealthStatus = "HEALTHY"
 	HealthStatusHealthRebalancing HealthStatus = "HEALTHY_REBALANCING"
 	HealthStatusFailed            HealthStatus = "FAILED"
 )
@@ -152,9 +167,11 @@ type BackupRestoreResources struct {
 }
 
 type ContainerInfo struct {
-	Coordinator bool           `json:"coordinator"`
-	SitesView   *[]interface{} `json:"sites_view,omitempty"`
-	Version     string         `json:"version"`
+	ClusterMembers []string       `json:"cluster_members"`
+	ClusterSize    int32          `json:"cluster_size"`
+	Coordinator    bool           `json:"coordinator"`
+	SitesView      *[]interface{} `json:"sites_view,omitempty"`
+	Version        string         `json:"version"`
 }
 
 type NotSupportedError struct {

@@ -259,7 +259,10 @@ func checkBatch(t *testing.T, infinispan *ispnv1.Infinispan) {
 	testKube.DeleteBatch(batch)
 }
 
-func assertNoDegradedCaches() {
+func locksCacheDegraded(operand version.Operand) bool {
+	if operand.UpstreamVersion.Major > 14 {
+		return false
+	}
 	podList := &corev1.PodList{}
 	tutils.ExpectNoError(
 		testKube.Kubernetes.ResourcesList(tutils.Namespace, map[string]string{"app": "infinispan-pod"}, podList, ctx),
@@ -269,7 +272,15 @@ func assertNoDegradedCaches() {
 		log, err := testKube.Kubernetes.Logs(provision.InfinispanContainer, pod.GetName(), pod.GetNamespace(), false, ctx)
 		tutils.ExpectNoError(err)
 		if strings.Contains(log, "DEGRADED_MODE") {
-			panic("Detected a cache in DEGRADED_MODE, unable to continue with test")
+			return true
 		}
 	}
+	return false
+}
+
+// healDegradedLocksCache forces the org.infinispan.LOCKS cache to AVAILABLE so that subsequent upgrades can proceed
+// can be removed once Infinispan 14.0.x servers are no longer supported
+func healDegradedLocksCache(operand version.Operand, client tutils.HTTPClient) {
+	tutils.Log().Infof("Setting org.infinispan.LOCKS cache to AVAILABLE for Operand %s", operand)
+	tutils.NewCacheHelperForOperand("org.infinispan.LOCKS", operand, client).Available(true)
 }

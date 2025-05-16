@@ -31,6 +31,21 @@ func (c *Container) Info() (info *api.ContainerInfo, err error) {
 	return
 }
 
+func (c *Container) Health() (status *api.Health, err error) {
+	rsp, err := c.Get(c.CacheManager("/health"), nil)
+	defer func() {
+		err = httpClient.CloseBody(rsp, err)
+	}()
+
+	if err = httpClient.ValidateResponse(rsp, err, "getting cache manager health", http.StatusOK); err != nil {
+		return
+	}
+	if err = json.NewDecoder(rsp.Body).Decode(&status); err != nil {
+		return nil, fmt.Errorf("unable to decode: %w", err)
+	}
+	return
+}
+
 func (c *Container) HealthStatus() (status api.HealthStatus, err error) {
 	rsp, err := c.Get(c.CacheManager("/health/status"), nil)
 	defer func() {
