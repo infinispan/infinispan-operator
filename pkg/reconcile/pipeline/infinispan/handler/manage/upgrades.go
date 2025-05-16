@@ -3,6 +3,7 @@ package manage
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
@@ -140,18 +141,29 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					return
 				}
 
-				for idx, pod := range podList.Items {
+				var rebalanceDisabled bool
+				for _, pod := range podList.Items {
 					ispnClient, err := ctx.InfinispanClientUnknownVersion(pod.Name)
 					if err != nil {
+						if shutdown, state := containerAlreadyShutdown(err); shutdown {
+							logger.Info("Skipping pod whose cache-container has already been shutdown by the Operator", "pod", pod.Name, "state", state)
+							continue
+						}
 						ctx.Requeue(fmt.Errorf("unable to create Infinispan client for cluster being upgraded: %w", err))
 						return
 					}
-					if idx == 0 {
+
+					// Disabling rebalancing is a cluster-wide operation so we only need to perform this on a single pod
+					// However, multiple calls to this endpoint should be safe, so it's ok if a subsequent reconciliation
+					// executes this again
+					if !rebalanceDisabled {
 						if err := ispnClient.Container().RebalanceDisable(); err != nil {
 							ctx.Requeue(fmt.Errorf("unable to disable rebalancing: %w", err))
 							return
 						}
+						rebalanceDisabled = true
 					}
+
 					if kube.IsPodReady(pod) {
 						if err := ispnClient.Container().Shutdown(); err != nil {
 							ctx.Requeue(fmt.Errorf("error encountered on container shutdown: %w", err))
@@ -221,6 +233,15 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			}),
 		)
 	}
+}
+
+func containerAlreadyShutdown(err error) (bool, string) {
+	if strings.Contains(err.Error(), "Server is STOPPING") {
+		return true, "STOPPING"
+	} else if strings.Contains(err.Error(), "Server is TERMINATED") {
+		return true, "TERMINATED"
+	}
+	return false, ""
 }
 
 // GracefulShutdownUpgrade performs the steps required by GracefulShutdown upgrades once the cluster has been scaled down

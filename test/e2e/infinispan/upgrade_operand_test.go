@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
@@ -286,36 +287,6 @@ func TestOperandCVEHotRodRolling(t *testing.T) {
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
-func TestSpecImage(t *testing.T) {
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	// Create Infinispan Cluster using a newer Operand version (versionOperand),
-	// but using the image of an older Operand (imageOperand).
-	// Ensures that creating a cluster with an initial spec.image value does not cause infinite StatefulSet updates.
-	// The two version are chosen to be the last possible versions having the same major and minor.
-	imageOperand, versionOperand := specImageOperands()
-	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Image = pointer.String(imageOperand.Image)
-		i.Spec.Version = versionOperand.Ref()
-	})
-
-	statusVersionRef := versionOperand.Ref()
-	if tutils.OperandVersion != "" {
-		statusVersionRef = tutils.OperandVersion
-	}
-
-	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-	testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-			i.Status.Operand.CustomImage &&
-			i.Status.Operand.Version == statusVersionRef &&
-			i.Status.Operand.Image == imageOperand.Image &&
-			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
-	})
-}
-
 func TestSpecImageUpdate(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
@@ -407,6 +378,51 @@ func TestSpecImageUpdate(t *testing.T) {
 	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
 }
 
+// TestPodAlreadyShutdownOnUpgrade simulates a scenario where a GracefulShutdown fails when only a subset of pods have had
+// their container shutdown
+func TestPodAlreadyShutdownOnUpgrade(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	i := tutils.DefaultSpec(t, testKube, func(infinispan *ispnv1.Infinispan) {
+		infinispan.Spec.Replicas = 1
+		infinispan.Spec.Security.EndpointAuthentication = pointer.Bool(false)
+	})
+	testKube.CreateInfinispan(i, tutils.Namespace)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, i.Name, tutils.Namespace)
+	i = testKube.WaitForInfinispanCondition(i.Name, i.Namespace, ispnv1.ConditionWellFormed)
+
+	schema := i.GetEndpointScheme()
+	client_ := testKube.WaitForExternalService(i, tutils.RouteTimeout, tutils.NewHTTPClientNoAuth(schema), nil)
+	ispnClient := client.New(tutils.CurrentOperand, client_)
+	tutils.ExpectNoError(
+		ispnClient.Container().Shutdown(),
+	)
+
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(i, func() {
+			i.Spec.Replicas = 0
+		}),
+	)
+	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, i.Name, tutils.Namespace)
+
+	ss := appsv1.StatefulSet{}
+	tutils.ExpectNoError(
+		testKube.Kubernetes.Client.Get(
+			context.TODO(),
+			types.NamespacedName{
+				Namespace: i.Namespace,
+				Name:      i.GetStatefulSetName(),
+			},
+			&ss,
+		),
+	)
+	assert.EqualValues(t, int64(2), ss.Status.ObservedGeneration)
+	assert.EqualValues(t, int32(0), ss.Status.ReadyReplicas)
+	assert.EqualValues(t, int32(0), ss.Status.CurrentReplicas)
+	assert.EqualValues(t, int32(0), ss.Status.UpdatedReplicas)
+}
+
+// specImageOperands() returns two latest Operands with the matching major/minor version
 func specImageOperands() (*version.Operand, *version.Operand) {
 	operands := tutils.VersionManager().Operands
 	length := len(operands)

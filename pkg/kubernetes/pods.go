@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"reflect"
+	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -175,4 +176,14 @@ func VolumeMountExists(name string, container *corev1.Container) bool {
 		}
 	}
 	return false
+}
+
+func SortPodsByName(podList *corev1.PodList) {
+	if podList == nil {
+		return
+	}
+	sort.Slice(podList.Items, func(i, j int) bool {
+		// Compare the Name field of the ObjectMeta for two pods
+		return podList.Items[i].ObjectMeta.Name < podList.Items[j].ObjectMeta.Name
+	})
 }
