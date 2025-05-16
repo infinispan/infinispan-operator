@@ -113,13 +113,6 @@ func (c *contextImpl) InfinispanClientForPod(podName string) api.Infinispan {
 	return ispnClient.New(c.Operand(), curlClient)
 }
 
-func (c *contextImpl) InfinispanClientForPodAnonymous(podName string, operand version.Operand) api.Infinispan {
-	config := c.curlConfig(podName)
-	config.Credentials = nil
-	curlClient := curl.New(config, c.kubernetes)
-	return ispnClient.New(operand, curlClient)
-}
-
 func (c *contextImpl) InfinispanClientUnknownVersion(podName string) (api.Infinispan, error) {
 	curlClient := c.curlClient(podName)
 	return ispnClient.NewUnknownVersion(curlClient)
@@ -149,8 +142,8 @@ func (c *contextImpl) InfinispanPods() (*corev1.PodList, error) {
 	return c.ispnPods.DeepCopy(), nil
 }
 
-func (c *contextImpl) curlConfig(podName string) curl.Config {
-	return curl.Config{
+func (c *contextImpl) curlClient(podName string) *curl.Client {
+	return curl.New(curl.Config{
 		Credentials: &curl.Credentials{
 			Username: c.ispnConfig.AdminIdentities.Username,
 			Password: c.ispnConfig.AdminIdentities.Password,
@@ -160,11 +153,7 @@ func (c *contextImpl) curlConfig(podName string) curl.Config {
 		Namespace: c.infinispan.Namespace,
 		Protocol:  "http",
 		Port:      consts.InfinispanAdminPort,
-	}
-}
-
-func (c *contextImpl) curlClient(podName string) *curl.Client {
-	return curl.New(c.curlConfig(podName), c.kubernetes)
+	}, c.kubernetes)
 }
 
 func (c *contextImpl) ConfigFiles() *pipeline.ConfigFiles {

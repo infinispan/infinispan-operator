@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 )
 
@@ -19,7 +18,6 @@ type Infinispan interface {
 	ProtobufMetadataCacheName() string
 	ScriptCacheName() string
 	Server() Server
-	Version() version.Operand
 }
 
 // Container interface contains all operations and sub-interfaces related to interactions with the Infinispan cache-container

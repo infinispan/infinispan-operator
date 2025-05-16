@@ -9,6 +9,7 @@ import (
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	ispnApi "github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	routev1 "github.com/openshift/api/route/v1"
@@ -130,8 +131,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	// Initiate the GracefulShutdown if it's not already in progress
 	if i.Spec.Replicas == 0 {
 		logger.Info(".Spec.Replicas==0")
-		replicas := *statefulSet.Spec.Replicas
-		if replicas != 0 {
+		if *statefulSet.Spec.Replicas != 0 {
 			logger.Info("StatefulSet.Spec.Replicas!=0")
 			// Only send a GracefulShutdown request to the server if it hasn't succeeded already
 			if !i.IsConditionTrue(ispnv1.ConditionStopping) {
@@ -153,6 +153,12 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				var podMetaMap = make(map[string]*PodMeta, len(podList.Items))
 				var shutdownAlreadyInitiated bool
 				for _, pod := range podList.Items {
+					// We should only proceed with a GracefulShutdown if all pods are marked as Ready
+					if !kube.IsPodReady(pod) {
+						ctx.Requeue(fmt.Errorf("postponing GracefulShutdown as pod '%s' is not ready", pod.Name))
+						return
+					}
+
 					podMeta := &PodMeta{}
 					podMetaMap[pod.Name] = podMeta
 					podMeta.client, err = ctx.InfinispanClientUnknownVersion(pod.Name)
@@ -181,7 +187,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						return
 					}
 
-					if info.ClusterSize != replicas {
+					if info.ClusterSize != i.Spec.Replicas {
 						err = fmt.Errorf(
 							"unable to proceed with GracefulShutdown as pod '%s' has '%d' cluster members, expected '%d'. Members: '%s'",
 							pod.Name,
@@ -193,9 +199,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						return
 					}
 
-					// We must always use an anonymous client to retrieve the health/status as it does not support DIGEST auth
-					anonClient := ctx.InfinispanClientForPodAnonymous(pod.Name, podMeta.client.Version())
-					health, err := anonClient.Container().HealthStatus()
+					health, err := podMeta.client.Container().HealthStatus()
 					if err != nil {
 						ctx.Requeue(fmt.Errorf("unable to retrieve cluster health status for pod '%s': %w", pod.Name, err))
 						return

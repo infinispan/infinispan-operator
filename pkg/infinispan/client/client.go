@@ -56,18 +56,16 @@ import (
 
 // New Factory to obtain Infinispan implementation
 func New(operand version.Operand, client httpClient.HttpClient) api.Infinispan {
-	return ispnClient(operand, client)
+	return ispnClient(operand.UpstreamVersion.Major, client)
 }
 
 func NewUnknownVersion(client httpClient.HttpClient) (api.Infinispan, error) {
 	wrapError := func(e error) error {
 		return fmt.Errorf("unable to determine server version: %w", e)
 	}
-	upstreamVersion := semver.MustParse("15.0.0")
-	info, err := v15.New(version.Operand{UpstreamVersion: &upstreamVersion}, client).Container().Info()
+	info, err := v15.New(client).Container().Info()
 	if err != nil {
-		upstreamVersion = semver.MustParse("14.0.0")
-		info, err = v14.New(version.Operand{UpstreamVersion: &upstreamVersion}, client).Container().Info()
+		info, err = v14.New(client).Container().Info()
 		if err != nil {
 			return nil, wrapError(err)
 		}
@@ -78,17 +76,17 @@ func NewUnknownVersion(client httpClient.HttpClient) (api.Infinispan, error) {
 	if err != nil {
 		return nil, wrapError(fmt.Errorf("unable to parse server version: %w", err))
 	}
-	return ispnClient(version.Operand{UpstreamVersion: &_version}, client), nil
+	return ispnClient(_version.Major, client), nil
 }
 
-func ispnClient(operand version.Operand, client httpClient.HttpClient) api.Infinispan {
-	switch operand.UpstreamVersion.Major {
+func ispnClient(majorVersion uint64, client httpClient.HttpClient) api.Infinispan {
+	switch majorVersion {
 	// We must still return a client for the dropped Infinispan 13 so that we can interact with the server when upgrading
 	// to a supported version. The only difference between the 13 and 14 client was the Cache EqualConfiguration implementation
 	// which is not required for upgrades.
 	case 13, 14:
-		return v14.New(operand, client)
+		return v14.New(client)
 	default:
-		return v15.New(operand, client)
+		return v15.New(client)
 	}
 }
