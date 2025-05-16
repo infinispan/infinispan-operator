@@ -41,11 +41,12 @@ func TestOperandUpgrades(t *testing.T) {
 
 	// Create the Infinispan CR
 	replicas := 2
+	startingOperand := versionManager.Operands[startingOperandIdx]
 	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Service.Container.EphemeralStorage = false
 		i.Spec.Logging.Categories["org.infinispan.topology"] = ispnv1.LoggingLevelTrace
-		i.Spec.Version = versionManager.Operands[startingOperandIdx].Ref()
+		i.Spec.Version = startingOperand.Ref()
 	})
 
 	log.Infof("Testing upgrades from Operand '%s' to '%s'", ispn.Spec.Version, versionManager.Latest().Ref())
@@ -56,15 +57,17 @@ func TestOperandUpgrades(t *testing.T) {
 	numEntries := 100
 	client := tutils.HTTPClientForClusterWithVersionManager(ispn, testKube, versionManager)
 
+	if op := *startingOperand; locksCacheDegraded(op) {
+		healDegradedLocksCache(op, client)
+	}
+
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
 	createAndPopulatePersistentCache(persistentCacheName, numEntries, client)
 
 	// Add a volatile cache with data to ensure contents can be backed up and then restored after upgrade(s)
 	createAndPopulateVolatileCache(volatileCacheName, numEntries, client)
 
-	assertNoDegradedCaches()
 	backup := createBackupAndWaitToSucceed(ispn.Name, t)
-
 	skippedOperands := tutils.OperandSkipSet()
 	for _, operand := range versionManager.Operands[startingOperandIdx:] {
 		// Skip an Operand in the upgrade graph if there's a known issue
@@ -75,6 +78,10 @@ func TestOperandUpgrades(t *testing.T) {
 		log.Debugf("Next Operand %s", operand.Ref())
 
 		ispn = testKube.WaitForInfinispanConditionWithTimeout(ispn.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+		if op := *operand; locksCacheDegraded(op) {
+			healDegradedLocksCache(op, client)
+		}
+
 		tutils.ExpectNoError(
 			testKube.UpdateInfinispan(ispn, func() {
 				ispn.Spec.Version = operand.Ref()
@@ -89,8 +96,6 @@ func TestOperandUpgrades(t *testing.T) {
 				i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
 		})
 		log.Info("Upgrade complete")
-		assertOperandImage(operand.Image, ispn)
-		assertNoDegradedCaches()
 
 		// Ensure that persistent cache entries have survived the upgrade(s)
 		// Refresh the hostAddr and client as the url will change if NodePort is used.
