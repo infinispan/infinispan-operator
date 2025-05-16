@@ -7,8 +7,8 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	ispnApi "github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
-	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	routev1 "github.com/openshift/api/route/v1"
@@ -130,7 +130,8 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	// Initiate the GracefulShutdown if it's not already in progress
 	if i.Spec.Replicas == 0 {
 		logger.Info(".Spec.Replicas==0")
-		if *statefulSet.Spec.Replicas != 0 {
+		replicas := *statefulSet.Spec.Replicas
+		if replicas != 0 {
 			logger.Info("StatefulSet.Spec.Replicas!=0")
 			// Only send a GracefulShutdown request to the server if it hasn't succeeded already
 			if !i.IsConditionTrue(ispnv1.ConditionStopping) {
@@ -141,17 +142,93 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					return
 				}
 
-				var rebalanceDisabled bool
+				type ServerMeta struct {
+					client ispnApi.Infinispan
+					skip   bool
+					state  string
+				}
+
+				// Loop through all pods to initiate the clients, determine that all pods have the expected
+				// number of cluster members and ensure that the cluster is in a HEALTHY state
+				var serverMetaMap = make(map[string]*ServerMeta, len(podList.Items))
+				var shutdownAlreadyInitiated bool
 				for _, pod := range podList.Items {
-					ispnClient, err := ctx.InfinispanClientUnknownVersion(pod.Name)
+					serverMeta := &ServerMeta{}
+					serverMetaMap[pod.Name] = serverMeta
+					serverMeta.client, err = ctx.InfinispanClientUnknownVersion(pod.Name)
 					if err != nil {
 						if shutdown, state := containerAlreadyShutdown(err); shutdown {
-							logger.Info("Skipping pod whose cache-container has already been shutdown by the Operator", "pod", pod.Name, "state", state)
+							serverMeta.skip, serverMeta.state = true, state
+							logger.Info("At least one cache-container has already been shutdown by the Operator, resuming shutdown", "pod", pod.Name, "state", state)
+							shutdownAlreadyInitiated = true
+							// Continue processing other pods here as it's possible that one or more pods still haven't
+							// been shutdown and we need to initiate the client
 							continue
 						}
-						ctx.Requeue(fmt.Errorf("unable to create Infinispan client for cluster being upgraded: %w", err))
+						ctx.Requeue(fmt.Errorf("unable to create Infinispan client to determine if cluster is healthy: %w", err))
 						return
 					}
+
+					// If one or more of the pods have already been shutdown then we must continue to shutdown the remaining
+					// members of the cluster
+					if shutdownAlreadyInitiated {
+						continue
+					}
+
+					info, err := serverMeta.client.Container().Info()
+					if err != nil {
+						ctx.Requeue(fmt.Errorf("unable to retrieve cache-container info for pod '%s': %w", pod.Name, err))
+						return
+					}
+
+					updateCondition := func(msg string) {
+						err := ctx.UpdateInfinispan(func() {
+							i.SetCondition(ispnv1.ConditionStopping, metav1.ConditionFalse, msg)
+						})
+						if err != nil {
+							ctx.Log().Error(err, "unable to set condition to False", "condition", "stopping")
+						}
+					}
+
+					if info.ClusterSize != replicas {
+						msg := fmt.Sprintf(
+							"unable to proceed with GracefulShutdown as pod '%s' has '%d' cluster members, expected '%d'. Members: '%s'",
+							pod.Name,
+							info.ClusterSize,
+							i.Spec.Replicas,
+							strings.Join(info.ClusterMembers, ","),
+						)
+						updateCondition(msg)
+						ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "GracefulShutdownBlocked", msg)
+						ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, errors.New(msg))
+						return
+					}
+
+					health, err := serverMeta.client.Container().Health()
+					if err != nil {
+						ctx.Requeue(fmt.Errorf("unable to retrieve cluster health status for pod '%s': %w", pod.Name, err))
+						return
+					}
+
+					// If any of the caches are not marked as HEALTHY we must prevent a GracefulShutdown to prevent
+					// the cluster from entering an unexpected state
+					if health.ClusterHealth.Status != ispnApi.HealthStatusHealthy {
+						msg := fmt.Sprintf("unable to proceed with GracefulShutdown as the cluster health is '%s': %s", health.ClusterHealth.Status, health.CacheHealth)
+						updateCondition(msg)
+						ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "GracefulShutdownBlocked", msg)
+						ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, errors.New(msg))
+						return
+					}
+				}
+
+				var rebalanceDisabled bool
+				for _, pod := range podList.Items {
+					serverMeta := serverMetaMap[pod.Name]
+					if serverMeta.skip {
+						logger.Info("Skipping pod whose cache-container has already been shutdown by the Operator", "pod", pod, "state", serverMeta.state)
+						continue
+					}
+					ispnClient := serverMeta.client
 
 					// Disabling rebalancing is a cluster-wide operation so we only need to perform this on a single pod
 					// However, multiple calls to this endpoint should be safe, so it's ok if a subsequent reconciliation
@@ -164,13 +241,11 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						rebalanceDisabled = true
 					}
 
-					if kube.IsPodReady(pod) {
-						if err := ispnClient.Container().Shutdown(); err != nil {
-							ctx.Requeue(fmt.Errorf("error encountered on container shutdown: %w", err))
-							return
-						} else {
-							logger.Info("Executed Container Shutdown on pod: ", "Pod.Name", pod.Name)
-						}
+					if err := ispnClient.Container().Shutdown(); err != nil {
+						ctx.Requeue(fmt.Errorf("error encountered on container shutdown: %w", err))
+						return
+					} else {
+						logger.Info("Executed Container Shutdown on pod: ", "Pod.Name", pod.Name)
 					}
 				}
 
@@ -286,10 +361,14 @@ func EnableRebalanceAfterScaleUp(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			return
 		}
 
-		if members, err := ispnClient.Container().Members(); err != nil {
-			ctx.Requeue(fmt.Errorf("unable to retrieve cluster members on scale up: %w", err))
+		// TODO why is this failing in TestOperandUpgrade for 14.0.x servers?
+		/*
+			2025-05-16T17:11:58.093+0100	ERROR	Reconciler error	{"controller": "infinispan", "controllerGroup": "infinispan.org", "controllerKind": "Infinispan", "infinispan": {"name":"test-operand-upgrade","namespace":"namespace-for-testing"}, "namespace": "namespace-for-testing", "name": "test-operand-upgrade", "reconcileID": "eda96c7e-fd83-43cc-b903-4a623e4e2785", "error": "unable to retrieve cluster information on scale up: unexpected error getting cache manager info: stderr: , err: the server does not allow this method on the requested resource"}
+		*/
+		if info, err := ispnClient.Container().Info(); err != nil {
+			ctx.Requeue(fmt.Errorf("unable to retrieve cluster information on scale up: %w", err))
 			return
-		} else if len(members) != int(i.Spec.Replicas) {
+		} else if info.ClusterSize != i.Spec.Replicas {
 			ctx.Log().Info("waiting for cluster to form", "replicas", i.Spec.Replicas)
 			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
 			return
