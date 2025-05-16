@@ -143,10 +143,7 @@ func mapVersionsToSpec(operand version.Operand, spec *Spec) {
 		spec.JGroups.Version.Minor = 3
 	case (v.Major == 15 && v.Minor >= 2) || v.Major >= 16:
 		spec.JGroups.Version.Minor = 4
-	default:
-		// Optional: fallback case if version is unknown
-		spec.JGroups.Version.Minor = 0
-}
+	}
 }
 
 func (xSite XSite) RemoteSites() string {
