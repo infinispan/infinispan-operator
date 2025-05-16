@@ -7,6 +7,7 @@ import (
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	ispnApi "github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	pipeline "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
@@ -141,17 +142,85 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					return
 				}
 
-				var rebalanceDisabled bool
+				type PodMeta struct {
+					client ispnApi.Infinispan
+					skip   bool
+					state  string
+				}
+
+				// Loop through all pods to initiate the clients, determine that all pods have the expected
+				// number of cluster members and ensure that the cluster is in a HEALTHY state
+				var podMetaMap = make(map[string]*PodMeta, len(podList.Items))
+				var shutdownAlreadyInitiated bool
 				for _, pod := range podList.Items {
-					ispnClient, err := ctx.InfinispanClientUnknownVersion(pod.Name)
-					if err != nil {
-						if shutdown, state := containerAlreadyShutdown(err); shutdown {
-							logger.Info("Skipping pod whose cache-container has already been shutdown by the Operator", "pod", pod.Name, "state", state)
-							continue
-						}
-						ctx.Requeue(fmt.Errorf("unable to create Infinispan client for cluster being upgraded: %w", err))
+					// We should only proceed with a GracefulShutdown if all pods are marked as Ready
+					if !kube.IsPodReady(pod) {
+						ctx.Requeue(fmt.Errorf("postponing GracefulShutdown as pod '%s' is not ready", pod.Name))
 						return
 					}
+
+					podMeta := &PodMeta{}
+					podMetaMap[pod.Name] = podMeta
+					podMeta.client, err = ctx.InfinispanClientUnknownVersion(pod.Name)
+					if err != nil {
+						if shutdown, state := containerAlreadyShutdown(err); shutdown {
+							podMeta.skip, podMeta.state = true, state
+							logger.Info("At least one cache-container has already been shutdown by the Operator, resuming shutdown", "pod", pod.Name, "state", state)
+							shutdownAlreadyInitiated = true
+							// Continue processing other pods here as it's possible that one or more pods still haven't
+							// been shutdown and we need to initiate the client
+							continue
+						}
+						ctx.Requeue(fmt.Errorf("unable to create Infinispan client to determine if split-brain is present: %w", err))
+						return
+					}
+
+					// If one or more of the pods have already been shutdown then we must continue to shutdown the remaining
+					// members of the cluster
+					if shutdownAlreadyInitiated {
+						continue
+					}
+
+					info, err := podMeta.client.Container().Info()
+					if err != nil {
+						ctx.Requeue(fmt.Errorf("unable to retrieve cache-container info for pod '%s': %w", pod.Name, err))
+						return
+					}
+
+					if info.ClusterSize != i.Spec.Replicas {
+						err = fmt.Errorf(
+							"unable to proceed with GracefulShutdown as pod '%s' has '%d' cluster members, expected '%d'. Members: '%s'",
+							pod.Name,
+							info.ClusterSize,
+							i.Spec.Replicas,
+							strings.Join(info.ClusterMembers, ","),
+						)
+						ctx.Requeue(err)
+						return
+					}
+
+					health, err := podMeta.client.Container().HealthStatus()
+					if err != nil {
+						ctx.Requeue(fmt.Errorf("unable to retrieve cluster health status for pod '%s': %w", pod.Name, err))
+						return
+					}
+
+					// If any of the caches are not marked as HEALTHY we must prevent a GracefulShutdown to prevent
+					// the cluster from entering an unexpected state
+					if health != ispnApi.HealthStatusHealthy {
+						ctx.Requeue(fmt.Errorf("unable to proceed with GracefulShutdown as the cluster health is '%s'", health))
+						return
+					}
+				}
+
+				var rebalanceDisabled bool
+				for _, pod := range podList.Items {
+					podMeta := podMetaMap[pod.Name]
+					if podMeta.skip {
+						logger.Info("Skipping pod whose cache-container has already been shutdown by the Operator", "pod", pod, "state", podMeta.state)
+						continue
+					}
+					ispnClient := podMeta.client
 
 					// Disabling rebalancing is a cluster-wide operation so we only need to perform this on a single pod
 					// However, multiple calls to this endpoint should be safe, so it's ok if a subsequent reconciliation
@@ -164,13 +233,11 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						rebalanceDisabled = true
 					}
 
-					if kube.IsPodReady(pod) {
-						if err := ispnClient.Container().Shutdown(); err != nil {
-							ctx.Requeue(fmt.Errorf("error encountered on container shutdown: %w", err))
-							return
-						} else {
-							logger.Info("Executed Container Shutdown on pod: ", "Pod.Name", pod.Name)
-						}
+					if err := ispnClient.Container().Shutdown(); err != nil {
+						ctx.Requeue(fmt.Errorf("error encountered on container shutdown: %w", err))
+						return
+					} else {
+						logger.Info("Executed Container Shutdown on pod: ", "Pod.Name", pod.Name)
 					}
 				}
 

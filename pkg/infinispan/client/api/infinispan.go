@@ -106,7 +106,7 @@ type HealthStatus string
 
 const (
 	HealthStatusDegraded          HealthStatus = "DEGRADED"
-	HealthStatusHealth            HealthStatus = "HEALTHY"
+	HealthStatusHealthy           HealthStatus = "HEALTHY"
 	HealthStatusHealthRebalancing HealthStatus = "HEALTHY_REBALANCING"
 	HealthStatusFailed            HealthStatus = "FAILED"
 )
@@ -152,9 +152,11 @@ type BackupRestoreResources struct {
 }
 
 type ContainerInfo struct {
-	Coordinator bool           `json:"coordinator"`
-	SitesView   *[]interface{} `json:"sites_view,omitempty"`
-	Version     string         `json:"version"`
+	ClusterMembers []string       `json:"cluster_members"`
+	ClusterSize    int32          `json:"cluster_size"`
+	Coordinator    bool           `json:"coordinator"`
+	SitesView      *[]interface{} `json:"sites_view,omitempty"`
+	Version        string         `json:"version"`
 }
 
 type NotSupportedError struct {
