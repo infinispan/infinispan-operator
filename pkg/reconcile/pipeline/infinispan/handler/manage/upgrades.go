@@ -355,16 +355,22 @@ func EnableRebalanceAfterScaleUp(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			return
 		}
 
-		ispnClient, err := ctx.InfinispanClient()
-		if err != nil {
+		if podList, err := ctx.InfinispanPods(); err != nil {
 			ctx.Requeue(err)
+			return
+		} else if len(podList.Items) != int(i.Spec.Replicas) {
+			ctx.Log().Info("Waiting on cluster pods to be provisioned", "pods", len(podList.Items), "spec.replicas", i.Spec.Replicas)
+			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
 			return
 		}
 
-		// TODO why is this failing in TestOperandUpgrade for 14.0.x servers?
-		/*
-			2025-05-16T17:11:58.093+0100	ERROR	Reconciler error	{"controller": "infinispan", "controllerGroup": "infinispan.org", "controllerKind": "Infinispan", "infinispan": {"name":"test-operand-upgrade","namespace":"namespace-for-testing"}, "namespace": "namespace-for-testing", "name": "test-operand-upgrade", "reconcileID": "eda96c7e-fd83-43cc-b903-4a623e4e2785", "error": "unable to retrieve cluster information on scale up: unexpected error getting cache manager info: stderr: , err: the server does not allow this method on the requested resource"}
-		*/
+		ispnClient, err := ctx.InfinispanClient()
+		if err != nil {
+			ctx.Log().Info("Waiting on at least one ready pod", "err", err)
+			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
+			return
+		}
+
 		if info, err := ispnClient.Container().Info(); err != nil {
 			ctx.Requeue(fmt.Errorf("unable to retrieve cluster information on scale up: %w", err))
 			return

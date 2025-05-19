@@ -104,6 +104,9 @@ func (c *contextImpl) InfinispanClient() (api.Infinispan, error) {
 			break
 		}
 	}
+	if pod == "" {
+		return nil, fmt.Errorf("unable to create Infinispan client, no ready pods exist")
+	}
 	c.ispnClient = c.InfinispanClientForPod(pod)
 	return c.ispnClient, nil
 }
