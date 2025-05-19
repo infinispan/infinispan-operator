@@ -5,7 +5,7 @@
     xmlns="urn:infinispan:config:14.0"
     xmlns:server="urn:infinispan:server:14.0">
 
-<jgroups xsi:schemaLocation="http://www.jgroups.org/schema/jgroups-5.4.xsd">
+<jgroups xsi:schemaLocation="http://www.jgroups.org/schema/jgroups-5.2.xsd">
     
     <stack name="image-tcp" extends="kubernetes">
         <!-- overwrite diagnostics-->
