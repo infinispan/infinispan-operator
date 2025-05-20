@@ -125,7 +125,9 @@ jobs:
               exit 1
             fi
           else
-            export SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.2
+            # We must start on a server version greater than 14.0.23.Final to prevent known clustering issues during upgrades
+            # See commit message for a detailed list
+            export SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.7
           fi
           make upgrade-test
         env:
