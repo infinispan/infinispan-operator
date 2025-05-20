@@ -588,6 +588,7 @@ func TestScaleDownBlockedWithDegradedCache(t *testing.T) {
 }
 
 // specImageOperands() returns two latest Operands with the matching major/minor version
+// If two Operands are not available that support the /health/* endpoints, older Operands are provided
 func specImageOperands() (*version.Operand, *version.Operand) {
 	operands := tutils.VersionManager().Operands
 	length := len(operands)
@@ -597,7 +598,8 @@ func specImageOperands() (*version.Operand, *version.Operand) {
 		latest = operands[length-1-i]
 		latestMinus1 = operands[length-2-i]
 		if latest.UpstreamVersion.Major == latestMinus1.UpstreamVersion.Major &&
-			latest.UpstreamVersion.Minor == latestMinus1.UpstreamVersion.Minor {
+			latest.UpstreamVersion.Minor == latestMinus1.UpstreamVersion.Minor &&
+			provision.DecoupledProbesSupported(*latest) == provision.DecoupledProbesSupported(*latestMinus1) {
 			return latestMinus1, latest
 		}
 	}
