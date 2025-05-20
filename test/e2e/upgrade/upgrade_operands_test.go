@@ -31,8 +31,9 @@ func TestOperandUpgrades(t *testing.T) {
 
 	startingOperandIdx := -1
 	for i, op := range versionManager.Operands {
-		// We must start at Infinispan 14.0.8 or higher due to ISPN-12224
-		if (op.UpstreamVersion.Major == 14 && op.UpstreamVersion.Patch >= 8) || op.UpstreamVersion.Major > 14 {
+		// We must start on a server version greater than 14.0.23.Final to prevent known clustering issues during upgrades
+		// See commit message for a detailed list
+		if op.UpstreamVersion.Major == 14 && op.UpstreamVersion.Patch > 22 || op.UpstreamVersion.Major > 14 {
 			startingOperandIdx = i
 			break
 		}
