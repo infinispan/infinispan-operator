@@ -30,3 +30,4 @@ To add additional Operands to this file, update the `INFINISPAN_OPERAND_VERSIONS
 15.1.5
 15.1.7
 15.2.1
+15.2.2
