@@ -133,6 +133,10 @@ spec:
                     "image": "quay.io/infinispan/server:15.0.14.Final"
                   },
                   {
+                    "upstream-version": "15.0.15",
+                    "image": "quay.io/infinispan/server:15.0.15.Final"
+                  },
+                  {
                     "upstream-version": "15.1.0",
                     "image": "quay.io/infinispan/server:15.1.0.Final"
                   },
