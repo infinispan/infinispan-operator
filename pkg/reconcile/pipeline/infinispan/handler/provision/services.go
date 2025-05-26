@@ -259,7 +259,8 @@ func defineExternalIngress(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if i.IsEncryptionEnabled() {
 			ingress.Spec.TLS = []ingressv1.IngressTLS{
 				{
-					Hosts: []string{i.Spec.Expose.Host},
+					Hosts:      []string{i.Spec.Expose.Host},
+					SecretName: i.GetKeystoreSecretName(),
 				},
 			}
 		}
