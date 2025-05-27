@@ -1,0 +1,10 @@
+<server xmlns="urn:infinispan:server:{{ .Infinispan.Version.Major }}.{{ .Infinispan.Version.Minor }}">
+    <socket-bindings default-interface="public" port-offset="${infinispan.socket.binding.port-offset:0}">
+        <socket-binding name="default" port="${infinispan.bind.port:11222}"/>
+    </socket-bindings>
+    {{template "security.xml" . }}
+    <endpoints>
+        <endpoint socket-binding="default" security-realm="default" {{ if ne .Endpoints.ClientCert "None" }}require-ssl-client-auth="true"{{ end }} />
+    </endpoints>
+</server>
+</infinispan>
