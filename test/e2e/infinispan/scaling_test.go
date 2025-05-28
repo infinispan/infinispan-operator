@@ -2,15 +2,20 @@ package infinispan
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
+	"github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -115,4 +120,126 @@ func TestScaling(t *testing.T) {
 		}),
 	)
 	assert.Equal(t, fmt.Sprintf("%s-%s-0", provision.DataMountVolume, ispn.GetStatefulSetName()), pvcs.Items[0].Name)
+}
+
+func TestGracefulShutdownBlockedWithDegradedCache(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	replicas := 1
+	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = int32(replicas)
+	})
+	testKube.CreateInfinispan(ispn, tutils.Namespace)
+	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	ispn = testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+
+	_client := tutils.HTTPClientForClusterWithVersionManager(ispn, testKube, tutils.VersionManager())
+	cacheName := "cache"
+	cacheConfig := "<distributed-cache><partition-handling when-split=\"DENY_READ_WRITES\" merge-policy=\"PREFERRED_ALWAYS\"/></distributed-cache>"
+	cacheHelper := tutils.NewCacheHelper(cacheName, _client)
+	cacheHelper.Create(cacheConfig, mime.ApplicationXml)
+	cacheHelper.Available(false)
+
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.Replicas = 0
+		}),
+	)
+	testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
+		c := i.GetCondition(ispnv1.ConditionStopping)
+		return c.Status == metav1.ConditionFalse && strings.Contains(c.Message, "unable to proceed with GracefulShutdown as the cluster health is 'DEGRADED'")
+	})
+	cacheHelper.Available(true)
+	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionGracefulShutdown)
+}
+
+func TestGracefulShutdownBlockedOnSplitBrain(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	replicas := 2
+	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = int32(replicas)
+	})
+	testKube.CreateInfinispan(ispn, tutils.Namespace)
+	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	ispn = testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+
+	networkPolicy := &networkingv1.NetworkPolicy{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "NetworkPolicy",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "deny-all-but-user",
+			Namespace: tutils.Namespace,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeEgress,
+				networkingv1.PolicyTypeIngress,
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				{
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Port: &intstr.IntOrString{
+								Type:   intstr.Int,
+								IntVal: 11222,
+							},
+						},
+					},
+				},
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Port: &intstr.IntOrString{
+								Type:   intstr.Int,
+								IntVal: 11222,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	testKube.CreateNetworkPolicy(networkPolicy)
+	defer testKube.DeleteNetworkPolicy(networkPolicy)
+
+	_client := tutils.HTTPClientForClusterWithVersionManager(ispn, testKube, tutils.VersionManager())
+	operand := tutils.Operand(ispn.Spec.Version, tutils.VersionManager())
+	ispnClient := client.New(operand, _client)
+
+	wait.Poll(tutils.ConditionPollPeriod, tutils.MaxWaitTimeout, func() (done bool, err error) {
+		containerInfo, err := ispnClient.Container().Info()
+
+		// The request may fail the first time it's executed after NetworkPolicy is created
+		if err != nil {
+			tutils.Log().Error(err)
+			return false, nil
+		}
+
+		return containerInfo.ClusterSize != ispn.Spec.Replicas, nil
+	})
+
+	tutils.ExpectNoError(
+		testKube.UpdateInfinispan(ispn, func() {
+			ispn.Spec.Replicas = 0
+		}),
+	)
+
+	testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
+		c := i.GetCondition(ispnv1.ConditionStopping)
+		tutils.Log().Info("Message: ", c.Message)
+		return c.Status == metav1.ConditionFalse && strings.Contains(c.Message, "has '1' cluster members, expected '0'. Members")
+	})
+
+	testKube.DeleteNetworkPolicy(networkPolicy)
+
+	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionGracefulShutdown)
 }

@@ -195,7 +195,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 							"unable to proceed with GracefulShutdown as pod '%s' has '%d' cluster members, expected '%d'. Members: '%s'",
 							pod.Name,
 							info.ClusterSize,
-							i.Spec.Replicas,
+							replicas,
 							strings.Join(info.ClusterMembers, ","),
 						)
 						updateCondition(msg)

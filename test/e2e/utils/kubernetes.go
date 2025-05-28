@@ -28,6 +28,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -72,6 +73,7 @@ func init() {
 	addToScheme(&appsv1.SchemeBuilder, Scheme)
 	addToScheme(&storagev1.SchemeBuilder, Scheme)
 	addToScheme(&batchv1.SchemeBuilder, Scheme)
+	addToScheme(&networkingv1.SchemeBuilder, Scheme)
 	ExpectNoError(routev1.AddToScheme(Scheme))
 }
 
@@ -843,6 +845,16 @@ func (k TestKubernetes) GetConfigMap(name, namespace string) *corev1.ConfigMap {
 	}
 	ExpectNoError(k.Kubernetes.Client.Get(context.TODO(), key, configMap))
 	return configMap
+}
+
+func (k TestKubernetes) CreateNetworkPolicy(networkPolicy *networkingv1.NetworkPolicy) {
+	err := k.Kubernetes.Client.Create(context.TODO(), networkPolicy)
+	ExpectNoError(err)
+}
+
+func (k TestKubernetes) DeleteNetworkPolicy(networkPolicy *networkingv1.NetworkPolicy) {
+	err := k.Kubernetes.Client.Delete(context.TODO(), networkPolicy)
+	ExpectMaybeNotFound(err)
 }
 
 // RunOperator runs an operator on a Kubernetes cluster

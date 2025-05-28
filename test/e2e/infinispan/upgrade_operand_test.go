@@ -2,7 +2,6 @@ package infinispan
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -12,7 +11,6 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
 	"github.com/stretchr/testify/assert"
@@ -422,38 +420,6 @@ func TestPodAlreadyShutdownOnUpgrade(t *testing.T) {
 	assert.EqualValues(t, int32(0), ss.Status.ReadyReplicas)
 	assert.EqualValues(t, int32(0), ss.Status.CurrentReplicas)
 	assert.EqualValues(t, int32(0), ss.Status.UpdatedReplicas)
-}
-
-func TestScaleDownBlockedWithDegradedCache(t *testing.T) {
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	replicas := 1
-	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Replicas = int32(replicas)
-	})
-	testKube.CreateInfinispan(ispn, tutils.Namespace)
-	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
-	ispn = testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
-
-	_client := tutils.HTTPClientForClusterWithVersionManager(ispn, testKube, tutils.VersionManager())
-	cacheName := "cache"
-	cacheConfig := "<distributed-cache><partition-handling when-split=\"DENY_READ_WRITES\" merge-policy=\"PREFERRED_ALWAYS\"/></distributed-cache>"
-	cacheHelper := tutils.NewCacheHelper(cacheName, _client)
-	cacheHelper.Create(cacheConfig, mime.ApplicationXml)
-	cacheHelper.Available(false)
-
-	tutils.ExpectNoError(
-		testKube.UpdateInfinispan(ispn, func() {
-			ispn.Spec.Replicas = 0
-		}),
-	)
-	testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
-		c := i.GetCondition(ispnv1.ConditionStopping)
-		return c.Status == metav1.ConditionFalse && strings.Contains(c.Message, "unable to proceed with GracefulShutdown as the cluster health is 'DEGRADED'")
-	})
-	cacheHelper.Available(true)
-	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionGracefulShutdown)
 }
 
 // specImageOperands() returns two latest Operands with the matching major/minor version
