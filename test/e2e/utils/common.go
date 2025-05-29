@@ -41,11 +41,16 @@ var logger *zap.SugaredLogger
 func Log() *zap.SugaredLogger {
 	if logger == nil {
 		zapConfig := zap.NewDevelopmentConfig()
+		zapConfig.DisableStacktrace = true
 		zapConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoder(
 			func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 				enc.AppendString(t.Format(time.DateTime))
 			})
 		zapConfig.Level = zap.NewAtomicLevelAt(LogLevel)
+
+		if LogLevel == zapcore.DebugLevel {
+			zapConfig.DisableStacktrace = false
+		}
 
 		log, _ := zapConfig.Build()
 		logger = log.Sugar()
