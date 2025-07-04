@@ -120,7 +120,7 @@ jobs:
         run: |
           if [ "${DEPTH}" -gt -1 ]; then
             export SUBSCRIPTION_STARTING_CSV=$(cat scripts/test-catalog.yml | yq "select(document_index == 1) | .entries[${DEPTH}].name")
-            if [ "${SUBSCRIPTION_STARTING_CSV}" == "null"; then
+            if [[ "${SUBSCRIPTION_STARTING_CSV}" == "null" ]]; then
               echo "No CSV found in test catalog for upgradeDepth '${DEPTH}'"
               exit 1
             fi
