@@ -34,6 +34,10 @@ include::2_4_12.adoc[]
 a|
 include::2_4_13.adoc[]
 |
+2.4.14
+a|
+include::2_4_14.adoc[]
+|
 2.4.2
 a|
 include::2_4_2.adoc[]
