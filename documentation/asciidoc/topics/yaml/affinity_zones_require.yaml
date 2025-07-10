@@ -1,10 +1,11 @@
 spec:
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchLabels:
-            app: infinispan-pod
-            clusterName: <cluster_name>
-            infinispan_cr: <cluster_name>
-        topologyKey: "topology.kubernetes.io/zone"
+  scheduling:
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app: infinispan-pod
+              clusterName: <cluster_name>
+              infinispan_cr: <cluster_name>
+          topologyKey: "topology.kubernetes.io/zone"

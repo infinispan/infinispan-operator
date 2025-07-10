@@ -3,15 +3,16 @@ kind: Infinispan
 metadata:
   name: datagrid-service
 spec:
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchLabels:
-            app: infinispan-pod
-            clusterName: datagrid-service
-            infinispan_cr: datagrid-service
-        topologyKey: "topology.kubernetes.io/zone"
+  scheduling:
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app: infinispan-pod
+              clusterName: datagrid-service
+              infinispan_cr: datagrid-service
+          topologyKey: "topology.kubernetes.io/zone"
   expose:
     type: Route
   container:
