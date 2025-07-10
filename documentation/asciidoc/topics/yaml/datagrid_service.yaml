@@ -50,14 +50,15 @@ spec:
   configMapName: "my-cluster-config"
   configListener:
     enabled: true
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchLabels:
-              app: infinispan-pod
-              clusterName: {example_crd_name}
-              infinispan_cr: {example_crd_name}
-          topologyKey: "kubernetes.io/hostname"
+  scheduling:
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app: infinispan-pod
+                clusterName: {example_crd_name}
+                infinispan_cr: {example_crd_name}
+            topologyKey: "kubernetes.io/hostname"
