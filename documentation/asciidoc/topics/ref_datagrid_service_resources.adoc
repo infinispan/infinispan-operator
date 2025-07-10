@@ -66,7 +66,7 @@ You should do this only if you do not need declarative Kubernetes representation
 |`spec.configListener.logging.level`
 |Configures the logging level for the `ConfigListener` deployments. The default level is `info`. You can change it to `debug` or  `error`.
 
-|`spec.affinity`
+|`spec.scheduling.affinity`
 |Configures anti-affinity strategies that guarantee {brandname} availability.
 
 |===
