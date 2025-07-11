@@ -20,7 +20,7 @@ Configure anti-affinity strategies in your `Infinispan` CR to control where {k8s
 [discrete]
 == Schedule pods on different {k8s} nodes
 
-The following is the anti-affinity strategy that {ispn_operator} uses if you do not configure the `spec.affinity` field in your `Infinispan` CR:
+The following is the anti-affinity strategy that {ispn_operator} uses if you do not configure the `spec.scheduling.affinity` field in your `Infinispan` CR:
 
 [source,yaml,options="nowrap",subs=attributes+]
 ----

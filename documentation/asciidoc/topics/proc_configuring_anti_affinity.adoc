@@ -6,6 +6,6 @@ Specify where {k8s} schedules pods for your {brandname} clusters to ensure avail
 
 .Procedure
 
-. Add the `spec.affinity` block to your `Infinispan` CR.
+. Add the `spec.scheduling.affinity` block to your `Infinispan` CR.
 . Configure anti-affinity strategies as necessary.
 . Apply your `Infinispan` CR.
