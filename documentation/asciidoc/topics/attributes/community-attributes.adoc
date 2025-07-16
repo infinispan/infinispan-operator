@@ -26,13 +26,13 @@
 :lib_path: /opt/infinispan/server/lib
 :backup_path: /opt/infinispan/backups
 :server_image: quay.io/infinispan/server
-:server_image_version: 15.2.2
-:operand_version: 15.2.2
+:server_image_version: 16.0.0
+:operand_version: 16.0.0
 
 :ispn_operator: Infinispan Operator
-:ispn_operator_version: 2.4
+:ispn_operator_version: 2.5
 :operator_channel: stable
-:schemaversion: 15.0
+:schemaversion: 16.0
 :brandname: Infinispan
 :fullbrandname: Infinispan
 :datagridservice: Data Grid Service
