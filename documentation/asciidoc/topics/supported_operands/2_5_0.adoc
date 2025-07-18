@@ -23,6 +23,7 @@ To add additional Operands to this file, update the `INFINISPAN_OPERAND_VERSIONS
 15.0.13
 15.0.14
 15.0.15
+15.0.16
 15.1.0
 15.1.1
 15.1.3
