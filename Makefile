@@ -44,6 +44,13 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# Utilise the GITHUB_TOKEN in curl requests if set
+ifeq ($(origin GITHUB_TOKEN), environment)
+  ifneq ($(GITHUB_TOKEN),)
+    CURL_AUTHORIZATION := "--header 'authorization: Bearer $(GITHUB_TOKEN)'"
+  endif
+endif
+
 ##@ Build Dependencies
 
 ## Location to install dependencies to
@@ -207,7 +214,7 @@ KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/k
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	test -s $(KUSTOMIZE) || { curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
+	test -s $(KUSTOMIZE) || { curl $(CURL_AUTHORIZATION) -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -270,7 +277,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.23.0/$${OS}-$${ARCH}-opm ;\
+	curl $(CURL_AUTHORIZATION) -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.23.0/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -286,7 +293,7 @@ ifeq (,$(shell which jq 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(JQ)) ;\
-	curl -sSLo $(JQ) https://github.com/stedolan/jq/releases/download/jq-$(JQ_VERSION)/jq-linux64 ;\
+	curl $(CURL_AUTHORIZATION) -sSLo $(JQ) https://github.com/stedolan/jq/releases/download/jq-$(JQ_VERSION)/jq-linux64 ;\
 	chmod +x $(JQ) ;\
 	}
 else
@@ -302,7 +309,7 @@ ifeq (,$(shell which yq 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(YQ)) ;\
-	curl -sSLo $(YQ) https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_linux_amd64 ;\
+	curl $(CURL_AUTHORIZATION) -sSLo $(YQ) https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_linux_amd64 ;\
 	chmod +x $(YQ) ;\
 	}
 else
@@ -335,7 +342,7 @@ ifeq (,$(shell which operator-sdk 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(OPERATOR_SDK)) ;\
-	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.24.1/operator-sdk_linux_amd64 ;\
+	curl $(CURL_AUTHORIZATION) -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.24.1/operator-sdk_linux_amd64 ;\
 	chmod +x $(OPERATOR_SDK) ;\
 	}
 else
