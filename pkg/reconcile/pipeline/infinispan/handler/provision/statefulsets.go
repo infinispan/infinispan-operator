@@ -85,6 +85,11 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 	statefulSetAnnotations["checksum/podEnvs"] = podEnvsHash
 	annotationsForPod := i.PodAnnotations()
 	annotationsForPod["updateDate"] = time.Now().String()
+	gracePeriod := int64(30) // default fallback
+
+	if i.Spec.Service.Container.TerminationGracePeriodSeconds != nil {
+		gracePeriod = *i.Spec.Service.Container.TerminationGracePeriodSeconds
+	}
 
 	// We can ignore the err here as the validating webhook ensures that the resources are valid
 	podResources, _ := PodResources(i.Spec.Container)
@@ -112,9 +117,10 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Annotations: annotationsForPod,
 				},
 				Spec: corev1.PodSpec{
-					Affinity:                  i.Affinity(),
-					Tolerations:               i.Tolerations(),
-					TopologySpreadConstraints: i.TopologySpreadConstraints(),
+					TerminationGracePeriodSeconds: &gracePeriod,
+					Affinity:                      i.Affinity(),
+					Tolerations:                   i.Tolerations(),
+					TopologySpreadConstraints:     i.TopologySpreadConstraints(),
 					Containers: []corev1.Container{{
 						Image:          i.ImageName(),
 						Args:           BuildServerContainerArgs(ctx.ConfigFiles()),

@@ -2111,6 +2111,13 @@ spec:
                         description: The storage class object for persistent volume
                           claims
                         type: string
+                      terminationGracePeriodSeconds:
+                        default: 30
+                        description: TerminationGracePeriodSeconds specifies the duration
+                          the container is given to shut down gracefully before it
+                          is forcefully terminated.
+                        format: int64
+                        type: integer
                     type: object
                   replicationFactor:
                     description: Cache replication factor, or number of copies for
