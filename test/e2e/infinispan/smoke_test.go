@@ -65,7 +65,7 @@ func TestBaseFunctionality(t *testing.T) {
 	verifyNoPVCs(assert, ispn)
 	verifyLabelsAndAnnotations(assert, require, ispn)
 	verifyDefaultAuthention(require, ispn)
-	verifyScheduling(assert, require, ispn)
+	verifyScheduling(assert, require, ispn, 30)
 	verifyLogPattern(assert, ispn, v1.DefaultLoggingPattern)
 
 	if tutils.IsVersionAtLeast("15.0.0") {
@@ -133,7 +133,7 @@ func verifyDefaultAuthention(require *require.Assertions, ispn *v1.Infinispan) {
 }
 
 // Make sure Scheduling settings are propagated created
-func verifyScheduling(assert *assert.Assertions, require *require.Assertions, ispn *v1.Infinispan) {
+func verifyScheduling(assert *assert.Assertions, require *require.Assertions, ispn *v1.Infinispan, expectedGrace int64) {
 	pod := corev1.Pod{}
 	require.NoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: ispn.Name + "-0", Namespace: tutils.Namespace}, &pod))
 	// From Infinispan CR to pods
@@ -146,6 +146,10 @@ func verifyScheduling(assert *assert.Assertions, require *require.Assertions, is
 	}
 	assert.True(areEqual)
 	assert.EqualValues(pod.Spec.TopologySpreadConstraints, ispn.Spec.Scheduling.TopologySpreadConstraints)
+
+	// verify custom TerminationGracePeriod
+	require.NotNil(pod.Spec.TerminationGracePeriodSeconds, "TerminationGracePeriodSeconds should not be nil")
+	assert.Equal(expectedGrace, *pod.Spec.TerminationGracePeriodSeconds, "Grace period should match expected")
 }
 
 func TestCacheService(t *testing.T) {
