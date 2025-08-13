@@ -52,6 +52,9 @@ func TestBaseFunctionality(t *testing.T) {
 				WhenUnsatisfiable: "ScheduleAnyway",
 			}},
 		}
+		// Explicitly set TerminationGracePeriodSeconds to 60
+		gracePeriod := int64(60)
+		i.Spec.Service.Container.TerminationGracePeriodSeconds = &gracePeriod
 	})
 
 	// Create the cluster
