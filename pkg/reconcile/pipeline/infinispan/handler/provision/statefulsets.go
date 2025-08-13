@@ -112,9 +112,10 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Annotations: annotationsForPod,
 				},
 				Spec: corev1.PodSpec{
-					Affinity:                  i.Affinity(),
-					Tolerations:               i.Tolerations(),
-					TopologySpreadConstraints: i.TopologySpreadConstraints(),
+					TerminationGracePeriodSeconds: i.TerminationGracePeriodSeconds(),
+					Affinity:                      i.Affinity(),
+					Tolerations:                   i.Tolerations(),
+					TopologySpreadConstraints:     i.TopologySpreadConstraints(),
 					Containers: []corev1.Container{{
 						Image:          i.ImageName(),
 						Args:           BuildServerContainerArgs(ctx.ConfigFiles()),

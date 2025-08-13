@@ -121,6 +121,9 @@ type InfinispanServiceContainerSpec struct {
 	// when it might take a long time to load data or warm a cache, than during steady-state operation.
 	// +optional
 	StartupProbe ContainerProbeSpec `json:"startupProbe,omitempty"`
+	// TerminationGracePeriodSeconds specifies the duration the container is given to shut down gracefully before it is forcefully terminated.
+	// +optional
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 }
 
 type ContainerProbeSpec struct {

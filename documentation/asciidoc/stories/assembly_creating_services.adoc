@@ -19,6 +19,7 @@ include::{topics}/proc_allocating_cpu_memory.adoc[leveloffset=+1]
 include::{topics}/proc_setting_jvm_options.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_pod_probes.adoc[leveloffset=+1]
 include::{topics}/proc_configuring_pod_priority.adoc[leveloffset=+1]
+include::{topics}/proc_configuring_pod_termination_grace_period.adoc[leveloffset=+1]
 
 // Downstream content
 ifdef::downstream[]
