@@ -2112,7 +2112,6 @@ spec:
                           claims
                         type: string
                       terminationGracePeriodSeconds:
-                        default: 30
                         description: TerminationGracePeriodSeconds specifies the duration
                           the container is given to shut down gracefully before it
                           is forcefully terminated.
