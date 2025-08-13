@@ -1027,7 +1027,7 @@ func (ispn *Infinispan) InitServiceContainer() {
 
 func (ispn *Infinispan) TerminationGracePeriodSeconds() *int64 {
 	sc := ispn.Spec.Service.Container
-	if sc != nil && sc.TerminationGracePeriodSeconds != nil {
+	if sc != nil {
 		return sc.TerminationGracePeriodSeconds
 	}
 	return nil
