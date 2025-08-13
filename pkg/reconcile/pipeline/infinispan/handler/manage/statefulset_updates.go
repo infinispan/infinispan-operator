@@ -112,6 +112,11 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
+	if spec.TerminationGracePeriodSeconds != i.TerminationGracePeriodSeconds() {
+		spec.TerminationGracePeriodSeconds = i.TerminationGracePeriodSeconds()
+		updateNeeded = true
+	}
+
 	if !reflect.DeepEqual(spec.Affinity, i.Affinity()) {
 		spec.Affinity = i.Affinity()
 		updateNeeded = true
