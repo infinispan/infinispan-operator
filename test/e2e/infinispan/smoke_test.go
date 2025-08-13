@@ -65,7 +65,7 @@ func TestBaseFunctionality(t *testing.T) {
 	verifyNoPVCs(assert, ispn)
 	verifyLabelsAndAnnotations(assert, require, ispn)
 	verifyDefaultAuthention(require, ispn)
-	verifyScheduling(assert, require, ispn, 30)
+	verifyScheduling(assert, require, ispn, 60)
 	verifyLogPattern(assert, ispn, v1.DefaultLoggingPattern)
 
 	if tutils.IsVersionAtLeast("15.0.0") {

@@ -1024,3 +1024,11 @@ func (ispn *Infinispan) InitServiceContainer() {
 	c.ReadinessProbe.AssignDefaults(5, 0, 10, 1, 1)
 	c.StartupProbe.AssignDefaults(600, 3, 1, 1, 1)
 }
+
+func (ispn *Infinispan) TerminationGracePeriodSeconds() *int64 {
+	sc := ispn.Spec.Service.Container
+	if sc != nil && sc.TerminationGracePeriodSeconds != nil {
+		return sc.TerminationGracePeriodSeconds
+	}
+	return nil
+}

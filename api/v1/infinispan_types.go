@@ -122,7 +122,7 @@ type InfinispanServiceContainerSpec struct {
 	// +optional
 	StartupProbe ContainerProbeSpec `json:"startupProbe,omitempty"`
 	// TerminationGracePeriodSeconds specifies the duration the container is given to shut down gracefully before it is forcefully terminated.
-	// +kubebuilder:default=30
+	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 }
 
