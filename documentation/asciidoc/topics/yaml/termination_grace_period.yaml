@@ -1,0 +1,4 @@
+spec:
+  service:
+    container:
+      terminationGracePeriodSeconds: 60
