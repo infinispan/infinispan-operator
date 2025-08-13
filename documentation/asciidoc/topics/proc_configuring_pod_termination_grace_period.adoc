@@ -1,0 +1,21 @@
+[id='configuring-pod-termination-grace-period{context}']
+= Configuring pod termination grace period
+
+[role="_abstract"]
+
+Optionally configure the `TerminationGracePeriodSeconds` of the {brandname} pods.
+
+The {ispn_operator} relies on the Kubernetes default `TerminationGracePeriodSeconds` unless a value is explicitly provided.
+We only recommend providing your own value once you have determined that the default value do not match your requirements.
+
+.Procedure
+. Configure probe values using the `spec.service.container.terminationGracePeriodSeconds` field:
++
+[source,yaml]
+----
+include::yaml/termination_grace_period.yaml[]
+----
++
+. Apply your `Infinispan` CR.
++
+If your cluster is running, {ispn_operator} restarts the {brandname} pods in order for the changes to take effect.
