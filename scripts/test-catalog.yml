@@ -7,6 +7,8 @@ name: stable
 package: infinispan
 entries:
   - name: infinispan-operator.v2.5.0
+    replaces: infinispan-operator.v2.4.16
+  - name: infinispan-operator.v2.4.16
     replaces: infinispan-operator.v2.4.15
   - name: infinispan-operator.v2.4.15
     replaces: infinispan-operator.v2.4.14
