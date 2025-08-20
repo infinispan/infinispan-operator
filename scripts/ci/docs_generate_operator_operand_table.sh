@@ -19,7 +19,7 @@ Auto-generated file, do not update this manually, instead update \`scripts/ci/do
 | {brandname} Server versions
 EOF
 
-for op in $(ls "${DOCS_OPERAND_DIR}" | grep -Po '([\d+]?)_([\d+]?)_(\d+]?).adoc'); do
+for op in $(ls "${DOCS_OPERAND_DIR}" | grep -Po '([\d+]?)_([\d+]?)_(\d+]?).adoc' | sort -V); do
   version=${op%.adoc}
   version=${version//_/.}
   cat >> "${DOCS_OPERAND_TABLE_FILE}" << EOF
