@@ -16,12 +16,3 @@ endif::community[]
 ifdef::downstream[]
 image::custom-resources.png[This illustration depicts how {k8s} users pass custom resources to {ispn_operator}.]
 endif::downstream[]
-
-[NOTE]
-====
-Due to Operator Lifecycle Manager (OLM) and Custom Resource Definitions (CRDs) being deployed cluster-wide, you cannot run multiple versions of the Infinispan Operator on the same cluster.
-
-To avoid issues, deploy the Operator cluster-wide and use the `spec.version` field in your Infinispan custom resources (CRs) to control upgrades of Infinispan server versions.
-
-For details, see https://access.redhat.com/solutions/7020126
-====
