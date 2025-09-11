@@ -6,6 +6,17 @@ ifdef::context[:parent-context: {context}]
 [role="_abstract"]
 Install {ispn_operator} into a {k8s} namespace to create and manage {brandname} clusters.
 
+[NOTE]
+====
+Because Custom Resource Definitions (CRDs) are deployed cluster-wide, you cannot run multiple versions of the Infinispan Operator on the same cluster.
+
+To avoid issues, deploy the Operator cluster-wide and use the `spec.version` field in your Infinispan custom resources (CRs) to control upgrades of Infinispan server versions.
+
+ifdef::downstream[]
+For more details, see https://access.redhat.com/solutions/7020126
+endif::downstream[]
+====
+
 include::{topics}/proc_installing_operator_olm.adoc[leveloffset=+1]
 include::{topics}/proc_installing_operator_native_plugin.adoc[leveloffset=+1]
 //Downstream content
