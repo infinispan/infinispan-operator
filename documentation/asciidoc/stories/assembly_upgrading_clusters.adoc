@@ -26,8 +26,9 @@ endif::downstream[]
 
 include::{topics}/con_cluster_upgrades.adoc[leveloffset=+1]
 include::{topics}/proc_upgrading_clusters_downtime.adoc[leveloffset=+1]
-include::{topics}/proc_upgrading_clusters_rolling.adoc[leveloffset=+1]
-include::{topics}/proc_recovering_rolling_upgrades.adoc[leveloffset=+2]
+include::{topics}/proc_upgrading_clusters_in_place_rolling.adoc[leveloffset=+1]
+include::{topics}/proc_upgrading_clusters_hot_rod_rolling.adoc[leveloffset=+1]
+include::{topics}/proc_recovering_hot_rod_rolling_upgrades.adoc[leveloffset=+2]
 
 // Restore the parent context.
 ifdef::parent-context[:context: {parent-context}]

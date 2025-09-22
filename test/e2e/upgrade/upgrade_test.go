@@ -56,10 +56,10 @@ func TestUpgrade(t *testing.T) {
 	}
 
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
-	createAndPopulatePersistentCache(persistentCacheName, numEntries, client)
+	tutils.NewCacheHelper(persistentCacheName, client).CreateAndPopulatePersistentCache(numEntries)
 
 	// Add a volatile cache with data to ensure contents can be backed up and then restored after upgrade(s)
-	createAndPopulateVolatileCache(volatileCacheName, numEntries, client)
+	tutils.NewCacheHelper(volatileCacheName, client).CreateAndPopulateVolatileCache(numEntries)
 
 	// Create Backup
 	backup := createBackupAndWaitToSucceed(spec.Name, t)
@@ -167,7 +167,7 @@ func TestUpgrade(t *testing.T) {
 				)
 				// We must recreate the caches that should have been restored if the Restore CR had succeeded
 				// so that the Backup CR executed in the next loop has the expected content
-				createAndPopulateVolatileCache(volatileCacheName, numEntries, client)
+				tutils.NewCacheHelper(volatileCacheName, client).CreateAndPopulateVolatileCache(numEntries)
 			}
 		}
 		tutils.NewCacheHelper(volatileCacheName, client).AssertSize(numEntries)

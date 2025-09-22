@@ -951,6 +951,10 @@ func (ispn *Infinispan) GracefulShutdownUpgrades() bool {
 	return ispn.Spec.Upgrades == nil || ispn.Spec.Upgrades.Type == UpgradeTypeShutdown
 }
 
+func (ispn *Infinispan) InPlaceRollingUpgrades() bool {
+	return ispn.Spec.Upgrades != nil && ispn.Spec.Upgrades.Type == UpgradeTypeInPlaceRolling
+}
+
 func (ispn *Infinispan) HotRodRollingUpgrades() bool {
 	return ispn.Spec.Upgrades != nil && ispn.Spec.Upgrades.Type == UpgradeTypeHotRodRolling
 }

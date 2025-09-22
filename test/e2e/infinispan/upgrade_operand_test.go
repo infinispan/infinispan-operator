@@ -124,6 +124,78 @@ func TestOperandCVERollingUpgrade(t *testing.T) {
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
 
+// TestOperandInPlaceRollingUpgrade tests InPlaceRolling upgrade type (Operator executes StatefulSet rolling upgrade with the same minor version).
+func TestOperandInPlaceRollingUpgrade(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+	versionManager := tutils.VersionManager()
+	replicas := 3
+
+	// Retrieve the oldest release in the stream for the current minor.
+	latestOperand := versionManager.Latest()
+	minor := fmt.Sprintf("%d.%d.0", latestOperand.UpstreamVersion.Major, latestOperand.UpstreamVersion.Minor)
+	operand, err := oldestUpstreamPatch(*versionManager, semver.MustParse(minor))
+	tutils.ExpectNoError(err)
+
+	if operand.Ref() == latestOperand.Ref() {
+		t.Skip("Cannot execute test due to insufficient number of versions in the stream")
+	}
+
+	tutils.Log().Infoln("InPlace rolling upgrade will be performed from", operand.Ref(), "to", latestOperand.Ref())
+
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+		i.Spec.Replicas = int32(replicas)
+		i.Spec.Version = operand.Ref()
+		i.Spec.Upgrades = &ispnv1.InfinispanUpgradesSpec{
+			Type: ispnv1.UpgradeTypeInPlaceRolling,
+		}
+	})
+
+	modifier := func(ispn *ispnv1.Infinispan) {
+		// Update the spec to install latest operand
+		ispn.Spec.Version = latestOperand.Ref()
+	}
+
+	verifier := func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
+		// Ensure that the Operand Phase is eventually set to Running
+		testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
+			return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+				i.Status.Operand.Version == latestOperand.Ref() &&
+				i.Status.Operand.Image == latestOperand.Image &&
+				i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+		})
+
+		assert.Equal(t, ss.Spec.Template.Spec.Containers[0].Image, latestOperand.Image)
+	}
+
+	testKube.CreateInfinispan(spec, tutils.Namespace)
+	testKube.WaitForInfinispanPods(int(spec.Spec.Replicas), tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+
+	client := tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
+	inplaceCacheHelper := tutils.NewCacheHelper("inplacecache", client)
+	indexedCacheHelper := tutils.NewCacheHelper("inplace-indexed", client)
+
+	inplaceCacheHelper.CreateAndPopulateVolatileCache(1000)
+	indexedCacheHelper.CreateAndPopulateIndexedCache(1000)
+
+	tutils.Log().Infoln("Performing InPlace rolling upgrade from ", operand.Ref(), " to ", latestOperand.Ref())
+	verifyStatefulSetUpdate(*spec, modifier, verifier)
+
+	inplaceCacheHelper.AssertSize(1000)
+	indexedCacheHelper.AssertSize(1000)
+}
+
+// OldestUpstreamPatch returns the oldest Operand patch release associated with the upstream stream, e.g. 15.0.x
+func oldestUpstreamPatch(m version.Manager, stream semver.Version) (version.Operand, error) {
+	for _, v := range m.Operands {
+		if v.UpstreamVersion.Major == stream.Major && v.UpstreamVersion.Minor == stream.Minor {
+			return *v, nil
+		}
+	}
+
+	return version.Operand{}, fmt.Errorf("No Operands found in upstream stream '%d.%d'", stream.Major, stream.Minor)
+}
+
 // TestOperandCVEGracefulShutdown tests that Operands marked as a CVE release, but with a different upstream version to
 // the currently installed operand, result in a GracefulShutdown upgrade
 func TestOperandCVEGracefulShutdown(t *testing.T) {

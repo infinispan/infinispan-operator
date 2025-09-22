@@ -3,10 +3,16 @@
 
 [role="_abstract"]
 The `spec.upgrades.type` field controls how {ispn_operator} upgrades your {brandname} cluster when new versions become available.
-There are two types of cluster upgrade:
+There are three types of cluster upgrade:
 
-`Shutdown`:: Upgrades {brandname} clusters with service downtime. This is the default upgrade type.
-`HotRodRolling`:: Upgrades {brandname} clusters without service downtime.
+`Shutdown`:: Upgrades {brandname} clusters, with service downtime, by bringing down the original cluster and bringing up a new one in its place. This is the default upgrade type.
+`InPlaceRolling`:: Upgrades {brandname} cluster pods to new patch releases individually, using a StatefulSet RollingUpdate.
+`HotRodRolling`:: Upgrades {brandname} versions, without service downtime, by deploying a new cluster in parallel to the original and transitioning all traffic to it.
++
+[IMPORTANT]
+====
+The Operator does not automatically upgrade clusters to a new {brandname} server version. In order to trigger an upgrade, you must explicitly change the `spec.version` element to a new version.
+====
 
 [discrete]
 == Shutdown upgrades
@@ -18,7 +24,21 @@ To perform a shutdown upgrade, {ispn_operator} does the following:
 . Creates a new cluster with the target version.
 
 [discrete]
-== Hot Rod rolling upgrades
+== InPlaceRolling upgrades
+
+To perform a rolling upgrade, {ispn_operator} does the following:
+
+. Checks if the {brandname} version supports rolling upgrades.
+. Checks whether the current version and target version have matching major and minor versions.
+. If the conditions above are met, the Operator will upgrade server pods one by one using a StatefulSet RollingUpdate.
+
+[IMPORTANT]
+===
+When upgrading between different major or minor versions of the server, the "Shutdown" or "HotRodRolling" upgrade type is required. This must be configured in the CR spec at the the same time as the new version.
+===
+
+[discrete]
+== HotRodRolling upgrades
 
 To perform a Hot Rod rolling upgrade, {ispn_operator} does the following:
 

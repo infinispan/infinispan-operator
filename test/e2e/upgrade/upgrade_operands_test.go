@@ -63,10 +63,10 @@ func TestOperandUpgrades(t *testing.T) {
 	}
 
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
-	createAndPopulatePersistentCache(persistentCacheName, numEntries, client)
+	tutils.NewCacheHelper(persistentCacheName, client).CreateAndPopulatePersistentCache(numEntries)
 
 	// Add a volatile cache with data to ensure contents can be backed up and then restored after upgrade(s)
-	createAndPopulateVolatileCache(volatileCacheName, numEntries, client)
+	tutils.NewCacheHelper(volatileCacheName, client).CreateAndPopulateVolatileCache(numEntries)
 
 	backup := createBackupAndWaitToSucceed(ispn.Name, t)
 	skippedOperands := tutils.OperandSkipSet()
@@ -104,14 +104,14 @@ func TestOperandUpgrades(t *testing.T) {
 		tutils.NewCacheHelper(persistentCacheName, client).AssertSize(numEntries)
 
 		// Restore the backup and ensure that the cache exists with the expected number of entries
-		restoreName := strings.ReplaceAll(operand.Ref(), ".", "-")
+		restoreName := strings.ToLower(strings.ReplaceAll(operand.Ref(), ".", "-"))
 		if restore, err := createRestoreAndWaitToSucceed(restoreName, backup, t); err != nil {
 			tutils.ExpectNoError(
 				ignoreRestoreError(sub.Status.InstalledCSV, operand, ispn, restore, client, err),
 			)
 			// We must recreate the caches that should have been restored if the Restore CR had succeeded
 			// so that the Backup CR executed in the next loop has the expected content
-			createAndPopulateVolatileCache(volatileCacheName, numEntries, client)
+			tutils.NewCacheHelper(volatileCacheName, client).CreateAndPopulateVolatileCache(numEntries)
 		}
 
 		tutils.NewCacheHelper(volatileCacheName, client).AssertSize(numEntries)

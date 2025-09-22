@@ -197,9 +197,18 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 					detail := fmt.Sprintf("Version downgrading not supported. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
 					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
 				}
+			} else if i.InPlaceRollingUpgrades() {
+				// Version downgrades are not supported with Rolling upgrades
+				if operand.LT(oldOperand) {
+					detail := fmt.Sprintf("Version downgrading not supported. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
+					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+				} else if !minorStreamMatch(oldOperand, operand) {
+					detail := fmt.Sprintf("Major and minor version of the Operands has to match when using 'InPlaceRolling' upgrade type. To upgrade to a new major or minor set spec.upgrades.type to 'Shutdown'. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
+					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
+				}
 			} else if operand.LT(oldOperand) {
 				if old.Status.HotRodRollingUpgradeStatus == nil {
-					detail := fmt.Sprintf("Version rollback only supported when a Hot Rolling Upgrade is in progress. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
+					detail := fmt.Sprintf("Version rollback only supported when a HotRodRolling Upgrade is in progress. Existing='%s', Requested='%s'.", oldOperand.Ref(), operand.Ref())
 					allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("version"), detail))
 				} else {
 					// Only allow upgrades to be rolled back to the original source version
@@ -229,6 +238,18 @@ func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
 	}
 
 	return errorListToError(i, allErrs)
+}
+
+func minorStreamMatch(operand1, operand2 version.Operand) bool {
+	if operand1.DownstreamVersion != nil {
+		majorMatch := operand1.DownstreamVersion.Major == operand2.DownstreamVersion.Major
+		minorMatch := operand1.DownstreamVersion.Minor == operand2.DownstreamVersion.Minor
+		return majorMatch && minorMatch
+	}
+
+	majorMatch := operand1.UpstreamVersion.Major == operand2.UpstreamVersion.Major
+	minorMatch := operand1.UpstreamVersion.Minor == operand2.UpstreamVersion.Minor
+	return majorMatch && minorMatch
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -325,6 +346,16 @@ func (i *Infinispan) validate() error {
 				msg := fmt.Sprintf("Memory request '%s' exceeds limit '%s'", req.String(), limit.String())
 				allErrs = append(allErrs, field.Invalid(path.Child("memory"), cl.Memory, msg))
 			}
+		}
+	}
+
+	// Validate Rolling Upgrades compatibility
+	if i.Spec.Upgrades.Type == UpgradeTypeInPlaceRolling {
+		operand, _ = versionManager.WithRef(i.Spec.Version)
+		if operand.UpstreamVersion.Major < 16 {
+			msg := fmt.Sprintf("'%s' upgrade type is not supported with version '%s'", UpgradeTypeInPlaceRolling, operand.Ref())
+			err := field.Forbidden(field.NewPath("spec").Child("upgrades").Child("type"), msg)
+			allErrs = append(allErrs, err)
 		}
 	}
 

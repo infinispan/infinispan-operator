@@ -548,6 +548,8 @@ type UpgradeType string
 const (
 	// UpgradeTypeHotRodRolling Upgrade with no downtime and data copied over Hot Rod
 	UpgradeTypeHotRodRolling UpgradeType = "HotRodRolling"
+	// UpgradeTypeRolling Upgrade with no downtime using in-place rolling upgrade strategy
+	UpgradeTypeInPlaceRolling UpgradeType = "InPlaceRolling"
 	// UpgradeTypeShutdown Upgrade requires downtime and data persisted in cache stores
 	UpgradeTypeShutdown UpgradeType = "Shutdown"
 )

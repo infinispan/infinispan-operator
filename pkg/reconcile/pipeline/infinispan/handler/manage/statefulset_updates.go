@@ -37,16 +37,6 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	updateNeeded := false
 	rollingUpgrade := true
 
-	// Ensure the deployment size is the same as the spec
-	replicas := i.Spec.Replicas
-	previousReplicas := *statefulSet.Spec.Replicas
-	if previousReplicas != replicas {
-		statefulSet.Spec.Replicas = &replicas
-		log.Info("replicas changed, update i", "replicas", replicas, "previous replicas", previousReplicas)
-		updateNeeded = true
-		rollingUpgrade = false
-	}
-
 	// Changes to podLabels
 	currentLabels := provision.StatefulSetPodLabels(i.GetStatefulSetName(), i)
 	previousLabels := statefulSet.Spec.Template.ObjectMeta.Labels
@@ -99,8 +89,13 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	// Check if the base-image has been upgraded due to a CVE
 	userProvidedImage := i.Spec.Image != nil
-	if !userProvidedImage && requestedOperand.CVE && container.Image != requestedOperand.Image {
-		ctx.Log().Info(fmt.Sprintf("CVE release '%s'. StatefulSet Rolling upgrade required", requestedOperand.Ref()))
+	operandMismatch := container.Image != requestedOperand.Image
+	cveRespin := !userProvidedImage && requestedOperand.CVE && operandMismatch
+
+	inPlaceRolling := i.Spec.Upgrades.Type == ispnv1.UpgradeTypeInPlaceRolling && operandMismatch
+
+	if cveRespin || inPlaceRolling {
+		ctx.Log().Info("New server version requested", "version", requestedOperand.Ref(), "cve", cveRespin)
 		updateNeeded = true
 		container.Image = requestedOperand.Image
 
@@ -201,10 +196,20 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	updateNeeded = provision.AddXSiteTLSVolumes(ctx, i, statefulSet) || updateNeeded
 
+	// Ensure the deployment size is the same as the spec
+	replicas := i.Spec.Replicas
+	previousReplicas := *statefulSet.Spec.Replicas
+	if previousReplicas != replicas {
+		statefulSet.Spec.Replicas = &replicas
+		log.Info("Replicas changed", "requested", replicas, "current", previousReplicas)
+		rollingUpgrade = updateNeeded
+		updateNeeded = true
+	}
+
 	if updateNeeded {
-		log.Info("updateNeeded")
 		// If updating the parameters results in a rolling upgrade, we can update the labels here too
 		if rollingUpgrade {
+			log.Info("Triggering StatefulSet Rolling upgrade")
 			labelsForPod := i.PodLabels()
 			labelsForPod[consts.StatefulSetPodLabel] = i.GetStatefulSetName()
 			statefulSet.Spec.Template.Labels = labelsForPod

@@ -25,6 +25,15 @@ test_operands=$(echo "${current_versions}" | jq '
   (map(select(.["upstream-version"] | startswith("16.")))   | sort_by(.["upstream-version"] | split(".") | map(tonumber)) | .[])
 ] | map(select(. != null))
 ')
+
+# Append Dev version only if there's no release in the stream yet
+if [ $(echo ${test_operands} | jq 'map(select(.["upstream-version"] | startswith("16."))) | length') -eq 0 ]; then
+  test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.0", "image": "quay.io/infinispan/server:16.0"}')
+fi
+
+# Append latest snapshot
+test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.99", "image": "quay.io/infinispan-test/server:main"}')
+
 operands=${test_operands} yq -i '(select(document_index == 1) | .spec.template.spec.containers[0].env[] | select(.name == "INFINISPAN_OPERAND_VERSIONS")).value = strenv(operands)' ${DEPLOYMENT_FILE}
 echo "Testing Operands:"
 operandJson

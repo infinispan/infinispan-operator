@@ -20,5 +20,3 @@ include::yaml/upgrade_type_hotrodrolling.yaml[]
 ----
 +
 . Apply your changes.
-
-When new {brandname} version becomes available, you must manually change the value in the `spec.version` field to trigger the upgrade.

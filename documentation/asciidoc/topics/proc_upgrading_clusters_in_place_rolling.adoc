@@ -1,0 +1,21 @@
+[id='upgrading-clusters-inplace_{context}']
+= Upgrading {brandname} clusters using InPlace rolling strategy
+
+[role="_abstract"]
+Upgrading {brandname} clusters using InPlace rolling strategy with no service downtime.
+
+.Prerequisites
+
+* Upgrading to a new {brandname} server patch release
+
+.Procedure
+
+. Specify the {brandname} version number in the `spec.version` field.
+. Ensure that `InPlaceRolling` is set as the value for the `spec.upgrades.type` field.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/upgrade_type_in_place_rolling.yaml[]
+----
++
+. Apply your changes, if necessary.
