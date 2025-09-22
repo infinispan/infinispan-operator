@@ -1,0 +1,4 @@
+spec:
+  version: {operand_version}
+  upgrades:
+    type: InPlaceRolling

@@ -88,14 +88,20 @@ var _ = BeforeSuite(func() {
 	// The Operand is never executed in these tests, so the versions don't need to be updated over time
 	json := `
 		[{
-			"upstream-version": "13.0.8",
-			"image": "quay.io/infinispan/server:13.0.8.Final"
+			"upstream-version": "15.2.6",
+			"image": "quay.io/infinispan/server:15.2.6.Final"
 		},{
-			"upstream-version": "13.0.9",
-			"image": "quay.io/infinispan/server:13.0.9.Final"
+			"upstream-version": "16.0.0",
+			"image": "quay.io/infinispan/server:16.0.0.Final"
 		},{
-			"upstream-version": "13.0.10",
-			"image": "quay.io/infinispan/server:13.0.10.Final"
+			"upstream-version": "16.0.1",
+			"image": "quay.io/infinispan/server:16.0.1.Final"
+		},{
+			"upstream-version": "16.1.0",
+			"image": "quay.io/infinispan/server:16.1.0.Final"
+		},{
+			"upstream-version": "17.0.0",
+			"image": "quay.io/infinispan/server:17.0.0.Final"
 		}]`
 
 	defer func() {

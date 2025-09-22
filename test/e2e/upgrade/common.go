@@ -14,7 +14,6 @@ import (
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
-	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	batchtest "github.com/infinispan/infinispan-operator/test/e2e/batch"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -60,25 +59,6 @@ func subscription(olm tutils.OLMEnv) *coreos.Subscription {
 			},
 		},
 	}
-}
-
-func createAndPopulateVolatileCache(cacheName string, numEntries int, client tutils.HTTPClient) {
-	c := tutils.NewCacheHelper(cacheName, client)
-	if !c.Exists() {
-		c.Create(`{"distributed-cache":{"mode":"SYNC", "encoding": {"media-type": "application/json"}}}`, mime.ApplicationJson)
-	}
-	if c.Size() != numEntries {
-		c.Populate(numEntries)
-		c.AssertSize(numEntries)
-	}
-}
-
-func createAndPopulatePersistentCache(cacheName string, numEntries int, client tutils.HTTPClient) {
-	cache := tutils.NewCacheHelper(cacheName, client)
-	config := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}, "encoding": {"media-type": "application/json"}}}`
-	cache.Create(config, mime.ApplicationJson)
-	cache.Populate(numEntries)
-	cache.AssertSize(numEntries)
 }
 
 func createBackupAndWaitToSucceed(name string, t *testing.T) *v2.Backup {

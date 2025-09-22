@@ -9,3 +9,8 @@ Specify which {brandname} Server image {ispn_operator} should use to create pods
 spec:
   image: {server_image}:latest
 ----
+
+[IMPORTANT]
+===
+When using custom image, specify `spec.version` of the server within the image as well. Different declared and deployed versions may result in unpredictable behavior.
+===

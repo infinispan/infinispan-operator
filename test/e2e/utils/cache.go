@@ -64,6 +64,23 @@ func (c *CacheHelper) CreateDistributedCache(encoding mime.MimeType) {
 	c.Create(config, mime.ApplicationJson)
 }
 
+func (c *CacheHelper) CreateAndPopulateVolatileCache(numEntries int) {
+	if !c.Exists() {
+		c.Create(`{"distributed-cache":{"mode":"SYNC", "encoding": {"media-type": "application/json"}}}`, mime.ApplicationJson)
+	}
+	if c.Size() != numEntries {
+		c.Populate(numEntries)
+		c.AssertSize(numEntries)
+	}
+}
+
+func (c *CacheHelper) CreateAndPopulatePersistentCache(numEntries int) {
+	config := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}, "encoding": {"media-type": "application/json"}}}`
+	c.Create(config, mime.ApplicationJson)
+	c.Populate(numEntries)
+	c.AssertSize(numEntries)
+}
+
 func (c *CacheHelper) CreateAndPopulateIndexedCache(entries int) {
 	if c.Exists() {
 		Log().Infof("Cache '%s' already exists", c.CacheName)

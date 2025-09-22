@@ -6,7 +6,6 @@ Upgrading {brandname} clusters with downtime results in service disruption but d
 
 .Prerequisites
 
-* The {ispn_operator} version you have installed supports the {brandname} target version.
 * If required, configure a persistent cache store to preserve your data during the upgrade.
 +
 [IMPORTANT]
@@ -26,5 +25,3 @@ include::yaml/upgrade_type_shutdown.yaml[]
 ----
 +
 . Apply your changes, if necessary.
-
-When new {brandname} version becomes available, you must manually change the value in the `spec.version` field to trigger the upgrade.

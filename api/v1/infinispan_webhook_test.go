@@ -472,7 +472,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 
 			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
 			Expect(k8sClient.Get(ctx, key, ispn)).Should(Succeed())
-			Expect(ispn.Spec.Version).Should(Equal("13.0.10"))
+			Expect(ispn.Spec.Version).Should(Equal("17.0.0"))
 		})
 
 		It("Should throw an error if an invalid version is specified", func() {
@@ -502,16 +502,89 @@ var _ = Describe("Infinispan Webhooks", func() {
 				},
 				Spec: InfinispanSpec{
 					Replicas: 1,
-					Version:  "13.0.10",
+					Version:  "16.0.1",
 				},
 			}
 			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
-			ispn.Spec.Version = "13.0.9"
+			ispn.Spec.Version = "16.0.0"
 			err := k8sClient.Update(ctx, ispn)
 			expectInvalidErrStatus(err, statusDetailCause{
 				"FieldValueForbidden", "spec.version", "downgrading not supported",
 			})
 		})
+		It("Should throw an error if version downgrades are attempted with InPlaceRolling upgrade type", func() {
+
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Version:  "16.0.1",
+					Upgrades: &InfinispanUpgradesSpec{
+						Type: UpgradeTypeInPlaceRolling,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			ispn.Spec.Version = "16.0.0"
+			err := k8sClient.Update(ctx, ispn)
+			expectInvalidErrStatus(err, statusDetailCause{
+				"FieldValueForbidden", "spec.version", "downgrading not supported",
+			})
+		})
+		It("Should throw an error if InPlaceRolling upgrade type is set with major version < 16", func() {
+
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Version:  "15.2.6",
+					Upgrades: &InfinispanUpgradesSpec{
+						Type: UpgradeTypeInPlaceRolling,
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, ispn)
+
+			expectInvalidErrStatus(err, statusDetailCause{
+				"FieldValueForbidden", "spec.upgrades.type", "upgrade type is not supported",
+			})
+		})
+		It("Should throw an error when upgrading to a new non-minor release with InPlaceRolling upgrade type", func() {
+
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Version:  "16.0.1",
+					Upgrades: &InfinispanUpgradesSpec{
+						Type: UpgradeTypeInPlaceRolling,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+
+			ispn.Spec.Version = "16.1.0"
+			err := k8sClient.Update(ctx, ispn)
+			expectInvalidErrStatus(err, statusDetailCause{
+				"FieldValueForbidden", "spec.version", "Major and minor version of the Operands has to match when using 'InPlaceRolling' upgrade type",
+			})
+
+			ispn.Spec.Version = "17.0.0"
+			err = k8sClient.Update(ctx, ispn)
+			expectInvalidErrStatus(err, statusDetailCause{
+				"FieldValueForbidden", "spec.version", "Major and minor version of the Operands has to match when using 'InPlaceRolling' upgrade type",
+			})
+		})
+
 		It("Should throw an error if rollback attempted when no HR rolling upgrade in progress", func() {
 
 			ispn := &Infinispan{
@@ -524,16 +597,16 @@ var _ = Describe("Infinispan Webhooks", func() {
 						Type: ServiceTypeDataGrid,
 					},
 					Replicas: 1,
-					Version:  "13.0.10",
+					Version:  "16.0.1",
 					Upgrades: &InfinispanUpgradesSpec{
 						Type: UpgradeTypeHotRodRolling,
 					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
-			ispn.Spec.Version = "13.0.9"
+			ispn.Spec.Version = "16.0.0"
 			expectInvalidErrStatus(k8sClient.Update(ctx, ispn), statusDetailCause{
-				"FieldValueForbidden", "spec.version", "rollback only supported when a Hot Rolling Upgrade is in progress",
+				"FieldValueForbidden", "spec.version", "rollback only supported when a HotRodRolling Upgrade is in progress",
 			})
 		})
 
@@ -548,7 +621,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 						Type: ServiceTypeDataGrid,
 					},
 					Replicas: 1,
-					Version:  "13.0.10",
+					Version:  "16.0.1",
 					Upgrades: &InfinispanUpgradesSpec{
 						Type: UpgradeTypeHotRodRolling,
 					},
@@ -557,10 +630,10 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
 			ispn.Status.HotRodRollingUpgradeStatus = &HotRodRollingUpgradeStatus{
 				Stage:         HotRodRollingStageStatefulSetReplace,
-				SourceVersion: "13.0.9",
+				SourceVersion: "16.0.0",
 			}
 			Expect(k8sClient.Status().Update(ctx, ispn)).Should(Succeed())
-			ispn.Spec.Version = "13.0.9"
+			ispn.Spec.Version = "16.0.0"
 			Expect(k8sClient.Update(ctx, ispn)).Should(Succeed())
 		})
 
@@ -575,7 +648,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 						Type: ServiceTypeDataGrid,
 					},
 					Replicas: 1,
-					Version:  "13.0.10",
+					Version:  "16.1.0",
 					Upgrades: &InfinispanUpgradesSpec{
 						Type: UpgradeTypeHotRodRolling,
 					},
@@ -584,10 +657,10 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
 			ispn.Status.HotRodRollingUpgradeStatus = &HotRodRollingUpgradeStatus{
 				Stage:         HotRodRollingStageStatefulSetReplace,
-				SourceVersion: "13.0.9",
+				SourceVersion: "16.0.1",
 			}
 			Expect(k8sClient.Status().Update(ctx, ispn)).Should(Succeed())
-			ispn.Spec.Version = "13.0.8"
+			ispn.Spec.Version = "16.0.0"
 			expectInvalidErrStatus(k8sClient.Update(ctx, ispn), statusDetailCause{
 				"FieldValueForbidden", "spec.version", "Hot Rod Rolling Upgrades can only be rolled back to the original source version",
 			})
