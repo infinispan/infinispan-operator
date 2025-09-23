@@ -1,0 +1,58 @@
+name: Post Release Job
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure Git
+        run: |
+          git config --global user.name "infinispan-qe-bot"
+          git config --global user.email "q*@infinispan.org"
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          path: operator
+          ref: ${{ env.REF }}
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+
+      - name: Set parameters
+        id: params
+        run: |
+          echo "ref=${{ env.REF }}" >> $GITHUB_OUTPUT
+          echo "rel_version=${{ env.REL_VERSION }}" >> $GITHUB_OUTPUT
+
+      - name: Set Next Version
+        id: set_version
+        working-directory: operator
+        run: ./scripts/ci/bump_version.sh
+
+      - name: Check if the image exists
+        id: check_image
+        run: docker manifest inspect quay.io/operatorhubio/infinispan:v${{ env.REL_VERSION }}
+
+      - name: Update the version file to next version
+        if: success()
+        env:
+          NEXT_VERSION: ${{ steps.set_version.outputs.new_tag }}
+          PREV_VERSION: ${{ steps.set_version.outputs.prev_ver }}
+        working-directory: operator
+        run: |
+          echo "$NEXT_VERSION" > version.txt
+          sed -i "s/export VERSION=.*/export VERSION=$NEXT_VERSION/" scripts/ci/install-catalog-source.sh
+          sed -i -E "s/^[[:space:]]*(for version in [^;]*)(;[[:space:]]*do)/\1 $PREV_VERSION\2/" scripts/create-olm-catalog.sh
+          ./scripts/ci/add_next_version.sh  scripts/test-catalog.yml infinispan-operator.v$NEXT_VERSION infinispan-operator.v$PREV_VERSION
+          sed -i -E "s/^( *replaces: +infinispan-operator\.v)[0-9]+\.[0-9]+\.[0-9]+/\1$PREV_VERSION/" config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
+          git add .
+          git commit -m "Next Version ${{ steps.set_version.outputs.new_tag }}"
+          git push origin "${{ steps.params.outputs.ref }}"
+
+      - name: Remove scheduled job
+        uses: cardinalby/unschedule-job-action@v1
+        if: success()
+        with:
+          ghToken: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          deleteRefTag: false
