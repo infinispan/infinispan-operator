@@ -56,7 +56,7 @@ jobs:
           if [[ -z "${{ inputs.version }}" ]]; then
             IMAGE=${{ inputs.image }}
             TAG=${IMAGE#*:}
-            echo VERSION=${TAG%.Final} >> ${GITHUB_ENV}
+            echo VERSION=${TAG} >> ${GITHUB_ENV}
           else
             echo VERSION=${{ inputs.version }} >> ${GITHUB_ENV}
           fi
@@ -71,7 +71,9 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
-          labels: test/release
+          labels: |
+            test/release
+            release
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           commit-message: 'Add Operand ${{ env.VERSION }}'
           committer: Infinispan <infinispan@infinispan.org>
