@@ -7,16 +7,52 @@ on:
         description: "The Operator branch/tag to checkout when creating the image."
         required: true
         default: "main"
+      repository:
+        description: "The git repository to checkout"
+        required: false
+        type: string
+
+  repository_dispatch:
+    types: [trigger-next-workflow] 
 
 jobs:
   release:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Configure Git
+        run: |
+          git config --global user.name "infinispan-qe-bot"
+          git config --global user.email "q*@infinispan.org"
+
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref }}
+          ref: ${{ github.event.client_payload.ref || github.ref }}
+          repository: ${{ github.event.client_payload.repository || github.repository }}
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          path: operator
+
+      - name: Get the latest tag and bump the minor version
+        id: bump_tag
+        run: |
+          cd operator
+          git fetch --tags
+          LATEST_TAG=$(git tag --sort=-creatordate | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.Final$' | head -n 1)
+          echo "Latest tag: $LATEST_TAG"
+          BASE_VERSION=${LATEST_TAG%.Final}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+          PATCH=$((PATCH + 1))
+          NEW_TAG="$MAJOR.$MINOR.$PATCH"
+          REL_VERSION="$NEW_TAG.Final"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "rel_version=$REL_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Tag the release
+        run: |
+          cd operator
+          git tag -a ${{ steps.bump_tag.outputs.rel_version }} -m "Release Operator:: ${{ steps.bump_tag.outputs.rel_version }}"
+          git push origin --tags
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -41,6 +77,72 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: quay.io/infinispan/operator:${{ github.event.inputs.ref }}
+          tags: quay.io/infinispan/operator:${{ steps.bump_tag.outputs.rel_version }}
           build-args: |
-            OPERATOR_VERSION=${{ github.event.inputs.ref }}
+            OPERATOR_VERSION=${{ steps.bump_tag.outputs.rel_version }}
+
+      - name: Create OLM Bundle
+        run:  |
+           rm -rf bundle bundle.Dockerfile
+           cd operator
+           make bundle VERSION=${{ steps.bump_tag.outputs.new_tag }} CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:${{ steps.bump_tag.outputs.rel_version }}
+
+      - name: Checkout community-operators repo
+        uses: actions/checkout@v3
+        with:
+         repository: k8s-operatorhub/community-operators
+         path: community-operators
+         ref: main
+
+      - name: Copy contents of bundle/ 
+        run: |
+         cd community-operators
+         mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+         cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+         git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+         git commit -s -m "Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
+ 
+      - name: Create Pull Request to community-operators repo from forked repository 
+        id: cpr
+        uses: peter-evans/create-pull-request@v4
+        with: 
+         token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+         path: community-operators
+         commit-message: ' Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+         committer: infinispan-qe-bot <q*@infinispan.org>
+         author: infinispan-qe-bot <q*@infinispan.org>
+         branch: pr_request
+         delete-branch: true
+         push-to-fork: infinispan-qe-bot/community-operators
+         title: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+         body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+ 
+      - name: Checkout community-operators-prod repo
+        uses: actions/checkout@v3
+        with:
+         repository: redhat-openshift-ecosystem/community-operators-prod
+         path: community-operators-prod
+         ref: main
+
+      - name: Copy contents of bundle/ and issue PRs
+        run: |
+         cd community-operators-prod
+         mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+         cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+         git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+         git commit -s -m " Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
+ 
+      - name: Create Pull Request
+        id: cpr1
+        uses: peter-evans/create-pull-request@v4
+        with: 
+         token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+         path: community-operators-prod
+         commit-message: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+         committer: infinispan-qe-bot <q*@infinispan.org>
+         author: infinispan-qe-bot <q*@infinispan.org>
+         branch: pr_request
+         delete-branch: true
+         push-to-fork: infinispan-qe-bot/community-operators-prod
+         title: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+         body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
