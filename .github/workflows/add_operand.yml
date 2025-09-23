@@ -52,14 +52,21 @@ jobs:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
 
       - name: Determine Upstream Version
+        id: set_version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_IMAGE: ${{ inputs.image }}
         run: |
-          if [[ -z "${{ inputs.version }}" ]]; then
-            IMAGE=${{ inputs.image }}
+          if [[ -z "$INPUT_VERSION" ]]; then
+            IMAGE="$INPUT_IMAGE"
             TAG=${IMAGE#*:}
-            echo VERSION=${TAG%.Final} >> ${GITHUB_ENV}
+            VERSION=${TAG%.Final}
           else
-            echo VERSION=${{ inputs.version }} >> ${GITHUB_ENV}
+            VERSION="$INPUT_VERSION"
           fi
+    
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Add Operand
         run: ./scripts/ci/add_operand.sh
@@ -94,3 +101,16 @@ jobs:
         with:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+
+      - name: Trigger next workflow if branch is main and success
+        if: success() && github.ref_name == 'main' && contains(steps.set_version.outputs.version, '.Final')
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          repository: ${{ inputs.repository }}
+          event-type: trigger-next-workflow
+          client-payload: |
+             {
+               "ref": "${{ github.ref_name }}",
+               "repository": "${{ inputs.repository }}"
+             }
