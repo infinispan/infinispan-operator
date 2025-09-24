@@ -247,6 +247,7 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 			},
 			Logging: &ispnv1.InfinispanLoggingSpec{
 				Categories: map[string]ispnv1.LoggingLevelType{
+					"org.infinispan":        ispnv1.LoggingLevelTrace,
 					"org.infinispan.SERVER": ispnv1.LoggingLevelDebug,
 				},
 			},

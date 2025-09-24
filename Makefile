@@ -124,7 +124,7 @@ webhook-test: manager manifests
 .PHONY: upgrade-test
 ## Execute end to end (e2e) tests for OLM upgrades.
 upgrade-test: manager manifests
-	scripts/run-tests.sh upgrade 2h
+	scripts/run-tests.sh upgrade
 
 .PHONY: hotrod-rolling-upgrade-test
 ## Execute end to end (e2e) tests for Hot Rod Rolling upgrades.
@@ -134,7 +134,7 @@ hotrod-upgrade-test: manager manifests
 .PHONY: xsite-test
 ## Execute end to end (e2e) tests for XSite functionality
 xsite-test: manager manifests
-	scripts/run-tests.sh xsite 45m
+	scripts/run-tests.sh xsite
 
 .PHONY: manager
 ## Build manager binary
