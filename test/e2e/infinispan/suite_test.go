@@ -24,6 +24,7 @@ func TestOpenShiftIntegration(t *testing.T) {
 
 	// Scaling/Updates - cooperation of Operator and StatefulSets
 	t.Run("TestGracefulShutdownWithTwoReplicas", TestGracefulShutdownWithTwoReplicas)
+	t.Run("TestOnlyShutdownCluster", TestOnlyShutdownCluster)
 	t.Run("TestUserCustomConfigUpdateOnChange", TestUserCustomConfigUpdateOnChange)
 	t.Run("TestContainerCPUUpdateWithTwoReplicas", TestContainerCPUUpdateWithTwoReplicas)
 
