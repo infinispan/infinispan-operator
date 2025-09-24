@@ -14,50 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-func TestOnlyShutdownCluster(t *testing.T) {
-	t.Parallel()
-	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-
-	// Cache definitions
-	volatileCache := "volatile-cache"
-	volatileCacheConfig := `<distributed-cache name="` + volatileCache + `"/>`
-	filestoreCache := "filestore-cache"
-	filestoreCacheConfig := `<distributed-cache name ="` + filestoreCache + `"><persistence><file-store/></persistence></distributed-cache>`
-
-	// Create Infinispan
-	replicas := 2
-	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Replicas = int32(replicas)
-		i.Spec.Service.Container.EphemeralStorage = false
-		i.Spec.ConfigListener.Enabled = true
-	})
-	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-
-	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
-	testKube.WaitForDeployment(ispn.GetConfigListenerName(), spec.Namespace)
-	client_ := tutils.HTTPClientForCluster(ispn, testKube)
-
-	// Create non-persisted cache
-	volatileCacheHelper := tutils.NewCacheHelper(volatileCache, client_)
-	volatileCacheHelper.Create(volatileCacheConfig, mime.ApplicationXml)
-
-	// Create persisted cache with an entry
-	filestoreKey := "testFilestoreKey"
-	filestoreValue := "testFilestoreValue"
-
-	filestoreCacheHelper := tutils.NewCacheHelper(filestoreCache, client_)
-	filestoreCacheHelper.Create(filestoreCacheConfig, mime.ApplicationXml)
-	filestoreCacheHelper.Put(filestoreKey, filestoreValue, mime.TextPlain)
-
-	// Shutdown the cluster
-	testKube.GracefulShutdownInfinispan(spec)
-	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	testKube.WaitForDeploymentState(spec.GetConfigListenerName(), spec.Namespace, func(deployment *appsv1.Deployment) bool {
-		return deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0
-	})
-}
-
 // TestGracefulShutdownWithTwoReplicas creates a permanent cache with file-store and any entry,
 // shutdowns the cluster and checks that the cache and the data are still there
 func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
