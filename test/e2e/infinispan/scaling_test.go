@@ -102,6 +102,7 @@ func TestGracefulShutdownWithTwoReplicas(t *testing.T) {
 	testKube.WaitForDeploymentState(spec.GetConfigListenerName(), spec.Namespace, func(deployment *appsv1.Deployment) bool {
 		return deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0
 	})
+   t.Fatalf("Cluster was shutdown, mark as error to get logs.")
 	//testKube.GracefulRestartInfinispan(spec, int32(replicas), tutils.SinglePodTimeout)
 	//testKube.WaitForDeploymentState(spec.GetConfigListenerName(), spec.Namespace, func(deployment *appsv1.Deployment) bool {
 	//	return deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 1
