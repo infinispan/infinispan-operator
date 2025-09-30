@@ -30,6 +30,9 @@ jobs:
       - name: Install Dependencies
         uses: ./.github/actions/dependencies
 
+      - name: Cache Operand Images
+        uses: ./.github/actions/operand-cache
+
       - name: Initialize Kubernetes Cluster
         uses: ./.github/actions/kind
         with:

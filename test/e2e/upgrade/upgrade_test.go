@@ -125,6 +125,13 @@ func TestUpgrade(t *testing.T) {
 				continue
 			}
 
+			allowedOperands := tutils.OperandAllowSet()
+			if _, allow := allowedOperands[latestOperand.Ref()]; len(allowedOperands) > 0 && !allow {
+				// Only upgrade to Operands explicitly allowed if a range is defined
+				log.Infof("Skipping Operand %s as it is not defined in the allow list", latestOperand.Ref())
+				continue
+			}
+
 			client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 			op, err := versionManager.WithRef(ispnPreUpgrade.Spec.Version)
 			tutils.ExpectNoError(err)

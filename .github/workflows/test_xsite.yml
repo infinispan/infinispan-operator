@@ -17,14 +17,15 @@ jobs:
       - name: Install Dependencies
         uses: ./.github/actions/dependencies
 
+      - name: Cache Operand Images
+        uses: ./.github/actions/operand-cache
+
       - name: Install Kind
         run: go install sigs.k8s.io/kind@v0.24.0
         shell: bash
 
       - name: Initialize Kind Clusters
-        run: |
-          docker pull quay.io/infinispan/server:latest
-          ./scripts/ci/configure-xsite.sh
+        run: ./scripts/ci/configure-xsite.sh
 
       - name: Run XSite Tests
         run: make xsite-test

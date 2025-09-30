@@ -1,0 +1,60 @@
+name: Operand Cache
+description: Retrieve Operand images from action cache
+
+inputs:
+  populate:
+    description: 'Populate cache with operand images if true'
+    default: 'false'
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Metadata
+      id: images
+      shell: bash
+      run: |
+        # Only test a subset of supported Operands
+        ./scripts/ci/install_test_operands.sh
+        OPERAND_IMAGES=$(./scripts/ci/operand_images.sh)
+        SHA=$(echo $OPERAND_IMAGES | sha256sum | cut -d ' ' -f1)
+        echo "images=$OPERAND_IMAGES" >> $GITHUB_OUTPUT
+        echo "tar=images.tar.gz" >> $GITHUB_OUTPUT
+        echo "sha=${SHA}" >> $GITHUB_OUTPUT
+
+    - name: Cache Docker images
+      id: cache-docker-images
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.images.outputs.tar }}
+        key: ${{ runner.os }}-operands-${{ steps.images.outputs.sha }}
+
+    # If cache is found, load all images from the single tar file
+    - name: Load cached Docker images
+      if: steps.cache-docker-images.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        echo "Cache hit. Loading images from ${{ steps.images.outputs.tar }}"
+        gunzip -c ${{ steps.images.outputs.tar }} | docker load
+
+    # Pull any missing or updated images
+    - name: Pull Docker images
+      if: ${{ inputs.populate == 'true' }}
+      shell: bash
+      run: |
+        for image in ${{ steps.images.outputs.images }}; do
+          docker pull $image
+        done
+
+    - name: Docker System DF
+      shell: bash
+      run: docker system df
+
+    - name: Save Docker images to cache
+      if: ${{ inputs.populate == 'true' }}
+      shell: bash
+      run: docker save ${{ steps.images.outputs.images }} | gzip > ${{ steps.images.outputs.tar }}
+
+    - name: Available Images
+      shell: bash
+      run: docker images

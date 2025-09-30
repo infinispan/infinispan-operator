@@ -86,6 +86,9 @@ jobs:
       - name: Install Dependencies
         uses: ./.github/actions/dependencies
 
+      - name: Cache Operand Images
+        uses: ./.github/actions/operand-cache
+
       - if: ${{ inputs.operandArtifact != '' }}
         name: Download operand artifact
         uses: actions/download-artifact@v4
@@ -129,6 +132,8 @@ jobs:
             # See commit message for a detailed list
             export SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.7
           fi
+          # Only upgrade to Operands that are currently defined in the manager.yaml
+          export TESTING_OPERAND_ALLOW_LIST=$(./scripts/ci/operand_versions.sh ,)
           make upgrade-test
         env:
           DEPTH: ${{ inputs.upgradeDepth }}

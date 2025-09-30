@@ -31,57 +31,66 @@ jobs:
       - name: Check for unstaged changes
         run: git diff --name-only --exit-code
 
-  infinispan:
+  # Retrieve and cache all images so that they will be available for all subsequent jobs
+  images:
     needs: unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Operand Images
+        uses: ./.github/actions/operand-cache
+        with:
+          populate: 'true'
+
+  infinispan:
+    needs: images
     uses: ./.github/workflows/test_without_olm.yml
     with:
       args: 'infinispan-test PARALLEL_COUNT=3'
       artifactPrefix: 'infinispan'
 
   cache:
-    needs: unit
+    needs: images
     uses: ./.github/workflows/test_without_olm.yml
     with:
       args: 'cache-test PARALLEL_COUNT=3'
       artifactPrefix: 'cache'
 
   batch:
-    needs: unit
+    needs: images
     uses: ./.github/workflows/test_without_olm.yml
     with:
       args: 'batch-test PARALLEL_COUNT=3'
       artifactPrefix: 'batch'
 
   multinamespace:
-    needs: unit
+    needs: images
     uses: ./.github/workflows/test_without_olm.yml
     with:
       args: 'multinamespace-test'
       artifactPrefix: 'multinamespace'
 
   backup-restore:
-    needs: unit
+    needs: images
     uses: ./.github/workflows/test_without_olm.yml
     with:
       args: 'backuprestore-test'
       artifactPrefix: 'backup-restore'
 
   webhook:
-    needs: unit
+    needs: images
     uses: ./.github/workflows/test_webhooks.yml
 
   upgrades:
-    needs: unit
+    needs: images
     uses: ./.github/workflows/test_upgrades.yml
-    with:
-      skipList: '15.1.0,15.1.1'
 
   hr-rolling-upgrades:
-    needs: unit
+    needs: images
     uses: ./.github/workflows/test_hr_rolling_upgrades.yml
-    with:
-      skipList: '15.1.0,15.1.1'
 
   xsite:
-    needs: unit
+    needs: images
     uses: ./.github/workflows/test_xsite.yml

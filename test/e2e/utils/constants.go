@@ -30,6 +30,7 @@ var (
 	Namespace         = strings.ToLower(constants.GetEnvWithDefault("TESTING_NAMESPACE", "namespace-for-testing"))
 	MultiNamespace    = strings.ToLower(constants.GetEnvWithDefault("TESTING_MULTINAMESPACE", "namespace-for-testing-1,namespace-for-testing-2"))
 	OperandVersion    = os.Getenv("TESTING_OPERAND_VERSION")
+	OperandAllowList  = os.Getenv("TESTING_OPERAND_ALLOW_LIST")
 	OperandSkipList   = os.Getenv("TESTING_OPERAND_IGNORE_LIST")
 	OperatorNamespace = strings.ToLower(constants.GetEnvWithDefault("TESTING_OPERATOR_NAMESPACE", ""))
 	OperatorName      = "infinispan-operator"

@@ -12,9 +12,6 @@ if ! command -v docker &> /dev/null; then
     }
 fi
 
-if [[ -z "${SERVER_IMAGES}" ]]; then
-  SERVER_IMAGES=$(operandJson | jq -r '.[].image')
-fi
 DOCKER_REGISTRY_IMAGE=${DOCKER_REGISTRY_IMAGE:-"quay.io/infinispan-test/registry:2"}
 KINDEST_IMAGE=${KINDEST_IMAGE:-"quay.io/infinispan-test/kindest-node"}
 KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.25.16'}
