@@ -9,7 +9,6 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
 )
 
 const DroppedOperandVersionEnv = "TESTING_DROPPED_OPERAND_VERSION"
@@ -17,8 +16,6 @@ const DroppedOperandVersionEnv = "TESTING_DROPPED_OPERAND_VERSION"
 func TestUpgradeFromDroppedOperand(t *testing.T) {
 	olm := testKube.OLMTestEnv()
 	olm.PrintManifest()
-	sourceChannel := olm.SourceChannel
-	targetChannel := olm.TargetChannel
 
 	// Skip the test when the specified starting CSV makes the test invalid
 	if os.Getenv("DroppedOperandVersionEnv") == "" && strings.HasPrefix(olm.SubStartingCSV, "infinispan") {
@@ -43,19 +40,14 @@ func TestUpgradeFromDroppedOperand(t *testing.T) {
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
-	// Upgrade the Subscription channel if required
-	if sourceChannel != targetChannel {
-		testKube.UpdateSubscriptionChannel(targetChannel.Name, sub)
-	}
+	// Delete the old subscription but keep the cluster
+	testKube.DeleteSubscription(sub.Name, sub.Namespace)
 
-	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
-		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
-		testKube.ApproveInstallPlan(sub)
-		testKube.WaitForSubscription(sub, func() bool {
-			return sub.Status.InstalledCSV == sub.Status.CurrentCSV
-		})
-		testKube.WaitForCSVSucceeded(sub)
-	}
+	// Install the latest version of the Operator
+	olm.SubStartingCSV = olm.TargetChannel.CurrentCSVName
+	olm.SourceChannel = olm.TargetChannel
+	sub = subscription(olm)
+	testKube.CreateSubscriptionAndApproveInitialVersion(sub)
 
 	versionManager := testKube.VersionManagerFromCSV(sub)
 	latestOperand := versionManager.Latest()

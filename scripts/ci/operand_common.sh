@@ -21,3 +21,7 @@ function requiredEnv() {
       fi
   done
 }
+
+if [[ -z "${SERVER_IMAGES}" ]]; then
+  SERVER_IMAGES=$(operandJson | jq -r '.[].image')
+fi

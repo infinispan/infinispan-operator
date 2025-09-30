@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/operand_common.sh"
+set +e
+
 IMG=infinispan-operator
 METALLB_ADDRESS_SHIFT=25
 METALLB_ADDRESS_START=200
@@ -8,7 +12,8 @@ KIND_KUBEAPI_PORT=6443
 METALLB_VERSION=v0.9.6
 TESTING_NAMESPACE=${TESTING_NAMESPACE-namespace-for-testing}
 KIND_SUBNET=${KIND_SUBNET-172.172.0.0}
-SERVER_IMAGE=${SERVER_IMAGE:-'quay.io/infinispan/server:15.0'}
+SERVER_IMAGES_ARRAY=($SERVER_IMAGES)
+SERVER_IMAGE=${SERVER_IMAGES_ARRAY[-1]}
 KINDEST_NODE_VERSION=${KINDEST_NODE_VERSION:-'v1.25.16'}
 
 # Cleanup any existing clusters
