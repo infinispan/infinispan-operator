@@ -60,7 +60,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 
 	cache := tutils.NewCacheHelper(cacheName, client)
 
-	config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\"}}"
+	config := "{\"distributed-cache\":{\"mode\":\"SYNC\", \"statistics\":\"true\", \"encoding\": {\"media-type\": \"application/json\"}}}"
 	cache.Create(config, mime.ApplicationJson)
 	cache.Populate(numEntries)
 	cache.AssertSize(numEntries)
