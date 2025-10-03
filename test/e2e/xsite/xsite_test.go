@@ -894,7 +894,7 @@ func testBackupCrossSiteCache(t *testing.T, useTLS bool) {
 	cacheName := "xsiteCache"
 
 	cache := tutils.NewCacheHelper(cacheName, client)
-	config := "{\"distributed-cache\":{\"mode\":\"SYNC\",\"backups\":{\"xsite2\":{\"backup\":{\"strategy\":\"SYNC\"}}}}}"
+	config := "{\"distributed-cache\":{\"mode\":\"SYNC\",\"backups\":{\"xsite2\":{\"backup\":{\"strategy\":\"SYNC\"}}}, \"encoding\": {\"media-type\": \"application/json\"}}}"
 	cache.Create(config, mime.ApplicationJson)
 	cache.Populate(10)
 	cache.AssertSize(10)

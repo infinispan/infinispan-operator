@@ -65,7 +65,7 @@ func subscription(olm tutils.OLMEnv) *coreos.Subscription {
 func createAndPopulateVolatileCache(cacheName string, numEntries int, client tutils.HTTPClient) {
 	c := tutils.NewCacheHelper(cacheName, client)
 	if !c.Exists() {
-		c.Create(`{"distributed-cache":{"mode":"SYNC"}}`, mime.ApplicationJson)
+		c.Create(`{"distributed-cache":{"mode":"SYNC", "encoding": {"media-type": "application/json"}}}`, mime.ApplicationJson)
 	}
 	if c.Size() != numEntries {
 		c.Populate(numEntries)
@@ -75,7 +75,7 @@ func createAndPopulateVolatileCache(cacheName string, numEntries int, client tut
 
 func createAndPopulatePersistentCache(cacheName string, numEntries int, client tutils.HTTPClient) {
 	cache := tutils.NewCacheHelper(cacheName, client)
-	config := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}}}`
+	config := `{"distributed-cache":{"mode":"SYNC", "persistence":{"file-store":{}}, "encoding": {"media-type": "application/json"}}}`
 	cache.Create(config, mime.ApplicationJson)
 	cache.Populate(numEntries)
 	cache.AssertSize(numEntries)
