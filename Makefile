@@ -342,7 +342,7 @@ ifeq (,$(shell which operator-sdk 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p $(dir $(OPERATOR_SDK)) ;\
-	curl $(CURL_AUTHORIZATION) -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.24.1/operator-sdk_linux_amd64 ;\
+	curl $(CURL_AUTHORIZATION) -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.26.1/operator-sdk_linux_amd64 ;\
 	chmod +x $(OPERATOR_SDK) ;\
 	}
 else
