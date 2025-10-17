@@ -2,9 +2,11 @@ package infinispan
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/blang/semver"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
@@ -177,77 +179,134 @@ func TestOperandCVEGracefulShutdown(t *testing.T) {
 	assert.EqualValues(t, 1, ss.Status.ObservedGeneration)
 }
 
-func TestOperandHotRodRolling(t *testing.T) {
+// Tests that Operator is creating correct RemoteStore configurations according to a version in use
+func TestOperandsHotRodRolling(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+	log := tutils.Log()
 	versionManager := tutils.VersionManager()
 
-	// Create Infinispan Cluster using first Operand and then upgrade to the next Operand that is not marked as a CVE as
-	// we want to ensure that a StatefulSet rolling upgrade does not occur.
-	// The actual Operand versions deployed should not impact the test as we're only verifying the HR upgrade procedure
-	// which is controlled by the Operator
-	replicas := 1
-	operands := versionManager.Operands
-	startingOperand := operands[0]
-	var upgradeOperand *version.Operand
-	for i := 1; i < len(operands); i++ {
-		op := operands[i]
-		if !op.CVE {
-			upgradeOperand = operands[i]
-			break
-		}
-	}
-	assert.NotNil(t, upgradeOperand)
-
-	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.ConfigListener.Enabled = true
+	replicas := 2
+	entriesPerCache := 100
+	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
-		i.Spec.Version = startingOperand.Ref()
+		i.Spec.Service.Container.EphemeralStorage = false
 		i.Spec.Upgrades = &ispnv1.InfinispanUpgradesSpec{
 			Type: ispnv1.UpgradeTypeHotRodRolling,
 		}
+		i.Spec.Security.Authorization = &ispnv1.Authorization{
+			Enabled: true,
+		}
+		i.Spec.Version = versionManager.Oldest().Ref()
+		i.Spec.ConfigListener.Enabled = true
 	})
 
-	originalStatefulSetName := ispn.Name
-	testKube.CreateInfinispan(ispn, tutils.Namespace)
-	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
-	testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
-		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-			i.Status.Operand.Version == startingOperand.Ref() &&
-			i.Status.Operand.Image == startingOperand.Image &&
-			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning &&
-			i.Status.StatefulSetName == originalStatefulSetName
-	})
+	testKube.Create(spec)
+	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	spec = testKube.WaitForInfinispanCondition(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed)
+	client := tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 
-	tutils.ExpectNoError(
-		testKube.UpdateInfinispan(ispn, func() {
-			ispn.Spec.Version = upgradeOperand.Ref()
-			ispn.Default()
-		}),
-	)
+	// Create caches
+	textCacheHelper := tutils.NewCacheHelper("textCache", client)
+	textCacheHelper.CreateDistributedCache(mime.TextPlain)
+	textCacheHelper.PopulatePlainCache(entriesPerCache)
 
-	newStatefulSetName := ispn.Name + "-1"
-	testKube.WaitForStateFulSetRemoval(originalStatefulSetName, tutils.Namespace)
-	testKube.WaitForInfinispanPodsCreatedBy(0, tutils.SinglePodTimeout, originalStatefulSetName, tutils.Namespace)
-	testKube.WaitForStateFulSet(newStatefulSetName, tutils.Namespace)
-	testKube.WaitForInfinispanPodsCreatedBy(replicas, tutils.SinglePodTimeout, newStatefulSetName, tutils.Namespace)
-	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
-	testKube.WaitForInfinispanState(ispn.Name, ispn.Namespace, func(i *ispnv1.Infinispan) bool {
-		return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-			i.Status.Operand.Version == upgradeOperand.Ref() &&
-			i.Status.Operand.Image == upgradeOperand.Image &&
-			i.Status.Operand.Phase == ispnv1.OperandPhaseRunning &&
-			i.Status.StatefulSetName == newStatefulSetName
-	})
+	jsonCacheHelper := tutils.NewCacheHelper("jsonCache", client)
+	jsonCacheHelper.CreateDistributedCache(mime.ApplicationJson)
 
-	// Ensure that the Cache ConfigListener is still able to receive updates after the upgrade has completed by creating
+	javaCacheHelper := tutils.NewCacheHelper("javaCache", client)
+	javaCacheHelper.CreateDistributedCache(mime.ApplicationJavaObject)
+
+	clusterCounter := 0
+	newStatefulSetName := spec.Name
+	indexedCacheName := "IndexedCache"
+
+	for i := 1; i < len(versionManager.Operands); i++ {
+		operand := versionManager.Operands[i]
+
+		if !tutils.IsTestOperand(*operand) {
+			continue
+		}
+
+		assertMigration := func(expectedImage string, isRollingUpgrade, indexedSupported bool) {
+			if !isRollingUpgrade {
+				clusterCounter++
+				currentStatefulSetName := newStatefulSetName
+				newStatefulSetName = fmt.Sprintf("%s-%d", spec.Name, clusterCounter)
+
+				testKube.WaitForStateFulSet(newStatefulSetName, tutils.Namespace)
+				testKube.WaitForStateFulSetRemoval(currentStatefulSetName, tutils.Namespace)
+				testKube.WaitForInfinispanPodsCreatedBy(0, tutils.SinglePodTimeout, currentStatefulSetName, tutils.Namespace)
+				testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+					return i.Status.StatefulSetName == newStatefulSetName
+				})
+			}
+			// Assert that the pods in the target StatefulSet are using the expected image
+			targetPods := testKube.WaitForInfinispanPodsCreatedBy(replicas, tutils.SinglePodTimeout, newStatefulSetName, tutils.Namespace)
+			for _, pod := range targetPods.Items {
+				if pod.Spec.Containers[0].Image != expectedImage {
+					panic(fmt.Errorf("upgraded image [%v] in Target StatefulSet Pod not equal desired cluster image [%v]", pod.Spec.Containers[0].Image, expectedImage))
+				}
+			}
+
+			operand := tutils.Operand(spec.Spec.Version, versionManager)
+			if !tutils.CheckExternalAddress(client, operand) {
+				panic("Error contacting server")
+			}
+
+			// Check data
+			assert.Equal(t, entriesPerCache, textCacheHelper.Size())
+			assert.Equal(t, 0, jsonCacheHelper.Size())
+			assert.Equal(t, 0, javaCacheHelper.Size())
+
+			if indexedSupported {
+				assert.Equal(t, entriesPerCache, tutils.NewCacheHelper(indexedCacheName, client).Size())
+			}
+		}
+
+		conditionTimeout := 2 * tutils.ConditionWaitTimeout
+		ispnPreUpgrade := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+		currentOperand, err := versionManager.WithRef(ispnPreUpgrade.Spec.Version)
+		client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
+		tutils.ExpectNoError(err)
+
+		if !currentOperand.EQ(*operand) {
+			ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+
+			// ISPN-15651 Test migrating Indexed caches from 14.0.25.Final onwards
+			indexSupported := operand.UpstreamVersion.GTE(*version.Operand{UpstreamVersion: &semver.Version{Major: 14, Minor: 0, Patch: 25}}.UpstreamVersion)
+			if indexSupported {
+				tutils.NewCacheHelper(indexedCacheName, client).CreateAndPopulateIndexedCache(entriesPerCache)
+			}
+
+			tutils.ExpectNoError(
+				testKube.UpdateInfinispan(ispn, func() {
+					ispn.Spec.Version = operand.Ref()
+					log.Infof("Upgrading Operand to %s", ispn.Spec.Version)
+				}),
+			)
+			testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+			testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
+				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
+					i.Status.Operand.Version == operand.Ref() &&
+					i.Status.Operand.Image == operand.Image &&
+					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
+			})
+
+			lastOperand, err := versionManager.WithRef(ispnPreUpgrade.Status.Operand.Version)
+			tutils.ExpectNoError(err)
+			isRolling := operand.CVE && lastOperand.UpstreamVersion.EQ(*operand.UpstreamVersion)
+			assertMigration(operand.Image, isRolling, indexSupported)
+		}
+	}
+
+	// Ensure that the Cache ConfigListener is still able to receive updates after the upgrades has completed by creating
 	// a cache on the server and waiting for it's corresponding Cache CR to be created.
-	client := tutils.HTTPClientForClusterWithVersionManager(ispn, testKube, versionManager)
+	client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 	cacheName := "config-listener"
 	cacheConfig := "localCache: \n  memory: \n    maxCount: \"100\"\n"
 	cacheHelper := tutils.NewCacheHelper(cacheName, client)
 	cacheHelper.Create(cacheConfig, mime.ApplicationYaml)
-	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	testKube.WaitForCacheConditionReady(cacheName, spec.Name, tutils.Namespace)
 }
 
 // TestOperandCVEHotRodRolling tests that Operands marked as CVE releases, with the same upstream version as the currently

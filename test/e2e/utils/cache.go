@@ -59,6 +59,56 @@ func (c *CacheHelper) CreateWithDefault(flags ...string) {
 	ExpectNoError(c.CacheClient.Create("", mime.ApplicationYaml, flags...))
 }
 
+func (c *CacheHelper) CreateDistributedCache(encoding mime.MimeType) {
+	config := fmt.Sprintf("{\"distributed-cache\":{\"mode\":\"SYNC\",\"remote-timeout\": 60000,\"encoding\":{\"media-type\":\"%s\"}}}", encoding)
+	c.Create(config, mime.ApplicationJson)
+}
+
+func (c *CacheHelper) CreateAndPopulateIndexedCache(entries int) {
+	if c.Exists() {
+		Log().Infof("Cache '%s' already exists", c.CacheName)
+		return
+	}
+	proto := `
+package book_sample;
+
+/* @Indexed */
+message Book {
+	/* @Field(store = Store.YES, analyze = Analyze.YES) */
+	/* @Text(projectable = true) */
+	optional string title = 1;
+
+	/* @Text(projectable = true) */
+	optional string description = 2;
+
+	// no native Date type available in Protobuf
+	optional int32 publicationYear = 3;
+
+	repeated Author authors = 4;
+}
+
+message Author {
+	optional string name = 1;
+	optional string surname = 2;
+}
+`
+	headers := map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
+	}
+	_, err := c.Client.Post("rest/v2/caches/___protobuf_metadata/schema.proto", proto, headers)
+	ExpectNoError(err)
+
+	config := "{\"distributed-cache\":{\"encoding\":{\"media-type\":\"application/x-protostream\"},\"persistence\":{\"file-store\":{}},\"indexing\":{\"indexed-entities\":[\"book_sample.Book\"]}}}"
+	c.Create(config, mime.ApplicationJson)
+	c.Client.Quiet(true)
+	for i := 0; i < entries; i++ {
+		data := fmt.Sprintf("{\"_type\":\"book_sample.Book\",\"title\":\"book%d\"}", i)
+		c.Put(data, data, mime.ApplicationJson)
+	}
+	c.Client.Quiet(false)
+	Log().Infof("Populated cache %s with %d entries", c.CacheName, entries)
+}
+
 func (c *CacheHelper) Update(payload string, contentType mime.MimeType) {
 	ExpectNoError(c.CacheClient.UpdateConfig(payload, contentType))
 }
@@ -120,6 +170,17 @@ func (c *CacheHelper) Populate(numEntries int) {
 		c.Put(key, value, mime.ApplicationJson)
 	}
 	c.Client.Quiet(false)
+}
+
+// PopulatePlainCache populates a cache with bounded parallelism
+func (c *CacheHelper) PopulatePlainCache(entries int) {
+	c.Client.Quiet(true)
+	for i := 0; i < entries; i++ {
+		data := strconv.Itoa(i)
+		c.Put(data, data, mime.TextPlain)
+	}
+	c.Client.Quiet(false)
+	Log().Infof("Populated cache %s with %d entries", c.CacheName, entries)
 }
 
 func (c *CacheHelper) Size() int {
