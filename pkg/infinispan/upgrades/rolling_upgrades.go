@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/blang/semver"
 	"github.com/go-logr/logr"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/container"
@@ -11,7 +12,7 @@ import (
 )
 
 // ConnectCaches Connects caches from a cluster (target) to another (source) via Remote Stores. Caches are created in the target cluster if needed.
-func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, targetClient api.Infinispan, logger logr.Logger) error {
+func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, targetClient api.Infinispan, logger logr.Logger, targetVersion semver.Version) error {
 
 	// Obtain all cache names from the source cluster
 	names, err := cacheNames(sourceClient)
@@ -43,14 +44,16 @@ func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, tar
 				logger.Info(fmt.Sprintf("Cache '%s' already exists", cacheName))
 			}
 		}
+
 		// Add a remote store to each cache pointing to the source cluster
 		rollingUpgrade := targetCache.RollingUpgrade()
 		connected, err := rollingUpgrade.SourceConnected()
 		if err != nil {
 			return fmt.Errorf("failed to call source-connected from target cluster for cache '%s': %w", cacheName, err)
 		}
+
 		if !connected {
-			remoteStoreCfg, err := container.CreateRemoteStoreConfig(sourceIp, cacheName, user, adminPasswordSource)
+			remoteStoreCfg, err := container.CreateRemoteStoreConfig(sourceIp, cacheName, user, adminPasswordSource, int(targetVersion.Major))
 			if err != nil {
 				return fmt.Errorf("failed to generate remote store config '%s': %w", cacheName, err)
 			}

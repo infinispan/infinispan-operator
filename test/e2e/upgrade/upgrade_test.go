@@ -118,17 +118,7 @@ func TestUpgrade(t *testing.T) {
 		if ispnPreUpgrade.Spec.Version != latestOperand.Ref() {
 			ispn := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
-			skippedOperands := tutils.OperandSkipSet()
-			if _, skip := skippedOperands[latestOperand.Ref()]; skip {
-				// Skip Operand upgrade if explicitly ignored
-				log.Infof("Skipping Operand %s", latestOperand.Ref())
-				continue
-			}
-
-			allowedOperands := tutils.OperandAllowSet()
-			if _, allow := allowedOperands[latestOperand.Ref()]; len(allowedOperands) > 0 && !allow {
-				// Only upgrade to Operands explicitly allowed if a range is defined
-				log.Infof("Skipping Operand %s as it is not defined in the allow list", latestOperand.Ref())
+			if !tutils.IsTestOperand(latestOperand) {
 				continue
 			}
 

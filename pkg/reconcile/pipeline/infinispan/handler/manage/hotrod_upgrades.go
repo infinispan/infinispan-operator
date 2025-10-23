@@ -419,29 +419,28 @@ func (r *HotRodRollingUpgradeRequest) prepare() error {
 		return fmt.Errorf("error obtaining the existing statefulSet '%s': %w", targetStatefulSetName, err)
 	}
 
-	targetPodList, err := r.PodsCreatedBy(targetStatefulSetName)
-	if err != nil {
-		return fmt.Errorf("failed to find the pods from the new statefulSet : %w", err)
-	}
-	targetPod := targetPodList.Items[0]
-
 	// Obtain the pods of the source cluster so that we can use their IPs to create the remote store config
 	sourcePodList, err := r.PodsCreatedBy(getSourceStatefulSetName(r.i))
 	if err != nil {
 		return fmt.Errorf("failed to find the pods from the source statefulSet : %w", err)
 	}
-
-	sourceClient, err := ctx.InfinispanClient()
+	targetPodList, err := r.PodsCreatedBy(targetStatefulSetName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find the pods from the new statefulSet : %w", err)
 	}
+
 	// Clone the source curl client as the credentials are the same, updating the pod to one from the target statefulset
-	targetClient := ctx.InfinispanClientForPod(targetPod.Name)
+	targetClient := ctx.InfinispanClientForPod(targetPodList.Items[0].Name)
+	sourceClient, err := ctx.InfinispanClientUnknownVersion(sourcePodList.Items[0].Name)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve client for pod '%s': %w", sourcePodList.Items[0].Name, err)
+	}
 
 	sourceIp := sourcePodList.Items[0].Status.PodIP
 	user := r.i.GetOperatorUser()
 	pass := ctx.ConfigFiles().AdminIdentities.Password
-	if err = upgrades.ConnectCaches(user, pass, sourceIp, sourceClient, targetClient, r.log); err != nil {
+	version := *r.ctx.Operand().UpstreamVersion
+	if err = upgrades.ConnectCaches(user, pass, sourceIp, sourceClient, targetClient, r.log, version); err != nil {
 		return err
 	}
 
@@ -469,17 +468,22 @@ func (r *HotRodRollingUpgradeRequest) syncData() error {
 		return fmt.Errorf("error obtaining the existing statefulSet '%s': %w", targetStatefulSetName, err)
 	}
 
-	podList, err := r.PodsCreatedBy(targetStatefulSetName)
+	podListTarget, err := r.PodsCreatedBy(targetStatefulSetName)
 	if err != nil {
 		return fmt.Errorf("failed to obtain pods from the target cluster: %w", err)
 	}
-
-	sourceClient, err := ctx.InfinispanClient()
+	podListSource, err := r.PodsCreatedBy(getSourceStatefulSetName(r.i))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to obtain pods from the source cluster: %w", err)
 	}
+
 	// Clone the source curl client as the credentials are the same, updating the pod to one from the target statefulset
-	targetClient := ctx.InfinispanClientForPod(podList.Items[0].Name)
+	targetClient := ctx.InfinispanClientForPod(podListTarget.Items[0].Name)
+	sourceClient, err := ctx.InfinispanClientUnknownVersion(podListSource.Items[0].Name)
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve client for pod '%s': %w", podListSource.Items[0].Name, err)
+	}
+
 	if err = upgrades.SyncCaches(sourceClient, targetClient, r.log); err != nil {
 		return err
 	}

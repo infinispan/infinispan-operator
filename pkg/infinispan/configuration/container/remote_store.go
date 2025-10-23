@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/infinispan/infinispan-operator/controllers/constants"
+	"k8s.io/utils/pointer"
 )
 
 type RemoteStoreConfig struct {
@@ -11,13 +12,18 @@ type RemoteStoreConfig struct {
 }
 
 type RemoteStore struct {
-	ProtocolVersion string        `json:"protocol-version,omitempty"`
-	RawValues       bool          `json:"raw-values"`
-	Segmented       bool          `json:"segmented"`
-	Shared          bool          `json:"shared"`
-	Cache           string        `json:"cache,omitempty"`
-	RemoteServer    *RemoteServer `json:"remote-server,omitempty"`
-	Security        *Security     `json:"security,omitempty"`
+	ProtocolVersion string                 `json:"protocol-version,omitempty"`
+	RawValues       *bool                  `json:"raw-values,omitempty"`
+	Segmented       bool                   `json:"segmented"`
+	Shared          bool                   `json:"shared"`
+	Cache           string                 `json:"cache,omitempty"`
+	RemoteServer    *RemoteServer          `json:"remote-server,omitempty"`
+	Security        *Security              `json:"security,omitempty"`
+	Properties      *RemoteStoreProperties `json:"properties,omitempty"`
+}
+
+type RemoteStoreProperties struct {
+	Migration bool `json:"migration"`
 }
 
 type RemoteServer struct {
@@ -62,11 +68,10 @@ type Truststore struct {
 	Type     string `json:"type,omitempty"`
 }
 
-func CreateRemoteStoreConfig(ip string, cache, user, pass string) (string, error) {
+func CreateRemoteStoreConfig(ip, cache, user, pass string, versionMajor int) (string, error) {
 
 	cfg := RemoteStoreConfig{
 		RemoteStore: &RemoteStore{
-			RawValues: true,
 			Shared:    true,
 			Cache:     cache,
 			Segmented: false,
@@ -85,6 +90,14 @@ func CreateRemoteStoreConfig(ip string, cache, user, pass string) (string, error
 				},
 			},
 		},
+	}
+
+	if versionMajor >= 16 {
+		cfg.RemoteStore.Properties = &RemoteStoreProperties{
+			Migration: true,
+		}
+	} else {
+		cfg.RemoteStore.RawValues = pointer.Bool(true)
 	}
 
 	doc, err := json.Marshal(cfg)
