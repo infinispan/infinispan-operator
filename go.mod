@@ -1,6 +1,6 @@
 module github.com/infinispan/infinispan-operator
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
