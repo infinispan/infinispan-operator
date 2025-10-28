@@ -1,0 +1,85 @@
+name: Publish to main
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch to wwhich changes needs to be pushed
+        required: true
+      rel_version:
+        description: The Operator tag to checkout 
+        required: true
+
+  repository_dispatch:
+    types: [trigger-main-workflow] 
+  
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure Git
+        run: |
+          git config --global user.name "infinispan-qe-bot"
+          git config --global user.email "q*@infinispan.org"
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: operator
+          ref: ${{ github.event.client_payload.ref || github.event.inputs.ref }}
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+
+      - name: Set parameters
+        id: params
+        run: |
+          echo "REF=${{ github.event.inputs.ref || github.event.client_payload.ref }}" >> $GITHUB_ENV
+          echo "REL_VERSION=${{ github.event.inputs.rel_version || github.event.client_payload.rel_version }}" >> $GITHUB_ENV
+
+      - name: Set Next Version
+        id: set_version
+        run : |
+          CURRENT_VER=${{ github.event.inputs.rel_version || github.event.client_payload.rel_version }}
+          PREVIOUS_VER=$(git tag --sort=-v:refname | grep -A1 "$CURRENT_VER" | tail -n1)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${CURRENT_VER#v}"
+          PATCH="${PATCH%%[^0-9]*}" 
+          PATCH=$((PATCH + 1))
+          NEXT_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "Current version is: $CURRENT_VER"
+          echo "Next version is: $NEXT_VERSION"
+          echo "Previous version is: $PREVIOUS_VER"
+          echo "CURRENT_VER=$Current" >> $GITHUB_ENV
+          echo "current_ver=$CURRENT_VER" >> $GITHUB_OUTPUT
+          echo "NEXT_VERSION=$NEXT_VERSION" >> $GITHUB_ENV
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "PREVIOUS_VER=$PREVIOUS_VER" >> $GITHUB_ENV
+          echo "previous_ver=$PREVIOUS_VER" >> $GITHUB_OUTPUT
+
+      - name: Check if the image exists
+        id: check_image
+        run: >
+          MAX_RETRIES=6
+          SLEEP_MIN=10
+          for i in $(seq 1 $MAX_RETRIES); do
+            if docker manifest inspect quay.io/operatorhubio/infinispan:v${{ steps.set_version.outputs.current_ver }}.Final > /dev/null 2>&1; then
+              echo "Docker image exists: ${{ steps.set_version.outputs.current_ver }}"
+              exit 0
+            else
+              echo "Retry #$i: Docker image not found. Waiting $SLEEP_MIN minutes..."
+              sleep $((SLEEP_MIN * 60))
+            fi
+          done
+
+          echo "Docker image never appeared after $MAX_RETRIES retries."
+          exit 1
+
+      - name: Update the version file to next version
+        if: env.IMAGE_EXISTS == 'true'
+        run: |
+            cd operator
+            echo "${{ steps.set_version.outputs.next_version }}" > version.txt
+            sed -i "s/export VERSION=.*/export VERSION=${{ steps.set_version.outputs.next_version }}/" scripts/ci/install-catalog-source.sh
+            sed -i -E "s/^[[:space:]]*(for version in [^;]*)(;[[:space:]]*do)/\1 ${{ steps.params.outputs.rel_version }}\2/" scripts/create-olm-catalog.sh
+            ./scripts/latest_update.sh  scripts/test-catalog.yaml infinispan-operator.v$${{ github.event.inputs.new_version }} infinispan-operator.v$${{ github.event.inputs.replace_version }}
+            sed -i 's/replaces: infinispan-operator.v${{ steps.params.outputs.PREV_VERSION }}/replaces: infinispan-operator.v{{ steps.params.outputs.REL_VERSION }}/' config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
+            git add .
+            git commit -m "Next Version ${{ steps.next_version.outputs.next_version }}"
+            git push origin "${{ steps.params.outputs.ref }}"

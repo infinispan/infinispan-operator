@@ -26,7 +26,7 @@ jobs:
           git config --global user.email "q*@infinispan.org"
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.client_payload.ref || github.ref }}
           repository: ${{ github.event.client_payload.repository || github.repository }}
@@ -45,6 +45,8 @@ jobs:
           PATCH=$((PATCH + 1))
           NEW_TAG="$MAJOR.$MINOR.$PATCH"
           REL_VERSION="$NEW_TAG.Final"
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
           echo "rel_version=$REL_VERSION" >> $GITHUB_OUTPUT
 
@@ -146,3 +148,16 @@ jobs:
          push-to-fork: infinispan-qe-bot/community-operators-prod
          title: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
          body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+
+      - name: Trigger next workflow if branch is main and success
+        if: success() && github.ref_name == 'main'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          repository: ${{ inputs.repository }}
+          event-type: trigger-main-workflow
+          client-payload: |
+             {
+               "ref": "${{ github.ref_name }}",
+               "rel_version": "${{ steps.bump_tag.outputs.rel_version }}"
+             }
