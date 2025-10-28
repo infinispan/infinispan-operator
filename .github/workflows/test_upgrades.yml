@@ -152,7 +152,7 @@ jobs:
           artifactPrefix: "upgrades"
 
       - name: Test Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: upgrade-test-logs

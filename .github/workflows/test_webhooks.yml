@@ -33,7 +33,7 @@ jobs:
           artifactPrefix: "webhooks"
 
       - name: Test Logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: webhook-test-logs
