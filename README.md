@@ -10,7 +10,7 @@ Kubernetes environment, ensuring high availability and resilience for their appl
 
 ## System Requirements
 
-* [Golang 1.23](https://github.com/golang/go) or higher.
+* [Golang 1.24](https://github.com/golang/go) or higher.
 * [Docker](https://www.docker.com/) or [Podman](https://podman.io/)
 * [Operator SDK 1.24.1](https://github.com/operator-framework/operator-sdk/releases/tag/v1.24.1)
 * A running [Kubernetes](https://kubernetes.io/) cluster
