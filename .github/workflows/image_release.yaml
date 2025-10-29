@@ -81,7 +81,7 @@ jobs:
            make bundle VERSION=${{ steps.bump_tag.outputs.new_tag }} CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:${{ steps.bump_tag.outputs.new_tag }}
 
       - name: Checkout community-operators repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
          repository: k8s-operatorhub/community-operators
          path: community-operators
@@ -97,7 +97,7 @@ jobs:
  
       - name: Create Pull Request to community-operators repo from forked repository 
         id: cpr
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v7
         with: 
          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
          path: community-operators
@@ -111,7 +111,7 @@ jobs:
          body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
  
       - name: Checkout community-operators-prod repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
          repository: redhat-openshift-ecosystem/community-operators-prod
          path: community-operators-prod
@@ -127,7 +127,7 @@ jobs:
  
       - name: Create Pull Request
         id: cpr1
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v7
         with: 
          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
          path: community-operators-prod
@@ -142,7 +142,7 @@ jobs:
 
       - name: Trigger next workflow if branch is main and success
         if: success() && github.ref_name == 'main'
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           repository: ${{ inputs.repository }}
