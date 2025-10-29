@@ -22,7 +22,7 @@ jobs:
           git config --global user.email "q*@infinispan.org"
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           path: operator
           ref: ${{ github.event.client_payload.ref || github.event.inputs.ref }}
