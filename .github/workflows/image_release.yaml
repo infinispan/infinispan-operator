@@ -26,7 +26,7 @@ jobs:
           git config --global user.email "q*@infinispan.org"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.client_payload.ref || github.ref }}
           repository: ${{ github.event.client_payload.repository || github.repository }}
@@ -34,27 +34,18 @@ jobs:
           path: operator
 
       - name: Get the latest tag and bump the minor version
+        working-directory: operator
         id: bump_tag
         run: |
-          cd operator
-          git fetch --tags
-          LATEST_TAG=$(git tag --sort=-creatordate | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.Final$' | head -n 1)
-          echo "Latest tag: $LATEST_TAG"
-          BASE_VERSION=${LATEST_TAG%.Final}
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
-          PATCH=$((PATCH + 1))
-          NEW_TAG="$MAJOR.$MINOR.$PATCH"
-          REL_VERSION="$NEW_TAG.Final"
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
-          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "rel_version=$REL_VERSION" >> $GITHUB_OUTPUT
+          ./scripts/ci/bump_version.sh
 
       - name: Tag the release
+        working-directory: operator
+        env:
+          TAG_NAME: ${{ steps.bump_tag.outputs.new_tag }}
         run: |
-          cd operator
-          git tag -a ${{ steps.bump_tag.outputs.rel_version }} -m "Release Operator:: ${{ steps.bump_tag.outputs.rel_version }}"
-          git push origin --tags
+          git tag -a "$TAG_NAME" -m "Release Operator:: $TAG_NAME"
+          git push origin "$TAG_NAME
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -79,15 +70,15 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: quay.io/infinispan/operator:${{ steps.bump_tag.outputs.rel_version }}
+          tags: quay.io/infinispan/operator:${{ steps.bump_tag.outputs.new_tag }}
           build-args: |
-            OPERATOR_VERSION=${{ steps.bump_tag.outputs.rel_version }}
+            OPERATOR_VERSION=${{ steps.bump_tag.outputs.new_tag }}
 
       - name: Create OLM Bundle
+        working-directory: operator
         run:  |
            rm -rf bundle bundle.Dockerfile
-           cd operator
-           make bundle VERSION=${{ steps.bump_tag.outputs.new_tag }} CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:${{ steps.bump_tag.outputs.rel_version }}
+           make bundle VERSION=${{ steps.bump_tag.outputs.new_tag }} CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:${{ steps.bump_tag.outputs.new_tag }}
 
       - name: Checkout community-operators repo
         uses: actions/checkout@v3
@@ -97,8 +88,8 @@ jobs:
          ref: main
 
       - name: Copy contents of bundle/ 
+        working-directory: community-operators
         run: |
-         cd community-operators
          mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
          cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
          git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
@@ -127,8 +118,8 @@ jobs:
          ref: main
 
       - name: Copy contents of bundle/ and issue PRs
+        working-directory: community-operators-prod
         run: |
-         cd community-operators-prod
          mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
          cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
          git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
@@ -159,5 +150,5 @@ jobs:
           client-payload: |
              {
                "ref": "${{ github.ref_name }}",
-               "rel_version": "${{ steps.bump_tag.outputs.rel_version }}"
+               "rel_version": "${{ steps.bump_tag.outputs.new_tag }}"
              }
