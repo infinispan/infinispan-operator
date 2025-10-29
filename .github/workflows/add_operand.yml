@@ -53,20 +53,14 @@ jobs:
 
       - name: Determine Upstream Version
         id: set_version
-        env:
-          INPUT_VERSION: ${{ inputs.version }}
-          INPUT_IMAGE: ${{ inputs.image }}
         run: |
-          if [[ -z "$INPUT_VERSION" ]]; then
-            IMAGE="$INPUT_IMAGE"
+          if [[ -z "${{ inputs.version }}" ]]; then
+            IMAGE=${{ inputs.image }}
             TAG=${IMAGE#*:}
-            VERSION=${TAG%.Final}
+            echo VERSION=${TAG} >> ${GITHUB_ENV}
           else
-            VERSION="$INPUT_VERSION"
+            echo VERSION=${{ inputs.version }} >> ${GITHUB_ENV}
           fi
-    
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Add Operand
         run: ./scripts/ci/add_operand.sh
@@ -103,7 +97,7 @@ jobs:
           pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
 
       - name: Trigger next workflow if branch is main and success
-        if: success() && github.ref_name == 'main' && contains(steps.set_version.outputs.version, '.Final')
+        if: success() && github.ref_name == 'main'
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
