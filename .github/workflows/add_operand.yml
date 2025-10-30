@@ -52,11 +52,12 @@ jobs:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
 
       - name: Determine Upstream Version
+        id: set_version
         run: |
           if [[ -z "${{ inputs.version }}" ]]; then
             IMAGE=${{ inputs.image }}
             TAG=${IMAGE#*:}
-            echo VERSION=${TAG%.Final} >> ${GITHUB_ENV}
+            echo VERSION=${TAG} >> ${GITHUB_ENV}
           else
             echo VERSION=${{ inputs.version }} >> ${GITHUB_ENV}
           fi
@@ -74,3 +75,16 @@ jobs:
           git add config/manager/manager.yaml documentation/asciidoc/topics/attributes/community-attributes.adoc documentation/asciidoc/topics/supported_operands/
           git commit -m "Add Operand ${{ env.VERSION }}"
           git push
+
+      - name: Trigger next workflow if branch is main and success
+        if: success() && github.ref_name == 'main'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          repository: ${{ inputs.repository }}
+          event-type: trigger-next-workflow
+          client-payload: |
+             {
+               "ref": "${{ github.ref_name }}",
+               "repository": "${{ inputs.repository }}"
+             }
