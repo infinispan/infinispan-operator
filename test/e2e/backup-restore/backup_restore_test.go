@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/blang/semver"
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -14,6 +15,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
@@ -80,6 +82,9 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: sourceCluster}, infinispan))
 
 	// Validate the number of entries stored in the someCache backup file
+	// Utilise a 15.0.x image as this still contains the unzip package
+	imageOp, err := tutils.VersionManager().LatestUpstreamPatch(semver.Version{Major: 15, Minor: 0})
+	tutils.ExpectNoError(err)
 	cmd := fmt.Sprintf("ls -l /etc/backups/backup; cd /tmp; unzip /etc/backups/backup/backup.zip; LINES=$(cat containers/default/caches/someCache/someCache.dat | wc -l); echo $LINES; [[ $LINES -eq \"%d\" ]]", numEntries)
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -90,7 +95,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
 				Name:    "verify",
-				Image:   infinispan.ImageName(),
+				Image:   imageOp.Image,
 				Command: []string{"/bin/bash"},
 				Args:    []string{"-c", cmd},
 				VolumeMounts: []corev1.VolumeMount{
@@ -126,15 +131,22 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 		},
 	}
 	testKube.Create(pod)
-	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
 		err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, pod)
 		utils.ExpectMaybeNotFound(err)
 		if pod.Status.Phase == corev1.PodFailed {
-			return false, fmt.Errorf("Expected %d entries to be backed up for 'someCache'", numEntries)
+			return false, fmt.Errorf("expected %d entries to be backed up for 'someCache'", numEntries)
 		}
 		return pod.Status.Phase == corev1.PodSucceeded, err
 	})
 	if err != nil {
+		if yaml_, e := yaml.Marshal(pod); e != nil {
+			tutils.Log().Error(e, "Failed to marshal pod to yaml")
+		} else {
+			tutils.Log().Error(yaml_)
+		}
+		// Delete the pod to prevent issues with PVCs named "backup" in subsequent tests
+		defer tutils.LogError(testKube.Kubernetes.Client.Delete(context.TODO(), pod))
 		panic(err.Error())
 	}
 	tutils.LogError(testKube.Kubernetes.Client.Delete(context.TODO(), pod))
