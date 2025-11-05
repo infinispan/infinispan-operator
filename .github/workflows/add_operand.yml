@@ -102,7 +102,7 @@ jobs:
         with:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           repository: ${{ inputs.repository }}
-          event-type: trigger-next-workflow
+          event-type: release-operator
           client-payload: |
              {
                "ref": "${{ github.ref_name }}",
