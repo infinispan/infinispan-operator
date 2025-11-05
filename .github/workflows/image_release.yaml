@@ -13,7 +13,7 @@ on:
         type: string
 
   repository_dispatch:
-    types: [trigger-next-workflow] 
+    types: [release-operator] 
 
 jobs:
   release:
@@ -101,7 +101,7 @@ jobs:
         with: 
          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
          path: community-operators
-         commit-message: ' Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+         commit-message: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
          committer: infinispan-qe-bot <q*@infinispan.org>
          author: infinispan-qe-bot <q*@infinispan.org>
          branch: pr_request
@@ -123,7 +123,7 @@ jobs:
          mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
          cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
          git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
-         git commit -s -m " Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
+         git commit -s -m "Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
  
       - name: Create Pull Request
         id: cpr1
@@ -146,7 +146,7 @@ jobs:
         with:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           repository: ${{ inputs.repository }}
-          event-type: trigger-main-workflow
+          event-type: update-version
           client-payload: |
              {
                "ref": "${{ github.ref_name }}",
