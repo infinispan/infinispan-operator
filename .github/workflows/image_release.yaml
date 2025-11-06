@@ -140,15 +140,14 @@ jobs:
          title: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
          body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
 
-      - name: Trigger next workflow if branch is main and success
-        if: success() && github.ref_name == 'main'
-        uses: peter-evans/repository-dispatch@v4
+      - name: Trigger Post Release job
+        env:
+           REF: "${{ github.ref_name }}"
+           REL_VERSION: ${{ steps.bump_tag.outputs.new_tag }}
+        uses: cardinalby/schedule-job-action@v1
         with:
-          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
-          repository: ${{ inputs.repository }}
-          event-type: update-version
-          client-payload: |
-             {
-               "ref": "${{ github.ref_name }}",
-               "rel_version": "${{ steps.bump_tag.outputs.new_tag }}"
-             }
+         ghTokentoken: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+         targetBranch: 'main'
+         templateYmlFile: './operator/.github-scheduled-workflows/publish-main.yaml'
+         targetYmlFileName: publish-main.yaml
+         copyEnvVariables: 'REF,REL_VERSION'
