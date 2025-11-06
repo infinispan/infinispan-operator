@@ -16,14 +16,14 @@ jobs:
         uses: actions/checkout@v5
         with:
           path: operator
-          ref: ${{ github.event.inputs.ref || env.REF }}
+          ref: ${{ env.REF }}
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
 
       - name: Set parameters
         id: params
         run: |
-          echo "REF=${{ github.event.inputs.ref || env.REF }} >> $GITHUB_ENV
-          echo "REL_VERSION=${{ github.event.inputs.rel_version || env.REL_VERSION }}" >> $GITHUB_ENV
+          echo "REF=${{ env.REF }}" >> $GITHUB_ENV
+          echo "REL_VERSION=${{ env.REL_VERSION }}" >> $GITHUB_ENV
 
       - name: Set Next Version
         id: set_version
