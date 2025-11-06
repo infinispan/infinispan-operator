@@ -148,6 +148,6 @@ jobs:
         with:
          ghTokentoken: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
          targetBranch: 'main'
-         templateYmlFile: './operator/.github-scheduled-workflows/publish-main.yaml'
+         templateYmlFile: './infinispan-operator/.github-scheduled-workflows/publish-main.yaml'
          targetYmlFileName: publish-main.yaml
          copyEnvVariables: 'REF,REL_VERSION'
