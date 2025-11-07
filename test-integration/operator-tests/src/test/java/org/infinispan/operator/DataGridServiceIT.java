@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -164,7 +165,7 @@ class DataGridServiceIT {
 
       String log = openShift.getPodLog(node);
 
-      Assertions.assertThat(log).contains("DEBUG (main) [org.jgroups");
+      Assertions.assertThat(log).containsPattern(Pattern.compile("DEBUG \\(.*\\) \\[org.jgroups"));
       Assertions.assertThat(log).doesNotContain("INFO (main) [org.infinispan");
    }
 

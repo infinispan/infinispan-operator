@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import cz.xtf.client.Http;
+import cz.xtf.client.HttpResponseParser;
 import cz.xtf.core.http.Https;
 import cz.xtf.core.openshift.OpenShift;
 import cz.xtf.core.openshift.OpenShifts;
@@ -113,7 +114,9 @@ class OCPCertsIT {
       String unauthorizedGet = String.format("http://" + testServer.host() + "/hotrod/auth?username=%s&password=%s&servicename=%s&namespace=%s&encrypted=%s", user, "invalid", appName, openShift.getNamespace(), "true");
       String noAuthGet = String.format("http://" + testServer.host() + "/hotrod/auth?servicename=%s&namespace=%s&encrypted=%s", appName, openShift.getNamespace(), "true");
 
-      Assertions.assertThat(Http.get(authorizedGet).execute().code()).isEqualTo(200);
+      HttpResponseParser hrp = Http.get(authorizedGet).execute();
+
+      Assertions.assertThat(hrp.code()).withFailMessage(hrp::response).isEqualTo(200);
       Assertions.assertThat(Http.get(unauthorizedGet).execute().code()).isEqualTo(401);
       Assertions.assertThat(Http.get(noAuthGet).execute().code()).isEqualTo(401);
    }
