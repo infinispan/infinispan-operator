@@ -11,9 +11,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.infinispan.client.hotrod.RemoteCache;
 import org.infinispan.client.hotrod.RemoteCacheManager;
 import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
-import org.infinispan.client.hotrod.configuration.SaslQop;
 import org.infinispan.client.hotrod.exceptions.HotRodClientException;
-import org.infinispan.commons.marshall.ProtoStreamMarshaller;
+import org.infinispan.configuration.cache.CacheMode;
+import org.infinispan.configuration.cache.Configuration;
 
 /**
  * Used by MinimalSetupIT with unencrypted endpoints.
@@ -40,11 +40,19 @@ public class HotRodServlet extends HttpServlet {
          }
 
          if(encrypted != null) {
-            builder.security().ssl().sniHostName(serviceName + "." + namespace + ".svc").trustStorePath("/etc/" + serviceName + "-cert-secret/tls.crt");
+            builder.security().ssl().sniHostName(serviceName + "." + namespace + ".svc")
+                    .trustStoreFileName("/etc/" + serviceName + "-cert-secret/tls.crt")
+                    .trustStoreType("PEM");
          }
 
+          Configuration c = new org.infinispan.configuration.cache.ConfigurationBuilder()
+                  .clustering()
+                  .cacheMode(CacheMode.DIST_SYNC)
+                  .hash()
+                  .numOwners(2)
+                  .build();
          RemoteCacheManager rcm = new RemoteCacheManager(builder.build());
-         RemoteCache<String, String> rc = rcm.administration().getOrCreateCache("hotrod-auth-test", "org.infinispan.DIST_SYNC");
+         RemoteCache<String, String> rc = rcm.administration().getOrCreateCache("hotrod-auth-test", c);
 
          rc.put("authorized-hotrod-key", "secret-value");
 

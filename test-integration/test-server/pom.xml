@@ -11,15 +11,22 @@
     <packaging>war</packaging>
 
     <properties>
-        <version.infinispan.hotrod>15.0.3.Final</version.infinispan.hotrod>
+        <version.infinispan.hotrod>16.0.1</version.infinispan.hotrod>
         <version.jakarta.servlet>6.0.0</version.jakarta.servlet>
         <version.maven.war>3.2.2</version.maven.war>
 
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.infinispan</groupId>
+            <artifactId>infinispan-core</artifactId>
+            <version>${version.infinispan.hotrod}</version>
+            <scope>compile</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.infinispan</groupId>
             <artifactId>infinispan-client-hotrod</artifactId>
