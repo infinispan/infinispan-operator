@@ -25,6 +25,10 @@ runs:
       run: ./scripts/ci/kind.sh
       shell: bash    
 
+    - name: Clean up cached server images
+      run: ./scripts/ci/operand_cleanup.sh
+      shell: bash
+
     - name: Build Operator Image
       run: make operator-build operator-push IMG="localhost:5001/infinispan-operator"
       shell: bash
