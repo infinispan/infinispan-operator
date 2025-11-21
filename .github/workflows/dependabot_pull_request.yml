@@ -18,7 +18,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Approve PR for auto-merge
         run: gh pr merge --auto --rebase ${{ github.event.pull_request.number }}
