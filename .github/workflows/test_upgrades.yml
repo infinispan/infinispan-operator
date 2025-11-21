@@ -118,12 +118,6 @@ jobs:
       - name: Initialize Kubernetes Cluster
         uses: ./.github/actions/kind
 
-      - if: ${{ inputs.operandArtifact != '' }}
-        name: Push Operand image to kind cluster
-        run: |
-          docker push ${{ inputs.operand }}
-          kind load docker-image ${{ inputs.operand }}
-
       - name: Run GracefulShutdown Upgrade Tests
         run: |
           if [ "${DEPTH}" -gt -1 ]; then
