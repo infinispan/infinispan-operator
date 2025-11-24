@@ -45,7 +45,7 @@ jobs:
           TAG_NAME: ${{ steps.bump_tag.outputs.new_tag }}
         run: |
           git tag -a "$TAG_NAME" -m "Release Operator:: $TAG_NAME"
-          git push origin "$TAG_NAME
+          git push origin "$TAG_NAME"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -67,7 +67,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: operator
           platforms: linux/amd64,linux/arm64
           push: true
           tags: quay.io/infinispan/operator:${{ steps.bump_tag.outputs.new_tag }}
@@ -150,4 +150,4 @@ jobs:
          targetBranch: 'main'
          templateYmlFile: './infinispan-operator/.github-scheduled-workflows/publish-main.yaml'
          targetYmlFileName: publish-main.yaml
-         copyEnvVariables: 'REF,REL_VERSION'
+         copyEnvVariables: REF REL_VERSION

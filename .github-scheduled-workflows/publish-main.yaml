@@ -1,5 +1,5 @@
-name: Publish to main
-'on':
+name: Post Release Job
+on:
   schedule:
     - cron: '*/30 * * * *'
 
@@ -13,7 +13,7 @@ jobs:
           git config --global user.email "q*@infinispan.org"
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: operator
           ref: ${{ env.REF }}
@@ -27,6 +27,7 @@ jobs:
 
       - name: Set Next Version
         id: set_version
+        working-directory: operator
         run : ./scripts/ci/bump_version.sh
 
       - name: Check if the image exists
@@ -34,7 +35,7 @@ jobs:
         run: docker manifest inspect quay.io/operatorhubio/infinispan:v${{ steps.set_version.outputs.new_tag }}
 
       - name: Update the version file to next version
-        if: ${{ success() 
+        if: success() 
         env:
           NEXT_VERSION: ${{ steps.bump_tag.outputs.next_version }}
           PREV_VERSION: ${{ steps.bump_tag.outputs.prev_ver }}
