@@ -22,8 +22,8 @@ jobs:
       - name: Set parameters
         id: params
         run: |
-          echo "REF=${{ env.REF }}" >> $GITHUB_ENV
-          echo "REL_VERSION=${{ env.REL_VERSION }}" >> $GITHUB_ENV
+          echo "ref=${{ env.REF }}" >> $GITHUB_OUTPUT
+          echo "rel_version=${{ env.REL_VERSION }}" >> $GITHUB_OUTPUT
 
       - name: Set Next Version
         id: set_version
@@ -32,22 +32,22 @@ jobs:
 
       - name: Check if the image exists
         id: check_image
-        run: docker manifest inspect quay.io/operatorhubio/infinispan:v${{ steps.set_version.outputs.new_tag }}
+        run: docker manifest inspect quay.io/operatorhubio/infinispan:v${{ env.REL_VERSION }}
 
       - name: Update the version file to next version
         if: success() 
         env:
-          NEXT_VERSION: ${{ steps.bump_tag.outputs.next_version }}
-          PREV_VERSION: ${{ steps.bump_tag.outputs.prev_ver }}
+          NEXT_VERSION: ${{ steps.set_version.outputs.new_tag }}
+          PREV_VERSION: ${{ steps.set_version.outputs.prev_ver }}
+        working-directory: operator
         run: |
-            cd operator
             echo "$NEXT_VERSION" > version.txt
             sed -i "s/export VERSION=.*/export VERSION=$NEXT_VERSION/" scripts/ci/install-catalog-source.sh
-            sed -i -E "s/^[[:space:]]*(for version in [^;]*)(;[[:space:]]*do)/\1 $NEXT_VERSION\2/" scripts/create-olm-catalog.sh
+            sed -i -E "s/^[[:space:]]*(for version in [^;]*)(;[[:space:]]*do)/\1 $PREV_VERSION\2/" scripts/create-olm-catalog.sh
             ./scripts/ci/add_next_version.sh  scripts/test-catalog.yml infinispan-operator.v$NEXT_VERSION infinispan-operator.v$PREV_VERSION
-            sed -i -E "s/^( *replaces: +infinispan-operator\.v)[0-9]+\.[0-9]+\.[0-9]+/\1$NEXT_VERSION/" config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
+            sed -i -E "s/^( *replaces: +infinispan-operator\.v)[0-9]+\.[0-9]+\.[0-9]+/\1$PREV_VERSION/" config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
             git add .
-            git commit -m "Next Version ${{ steps.next_version.outputs.next_version }}"
+            git commit -m "Next Version ${{ steps.set_version.outputs.new_tag }}"
             git push origin "${{ steps.params.outputs.ref }}"
 
       - name: Remove scheduled job 
