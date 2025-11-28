@@ -17,13 +17,8 @@ echo "prev_ver=$BASE_VERSION" >> "$GITHUB_OUTPUT"
 
 IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
-# This logic works for 2.4.x tags, we can tweak it later.
-if [ "$PATCH" -ge 18 ]; then
-  MINOR=$((MINOR + 1))
-  PATCH=0
-else
-  PATCH=$((PATCH + 1))
-fi
+# Increment PATCH
+PATCH=$((PATCH + 1))
 
 # Build new version and tag
 NEW_TAG="$MAJOR.$MINOR.$PATCH"
