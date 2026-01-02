@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -201,13 +205,15 @@ func getAuthorization(username, password string, resp *http.Response) *authentic
 
 func getAuthString(auth *authenticationRealm, path, method string, nc int) string {
 	a1 := auth.Username + ":" + auth.Realm + ":" + auth.Password
-	h := md5.New()
+	h, herr := getHash(auth.Algorithm)
+	ExpectNoError(herr)
 	_, err := io.WriteString(h, a1)
 	ExpectNoError(err)
 
 	ha1 := hex.EncodeToString(h.Sum(nil))
 
-	h = md5.New()
+	h, herr = getHash(auth.Algorithm)
+	ExpectNoError(herr)
 	a2 := method + ":" + path
 	_, err = io.WriteString(h, a2)
 	ExpectNoError(err)
@@ -218,7 +224,8 @@ func getAuthString(auth *authenticationRealm, path, method string, nc int) strin
 	hnc := getCnonce()
 
 	respdig := fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, auth.NONCE, nc_str, hnc, auth.QOP, ha2)
-	h = md5.New()
+	h, herr = getHash(auth.Algorithm)
+	ExpectNoError(herr)
 	_, err = io.WriteString(h, respdig)
 	ExpectNoError(err)
 
@@ -244,4 +251,19 @@ func getCnonce() string {
 	_, err := io.ReadFull(rand.Reader, b)
 	ExpectNoError(err)
 	return fmt.Sprintf("%x", b)[:16]
+}
+
+func getHash(algorithm string) (hash.Hash, error) {
+	switch strings.ToLower(algorithm) {
+	case "sha-256":
+		return sha256.New(), nil
+	case "sha-512":
+		return sha512.New(), nil
+	case "sha-1":
+		return sha1.New(), nil
+	case "md5":
+		return md5.New(), nil
+	default:
+		return nil, fmt.Errorf("unsupported hash algorithm: %s", algorithm)
+	}
 }
