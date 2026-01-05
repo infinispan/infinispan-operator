@@ -292,6 +292,15 @@ type InfinispanLoggingSpec struct {
 	Categories map[string]LoggingLevelType `json:"categories,omitempty"`
 }
 
+type InfinispanPodOverrides struct {
+	Targets []InfinispanSinglePodOverride `json:"targets,omitempty"`
+}
+
+type InfinispanSinglePodOverride struct {
+	Offset   int  `json:"offset,omitempty"`
+	SafeMode bool `json:"safeMode,omitempty"`
+}
+
 // ExposeType describe different exposition methods for Infinispan
 // +kubebuilder:validation:Enum=NodePort;LoadBalancer;Route
 type ExposeType string
@@ -513,6 +522,8 @@ type InfinispanSpec struct {
 	Service InfinispanServiceSpec `json:"service,omitempty"`
 	// +optional
 	Logging *InfinispanLoggingSpec `json:"logging,omitempty"`
+	// +optional
+	Overrides *InfinispanPodOverrides `json:"overrides,omitempty"`
 	// +optional
 	Expose *ExposeSpec `json:"expose,omitempty"`
 	// +optional
