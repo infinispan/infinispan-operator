@@ -13,6 +13,8 @@ runs:
     - name: Metadata
       id: images
       shell: bash
+      env:
+        TEST_RELEASE: ${{ contains(github.event.pull_request.labels.*.name, 'test/release') }}
       run: |
         # Only test a subset of supported Operands
         ./scripts/ci/install_test_operands.sh

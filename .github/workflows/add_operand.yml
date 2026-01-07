@@ -67,10 +67,25 @@ jobs:
           IMAGE: ${{ inputs.image }}
           VERSION: ${{ env.VERSION }}
 
-      - name: Commit changes and push to repository
-        run: |
-          git config user.email "infinispan@infinispan.org"
-          git config user.name "Infinispan"
-          git add config/manager/manager.yaml documentation/asciidoc/topics/attributes/community-attributes.adoc documentation/asciidoc/topics/supported_operands/
-          git commit -m "Add Operand ${{ env.VERSION }}"
-          git push
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          labels: test/release
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          commit-message: 'Add Operand ${{ env.VERSION }}'
+          committer: Infinispan <infinispan@infinispan.org>
+          author: Infinispan <infinispan@infinispan.org>
+          branch: operand-${{ env.VERSION }}
+          delete-branch: true
+          push-to-fork: ${{ inputs.repository }}
+          title: 'Add Operand ${{ env.VERSION }}'
+          body: 'Add Operand ${{ env.VERSION }}'
+
+      - name: Enable auto merge
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: rebase
