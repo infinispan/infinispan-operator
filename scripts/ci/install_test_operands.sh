@@ -38,8 +38,10 @@ if [ $(echo ${test_operands} | jq 'map(select(.["upstream-version"] | startswith
   test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.0", "image": "quay.io/infinispan/server:16.0"}')
 fi
 
-# Append latest snapshot
-test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.99", "image": "quay.io/infinispan-test/server:main"}')
+# Append latest snapshot by default unless TEST_RELEASE is set to true
+if [[ ${TEST_RELEASE:=false} == "false" ]]; then
+  test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.99", "image": "quay.io/infinispan-test/server:main"}')
+fi
 
 operands=${test_operands} yq -i '(select(document_index == 1) | .spec.template.spec.containers[0].env[] | select(.name == "INFINISPAN_OPERAND_VERSIONS")).value = strenv(operands)' ${DEPLOYMENT_FILE}
 echo "Testing Operands:"
