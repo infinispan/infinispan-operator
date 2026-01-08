@@ -13,7 +13,7 @@ on:
         type: string
 
   repository_dispatch:
-    types: [release-operator] 
+    types: [release-operator]
 
 jobs:
   release:
@@ -76,78 +76,78 @@ jobs:
 
       - name: Create OLM Bundle
         working-directory: operator
-        run:  |
-           rm -rf bundle bundle.Dockerfile
-           make bundle VERSION=${{ steps.bump_tag.outputs.new_tag }} CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:${{ steps.bump_tag.outputs.new_tag }}
+        run: |
+          rm -rf bundle bundle.Dockerfile
+          make bundle VERSION=${{ steps.bump_tag.outputs.new_tag }} CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:${{ steps.bump_tag.outputs.new_tag }}
 
       - name: Checkout community-operators repo
         uses: actions/checkout@v6
         with:
-         repository: k8s-operatorhub/community-operators
-         path: community-operators
-         ref: main
+          repository: k8s-operatorhub/community-operators
+          path: community-operators
+          ref: main
 
-      - name: Copy contents of bundle/ 
+      - name: Copy contents of bundle/
         working-directory: community-operators
         run: |
-         mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
-         cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
-         git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
-         git commit -s -m "Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
- 
-      - name: Create Pull Request to community-operators repo from forked repository 
+          mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+          cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+          git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+          git commit -s -m "Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
+
+      - name: Create Pull Request to community-operators repo from forked repository
         id: cpr
         uses: peter-evans/create-pull-request@v7
-        with: 
-         token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
-         path: community-operators
-         commit-message: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
-         committer: infinispan-qe-bot <q*@infinispan.org>
-         author: infinispan-qe-bot <q*@infinispan.org>
-         branch: pr_request
-         delete-branch: true
-         push-to-fork: infinispan-qe-bot/community-operators
-         title: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
-         body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
- 
+        with:
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          path: community-operators
+          commit-message: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+          committer: infinispan-qe-bot <q*@infinispan.org>
+          author: infinispan-qe-bot <q*@infinispan.org>
+          branch: pr_request
+          delete-branch: true
+          push-to-fork: infinispan-qe-bot/community-operators
+          title: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+          body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+
       - name: Checkout community-operators-prod repo
         uses: actions/checkout@v6
         with:
-         repository: redhat-openshift-ecosystem/community-operators-prod
-         path: community-operators-prod
-         ref: main
+          repository: redhat-openshift-ecosystem/community-operators-prod
+          path: community-operators-prod
+          ref: main
 
       - name: Copy contents of bundle/ and issue PRs
         working-directory: community-operators-prod
         run: |
-         mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
-         cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
-         git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
-         git commit -s -m "Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
- 
+          mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+          cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+          git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+          git commit -s -m "Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
+
       - name: Create Pull Request
         id: cpr1
         uses: peter-evans/create-pull-request@v7
-        with: 
-         token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
-         path: community-operators-prod
-         commit-message: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
-         committer: infinispan-qe-bot <q*@infinispan.org>
-         author: infinispan-qe-bot <q*@infinispan.org>
-         branch: pr_request
-         delete-branch: true
-         push-to-fork: infinispan-qe-bot/community-operators-prod
-         title: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
-         body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+        with:
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          path: community-operators-prod
+          commit-message: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+          committer: infinispan-qe-bot <q*@infinispan.org>
+          author: infinispan-qe-bot <q*@infinispan.org>
+          branch: pr_request
+          delete-branch: true
+          push-to-fork: infinispan-qe-bot/community-operators-prod
+          title: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
+          body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
 
       - name: Trigger Post Release job
         env:
-           REF: "${{ github.ref_name }}"
-           REL_VERSION: ${{ steps.bump_tag.outputs.new_tag }}
+          REF: "${{ github.ref_name }}"
+          REL_VERSION: ${{ steps.bump_tag.outputs.new_tag }}
         uses: cardinalby/schedule-job-action@v1
         with:
-         ghTokentoken: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
-         targetBranch: 'main'
-         templateYmlFile: './infinispan-operator/.github-scheduled-workflows/publish-main.yaml'
-         targetYmlFileName: publish-main.yaml
-         copyEnvVariables: REF REL_VERSION
+          ghTokentoken: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          targetBranch: 'main'
+          templateYmlFile: './infinispan-operator/.github-scheduled-workflows/publish-main.yaml'
+          targetYmlFileName: publish-main.yaml
+          copyEnvVariables: REF REL_VERSION
