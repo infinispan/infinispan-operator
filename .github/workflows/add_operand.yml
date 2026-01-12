@@ -81,8 +81,8 @@ jobs:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           path: infinispan-operator
           commit-message: 'Add Operand ${{ env.VERSION }}'
-          committer: infinispan-qe-bot <q*@infinispan.org>
-          author: infinispan-qe-bot <q*@infinispan.org>
+          committer: Infinispan <infinispan@infinispan.org>
+          author: Infinispan <infinispan@infinispan.org>
           branch: operand-${{ env.VERSION }}
           delete-branch: true
           push-to-fork: ${{ inputs.repository }}
