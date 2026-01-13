@@ -982,6 +982,18 @@ spec:
                       output
                     type: string
                 type: object
+              overrides:
+                properties:
+                  targets:
+                    items:
+                      properties:
+                        offset:
+                          type: integer
+                        safeMode:
+                          type: boolean
+                      type: object
+                    type: array
+                type: object
               replicas:
                 description: The number of nodes in the Infinispan cluster.
                 format: int32
