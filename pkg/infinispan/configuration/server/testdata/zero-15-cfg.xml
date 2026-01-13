@@ -48,7 +48,7 @@
     <endpoints>
         <endpoint socket-binding="admin" security-realm="admin">
             <rest-connector>
-                <authentication mechanisms="BASIC DIGEST"/>
+                <authentication mechanisms="BASIC DIGEST-SHA-256"/>
             </rest-connector>
             <hotrod-connector />
         </endpoint>

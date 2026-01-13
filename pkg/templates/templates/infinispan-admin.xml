@@ -23,7 +23,7 @@
     <endpoints security-realm="admin">
         <endpoint socket-binding="admin" security-realm="admin">
             <rest-connector>
-                <authentication mechanisms="BASIC DIGEST"/>
+                <authentication mechanisms="BASIC DIGEST{{ if ge .Infinispan.Version.Major 15 }}-SHA-256{{ end }}"/>
             </rest-connector>
             <hotrod-connector />
         </endpoint>
