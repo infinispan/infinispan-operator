@@ -96,7 +96,7 @@ jobs:
 
       - if: ${{ inputs.operandArtifact != '' }}
         name: Download operand artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: ${{ inputs.operandArtifact }}
           path: /tmp/operand
