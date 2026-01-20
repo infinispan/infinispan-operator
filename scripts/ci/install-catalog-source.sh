@@ -7,7 +7,7 @@ IMG_REGISTRY=${IMG_REGISTRY-"localhost:5001"}
 
 export CHANNELS=stable
 export DEFAULT_CHANNEL=stable
-export VERSION=2.5.1
+export VERSION=2.5.2
 
 BUNDLE_IMG_NAME=infinispan-operator-bundle
 
