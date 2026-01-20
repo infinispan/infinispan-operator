@@ -11,16 +11,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+
     - uses: oraNod/asciidocjs-action@v1.3
       with:
         docs_path: documentation/asciidoc/titles
 
     - name: Clone infinispan.github.io
-      uses: actions/checkout@master
+      uses: actions/checkout@v6
       with:
         repository: infinispan/infinispan.github.io
         ref: master
         path: infinispan.github.io
+        persist-credentials: false
 
     - name: Copy Docs
       run: cp -r documentation/asciidoc/titles/operator.html infinispan.github.io/docs/infinispan-operator/${{ github.ref_name }}
@@ -28,7 +32,6 @@ jobs:
     - name: Commit files
       run: |
         cd infinispan.github.io
-        git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
         git config --global user.email "infinispan@infinispan.org"
         git config --global user.name "Infinispan"
         git add . --all
