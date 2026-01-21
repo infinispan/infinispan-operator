@@ -53,26 +53,56 @@ func PodLifecycle() *corev1.Lifecycle {
 
 func PodLivenessProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
 	i.InitServiceContainer()
-	return probe(i.Spec.Service.Container.LivenessProbe, operand)
+	if DecoupledProbesSupported(operand) {
+		return livenessProbe(i.Spec.Service.Container.LivenessProbe)
+	}
+	return legacyHealthProbe(i.Spec.Service.Container.LivenessProbe, operand)
 }
 
 func PodReadinessProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
 	i.InitServiceContainer()
-	return probe(i.Spec.Service.Container.ReadinessProbe, operand)
+	if DecoupledProbesSupported(operand) {
+		return readinessProbe(i.Spec.Service.Container.ReadinessProbe)
+	}
+	return legacyHealthProbe(i.Spec.Service.Container.ReadinessProbe, operand)
 }
 
 func PodStartupProbe(i *ispnv1.Infinispan, operand version.Operand) *corev1.Probe {
 	i.InitServiceContainer()
-	return probe(i.Spec.Service.Container.StartupProbe, operand)
+	if DecoupledProbesSupported(operand) {
+		return livenessProbe(i.Spec.Service.Container.StartupProbe)
+	}
+	return legacyHealthProbe(i.Spec.Service.Container.StartupProbe, operand)
 }
 
-func probe(p ispnv1.ContainerProbeSpec, operand version.Operand) *corev1.Probe {
+func DecoupledProbesSupported(operand version.Operand) bool {
+	switch operand.UpstreamVersion.Major {
+	case 14, 15:
+		return false
+	default:
+		return true
+	}
+}
+
+func livenessProbe(p ispnv1.ContainerProbeSpec) *corev1.Probe {
+	return probe(p, "/health/live")
+}
+
+func readinessProbe(p ispnv1.ContainerProbeSpec) *corev1.Probe {
+	return probe(p, "/health/ready")
+}
+
+func legacyHealthProbe(p ispnv1.ContainerProbeSpec, operand version.Operand) *corev1.Probe {
 	var path string
 	if operand.UpstreamVersion.GTE(semver.Version{Major: 15}) {
 		path = "rest/v2/container/health/status"
 	} else {
 		path = "rest/v2/cache-managers/default/health/status"
 	}
+	return probe(p, path)
+}
+
+func probe(p ispnv1.ContainerProbeSpec, path string) *corev1.Probe {
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
