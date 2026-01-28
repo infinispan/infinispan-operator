@@ -13,7 +13,7 @@ require (
 	github.com/operator-framework/api v0.4.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.0
 	github.com/r3labs/sse/v2 v2.10.0
-	github.com/redis/go-redis/v9 v9.8.0
+	github.com/redis/go-redis/v9 v9.17.3
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
 	gopkg.in/cenkalti/backoff.v1 v1.1.0
