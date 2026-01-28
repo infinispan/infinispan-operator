@@ -101,7 +101,7 @@ jobs:
 
       - name: Create Pull Request to community-operators repo from forked repository
         id: cpr
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           path: community-operators
@@ -131,7 +131,7 @@ jobs:
 
       - name: Create Pull Request
         id: cpr1
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           path: community-operators-prod
