@@ -90,3 +90,4 @@ jobs:
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
           merge-method: rebase
+          repository: ${{ inputs.repository || github.repository }}
