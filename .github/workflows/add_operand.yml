@@ -80,7 +80,6 @@ jobs:
           author: Infinispan <infinispan@infinispan.org>
           branch: operand-${{ env.VERSION }}
           delete-branch: true
-          push-to-fork: ${{ inputs.repository }}
           title: 'Add Operand ${{ env.VERSION }}'
           body: 'Add Operand ${{ env.VERSION }}'
 
