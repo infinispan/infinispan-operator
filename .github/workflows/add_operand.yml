@@ -39,6 +39,10 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   add-operand:
     runs-on: ubuntu-latest
@@ -50,6 +54,11 @@ jobs:
           ref: ${{ inputs.ref }}
           repository: ${{ inputs.repository }}
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+
+      - name: Rebase onto latest
+        run: |
+          git fetch origin
+          git rebase origin/${{ github.ref_name }}
 
       - name: Determine Upstream Version
         run: |
