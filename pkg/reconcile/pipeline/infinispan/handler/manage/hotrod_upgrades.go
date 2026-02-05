@@ -275,7 +275,7 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewConfigMap() (string, error) {
 	configFiles.ServerAdminConfig = adminCfg
 	configFiles.ServerBaseConfig = baseCfg
 	configFiles.ZeroConfig = zeroConfig
-	provision.PopulateServerConfigMap(baseCfg, adminCfg, zeroConfig, configFiles.Log4j, cm)
+	provision.PopulateServerConfigMap(baseCfg, adminCfg, zeroConfig, configFiles.Log4j, nil, cm)
 	return hash.HashString(baseCfg, adminCfg), r.ctx.Resources().Create(cm, true)
 }
 
