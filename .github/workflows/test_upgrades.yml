@@ -94,23 +94,13 @@ jobs:
       - name: Cache Operand Images
         uses: ./.github/actions/operand-cache
 
-      - if: ${{ inputs.operandArtifact != '' }}
-        name: Download operand artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: ${{ inputs.operandArtifact }}
-          path: /tmp/operand
-
-      - if: ${{ inputs.operandArtifact != '' }}
-        name: Load Operand image from Artifact
-        run:  docker load --input /tmp/operand/${{ inputs.operandArtifact }}.tar
-
-      - name: Update Operands
+      - name: Inject custom Operand
+        uses: ./.github/actions/custom-operand
         if: ${{ inputs.operand != '' }}
-        run: ./scripts/ci/add_operand_to_csv.sh
-        env:
-          IMAGE: ${{ inputs.operand }}
-          VERSION: ${{ inputs.operandVersion }}
+        with:
+          operand: ${{ inputs.operand }}
+          operandArtifact: ${{ inputs.operandArtifact }}
+          operandVersion: ${{ inputs.operandVersion }}
 
       - name: Log CSV Deployment
         run: yq config/manager/manager.yaml

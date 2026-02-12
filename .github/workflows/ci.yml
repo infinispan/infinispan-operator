@@ -11,6 +11,30 @@ on:
       - main
       - '2.[4-9].x'
       - '2.[1-9][0-9].x'
+  workflow_call:
+    inputs:
+      operand:
+        description: 'The FQN of the Operand image to be used. If left blank the latest snapshot will be used.'
+        required: false
+        type: string
+      operandArtifact:
+        description: 'The name of the GH artifact containing the Operand image'
+        required: false
+        type: string
+      operandVersion:
+        description: 'The upstream version of the Operand image'
+        required: false
+        type: string
+      skipList:
+        description: 'A CSV of Operand versions to be skipped when executing TestOperandUpgrades'
+        required: false
+        type: string
+      ref:
+        type: string
+        required: false
+      repository:
+        type: string
+        required: false
   workflow_dispatch:
 
 jobs:
@@ -19,6 +43,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
 
       - name: Install Dependencies
         uses: ./.github/actions/dependencies
@@ -39,11 +66,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
 
       - name: Cache Operand Images
         uses: ./.github/actions/operand-cache
         with:
           populate: 'true'
+
+      - name: Inject custom Operand
+        uses: ./.github/actions/custom-operand
+        if: ${{ inputs.operand != '' }}
+        with:
+          operand: ${{ inputs.operand }}
+          operandArtifact: ${{ inputs.operandArtifact }}
+          operandVersion: ${{ inputs.operandVersion }}
 
   infinispan:
     needs: images
@@ -51,6 +89,11 @@ jobs:
     with:
       args: 'infinispan-test PARALLEL_COUNT=3'
       artifactPrefix: 'infinispan'
+      operand: ${{ inputs.operand }}
+      operandArtifact: ${{ inputs.operandArtifact }}
+      operandVersion: ${{ inputs.operandVersion }}
+      ref: ${{ inputs.ref }}
+      repository: ${{ inputs.repository }}
 
   cache:
     needs: images
@@ -58,6 +101,11 @@ jobs:
     with:
       args: 'cache-test PARALLEL_COUNT=3'
       artifactPrefix: 'cache'
+      operand: ${{ inputs.operand }}
+      operandArtifact: ${{ inputs.operandArtifact }}
+      operandVersion: ${{ inputs.operandVersion }}
+      ref: ${{ inputs.ref }}
+      repository: ${{ inputs.repository }}
 
   batch:
     needs: images
@@ -65,8 +113,15 @@ jobs:
     with:
       args: 'batch-test PARALLEL_COUNT=3'
       artifactPrefix: 'batch'
+      operand: ${{ inputs.operand }}
+      operandArtifact: ${{ inputs.operandArtifact }}
+      operandVersion: ${{ inputs.operandVersion }}
+      ref: ${{ inputs.ref }}
+      repository: ${{ inputs.repository }}
 
   multinamespace:
+    # If custom operand is defined, skip the tests as irellevant
+    if: ${{ inputs.operand == '' }}
     needs: images
     uses: ./.github/workflows/test_without_olm.yml
     with:
@@ -79,19 +134,44 @@ jobs:
     with:
       args: 'backuprestore-test'
       artifactPrefix: 'backup-restore'
+      operand: ${{ inputs.operand }}
+      operandArtifact: ${{ inputs.operandArtifact }}
+      operandVersion: ${{ inputs.operandVersion }}
+      ref: ${{ inputs.ref }}
+      repository: ${{ inputs.repository }}
 
   webhook:
+    # If custom operand is defined, skip the tests as irellevant
+    if: ${{ inputs.operand == '' }}
     needs: images
     uses: ./.github/workflows/test_webhooks.yml
 
   upgrades:
     needs: images
     uses: ./.github/workflows/test_upgrades.yml
+    with:
+      operand: ${{ inputs.operand }}
+      operandArtifact: ${{ inputs.operandArtifact }}
+      operandVersion: ${{ inputs.operandVersion }}
+      ref: ${{ inputs.ref }}
+      repository: ${{ inputs.repository }}
 
   hr-rolling-upgrades:
     needs: images
     uses: ./.github/workflows/test_hr_rolling_upgrades.yml
+    with:
+      operand: ${{ inputs.operand }}
+      operandArtifact: ${{ inputs.operandArtifact }}
+      operandVersion: ${{ inputs.operandVersion }}
+      ref: ${{ inputs.ref }}
+      repository: ${{ inputs.repository }}
 
   xsite:
     needs: images
     uses: ./.github/workflows/test_xsite.yml
+    with:
+      operand: ${{ inputs.operand }}
+      operandArtifact: ${{ inputs.operandArtifact }}
+      operandVersion: ${{ inputs.operandVersion }}
+      ref: ${{ inputs.ref }}
+      repository: ${{ inputs.repository }}

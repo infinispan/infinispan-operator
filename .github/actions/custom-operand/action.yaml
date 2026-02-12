@@ -1,0 +1,40 @@
+name: Custom Operand
+description: Injects custom Operand to the list of the Operands
+
+inputs:
+  operand:
+    description: 'The FQN of the Operand image to be used. If left blank the most recent Operand defined in the Operator repository is used.'
+    required: true
+    type: string
+  operandArtifact:
+    description: 'The name of the GH artifact containing the Operand image'
+    required: true
+    type: string
+  operandVersion:
+    description: 'The upstream version of the Operand image'
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - name: Download operand artifact
+      uses: actions/download-artifact@v7
+      with:
+        name: ${{ inputs.operandArtifact }}
+        path: /tmp/operand
+
+    - name: Load Operand image from Artifact
+      shell: bash
+      run:  docker load --input /tmp/operand/${{ inputs.operandArtifact }}.tar
+
+    - name: Update Operands
+      shell: bash
+      run: ./scripts/ci/add_operand_to_csv.sh
+      env:
+        IMAGE: ${{ inputs.operand }}
+        VERSION: ${{ inputs.operandVersion }}
+
+    - name: Print test images
+      shell: bash
+      run: . ./scripts/ci/operand_common.sh && operandJson

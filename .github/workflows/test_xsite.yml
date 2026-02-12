@@ -2,6 +2,25 @@ name: Hot Rod Rolling Upgrade Tests
 
 on:
   workflow_call:
+    inputs:
+      operand:
+        description: 'The FQN of the Operand image to be used. If left blank the most recent Operand defined in the Operator repository is used.'
+        required: false
+        type: string
+      operandArtifact:
+        description: 'The name of the GH artifact containing the Operand image'
+        required: false
+        type: string
+      operandVersion:
+        description: 'The upstream version of the Operand image'
+        required: false
+        type: string
+      ref:
+        type: string
+        required: false
+      repository:
+        type: string
+        required: false
 
 env:
   TESTING_LOG_DIR: ${{ github.workspace }}/test/reports
@@ -13,12 +32,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          repository: ${{ inputs.repository }}
 
       - name: Install Dependencies
         uses: ./.github/actions/dependencies
 
       - name: Cache Operand Images
         uses: ./.github/actions/operand-cache
+
+      - name: Inject custom Operand
+        uses: ./.github/actions/custom-operand
+        if: ${{ inputs.operand != '' }}
+        with:
+          operand: ${{ inputs.operand }}
+          operandArtifact: ${{ inputs.operandArtifact }}
+          operandVersion: ${{ inputs.operandVersion }}
 
       - name: Install Kind
         run: go install sigs.k8s.io/kind@v0.24.0

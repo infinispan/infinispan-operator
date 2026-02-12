@@ -38,8 +38,8 @@ if [ $(echo ${test_operands} | jq 'map(select(.["upstream-version"] | startswith
   test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.0", "image": "quay.io/infinispan/server:16.0"}')
 fi
 
-# Append latest snapshot by default unless TEST_RELEASE is set to true
-if [[ ${TEST_RELEASE:=false} == "false" ]]; then
+# Append latest snapshot by default unless TEST_RELEASE is set to true or CUSTOM_IMAGE is provided
+if [[ ${TEST_RELEASE:=false} == "false" && -z ${CUSTOM_IMAGE} ]]; then
   test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.99", "image": "quay.io/infinispan-test/server:main"}')
 fi
 
