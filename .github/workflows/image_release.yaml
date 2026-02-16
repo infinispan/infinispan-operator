@@ -1,26 +1,23 @@
 name: Image Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: "The Operator branch/tag to checkout when creating the image."
-        required: true
-        default: "main"
-      repository:
-        description: "The git repository to checkout"
-        required: false
-        type: string
+ schedule:
+    - cron: '30 4 * * *' 
 
-  pull_request:
-     types: [closed]
-     branches: [main]
+ workflow_dispatch:
+   inputs:
+     ref:
+       description: "The Operator branch/tag to checkout when creating the image."
+       required: true
+       default: "main"
+     repository:
+       description: "The git repository to checkout"
+       required: false
+       type: string
+
 
 jobs:
-  release:
-    if: |
-      github.event.pull_request.merged == true &&
-      contains(github.event.pull_request.labels.*.name, 'release')
+  check_operand:
     runs-on: ubuntu-latest
 
     steps:
@@ -32,7 +29,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.base.ref || github.event.inputs.ref }}
+          ref: ${{ github.event.inputs.ref || 'main' }}
+          repository: ${{ github.repository }}
+          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          path: operator
+
+      - name: Check if new operand added
+        id: check
+        run: |
+          PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo HEAD)
+          if git diff --quiet $PREV_COMMIT HEAD -- config/manager/manager.yaml; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+  release:
+    needs: check_operand
+    if: needs.check_operand.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
           repository: ${{ github.repository }}
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           path: operator
