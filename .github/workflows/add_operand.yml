@@ -55,11 +55,6 @@ jobs:
           repository: ${{ inputs.repository }}
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
 
-      - name: Rebase onto latest
-        run: |
-          git fetch origin
-          git rebase origin/${{ github.ref_name }}
-
       - name: Determine Upstream Version
         run: |
           if [[ -z "${{ inputs.version }}" ]]; then
