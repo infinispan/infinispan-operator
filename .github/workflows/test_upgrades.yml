@@ -93,6 +93,8 @@ jobs:
 
       - name: Cache Operand Images
         uses: ./.github/actions/operand-cache
+        with:
+          operand: ${{ inputs.operand }}
 
       - name: Inject custom Operand
         uses: ./.github/actions/custom-operand

@@ -6,6 +6,10 @@ inputs:
     description: 'Populate cache with operand images if true'
     default: 'false'
     required: false
+  operand:
+    description: 'The FQN of the Operand image to be used. Used to decide whether to add a snapshot image.'
+    required: false
+    type: string
 
 runs:
   using: composite
