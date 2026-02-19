@@ -74,6 +74,7 @@ jobs:
         uses: ./.github/actions/operand-cache
         with:
           populate: 'true'
+          operand: ${{ inputs.operand }}
 
       - name: Inject custom Operand
         uses: ./.github/actions/custom-operand
@@ -155,6 +156,7 @@ jobs:
       operandVersion: ${{ inputs.operandVersion }}
       ref: ${{ inputs.ref }}
       repository: ${{ inputs.repository }}
+      skipList: ${{ inputs.skipList }}
 
   hr-rolling-upgrades:
     needs: images
