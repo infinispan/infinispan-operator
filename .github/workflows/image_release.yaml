@@ -1,19 +1,19 @@
 name: Image Release
 
 on:
- schedule:
-    - cron: '30 4 * * *' 
+  schedule:
+    - cron: '30 4 * * *'
 
- workflow_dispatch:
-   inputs:
-     ref:
-       description: "The Operator branch/tag to checkout when creating the image."
-       required: true
-       default: "main"
-     repository:
-       description: "The git repository to checkout"
-       required: false
-       type: string
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "The Operator branch/tag to checkout when creating the image."
+        required: true
+        default: "main"
+      repository:
+        description: "The git repository to checkout"
+        required: false
+        type: string
 
 
 jobs:
@@ -29,6 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          fetch-depth: 2
           ref: ${{ github.event.inputs.ref || 'main' }}
           repository: ${{ github.repository }}
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
