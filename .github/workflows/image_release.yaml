@@ -19,6 +19,8 @@ on:
 jobs:
   check_operand:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
 
     steps:
       - name: Configure Git
@@ -29,20 +31,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           ref: ${{ github.event.inputs.ref || 'main' }}
           repository: ${{ github.repository }}
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           path: operator
 
       - name: Check if new operand added
+        working-directory: operator
         id: check
         run: |
-          PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo HEAD)
-          if git diff --quiet $PREV_COMMIT HEAD -- config/manager/manager.yaml; then
+          COMMITS=($(git log -2 --pretty=format:%H -- config/manager/manager.yaml))
+          echo "Latest commit: ${COMMITS[0]}"
+          echo "Previous commit: ${COMMITS[1]}"
+          if [ ${#COMMITS[@]} -lt 2 ]; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
-            echo "changed=true" >> $GITHUB_OUTPUT
+            if git diff --quiet ${COMMITS[1]} ${COMMITS[0]} -- config/manager/manager.yaml; then
+              echo "changed=false" >> $GITHUB_OUTPUT
+            else
+              echo "changed=true" >> $GITHUB_OUTPUT
+            fi
           fi
 
   release:
