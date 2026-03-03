@@ -19,6 +19,8 @@ on:
 jobs:
   check_operand:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
 
     steps:
       - name: Configure Git
@@ -36,6 +38,7 @@ jobs:
           path: operator
 
       - name: Check if new operand added
+        working-directory: operator
         id: check
         run: |
           PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo HEAD)
@@ -47,7 +50,7 @@ jobs:
 
   release:
     needs: check_operand
-    if: needs.check_operand.outputs.changed == 'true'
+    if: needs.check_operand.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
