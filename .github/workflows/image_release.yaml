@@ -53,6 +53,11 @@ jobs:
     if: needs.check_operand.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - name: Configure Git
+        run: |
+          git config --global user.name "infinispan-qe-bot"
+          git config --global user.email "q*@infinispan.org"
+          
       - name: Checkout
         uses: actions/checkout@v6
         with:
