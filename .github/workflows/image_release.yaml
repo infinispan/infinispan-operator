@@ -57,7 +57,7 @@ jobs:
         run: |
           git config --global user.name "infinispan-qe-bot"
           git config --global user.email "q*@infinispan.org"
-          
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -132,7 +132,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          token: ${{ secrets.FORK_PAT }}
           path: community-operators
           commit-message: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
           committer: infinispan-qe-bot <q*@infinispan.org>
@@ -162,7 +162,7 @@ jobs:
         id: cpr1
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          token: ${{ secrets.FORK_PAT }}
           path: community-operators-prod
           commit-message: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
           committer: infinispan-qe-bot <q*@infinispan.org>
