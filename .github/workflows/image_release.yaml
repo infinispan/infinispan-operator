@@ -179,7 +179,7 @@ jobs:
           REL_VERSION: ${{ steps.bump_tag.outputs.new_tag }}
         uses: cardinalby/schedule-job-action@v1
         with:
-          ghTokentoken: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+          ghToken: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           targetBranch: 'main'
           templateYmlFile: './infinispan-operator/.github-scheduled-workflows/publish-main.yaml'
           targetYmlFileName: publish-main.yaml
