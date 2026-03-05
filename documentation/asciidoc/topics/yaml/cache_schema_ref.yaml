@@ -1,0 +1,31 @@
+apiVersion: infinispan.org/v2alpha1
+kind: Schema
+metadata:
+  name: person-schema
+spec:
+  clusterName: infinispan
+  name: person.proto
+  schema: |
+    package org.infinispan;
+
+    message Person {
+        string name = 1;
+        int32 age = 2;
+        string email = 3;
+    }
+---
+apiVersion: infinispan.org/v2alpha1
+kind: Cache
+metadata:
+  name: person-cache
+spec:
+  clusterName: infinispan
+  name: persons
+  schemaRef: person-schema
+  template: |-
+    distributedCache:
+      mode: "SYNC"
+      owners: "2"
+      statistics: "true"
+      encoding:
+        mediaType: "application/x-protostream"

@@ -98,6 +98,10 @@ spec:
                 description: Name of the cache to be created. If empty ObjectMeta.Name
                   will be used
                 type: string
+              schemaRef:
+                description: Name of the Schema CR that must be ready before the cache
+                  is created
+                type: string
               template:
                 description: Cache template in XML format
                 type: string

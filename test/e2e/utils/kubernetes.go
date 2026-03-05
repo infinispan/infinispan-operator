@@ -852,6 +852,7 @@ func (k TestKubernetes) RunOperator(namespace, crdsPath string) context.CancelFu
 	k.installCRD(crdsPath + "infinispan.org_backups.yaml")
 	k.installCRD(crdsPath + "infinispan.org_restores.yaml")
 	k.installCRD(crdsPath + "infinispan.org_batches.yaml")
+	k.installCRD(crdsPath + "infinispan.org_schemas.yaml")
 	ctx, cancel := context.WithCancel(context.Background())
 	go runOperatorLocally(ctx, namespace)
 	return cancel

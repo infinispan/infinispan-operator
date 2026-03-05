@@ -16,6 +16,8 @@ type Infinispan interface {
 	Logging() Logging
 	Metrics() Metrics
 	ProtobufMetadataCacheName() string
+	Schema(name string) ProtoSchema
+	Schemas() ProtoSchemas
 	ScriptCacheName() string
 	Server() Server
 }
@@ -73,6 +75,31 @@ type Caches interface {
 	ConvertConfiguration(config string, contentType, reqType mime.MimeType) (string, error)
 	EqualConfiguration(a, b string) (bool, error)
 	Names() ([]string, error)
+}
+
+// ProtoSchema contains all operations for managing a specific protobuf schema
+type ProtoSchema interface {
+	Create(schema string) (*SchemaResponse, error)
+	CreateOrUpdate(schema string) (*SchemaResponse, error)
+	Delete() error
+	Get() (string, error)
+}
+
+// ProtoSchemas contains all generic protobuf schema operations
+type ProtoSchemas interface {
+	Names() ([]SchemaResponse, error)
+}
+
+// SchemaResponse represents the response from schema create/update/list operations
+type SchemaResponse struct {
+	Name  string       `json:"name"`
+	Error *SchemaError `json:"error"`
+}
+
+// SchemaError represents an error in a schema response
+type SchemaError struct {
+	Message string `json:"message"`
+	Cause   string `json:"cause"`
 }
 
 // Cluster contains all operations that are performed cluster-wide
@@ -187,5 +214,6 @@ type PathResolver interface {
 	CacheManager(string) string
 	Container(string) string
 	Logging(string) string
+	Schemas(string) string
 	Server(string) string
 }
