@@ -81,7 +81,7 @@ jobs:
           git push origin "$TAG_NAME"
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:qemu-v9.2.0
           cache-image: false
