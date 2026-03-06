@@ -4,7 +4,7 @@ ifdef::context[:parent-context: {context}]
 = Monitoring {brandname} services
 
 [role="_abstract"]
-{brandname} exposes metrics that can be used by Prometheus and Grafana for monitoring and visualizing the cluster state.
+{brandname} exposes metrics that can be used by Prometheus for monitoring and visualizing the cluster state.
 
 [NOTE]
 ====
@@ -19,13 +19,6 @@ include::{topics}/proc_creating_service_monitor.adoc[leveloffset=+1]
 include::{topics}/proc_disabling_service_monitor.adoc[leveloffset=+2]
 
 include::{topics}/proc_configuring_service_monitor_target_labels.adoc[leveloffset=+2]
-
-//Downstream content
-ifdef::downstream[]
-include::{topics}/proc_installing_grafana_operator.adoc[leveloffset=+1]
-endif::downstream[]
-include::{topics}/proc_creating_grafana_datasources.adoc[leveloffset=+1]
-include::{topics}/proc_configuring_grafana_dashboards.adoc[leveloffset=+1]
 
 include::{topics}/proc_enabling_jmx.adoc[leveloffset=+1]
 include::{topics}/proc_deploying_cryostat.adoc[leveloffset=+1]
