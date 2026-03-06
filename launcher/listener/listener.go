@@ -87,6 +87,14 @@ func New(ctx context.Context, p Parameters) {
 		VersionManager: versionManager,
 	}
 
+	schemaListener := &controllers.SchemaListener{
+		Infinispan:     infinispan,
+		Ctx:            ctx,
+		Kubernetes:     k8s,
+		Log:            log,
+		VersionManager: versionManager,
+	}
+
 	wait := func() {
 		t := time.NewTimer(time.Second)
 		select {
@@ -116,7 +124,9 @@ func New(ctx context.Context, p Parameters) {
 		if readyPod == nil {
 			log.Info("Waiting for an Infinispan pod to become ready...")
 		} else if err = cacheListener.RemoveStaleResources(readyPod.Name); err != nil {
-			log.Errorf("Unable to remove stale resources: %v", err)
+			log.Errorf("Unable to remove stale cache resources: %v", err)
+		} else if err = schemaListener.RemoveStaleResources(readyPod.Name); err != nil {
+			log.Errorf("Unable to remove stale schema resources: %v", err)
 		} else {
 			break
 		}
@@ -148,6 +158,10 @@ func New(ctx context.Context, p Parameters) {
 				err = cacheListener.CreateOrUpdate(msg.Data)
 			case "remove-cache":
 				err = cacheListener.Delete(msg.Data)
+			case "create-schema", "update-schema":
+				err = schemaListener.CreateOrUpdate(msg.Data)
+			case "remove-schema":
+				err = schemaListener.Delete(msg.Data)
 			}
 			if err != nil {
 				log.Errorf("Error encountered for event '%s': %v", event, err)
