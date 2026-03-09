@@ -1,6 +1,8 @@
 package v2alpha1
 
 import (
+	"strings"
+
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -102,6 +104,15 @@ func (restore *Restore) RemovePausedCondition() bool {
 	return restore.RemoveCondition(ConditionReconciliationPaused)
 }
 
+func (cache *Cache) HasSchemaRef(name string) bool {
+	for _, ref := range cache.Spec.SchemaRefs {
+		if ref.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (cache *Cache) GetCacheName() string {
 	if cache.Spec.Name != "" {
 		return cache.Spec.Name
@@ -114,6 +125,41 @@ func (b *Batch) ConfigMapName() string {
 		return *b.Spec.ConfigMap
 	}
 	return b.Name
+}
+
+func (s *Schema) SetCondition(condition ConditionType, status metav1.ConditionStatus, message string) bool {
+	changed, conditions := setCondition(s.Status.Conditions, condition, status, message)
+	s.Status.Conditions = conditions
+	return changed
+}
+
+func (s *Schema) GetCondition(condition ConditionType) Condition {
+	return getCondition(s.Status.Conditions, condition)
+}
+
+func (s *Schema) RemoveCondition(condition ConditionType) bool {
+	changed, conditions := removeCondition(s.Status.Conditions, condition)
+	s.Status.Conditions = conditions
+	return changed
+}
+
+func (s *Schema) SetPausedCondition(message string) bool {
+	return s.SetCondition(ConditionReconciliationPaused, metav1.ConditionTrue, message)
+}
+
+func (s *Schema) RemovePausedCondition() bool {
+	return s.RemoveCondition(ConditionReconciliationPaused)
+}
+
+func (s *Schema) GetSchemaName() string {
+	name := s.Spec.Name
+	if name == "" {
+		name = s.Name
+	}
+	if !strings.HasSuffix(name, ".proto") {
+		name = name + ".proto"
+	}
+	return name
 }
 
 // CpuResources returns the CPU request and limit values to be used by Batch pod

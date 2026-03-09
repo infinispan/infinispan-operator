@@ -11,7 +11,7 @@ metadata:
   namespace: <namespace>
 rules:
   - apiGroups: ["infinispan.org"]
-    resources: ["caches"]
+    resources: ["caches", "caches/status", "schemas", "schemas/status"]
     verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
   - apiGroups: ["infinispan.org"]
     resources: ["infinispans"]
