@@ -10,6 +10,7 @@ type ConditionType string
 
 const (
 	ConditionReady                ConditionType = "Ready"
+	ConditionBidirectionalSync    ConditionType = "BidirectionalSync"
 	ConditionReconciliationPaused ConditionType = "ReconciliationPaused"
 )
 
