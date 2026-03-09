@@ -2,7 +2,7 @@ name: Image Release
 
 on:
   schedule:
-    - cron: '30 4 * * *'
+    - cron: '0 0 * * *'
 
   workflow_dispatch:
     inputs:
@@ -31,26 +31,54 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           ref: ${{ github.event.inputs.ref || 'main' }}
           repository: ${{ github.repository }}
           token: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           path: operator
 
       - name: Check if new operand added
+        id: check_operand
         working-directory: operator
-        id: check
         run: |
-          PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo HEAD)
-          if git diff --quiet $PREV_COMMIT HEAD -- config/manager/manager.yaml; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
+          LAST_TAG=$(git describe --tags --abbrev=0)
+          echo "Last release tag: $LAST_TAG"
+          ADDED=$(git diff $LAST_TAG HEAD -- config/manager/manager.yaml | grep '^+' | grep '"upstream-version"')
+          echo "Added operand:"
+          echo "$ADDED"
+          if [ -n "$ADDED" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Check open PRs from forks repository
+        id: check_pr_status
+        env:
+          GH_TOKEN: ${{ secrets.FORK_PAT }}
+        run: |
+          PR1=$(gh pr list \
+            --repo infinispan-qe-bot/community-operators \
+            --state open \
+            --json number \
+            --jq 'length')
+          PR2=$(gh pr list \
+            --repo infinispan-qe-bot/community-operators-prod \
+            --state open \
+            --json number \
+            --jq 'length')
+          echo "Repo infinispan-qe-bot/community-operators PR count: $PR1"
+          echo "Repo infinispan-qe-bot/community-operators-prod  PR count: $PR2"
+          if [ "$PR1" -gt 0 ] || [ "$PR2" -gt 0 ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi  
+
 
   release:
     needs: check_operand
-    if: needs.check_operand.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+    if: (needs.check_operand.outputs.changed == 'true' && needs.check_pr_status.outputs.skip != 'true') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Configure Git
@@ -181,6 +209,6 @@ jobs:
         with:
           ghToken: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
           targetBranch: 'main'
-          templateYmlFile: './infinispan-operator/.github-scheduled-workflows/publish-main.yaml'
+          templateYmlFile: 'operator/.github-scheduled-workflows/publish-main.yaml'
           targetYmlFileName: publish-main.yaml
           copyEnvVariables: REF REL_VERSION
