@@ -5,4 +5,5 @@ resources:
 - backup-restore/infinispan_v2alpha1_restore.yaml
 - batch/infinispan_v2alpha1_batch.yaml
 - cache/infinispan_v2alpha1_cache.yaml
+- schema/infinispan_v2alpha1_schema.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
