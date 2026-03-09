@@ -26,6 +26,10 @@ func (r *pathResolver) Logging(s string) string {
 	return r.Root + "/logging/loggers" + s
 }
 
+func (r *pathResolver) Schemas(s string) string {
+	return r.Root + "/schemas" + s
+}
+
 func (r *pathResolver) Server(s string) string {
 	return r.Root + "/server" + s
 }

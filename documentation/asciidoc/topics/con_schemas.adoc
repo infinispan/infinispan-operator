@@ -1,0 +1,22 @@
+[id='schemas_{context}']
+= Protobuf schemas
+
+[role="_abstract"]
+Protobuf schemas provide metadata about custom entities that are stored in {brandname} caches that use the `application/x-protostream` media type encoding.
+{brandname} uses the Protobuf schema definitions to:
+
+* Serialize and deserialize data in caches.
+* Index data for {brandname} queries.
+
+To register Protobuf schemas with {brandname} clusters running on {k8s}, you should:
+
+* Use `Schema` CR as the mechanism for registering schemas through the {k8s} front end.
+* Use `Batch` CR to register multiple schemas at a time.
+* Access {brandname} Console and register schemas directly.
+
+[discrete]
+== Schema CRs
+
+* Each `Schema` CR corresponds to a single `.proto` schema file on the {brandname} cluster.
+* `Schema` CRs are bidirectionally synchronized. Schemas created directly on the {brandname} server are automatically represented as `Schema` CRs in {k8s}, and vice versa.
+* The `spec.clusterName` and `spec.name` fields are immutable after creation.

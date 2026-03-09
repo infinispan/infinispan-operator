@@ -184,6 +184,20 @@ rules:
   - update
   - watch
 - apiGroups:
+  - infinispan.org
+  resources:
+  - schemas
+  - schemas/finalizers
+  - schemas/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - integreatly.org
   resources:
   - grafanadashboards

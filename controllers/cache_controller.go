@@ -104,6 +104,31 @@ func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager
 				return requests
 			}),
 	)
+	builder.Watches(
+		&source.Kind{Type: &v2alpha1.Schema{}},
+		handler.EnqueueRequestsFromMapFunc(
+			func(a client.Object) []reconcile.Request {
+				s := a.(*v2alpha1.Schema)
+				// Only enqueue requests once a Schema CR has become Ready
+				if s.GetCondition(v2alpha1.SchemaConditionReady).Status != metav1.ConditionTrue {
+					return nil
+				}
+
+				var requests []reconcile.Request
+				cacheList := &v2alpha1.CacheList{}
+				if err := r.Client.List(ctx, cacheList, &client.ListOptions{Namespace: a.GetNamespace()}); err != nil {
+					r.log.Error(err, "watches failed to list Cache CRs")
+					return nil
+				}
+
+				for _, item := range cacheList.Items {
+					if item.Spec.SchemaRef == a.GetName() {
+						requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}})
+					}
+				}
+				return requests
+			}),
+	)
 	return builder.Complete(r)
 }
 
@@ -195,6 +220,28 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 	if infinispan.IsCache() {
 		reqLogger.Info("Ignoring Cache CR as cluster is marked as CacheService")
 		return ctrl.Result{}, nil
+	}
+
+	// If a Schema dependency is specified, ensure it is ready before proceeding
+	if instance.Spec.SchemaRef != "" && !crDeleted {
+		schemaInstance := &v2alpha1.Schema{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.SchemaRef}, schemaInstance); err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info(fmt.Sprintf("Schema %s not found, requeueing", instance.Spec.SchemaRef))
+				return ctrl.Result{Requeue: true}, cache.update(func() error {
+					instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionFalse, fmt.Sprintf("Schema %s not found", instance.Spec.SchemaRef))
+					return nil
+				})
+			}
+			return ctrl.Result{}, err
+		}
+		if schemaInstance.GetCondition(v2alpha1.SchemaConditionReady).Status != metav1.ConditionTrue {
+			reqLogger.Info(fmt.Sprintf("Schema %s not ready, requeueing", instance.Spec.SchemaRef))
+			return ctrl.Result{Requeue: true}, cache.update(func() error {
+				instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionFalse, fmt.Sprintf("Schema %s not ready", instance.Spec.SchemaRef))
+				return nil
+			})
+		}
 	}
 
 	ispnClient, err := NewInfinispan(ctx, infinispan, r.versionManager, r.kubernetes)
