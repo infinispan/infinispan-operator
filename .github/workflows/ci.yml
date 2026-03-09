@@ -120,6 +120,18 @@ jobs:
       ref: ${{ inputs.ref }}
       repository: ${{ inputs.repository }}
 
+  schema:
+    needs: images
+    uses: ./.github/workflows/test_without_olm.yml
+    with:
+      args: 'schema-test PARALLEL_COUNT=3'
+      artifactPrefix: 'schema'
+      operand: ${{ inputs.operand }}
+      operandArtifact: ${{ inputs.operandArtifact }}
+      operandVersion: ${{ inputs.operandVersion }}
+      ref: ${{ inputs.ref }}
+      repository: ${{ inputs.repository }}
+
   multinamespace:
     # If custom operand is defined, skip the tests as irellevant
     if: ${{ inputs.operand == '' }}

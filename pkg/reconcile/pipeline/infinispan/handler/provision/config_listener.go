@@ -131,7 +131,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{v2alpha1.GroupVersion.Group},
-				Resources: []string{"caches"},
+				Resources: []string{"caches", "schemas"},
 				Verbs: []string{
 					"create",
 					"delete",
@@ -286,12 +286,27 @@ func RemoveConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		ctx.Requeue(fmt.Errorf("unable to retrieve existing Cache resources: %w", err))
 		return
 	}
-	// Iterate over all existing CRs, marking for deletion any that do not have a cache definition on the server
 	for _, cache := range cacheList.Items {
 		if kube.IsOwnedBy(&cache, i) {
 			cache.Annotations[constants.ListenerAnnotationDelete] = "true"
 			if err := ctx.Resources().Update(&cache, pipeline.IgnoreNotFound); err != nil {
 				ctx.Requeue(fmt.Errorf("unable to mark Cache CR '%s' for deletion: %w", cache.Name, err))
+				return
+			}
+		}
+	}
+
+	// Remove any Schema CR instances owned by Infinispan as these were created by the Listener
+	schemaList := &v2alpha1.SchemaList{}
+	if err := ctx.Resources().List(nil, schemaList); err != nil {
+		ctx.Requeue(fmt.Errorf("unable to retrieve existing Schema resources: %w", err))
+		return
+	}
+	for _, schema := range schemaList.Items {
+		if kube.IsOwnedBy(&schema, i) {
+			schema.Annotations[constants.ListenerAnnotationDelete] = "true"
+			if err := ctx.Resources().Update(&schema, pipeline.IgnoreNotFound); err != nil {
+				ctx.Requeue(fmt.Errorf("unable to mark Schema CR '%s' for deletion: %w", schema.Name, err))
 				return
 			}
 		}

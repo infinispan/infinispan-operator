@@ -1,0 +1,15 @@
+ifdef::context[:parent-context: {context}]
+[id='registering-schemas']
+:context: registering-schemas
+= Registering Protobuf schemas with {ispn_operator}
+
+[role="_abstract"]
+Use `Schema` CRs to register Protobuf schema definitions with {ispn_operator} so that {brandname} can serialize, deserialize, and index your data.
+
+include::{topics}/con_schemas.adoc[leveloffset=+1]
+include::{topics}/proc_creating_schemas.adoc[leveloffset=+1]
+include::{topics}/proc_updating_schemas.adoc[leveloffset=+1]
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]
