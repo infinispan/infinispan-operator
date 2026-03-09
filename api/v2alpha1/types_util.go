@@ -60,6 +60,50 @@ func (a CacheConditionType) equals(b CacheConditionType) bool {
 	return strings.EqualFold(strings.ToLower(string(a)), strings.ToLower(string(b)))
 }
 
+// SetCondition set condition to status
+func (s *Schema) SetCondition(condition SchemaConditionType, status metav1.ConditionStatus, message string) bool {
+	changed := false
+	for idx := range s.Status.Conditions {
+		c := &s.Status.Conditions[idx]
+		if c.Type == condition {
+			if c.Status != status {
+				c.Status = status
+				changed = true
+			}
+			if c.Message != message {
+				c.Message = message
+				changed = true
+			}
+
+			return changed
+		}
+	}
+	s.Status.Conditions = append(s.Status.Conditions, SchemaCondition{Type: condition, Status: status, Message: message})
+	return true
+}
+
+// GetCondition return the Status of the given condition or nil if condition is not present
+func (s *Schema) GetCondition(condition SchemaConditionType) SchemaCondition {
+	for _, c := range s.Status.Conditions {
+		if strings.EqualFold(string(c.Type), string(condition)) {
+			return c
+		}
+	}
+	// Absence of condition means `False` value
+	return SchemaCondition{Type: condition, Status: metav1.ConditionFalse}
+}
+
+func (s *Schema) GetSchemaName() string {
+	name := s.Spec.Name
+	if name == "" {
+		name = s.Name
+	}
+	if !strings.HasSuffix(name, ".proto") {
+		name = name + ".proto"
+	}
+	return name
+}
+
 // CpuResources returns the CPU request and limit values to be used by Batch pod
 func (spec *BatchContainerSpec) CpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
 	return v1.GetRequestLimits(spec.CPU)
