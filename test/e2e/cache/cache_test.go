@@ -532,6 +532,12 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 	// Assert that the listener created Cache CR is removed by the Infinispan controller when the ConfigListener is disabled
 	testKube.WaitForResourceRemoval(cache.Name, tutils.Namespace, &v2alpha1.Cache{})
 
+	// Wait for the Infinispan controller to finish its reconcile cycle after cleaning up
+	// listener resources. Without this, the controller may re-run RemoveConfigListener on a
+	// subsequent reconcile and mark the newly created CR for deletion before the test can
+	// observe it as Ready.
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, v1.ConditionWellFormed)
+
 	// Manually recreate the Cache CR and set its owner reference
 	cr := cacheCR(cacheName, ispn)
 	cr.ObjectMeta.Annotations = map[string]string{constants.ListenerAnnotationGeneration: "1"}
