@@ -62,6 +62,9 @@ type CacheSpec struct {
 	// How updates to Cache CR template should be reconciled on the Infinispan server
 	// +optional
 	Updates *CacheUpdateSpec `json:"updates,omitempty"`
+	// Names of the Schema CRs that must be ready before the cache is created
+	// +optional
+	SchemaRefs []string `json:"schemaRefs,omitempty"`
 }
 
 // CacheCondition define a condition of the cluster

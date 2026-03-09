@@ -194,6 +194,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 		k.WriteAllResourcesToFile(dir, "", namespace, "Restore", &ispnv2.RestoreList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, "", namespace, "Batch", &ispnv2.BatchList{}, map[string]string{})
 		k.WriteAllResourcesToFile(dir, "", namespace, "Cache", &ispnv2.CacheList{}, map[string]string{})
+		k.WriteAllResourcesToFile(dir, "", namespace, "Schema", &ispnv2.SchemaList{}, map[string]string{})
 		k.WriteAllMetricsToFile(dir, namespace)
 	}
 
@@ -207,6 +208,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Batch{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Cache{}, opts...))
+		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Schema{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv1.Infinispan{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Restore{}, opts...))
 		ExpectMaybeNotFound(k.Kubernetes.Client.DeleteAllOf(ctx, &ispnv2.Backup{}, opts...))
@@ -852,6 +854,7 @@ func (k TestKubernetes) RunOperator(namespace, crdsPath string) context.CancelFu
 	k.installCRD(crdsPath + "infinispan.org_backups.yaml")
 	k.installCRD(crdsPath + "infinispan.org_restores.yaml")
 	k.installCRD(crdsPath + "infinispan.org_batches.yaml")
+	k.installCRD(crdsPath + "infinispan.org_schemas.yaml")
 	ctx, cancel := context.WithCancel(context.Background())
 	go runOperatorLocally(ctx, namespace)
 	return cancel
@@ -928,6 +931,61 @@ func runOperatorLocally(ctx context.Context, namespace string) {
 func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {
 	err := k.Kubernetes.Client.Delete(context.TODO(), cache)
 	ExpectMaybeNotFound(err)
+}
+
+func (k TestKubernetes) DeleteSchema(schema *ispnv2.Schema) {
+	err := k.Kubernetes.Client.Delete(context.TODO(), schema)
+	ExpectMaybeNotFound(err)
+}
+
+// WaitForSchemaState retrieves the Schema CR that corresponds to the provided schema, cluster and namespace, then waits for
+// the desired state
+func (k TestKubernetes) WaitForSchemaState(schemaName, clusterName, namespace string, predicate func(*ispnv2.Schema) bool) *ispnv2.Schema {
+	var schema *ispnv2.Schema
+	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+		schema = k.FindSchemaResource(schemaName, clusterName, namespace)
+		if schema == nil {
+			return false, nil
+		}
+		return predicate(schema), nil
+	})
+	ExpectNoError(err)
+	return schema
+}
+
+func (k TestKubernetes) FindSchemaResource(schemaName, clusterName, namespace string) *ispnv2.Schema {
+	schemaList := &ispnv2.SchemaList{}
+	listOpts := &client.ListOptions{
+		Namespace: namespace,
+	}
+	ExpectNoError(k.Kubernetes.Client.List(context.TODO(), schemaList, listOpts))
+	for _, s := range schemaList.Items {
+		if s.GetSchemaName() == schemaName && s.Spec.ClusterName == clusterName {
+			return &s
+		}
+	}
+	return nil
+}
+
+// WaitForSchemaConditionReady retrieves the Schema CR that corresponds to the provided schema, cluster and namespace
+func (k TestKubernetes) WaitForSchemaConditionReady(schemaName, clusterName, namespace string) *ispnv2.Schema {
+	return k.WaitForSchemaCondition(schemaName, clusterName, namespace, ispnv2.SchemaCondition{
+		Type:   ispnv2.SchemaConditionReady,
+		Status: metav1.ConditionTrue,
+	})
+}
+
+// WaitForSchemaCondition retrieves the Schema CR that corresponds to the provided schema, cluster and namespace
+func (k TestKubernetes) WaitForSchemaCondition(schemaName, clusterName, namespace string, condition ispnv2.SchemaCondition) *ispnv2.Schema {
+	return k.WaitForSchemaState(schemaName, clusterName, namespace, func(schema *ispnv2.Schema) bool {
+		for _, c := range schema.Status.Conditions {
+			if c.Type == condition.Type && c.Status == condition.Status {
+				log.Info("Schema condition met", "condition", condition)
+				return true
+			}
+		}
+		return false
+	})
 }
 
 // WaitForCacheState retrieves the Cache CR that corresponds to the provided cache, cluster and namespace, then waits for

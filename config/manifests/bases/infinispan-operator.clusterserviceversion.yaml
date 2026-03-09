@@ -254,6 +254,20 @@ spec:
         displayName: Reason
         path: reason
       version: v2alpha1
+    - description: Schema is the Schema for the schemas API
+      displayName: Schema
+      kind: Schema
+      name: schemas.infinispan.org
+      specDescriptors:
+      - description: Infinispan cluster name
+        displayName: Cluster Name
+        path: clusterName
+        x-descriptors:
+        - urn:alm:descriptor:io.kubernetes:infinispan.org:v1:Infinispan
+      - description: Protobuf schema definition
+        displayName: Schema Definition
+        path: schema
+      version: v2alpha1
   description: |
     Infinispan is an in-memory data store and open-source project.
 
