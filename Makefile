@@ -116,6 +116,11 @@ backuprestore-test: manager manifests
 batch-test: manager manifests
 	scripts/run-tests.sh batch
 
+.PHONY: schema-test
+## Execute end to end (e2e) tests for Schema CRs
+schema-test: manager manifests
+	scripts/run-tests.sh schema
+
 .PHONY: webhook-test
 ## Execute end to end (e2e) tests for Webhook OLM integration
 webhook-test: manager manifests
