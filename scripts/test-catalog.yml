@@ -8,6 +8,7 @@ package: infinispan
 entries:
   - name: infinispan-operator.v2.5.4
     replaces: infinispan-operator.v2.5.3
+    skipRange: '>=2.4.0 <2.5.4'
   - name: infinispan-operator.v2.5.3
     replaces: infinispan-operator.v2.5.2
   - name: infinispan-operator.v2.5.2
