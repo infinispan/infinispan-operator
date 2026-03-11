@@ -48,6 +48,8 @@ jobs:
           ./scripts/ci/add_next_version.sh  scripts/test-catalog.yml infinispan-operator.v$NEXT_VERSION infinispan-operator.v$PREV_VERSION
           sed -i -E "s/^( *replaces: +infinispan-operator\.v)[0-9]+\.[0-9]+\.[0-9]+/\1$PREV_VERSION/" config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
           sed -i -E "s/^( *replaces: +infinispan-operator\.v)[0-9]+\.[0-9]+\.[0-9]+/\1$PREV_VERSION/" release-config.yaml
+          sed -i -E "s/(olm.skipRange: '>=2.4.18 <)[0-9.]+/\1$NEW_VERSION/" config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
+          sed -i -E "s/(skipRange: '>=2.4.18 <)[0-9.]+/\1$NEW_VERSION/" config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
           git add .
           git commit -m "Next Version $NEXT_VERSION"
           git push origin "${{ env.REF }}"
