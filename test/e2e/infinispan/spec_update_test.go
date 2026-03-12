@@ -91,13 +91,13 @@ func TestUpdatePodTargetLabels(t *testing.T) {
 
 	podLabel := "pod-label-1"
 	var modifier = func(ispn *ispnv1.Infinispan) {
-		ispn.ObjectMeta.Annotations = map[string]string{
+		ispn.Annotations = map[string]string{
 			ispnv1.PodTargetLabels: podLabel,
 		}
 		ispn.ObjectMeta.Labels[podLabel] = "value"
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
-		labels := ss.Spec.Template.ObjectMeta.Labels
+		labels := ss.Spec.Template.Labels
 		if _, exists := labels[podLabel]; !exists {
 			panic(fmt.Sprintf("'%s' label not found in StatefulSet spec", podLabel))
 		}

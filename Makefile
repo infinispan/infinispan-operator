@@ -67,9 +67,9 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 MOCKGEN ?= $(LOCALBIN)/mockgen
 
 ## Tool Versions
-CONTROLLER_TOOLS_VERSION ?= v0.14.0
+CONTROLLER_TOOLS_VERSION ?= v0.16.4
 GO_JUNIT_REPORT_VERSION ?= latest
-GOLANGCI_LINT_VERSION ?= v1.64.8
+GOLANGCI_LINT_VERSION ?= v2.11.3
 KUSTOMIZE_VERSION ?= v3.8.7
 JQ_VERSION ?= 1.7
 YQ_VERSION ?= v4.31.1
@@ -83,8 +83,8 @@ help:
 .PHONY: lint
 ## Invoke linter to promote Go lang best practices.
 lint: golangci-lint
-	$(GOLANGCI_LINT) run --enable errorlint --timeout 5m
-	$(GOLANGCI_LINT) run --disable-all --enable bodyclose --skip-dirs test --timeout 5m
+	$(GOLANGCI_LINT) run -v
+	$(GOLANGCI_LINT) run -v --config .golangci-bodyclose.yaml
 
 .PHONY: test
 ## Execute tests
@@ -224,7 +224,7 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
-	test -s $(GOLANGCI_LINT) || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	test -s $(GOLANGCI_LINT) || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 .PHONY: go-junit-report
 go-junit-report: $(GO_JUNIT_REPORT) ## Download go-junit-report locally if necessary.

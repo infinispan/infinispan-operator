@@ -5,18 +5,18 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - apiextensions.k8s.io
+  - ""
   resources:
-  - customresourcedefinitions
-  - customresourcedefinitions/status
+  - nodes
   verbs:
   - get
   - list
   - watch
 - apiGroups:
-  - ""
+  - apiextensions.k8s.io
   resources:
-  - nodes
+  - customresourcedefinitions
+  - customresourcedefinitions/status
   verbs:
   - get
   - list
@@ -36,37 +36,6 @@ metadata:
   name: manager-role
   namespace: infinispan-operator-system
 rules:
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - deployments/finalizers
-  - statefulsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - replicasets
-  verbs:
-  - get
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -118,24 +87,51 @@ rules:
   - create
   - patch
 - apiGroups:
-  - infinispan.org
+  - apps
   resources:
-  - backups
-  - backups/finalizers
-  - backups/status
+  - deployments
+  - deployments/finalizers
+  - statefulsets
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
   - update
   - watch
 - apiGroups:
+  - apps
+  resources:
+  - replicasets
+  verbs:
+  - get
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - infinispan.org
   resources:
+  - backups
+  - backups/finalizers
+  - backups/status
   - batches
   - batches/finalizers
   - batches/status
+  - infinispans
+  - infinispans/finalizers
+  - infinispans/status
+  - restores
+  - restores/finalizers
+  - restores/status
   verbs:
   - create
   - get
@@ -152,32 +148,6 @@ rules:
   verbs:
   - create
   - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - infinispan.org
-  resources:
-  - infinispans
-  - infinispans/finalizers
-  - infinispans/status
-  verbs:
-  - create
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - infinispan.org
-  resources:
-  - restores
-  - restores/finalizers
-  - restores/status
-  verbs:
-  - create
   - get
   - list
   - patch

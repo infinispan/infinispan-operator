@@ -112,7 +112,7 @@ func ConfigureLoggers(infinispan *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		for category, level := range infinispan.Spec.Logging.Categories {
 			serverLevel, ok := serverLoggers[category]
-			if !(ok && string(level) == serverLevel) {
+			if !ok || string(level) != serverLevel {
 				if err := logging.SetLogger(category, string(level)); err != nil {
 					ctx.Requeue(fmt.Errorf("unable to set logger %s=%s: %w", category, string(level), err))
 					return

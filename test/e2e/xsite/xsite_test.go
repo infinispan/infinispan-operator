@@ -550,13 +550,14 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, explicitNodePort bool,
 			tutils.ExpectNoError(err)
 			testKube.apiServer = apiServerUrl.Host
 		}
-		if schemeType == ispnv1.CrossSiteSchemeTypeKubernetes {
+		switch schemeType {
+		case ispnv1.CrossSiteSchemeTypeKubernetes:
 			defer testKubes["xsite1"].kube.DeleteSecret(crossSiteCertificateSecret("xsite2", testKubes["xsite1"].namespace, clientConfig, testKubes["xsite2"].context))
 			defer testKubes["xsite2"].kube.DeleteSecret(crossSiteCertificateSecret("xsite1", testKubes["xsite2"].namespace, clientConfig, testKubes["xsite1"].context))
 
 			testKubes["xsite1"].kube.CreateSecret(crossSiteCertificateSecret("xsite2", testKubes["xsite1"].namespace, clientConfig, testKubes["xsite2"].context))
 			testKubes["xsite2"].kube.CreateSecret(crossSiteCertificateSecret("xsite1", testKubes["xsite2"].namespace, clientConfig, testKubes["xsite1"].context))
-		} else if schemeType == ispnv1.CrossSiteSchemeTypeOpenShift {
+		case ispnv1.CrossSiteSchemeTypeOpenShift:
 			operatorNamespaceSite1 := constants.GetWithDefault(tutils.OperatorNamespace, testKubes["xsite1"].namespace)
 			operatorNamespaceSite2 := constants.GetWithDefault(tutils.OperatorNamespace, testKubes["xsite2"].namespace)
 			xsite1Token := getServiceAccountToken(operatorNamespaceSite1, testKubes["xsite1"].kube)
@@ -617,7 +618,8 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, explicitNodePort bool,
 		}
 	}
 
-	if tlsMode == DefaultTLS {
+	switch tlsMode {
+	case DefaultTLS:
 		transport, router, trust := tutils.CreateDefaultCrossSiteKeyAndTrustStore()
 
 		for site := range testKubes {
@@ -654,7 +656,7 @@ func testCrossSiteView(t *testing.T, isMultiCluster bool, explicitNodePort bool,
 				testKubes[site].crossSite.Spec.Service.Sites.Local.Encryption.Protocol = *tlsProtocol
 			}
 		}
-	} else if tlsMode == SingleKeyStoreTLS {
+	case SingleKeyStoreTLS:
 		keystore, truststore := tutils.CreateCrossSiteSingleKeyStoreAndTrustStore()
 		for site := range testKubes {
 			namespace := testKubes[site].namespace

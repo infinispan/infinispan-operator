@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"testing"
 
-	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -12,8 +11,8 @@ import (
 )
 
 func TestClientCertValidate(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
-		authType = ispnv1.ClientCertValidate
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = v1.ClientCertValidate
 		serverName := tutils.GetServerName(spec)
 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
@@ -23,9 +22,9 @@ func TestClientCertValidate(t *testing.T) {
 }
 
 func TestClientCertValidateNoAuth(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
-		authType = ispnv1.ClientCertValidate
+		authType = v1.ClientCertValidate
 		serverName := tutils.GetServerName(spec)
 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
@@ -35,8 +34,8 @@ func TestClientCertValidateNoAuth(t *testing.T) {
 }
 
 func TestClientCertAuthenticate(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
-		authType = ispnv1.ClientCertAuthenticate
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = v1.ClientCertAuthenticate
 		serverName := tutils.GetServerName(spec)
 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, true)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
@@ -46,8 +45,8 @@ func TestClientCertAuthenticate(t *testing.T) {
 }
 
 func TestClientCertWithKeyCrtFiles(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
-		authType = ispnv1.ClientCertAuthenticate
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = v1.ClientCertAuthenticate
 		serverName := tutils.GetServerName(spec)
 		keyCertPair, truststore, tlsConfig := tutils.CreateKeyCertAndTruststore(serverName, true)
 		keystoreSecret = tutils.EncryptionSecret(spec.Name, tutils.Namespace, keyCertPair.PrivateKey, keyCertPair.Certificate)
@@ -57,17 +56,17 @@ func TestClientCertWithKeyCrtFiles(t *testing.T) {
 }
 
 func TestClientCertValidateWithAuthorization(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		spec.Spec.Security.Authorization = &v1.Authorization{
 			Enabled: true,
-			Roles: []ispnv1.AuthorizationRole{
+			Roles: []v1.AuthorizationRole{
 				{
 					Name:        "client",
 					Permissions: []string{"ALL"},
 				},
 			},
 		}
-		authType = ispnv1.ClientCertValidate
+		authType = v1.ClientCertValidate
 		serverName := tutils.GetServerName(spec)
 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
@@ -77,17 +76,17 @@ func TestClientCertValidateWithAuthorization(t *testing.T) {
 }
 
 func TestClientCertAuthenticateWithAuthorization(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
 		spec.Spec.Security.Authorization = &v1.Authorization{
 			Enabled: true,
-			Roles: []ispnv1.AuthorizationRole{
+			Roles: []v1.AuthorizationRole{
 				{
 					Name:        "client",
 					Permissions: []string{"ALL"},
 				},
 			},
 		}
-		authType = ispnv1.ClientCertAuthenticate
+		authType = v1.ClientCertAuthenticate
 		serverName := tutils.GetServerName(spec)
 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, true)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
@@ -97,8 +96,8 @@ func TestClientCertAuthenticateWithAuthorization(t *testing.T) {
 }
 
 func TestClientCertGeneratedTruststoreAuthenticate(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
-		authType = ispnv1.ClientCertAuthenticate
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = v1.ClientCertAuthenticate
 		serverName := tutils.GetServerName(spec)
 		keystore, caCert, clientCert, tlsConfig := tutils.CreateKeystoreAndClientCerts(serverName)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
@@ -108,8 +107,8 @@ func TestClientCertGeneratedTruststoreAuthenticate(t *testing.T) {
 }
 
 func TestClientCertGeneratedTruststoreValidate(t *testing.T) {
-	testClientCert(t, func(spec *v1.Infinispan) (authType ispnv1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
-		authType = ispnv1.ClientCertValidate
+	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
+		authType = v1.ClientCertValidate
 		serverName := tutils.GetServerName(spec)
 		keystore, caCert, _, tlsConfig := tutils.CreateKeystoreAndClientCerts(serverName)
 		keystoreSecret = tutils.EncryptionSecretKeystore(spec.Name, tutils.Namespace, keystore)
@@ -137,7 +136,7 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, v1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
 	client_ := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)

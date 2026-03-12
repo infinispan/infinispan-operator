@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	admissionv1 "k8s.io/api/admission/v1"
-	v1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -72,7 +71,7 @@ var _ admission.Handler = &cacheValidator{}
 func (cv *cacheValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	// Get the object in the request
 	cache := &Cache{}
-	if req.Operation == v1.Create {
+	if req.Operation == admissionv1.Create {
 		err := cv.decoder.Decode(req, cache)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
@@ -88,7 +87,7 @@ func (cv *cacheValidator) Handle(ctx context.Context, req admission.Request) adm
 		}
 	}
 
-	if req.Operation == v1.Update {
+	if req.Operation == admissionv1.Update {
 		oldCache := &Cache{}
 
 		err := cv.decoder.DecodeRaw(req.Object, cache)

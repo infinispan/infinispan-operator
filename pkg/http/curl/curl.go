@@ -148,7 +148,7 @@ func (c *Client) exec(cmd string) (bytes.Buffer, error) {
 		fmt.Printf("DEBUG: Curl exec='%s'\n", cmd)
 	})
 
-	execOut, err := c.Kubernetes.ExecWithOptions(
+	execOut, err := c.ExecWithOptions(
 		kube.ExecOptions{
 			Container: c.Config.Container,
 			Command:   []string{"bash", "-c", cmd},

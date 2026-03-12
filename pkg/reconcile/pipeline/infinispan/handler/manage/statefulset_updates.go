@@ -39,7 +39,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	// Changes to podLabels
 	currentLabels := provision.StatefulSetPodLabels(i.GetStatefulSetName(), i)
-	previousLabels := statefulSet.Spec.Template.ObjectMeta.Labels
+	previousLabels := statefulSet.Spec.Template.Labels
 	if !reflect.DeepEqual(currentLabels, previousLabels) {
 		updateNeeded = true
 	}
@@ -302,8 +302,8 @@ func applyOverlayConfigVolume(ispnContainer *corev1.Container, configMapName str
 			return true
 		} else {
 			// Update the overlay volume if needed
-			if (*volumes)[volumePosition].VolumeSource.ConfigMap.Name != configMapName {
-				(*volumes)[volumePosition].VolumeSource.ConfigMap.Name = configMapName
+			if (*volumes)[volumePosition].ConfigMap.Name != configMapName {
+				(*volumes)[volumePosition].ConfigMap.Name = configMapName
 				return true
 			}
 		}

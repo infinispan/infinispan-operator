@@ -298,7 +298,7 @@ func (k TestKubernetes) SetRelatedImagesEnvs(sub *coreos.Subscription) {
 	envVars := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env
 	for _, envVar := range envVars {
 		if strings.HasPrefix(envVar.Name, "RELATED") {
-			os.Setenv(envVar.Name, envVar.Value)
+			_ = os.Setenv(envVar.Name, envVar.Value)
 		}
 	}
 }

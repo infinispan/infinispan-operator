@@ -10,10 +10,8 @@ import (
 	"github.com/blang/semver"
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
-	"github.com/infinispan/infinispan-operator/api/v2alpha1"
-	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
+	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
-	"github.com/infinispan/infinispan-operator/test/e2e/utils"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
@@ -57,7 +55,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
 
 	// 2. Populate the cluster with some data to backup
-	client := utils.HTTPClientForCluster(infinispan, testKube)
+	client := tutils.HTTPClientForCluster(infinispan, testKube)
 	cacheName := "someCache"
 
 	cache := tutils.NewCacheHelper(cacheName, client)
@@ -73,7 +71,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	testKube.Create(backupSpec)
 
 	// Ensure the backup pod has joined the cluster
-	testKube.WaitForValidBackupPhase(backupName, namespace, v2.BackupSucceeded)
+	testKube.WaitForValidBackupPhase(backupName, namespace, v2alpha1.BackupSucceeded)
 
 	// Ensure that the backup pod has left the cluster, by checking a cluster pod's size
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
@@ -133,7 +131,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	testKube.Create(pod)
 	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
 		err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, pod)
-		utils.ExpectMaybeNotFound(err)
+		tutils.ExpectMaybeNotFound(err)
 		if pod.Status.Phase == corev1.PodFailed {
 			return false, fmt.Errorf("expected %d entries to be backed up for 'someCache'", numEntries)
 		}
@@ -169,7 +167,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	testKube.Create(restoreSpec)
 
 	// Ensure the restore pod has joined the cluster
-	err = testKube.WaitForValidRestorePhase(restoreName, namespace, v2.RestoreSucceeded)
+	err = testKube.WaitForValidRestorePhase(restoreName, namespace, v2alpha1.RestoreSucceeded)
 	if err != nil {
 		// Known issue with older operands that won't be fixed, skip the test to reduce noise in the test results
 		if strings.Contains(err.Error(), "ISPN-15173") {
@@ -182,7 +180,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	testKube.WaitForInfinispanPods(clusterSize, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 
 	// Recreate the cluster instance to use the credentials of the new cluster
-	client = utils.HTTPClientForCluster(infinispan, testKube)
+	client = tutils.HTTPClientForCluster(infinispan, testKube)
 
 	// 7. Ensure that all data is in the target cluster
 	tutils.NewCacheHelper(cacheName, client).AssertSize(numEntries)
@@ -202,7 +200,7 @@ func datagridService(t *testing.T, name string, replicas int) *v1.Infinispan {
 }
 
 func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {
-	spec := &v2.Backup{
+	spec := &v2alpha1.Backup{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v2alpha1",
 			Kind:       "Backup",
@@ -212,7 +210,7 @@ func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {
 			Namespace: namespace,
 			Labels:    map[string]string{"test-name": testName},
 		},
-		Spec: v2.BackupSpec{
+		Spec: v2alpha1.BackupSpec{
 			Cluster: cluster,
 		},
 	}
@@ -221,7 +219,7 @@ func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {
 }
 
 func restoreSpec(testName, name, namespace, backup, cluster string) *v2alpha1.Restore {
-	spec := &v2.Restore{
+	spec := &v2alpha1.Restore{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "infinispan.org/v2alpha1",
 			Kind:       "Restore",
@@ -231,7 +229,7 @@ func restoreSpec(testName, name, namespace, backup, cluster string) *v2alpha1.Re
 			Namespace: namespace,
 			Labels:    map[string]string{"test-name": testName},
 		},
-		Spec: v2.RestoreSpec{
+		Spec: v2alpha1.RestoreSpec{
 			Backup:  backup,
 			Cluster: cluster,
 		},
