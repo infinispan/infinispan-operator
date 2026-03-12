@@ -12,7 +12,7 @@ import (
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	. "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
+	provision "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 )
 
 // NewInfinispan returns a new api.Infinispan client using the first pod in the cluster's StatefulSet
@@ -52,7 +52,7 @@ func NewCurlClient(ctx context.Context, podName string, i *v1.Infinispan, kubern
 			Username: i.GetOperatorUser(),
 			Password: pass,
 		},
-		Container: InfinispanContainer,
+		Container: provision.InfinispanContainer,
 		Podname:   podName,
 		Namespace: i.Namespace,
 		Protocol:  "http",

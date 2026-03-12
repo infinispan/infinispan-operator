@@ -13,7 +13,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	. "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
+	provision "github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -198,7 +198,7 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 	}
 
 	infinispan := &v1.Infinispan{}
-	if err := z.Client.Get(ctx, clusterKey, infinispan); err != nil {
+	if err := z.Get(ctx, clusterKey, infinispan); err != nil {
 		z.Log.Info(fmt.Sprintf("Unable to load Infinispan Cluster '%s': %s", clusterName, err))
 		if errors.IsNotFound(err) {
 			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
@@ -236,13 +236,13 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 
 		if infinispan.IsSiteTLSEnabled() {
 			// JGroups uses SSL sockets with cross-site so we need to mount the keystore and truststore
-			AddSecretVolume(infinispan.GetSiteTransportSecretName(), SiteTransportKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, &pod.Spec, InfinispanContainer)
+			provision.AddSecretVolume(infinispan.GetSiteTransportSecretName(), provision.SiteTransportKeystoreVolumeName, consts.SiteTransportKeyStoreRoot, &pod.Spec, provision.InfinispanContainer)
 			// check if truststore exists
 			trustStoreSecret := &corev1.Secret{}
 			err := z.Get(ctx, types.NamespacedName{Namespace: namespace, Name: infinispan.GetSiteTrustoreSecretName()}, trustStoreSecret)
 			if err == nil {
 				// truststore secret exists, mount the volume
-				AddSecretVolume(infinispan.GetSiteTrustoreSecretName(), SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, &pod.Spec, InfinispanContainer)
+				provision.AddSecretVolume(infinispan.GetSiteTrustoreSecretName(), provision.SiteTruststoreVolumeName, consts.SiteTrustStoreRoot, &pod.Spec, provision.InfinispanContainer)
 			} else if !errors.IsNotFound(err) {
 				return reconcile.Result{}, fmt.Errorf("unable to create zero-capacity pod: %w", err)
 			}
@@ -307,7 +307,7 @@ func (z *zeroCapacityController) isZeroPodReady(request reconcile.Request, ctx c
 
 func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurityCtx *corev1.PodSecurityContext, ispn *v1.Infinispan, zeroSpec *zeroCapacitySpec) (*corev1.Pod, error) {
 	operand, _ := z.VersionManager.WithRef(ispn.Spec.Version)
-	podResources, err := PodResources(zeroSpec.Container)
+	podResources, err := provision.PodResources(zeroSpec.Container)
 	if err != nil {
 		return nil, err
 	}
@@ -328,34 +328,34 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 			SecurityContext: podSecurityCtx,
 			Containers: []corev1.Container{{
 				Image:         ispn.ImageName(),
-				Name:          InfinispanContainer,
-				Env:           PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename}}),
-				Lifecycle:     PodLifecycle(),
-				LivenessProbe: PodLivenessProbe(ispn, operand),
+				Name:          provision.InfinispanContainer,
+				Env:           provision.PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename}}),
+				Lifecycle:     provision.PodLifecycle(),
+				LivenessProbe: provision.PodLivenessProbe(ispn, operand),
 				Ports: []corev1.ContainerPort{
 					{ContainerPort: consts.InfinispanAdminPort, Name: consts.InfinispanAdminPortName, Protocol: corev1.ProtocolTCP},
 					{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
 				},
-				ReadinessProbe: PodReadinessProbe(ispn, operand),
+				ReadinessProbe: provision.PodReadinessProbe(ispn, operand),
 				Resources:      *podResources,
-				StartupProbe:   PodStartupProbe(ispn, operand),
-				Args:           []string{"-c", "operator/infinispan-zero.xml", "-l", OperatorConfMountPath + "/log4j.xml"},
+				StartupProbe:   provision.PodStartupProbe(ispn, operand),
+				Args:           []string{"-c", "operator/infinispan-zero.xml", "-l", provision.OperatorConfMountPath + "/log4j.xml"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      ConfigVolumeName,
-						MountPath: OperatorConfMountPath,
+						Name:      provision.ConfigVolumeName,
+						MountPath: provision.OperatorConfMountPath,
 					},
 					// Utilise Ephemeral vol as we're only interested in data related to CR
 					{
 						Name:      dataVolName,
-						MountPath: DataMountPath,
+						MountPath: provision.DataMountPath,
 					},
 					// Mount configured volume at /zero path so that any created content is stored independent of server data
 					{
 						Name:      name,
 						MountPath: zeroSpec.Volume.MountPath,
 					}, {
-						Name:      InfinispanSecurityVolumeName,
+						Name:      provision.InfinispanSecurityVolumeName,
 						MountPath: consts.ServerOperatorSecurity,
 					},
 				},
@@ -364,7 +364,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 			Volumes: []corev1.Volume{
 				// Volume for mounting zero-capacity yaml configmap
 				{
-					Name: ConfigVolumeName,
+					Name: provision.ConfigVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
 							LocalObjectReference: corev1.LocalObjectReference{Name: ispn.GetConfigName()},
@@ -382,7 +382,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				}, {
-					Name: InfinispanSecurityVolumeName,
+					Name: provision.InfinispanSecurityVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						Secret: &corev1.SecretVolumeSource{
 							SecretName: ispn.GetInfinispanSecuritySecretName(),
@@ -394,7 +394,7 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 	}
 
 	if zeroSpec.Volume.UpdatePermissions {
-		AddVolumeChmodInitContainer("backup-chmod-pv", name, zeroSpec.Volume.MountPath, &pod.Spec)
+		provision.AddVolumeChmodInitContainer("backup-chmod-pv", name, zeroSpec.Volume.MountPath, &pod.Spec)
 	}
 	return pod, nil
 }

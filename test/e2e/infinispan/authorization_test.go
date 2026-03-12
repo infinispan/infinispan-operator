@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	cconsts "github.com/infinispan/infinispan-operator/controllers/constants"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
@@ -45,7 +44,7 @@ func TestAuthorizationWithCustomRoles(t *testing.T) {
 	ispn := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
 		i.Spec.Security.Authorization = &v1.Authorization{
 			Enabled: true,
-			Roles: []ispnv1.AuthorizationRole{{
+			Roles: []v1.AuthorizationRole{{
 				Name:        customRoleName,
 				Permissions: []string{"READ", "WRITE", "CREATE"},
 			}},
@@ -110,7 +109,7 @@ func testAuthorization(ispn *v1.Infinispan, createIdentities func() users.Identi
 	// Create the cluster
 	testKube.CreateInfinispan(ispn, namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, namespace)
-	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, ispnv1.ConditionWellFormed)
+	testKube.WaitForInfinispanCondition(ispn.Name, ispn.Namespace, v1.ConditionWellFormed)
 
 	schema := testKube.GetSchemaForRest(ispn)
 	user := identities.Credentials[0].Username

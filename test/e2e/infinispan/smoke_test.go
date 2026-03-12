@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	users "github.com/infinispan/infinispan-operator/pkg/infinispan/security"
@@ -24,7 +23,7 @@ func TestBaseFunctionality(t *testing.T) {
 
 	// Infinispan cluster definition with extra labels to be propagated to the service and pods
 	replicas := 2
-	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+	spec := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
 		// Ensure that cluster creation using the limit:request format works on initial creation
 		i.Spec.Container.Memory = fmt.Sprintf("%s:%s", tutils.Memory, tutils.Memory)
 		i.Annotations = make(map[string]string)
@@ -59,7 +58,7 @@ func TestBaseFunctionality(t *testing.T) {
 	// Create the cluster
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, v1.ConditionWellFormed)
 
 	assert := assert.New(t)
 	require := require.New(t)
@@ -81,13 +80,13 @@ func TestBaseFunctionality(t *testing.T) {
 
 func TestCustomLoggingPattern(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
-	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+	spec := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
 		i.Spec.Logging.Pattern = "custom_log_pattern_for_test"
 	})
 
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, v1.ConditionWellFormed)
 
 	assert := assert.New(t)
 
@@ -162,12 +161,12 @@ func TestCacheService(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
+	spec := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
 		i.Spec.Service.ReplicationFactor = 2
-		i.Spec.Service.Type = ispnv1.ServiceTypeCache
+		i.Spec.Service.Type = v1.ServiceTypeCache
 		i.Spec.Expose = tutils.ExposeServiceSpec(testKube)
 	})
 
 	testKube.CreateInfinispan(spec, tutils.Namespace)
-	testKube.WaitForInfinispanConditionFalse(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	testKube.WaitForInfinispanConditionFalse(spec.Name, spec.Namespace, v1.ConditionWellFormed)
 }

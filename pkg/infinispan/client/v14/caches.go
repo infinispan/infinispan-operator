@@ -126,7 +126,7 @@ func (c *cache) Put(key, value string, contentType mime.MimeType) (err error) {
 	headers := map[string]string{
 		"Content-Type": string(contentType),
 	}
-	rsp, err := c.HttpClient.Post(c.entryUrl(key), value, headers)
+	rsp, err := c.Post(c.entryUrl(key), value, headers)
 	defer func() {
 		err = httpClient.CloseBody(rsp, err)
 	}()
@@ -189,7 +189,7 @@ func (c *caches) ConvertConfiguration(config string, contentType mime.MimeType, 
 }
 
 func (c *caches) EqualConfiguration(a, b string) (bool, error) {
-	path := c.PathResolver.Caches("?action=compare")
+	path := c.Caches("?action=compare")
 	parts := map[string]string{
 		"a": a,
 		"b": b,

@@ -2,11 +2,12 @@ package batch
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
 	corev1 "k8s.io/api/core/v1"
-	"testing"
-	"time"
 
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -52,7 +53,7 @@ func (b BatchHelper) WaitForValidBatchPhase(name string, phase v2.BatchPhase) *v
 	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
 		batch = b.testKube.GetBatch(name, tutils.Namespace)
 		if batch.Status.Phase == v2.BatchFailed && phase != v2.BatchFailed {
-			return true, fmt.Errorf("Batch failed. Reason: %s", batch.Status.Reason)
+			return true, fmt.Errorf("batch failed. Reason: %s", batch.Status.Reason)
 		}
 		return phase == batch.Status.Phase, nil
 	})

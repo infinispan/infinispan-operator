@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	. "github.com/infinispan/infinispan-operator/controllers/constants"
+	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/hash"
 	config "github.com/infinispan/infinispan-operator/pkg/infinispan/configuration/server"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/upgrades"
@@ -91,7 +91,7 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		ctx:                ctx,
 		i:                  i,
 		log:                log,
-		currentStatefulSet: podList.Items[0].Labels[StatefulSetPodLabel],
+		currentStatefulSet: podList.Items[0].Labels[constants.StatefulSetPodLabel],
 	}
 
 	requestedOperand := ctx.Operand()
@@ -106,7 +106,7 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 	// Ensure that CR has all the operator required labels
-	if !subMapOf(ctx.DefaultLabels(), i.ObjectMeta.Labels) || !subMapOf(ctx.DefaultAnnotations(), i.ObjectMeta.Annotations) {
+	if !subMapOf(ctx.DefaultLabels(), i.ObjectMeta.Labels) || !subMapOf(ctx.DefaultAnnotations(), i.Annotations) {
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
 				ctx.Log().Info("Updating Labels", "Labels: ", ctx.DefaultLabels())
@@ -167,14 +167,14 @@ func getSourceStatefulSetName(ispn *ispnv1.Infinispan) string {
 
 func (r *HotRodRollingUpgradeRequest) removeStatefulSetSelector(serviceName string) error {
 	return r.changeSelector(serviceName, func(selector map[string]string) {
-		delete(selector, StatefulSetPodLabel)
+		delete(selector, constants.StatefulSetPodLabel)
 	})
 }
 
 // redirectServiceToStatefulSet Changes the selector of a service to pod with the supplied statefulSet label
 func (r *HotRodRollingUpgradeRequest) redirectServiceToStatefulSet(serviceName string, statefulSetName string) error {
 	return r.changeSelector(serviceName, func(selector map[string]string) {
-		selector[StatefulSetPodLabel] = statefulSetName
+		selector[constants.StatefulSetPodLabel] = statefulSetName
 	})
 }
 
@@ -294,11 +294,11 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewPingService() error {
 	}
 	// Clone existing service changing the DNS Query
 	newPingService := pingService.DeepCopy()
-	newPingService.ObjectMeta.ResourceVersion = ""
+	newPingService.ResourceVersion = ""
 	newPingService.Name = newPingServiceName
 	// Ensure publish flag is true for upgrade
 	newPingService.Spec.PublishNotReadyAddresses = true
-	newPingService.Spec.Selector[StatefulSetPodLabel] = targetStatefulSetName
+	newPingService.Spec.Selector[constants.StatefulSetPodLabel] = targetStatefulSetName
 	if err := resources.Create(newPingService, true); err != nil {
 		return fmt.Errorf("error creating new ping service '%s' : %w", newPingServiceName, err)
 	}
@@ -380,7 +380,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 		if err = ctx.Resources().Create(targetStatefulSet, true); err != nil {
 			return fmt.Errorf("failed to create new statefulSet '%s': %w", targetStatefulSetName, err)
 		}
-		r.ctx.RequeueEventually(DefaultWaitOnCluster)
+		r.ctx.RequeueEventually(constants.DefaultWaitOnCluster)
 		return nil
 	}
 	// If the new statefulSet was already created, check if the pods are ready
@@ -392,7 +392,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 	for _, pod := range podList.Items {
 		if !kube.IsPodReady(pod) {
 			log.Info(fmt.Sprintf("Pod '%s' not ready", pod.Name))
-			r.ctx.RequeueEventually(DefaultWaitOnCluster)
+			r.ctx.RequeueEventually(constants.DefaultWaitOnCluster)
 			return nil
 		}
 	}
@@ -402,7 +402,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 	log.Info(fmt.Sprintf("Cluster WellFormed: %v", wellFormed))
 	if wellFormed.Status != metav1.ConditionTrue {
 		log.Info(fmt.Sprintf("Cluster from Statefulset '%s' not well formed", targetStatefulSet.Name))
-		ctx.RequeueEventually(DefaultWaitClusterNotWellFormed)
+		ctx.RequeueEventually(constants.DefaultWaitClusterNotWellFormed)
 		return nil
 	}
 	return r.updateStage(ispnv1.HotRodRollingStagePrepare)
@@ -433,7 +433,7 @@ func (r *HotRodRollingUpgradeRequest) prepare() error {
 	targetClient := ctx.InfinispanClientForPod(targetPodList.Items[0].Name)
 	sourceClient, err := ctx.InfinispanClientUnknownVersion(sourcePodList.Items[0].Name)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve client for pod '%s': %w", sourcePodList.Items[0].Name, err)
+		return fmt.Errorf("failed to retrieve client for pod '%s': %w", sourcePodList.Items[0].Name, err)
 	}
 
 	sourceIp := sourcePodList.Items[0].Status.PodIP
@@ -481,7 +481,7 @@ func (r *HotRodRollingUpgradeRequest) syncData() error {
 	targetClient := ctx.InfinispanClientForPod(podListTarget.Items[0].Name)
 	sourceClient, err := ctx.InfinispanClientUnknownVersion(podListSource.Items[0].Name)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve client for pod '%s': %w", podListSource.Items[0].Name, err)
+		return fmt.Errorf("failed to retrieve client for pod '%s': %w", podListSource.Items[0].Name, err)
 	}
 
 	if err = upgrades.SyncCaches(sourceClient, targetClient, r.log); err != nil {
@@ -515,7 +515,7 @@ func (r *HotRodRollingUpgradeRequest) cleanup() error {
 	ctx := r.ctx
 	// Wait for cluster with new statefulSet stability
 	if !r.i.IsWellFormed() {
-		ctx.RequeueEventually(DefaultWaitOnCreateResource)
+		ctx.RequeueEventually(constants.DefaultWaitOnCreateResource)
 		return nil
 	}
 
@@ -615,7 +615,7 @@ func (r *HotRodRollingUpgradeRequest) removeStatefulSetResources(statefulSetName
 
 func (r *HotRodRollingUpgradeRequest) PodsCreatedBy(statefulSetName string) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
-	labels := map[string]string{StatefulSetPodLabel: statefulSetName}
+	labels := map[string]string{constants.StatefulSetPodLabel: statefulSetName}
 	if err := r.ctx.Resources().List(labels, podList, pipeline.RetryOnErr); err != nil {
 		return nil, err
 	}

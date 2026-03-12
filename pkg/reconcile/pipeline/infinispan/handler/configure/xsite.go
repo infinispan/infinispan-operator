@@ -313,7 +313,7 @@ func TransportTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		ctx.Stop(err)
 		return
 	}
-	log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.ObjectMeta.Name)
+	log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.Name)
 	configFiles.Transport.Truststore = &pipeline.Truststore{
 		File:     trustStoreSecret.Data[trustStoreFileName],
 		Path:     fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, trustStoreFileName),

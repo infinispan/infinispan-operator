@@ -758,12 +758,12 @@ func addLabelsFor(ispn *Infinispan, target string, uMap map[string]string) {
 
 func (i *Infinispan) ApplyOperatorMeta(defaultLabels, defaultAnnotations map[string]string) {
 	// Apply default annotations
-	if i.ObjectMeta.Annotations == nil {
-		i.ObjectMeta.Annotations = make(map[string]string, len(defaultAnnotations)+1)
+	if i.Annotations == nil {
+		i.Annotations = make(map[string]string, len(defaultAnnotations)+1)
 	}
 
 	for k, v := range defaultAnnotations {
-		i.ObjectMeta.Annotations[k] = v
+		i.Annotations[k] = v
 	}
 
 	// Apply default labels

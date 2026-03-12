@@ -248,7 +248,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 
 	ispn := initCluster(t, true)
 	// Create the cache on the server with / to ensure listener converts to a k8s friendly name
-	cacheName := strings.Replace(ispn.Name, "-", "/", -1)
+	cacheName := strings.ReplaceAll(ispn.Name, "-", "/")
 	yamlTemplate := "localCache: \n  memory: \n    maxCount: \"%d\"\n"
 	originalConfig := fmt.Sprintf(yamlTemplate, 100)
 
@@ -261,7 +261,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	cr := testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
 
 	// Ensure that the listener has created the CR name with the correct format
-	testifyAssert.True(t, strings.HasPrefix(cr.Name, strings.Replace(cacheName, "/", "-", -1)))
+	testifyAssert.True(t, strings.HasPrefix(cr.Name, strings.ReplaceAll(cacheName, "/", "-")))
 
 	// Assert that the owner reference has been correctly set to the Infinispan CR
 	testifyAssert.True(t, kubernetes.IsOwnedBy(cr, ispn), "Cache has unexpected owner reference")
@@ -534,7 +534,7 @@ func TestCacheResourcesCleanedUpOnDisable(t *testing.T) {
 
 	// Manually recreate the Cache CR and set its owner reference
 	cr := cacheCR(cacheName, ispn)
-	cr.ObjectMeta.Annotations = map[string]string{constants.ListenerAnnotationGeneration: "1"}
+	cr.Annotations = map[string]string{constants.ListenerAnnotationGeneration: "1"}
 	cr.Spec.Template = cacheConfig
 	tutils.ExpectNoError(controllerutil.SetControllerReference(ispn, cr, testKube.Kubernetes.Client.Scheme()))
 	testKube.Create(cr)

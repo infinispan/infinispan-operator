@@ -116,7 +116,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 
 	// Fetch the Cache instance
 	instance := &v2alpha1.Cache{}
-	if err := r.Client.Get(ctx, request.NamespacedName, instance); err != nil {
+	if err := r.Get(ctx, request.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Cache resource not found. Ignoring it since cache deletion is not supported")
 			return ctrl.Result{}, nil
@@ -169,7 +169,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 	}
 
 	// Fetch the Infinispan cluster
-	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}, infinispan); err != nil {
+	if err := r.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}, infinispan); err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", instance.Spec.ClusterName))
 			if crDeleted {
@@ -245,7 +245,7 @@ func (r *cacheRequest) update(mutate func() error) error {
 
 // Determine if reconciliation was triggered by the ConfigListener
 func (r *cacheRequest) reconcileOnServer() bool {
-	if val, exists := r.cache.ObjectMeta.Annotations[constants.ListenerAnnotationGeneration]; exists {
+	if val, exists := r.cache.Annotations[constants.ListenerAnnotationGeneration]; exists {
 		generation, _ := strconv.ParseInt(val, 10, 64)
 		return generation < r.cache.GetGeneration()
 	}
@@ -253,7 +253,7 @@ func (r *cacheRequest) reconcileOnServer() bool {
 }
 
 func (r *cacheRequest) markedForDeletion() bool {
-	_, exists := r.cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete]
+	_, exists := r.cache.Annotations[constants.ListenerAnnotationDelete]
 	return exists
 }
 
@@ -327,10 +327,10 @@ func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) erro
 			// Add an annotation to indicate to the ConfigListener that a remote-cache event should be expected for this CR
 			// Required in order to prevent the Cache CR that's being reconciled from being
 			err := r.update(func() error {
-				if r.cache.ObjectMeta.Annotations == nil {
-					r.cache.ObjectMeta.Annotations = make(map[string]string, 1)
+				if r.cache.Annotations == nil {
+					r.cache.Annotations = make(map[string]string, 1)
 				}
-				r.cache.ObjectMeta.Annotations[constants.ListenerControllerDelete] = "true"
+				r.cache.Annotations[constants.ListenerControllerDelete] = "true"
 				return nil
 			})
 			if err != nil {
@@ -400,7 +400,7 @@ func (cl *CacheListener) RemoveStaleResources(podName string) error {
 		_, cacheExists := serverCaches[cache.GetCacheName()]
 		cl.Log.Debugf("Checking if Cache CR '%s' is stale. ListenerCreated=%t. CacheExists=%t", cache.Name, listenerCreated, cacheExists)
 		if listenerCreated && !cacheExists {
-			cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete] = "true"
+			cache.Annotations[constants.ListenerAnnotationDelete] = "true"
 			cl.Log.Infof("Marking stale Cache resource '%s' for deletion", cache.Name)
 			if err := k8s.Client.Update(cl.Ctx, &cache); err != nil {
 				if !errors.IsNotFound(err) {
@@ -517,11 +517,11 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 					templateName = cache.Spec.TemplateName
 				}
 
-				if cache.ObjectMeta.Annotations == nil {
-					cache.ObjectMeta.Annotations = make(map[string]string, 1)
+				if cache.Annotations == nil {
+					cache.Annotations = make(map[string]string, 1)
 				}
 				controllerutil.AddFinalizer(cache, constants.InfinispanFinalizer)
-				cache.ObjectMeta.Annotations[constants.ListenerAnnotationGeneration] = strconv.FormatInt(cache.GetGeneration()+1, 10)
+				cache.Annotations[constants.ListenerAnnotationGeneration] = strconv.FormatInt(cache.GetGeneration()+1, 10)
 				cache.Spec = v2alpha1.CacheSpec{
 					Name:         cacheName,
 					ClusterName:  cl.Infinispan.Name,
@@ -572,7 +572,7 @@ func (cl *CacheListener) findExistingCacheCR(cacheName, clusterName string) (*v2
 	default:
 		// Multiple existing Cache CRs found. Should never happen
 		y, _ := json.Marshal(caches)
-		return nil, fmt.Errorf("More than one Cache CR found for Cache=%s, Cluster=%s:\n%s", cacheName, clusterName, string(y))
+		return nil, fmt.Errorf("more than one Cache CR found for Cache=%s, Cluster=%s:\n%s", cacheName, clusterName, string(y))
 	}
 }
 
@@ -585,12 +585,12 @@ func (cl *CacheListener) Delete(data []byte) error {
 		return err
 	}
 
-	if existingCacheCr.ObjectMeta.Annotations != nil {
-		_, controllerDelete := existingCacheCr.ObjectMeta.Annotations[constants.ListenerControllerDelete]
+	if existingCacheCr.Annotations != nil {
+		_, controllerDelete := existingCacheCr.Annotations[constants.ListenerControllerDelete]
 		if controllerDelete {
 			cl.Log.Infof("Retaining Cache CR '%s' as cache deletion was requested by the cache controller", existingCacheCr.Name)
 			return updateCache(existingCacheCr, cl.Ctx, cl.Kubernetes.Client, func() error {
-				delete(existingCacheCr.ObjectMeta.Annotations, constants.ListenerControllerDelete)
+				delete(existingCacheCr.Annotations, constants.ListenerControllerDelete)
 				return nil
 			})
 		}
@@ -604,10 +604,10 @@ func (cl *CacheListener) Delete(data []byte) error {
 		if cache.CreationTimestamp.IsZero() || !cache.DeletionTimestamp.IsZero() {
 			return errors.NewNotFound(schema.ParseGroupResource("caches.infinispan.org"), cache.Name)
 		}
-		if cache.ObjectMeta.Annotations == nil {
-			cache.ObjectMeta.Annotations = make(map[string]string, 1)
+		if cache.Annotations == nil {
+			cache.Annotations = make(map[string]string, 1)
 		}
-		cache.ObjectMeta.Annotations[constants.ListenerAnnotationDelete] = "true"
+		cache.Annotations[constants.ListenerAnnotationDelete] = "true"
 		return nil
 	})
 	// If the CR can't be found, do nothing

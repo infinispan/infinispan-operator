@@ -15,7 +15,7 @@ var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 func TestMain(m *testing.M) {
 	nsAsString := strings.ToLower(tutils.MultiNamespace)
 	namespaces := strings.Split(nsAsString, ",")
-	if "TRUE" == tutils.RunLocalOperator {
+	if tutils.RunLocalOperator == "TRUE" {
 		for _, namespace := range namespaces {
 			testKube.DeleteNamespace(namespace)
 		}

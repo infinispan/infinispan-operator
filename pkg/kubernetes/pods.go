@@ -184,6 +184,6 @@ func SortPodsByName(podList *corev1.PodList) {
 	}
 	sort.Slice(podList.Items, func(i, j int) bool {
 		// Compare the Name field of the ObjectMeta for two pods
-		return podList.Items[i].ObjectMeta.Name < podList.Items[j].ObjectMeta.Name
+		return podList.Items[i].Name < podList.Items[j].Name
 	})
 }

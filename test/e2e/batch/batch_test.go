@@ -10,7 +10,6 @@ import (
 
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
-	"github.com/infinispan/infinispan-operator/controllers"
 	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
@@ -91,7 +90,7 @@ func TestBatchWithResources(t *testing.T) {
 	infinispan := createCluster(t)
 	batchScript := batchString()
 	bcSpec := &v2.BatchContainerSpec{Memory: "1Gi:1Gi", CPU: "500m:500m"}
-	podRes := controllers.BatchResources(bcSpec)
+	podRes := batchCtrl.BatchResources(bcSpec)
 	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, &batchScript, nil, bcSpec)
 
 	helper.WaitForValidBatchPhase(infinispan.Name, v2.BatchRunning)

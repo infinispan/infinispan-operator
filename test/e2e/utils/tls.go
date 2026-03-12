@@ -255,7 +255,7 @@ func createKeystore(ca, server *certHolder) []byte {
 	var fileMode os.FileMode = 0777
 	tmpDir, err := os.MkdirTemp("", "operator-tls")
 	ExpectNoError(err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	log.Info("Creating keystore.", "Temp Directory", tmpDir)
 
@@ -291,7 +291,7 @@ func createGenericTruststore(certs ...*certHolder) []byte {
 	var fileMode os.FileMode = 0777
 	tmpDir, err := os.MkdirTemp("", "operator-tls")
 	ExpectNoError(err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	log.Info("Creating truststore.", "Temp Directory", tmpDir)
 

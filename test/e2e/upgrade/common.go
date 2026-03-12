@@ -115,7 +115,7 @@ func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) (re
 		return phase == restore.Status.Phase, nil
 	})
 	if err != nil {
-		err = fmt.Errorf("Expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason)
+		err = fmt.Errorf("expected Restore Phase %s, got %s:%s", phase, restore.Status.Phase, restore.Status.Reason)
 	}
 	return
 }
