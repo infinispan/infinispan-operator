@@ -20,7 +20,8 @@ jobs:
   check_operand:
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.check.outputs.changed }}
+      changed: ${{ steps.check_operand.outputs.changed }}
+      skip: ${{ steps.check_pr_status.outputs.skip }}
 
     steps:
       - name: Configure Git
@@ -78,7 +79,7 @@ jobs:
 
   release:
     needs: check_operand
-    if: (needs.check_operand.outputs.changed == 'true' && needs.check_pr_status.outputs.skip != 'true') || github.event_name == 'workflow_dispatch'
+    if: (needs.check_operand.outputs.changed == 'true' && needs.check_operand.outputs.skip != 'true') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Configure Git
