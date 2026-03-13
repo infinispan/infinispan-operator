@@ -6,6 +6,8 @@ schema: olm.channel
 name: stable
 package: infinispan
 entries:
+  - name: infinispan-operator.v2.5.5
+    replaces: infinispan-operator.v2.5.4
   - name: infinispan-operator.v2.5.4
     replaces: infinispan-operator.v2.5.3
   - name: infinispan-operator.v2.5.3
