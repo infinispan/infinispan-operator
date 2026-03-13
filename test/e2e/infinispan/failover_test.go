@@ -20,7 +20,7 @@ func TestPodDegradationAfterOOM(t *testing.T) {
 	//Creating Infinispan cluster
 	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = 2
-		i.Spec.Container.Memory = "256Mi"
+		i.Spec.Container.Memory = "384Mi"
 		i.Spec.Service.Container.EphemeralStorage = false
 	})
 	testKube.CreateInfinispan(ispn, tutils.Namespace)
