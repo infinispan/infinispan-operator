@@ -44,7 +44,7 @@ jobs:
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0)
           echo "Last release tag: $LAST_TAG"
-          ADDED=$(git diff $LAST_TAG HEAD -- config/manager/manager.yaml | grep '^+' | grep '"upstream-version"')
+          ADDED=$(git diff $LAST_TAG HEAD -- config/manager/manager.yaml | grep '^+' | grep '"upstream-version"' || true)
           echo "Added operand:"
           echo "$ADDED"
           if [ -n "$ADDED" ]; then
