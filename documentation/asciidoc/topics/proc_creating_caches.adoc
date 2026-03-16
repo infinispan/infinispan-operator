@@ -17,6 +17,14 @@ If you do not specify a name with the `spec.name` field then the cache uses the 
 ====
 +
 . Add a cache configuration with the `spec.template` field.
+. Optionally, if your cache uses `application/x-protostream` encoding, specify a `Schema` CR dependency with the `spec.schemaRef` field.
+When set, {ispn_operator} waits until the referenced `Schema` CR is ready before creating the cache.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/cache_schema_ref.yaml[]
+----
++
 . Apply the `Cache` CR, for example:
 +
 [source,options="nowrap",subs=attributes+]

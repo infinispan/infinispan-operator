@@ -34,6 +34,14 @@ func (i *infinispan) Logging() api.Logging {
 	return &logging{i.PathResolver, i.HttpClient}
 }
 
+func (i *infinispan) Schema(name string) api.ProtoSchema {
+	return &protoSchema{i.PathResolver, i.HttpClient, name}
+}
+
+func (i *infinispan) Schemas() api.ProtoSchemas {
+	return &protoSchemas{i.PathResolver, i.HttpClient}
+}
+
 func (i *infinispan) Metrics() api.Metrics {
 	return &metrics{i.HttpClient}
 }
