@@ -40,7 +40,8 @@ fi
 
 # Append latest snapshot by default unless TEST_RELEASE is set to true or CUSTOM_IMAGE is provided
 if [[ ${TEST_RELEASE:=false} == "false" && -z ${CUSTOM_IMAGE} ]]; then
-  test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.99", "image": "quay.io/infinispan-test/server:main"}')
+  major_minor=$(echo "${test_operands}" | jq -r '.[-1]."upstream-version" | split(".")[0:2] | join(".")')
+  test_operands=$(echo "${test_operands}" | jq --arg ver "$major_minor" '.[length] |= . + {"upstream-version": ($ver + ".99"), "image": "quay.io/infinispan-test/server:main"}')
 fi
 
 operands=${test_operands} yq -i '(select(document_index == 1) | .spec.template.spec.containers[0].env[] | select(.name == "INFINISPAN_OPERAND_VERSIONS")).value = strenv(operands)' ${DEPLOYMENT_FILE}
