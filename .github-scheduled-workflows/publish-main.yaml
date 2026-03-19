@@ -46,6 +46,7 @@ jobs:
           sed -i -E "s/^[[:space:]]*(for version in [^;]*)(;[[:space:]]*do)/\1 v$PREV_VERSION\2/" scripts/create-olm-catalog.sh
           ./scripts/ci/add_next_version.sh  scripts/test-catalog.yml infinispan-operator.v$NEXT_VERSION infinispan-operator.v$PREV_VERSION
           sed -i -E "s/^( *replaces: +infinispan-operator\.v)[0-9]+\.[0-9]+\.[0-9]+/\1$PREV_VERSION/" config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
+          sed -i -E "s/(olm.skipRange: '>=2.4.0 <)[0-9.]+/\1$NEW_VERSION/" config/manifests/bases/infinispan-operator.clusterserviceversion.yaml
           git add .
           git commit -m "Next Version ${{ steps.set_version.outputs.new_tag }}"
           git push origin "${{ steps.params.outputs.ref }}"
