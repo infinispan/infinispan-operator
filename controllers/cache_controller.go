@@ -457,6 +457,9 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 			Spec: v2alpha1.CacheSpec{
 				ClusterName: cl.Infinispan.Name,
 				Name:        cacheName,
+				Updates: &v2alpha1.CacheUpdateSpec{
+					Strategy: v2alpha1.CacheUpdateRetain,
+				},
 			},
 		}
 
