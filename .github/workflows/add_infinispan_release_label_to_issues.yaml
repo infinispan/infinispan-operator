@@ -1,0 +1,60 @@
+name: Add release label to closed issues
+# This GitHub Actions workflow automatically adds the current release as a label to closed
+# issues with pull requests that were merged. The value of the current
+# release is held in a GitHub organization variable. The GHA also can handle backports to
+# other branches if the release label is set based on the branch.
+
+on:
+  pull_request_target:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  add-release-label:
+    if: ${{ github.event.pull_request.merged }}
+    # Only run if the PR was merged
+    permissions:
+      issues: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    outputs:
+      issue_urls: ${{ steps.get_linked_issue.outputs.issue_urls }}
+      # An array of issue URLs fixed by the merged PR
+      issue_label: ${{ steps.get_label.outputs.issue_label }}
+      # The label to use based on the branch
+
+    steps:
+      - name: Get issue(s) linked to merged PR
+        id: get_linked_issue
+        shell: bash
+        env:
+          GH_TOKEN: "${{ secrets.INFINISPAN_RELEASE_TOKEN }}"
+          PR_URL: "${{ github.event.pull_request.html_url }}"
+        run: |
+          urls=$(gh pr view "$PR_URL" --json closingIssuesReferences -q '[.closingIssuesReferences[].url] | join(" ")')
+          echo "issue_urls=$urls" >> "$GITHUB_OUTPUT"
+
+      - name: Create label and ignore error if it exists
+        id: get_label
+        shell: bash
+        env:
+          GH_TOKEN: "${{ secrets.INFINISPAN_RELEASE_TOKEN }}"
+          GH_REPO: "${{ github.repository }}"
+          LABEL: "release/${{ vars.RELEASE }}"
+        continue-on-error: true
+        run: |
+          echo "issue_label=$LABEL" >> "$GITHUB_OUTPUT";
+          gh label create -f "$LABEL" --color "#0E8A16" --repo "$GH_REPO";
+
+      - name: Label issue(s)
+        shell: bash
+        env:
+          GH_TOKEN: "${{ secrets.INFINISPAN_RELEASE_TOKEN }}"
+          ISSUE_URLS: ${{ steps.get_linked_issue.outputs.issue_urls }}
+          ISSUE_LABEL: "${{ steps.get_label.outputs.issue_label }}"
+        run: |
+          for issue in $ISSUE_URLS;
+          do gh issue edit "$issue" --add-label "$ISSUE_LABEL";
+          done;
