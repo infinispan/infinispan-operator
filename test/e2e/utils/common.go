@@ -467,6 +467,7 @@ func RedisClientForCluster(i *ispnv1.Infinispan, kube *TestKubernetes) *redis.Cl
 		Username: *user,
 		Password: *pass,
 		DB:       0, // use default DB
+		Protocol: 2,
 	}
 
 	if i.Spec.Security.EndpointEncryption != nil && i.Spec.Security.EndpointEncryption.Type != "None" {
