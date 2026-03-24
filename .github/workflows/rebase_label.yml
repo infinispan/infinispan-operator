@@ -1,0 +1,19 @@
+name: PR Needs Rebase
+
+on:
+  push:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  rebase-label:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Check PR conflicts and update label
+        uses: eps1lon/actions-label-merge-conflict@v3.0.4
+        with:
+          dirtyLabel: "pr/needs rebase"
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
