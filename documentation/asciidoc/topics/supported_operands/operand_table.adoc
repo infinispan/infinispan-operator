@@ -109,4 +109,8 @@ include::2_5_4.adoc[]
 2.5.5
 a|
 include::2_5_5.adoc[]
+|
+2.5.6
+a|
+include::2_5_6.adoc[]
 |===
