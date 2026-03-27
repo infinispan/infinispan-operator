@@ -1,0 +1,36 @@
+[id='creating-schemas_{context}']
+= Registering Protobuf schemas with the Schema CR
+
+[role="_abstract"]
+Complete the following steps to register Protobuf schemas on {datagridservice} clusters using `Schema` CRs.
+
+NOTE: Schema CRs require {brandname} server version 16.1 or later.
+
+.Procedure
+
+. Create a `Schema` CR with a unique value in the `metadata.name` field.
+. Specify the target {brandname} cluster with the `spec.clusterName` field.
+. Name your schema with the `spec.name` field.
++
+[NOTE]
+====
+If you do not specify a name with the `spec.name` field then the schema uses the value of the `metadata.name` field.
+The `.proto` suffix is added automatically if not present.
+====
++
+. Add a Protobuf schema definition with the `spec.schema` field.
+. Apply the `Schema` CR, for example:
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_apply_cr} person-schema.yaml
+schema.infinispan.org/person-schema created
+----
+
+[discrete]
+== Schema CR example
+
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/schema_proto.yaml[]
+----

@@ -57,6 +57,13 @@ var (
 		Minor: 0,
 		Patch: 7,
 	}
+
+	// 16.1.0.Final required for Schema CR reconciliation
+	MinVersionSchemaReconciliation = semver.Version{
+		Major: 16,
+		Minor: 1,
+		Patch: 0,
+	}
 )
 
 const (
