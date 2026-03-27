@@ -25,6 +25,13 @@ jobs:
           echo "ref=${{ env.REF }}" >> $GITHUB_OUTPUT
           echo "rel_version=${{ env.REL_VERSION }}" >> $GITHUB_OUTPUT
 
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.params.outputs.rel_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.INFINISPAN_RELEASE_TOKEN }}
+        
       - name: Set Next Version
         id: set_version
         working-directory: operator
