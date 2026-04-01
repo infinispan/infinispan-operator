@@ -184,6 +184,7 @@ jobs:
         run: |
           mkdir -p operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
           cp -R ../operator/bundle/* operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
+          cp ../operator/release-config.yaml operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
           git add operators/infinispan/${{ steps.bump_tag.outputs.new_tag }}
           git commit -s -m "Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}"
 
