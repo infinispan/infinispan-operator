@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-logr/zapr"
 	"github.com/infinispan/infinispan-operator/controllers"
 	"github.com/infinispan/infinispan-operator/launcher"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -46,7 +48,11 @@ type Parameters struct {
 }
 
 func New(ctx context.Context, p Parameters) {
-	log := zap.NewRaw(zap.UseFlagOptions(p.ZapOptions)).Sugar()
+	zap := zap.NewRaw(zap.UseFlagOptions(p.ZapOptions))
+	log := zap.Sugar()
+
+	// client-go library doesn't use zap logger which result in incosistent log format in few cases
+	klog.SetLogger(zapr.NewLogger(zap))
 
 	log.Info(fmt.Sprintf("Starting Infinispan ConfigListener Version: %s", launcher.Version))
 

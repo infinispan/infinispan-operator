@@ -13,6 +13,10 @@ import (
 )
 
 var (
+	// Logging configuration, default to json once we get to a next minor release
+	OperatorLogFormat = GetEnvWithDefault("INFINISPAN_OPERATOR_LOG_FORMAT", "console")
+	OperatorLogLevel  = os.Getenv("INFINISPAN_OPERATOR_LOG_LEVEL")
+
 	// InitContainerImageName allows a custom initContainer image to be used
 	InitContainerImageName = GetEnvWithDefault("INITCONTAINER_IMAGE", "registry.access.redhat.com/ubi8-micro")
 
