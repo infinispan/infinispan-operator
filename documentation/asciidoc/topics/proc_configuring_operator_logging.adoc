@@ -1,0 +1,49 @@
+[id='configuring-operator-logging_{context}']
+= Configure Operator logging
+
+[role="_abstract"]
+Configure the {brandname} Operator to output logs in JSON format for improved machine processing and log aggregation. You can also adjust the logging level to increase verbosity for debugging reconciliation issues.
+
+`INFINISPAN_OPERATOR_LOG_FORMAT` variable:: Specifies the output format.
+* `console` (default): Human-readable text.
+* `json`: Structured JSON format for log aggregators.
+`INFINISPAN_OPERATOR_LOG_LEVEL` variable:: Sets the verbosity of logs.
+* Valid values are `debug`, `info` (default), `warn`, or `error`.
+
+[TIP]
+====
+In production environments, it is highly recommended to set `INFINISPAN_OPERATOR_LOG_FORMAT` to `json`. This ensures logs are easily indexed by monitoring tools like Splunk, Elasticsearch, or Datadog.
+====
+
+.Procedure
+
+. Open your {brandname} Operator Subscription for editing
+. Add the logging environment variables under the spec.config.env field:
++
+[source,options="nowrap",subs=attributes+]
+----
+include::yaml/logging_subscription.yaml[]
+----
++
+. Apply the changes.OLM will automatically restart the Operator pod to apply the new configuration.
+. Retrieve logs from Operator pod as required.
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_logs} -f deployment/infinispan-operator-controller-manager
+----
+
+[discrete]
+== Logging format comparison
+
+.Console
+[source,text,options="nowrap",role="primary"]
+----
+2026-04-14T09:28:48.546Z INFO controllers.Infinispan Triggering StatefulSet Rolling upgrade {"infinispan": "infinispan/infinispan"}
+----
+
+.JSON
+[source,json,options="nowrap",role="secondary"]
+----
+{"level":"info","ts":"2026-04-14T09:33:53.960Z","logger":"controllers.Infinispan","msg":"Triggering StatefulSet Rolling upgrade","infinispan":"infinispan/infinispan"}
+----

@@ -5,9 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/launcher/listener"
 	"github.com/infinispan/infinispan-operator/launcher/operator"
+	uberzap "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
@@ -19,8 +22,12 @@ func main() {
 	}
 
 	zapOpts := zap.Options{
-		Development: true,
-		TimeEncoder: zapcore.ISO8601TimeEncoder,
+		Encoder: getLogEncoder(),
+	}
+
+	// Set level only if the env var is set so using --zap-devel as an argument can still overwrite log level
+	if constants.OperatorLogLevel != "" {
+		zapOpts.Level = getLogLevel()
 	}
 
 	// Operator Flags
@@ -72,4 +79,26 @@ func parse(flags *flag.FlagSet, args []string) {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func getLogLevel() zapcore.Level {
+	level, err := zapcore.ParseLevel(constants.OperatorLogLevel)
+	if err != nil {
+		// Default to Info so the Operator doesn't crash
+		return zapcore.InfoLevel
+	}
+	return level
+}
+
+func getLogEncoder() zapcore.Encoder {
+	encoderConfig := uberzap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	if strings.ToLower(constants.OperatorLogFormat) == "json" {
+		return zapcore.NewJSONEncoder(encoderConfig)
+	}
+
+	// Default to Console
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	return zapcore.NewConsoleEncoder(encoderConfig)
 }

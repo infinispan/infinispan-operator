@@ -13,6 +13,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -65,7 +66,10 @@ func New(p Parameters) {
 // Known issues:
 // - https://github.com/kubernetes-sigs/controller-runtime/pull/1428
 func NewWithContext(ctx context.Context, p Parameters) {
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(p.ZapOptions)))
+	zap := zap.New(zap.UseFlagOptions(p.ZapOptions))
+
+	ctrl.SetLogger(zap)
+	klog.SetLogger(zap)
 
 	setupLog := ctrl.Log.WithName("setup")
 	namespace, err := kubernetes.GetWatchNamespace()
