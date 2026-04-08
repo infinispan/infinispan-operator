@@ -669,7 +669,8 @@ func configChanged(a, b string, i *v1.Infinispan, caches api.Caches, vm *version
 	// If Operand is >= 14.0.7.Final we can use the cache compare endpoint to avoid unnecessary updates to the
 	// Infinispan spec.template field
 	operand, _ := vm.WithRef(i.Spec.Version)
-	if operand.UpstreamVersion.Major >= 14 && operand.UpstreamVersion.Patch >= 7 {
+
+	if operand.UpstreamVersion.GE(constants.MinVersionCacheCompareEndpoint) {
 		// Check if Cache configuration is semantically the same as that already present in the Cache CR
 		equalConfig, err := caches.EqualConfiguration(a, b)
 		if err != nil {
