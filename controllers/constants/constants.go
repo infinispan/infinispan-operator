@@ -57,6 +57,13 @@ var (
 		Minor: 0,
 		Patch: 7,
 	}
+
+	// 14.0.7.Final is required for ?action=compare endpoint
+	MinVersionCacheCompareEndpoint = semver.Version{
+		Major: 14,
+		Minor: 0,
+		Patch: 7,
+	}
 )
 
 const (
