@@ -62,6 +62,15 @@ type CacheSpec struct {
 	// How updates to Cache CR template should be reconciled on the Infinispan server
 	// +optional
 	Updates *CacheUpdateSpec `json:"updates,omitempty"`
+	// Schema CRs that must be ready before the cache is created
+	// +optional
+	SchemaRefs []SchemaRef `json:"schemaRefs,omitempty"`
+}
+
+// SchemaRef references a Schema CR by name
+type SchemaRef struct {
+	// Name of the Schema CR
+	Name string `json:"name"`
 }
 
 // CacheCondition define a condition of the cluster
@@ -104,6 +113,16 @@ type CacheList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Cache `json:"items"`
+}
+
+// HasSchemaRef returns true if the Cache has a SchemaRef with the given name
+func (c *Cache) HasSchemaRef(name string) bool {
+	for _, ref := range c.Spec.SchemaRefs {
+		if ref.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func init() {
