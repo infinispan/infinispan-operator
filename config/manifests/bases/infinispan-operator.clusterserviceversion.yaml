@@ -8,6 +8,7 @@ metadata:
     certified: "false"
     containerImage: <IMAGE>
     description: Create and manage Infinispan clusters.
+    olm.skipRange: '>=2.4.18 <2.5.7'
     repository: https://github.com/infinispan/infinispan-operator
   labels:
     operatorframework.io/arch.amd64: supported

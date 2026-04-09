@@ -34,6 +34,7 @@ while IFS= read -r line || [ -n "$line" ]; do
 
     echo "${INDENT}- name: ${NEW_VERSION}" >> "$TMP_FILE"
     echo "${INDENT}  replaces: ${REPLACES_VERSION}" >> "$TMP_FILE"
+    echo "${INDENT}  skipRange: '>=2.4.18 <${NEW_VERSION#infinispan-operator.v}'" >> "$TMP_FILE"
     INSERTED="true"
   fi
 
@@ -45,6 +46,7 @@ if [ "$INSERTED" = "false" ]; then
   {
     echo "- name: ${NEW_VERSION}"
     echo "  replaces: ${REPLACES_VERSION}"
+    echo "  skipRange: '>=2.4.18 <${NEW_VERSION#infinispan-operator.v}'"
     cat "$TMP_FILE"
   } > "${TMP_FILE}_new"
   mv "${TMP_FILE}_new" "$TMP_FILE"
