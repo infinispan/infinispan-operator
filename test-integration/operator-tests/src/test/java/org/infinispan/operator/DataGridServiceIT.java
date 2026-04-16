@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -131,7 +132,12 @@ class DataGridServiceIT {
             throw new IllegalStateException("Invalid targets: " + targets);
          }
 
-         List<JsonNode> actualList = StreamSupport.stream(activeTargets.spliterator(), false).collect(Collectors.toList());
+         String crPrometheusLabel = "__meta_kubernetes_endpoints_label_infinispan_cr";
+         Predicate<JsonNode> infinispanFilter = p ->
+            p.get("discoveredLabels").has(crPrometheusLabel) &&
+            p.get("discoveredLabels").get(crPrometheusLabel).asText().equals(appName);
+
+         List<JsonNode> actualList = StreamSupport.stream(activeTargets.spliterator(), false).filter(infinispanFilter).collect(Collectors.toList());
          List<String> targetIPs = actualList.stream().map(t -> t.get("discoveredLabels").get("__meta_kubernetes_pod_ip").asText()).collect(Collectors.toList());
          List<String> targetHealths = actualList.stream().map(t -> t.get("health").asText()).collect(Collectors.toList());
 
