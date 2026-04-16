@@ -105,3 +105,12 @@ bundle.Dockerfile
 
 # Ignore directory created by scripts/create-olm-catalog.sh
 infinispan-olm-catalog/
+
+# ignore agent-specific instruction files
+CLAUDE.md
+GEMINI.md
+.augment*
+.clinerules
+.goosehints
+AGENTS.md
+.claude/
