@@ -1,0 +1,11 @@
+
+spec:
+  container:
+    env:
+      - name: JAVA_OPTS
+        value: "-Xmx2g"
+      - name: DB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: my-database-secret
+            key: password
