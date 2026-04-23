@@ -189,6 +189,8 @@ type InfinispanContainerSpec struct {
 	Memory string `json:"memory,omitempty"`
 	// +optional
 	CPU string `json:"cpu,omitempty"`
+	// +optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 // InfinispanSitesLocalSpec enables cross-site replication
