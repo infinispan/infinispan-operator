@@ -170,7 +170,10 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 	// Store pod output if a panic has occurred
 	testFailed := t != nil && t.Failed()
 	if panicVal != nil || testFailed {
-		Log().Error(panicVal.(string))
+		// Attempt to convert panicVal if it's nil will cause a panic
+		if panicVal != nil {
+			Log().Error(panicVal.(string))
+		}
 
 		dir := fmt.Sprintf("%s/%s", LogOutputDir, TestName(t))
 		err := os.RemoveAll(dir)

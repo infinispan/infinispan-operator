@@ -1,0 +1,30 @@
+[id='adding-custom-env-vars{context}']
+= Adding environment variables to {brandname} pods
+
+[role="_abstract"]
+Configure custom environment variables for the {brandname} nodes managed by the {ispn_operator}. 
+You can use literal values to tune behavior, such as `JAVA_OPTS`, or reference values from Secrets and ConfigMaps for sensitive data like credentials.
+
+.Procedure
+
+. Open your `Infinispan` CR for editing.
+. Define environment variables in the `spec.container.env` section.
++
+[NOTE]
+====
+Adding or modifying environment variables triggers a **rolling update** of the {brandname} cluster to apply the changes to all pods.
+====
++
+.Custom environment variables
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/custom_envvars.yaml[]
+----
+. Apply your `Infinispan` CR.
+
+.Verification
+Confirm the environment variables are present in the pods:
+[source,options="nowrap",subs=attributes+]
+----
+{oc} exec <pod-name> -- printenv | grep JAVA_OPTS
+----

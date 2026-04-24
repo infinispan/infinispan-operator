@@ -3,6 +3,7 @@ package provision
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -186,6 +187,14 @@ func PodEnvsAndHash(i *ispnv1.Infinispan, configFiles *pipeline.ConfigFiles) ([]
 	for _, e := range envs {
 		hash.Write([]byte(e.Name))
 		hash.Write([]byte(e.Value))
+
+		// Only add to hash if ValueFrom is present
+		if e.ValueFrom != nil {
+			// Use JSON marshal to handle the nested pointers
+			// in ValueFrom (SecretKeyRef, ConfigMapKeyRef, etc.) deterministically.
+			vfBytes, _ := json.Marshal(e.ValueFrom)
+			hash.Write(vfBytes)
+		}
 	}
 	return envs, hex.EncodeToString(hash.Sum(nil))
 }

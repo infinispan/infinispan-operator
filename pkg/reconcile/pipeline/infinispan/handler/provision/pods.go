@@ -182,6 +182,10 @@ func PodEnv(i *ispnv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {
 		}
 	}
 
+	if i.Spec.Container.Env != nil {
+		envVars = append(envVars, i.Spec.Container.Env...)
+	}
+
 	if systemEnv != nil {
 		envVars = append(envVars, *systemEnv...)
 	}
