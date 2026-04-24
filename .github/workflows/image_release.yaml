@@ -214,3 +214,11 @@ jobs:
           templateYmlFile: 'operator/.github-scheduled-workflows/publish-main.yaml'
           targetYmlFileName: publish-main.yaml
           copyEnvVariables: REF REL_VERSION
+
+      - name: Update website release data
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+          repository: infinispan/infinispan.github.io
+          event-type: release_updated
+          client-payload: '{"project": "operator", "version": "${{ steps.bump_tag.outputs.new_tag }}"}'
