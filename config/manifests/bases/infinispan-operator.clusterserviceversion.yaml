@@ -8,7 +8,7 @@ metadata:
     certified: "false"
     containerImage: <IMAGE>
     description: Create and manage Infinispan clusters.
-    olm.skipRange: '>=2.4.18 <2.5.7'
+    olm.skipRange: '>=2.4.18 <'
     repository: https://github.com/infinispan/infinispan-operator
   labels:
     operatorframework.io/arch.amd64: supported
@@ -314,5 +314,5 @@ spec:
   minKubeVersion: 1.24.0
   provider:
     name: Infinispan
-  replaces: infinispan-operator.v2.5.6
+  replaces: infinispan-operator.v2.5.7
   version: 0.0.0
