@@ -4,3 +4,4 @@ catalog_templates:
     channels: stable
     replaces: infinispan-operator.v2.5.8
     skipRange: '>=2.4.18 <2.5.9'
+
