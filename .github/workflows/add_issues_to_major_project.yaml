@@ -14,7 +14,7 @@ jobs:
     # Specifies the environment where the job will run. In this case, it uses the latest Ubuntu runner.
 
     steps:
-      - uses: actions/add-to-project@v1.0.2
+      - uses: actions/add-to-project@v2.0.0
         # Uses the `actions/add-to-project` GitHub Action to add items to a GitHub project.
         # This action simplifies the process of adding issues or pull requests to a project board.
 
