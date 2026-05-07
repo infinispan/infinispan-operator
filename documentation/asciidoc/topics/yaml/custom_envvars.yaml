@@ -1,0 +1,11 @@
+
+spec:
+  container:
+    env:
+      - name: JAVA_OPTIONS
+        value: "-Dkey=value"
+      - name: DB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: my-database-secret
+            key: password

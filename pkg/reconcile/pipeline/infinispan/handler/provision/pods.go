@@ -163,8 +163,14 @@ func PodEnv(i *ispnv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		// Prevent the image from generating a user if authentication disabled
 		{Name: "MANAGED_ENV", Value: "TRUE"},
-		{Name: "JAVA_OPTIONS", Value: i.GetJavaOptions()},
-		{Name: "CLI_JAVA_OPTIONS", Value: i.Spec.Container.CliExtraJvmOpts},
+	}
+
+	if i.GetJavaOptions() != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "JAVA_OPTIONS", Value: i.GetJavaOptions()})
+	}
+
+	if i.Spec.Container.CliExtraJvmOpts != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "CLI_JAVA_OPTIONS", Value: i.Spec.Container.CliExtraJvmOpts})
 	}
 
 	// Adding additional variables listed in ADDITIONAL_VARS env var
@@ -180,6 +186,10 @@ func PodEnv(i *ispnv1.Infinispan, systemEnv *[]corev1.EnvVar) []corev1.EnvVar {
 				}
 			}
 		}
+	}
+
+	if i.Spec.Container.Env != nil {
+		envVars = append(envVars, i.Spec.Container.Env...)
 	}
 
 	if systemEnv != nil {
