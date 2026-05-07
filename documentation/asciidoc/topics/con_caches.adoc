@@ -19,3 +19,4 @@ You can use Hot Rod or HTTP clients but {brandname} recommends `Cache` CR or `Ba
 
 * `Cache` CRs apply to {datagridservice} pods only.
 * Each `Cache` CR corresponds to a single cache on the {brandname} cluster.
+* `Cache` CRs can reference `Schema` CRs with the `spec.schemaRefs` field to ensure that the Protobuf schemas are registered before the cache is created.

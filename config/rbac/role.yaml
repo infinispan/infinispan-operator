@@ -145,6 +145,9 @@ rules:
   - caches
   - caches/finalizers
   - caches/status
+  - schemas
+  - schemas/finalizers
+  - schemas/status
   verbs:
   - create
   - delete
