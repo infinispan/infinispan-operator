@@ -71,6 +71,7 @@ jobs:
           SUBSCRIPTION_STARTING_CSV: infinispan-operator.v2.3.7
           TESTING_OPERAND_IGNORE_LIST: ${{ inputs.skipList }}
           INFINISPAN_CPU: 500m # prevent insufficient cpu error on test-rolling-upgrade pod start
+          TEST_SINGLE_POD_TIMEOUT: 10m
 
       - name: Inspect Cluster
         if: failure()
