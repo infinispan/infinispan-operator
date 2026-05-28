@@ -4,6 +4,16 @@ description: Install Operator Build Dependencies
 runs:
   using: composite
   steps:
+    - name: Runner Diagnostics
+      shell: bash
+      run: |
+        echo "=== CPU ==="
+        lscpu | grep -E "Model name|CPU MHz|CPU\(s\)|Thread"
+        echo "=== Memory ==="
+        free -h
+        echo "=== CPU Governor ==="
+        cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "N/A"
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
