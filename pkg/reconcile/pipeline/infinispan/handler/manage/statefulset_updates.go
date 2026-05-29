@@ -132,6 +132,11 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		updateNeeded = true
 	}
 
+	if spec.ServiceAccountName != i.Spec.ServiceAccountName {
+		spec.ServiceAccountName = i.Spec.ServiceAccountName
+		updateNeeded = true
+	}
+
 	if updateCmdArgs, err := updateStartupArgs(container, configFiles); err != nil {
 		ctx.Requeue(err)
 		return

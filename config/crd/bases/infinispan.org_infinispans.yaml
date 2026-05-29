@@ -864,6 +864,11 @@ spec:
                     type: object
                   memory:
                     type: string
+                  serviceAccountName:
+                    description: |-
+                      The name of the ServiceAccount to be used by the ConfigListener pod.
+                      When specified, the operator does not create RBAC resources for the ConfigListener and the user must configure them.
+                    type: string
                 type: object
               configMapName:
                 type: string
@@ -2412,6 +2417,10 @@ spec:
                     - Cache
                     type: string
                 type: object
+              serviceAccountName:
+                description: The name of the ServiceAccount to be used by Infinispan
+                  server, GossipRouter, Batch, Backup, and Restore pods
+                type: string
               upgrades:
                 description: Strategy to use when doing upgrades
                 properties:
