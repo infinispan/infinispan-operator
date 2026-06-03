@@ -259,6 +259,10 @@ spec:
                   {
                     "upstream-version": "16.1.4",
                     "image": "quay.io/infinispan/server:16.1.4"
+                  },
+                  {
+                    "upstream-version": "16.2.0",
+                    "image": "quay.io/infinispan/server:16.2.0"
                   }
                 ]
             - name: POD_NAME
