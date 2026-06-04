@@ -6,9 +6,9 @@ Auto-generated file, do not update this manually, instead update `scripts/ci/doc
 | {ispn_operator} version
 | {brandname} Server versions
 |
-2.5.11
+2.5.12
 a|
-include::2_5_11.adoc[]
+include::2_5_12.adoc[]
 |===
 
 .Older versions
@@ -18,6 +18,10 @@ include::2_5_11.adoc[]
 |===
 | {ispn_operator} version
 | {brandname} Server versions
+|
+2.5.11
+a|
+include::2_5_11.adoc[]
 |
 2.5.10
 a|
