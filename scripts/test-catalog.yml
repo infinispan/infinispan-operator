@@ -6,6 +6,9 @@ schema: olm.channel
 name: stable
 package: infinispan
 entries:
+  - name: infinispan-operator.v2.5.13
+    replaces: infinispan-operator.v2.5.12
+    skipRange: '>=2.4.18 <2.5.13'
   - name: infinispan-operator.v2.5.12
     replaces: infinispan-operator.v2.5.11
     skipRange: '>=2.4.18 <2.5.12'
