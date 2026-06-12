@@ -71,6 +71,7 @@ type RollingUpgrade interface {
 // Caches contains all generic cache operations that aren't specific to a single cache
 type Caches interface {
 	ConvertConfiguration(config string, contentType, reqType mime.MimeType) (string, error)
+	Detailed() ([]CacheHealth, error)
 	EqualConfiguration(a, b string) (bool, error)
 	Names() ([]string, error)
 }
