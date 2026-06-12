@@ -51,6 +51,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	v14 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
 	v15 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v15"
+	v16 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v16"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 )
 
@@ -86,7 +87,9 @@ func ispnClient(majorVersion uint64, client httpClient.HttpClient) api.Infinispa
 	// which is not required for upgrades.
 	case 13, 14:
 		return v14.New(client)
-	default:
+	case 15:
 		return v15.New(client)
+	default:
+		return v16.New(client)
 	}
 }

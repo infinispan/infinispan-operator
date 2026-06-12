@@ -20,7 +20,7 @@ type cache struct {
 	name string
 }
 
-type caches struct {
+type Caches struct {
 	api.PathResolver
 	httpClient.HttpClient
 }
@@ -171,7 +171,7 @@ func (c *cache) UpdateConfig(config string, contentType mime.MimeType) (err erro
 	return
 }
 
-func (c *caches) ConvertConfiguration(config string, contentType mime.MimeType, reqType mime.MimeType) (transformed string, err error) {
+func (c *Caches) ConvertConfiguration(config string, contentType mime.MimeType, reqType mime.MimeType) (transformed string, err error) {
 	path := c.Caches("?action=convert")
 	headers := map[string]string{
 		"Accept":       string(reqType),
@@ -188,7 +188,7 @@ func (c *caches) ConvertConfiguration(config string, contentType mime.MimeType, 
 	return readResponseBody(rsp)
 }
 
-func (c *caches) EqualConfiguration(a, b string) (bool, error) {
+func (c *Caches) EqualConfiguration(a, b string) (bool, error) {
 	path := c.Caches("?action=compare")
 	parts := map[string]string{
 		"a": a,
@@ -205,7 +205,11 @@ func (c *caches) EqualConfiguration(a, b string) (bool, error) {
 	return rsp.StatusCode == http.StatusNoContent, nil
 }
 
-func (c *caches) Names() (names []string, err error) {
+func (c *Caches) Detailed() ([]api.CacheHealth, error) {
+	return nil, &api.NotSupportedError{Version: "14"}
+}
+
+func (c *Caches) Names() (names []string, err error) {
 	rsp, err := c.Get(c.Caches(""), nil)
 	if err = httpClient.ValidateResponse(rsp, err, "getting caches", http.StatusOK); err != nil {
 		return

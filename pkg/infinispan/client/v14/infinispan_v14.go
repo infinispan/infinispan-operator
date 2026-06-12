@@ -23,7 +23,7 @@ func (i *infinispan) Cache(name string) api.Cache {
 }
 
 func (i *infinispan) Caches() api.Caches {
-	return &caches{i.PathResolver, i.HttpClient}
+	return &Caches{i.PathResolver, i.HttpClient}
 }
 
 func (i *infinispan) Container() api.Container {

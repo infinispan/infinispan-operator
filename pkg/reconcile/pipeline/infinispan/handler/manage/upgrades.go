@@ -204,7 +204,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						return
 					}
 
-					health, err := serverMeta.client.Container().Health()
+					healthStatus, err := serverMeta.client.Container().HealthStatus()
 					if err != nil {
 						ctx.Requeue(fmt.Errorf("unable to retrieve cluster health status for pod '%s': %w", pod.Name, err))
 						return
@@ -212,8 +212,21 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 					// If any of the caches are not marked as HEALTHY we must prevent a GracefulShutdown to prevent
 					// the cluster from entering an unexpected state
-					if health.ClusterHealth.Status != ispnApi.HealthStatusHealthy {
-						msg := fmt.Sprintf("unable to proceed with GracefulShutdown as the cluster health is '%s': %s", health.ClusterHealth.Status, health.CacheHealth)
+					if healthStatus != ispnApi.HealthStatusHealthy {
+						// For v14/v15, use the deprecated Health() endpoint
+						// For v16+, use the new Caches().Detailed() endpoint
+						cacheHealth, err := serverMeta.client.Caches().Detailed()
+						if err != nil {
+							// Fall back to Health() for older versions
+							health, healthErr := serverMeta.client.Container().Health()
+							if healthErr != nil {
+								ctx.Requeue(fmt.Errorf("unable to retrieve cache health for pod '%s': %w", pod.Name, healthErr))
+								return
+							}
+							cacheHealth = health.CacheHealth
+						}
+
+						msg := fmt.Sprintf("unable to proceed with GracefulShutdown as the cluster health is '%s': %s", healthStatus, cacheHealth)
 						updateCondition(msg)
 						ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "GracefulShutdownBlocked", msg)
 						ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, errors.New(msg))
