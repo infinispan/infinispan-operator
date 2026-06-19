@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
 
@@ -19,7 +19,7 @@ jobs:
         docs_path: documentation/asciidoc/titles
 
     - name: Clone infinispan.github.io
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: infinispan/infinispan.github.io
         ref: master
