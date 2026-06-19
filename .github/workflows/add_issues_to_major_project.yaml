@@ -8,13 +8,16 @@ on:
       - opened
       # Triggers the workflow when a new issue is opened in the repository.
 
+permissions:
+  contents: read
+
 jobs:
   add-to-project:
     runs-on: ubuntu-latest
     # Specifies the environment where the job will run. In this case, it uses the latest Ubuntu runner.
 
     steps:
-      - uses: actions/add-to-project@v2.0.0
+      - uses: actions/add-to-project@5afcf98fcd03f1c2f92c3c83f58ae24323cc57fd # v2.0.0
         # Uses the `actions/add-to-project` GitHub Action to add items to a GitHub project.
         # This action simplifies the process of adding issues or pull requests to a project board.
 

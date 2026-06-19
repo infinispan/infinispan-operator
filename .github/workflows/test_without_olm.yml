@@ -30,6 +30,9 @@ on:
         type: string
         required: false
 
+permissions:
+  contents: read
+
 env:
   CONFIG_LISTENER_IMAGE: 'localhost:5001/infinispan-operator'
   KUBECONFIG: ${{ github.workspace }}/kind-kube-config.yaml
@@ -43,7 +46,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           ref: ${{ inputs.ref }}
           repository: ${{ inputs.repository }}
@@ -83,7 +86,7 @@ jobs:
           artifactPrefix: ${{ inputs.artifactPrefix }}
 
       - name: Test Logs
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure()
         with:
           name: ${{ inputs.artifactPrefix}}-test-logs
