@@ -10,6 +10,9 @@ on:
       - opened
       - reopened
 
+permissions:
+  contents: read
+
 jobs:
   jira:
     if: github.actor == 'dependabot[bot]'
@@ -18,8 +21,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7
-
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Approve PR for auto-merge
         run: gh pr merge --auto --rebase ${{ github.event.pull_request.number }}
         env:
