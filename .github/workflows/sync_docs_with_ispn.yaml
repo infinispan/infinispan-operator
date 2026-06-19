@@ -5,17 +5,22 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   upload:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       with:
         ref: main
 
     - name: Clone infinispan
-      uses: actions/checkout@master
+      uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
       with:
         repository: infinispan/infinispan
         ref: 14.0.x
@@ -41,7 +46,7 @@ jobs:
         git diff-index --quiet HEAD || git commit -m "Synchronized config examples from Infinispan"
 
     - name: Push changes to develop
-      uses: ad-m/github-push-action@master
+      uses: ad-m/github-push-action@881a6320fdb16eb5318c5054f31c218aec2b324c # master
       with:
         github_token: ${{ secrets.API_TOKEN_GITHUB }}
         branch: main
