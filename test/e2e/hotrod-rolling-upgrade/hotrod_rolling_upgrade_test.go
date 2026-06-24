@@ -6,9 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blang/semver"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
-	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	coreos "github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -86,6 +84,8 @@ func TestHotRodRollingUpgrade(t *testing.T) {
 	testKube.Create(spec)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	spec = testKube.WaitForInfinispanCondition(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed)
+
+	log.Infof("Initial Operand version: %s", spec.Spec.Version)
 	versionManager := testKube.VersionManagerFromCSV(sub)
 	client := tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 
@@ -100,6 +100,9 @@ func TestHotRodRollingUpgrade(t *testing.T) {
 	javaCacheHelper := tutils.NewCacheHelper("javaCache", client)
 	javaCacheHelper.CreateDistributedCache(mime.ApplicationJavaObject)
 
+	indexedCacheHelper := tutils.NewCacheHelper(IndexedCacheName, client)
+	indexedCacheHelper.CreateAndPopulateIndexedCache(entriesPerCache)
+
 	// Upgrade the Subscription channel if required
 	if sourceChannel != targetChannel {
 		testKube.UpdateSubscriptionChannel(targetChannel.Name, sub)
@@ -110,7 +113,7 @@ func TestHotRodRollingUpgrade(t *testing.T) {
 
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
 	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
-		log.Infof("Installed csv: %s, Current CSV: %s", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
+		log.Infof("Installed csv: %s", sub.Status.InstalledCSV)
 		ispnPreUpgrade := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
 		testKube.ApproveInstallPlan(sub)
@@ -124,7 +127,7 @@ func TestHotRodRollingUpgrade(t *testing.T) {
 		time.Sleep(time.Second * 30)
 
 		versionManager = testKube.VersionManagerFromCSV(sub)
-		assertMigration := func(expectedImage string, isRollingUpgrade, indexedSupported bool) {
+		assertMigration := func(expectedImage string, isRollingUpgrade bool) {
 			if !isRollingUpgrade {
 				clusterCounter++
 				currentStatefulSetName := newStatefulSetName
@@ -151,10 +154,7 @@ func TestHotRodRollingUpgrade(t *testing.T) {
 			assert.Equal(t, entriesPerCache, textCacheHelper.Size())
 			assert.Equal(t, 0, jsonCacheHelper.Size())
 			assert.Equal(t, 0, javaCacheHelper.Size())
-
-			if indexedSupported {
-				assert.Equal(t, entriesPerCache, tutils.NewCacheHelper(IndexedCacheName, client).Size())
-			}
+			assert.Equal(t, entriesPerCache, indexedCacheHelper.Size())
 		}
 
 		latestOperand := versionManager.Latest()
@@ -166,12 +166,6 @@ func TestHotRodRollingUpgrade(t *testing.T) {
 
 			if !tutils.IsTestOperand(latestOperand) {
 				continue
-			}
-
-			// ISPN-15651 Test migrating Indexed caches from 14.0.25.Final onwards
-			indexSupported := latestOperand.UpstreamVersion.GTE(*version.Operand{UpstreamVersion: &semver.Version{Major: 14, Minor: 0, Patch: 25}}.UpstreamVersion)
-			if indexSupported {
-				tutils.NewCacheHelper(IndexedCacheName, client).CreateAndPopulateIndexedCache(entriesPerCache)
 			}
 
 			tutils.ExpectNoError(
@@ -190,7 +184,7 @@ func TestHotRodRollingUpgrade(t *testing.T) {
 			lastOperand, err := versionManager.WithRef(ispnPreUpgrade.Status.Operand.Version)
 			tutils.ExpectNoError(err)
 			isRolling := latestOperand.CVE && lastOperand.UpstreamVersion.EQ(*latestOperand.UpstreamVersion)
-			assertMigration(latestOperand.Image, isRolling, indexSupported)
+			assertMigration(latestOperand.Image, isRolling)
 		}
 	}
 }

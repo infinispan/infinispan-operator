@@ -56,6 +56,21 @@ func (env OLMEnv) PrintManifest() {
 	fmt.Println("Starting CSV: " + env.SubStartingCSV)
 }
 
+// Returns last
+func (k TestKubernetes) GetLatestReleasedCSV() string {
+	catalogSource := constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE_GA", "operatorhubio-catalog")
+	subPackage := constants.GetEnvWithDefault("SUBSCRIPTION_PACKAGE", "infinispan")
+
+	packageManifest := k.PackageManifest(subPackage, catalogSource)
+
+	for _, channel := range packageManifest.Channels {
+		if channel.Name == packageManifest.DefaultChannelName {
+			return channel.CurrentCSVName
+		}
+	}
+	panic(fmt.Errorf("unable to find current CSV for package '%s' in CatalogSource '%s'", subPackage, catalogSource))
+}
+
 func (k TestKubernetes) OLMTestEnv() OLMEnv {
 	env := &OLMEnv{
 		CatalogSource:          constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE", "test-catalog"),
@@ -259,6 +274,8 @@ func (k TestKubernetes) ApproveInstallPlan(sub *coreos.Subscription) {
 	retryOnConflict(func() error {
 		installPlan := k.InstallPlan(sub)
 		installPlan.Spec.Approved = true
+
+		Log().Infof("Approving csv: %s", installPlan.Spec.ClusterServiceVersionNames[0])
 		return k.Kubernetes.Client.Update(context.TODO(), installPlan)
 	})
 }

@@ -1,29 +1,21 @@
 package upgrade
 
 import (
-	"os"
-	"strings"
 	"testing"
 
-	"github.com/blang/semver"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/controllers/constants"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 )
 
 const DroppedOperandVersionEnv = "TESTING_DROPPED_OPERAND_VERSION"
+const DroppedOperandStartingCSVEnv = "SUBSCRIPTION_STARTING_CSV_DROPPED_OPERAND"
 
 func TestUpgradeFromDroppedOperand(t *testing.T) {
+	// Manually define last CSV version containing removed operand
 	olm := testKube.OLMTestEnv()
+	olm.SubStartingCSV = constants.GetEnvWithDefault(DroppedOperandStartingCSVEnv, "infinispan-operator.v2.3.7")
 	olm.PrintManifest()
-
-	// Skip the test when the specified starting CSV makes the test invalid
-	if os.Getenv("DroppedOperandVersionEnv") == "" && strings.HasPrefix(olm.SubStartingCSV, "infinispan") {
-		csv := semver.MustParse(strings.Split(olm.SubStartingCSV, "infinispan-operator.v")[1])
-		if csv.Major >= 2 && csv.Minor >= 4 && csv.Patch >= 3 {
-			t.Skipf("Skipping test as specified CSV '%s' does not contain dropped Operand 13.0.10", olm.SubStartingCSV)
-		}
-	}
 
 	testKube.NewNamespace(tutils.Namespace)
 	sub := subscription(olm)
