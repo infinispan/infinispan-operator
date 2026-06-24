@@ -30,9 +30,6 @@ test_operands=$(echo "${current_versions}" | jq '
  | unique_by(.["upstream-version"])
 ')
 
-# Explicitly include 14.0.24 so that we can continue to test upgrades from 2.3.x CSV bundles
-test_operands=$(echo "${test_operands}" | jq '[{"upstream-version": "14.0.24", "image": "quay.io/infinispan/server:14.0.24.Final"}] + .')
-
 # Append Dev version only if there's no release in the stream yet
 if [ $(echo ${test_operands} | jq 'map(select(.["upstream-version"] | startswith("16."))) | length') -eq 0 ]; then
   test_operands=$(echo "${test_operands}" | jq '.[length] |= . + {"upstream-version": "16.0.0", "image": "quay.io/infinispan/server:16.0"}')

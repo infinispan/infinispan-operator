@@ -12,10 +12,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func TestUpgradeFromLatestReleased(t *testing.T) {
+	olm := testKube.OLMTestEnv()
+	olm.SubStartingCSV = testKube.GetLatestReleasedCSV()
+
+	testUpgrade(t, olm)
+}
+
 // TestUpgrade ensures that the OLM upgrade graph can be traversed and Operands installed as expected
 func TestUpgrade(t *testing.T) {
-	log := tutils.Log()
 	olm := testKube.OLMTestEnv()
+
+	testUpgrade(t, olm)
+}
+
+func testUpgrade(t *testing.T, olm tutils.OLMEnv) {
+	log := tutils.Log()
 	olm.PrintManifest()
 	sourceChannel := olm.SourceChannel
 	targetChannel := olm.TargetChannel
@@ -32,9 +44,6 @@ func TestUpgrade(t *testing.T) {
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
 		i.Spec.Replicas = int32(replicas)
 		i.Spec.Service.Container.EphemeralStorage = false
-		// Ensure that FIPS is disabled when testing 13.0.x Operand
-		i.Spec.Container.CliExtraJvmOpts = "-Dcom.redhat.fips=false"
-		i.Spec.Container.ExtraJvmOpts = "-Dcom.redhat.fips=false"
 		i.Spec.Logging.Categories["org.infinispan.topology"] = ispnv1.LoggingLevelTrace
 	})
 	// Explicitly reset the Version so that it will be set by the Operator webhook
@@ -44,16 +53,11 @@ func TestUpgrade(t *testing.T) {
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	spec = testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 
+	log.Infof("Initial Operand version: %s", spec.Spec.Version)
 	versionManager := testKube.VersionManagerFromCSV(sub)
-	operand, err := versionManager.WithRef(spec.Spec.Version)
-	tutils.ExpectNoError(err)
 
 	numEntries := 100
 	client := tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
-
-	if locksCacheDegraded(operand) {
-		healDegradedLocksCache(operand, client)
-	}
 
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
 	tutils.NewCacheHelper(persistentCacheName, client).CreateAndPopulatePersistentCache(numEntries)
@@ -71,7 +75,7 @@ func TestUpgrade(t *testing.T) {
 
 	// Approve InstallPlans and verify cluster state on each upgrade until the most recent CSV has been reached
 	for testKube.Subscription(sub); sub.Status.InstalledCSV != targetChannel.CurrentCSVName; {
-		log.Infof("Installed csv: %s, Current CSV: %s", sub.Status.InstalledCSV, targetChannel.CurrentCSVName)
+		log.Infof("Installed csv: %s", sub.Status.InstalledCSV)
 		ispnPreUpgrade := testKube.WaitForInfinispanConditionWithTimeout(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
 		testKube.WaitForSubscriptionState(coreos.SubscriptionStateUpgradePending, sub)
 		testKube.ApproveInstallPlan(sub)
@@ -85,33 +89,6 @@ func TestUpgrade(t *testing.T) {
 		time.Sleep(time.Minute)
 
 		versionManager = testKube.VersionManagerFromCSV(sub)
-		if ispnPreUpgrade.Spec.Version == "" {
-			relatedImageJdk := testKube.InstalledCSVEnv("RELATED_IMAGE_OPENJDK", sub)
-			if relatedImageJdk != "" {
-				// We're upgrading from an Infinispan version that does not have multi-operand support so expect cluster
-				// GracefulShutdown upgrade to happen automatically
-				testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionStopping, conditionTimeout)
-				testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-				testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
-
-				// The latest Operator version still doesn't support multi-operand so check that the RELATED_IMAGE_OPENJDK
-				// image has been installed on all pods
-				assertOperandImage(relatedImageJdk, spec)
-				client = tutils.HTTPClientForCluster(spec, testKube)
-				tutils.NewCacheHelper(persistentCacheName, client).AssertSize(numEntries)
-				continue
-			}
-
-			// This is the first upgrade to an Operator with multi-operand support, so wait for the oldest Operand
-			oldestOperand := versionManager.Oldest()
-			ispnPreUpgrade = testKube.WaitForInfinispanState(spec.Name, spec.Namespace, func(i *ispnv1.Infinispan) bool {
-				return i.IsConditionTrue(ispnv1.ConditionWellFormed) &&
-					i.Status.Operand.Version == oldestOperand.Ref() &&
-					i.Status.Operand.Image == oldestOperand.Image &&
-					i.Status.Operand.Phase == ispnv1.OperandPhaseRunning
-			})
-			assertOperandImage(oldestOperand.Image, spec)
-		}
 
 		// Upgrade to the latest available Operand
 		latestOperand := versionManager.Latest()
@@ -120,13 +97,6 @@ func TestUpgrade(t *testing.T) {
 
 			if !tutils.IsTestOperand(latestOperand) {
 				continue
-			}
-
-			client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
-			op, err := versionManager.WithRef(ispnPreUpgrade.Spec.Version)
-			tutils.ExpectNoError(err)
-			if locksCacheDegraded(op) {
-				healDegradedLocksCache(op, client)
 			}
 
 			tutils.ExpectNoError(
@@ -155,10 +125,6 @@ func TestUpgrade(t *testing.T) {
 			client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
 			tutils.NewCacheHelper(persistentCacheName, client).AssertSize(numEntries)
 
-			if locksCacheDegraded(latestOperand) {
-				healDegradedLocksCache(latestOperand, client)
-			}
-
 			// Restore the backup and ensure that the cache exists with the expected number of entries
 			restoreName := "upgrade-restore-" + strings.ReplaceAll(strings.TrimLeft(sub.Status.CurrentCSV, olm.SubName+".v"), ".", "-")
 			if restore, err := createRestoreAndWaitToSucceed(restoreName, backup, t); err != nil {
@@ -176,8 +142,9 @@ func TestUpgrade(t *testing.T) {
 	checkServicePorts(t, spec.Name)
 	checkBatch(t, spec)
 
-	// Kill the first pod to ensure that the cluster can recover from failover after upgrade
-	err = testKube.Kubernetes.Client.Delete(ctx, &corev1.Pod{
+	// Check for any corruption that could be caused by upgrade and improper data migration
+	// 1. Kill the first pod to ensure that the cluster can recover from failover after upgrade
+	err := testKube.Kubernetes.Client.Delete(ctx, &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      spec.Name + "-0",
 			Namespace: tutils.Namespace,
@@ -186,6 +153,16 @@ func TestUpgrade(t *testing.T) {
 	tutils.ExpectNoError(err)
 	testKube.WaitForInfinispanPods(replicas, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 	testKube.WaitForInfinispanConditionWithTimeout(spec.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
+
+	// Ensure that persistent cache entries still contain the expected numEntries
+	versionManager = testKube.VersionManagerFromCSV(sub)
+	client = tutils.HTTPClientForClusterWithVersionManager(spec, testKube, versionManager)
+	tutils.NewCacheHelper(persistentCacheName, client).AssertSize(numEntries)
+
+	// 2. Verify all the cluster can be shutdown and brough back up without any issues
+	testKube.GracefulShutdownInfinispan(spec)
+	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
+	testKube.GracefulRestartInfinispan(spec, int32(replicas), tutils.SinglePodTimeout)
 
 	// Ensure that persistent cache entries still contain the expected numEntries
 	versionManager = testKube.VersionManagerFromCSV(sub)

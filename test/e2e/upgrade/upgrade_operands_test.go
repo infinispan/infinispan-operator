@@ -58,10 +58,6 @@ func TestOperandUpgrades(t *testing.T) {
 	numEntries := 100
 	client := tutils.HTTPClientForClusterWithVersionManager(ispn, testKube, versionManager)
 
-	if op := *startingOperand; locksCacheDegraded(op) {
-		healDegradedLocksCache(op, client)
-	}
-
 	// Add a persistent cache with data to ensure contents can be read after upgrade(s)
 	tutils.NewCacheHelper(persistentCacheName, client).CreateAndPopulatePersistentCache(numEntries)
 
@@ -79,9 +75,6 @@ func TestOperandUpgrades(t *testing.T) {
 		log.Debugf("Next Operand %s", operand.Ref())
 
 		ispn = testKube.WaitForInfinispanConditionWithTimeout(ispn.Name, tutils.Namespace, ispnv1.ConditionWellFormed, conditionTimeout)
-		if op := *operand; locksCacheDegraded(op) {
-			healDegradedLocksCache(op, client)
-		}
 
 		tutils.ExpectNoError(
 			testKube.UpdateInfinispan(ispn, func() {

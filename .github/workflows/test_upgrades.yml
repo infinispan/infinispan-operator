@@ -119,9 +119,7 @@ jobs:
               exit 1
             fi
           else
-            # We must start on a server version greater than 14.0.23.Final to prevent known clustering issues during upgrades
-            # See commit message for a detailed list
-            export SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.3.7
+            export SUBSCRIPTION_STARTING_CSV=infinispan-operator.v2.4.18
           fi
           # Only upgrade to Operands that are currently defined in the manager.yaml
           export TESTING_OPERAND_ALLOW_LIST=$(./scripts/ci/operand_versions.sh ,)
