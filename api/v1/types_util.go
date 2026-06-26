@@ -29,6 +29,8 @@ const (
 const (
 	// PodTargetLabels labels propagated to pods
 	PodTargetLabels string = "infinispan.org/podTargetLabels"
+	// PodSelectorLabels labels included in the pod selector
+	PodSelectorLabels string = "infinispan.org/podSelectorLabels"
 	// TargetLabels labels propagated to services/ingresses/routes
 	TargetLabels string = "infinispan.org/targetLabels"
 	// ServiceMonitorTargetLabels labels propagated to ServiceMonitor targetLabel for the label retainment
@@ -659,10 +661,12 @@ func (ispn *Infinispan) ServiceMonitorTargetLabels() []string {
 }
 
 func (ispn *Infinispan) ServiceSelectorLabels() map[string]string {
-	return map[string]string{
+	labels := map[string]string{
 		"clusterName": ispn.Name,
 		"app":         "infinispan-pod",
 	}
+	addLabelsFor(ispn, PodSelectorLabels, labels)
+	return labels
 }
 
 // ExternalServiceLabels returns all labels to be applied to the external service pods, including those defined by the
@@ -690,7 +694,9 @@ func (ispn *Infinispan) PodLabels() map[string]string {
 // PodSelectorLabels returns the minimum required labels to identify an Infinispan Pod. It does not contain any user
 // defined labels. This should always be used for selectors so that updates to user labels don't break the controller logic.
 func (ispn *Infinispan) PodSelectorLabels() map[string]string {
-	return ispn.Labels("infinispan-pod")
+	labels := ispn.Labels("infinispan-pod")
+	addLabelsFor(ispn, PodSelectorLabels, labels)
+	return labels
 }
 
 // GossipRouterPodLabels returns all labels to be applied to the GossipRouter pod. It's values
