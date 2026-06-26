@@ -584,6 +584,171 @@ func TestSameCacheNameInMultipleClusters(t *testing.T) {
 	testifyAssert.Equal(t, cluster2.Name, cluster2CR.Spec.ClusterName)
 }
 
+func TestCacheSchemaDependency(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, true)
+
+	schemaName := ispn.Name + ".proto"
+	bookProto := `
+package book_sample;
+
+/* @Indexed */
+message Book {
+	/* @Field(store = Store.YES, analyze = Analyze.YES) */
+	/* @Text(projectable = true) */
+	optional string title = 1;
+
+	/* @Text(projectable = true) */
+	optional string description = 2;
+
+	optional int32 publicationYear = 3;
+}
+`
+	httpClient := tutils.HTTPClientForCluster(ispn, testKube)
+
+	schemaCRName := strings.TrimSuffix(schemaName, ".proto")
+	cacheName := ispn.Name + "-indexed"
+	cache := cacheCR(cacheName, ispn)
+	cache.Spec.Template = `{"distributed-cache":{"encoding":{"media-type":"application/x-protostream"},"indexing":{"indexed-entities":["book_sample.Book"]}}}`
+	cache.Spec.SchemaRefs = []v2alpha1.SchemaRef{{Name: schemaCRName}}
+	testKube.Create(cache)
+
+	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
+		Type:   v2alpha1.CacheConditionReady,
+		Status: metav1.ConditionFalse,
+	})
+
+	cacheHelper := tutils.NewCacheHelper(cacheName, httpClient)
+	testifyAssert.False(t, cacheHelper.Exists(), "Cache should not exist on server without schema")
+
+	schema := schemaCR(schemaName, bookProto, ispn)
+	testKube.Create(schema)
+	testKube.WaitForSchemaConditionReady(schemaName, ispn.Name, tutils.Namespace)
+
+	schemaHelper := tutils.NewSchemaHelper(schemaName, httpClient)
+	schemaHelper.WaitForSchemaToExist()
+
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	cacheHelper.WaitForCacheToExist()
+
+	numEntries := 3
+	for i := 0; i < numEntries; i++ {
+		data := fmt.Sprintf(`{"_type":"book_sample.Book","title":"book%d","publicationYear":%d}`, i, 2020+i)
+		cacheHelper.Put(data, data, mime.ApplicationJson)
+	}
+	cacheHelper.AssertSize(numEntries)
+
+	value, exists := cacheHelper.Get(`{"_type":"book_sample.Book","title":"book0","publicationYear":2020}`)
+	testifyAssert.True(t, exists, "Entry should exist in cache")
+	testifyAssert.Contains(t, value, "book0")
+
+	testKube.DeleteCache(cache)
+	cacheHelper.WaitForCacheToNotExist()
+
+	testKube.DeleteSchema(schema)
+	schemaHelper.WaitForSchemaToNotExist()
+
+	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
+}
+
+func TestCacheMultipleSchemaDependencies(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	ispn := initCluster(t, true)
+
+	bookSchemaName := ispn.Name + "-book.proto"
+	bookProto := `
+package book_multi;
+
+message Book {
+	optional string title = 1;
+	optional int32 publicationYear = 2;
+}
+`
+	authorSchemaName := ispn.Name + "-author.proto"
+	authorProto := `
+package author_multi;
+
+message Author {
+	optional string name = 1;
+}
+`
+	httpClient := tutils.HTTPClientForCluster(ispn, testKube)
+
+	bookCRName := strings.TrimSuffix(bookSchemaName, ".proto")
+	authorCRName := strings.TrimSuffix(authorSchemaName, ".proto")
+
+	cacheName := ispn.Name + "-multi-schema"
+	cache := cacheCR(cacheName, ispn)
+	cache.Spec.Template = `{"distributed-cache":{"encoding":{"media-type":"application/x-protostream"}}}`
+	cache.Spec.SchemaRefs = []v2alpha1.SchemaRef{{Name: bookCRName}, {Name: authorCRName}}
+	testKube.Create(cache)
+
+	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
+		Type:   v2alpha1.CacheConditionReady,
+		Status: metav1.ConditionFalse,
+	})
+
+	cacheHelper := tutils.NewCacheHelper(cacheName, httpClient)
+	testifyAssert.False(t, cacheHelper.Exists(), "Cache should not exist on server without schemas")
+
+	bookSchema := schemaCR(bookSchemaName, bookProto, ispn)
+	testKube.Create(bookSchema)
+	testKube.WaitForSchemaConditionReady(bookSchemaName, ispn.Name, tutils.Namespace)
+
+	bookSchemaHelper := tutils.NewSchemaHelper(bookSchemaName, httpClient)
+	bookSchemaHelper.WaitForSchemaToExist()
+
+	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
+		Type:   v2alpha1.CacheConditionReady,
+		Status: metav1.ConditionFalse,
+	})
+	testifyAssert.False(t, cacheHelper.Exists(), "Cache should not exist with only one schema ready")
+
+	authorSchema := schemaCR(authorSchemaName, authorProto, ispn)
+	testKube.Create(authorSchema)
+	testKube.WaitForSchemaConditionReady(authorSchemaName, ispn.Name, tutils.Namespace)
+
+	authorSchemaHelper := tutils.NewSchemaHelper(authorSchemaName, httpClient)
+	authorSchemaHelper.WaitForSchemaToExist()
+
+	testKube.WaitForCacheConditionReady(cacheName, ispn.Name, tutils.Namespace)
+	cacheHelper.WaitForCacheToExist()
+
+	testKube.DeleteCache(cache)
+	cacheHelper.WaitForCacheToNotExist()
+
+	testKube.DeleteSchema(bookSchema)
+	bookSchemaHelper.WaitForSchemaToNotExist()
+
+	testKube.DeleteSchema(authorSchema)
+	authorSchemaHelper.WaitForSchemaToNotExist()
+
+	assertConfigListenerHasNoErrorsOrRestarts(t, ispn)
+}
+
+func schemaCR(schemaName string, proto string, i *v1.Infinispan) *v2alpha1.Schema {
+	return &v2alpha1.Schema{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "infinispan.org/v2alpha1",
+			Kind:       "Schema",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      strings.TrimSuffix(schemaName, ".proto"),
+			Namespace: i.Namespace,
+			Labels:    i.ObjectMeta.Labels,
+		},
+		Spec: v2alpha1.SchemaSpec{
+			ClusterName: i.Name,
+			Name:        schemaName,
+			Schema:      proto,
+		},
+	}
+}
+
 func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
 	cache := &v2alpha1.Cache{
 		TypeMeta: metav1.TypeMeta{

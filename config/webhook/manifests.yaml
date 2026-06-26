@@ -199,3 +199,24 @@ webhooks:
     resources:
     - restores
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-infinispan-org-v2alpha1-schema
+  failurePolicy: Fail
+  name: vschema.kb.io
+  rules:
+  - apiGroups:
+    - infinispan.org
+    apiVersions:
+    - v2alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - schemas
+  sideEffects: None

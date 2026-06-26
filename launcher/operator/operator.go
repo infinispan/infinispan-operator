@@ -127,6 +127,10 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		setupLog.Error(err, "unable to create controller", "controller", "Cache")
 		os.Exit(1)
 	}
+	if err = (&controllers.SchemaReconciler{}).SetupWithManager(ctx, mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Schema")
+		os.Exit(1)
+	}
 
 	if err = (&controllers.ReconcileOperatorConfig{}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OperatorConfig")
@@ -152,6 +156,7 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		}
 
 		infinispanv2alpha1.RegisterCacheValidatingWebhook(mgr)
+		infinispanv2alpha1.RegisterSchemaValidatingWebhook(mgr)
 
 		if err = (&infinispanv2alpha1.Backup{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "Backup")
