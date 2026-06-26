@@ -325,7 +325,8 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 			Annotations: ispn.PodAnnotations(),
 		},
 		Spec: corev1.PodSpec{
-			SecurityContext: podSecurityCtx,
+			ServiceAccountName: ispn.Spec.ServiceAccountName,
+			SecurityContext:     podSecurityCtx,
 			Containers: []corev1.Container{{
 				Image:         ispn.ImageName(),
 				Name:          provision.InfinispanContainer,

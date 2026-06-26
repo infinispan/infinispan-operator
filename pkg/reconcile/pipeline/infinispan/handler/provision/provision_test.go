@@ -74,4 +74,50 @@ var _ = Describe("Provision", func() {
 		Expect(err).Should(BeNil())
 		Expect(ss.Spec.Template.Spec.PriorityClassName).Should(BeEmpty())
 	})
+
+	It("should correctly set StatefulSet ServiceAccountName when defined", func() {
+		mockCtrl := gomock.NewController(GinkgoT())
+		resources := infinispan.NewMockResources(mockCtrl)
+
+		ctx := infinispan.NewMockContext(mockCtrl)
+		ctx.EXPECT().ConfigFiles().AnyTimes().Return(
+			&infinispan.ConfigFiles{
+				AdminIdentities: &infinispan.AdminIdentities{},
+			},
+		)
+		ctx.EXPECT().Resources().Return(resources)
+		ctx.EXPECT().Operand().AnyTimes().Return(version.Operand{UpstreamVersion: &semver.Version{Major: 15, Minor: 0, Patch: 0}})
+
+		ispn := &ispnv1.Infinispan{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      key.Name,
+				Namespace: key.Namespace,
+			},
+			Spec: ispnv1.InfinispanSpec{
+				Replicas:           1,
+				ServiceAccountName: "custom-sa",
+				Container: ispnv1.InfinispanContainerSpec{
+					Memory: "1Gi",
+				},
+				Service: ispnv1.InfinispanServiceSpec{
+					Type: ispnv1.ServiceTypeDataGrid,
+					Container: &ispnv1.InfinispanServiceContainerSpec{
+						EphemeralStorage: true,
+					},
+				},
+				Version: "IGNORED. Required so we can call Default()",
+			},
+		}
+		ispn.Default()
+
+		ss, err := ClusterStatefulSetSpec("statefulset", ispn, ctx)
+		Expect(err).Should(BeNil())
+		Expect(ss.Spec.Template.Spec.ServiceAccountName).Should(Equal("custom-sa"))
+
+		// Assert ServiceAccountName is empty when not specified
+		ispn.Spec.ServiceAccountName = ""
+		ss, err = ClusterStatefulSetSpec("statefulset", ispn, ctx)
+		Expect(err).Should(BeNil())
+		Expect(ss.Spec.Template.Spec.ServiceAccountName).Should(BeEmpty())
+	})
 })

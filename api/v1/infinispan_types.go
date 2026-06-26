@@ -469,6 +469,10 @@ type ConfigListenerSpec struct {
 	Memory string `json:"memory,omitempty"`
 	// +optional
 	CPU string `json:"cpu,omitempty"`
+	// The name of the ServiceAccount to be used by the ConfigListener pod.
+	// When specified, the operator does not create RBAC resources for the ConfigListener and the user must configure them.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 type ConfigListenerLoggingSpec struct {
@@ -538,6 +542,9 @@ type InfinispanSpec struct {
 	Jmx *JmxSpec `json:"jmx,omitempty"`
 	// +optional
 	Scheduling *SchedulingSpec `json:"scheduling,omitempty"`
+	// The name of the ServiceAccount to be used by Infinispan server, GossipRouter, Batch, Backup, and Restore pods
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 // InfinispanUpgradesSpec defines the Infinispan upgrade strategy

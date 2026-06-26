@@ -113,6 +113,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Annotations: annotationsForPod,
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName:            i.Spec.ServiceAccountName,
 					TerminationGracePeriodSeconds: i.TerminationGracePeriodSeconds(),
 					Affinity:                      i.Affinity(),
 					Tolerations:                   i.Tolerations(),
