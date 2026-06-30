@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/zapr"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	batchCtrl "github.com/infinispan/infinispan-operator/controllers"
@@ -16,15 +17,16 @@ import (
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
-	ctx      = context.Background()
 	testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 	helper   = NewBatchHelper(testKube)
 )
 
 func TestMain(m *testing.M) {
+	ctrl.SetLogger(zapr.NewLogger(tutils.Log().Desugar()))
 	tutils.RunOperator(m, testKube)
 }
 
@@ -122,14 +124,14 @@ func createCluster(t *testing.T) *v1.Infinispan {
 
 func waitForK8sResourceCleanup(name string) {
 	// Ensure that the created Job has completed and has been removed
-	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 10*time.Millisecond, tutils.TestTimeout, false, func(ctx context.Context) (bool, error) {
 		return !testKube.AssertK8ResourceExists(name, tutils.Namespace, &batchv1.Job{}), nil
 	})
 	tutils.ExpectNoError(err)
 
 	// If no Job pods available, then the pods have been garbage collected
-	err = wait.Poll(tutils.DefaultPollPeriod, tutils.TestTimeout, func() (bool, error) {
-		_, e := batchCtrl.GetJobPodName(name, tutils.Namespace, testKube.Kubernetes.Client, ctx)
+	err = wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.TestTimeout, false, func(ctx context.Context) (bool, error) {
+		_, e := batchCtrl.GetJobPodName(name, tutils.Namespace, testKube.Kubernetes.Client, context.Background())
 		return e != nil, nil
 	})
 	tutils.ExpectNoError(err)

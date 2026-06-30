@@ -13,7 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // Test custom configuration with cache-container element
@@ -88,7 +88,7 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 		client_ := tutils.HTTPClientForCluster(ispn, testKube)
 		cacheHelper := tutils.NewCacheHelper(testName, client_)
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
-		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
+		ispn.Spec.Security.EndpointAuthentication = ptr.To(true)
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
@@ -98,7 +98,7 @@ func TestUserCustomConfigWithAuthUpdate(t *testing.T) {
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		i.Spec.Security.EndpointAuthentication = ptr.To(false)
 		i.Spec.ConfigMapName = configMap.Name
 	})
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
@@ -132,7 +132,7 @@ func TestUserCustomConfigUpdateOnNameChange(t *testing.T) {
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		i.Spec.Security.EndpointAuthentication = ptr.To(false)
 		i.Spec.ConfigMapName = configMap.Name
 	})
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
@@ -166,7 +166,7 @@ func TestUserCustomConfigUpdateOnChange(t *testing.T) {
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		i.Spec.Security.EndpointAuthentication = ptr.To(false)
 		i.Spec.ConfigMapName = configMap.Name
 	})
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
@@ -195,7 +195,7 @@ func TestUserCustomConfigUpdateOnAdd(t *testing.T) {
 		cacheHelper.TestBasicUsage("testkey", "test-operator")
 	}
 	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		i.Spec.Security.EndpointAuthentication = ptr.To(false)
 	})
 	genericTestForContainerUpdated(*ispn, modifier, verifier)
 }
@@ -230,7 +230,7 @@ func TestUserCustomConfigRemove(t *testing.T) {
 		}
 	}
 	ispn := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		i.Spec.Security.EndpointAuthentication = ptr.To(false)
 		i.Spec.ConfigMapName = configMap.Name
 	})
 	genericTestForContainerUpdated(*ispn, modifier, verifier)

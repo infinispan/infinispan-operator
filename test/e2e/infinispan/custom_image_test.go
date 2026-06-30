@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestCustomImage(t *testing.T) {
@@ -23,7 +23,7 @@ func TestCustomImage(t *testing.T) {
 
 	// Use customerOperand (previous release) as a custom image and spec.version of the latest release in the stream
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Image = pointer.String(customOperand.Image)
+		i.Spec.Image = ptr.To(customOperand.Image)
 		i.Spec.Version = versionOperand.Ref()
 	})
 

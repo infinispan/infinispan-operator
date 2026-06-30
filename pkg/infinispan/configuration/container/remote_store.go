@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/infinispan/infinispan-operator/controllers/constants"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 type RemoteStoreConfig struct {
@@ -97,7 +97,7 @@ func CreateRemoteStoreConfig(ip, cache, user, pass string, versionMajor int) (st
 			Migration: true,
 		}
 	} else {
-		cfg.RemoteStore.RawValues = pointer.Bool(true)
+		cfg.RemoteStore.RawValues = ptr.To(true)
 	}
 
 	doc, err := json.Marshal(cfg)

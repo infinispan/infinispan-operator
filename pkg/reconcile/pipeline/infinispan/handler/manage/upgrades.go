@@ -17,7 +17,7 @@ import (
 	ingressv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -278,7 +278,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			if err := ctx.UpdateInfinispan(updateStatus); err != nil {
 				ctx.Requeue(err)
 			} else {
-				statefulSet.Spec.Replicas = pointer.Int32Ptr(0)
+				statefulSet.Spec.Replicas = ptr.To(int32(0))
 				// GracefulShutdown in progress, but we must wait until the StatefulSet has scaled down before proceeding
 				ctx.Requeue(ctx.Resources().Update(statefulSet))
 			}

@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	ingressv1 "k8s.io/api/networking/v1"
 	"k8s.io/cloud-provider/service/helpers"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -82,7 +82,7 @@ func ConsoleUrl(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if exposeAddress == "" {
 			i.Status.ConsoleUrl = nil
 		} else {
-			i.Status.ConsoleUrl = pointer.StringPtr(fmt.Sprintf("%s://%s/console", i.GetEndpointScheme(), exposeAddress))
+			i.Status.ConsoleUrl = ptr.To(fmt.Sprintf("%s://%s/console", i.GetEndpointScheme(), exposeAddress))
 		}
 	})
 }

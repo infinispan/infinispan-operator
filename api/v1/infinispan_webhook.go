@@ -18,9 +18,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var (
@@ -65,12 +66,12 @@ func (i *Infinispan) Default() {
 	i.InitServiceContainer()
 	if i.IsDataGrid() {
 		if i.Spec.Service.Container.Storage == nil {
-			i.Spec.Service.Container.Storage = pointer.StringPtr(consts.DefaultPVSize.String())
+			i.Spec.Service.Container.Storage = ptr.To(consts.DefaultPVSize.String())
 		}
 	}
 
 	if i.Spec.Security.EndpointAuthentication == nil {
-		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
+		i.Spec.Security.EndpointAuthentication = ptr.To(true)
 	}
 	if *i.Spec.Security.EndpointAuthentication {
 		i.Spec.Security.EndpointSecretName = i.GetSecretName()
@@ -145,19 +146,19 @@ func (i *Infinispan) Default() {
 			i.Spec.Service.Sites.Local.Discovery.Type = GossipRouterType
 		}
 		if i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter == nil {
-			i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter = pointer.Bool(true)
+			i.Spec.Service.Sites.Local.Discovery.LaunchGossipRouter = ptr.To(true)
 		}
 		if i.Spec.Service.Sites.Local.Discovery.Heartbeats == nil {
 			i.Spec.Service.Sites.Local.Discovery.Heartbeats = &GossipRouterHeartbeatSpec{}
 		}
 		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled == nil {
-			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled = pointer.Bool(true)
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Enabled = ptr.To(true)
 		}
 		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval == nil {
-			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval = pointer.Int64(10000)
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Interval = ptr.To(int64(10000))
 		}
 		if i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout == nil {
-			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout = pointer.Int64(30000)
+			i.Spec.Service.Sites.Local.Discovery.Heartbeats.Timeout = ptr.To(int64(30000))
 		}
 	}
 
@@ -171,14 +172,14 @@ func (i *Infinispan) Default() {
 var _ webhook.Validator = &Infinispan{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateCreate() error {
+func (i *Infinispan) ValidateCreate() (admission.Warnings, error) {
 	return i.validate()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) error {
-	if err := i.validate(); err != nil {
-		return err
+func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) (admission.Warnings, error) {
+	if w, err := i.validate(); err != nil {
+		return w, err
 	}
 
 	var allErrs field.ErrorList
@@ -253,12 +254,12 @@ func minorStreamMatch(operand1, operand2 version.Operand) bool {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateDelete() error {
+func (i *Infinispan) ValidateDelete() (admission.Warnings, error) {
 	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-	return nil
+	return nil, nil
 }
 
-func (i *Infinispan) validate() error {
+func (i *Infinispan) validate() (admission.Warnings, error) {
 	var allErrs field.ErrorList
 
 	operand, err := versionManager.WithRef(i.Spec.Version)
@@ -526,11 +527,11 @@ func validateRequestLimits(val string, fn func() (req, limit resource.Quantity, 
 	return
 }
 
-func errorListToError(i *Infinispan, allErrs field.ErrorList) error {
+func errorListToError(i *Infinispan, allErrs field.ErrorList) (admission.Warnings, error) {
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: GroupVersion.Group, Kind: "Infinispan"},
 			i.Name, allErrs)
 	}
-	return nil
+	return nil, nil
 }

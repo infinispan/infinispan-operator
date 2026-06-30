@@ -52,7 +52,7 @@ func subscription(olm tutils.OLMEnv) *coreos.Subscription {
 			InstallPlanApproval:    coreos.ApprovalManual,
 			Package:                olm.SubPackage,
 			StartingCSV:            olm.SubStartingCSV,
-			Config: coreos.SubscriptionConfig{
+			Config: &coreos.SubscriptionConfig{
 				Env: []corev1.EnvVar{
 					{Name: "THREAD_DUMP_PRE_STOP", Value: "TRUE"},
 				},
@@ -107,7 +107,7 @@ func createRestoreAndWaitToSucceed(name string, backup *v2.Backup, t *testing.T)
 }
 
 func waitForValidRestorePhase(name, namespace string, phase v2.RestorePhase) (restore *v2.Restore, err error) {
-	err = wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
+	err = wait.PollUntilContextTimeout(context.Background(), 10*time.Millisecond, tutils.TestTimeout, false, func(ctx context.Context) (bool, error) {
 		restore = testKube.GetRestore(name, namespace)
 		if restore.Status.Phase == v2.RestoreFailed {
 			return true, fmt.Errorf("restore failed. Reason: %s", restore.Status.Reason)

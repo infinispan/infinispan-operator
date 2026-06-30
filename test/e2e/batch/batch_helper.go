@@ -1,6 +1,7 @@
 package batch
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -50,7 +51,7 @@ func (b BatchHelper) CreateBatch(t *testing.T, name, cluster string, config, con
 
 func (b BatchHelper) WaitForValidBatchPhase(name string, phase v2.BatchPhase) *v2.Batch {
 	var batch *v2.Batch
-	err := wait.Poll(10*time.Millisecond, tutils.TestTimeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 10*time.Millisecond, tutils.TestTimeout, false, func(ctx context.Context) (bool, error) {
 		batch = b.testKube.GetBatch(name, tutils.Namespace)
 		if batch.Status.Phase == v2.BatchFailed && phase != v2.BatchFailed {
 			return true, fmt.Errorf("batch failed. Reason: %s", batch.Status.Reason)

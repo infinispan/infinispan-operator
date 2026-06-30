@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/zapr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const IndexedCacheName = "IndexedCache"
@@ -23,6 +25,7 @@ var (
 )
 
 func TestMain(t *testing.M) {
+	ctrl.SetLogger(zapr.NewLogger(tutils.Log().Desugar()))
 	code := t.Run()
 	os.Exit(code)
 }
@@ -51,7 +54,7 @@ func TestHotRodRollingUpgrade(t *testing.T) {
 			InstallPlanApproval:    coreos.ApprovalManual,
 			Package:                olm.SubPackage,
 			StartingCSV:            olm.SubStartingCSV,
-			Config: coreos.SubscriptionConfig{
+			Config: &coreos.SubscriptionConfig{
 				Env: []corev1.EnvVar{
 					{Name: "THREAD_DUMP_PRE_STOP", Value: "TRUE"},
 				},

@@ -17,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // Test if spec.container.cpu update is handled
@@ -111,9 +111,9 @@ func TestProbeUpdates(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
-		ispn.Spec.Service.Container.LivenessProbe.TimeoutSeconds = pointer.Int32(1000)
-		ispn.Spec.Service.Container.ReadinessProbe.TimeoutSeconds = pointer.Int32(1000)
-		ispn.Spec.Service.Container.StartupProbe.TimeoutSeconds = pointer.Int32(1000)
+		ispn.Spec.Service.Container.LivenessProbe.TimeoutSeconds = ptr.To(int32(1000))
+		ispn.Spec.Service.Container.ReadinessProbe.TimeoutSeconds = ptr.To(int32(1000))
+		ispn.Spec.Service.Container.StartupProbe.TimeoutSeconds = ptr.To(int32(1000))
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		verify := func(val int32) {
@@ -229,7 +229,7 @@ func verifyStatefulSetUpdate(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infin
 	}))
 
 	// Wait for a new generation to appear
-	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss))
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
@@ -237,7 +237,7 @@ func verifyStatefulSetUpdate(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infin
 
 	// Wait that current and update revisions match
 	// this ensures that the rolling upgrade completes
-	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &ss))
 		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
 	})

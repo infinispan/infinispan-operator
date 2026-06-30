@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/go-logr/zapr"
 	"github.com/iancoleman/strcase"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	ispnv2 "github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -21,6 +22,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
@@ -31,6 +33,8 @@ var (
 // This test is to ensure that the Webhooks are deployed correctly with OLM deployments. Webhook semantic tests should
 // be written using Envtest in the api/ packages
 func TestMain(m *testing.M) {
+	ctrl.SetLogger(zapr.NewLogger(tutils.Log().Desugar()))
+
 	olm := testKube.OLMTestEnv()
 	olm.PrintManifest()
 
@@ -50,7 +54,7 @@ func TestMain(m *testing.M) {
 			CatalogSource:          olm.CatalogSource,
 			CatalogSourceNamespace: olm.CatalogSourceNamespace,
 			Package:                olm.SubPackage,
-			Config: coreos.SubscriptionConfig{
+			Config: &coreos.SubscriptionConfig{
 				Env: []corev1.EnvVar{{
 					Name:  ispnv1.OperatorTargetLabelsEnvVarName,
 					Value: "{\"svc-label\":\"svc-value\"}",
@@ -300,32 +304,32 @@ func TestXSiteDefaultingWebhook(t *testing.T) {
 
 func TestXSiteNegativeHeartbeatIntervalWebhook(t *testing.T) {
 	t.Parallel()
-	heartbeatValidtionTest(t, pointer.Int64(-1), nil)
+	heartbeatValidtionTest(t, ptr.To(int64(-1)), nil)
 }
 
 func TestXSiteZeroHeartbeatIntervalWebhook(t *testing.T) {
 	t.Parallel()
-	heartbeatValidtionTest(t, pointer.Int64(0), nil)
+	heartbeatValidtionTest(t, ptr.To(int64(0)), nil)
 }
 
 func TestXSiteNegativeHeartbeatTimeoutWebhook(t *testing.T) {
 	t.Parallel()
-	heartbeatValidtionTest(t, nil, pointer.Int64(-1))
+	heartbeatValidtionTest(t, nil, ptr.To(int64(-1)))
 }
 
 func TestXSiteZeroHeartbeatTimeoutWebhook(t *testing.T) {
 	t.Parallel()
-	heartbeatValidtionTest(t, nil, pointer.Int64(0))
+	heartbeatValidtionTest(t, nil, ptr.To(int64(0)))
 }
 
 func TestXSiteSameHeartbeatIntervalAndTimeoutWebhook(t *testing.T) {
 	t.Parallel()
-	heartbeatValidtionTest(t, pointer.Int64(10), pointer.Int64(10))
+	heartbeatValidtionTest(t, ptr.To(int64(10)), ptr.To(int64(10)))
 }
 
 func TestXSiteHigherHeartbeatIntervalThanTimeoutWebhook(t *testing.T) {
 	t.Parallel()
-	heartbeatValidtionTest(t, pointer.Int64(11), pointer.Int64(10))
+	heartbeatValidtionTest(t, ptr.To(int64(11)), ptr.To(int64(10)))
 }
 
 func heartbeatValidtionTest(t *testing.T, interval, timeout *int64) {

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/blang/semver"
+	"github.com/go-logr/zapr"
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -20,7 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
@@ -28,6 +30,7 @@ var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 type clusterSpec func(t *testing.T, name string, clusterSize int) *v1.Infinispan
 
 func TestMain(m *testing.M) {
+	ctrl.SetLogger(zapr.NewLogger(tutils.Log().Desugar()))
 	tutils.RunOperator(m, testKube)
 }
 
@@ -103,13 +106,13 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 					},
 				},
 				SecurityContext: &corev1.SecurityContext{
-					AllowPrivilegeEscalation: pointer.Bool(false),
+					AllowPrivilegeEscalation: ptr.To(false),
 					Capabilities: &corev1.Capabilities{
 						Drop: []corev1.Capability{
 							"ALL",
 						},
 					},
-					RunAsNonRoot: pointer.Bool(true),
+					RunAsNonRoot: ptr.To(true),
 					SeccompProfile: &corev1.SeccompProfile{
 						Type: "RuntimeDefault",
 					},
@@ -129,7 +132,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 		},
 	}
 	testKube.Create(pod)
-	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 		err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, pod)
 		tutils.ExpectMaybeNotFound(err)
 		if pod.Status.Phase == corev1.PodFailed {
@@ -188,7 +191,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 
 func datagridServiceNoAuth(t *testing.T, name string, replicas int) *v1.Infinispan {
 	infinispan := datagridService(t, name, replicas)
-	infinispan.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+	infinispan.Spec.Security.EndpointAuthentication = ptr.To(false)
 	return infinispan
 }
 
@@ -241,7 +244,7 @@ func restoreSpec(testName, name, namespace, backup, cluster string) *v2alpha1.Re
 func waitForNoCluster(infinispan *v1.Infinispan) {
 	statefulSet := &appsv1.StatefulSet{}
 	namespacedName := types.NamespacedName{Namespace: tutils.Namespace, Name: infinispan.GetStatefulSetName()}
-	err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 		e := testKube.Kubernetes.Client.Get(context.Background(), namespacedName, statefulSet)
 		return e != nil && k8errors.IsNotFound(e), nil
 	})

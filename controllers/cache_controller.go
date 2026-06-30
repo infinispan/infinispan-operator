@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // CacheReconciler reconciles a Cache object
@@ -83,9 +82,9 @@ func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager
 
 	builder := ctrl.NewControllerManagedBy(mgr).For(&v2alpha1.Cache{})
 	builder.Watches(
-		&source.Kind{Type: &v1.Infinispan{}},
+		&v1.Infinispan{},
 		handler.EnqueueRequestsFromMapFunc(
-			func(a client.Object) []reconcile.Request {
+			func(watchCtx context.Context, a client.Object) []reconcile.Request {
 				i := a.(*v1.Infinispan)
 				// Only enqueue requests once a Infinispan CR has the WellFormed condition or it has been deleted
 				if !i.HasCondition(v1.ConditionWellFormed) || !a.GetDeletionTimestamp().IsZero() {
@@ -94,7 +93,7 @@ func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager
 
 				var requests []reconcile.Request
 				cacheList := &v2alpha1.CacheList{}
-				if err := r.kubernetes.ResourcesListByField(a.GetNamespace(), "spec.clusterName", a.GetName(), cacheList, ctx); err != nil {
+				if err := r.kubernetes.ResourcesListByField(a.GetNamespace(), "spec.clusterName", a.GetName(), cacheList, watchCtx); err != nil {
 					r.log.Error(err, "watches failed to list Cache CRs")
 				}
 

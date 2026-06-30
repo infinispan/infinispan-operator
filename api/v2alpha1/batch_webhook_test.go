@@ -4,10 +4,10 @@ import (
 	"errors"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	// +kubebuilder:scaffold:imports
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -63,7 +63,7 @@ var _ = Describe("Batch Webhook", func() {
 				},
 				Spec: BatchSpec{
 					Cluster: "some-cluster",
-					Config:  pointer.String("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
+					Config:  ptr.To("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
 				},
 			}
 
@@ -79,8 +79,8 @@ var _ = Describe("Batch Webhook", func() {
 				},
 				Spec: BatchSpec{
 					Cluster:   "some-cluster",
-					Config:    pointer.String("Config"),
-					ConfigMap: pointer.String("ConfigMap"),
+					Config:    ptr.To("Config"),
+					ConfigMap: ptr.To("ConfigMap"),
 				},
 			}
 
@@ -112,7 +112,7 @@ var _ = Describe("Batch Webhook", func() {
 				},
 				Spec: BatchSpec{
 					Cluster: "some-cluster",
-					Config:  pointer.String("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
+					Config:  ptr.To("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
 				},
 			}
 
@@ -128,11 +128,11 @@ var _ = Describe("Batch Webhook", func() {
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 
 			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
-			updated.Spec.Config = pointer.String("New Config")
+			updated.Spec.Config = ptr.To("New Config")
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 
 			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
-			updated.Spec.ConfigMap = pointer.String("New ConfigMap")
+			updated.Spec.ConfigMap = ptr.To("New ConfigMap")
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 		})
 
@@ -144,7 +144,7 @@ var _ = Describe("Batch Webhook", func() {
 				},
 				Spec: BatchSpec{
 					Cluster: "some-cluster",
-					Config:  pointer.String("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
+					Config:  ptr.To("create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter"),
 					Container: &BatchContainerSpec{
 						Memory: "1Gi:5Gi",
 						CPU:    "1000m:2000m",

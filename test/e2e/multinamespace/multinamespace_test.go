@@ -6,13 +6,17 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/go-logr/zapr"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
 
 func TestMain(m *testing.M) {
+	ctrl.SetLogger(zapr.NewLogger(tutils.Log().Desugar()))
+
 	nsAsString := strings.ToLower(tutils.MultiNamespace)
 	namespaces := strings.Split(nsAsString, ",")
 	if tutils.RunLocalOperator == "TRUE" {

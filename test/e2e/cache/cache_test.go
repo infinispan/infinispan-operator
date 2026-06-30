@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/zapr"
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/api/v2alpha1"
@@ -24,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -34,6 +36,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	ctrl.SetLogger(zapr.NewLogger(tutils.Log().Desugar()))
 	tutils.RunOperator(m, testKube)
 }
 
@@ -279,7 +282,7 @@ func TestCacheWithServerLifecycle(t *testing.T) {
 	cacheHelper.Delete()
 
 	// Assert CR deleted
-	err := wait.Poll(10*time.Millisecond, tutils.MaxWaitTimeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 10*time.Millisecond, tutils.MaxWaitTimeout, false, func(ctx context.Context) (bool, error) {
 		return !testKube.AssertK8ResourceExists(cr.Name, tutils.Namespace, &v2alpha1.Cache{}), nil
 	})
 	tutils.ExpectNoError(err)

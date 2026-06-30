@@ -165,14 +165,14 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	client_ = tutils.HTTPSClientForCluster(spec, newTlsConfig, testKube)
 	if tutils.CurrentOperand.UpstreamVersion.LT(cconsts.MinVersionAutomaticCertificateReloading) {
 		// Wait for a new StatefulSet generation to appear
-		err := wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+		err := wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 			tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
 			return ss.Status.ObservedGeneration >= originalGeneration+1, nil
 		})
 		tutils.ExpectNoError(err)
 
 		// Wait that current and update revisions match. This ensures that the rolling upgrade completes
-		err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+		err = wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 			tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), namespacedName, &ss))
 			return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
 		})
@@ -181,7 +181,7 @@ func TestUpdateEncryptionSecrets(t *testing.T) {
 	} else {
 		// Client connect attempt should eventually succeed once the Secret changes have been propagated to the Server pods
 		tutils.ExpectNoError(
-			wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+			wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 				_, err = ispnClient.New(tutils.CurrentOperand, client_).Container().Members()
 				return err == nil, nil
 			}),

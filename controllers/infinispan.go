@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	infinispanv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -141,15 +140,15 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 			},
 		}).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(
-				func(a client.Object) []reconcile.Request {
+				func(watchCtx context.Context, a client.Object) []reconcile.Request {
 					var requests []reconcile.Request
 					// Lookup only Secrets not controlled by Infinispan CR GVK. This means it's a custom defined Secret
 					if !kube.IsControlledByGVK(a.GetOwnerReferences(), infinispanv1.SchemeBuilder.GroupVersion.WithKind(reflect.TypeOf(infinispanv1.Infinispan{}).Name())) {
 						for _, field := range []string{"spec.security.endpointSecretName", "spec.security.credentialStoreSecretName", "spec.security.endpointEncryption.certSecretName", "spec.security.endpointEncryption.clientCertSecretName"} {
 							ispnList := &infinispanv1.InfinispanList{}
-							if err := kubernetes.ResourcesListByField(a.GetNamespace(), field, a.GetName(), ispnList, ctx); err != nil {
+							if err := kubernetes.ResourcesListByField(a.GetNamespace(), field, a.GetName(), ispnList, watchCtx); err != nil {
 								r.log.Error(err, "failed to list Infinispan CR")
 							}
 							for _, item := range ispnList.Items {
@@ -164,14 +163,14 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 				}),
 		).
 		Watches(
-			&source.Kind{Type: &corev1.ConfigMap{}},
+			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(
-				func(a client.Object) []reconcile.Request {
+				func(watchCtx context.Context, a client.Object) []reconcile.Request {
 					var requests []reconcile.Request
 					// Lookup only ConfigMap not controlled by Infinispan CR GVK. This means it's a custom defined ConfigMap
 					if !kube.IsControlledByGVK(a.GetOwnerReferences(), infinispanv1.SchemeBuilder.GroupVersion.WithKind(reflect.TypeOf(infinispanv1.Infinispan{}).Name())) {
 						ispnList := &infinispanv1.InfinispanList{}
-						if err := kubernetes.ResourcesListByField(a.GetNamespace(), "spec.configMapName", a.GetName(), ispnList, ctx); err != nil {
+						if err := kubernetes.ResourcesListByField(a.GetNamespace(), "spec.configMapName", a.GetName(), ispnList, watchCtx); err != nil {
 							r.log.Error(err, "failed to list Infinispan CR")
 						}
 						for _, item := range ispnList.Items {

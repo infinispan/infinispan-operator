@@ -13,7 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 type ImageType string
@@ -1002,19 +1002,19 @@ func (ispn *Infinispan) TopologySpreadConstraints() []corev1.TopologySpreadConst
 
 func (c *ContainerProbeSpec) AssignDefaults(failureThreshold, initialDelay, period, successThreshold, timeout int32) {
 	if c.FailureThreshold == nil {
-		c.FailureThreshold = pointer.Int32(failureThreshold)
+		c.FailureThreshold = ptr.To(failureThreshold)
 	}
 	if c.InitialDelaySeconds == nil {
-		c.InitialDelaySeconds = pointer.Int32(initialDelay)
+		c.InitialDelaySeconds = ptr.To(initialDelay)
 	}
 	if c.PeriodSeconds == nil {
-		c.PeriodSeconds = pointer.Int32(period)
+		c.PeriodSeconds = ptr.To(period)
 	}
 	if c.SuccessThreshold == nil {
-		c.SuccessThreshold = pointer.Int32(successThreshold)
+		c.SuccessThreshold = ptr.To(successThreshold)
 	}
 	if c.TimeoutSeconds == nil {
-		c.TimeoutSeconds = pointer.Int32(timeout)
+		c.TimeoutSeconds = ptr.To(timeout)
 	}
 }
 

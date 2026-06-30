@@ -3,9 +3,8 @@ package version_test
 import (
 	"testing"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -13,8 +12,5 @@ import (
 
 func TestVersions(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Versions Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Versions Suite")
 }

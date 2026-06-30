@@ -18,7 +18,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -252,7 +252,7 @@ func addDataMountVolume(ctx pipeline.Context, i *ispnv1.Infinispan, statefulset 
 			AccessModes: []corev1.PersistentVolumeAccessMode{
 				corev1.ReadWriteOnce,
 			},
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: pvSize,
 				},
@@ -262,7 +262,7 @@ func addDataMountVolume(ctx pipeline.Context, i *ispnv1.Infinispan, statefulset 
 	if err := ctx.Resources().SetControllerReference(pvc); err != nil {
 		return err
 	}
-	pvc.OwnerReferences[0].BlockOwnerDeletion = pointer.BoolPtr(false)
+	pvc.OwnerReferences[0].BlockOwnerDeletion = ptr.To(false)
 	// Set a storage class if specified
 	if storageClassName := i.StorageClassName(); storageClassName != "" {
 		if err := ctx.Resources().LoadGlobal(storageClassName, &storagev1.StorageClass{}); err != nil {

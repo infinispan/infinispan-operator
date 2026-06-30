@@ -15,7 +15,7 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -442,7 +442,7 @@ func TestSpecImageUpdate(t *testing.T) {
 	tutils.ExpectNoError(
 		testKube.UpdateInfinispan(ispn, func() {
 			// Update the spec to install the custom image
-			ispn.Spec.Image = pointer.String(customImage)
+			ispn.Spec.Image = ptr.To(customImage)
 		}),
 	)
 
@@ -493,7 +493,7 @@ func TestSpecImageUpdate(t *testing.T) {
 		testKube.UpdateInfinispan(ispn, func() {
 			// Update the spec to move to back to the penultimate Operand version to ensure that an upgrade is still
 			// triggered when the Operand is marked as CVE=true
-			ispn.Spec.Image = pointer.String(firstOperand.Image)
+			ispn.Spec.Image = ptr.To(firstOperand.Image)
 		}),
 	)
 
@@ -518,7 +518,7 @@ func TestPodAlreadyShutdownOnUpgrade(t *testing.T) {
 
 	i := tutils.DefaultSpec(t, testKube, func(infinispan *ispnv1.Infinispan) {
 		infinispan.Spec.Replicas = 1
-		infinispan.Spec.Security.EndpointAuthentication = pointer.Bool(false)
+		infinispan.Spec.Security.EndpointAuthentication = ptr.To(false)
 	})
 	testKube.CreateInfinispan(i, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, i.Name, tutils.Namespace)
