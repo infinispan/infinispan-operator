@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/infinispan/infinispan-operator/launcher"
 
@@ -79,25 +80,32 @@ func NewWithContext(ctx context.Context, p Parameters) {
 	}
 
 	options := ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     p.MetricsBindAddress,
-		Port:                   9443,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: p.MetricsBindAddress,
+		},
 		HealthProbeBindAddress: p.HealthProbeBindAddress,
 		LeaderElection:         p.LeaderElection,
 		LeaderElectionID:       "632512e4.infinispan.org",
-		WebhookServer: &webhook.Server{
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port: 9443,
 			TLSOpts: []func(config *tls.Config){
 				func(c *tls.Config) {
 					c.NextProtos = []string{"http/1.1"}
 				},
 			},
-		},
+		}),
 	}
 
 	if strings.Contains(namespace, ",") {
-		options.NewCache = cache.MultiNamespacedCacheBuilder(strings.Split(namespace, ","))
-	} else {
-		options.Namespace = namespace
+		options.Cache.DefaultNamespaces = make(map[string]cache.Config)
+		for _, ns := range strings.Split(namespace, ",") {
+			options.Cache.DefaultNamespaces[ns] = cache.Config{}
+		}
+	} else if namespace != "" {
+		options.Cache.DefaultNamespaces = map[string]cache.Config{
+			namespace: {},
+		}
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)

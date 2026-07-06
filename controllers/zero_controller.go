@@ -22,7 +22,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -118,7 +117,6 @@ func newZeroCapacityController(name string, reconciler zeroCapacityReconciler, m
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		WithOptions(controller.Options{Reconciler: r}).
 		For(reconciler.Type()).
 		Owns(&corev1.Pod{}).
 		Complete(r)

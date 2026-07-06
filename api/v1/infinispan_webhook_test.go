@@ -8,7 +8,7 @@ import (
 
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/hash"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 
@@ -16,7 +16,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("Infinispan Webhooks", func() {
@@ -108,7 +108,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			spec := created.Spec
 			// Ensure default values correctly set
 			Expect(spec.Service.Type).Should(Equal(ServiceTypeDataGrid))
-			Expect(spec.Service.Container.Storage).Should(Equal(pointer.StringPtr(consts.DefaultPVSize.String())))
+			Expect(spec.Service.Container.Storage).Should(Equal(ptr.To(consts.DefaultPVSize.String())))
 			Expect(*spec.Service.Container.LivenessProbe.FailureThreshold).Should(Equal(int32(5)))
 			Expect(*spec.Service.Container.LivenessProbe.InitialDelaySeconds).Should(Equal(int32(0)))
 			Expect(*spec.Service.Container.LivenessProbe.PeriodSeconds).Should(Equal(int32(10)))
@@ -126,7 +126,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 			Expect(*spec.Service.Container.StartupProbe.TimeoutSeconds).Should(Equal(int32(1)))
 			Expect(spec.Service.ReplicationFactor).Should(BeZero())
 			Expect(spec.Container.Memory).Should(Equal(consts.DefaultMemorySize.String()))
-			Expect(spec.Security.EndpointAuthentication).Should(Equal(pointer.BoolPtr(true)))
+			Expect(spec.Security.EndpointAuthentication).Should(Equal(ptr.To(true)))
 			Expect(spec.Security.EndpointSecretName).Should(Equal(created.GetSecretName()))
 			Expect(spec.Upgrades.Type).Should(Equal(UpgradeTypeShutdown))
 			Expect(spec.ConfigListener.Enabled).Should(BeTrue())
@@ -374,8 +374,8 @@ var _ = Describe("Infinispan Webhooks", func() {
 							Locations: []InfinispanSiteLocationSpec{{
 								Name:        "SiteB",
 								ClusterName: "example-clustera",
-								Host:        pointer.StringPtr("some.host.com"),
-								Port:        pointer.Int32Ptr(6443),
+								Host:        ptr.To("some.host.com"),
+								Port:        ptr.To(int32(6443)),
 							}},
 							Local: InfinispanSitesLocalSpec{
 								Expose: CrossSiteExposeSpec{
@@ -788,7 +788,7 @@ var _ = Describe("Infinispan Webhooks", func() {
 					Service: InfinispanServiceSpec{
 						Container: &InfinispanServiceContainerSpec{
 							LivenessProbe: ContainerProbeSpec{
-								InitialDelaySeconds: pointer.Int32Ptr(0),
+								InitialDelaySeconds: ptr.To(int32(0)),
 							},
 						},
 					},
@@ -812,16 +812,16 @@ var _ = Describe("Infinispan Webhooks", func() {
 					Service: InfinispanServiceSpec{
 						Container: &InfinispanServiceContainerSpec{
 							LivenessProbe: ContainerProbeSpec{
-								InitialDelaySeconds: pointer.Int32Ptr(-1),
-								SuccessThreshold:    pointer.Int32Ptr(2),
+								InitialDelaySeconds: ptr.To(int32(-1)),
+								SuccessThreshold:    ptr.To(int32(2)),
 							},
 							ReadinessProbe: ContainerProbeSpec{
-								TimeoutSeconds:   pointer.Int32Ptr(0),
-								SuccessThreshold: pointer.Int32Ptr(2),
+								TimeoutSeconds:   ptr.To(int32(0)),
+								SuccessThreshold: ptr.To(int32(2)),
 							},
 							StartupProbe: ContainerProbeSpec{
-								PeriodSeconds:    pointer.Int32Ptr(-1),
-								SuccessThreshold: pointer.Int32Ptr(2),
+								PeriodSeconds:    ptr.To(int32(-1)),
+								SuccessThreshold: ptr.To(int32(2)),
 							},
 						},
 					},

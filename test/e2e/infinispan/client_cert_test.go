@@ -7,7 +7,7 @@ import (
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestClientCertValidate(t *testing.T) {
@@ -23,7 +23,7 @@ func TestClientCertValidate(t *testing.T) {
 
 func TestClientCertValidateNoAuth(t *testing.T) {
 	testClientCert(t, func(spec *v1.Infinispan) (authType v1.ClientCertType, keystoreSecret, truststoreSecret *corev1.Secret, tlsConfig *tls.Config) {
-		spec.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		spec.Spec.Security.EndpointAuthentication = ptr.To(false)
 		authType = v1.ClientCertValidate
 		serverName := tutils.GetServerName(spec)
 		keystore, truststore, tlsConfig := tutils.CreateKeyAndTruststore(serverName, false)

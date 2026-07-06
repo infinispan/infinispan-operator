@@ -7,7 +7,7 @@
 * **Key Libraries:**
   - `sigs.k8s.io/controller-runtime` — core operator framework (reconciler, manager, client)
   - `k8s.io/api`, `k8s.io/client-go` — Kubernetes client libraries
-  - `github.com/onsi/ginkgo` + `github.com/onsi/gomega` — BDD testing
+  - `github.com/onsi/ginkgo/v2` + `github.com/onsi/gomega` — BDD testing
   - `go.uber.org/zap` — structured logging
   - `github.com/openshift/api` — OpenShift-specific APIs (Routes)
   - `github.com/prometheus-operator/prometheus-operator` — Prometheus monitoring integration

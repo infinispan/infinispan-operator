@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // Test if single node working correctly
@@ -52,7 +52,7 @@ func TestBaseFunctionality(t *testing.T) {
 				WhenUnsatisfiable: "ScheduleAnyway",
 			}},
 		}
-		i.Spec.Service.Container.TerminationGracePeriodSeconds = pointer.Int64(60)
+		i.Spec.Service.Container.TerminationGracePeriodSeconds = ptr.To(int64(60))
 	})
 
 	// Create the cluster

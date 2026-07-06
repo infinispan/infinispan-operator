@@ -14,7 +14,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -306,7 +306,7 @@ func ScaleConfigListener(replicas int32, i *ispnv1.Infinispan, ctx pipeline.Cont
 	ctx.Log().Info("Scaling ConfigListener deployment", "replicas", replicas)
 
 	err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
-		deployment.Spec.Replicas = pointer.Int32Ptr(replicas)
+		deployment.Spec.Replicas = ptr.To(replicas)
 	})
 
 	if err != nil {

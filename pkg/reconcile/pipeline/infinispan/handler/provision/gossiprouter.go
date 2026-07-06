@@ -11,7 +11,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -60,9 +60,9 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		// if the user configures 0 replicas, shutdown the gossip router pod too.
 		var replicas *int32
 		if i.Spec.Replicas <= 0 {
-			replicas = pointer.Int32(0)
+			replicas = ptr.To(int32(0))
 		} else {
-			replicas = pointer.Int32(1)
+			replicas = ptr.To(int32(1))
 		}
 
 		args := []string{

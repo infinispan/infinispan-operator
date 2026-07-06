@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/inject"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -55,18 +54,22 @@ func (c *Cache) Default() {
 // used by the runtime client
 func RegisterCacheValidatingWebhook(mgr ctrl.Manager) {
 	hookServer := mgr.GetWebhookServer()
-	hookServer.Register("/validate-infinispan-org-v2alpha1-cache", &webhook.Admission{
-		Handler: &cacheValidator{},
-	})
+	validator := &cacheValidator{
+		client: mgr.GetClient(),
+	}
+	decoder := admission.NewDecoder(mgr.GetScheme())
+	_ = validator.InjectDecoder(decoder)
+
+	wh := &admission.Webhook{
+		Handler: validator,
+	}
+	hookServer.Register("/validate-infinispan-org-v2alpha1-cache", wh)
 }
 
 type cacheValidator struct {
 	client  runtimeClient.Client
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
-
-var _ inject.Client = &cacheValidator{}
-var _ admission.Handler = &cacheValidator{}
 
 func (cv *cacheValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	// Get the object in the request
@@ -118,7 +121,7 @@ func (cv *cacheValidator) InjectClient(c runtimeClient.Client) error {
 }
 
 // InjectDecoder injects the decoder.
-func (cv *cacheValidator) InjectDecoder(d *admission.Decoder) error {
+func (cv *cacheValidator) InjectDecoder(d admission.Decoder) error {
 	cv.decoder = d
 	return nil
 }

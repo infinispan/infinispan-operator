@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func (b *Batch) SetupWebhookWithManager(mgr ctrl.Manager) error {
@@ -23,30 +24,30 @@ func (b *Batch) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Batch{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (b *Batch) ValidateCreate() error {
+func (b *Batch) ValidateCreate() (admission.Warnings, error) {
 	var allErrs field.ErrorList
 	if err := b.validate(); err != nil {
-		return err
+		return nil, err
 	}
 	if b.Spec.ConfigMap == nil && b.Spec.Config == nil {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("configMap"), "'Spec.config' OR 'spec.ConfigMap' must be configured"))
 	} else if b.Spec.ConfigMap != nil && b.Spec.Config != nil {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("configMap"), "At most one of ['Spec.config', 'spec.ConfigMap'] must be configured"))
 	}
-	return b.StatusError(allErrs)
+	return nil, b.StatusError(allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (b *Batch) ValidateUpdate(old runtime.Object) error {
+func (b *Batch) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	var allErrs field.ErrorList
 	if err := b.validate(); err != nil {
-		return err
+		return nil, err
 	}
 	oldBatch := old.(*Batch)
 	if !reflect.DeepEqual(b.Spec, oldBatch.Spec) {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec"), "The Batch spec is immutable and cannot be updated after initial Batch creation"))
 	}
-	return b.StatusError(allErrs)
+	return nil, b.StatusError(allErrs)
 }
 
 func (b *Batch) validate() error {
@@ -90,9 +91,9 @@ func errorListToError(b *Batch, allErrs field.ErrorList) error {
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (b *Batch) ValidateDelete() error {
+func (b *Batch) ValidateDelete() (admission.Warnings, error) {
 	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-	return nil
+	return nil, nil
 }
 
 func (b *Batch) StatusError(allErrs field.ErrorList) error {

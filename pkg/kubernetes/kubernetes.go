@@ -147,7 +147,7 @@ func (k Kubernetes) ExecWithOptions(options ExecOptions) (bytes.Buffer, error) {
 		return execOut, err
 	}
 	// Run the command
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:  nil,
 		Stdout: &execOut,
 		Stderr: &execErr,

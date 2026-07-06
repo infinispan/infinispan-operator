@@ -63,7 +63,7 @@ func TestConfigListenerDeployment(t *testing.T) {
 	assertOwner(&corev1.ServiceAccount{})
 
 	waitForNoConfigListener := func() {
-		err := wait.Poll(tutils.ConditionPollPeriod, tutils.ConditionWaitTimeout, func() (bool, error) {
+		err := wait.PollUntilContextTimeout(context.Background(), tutils.ConditionPollPeriod, tutils.ConditionWaitTimeout, false, func(ctx context.Context) (bool, error) {
 			exists := testKube.AssertK8ResourceExists(clName, namespace, &appsv1.Deployment{}) &&
 				testKube.AssertK8ResourceExists(clName, namespace, &rbacv1.Role{}) &&
 				testKube.AssertK8ResourceExists(clName, namespace, &rbacv1.RoleBinding{}) &&

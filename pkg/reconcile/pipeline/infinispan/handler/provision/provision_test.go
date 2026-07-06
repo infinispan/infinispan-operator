@@ -8,7 +8,7 @@ import (
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,7 +36,7 @@ var _ = Describe("Provision", func() {
 				AdminIdentities: &infinispan.AdminIdentities{},
 			},
 		)
-		ctx.EXPECT().Resources().Return(resources)
+		ctx.EXPECT().Resources().AnyTimes().Return(resources)
 		ctx.EXPECT().Operand().AnyTimes().Return(version.Operand{UpstreamVersion: &semver.Version{Major: 15, Minor: 0, Patch: 0}})
 
 		ispn := &ispnv1.Infinispan{

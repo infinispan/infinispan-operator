@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"reflect"
@@ -61,7 +62,7 @@ type TestKubernetes struct {
 }
 
 // MapperProvider is a function that provides RESTMapper instances
-type MapperProvider func(cfg *rest.Config, opts ...apiutil.DynamicRESTMapperOption) (meta.RESTMapper, error)
+type MapperProvider func(cfg *rest.Config, httpClient *http.Client) (meta.RESTMapper, error)
 
 func init() {
 	addToScheme(&corev1.SchemeBuilder, Scheme)
@@ -85,7 +86,14 @@ func addToScheme(schemeBuilder *runtime.SchemeBuilder, scheme *runtime.Scheme) {
 func NewKubernetesFromLocalConfig(scheme *runtime.Scheme, mapperProvider MapperProvider, ctx string) (*kube.Kubernetes, error) {
 	config := resolveConfig(ctx)
 	config = kube.SetConfigDefaults(config, scheme)
-	mapper, err := mapperProvider(config)
+
+	// Create HTTP client for the mapper provider
+	httpClient, err := rest.HTTPClientFor(config)
+	if err != nil {
+		return nil, err
+	}
+
+	mapper, err := mapperProvider(config, httpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +180,7 @@ func (k TestKubernetes) CleanNamespaceAndLogWithPanic(t *testing.T, namespace st
 	if panicVal != nil || testFailed {
 		// Attempt to convert panicVal if it's nil will cause a panic
 		if panicVal != nil {
-			Log().Error(panicVal.(string))
+			Log().Error(fmt.Sprintf("%v", panicVal))
 		}
 
 		dir := fmt.Sprintf("%s/%s", LogOutputDir, TestName(t))
@@ -247,7 +255,8 @@ func (k TestKubernetes) WriteAllResourcesToFile(dir, container, namespace, suffi
 
 			writeLog := func(previous bool) {
 				log, err := k.Kubernetes.Logs(container, item.GetName(), namespace, previous, context.TODO())
-				if previous && k8serrors.IsNotFound(err) {
+				if previous && (k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "not found")) {
+					Log().Info(err.Error())
 					return
 				}
 				LogError(err)
@@ -289,7 +298,7 @@ func (k TestKubernetes) DeleteNamespace(namespace string) {
 	ExpectMaybeNotFound(err)
 
 	Log().Info("Waiting for the namespace to be removed")
-	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: namespace}, obj)
 		if err != nil && k8serrors.IsNotFound(err) {
 			return true, nil
@@ -381,7 +390,7 @@ func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selecto
 
 	listOps := &client.ListOptions{Namespace: namespace, LabelSelector: selector}
 	podList := &corev1.PodList{}
-	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, timeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
 		if err != nil || len(podList.Items) != 0 {
 			return false, nil
@@ -390,7 +399,7 @@ func (k TestKubernetes) DeleteResource(namespace string, selector labels.Selecto
 	})
 	ExpectNoError(err)
 	// Check that PersistentVolumeClaims have been cleanup
-	err = wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, timeout, false, func(ctx context.Context) (done bool, err error) {
 		pvc := &corev1.PersistentVolumeClaimList{}
 		err = k.Kubernetes.Client.List(context.TODO(), pvc, listOps)
 		if err != nil || len(pvc.Items) != 0 {
@@ -413,7 +422,7 @@ func (k TestKubernetes) GracefulShutdownInfinispan(infinispan *ispnv1.Infinispan
 
 // GracefulRestartInfinispan restarts the infinispan resource and waits that cluster is WellFormed
 func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan, replicas int32, timeout time.Duration) {
-	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, timeout, false, func(ctx context.Context) (done bool, err error) {
 		updErr := k.UpdateInfinispan(infinispan, func() {
 			infinispan.Spec.Replicas = replicas
 		})
@@ -430,7 +439,7 @@ func (k TestKubernetes) GracefulRestartInfinispan(infinispan *ispnv1.Infinispan,
 }
 
 func (k TestKubernetes) UpdateInfinispan(ispn *ispnv1.Infinispan, update func()) error {
-	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		_, updateErr := controllerutil.CreateOrUpdate(context.TODO(), k.Kubernetes.Client, ispn, func() error {
 			if ispn.CreationTimestamp.IsZero() {
 				return k8serrors.NewNotFound(schema.ParseGroupResource("infinispan.infinispan.org"), ispn.Name)
@@ -473,7 +482,7 @@ func (k TestKubernetes) CreateOrUpdateAndWaitForCRD(crd *apiextv1.CustomResource
 
 func (k TestKubernetes) WaitForCrd(crd *apiextv1.CustomResourceDefinition) {
 	Log().Infof("Wait for CRD %s", crd.Name)
-	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: crd.Name}, crd)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -505,7 +514,7 @@ func (k TestKubernetes) WaitForCrd(crd *apiextv1.CustomResourceDefinition) {
 // WaitForExternalService checks if an http server is listening at the endpoint exposed by the service (ns, name)
 // The HostAndPort of the provided HTTPClient is updated to use the external service when available
 func (k TestKubernetes) WaitForExternalService(ispn *ispnv1.Infinispan, timeout time.Duration, client HTTPClient, versionManager *version.Manager) HTTPClient {
-	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, timeout, false, func(ctx context.Context) (done bool, err error) {
 		var hostAndPort string
 		switch ispn.GetExposeType() {
 		case ispnv1.ExposeTypeNodePort, ispnv1.ExposeTypeLoadBalancer:
@@ -638,7 +647,7 @@ func (k TestKubernetes) WaitForInfinispanPodsCreatedBy(required int, timeout tim
 // WaitForPods waits for pods with given ListOptions to reach the desired count in ContainersReady state
 func (k TestKubernetes) WaitForPods(required int, timeout time.Duration, listOps *client.ListOptions, callback func([]corev1.Pod) bool) *corev1.PodList {
 	podList := &corev1.PodList{}
-	err := wait.Poll(DefaultPollPeriod, timeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, timeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.List(context.TODO(), podList, listOps)
 		if err != nil {
 			return false, nil
@@ -687,7 +696,7 @@ func (k TestKubernetes) WaitForInfinispanState(name, namespace string, predicate
 
 func (k TestKubernetes) WaitForInfinispanStateWithTimeout(name, namespace string, timeout time.Duration, predicate func(infinispan *ispnv1.Infinispan) bool) *ispnv1.Infinispan {
 	ispn := &ispnv1.Infinispan{}
-	err := wait.Poll(ConditionPollPeriod, timeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), ConditionPollPeriod, timeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, ispn)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -718,7 +727,7 @@ func (k TestKubernetes) WaitForInfinispanConditionFalse(name, namespace string, 
 func (k TestKubernetes) GetSchemaForRest(ispn *ispnv1.Infinispan) string {
 	curr := ispnv1.Infinispan{}
 	// Wait for the operator to populate Infinispan CR data
-	err := wait.Poll(DefaultPollPeriod, SinglePodTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 		if err := k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: ispn.Namespace, Name: ispn.Name}, &curr); err != nil {
 			return false, nil
 		}
@@ -764,7 +773,7 @@ func (k TestKubernetes) DeleteCRD(name string) {
 	ExpectMaybeNotFound(err)
 
 	Log().Info("Waiting for the CRD to be removed")
-	err = wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: name}, crd)
 		if err != nil && k8serrors.IsNotFound(err) {
 			return true, nil
@@ -937,7 +946,7 @@ func (k TestKubernetes) DeleteCache(cache *ispnv2.Cache) {
 // for the desired state
 func (k TestKubernetes) WaitForCacheState(cacheName, clusterName, namespace string, predicate func(*ispnv2.Cache) bool) *ispnv2.Cache {
 	var cache *ispnv2.Cache
-	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), ConditionPollPeriod, ConditionWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		cache = k.FindCacheResource(cacheName, clusterName, namespace)
 		if cache == nil {
 			return false, nil
@@ -996,7 +1005,7 @@ func (k TestKubernetes) GetStatefulSet(name, namespace string) *appsv1.StatefulS
 
 func (k TestKubernetes) WaitForStateFulSetRemoval(name string, namespace string) {
 	statefulSet := &appsv1.StatefulSet{}
-	err := wait.Poll(ConditionPollPeriod, 2*ConditionWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), ConditionPollPeriod, 2*ConditionWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, statefulSet)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -1011,7 +1020,7 @@ func (k TestKubernetes) WaitForStateFulSetRemoval(name string, namespace string)
 
 func (k TestKubernetes) WaitForStateFulSet(name string, namespace string) {
 	statefulSet := &appsv1.StatefulSet{}
-	err := wait.Poll(ConditionPollPeriod, 2*ConditionWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), ConditionPollPeriod, 2*ConditionWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, statefulSet)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -1050,7 +1059,7 @@ func (k *TestKubernetes) WaitForDeployment(name, namespace string) *appsv1.Deplo
 
 func (k *TestKubernetes) WaitForDeploymentState(name, namespace string, predicate func(deployment *appsv1.Deployment) bool) *appsv1.Deployment {
 	deployment := &appsv1.Deployment{}
-	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), ConditionPollPeriod, ConditionWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		err = k.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, deployment)
 		if err != nil && k8serrors.IsNotFound(err) {
 			return false, nil
@@ -1075,7 +1084,7 @@ func (k *TestKubernetes) AssertK8ResourceExists(name, namespace string, obj clie
 
 func (k TestKubernetes) WaitForResourceRemoval(name, namespace string, obj client.Object) {
 	ExpectNoError(
-		wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+		wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 			return !k.AssertK8ResourceExists(name, namespace, obj), nil
 		}),
 	)
@@ -1083,7 +1092,7 @@ func (k TestKubernetes) WaitForResourceRemoval(name, namespace string, obj clien
 
 func (k TestKubernetes) WaitForValidBackupPhase(name, namespace string, phase ispnv2.BackupPhase) *ispnv2.Backup {
 	var backup *ispnv2.Backup
-	err := wait.Poll(10*time.Millisecond, TestTimeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 10*time.Millisecond, TestTimeout, false, func(ctx context.Context) (bool, error) {
 		backup = k.GetBackup(name, namespace)
 		if backup.Status.Phase == ispnv2.BackupFailed && phase != ispnv2.BackupFailed {
 			return true, fmt.Errorf("backup failed. Reason: %s", backup.Status.Reason)
@@ -1099,7 +1108,7 @@ func (k TestKubernetes) WaitForValidBackupPhase(name, namespace string, phase is
 
 func (k TestKubernetes) WaitForValidRestorePhase(name, namespace string, phase ispnv2.RestorePhase) error {
 	var restore *ispnv2.Restore
-	err := wait.Poll(10*time.Millisecond, TestTimeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 10*time.Millisecond, TestTimeout, false, func(ctx context.Context) (bool, error) {
 		restore = k.GetRestore(name, namespace)
 		if restore.Status.Phase == ispnv2.RestoreFailed {
 			return true, fmt.Errorf("restore failed. Reason: %s", restore.Status.Reason)

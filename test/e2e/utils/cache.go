@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -207,7 +208,7 @@ func (c *CacheHelper) Size() int {
 }
 
 func (c *CacheHelper) WaitForCacheToExist() {
-	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		exists, err := c.CacheClient.Exists()
 		if err != nil {
 			return false, err
@@ -218,7 +219,7 @@ func (c *CacheHelper) WaitForCacheToExist() {
 }
 
 func (c *CacheHelper) WaitForCacheToNotExist() {
-	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		exists, err := c.CacheClient.Exists()
 		if err != nil {
 			return false, err

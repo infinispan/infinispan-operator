@@ -27,7 +27,7 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -370,7 +370,7 @@ func TestSingleGossipRouter(t *testing.T) {
 
 	// Disable Gossip Router on site1
 	testKubes["xsite1"].crossSite.Spec.Service.Sites.Local.Discovery = &ispnv1.DiscoverySiteSpec{
-		LaunchGossipRouter: pointer.Bool(false),
+		LaunchGossipRouter: ptr.To(false),
 	}
 	testKubes["xsite1"].crossSite.Spec.Service.Sites.Locations[0].URL = fmt.Sprintf("%s://%s", ispnv1.CrossSiteSchemeTypeOpenShift, testKubes["xsite2"].apiServer)
 
@@ -432,14 +432,14 @@ func TestSuspectAndHearbeatConfig(t *testing.T) {
 	// enable suspect events (disabled by default) and disable hearbeats (enabled by default)
 	testKubes["xsite1"].crossSite.Spec.Service.Sites.Local.Discovery.SuspectEvents = true
 	testKubes["xsite1"].crossSite.Spec.Service.Sites.Local.Discovery.Heartbeats = &ispnv1.GossipRouterHeartbeatSpec{
-		Enabled: pointer.Bool(false),
+		Enabled: ptr.To(false),
 	}
 
 	// site 2 configuration
 	// check heartbeats values to test parsers and to check if they are in the correct attributes
 	// validation already tested in the webhook tests
-	hbInterval := pointer.Int64(20000)
-	hbTimeout := pointer.Int64(50000)
+	hbInterval := ptr.To(int64(20000))
+	hbTimeout := ptr.To(int64(50000))
 	testKubes["xsite2"].crossSite.Spec.Service.Sites.Local.Discovery.Heartbeats = &ispnv1.GossipRouterHeartbeatSpec{
 		Interval: hbInterval,
 		Timeout:  hbTimeout,

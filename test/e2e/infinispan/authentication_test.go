@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -97,7 +97,7 @@ func TestExplicitCredentials(t *testing.T) {
 	tutils.ExpectNoError(err)
 
 	// Wait for a new generation to appear
-	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
 		tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: spec.Namespace, Name: spec.Name}, &ss))
 		return ss.Status.ObservedGeneration >= generation+1, nil
 	})
@@ -150,7 +150,7 @@ func TestAuthenticationDisabled(t *testing.T) {
 
 	// Create a resource without passing any config
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		i.Spec.Security.EndpointAuthentication = ptr.To(false)
 	})
 
 	// Create the cluster
@@ -181,13 +181,13 @@ func TestEndpointAuthenticationUpdate(t *testing.T) {
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
 	var modifier = func(ispn *ispnv1.Infinispan) {
-		ispn.Spec.Security.EndpointAuthentication = pointer.BoolPtr(true)
+		ispn.Spec.Security.EndpointAuthentication = ptr.To(true)
 	}
 	var verifier = func(ispn *ispnv1.Infinispan, ss *appsv1.StatefulSet) {
 		testKube.WaitForInfinispanCondition(ss.Name, ss.Namespace, ispnv1.ConditionWellFormed)
 	}
 	spec := tutils.DefaultSpec(t, testKube, func(i *ispnv1.Infinispan) {
-		i.Spec.Security.EndpointAuthentication = pointer.BoolPtr(false)
+		i.Spec.Security.EndpointAuthentication = ptr.To(false)
 	})
 	genericTestForContainerUpdated(*spec, modifier, verifier)
 }
@@ -211,7 +211,7 @@ func TestUpdateOperatorPassword(t *testing.T) {
 	})
 	tutils.ExpectNoError(err)
 
-	err = wait.Poll(tutils.DefaultPollPeriod, tutils.SinglePodTimeout, func() (bool, error) {
+	err = wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (bool, error) {
 		secret, err = testKube.Kubernetes.GetSecret(spec.GetInfinispanSecuritySecretName(), spec.Namespace, context.TODO())
 		tutils.ExpectNoError(err)
 		identitiesBatch := string(secret.Data[cconsts.ServerIdentitiesBatchFilename])

@@ -1,6 +1,7 @@
 package infinispan
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -109,7 +110,7 @@ func TestScaling(t *testing.T) {
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, ispn.Name, tutils.Namespace)
 	var pvcs *corev1.PersistentVolumeClaimList
 	tutils.ExpectNoError(
-		wait.Poll(tutils.DefaultPollPeriod, tutils.ConditionWaitTimeout, func() (bool, error) {
+		wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.ConditionWaitTimeout, false, func(ctx context.Context) (bool, error) {
 			pvcs = testKube.GetPVCList(tutils.Namespace, ispn.PodSelectorLabels())
 			return len(pvcs.Items) == 1, nil
 		}),

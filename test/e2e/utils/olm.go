@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -322,7 +321,7 @@ func (k TestKubernetes) SetRelatedImagesEnvs(sub *coreos.Subscription) {
 
 func (k TestKubernetes) PackageManifest(packageName, catalogName string) (manifest *manifests.PackageManifest) {
 	// The PackageManifest sometimes takes a while to be available, so we must poll until it's available
-	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		type PackageManifestStatus struct {
 			manifests.PackageManifest
 		}
@@ -367,13 +366,13 @@ func (k TestKubernetes) WaitForSubscriptionState(state coreos.SubscriptionState,
 
 func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate func() (done bool)) {
 	poll := func() error {
-		return wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+		return wait.PollUntilContextTimeout(context.Background(), ConditionPollPeriod, ConditionWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 			k.Subscription(sub)
 			return predicate(), nil
 		})
 	}
 	err := poll()
-	if errors.Is(err, wait.ErrWaitTimeout) {
+	if wait.Interrupted(err) {
 		for _, condition := range sub.Status.Conditions {
 			// Delete CSV and retry polling on ResolutionFailed
 			// https://github.com/operator-framework/operator-lifecycle-manager/issues/2201
@@ -435,8 +434,7 @@ func (k TestKubernetes) WaitForSubscription(sub *coreos.Subscription, predicate 
 }
 
 func (k TestKubernetes) WaitForCSVSucceeded(sub *coreos.Subscription) {
-
-	err := wait.Poll(ConditionPollPeriod, ConditionWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), ConditionPollPeriod, ConditionWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		csv, _ := k.InstalledCSV(sub)
 		return csv.Status.Phase == "Succeeded", nil
 	})
@@ -451,7 +449,7 @@ func (k TestKubernetes) OLMNamespace() string {
 }
 
 func retryOnConflict(update func() error) {
-	err := wait.Poll(DefaultPollPeriod, MaxWaitTimeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.Background(), DefaultPollPeriod, MaxWaitTimeout, false, func(ctx context.Context) (done bool, err error) {
 		err = update()
 		if err != nil {
 			if k8serrors.IsConflict(err) {

@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func (r *Restore) SetupWebhookWithManager(mgr ctrl.Manager) error {
@@ -48,7 +49,7 @@ func (r *Restore) Default() {
 var _ webhook.Validator = &Restore{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (b *Restore) ValidateCreate() error {
+func (b *Restore) ValidateCreate() (admission.Warnings, error) {
 	var allErrs field.ErrorList
 	if b.Spec.Cluster == "" {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("cluster"), "'spec.cluster' must be configured"))
@@ -56,23 +57,23 @@ func (b *Restore) ValidateCreate() error {
 	if b.Spec.Backup == "" {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("backup"), "'spec.backup' must be configured"))
 	}
-	return b.StatusError(allErrs)
+	return nil, b.StatusError(allErrs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (b *Restore) ValidateUpdate(old runtime.Object) error {
+func (b *Restore) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	var allErrs field.ErrorList
 	oldRestore := old.(*Restore)
 	if !reflect.DeepEqual(b.Spec, oldRestore.Spec) {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec"), "The Restore spec is immutable and cannot be updated after initial Restore creation"))
 	}
-	return b.StatusError(allErrs)
+	return nil, b.StatusError(allErrs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (b *Restore) ValidateDelete() error {
+func (b *Restore) ValidateDelete() (admission.Warnings, error) {
 	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-	return nil
+	return nil, nil
 }
 
 func (b *Restore) StatusError(allErrs field.ErrorList) error {
