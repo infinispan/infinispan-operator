@@ -255,7 +255,7 @@ func (k TestKubernetes) WriteAllResourcesToFile(dir, container, namespace, suffi
 
 			writeLog := func(previous bool) {
 				log, err := k.Kubernetes.Logs(container, item.GetName(), namespace, previous, context.TODO())
-				if previous && (k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "not found")) {
+				if previous && err != nil && (k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "not found")) {
 					Log().Info(err.Error())
 					return
 				}
