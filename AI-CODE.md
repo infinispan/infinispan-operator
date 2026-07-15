@@ -1,7 +1,7 @@
 # Coding Instructions
 
 ## Tech Stack
-* **Go Version:** 1.25 (see `go.mod`)
+* **Go Version:** 1.26 (see `go.mod`)
 * **Build Tool:** Make
 * **Framework:** Operator SDK / kubebuilder v3
 * **Key Libraries:**
