@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/iancoleman/strcase v0.3.0
 	github.com/onsi/ginkgo/v2 v2.32.0
