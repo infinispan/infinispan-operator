@@ -32,7 +32,7 @@ jobs:
           git config --global user.email "q*@infinispan.org"
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.ref || 'main' }}
@@ -93,7 +93,7 @@ jobs:
           git config --global user.email "q*@infinispan.org"
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.inputs.ref || 'main' }}
           repository: ${{ github.repository }}
@@ -148,7 +148,7 @@ jobs:
           make bundle VERSION=${{ steps.bump_tag.outputs.new_tag }} CHANNELS=stable DEFAULT_CHANNEL=stable IMG=quay.io/infinispan/operator:${{ steps.bump_tag.outputs.new_tag }}
 
       - name: Checkout community-operators repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: k8s-operatorhub/community-operators
           path: community-operators
@@ -178,7 +178,7 @@ jobs:
           body: 'Operator Infinispan ${{ steps.bump_tag.outputs.new_tag }}'
 
       - name: Checkout community-operators-prod repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: redhat-openshift-ecosystem/community-operators-prod
           path: community-operators-prod
