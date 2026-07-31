@@ -51,6 +51,13 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
+	// Validate that the user-specified ServiceAccount exists before creating the StatefulSet
+	if i.Spec.ServiceAccountName != "" {
+		if err := ctx.Resources().Load(i.Spec.ServiceAccountName, &corev1.ServiceAccount{}, pipeline.RetryOnErr); err != nil {
+			return
+		}
+	}
+
 	statefulSet, err := ClusterStatefulSetSpec(statefulSetName, i, ctx)
 	if err != nil {
 		ctx.Requeue(fmt.Errorf("unable to create StatefulSet spec: %w", err))
@@ -113,6 +120,7 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Annotations: annotationsForPod,
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName:            i.Spec.ServiceAccountName,
 					TerminationGracePeriodSeconds: i.TerminationGracePeriodSeconds(),
 					Affinity:                      i.Affinity(),
 					Tolerations:                   i.Tolerations(),
