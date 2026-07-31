@@ -132,6 +132,14 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		updateNeeded = true
 	}
 
+	// Note: removing serviceAccountName entirely (setting to "") may not take effect because
+	// K8s auto-populates the deprecated spec.ServiceAccount field, which then re-sets ServiceAccountName.
+	// Users can work around this by explicitly setting serviceAccountName to "default".
+	if spec.ServiceAccountName != i.Spec.ServiceAccountName {
+		spec.ServiceAccountName = i.Spec.ServiceAccountName
+		updateNeeded = true
+	}
+
 	if updateCmdArgs, err := updateStartupArgs(container, configFiles); err != nil {
 		ctx.Requeue(err)
 		return

@@ -118,69 +118,77 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			return r.Update(obj, pipeline.RetryOnErr)
 		}
 	}
-	// Create a ServiceAccount in the cluster namespace so that the ConfigListener has the required API permissions
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: objectMeta,
-	}
-	if err := createOrUpdate(sa); err != nil {
-		return
-	}
 
-	role := &rbacv1.Role{
-		ObjectMeta: objectMeta,
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{v2alpha1.GroupVersion.Group},
-				Resources: []string{"caches"},
-				Verbs: []string{
-					"create",
-					"delete",
-					"get",
-					"list",
-					"patch",
-					"update",
-					"watch",
+	// Determine which ServiceAccount the ConfigListener pod should use
+	saName := name
+	userProvidedSA := i.Spec.ConfigListener != nil && i.Spec.ConfigListener.ServiceAccountName != ""
+	if userProvidedSA {
+		saName = i.Spec.ConfigListener.ServiceAccountName
+	} else {
+		// Create a ServiceAccount, Role, and RoleBinding so that the ConfigListener has the required API permissions
+		sa := &corev1.ServiceAccount{
+			ObjectMeta: objectMeta,
+		}
+		if err := createOrUpdate(sa); err != nil {
+			return
+		}
+
+		role := &rbacv1.Role{
+			ObjectMeta: objectMeta,
+			Rules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{v2alpha1.GroupVersion.Group},
+					Resources: []string{"caches"},
+					Verbs: []string{
+						"create",
+						"delete",
+						"get",
+						"list",
+						"patch",
+						"update",
+						"watch",
+					},
+				},
+				{
+					APIGroups: []string{ispnv1.GroupVersion.Group},
+					Resources: []string{"infinispans"},
+					Verbs:     []string{"get"},
+				}, {
+					APIGroups: []string{""},
+					Resources: []string{"pods"},
+					Verbs:     []string{"list"},
+				}, {
+					APIGroups: []string{""},
+					Resources: []string{"pods/exec"},
+					Verbs:     []string{"create"},
+				},
+				{
+					APIGroups: []string{""},
+					Resources: []string{"secrets"},
+					Verbs:     []string{"get"},
 				},
 			},
-			{
-				APIGroups: []string{ispnv1.GroupVersion.Group},
-				Resources: []string{"infinispans"},
-				Verbs:     []string{"get"},
-			}, {
-				APIGroups: []string{""},
-				Resources: []string{"pods"},
-				Verbs:     []string{"list"},
-			}, {
-				APIGroups: []string{""},
-				Resources: []string{"pods/exec"},
-				Verbs:     []string{"create"},
-			},
-			{
-				APIGroups: []string{""},
-				Resources: []string{"secrets"},
-				Verbs:     []string{"get"},
-			},
-		},
-	}
-	if err := createOrUpdate(role); err != nil {
-		return
-	}
+		}
+		if err := createOrUpdate(role); err != nil {
+			return
+		}
 
-	roleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: objectMeta,
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     name,
-		},
-		Subjects: []rbacv1.Subject{{
-			Kind:      rbacv1.ServiceAccountKind,
-			Name:      name,
-			Namespace: namespace,
-		}},
-	}
-	if err := createOrUpdate(roleBinding); err != nil {
-		return
+		roleBinding := &rbacv1.RoleBinding{
+			ObjectMeta: objectMeta,
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "Role",
+				Name:     name,
+			},
+			Subjects: []rbacv1.Subject{{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      name,
+				Namespace: namespace,
+			}},
+		}
+		if err := createOrUpdate(roleBinding); err != nil {
+			return
+		}
 	}
 
 	operandVersions, err := ctx.Operands().Json()
@@ -225,7 +233,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				},
 				Spec: corev1.PodSpec{
 					Containers:         []corev1.Container{*container},
-					ServiceAccountName: name,
+					ServiceAccountName: saName,
 				},
 			},
 		},
@@ -268,9 +276,10 @@ func podResources(i *ispnv1.Infinispan) (*corev1.ResourceRequirements, error) {
 func RemoveConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	resources := []client.Object{
 		&appsv1.Deployment{},
-		&rbacv1.Role{},
-		&rbacv1.RoleBinding{},
-		&corev1.ServiceAccount{},
+	}
+	// Only delete auto-created RBAC resources if the user didn't provide their own ServiceAccount
+	if i.Spec.ConfigListener == nil || i.Spec.ConfigListener.ServiceAccountName == "" {
+		resources = append(resources, &rbacv1.Role{}, &rbacv1.RoleBinding{}, &corev1.ServiceAccount{})
 	}
 
 	name := i.GetConfigListenerName()

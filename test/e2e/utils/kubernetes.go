@@ -841,6 +841,21 @@ func (k TestKubernetes) DeleteConfigMap(configMap *corev1.ConfigMap) {
 	ExpectMaybeNotFound(err)
 }
 
+func (k TestKubernetes) DeleteServiceAccount(sa *corev1.ServiceAccount) {
+	err := k.Kubernetes.Client.Delete(context.TODO(), sa, DeleteOpts...)
+	ExpectMaybeNotFound(err)
+}
+
+func (k TestKubernetes) DeleteRole(role *rbacv1.Role) {
+	err := k.Kubernetes.Client.Delete(context.TODO(), role, DeleteOpts...)
+	ExpectMaybeNotFound(err)
+}
+
+func (k TestKubernetes) DeleteRoleBinding(roleBinding *rbacv1.RoleBinding) {
+	err := k.Kubernetes.Client.Delete(context.TODO(), roleBinding, DeleteOpts...)
+	ExpectMaybeNotFound(err)
+}
+
 // UpdateConfigMap updates a ConfigMap
 func (k TestKubernetes) UpdateConfigMap(configMap *corev1.ConfigMap) {
 	err := k.Kubernetes.Client.Update(context.TODO(), configMap)
