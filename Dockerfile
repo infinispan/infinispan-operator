@@ -29,10 +29,12 @@ RUN CGO_ENABLED=1 GOOS=linux GO111MODULE=on \
 
 FROM registry.access.redhat.com/ubi9/ubi-micro
 COPY --from=build /bin/infinispan-operator /usr/local/bin/infinispan-operator
-# Open SSL library is not directly used by our operator, 
+# Open SSL library is not directly used by our operator,
 # but it may be invoked by OCP using FIPS with GoLang 1.22
 COPY --from=build /tmp/rootfs/usr/bin/openssl /usr/bin/openssl
 COPY --from=build /tmp/rootfs/lib64 /lib64
+# Define the user
+USER 1001
 # Define GOTRACEBACK to mark this container as using the Go language runtime
 # for `skaffold debug` (https://skaffold.dev/docs/workflows/debug/).
 ENV GOTRACEBACK=single
