@@ -15,17 +15,18 @@ test_operands=$(echo "${current_versions}" | jq '
  # 1. Group by Major.Minor
  group_by(.["upstream-version"] | sub("^(?<a>\\d+\\.\\d+).*"; .a)) as $groups
 
- # 2. Identify the "Oldest of the Latest Stream"
+ # 2. Identify the "Oldest of the Latest Stream" and "Second to the latest"
  # We take the last group, then the first element of that group
  | ($groups | last | first | .["upstream-version"]) as $oldestLatest
+ | ($groups | last | .[-2] | .["upstream-version"]) as $secondToLatest
 
  # 3. Process the groups
  | $groups
  | map(
      . as $group
      | .[]
-     # Test both the oldest and the latest patch release in the latest major.minor stream
-     | select(. == ($group | last) or .["upstream-version"] == $oldestLatest)
+     # Test each, the oldest, second to the latest and the latest patch release in the latest major.minor stream
+     | select(. == ($group | last) or .["upstream-version"] == $oldestLatest or .["upstream-version"] == $secondToLatest)
    )
  | unique_by(.["upstream-version"])
 ')
