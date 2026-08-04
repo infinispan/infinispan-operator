@@ -104,6 +104,8 @@ var _ = BeforeSuite(func(ginkgoCtx SpecContext) {
 	err = (&Restore{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	RegisterSchemaValidatingWebhook(mgr)
+
 	// +kubebuilder:scaffold:webhook
 
 	go func() {
