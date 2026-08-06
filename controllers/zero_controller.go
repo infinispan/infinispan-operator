@@ -143,6 +143,10 @@ func (z *zeroCapacityController) Reconcile(ctx context.Context, request reconcil
 		return reconcile.Result{}, fmt.Errorf("unable to fetch %s CR '%s': %w", resource, request.Name, err)
 	}
 
+	if paused, err := HandleReconciliationPause(ctx, instance.AsMeta().(Pausable), z.Client, z.EventRec, reqLogger); err != nil || paused {
+		return reconcile.Result{}, err
+	}
+
 	phase := instance.Phase()
 	switch phase {
 	case "":
