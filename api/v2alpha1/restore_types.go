@@ -60,6 +60,9 @@ const (
 
 // RestoreStatus defines the observed state of Restore
 type RestoreStatus struct {
+	// Conditions list for this restore
+	// +optional
+	Conditions []Condition `json:"conditions,omitempty"`
 	// Current phase of the restore operation
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Phase"
 	Phase RestorePhase `json:"phase"`

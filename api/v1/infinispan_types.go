@@ -566,16 +566,17 @@ const (
 type ConditionType string
 
 const (
-	ConditionPrelimChecksPassed  ConditionType = "PreliminaryChecksPassed"
-	ConditionGracefulShutdown    ConditionType = "GracefulShutdown"
-	ConditionScalingDown         ConditionType = "ScalingDown"
-	ConditionScalingUp           ConditionType = "ScalingUp"
-	ConditionStopping            ConditionType = "Stopping"
-	ConditionUpgrade             ConditionType = "Upgrade"
-	ConditionWellFormed          ConditionType = "WellFormed"
-	ConditionCrossSiteViewFormed ConditionType = "CrossSiteViewFormed"
-	ConditionGossipRouterReady   ConditionType = "GossipRouterReady"
-	ConditionTLSSecretValid      ConditionType = "TLSSecretValid"
+	ConditionPrelimChecksPassed   ConditionType = "PreliminaryChecksPassed"
+	ConditionGracefulShutdown     ConditionType = "GracefulShutdown"
+	ConditionScalingDown          ConditionType = "ScalingDown"
+	ConditionScalingUp            ConditionType = "ScalingUp"
+	ConditionStopping             ConditionType = "Stopping"
+	ConditionUpgrade              ConditionType = "Upgrade"
+	ConditionWellFormed           ConditionType = "WellFormed"
+	ConditionCrossSiteViewFormed  ConditionType = "CrossSiteViewFormed"
+	ConditionGossipRouterReady    ConditionType = "GossipRouterReady"
+	ConditionTLSSecretValid       ConditionType = "TLSSecretValid"
+	ConditionReconciliationPaused ConditionType = "ReconciliationPaused"
 )
 
 // InfinispanCondition define a condition of the cluster

@@ -147,6 +147,14 @@ func (ispn *Infinispan) RemoveCondition(condition ConditionType) bool {
 	return false
 }
 
+func (ispn *Infinispan) SetPausedCondition(message string) bool {
+	return ispn.SetCondition(ConditionReconciliationPaused, metav1.ConditionTrue, message)
+}
+
+func (ispn *Infinispan) RemovePausedCondition() bool {
+	return ispn.RemoveCondition(ConditionReconciliationPaused)
+}
+
 func (ispn *Infinispan) ExpectConditionStatus(expected map[ConditionType]metav1.ConditionStatus) error {
 	for key, value := range expected {
 		c := ispn.GetCondition(key)

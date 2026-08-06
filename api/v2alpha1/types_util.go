@@ -1,44 +1,105 @@
 package v2alpha1
 
 import (
-	"strings"
-
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SetCondition set condition to status
-func (cache *Cache) SetCondition(condition CacheConditionType, status metav1.ConditionStatus, message string) bool {
-	changed := false
-	for idx := range cache.Status.Conditions {
-		c := &cache.Status.Conditions[idx]
-		if c.Type == condition {
-			if c.Status != status {
-				c.Status = status
-				changed = true
-			}
-			if c.Message != message {
-				c.Message = message
-				changed = true
-			}
-
-			return changed
-		}
-	}
-	cache.Status.Conditions = append(cache.Status.Conditions, CacheCondition{Type: condition, Status: status, Message: message})
-	return true
+func (cache *Cache) SetCondition(condition ConditionType, status metav1.ConditionStatus, message string) bool {
+	changed, conditions := setCondition(cache.Status.Conditions, condition, status, message)
+	cache.Status.Conditions = conditions
+	return changed
 }
 
-// GetCondition return the Status of the given condition or nil if condition is not present
-func (cache *Cache) GetCondition(condition CacheConditionType) CacheCondition {
-	for _, c := range cache.Status.Conditions {
-		if c.Type.equals(condition) {
-			return c
-		}
-	}
-	// Absence of condition means `False` value
-	return CacheCondition{Type: condition, Status: metav1.ConditionFalse}
+func (cache *Cache) GetCondition(condition ConditionType) Condition {
+	return getCondition(cache.Status.Conditions, condition)
+}
+
+func (cache *Cache) RemoveCondition(condition ConditionType) bool {
+	changed, conditions := removeCondition(cache.Status.Conditions, condition)
+	cache.Status.Conditions = conditions
+	return changed
+}
+
+func (batch *Batch) GetCondition(condition ConditionType) Condition {
+	return getCondition(batch.Status.Conditions, condition)
+}
+
+func (batch *Batch) SetCondition(condition ConditionType, status metav1.ConditionStatus, message string) bool {
+	changed, conditions := setCondition(batch.Status.Conditions, condition, status, message)
+	batch.Status.Conditions = conditions
+	return changed
+}
+
+func (batch *Batch) RemoveCondition(condition ConditionType) bool {
+	changed, conditions := removeCondition(batch.Status.Conditions, condition)
+	batch.Status.Conditions = conditions
+	return changed
+}
+
+func (backup *Backup) GetCondition(condition ConditionType) Condition {
+	return getCondition(backup.Status.Conditions, condition)
+}
+
+func (backup *Backup) SetCondition(condition ConditionType, status metav1.ConditionStatus, message string) bool {
+	changed, conditions := setCondition(backup.Status.Conditions, condition, status, message)
+	backup.Status.Conditions = conditions
+	return changed
+}
+
+func (backup *Backup) RemoveCondition(condition ConditionType) bool {
+	changed, conditions := removeCondition(backup.Status.Conditions, condition)
+	backup.Status.Conditions = conditions
+	return changed
+}
+
+func (restore *Restore) GetCondition(condition ConditionType) Condition {
+	return getCondition(restore.Status.Conditions, condition)
+}
+
+func (restore *Restore) SetCondition(condition ConditionType, status metav1.ConditionStatus, message string) bool {
+	changed, conditions := setCondition(restore.Status.Conditions, condition, status, message)
+	restore.Status.Conditions = conditions
+	return changed
+}
+
+func (restore *Restore) RemoveCondition(condition ConditionType) bool {
+	changed, conditions := removeCondition(restore.Status.Conditions, condition)
+	restore.Status.Conditions = conditions
+	return changed
+}
+
+func (cache *Cache) SetPausedCondition(message string) bool {
+	return cache.SetCondition(ConditionReconciliationPaused, metav1.ConditionTrue, message)
+}
+
+func (cache *Cache) RemovePausedCondition() bool {
+	return cache.RemoveCondition(ConditionReconciliationPaused)
+}
+
+func (batch *Batch) SetPausedCondition(message string) bool {
+	return batch.SetCondition(ConditionReconciliationPaused, metav1.ConditionTrue, message)
+}
+
+func (batch *Batch) RemovePausedCondition() bool {
+	return batch.RemoveCondition(ConditionReconciliationPaused)
+}
+
+func (backup *Backup) SetPausedCondition(message string) bool {
+	return backup.SetCondition(ConditionReconciliationPaused, metav1.ConditionTrue, message)
+}
+
+func (backup *Backup) RemovePausedCondition() bool {
+	return backup.RemoveCondition(ConditionReconciliationPaused)
+}
+
+func (restore *Restore) SetPausedCondition(message string) bool {
+	return restore.SetCondition(ConditionReconciliationPaused, metav1.ConditionTrue, message)
+}
+
+func (restore *Restore) RemovePausedCondition() bool {
+	return restore.RemoveCondition(ConditionReconciliationPaused)
 }
 
 func (cache *Cache) GetCacheName() string {
@@ -53,11 +114,6 @@ func (b *Batch) ConfigMapName() string {
 		return *b.Spec.ConfigMap
 	}
 	return b.Name
-}
-
-// equals compares two ConditionType's case insensitive
-func (a CacheConditionType) equals(b CacheConditionType) bool {
-	return strings.EqualFold(strings.ToLower(string(a)), strings.ToLower(string(b)))
 }
 
 // CpuResources returns the CPU request and limit values to be used by Batch pod
