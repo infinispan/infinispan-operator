@@ -156,6 +156,12 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 
 	crDeleted := instance.GetDeletionTimestamp() != nil
 
+	if !crDeleted {
+		if paused, err := HandleReconciliationPause(ctx, instance, r.Client, r.eventRec, reqLogger); err != nil || paused {
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Add the "retain" update strategy for Cache CRs created with an older Operator version
 	if !crDeleted && (instance.Spec.Updates == nil || instance.Spec.Updates.Strategy == "") {
 		reqLogger.Info("Cache CR created with older operator version, adding update strategy to maintain previous controller behaviour", "strategy", v2alpha1.CacheUpdateRetain)
@@ -177,7 +183,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 			// No need to requeue request here as the Infinispan watch ensures that a request is queued when the cluster is updated
 			return ctrl.Result{}, cache.update(func() error {
 				// Set CacheConditionReady to false in case the cluster was previously WellFormed
-				instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionFalse, "")
+				instance.SetCondition(v2alpha1.ConditionReady, metav1.ConditionFalse, "")
 				return nil
 			})
 		}
@@ -219,7 +225,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 		if result, err := cache.ispnCreateOrUpdate(); result != nil {
 			if err != nil {
 				return *result, cache.update(func() error {
-					instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionFalse, err.Error())
+					instance.SetCondition(v2alpha1.ConditionReady, metav1.ConditionFalse, err.Error())
 					return nil
 				})
 			}
@@ -228,7 +234,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 	}
 
 	err = cache.update(func() error {
-		instance.SetCondition(v2alpha1.CacheConditionReady, metav1.ConditionTrue, "")
+		instance.SetCondition(v2alpha1.ConditionReady, metav1.ConditionTrue, "")
 		// Add finalizer so that the Cache is removed on the server when the Cache CR is deleted
 		if !controllerutil.ContainsFinalizer(instance, constants.InfinispanFinalizer) {
 			controllerutil.AddFinalizer(instance, constants.InfinispanFinalizer)

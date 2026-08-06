@@ -152,9 +152,20 @@ const (
 
 const (
 	AnnotationDomain             = "infinispan.org/"
+	AnnotationPaused             = AnnotationDomain + "paused"
 	ListenerAnnotationGeneration = AnnotationDomain + "listener-generation"
 	ListenerAnnotationDelete     = AnnotationDomain + "listener-delete"
 	ListenerControllerDelete     = AnnotationDomain + "controller-delete"
+)
+
+const (
+	EventReasonReconciliationPaused  = "ReconciliationPaused"
+	EventMessageReconciliationPaused = "Reconciliation paused by user annotation"
+)
+
+var ConditionMessageReconciliationPaused = fmt.Sprintf(
+	"Reconciliation is explicitly paused via annotation '%s: true'. Spec changes will not be applied to managed resources.",
+	AnnotationPaused,
 )
 
 // GetWithDefault return value if not empty else return defValue

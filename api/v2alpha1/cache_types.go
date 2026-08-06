@@ -8,12 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type CacheConditionType string
-
-const (
-	CacheConditionReady CacheConditionType = "Ready"
-)
-
 // AdminAuth description of the auth info
 type AdminAuth struct {
 	// The secret that contains user credentials.
@@ -64,22 +58,11 @@ type CacheSpec struct {
 	Updates *CacheUpdateSpec `json:"updates,omitempty"`
 }
 
-// CacheCondition define a condition of the cluster
-type CacheCondition struct {
-	// Type is the type of the condition.
-	Type CacheConditionType `json:"type"`
-	// Status is the status of the condition.
-	Status metav1.ConditionStatus `json:"status"`
-	// Human-readable message indicating details about last transition.
-	// +optional
-	Message string `json:"message,omitempty"`
-}
-
 // CacheStatus defines the observed state of Cache
 type CacheStatus struct {
 	// Conditions list for this cache
 	// +optional
-	Conditions []CacheCondition `json:"conditions,omitempty"`
+	Conditions []Condition `json:"conditions,omitempty"`
 	// Deprecated. This is no longer set. Service name that exposes the cache inside the cluster
 	// +optional
 	ServiceName string `json:"serviceName,omitempty"`

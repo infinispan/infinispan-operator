@@ -988,14 +988,14 @@ func (k TestKubernetes) FindCacheResource(cacheName, clusterName, namespace stri
 
 // WaitForCacheConditionReady retrieves the Cache CR that corresponds to the provided cache, cluster and namespace
 func (k TestKubernetes) WaitForCacheConditionReady(cacheName, clusterName, namespace string) *ispnv2.Cache {
-	return k.WaitForCacheCondition(cacheName, clusterName, namespace, ispnv2.CacheCondition{
-		Type:   ispnv2.CacheConditionReady,
+	return k.WaitForCacheCondition(cacheName, clusterName, namespace, ispnv2.Condition{
+		Type:   ispnv2.ConditionReady,
 		Status: metav1.ConditionTrue,
 	})
 }
 
-// WaitForCacheConditionReady retrieves the Cache CR that corresponds to the provided cache, cluster and namespace
-func (k TestKubernetes) WaitForCacheCondition(cacheName, clusterName, namespace string, condition ispnv2.CacheCondition) *ispnv2.Cache {
+// WaitForCacheCondition retrieves the Cache CR that corresponds to the provided cache, cluster and namespace
+func (k TestKubernetes) WaitForCacheCondition(cacheName, clusterName, namespace string, condition ispnv2.Condition) *ispnv2.Cache {
 	return k.WaitForCacheState(cacheName, clusterName, namespace, func(cache *ispnv2.Cache) bool {
 		for _, c := range cache.Status.Conditions {
 			if c.Type == condition.Type && c.Status == condition.Status {

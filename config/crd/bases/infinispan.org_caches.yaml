@@ -131,7 +131,7 @@ spec:
               conditions:
                 description: Conditions list for this cache
                 items:
-                  description: CacheCondition define a condition of the cluster
+                  description: Condition defines a status condition for a resource.
                   properties:
                     message:
                       description: Human-readable message indicating details about

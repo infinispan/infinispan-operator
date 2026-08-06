@@ -68,6 +68,9 @@ const (
 
 // BackupStatus defines the observed state of Backup
 type BackupStatus struct {
+	// Conditions list for this backup
+	// +optional
+	Conditions []Condition `json:"conditions,omitempty"`
 	// Current phase of the backup operation
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Phase"
 	Phase BackupPhase `json:"phase"`

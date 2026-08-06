@@ -48,6 +48,9 @@ const (
 
 // BatchStatus defines the observed state of Batch
 type BatchStatus struct {
+	// Conditions list for this batch
+	// +optional
+	Conditions []Condition `json:"conditions,omitempty"`
 	// Current phase of the batch operation
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Phase"
 	Phase BatchPhase `json:"phase"`

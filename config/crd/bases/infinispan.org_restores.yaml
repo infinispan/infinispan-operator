@@ -221,6 +221,26 @@ spec:
           status:
             description: RestoreStatus defines the observed state of Restore
             properties:
+              conditions:
+                description: Conditions list for this restore
+                items:
+                  description: Condition defines a status condition for a resource.
+                  properties:
+                    message:
+                      description: Human-readable message indicating details about
+                        last transition.
+                      type: string
+                    status:
+                      description: Status is the status of the condition.
+                      type: string
+                    type:
+                      description: Type is the type of the condition.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
               phase:
                 description: Current phase of the restore operation
                 type: string
