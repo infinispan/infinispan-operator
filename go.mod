@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/logr v1.4.4
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/iancoleman/strcase v0.3.0
-	github.com/onsi/ginkgo/v2 v2.32.0
+	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
 	github.com/openshift/api v0.0.0-20180801171038-322a19404e37
 	github.com/operator-framework/api v0.28.0
