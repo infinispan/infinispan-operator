@@ -137,14 +137,16 @@ func testClientCert(t *testing.T, initializer func(*v1.Infinispan) (v1.ClientCer
 	// Register it
 	testKube.CreateInfinispan(spec, tutils.Namespace)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
-	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
 
 	// Ensure that we can connect to the endpoint with TLS
 	client_ := tutils.HTTPSClientForCluster(spec, tlsConfig, testKube)
 	tutils.NewCacheHelper("test", client_).CreateWithDefault()
 
 	// Scale the cluster down to ensure that Operator authorization works as expected
-	ispn.Spec.Replicas = 0
-	testKube.Update(ispn)
+	ispn := testKube.WaitForInfinispanCondition(spec.Name, spec.Namespace, ispnv1.ConditionWellFormed)
+	tutils.ExpectNoError(testKube.UpdateInfinispan(ispn, func() {
+		ispn.Spec.Replicas = 0
+	}))
 	testKube.WaitForInfinispanPods(0, tutils.SinglePodTimeout, spec.Name, tutils.Namespace)
 }
