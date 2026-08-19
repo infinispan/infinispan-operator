@@ -30,13 +30,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // CacheReconciler reconciles a Cache object
 type CacheReconciler struct {
 	client.Client
-	log            logr.Logger
+	setupLog       logr.Logger
 	scheme         *runtime.Scheme
 	kubernetes     *kube.Kubernetes
 	eventRec       record.EventRecorder
@@ -64,7 +65,7 @@ type cacheRequest struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) (err error) {
 	r.Client = mgr.GetClient()
-	r.log = ctrl.Log.WithName("controllers").WithName("Cache")
+	r.setupLog = ctrl.Log.WithName("controllers").WithName("cache")
 	r.scheme = mgr.GetScheme()
 	r.kubernetes = kube.NewKubernetesFromController(mgr)
 	r.eventRec = mgr.GetEventRecorderFor("cache-controller")
@@ -94,7 +95,7 @@ func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager
 				var requests []reconcile.Request
 				cacheList := &v2alpha1.CacheList{}
 				if err := r.kubernetes.ResourcesListByField(a.GetNamespace(), "spec.clusterName", a.GetName(), cacheList, watchCtx); err != nil {
-					r.log.Error(err, "watches failed to list Cache CRs")
+					r.setupLog.Error(err, "watches failed to list Cache CRs")
 				}
 
 				for _, item := range cacheList.Items {
@@ -109,15 +110,13 @@ func (r *CacheReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager
 // +kubebuilder:rbac:groups=infinispan.org,namespace=infinispan-operator-system,resources=caches;caches/status;caches/finalizers,verbs=get;list;watch;create;update;patch;delete
 
 func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
-	reqLogger := r.log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("+++++ Reconciling Cache.")
-	defer reqLogger.Info("----- End Reconciling Cache.")
+	reqLogger := log.FromContext(ctx)
 
 	// Fetch the Cache instance
 	instance := &v2alpha1.Cache{}
 	if err := r.Get(ctx, request.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Cache resource not found. Ignoring it since cache deletion is not supported")
+			reqLogger.V(1).Info("Cache CR not found")
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -133,24 +132,24 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 	}
 
 	if cache.markedForDeletion() {
-		reqLogger.Info("Cache CR marked for deletion. Attempting to remove.")
+		reqLogger.V(1).Info("Cache CR marked for deletion")
 		// The ConfigListener has marked this resource for deletion
 		// Remove finalizer and delete CR. No need to update the server as the cache has already been removed
 		if err := cache.removeFinalizer(); err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Unable to remove Finalizer as Cache CR not found.")
+				reqLogger.V(1).Info("Cache CR not found, finalizer already removed")
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
 		}
 		if err := cache.kubernetes.Client.Delete(ctx, instance); err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Cache CR does not exist, nothing todo.")
+				reqLogger.V(1).Info("Cache CR already deleted")
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
 		}
-		reqLogger.Info("Cache CR Removed.")
+		reqLogger.Info("Cache CR removed")
 		return ctrl.Result{}, nil
 	}
 
@@ -170,7 +169,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 	// Fetch the Infinispan cluster
 	if err := r.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}, infinispan); err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", instance.Spec.ClusterName))
+			reqLogger.Error(err, "Infinispan cluster not found", "cluster", instance.Spec.ClusterName)
 			if crDeleted {
 				return ctrl.Result{}, cache.removeFinalizer()
 			}
@@ -186,13 +185,13 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 
 	// Cluster must be well formed
 	if !infinispan.IsWellFormed() {
-		reqLogger.Info(fmt.Sprintf("Infinispan cluster %s not well formed", infinispan.Name))
+		reqLogger.Info("Infinispan cluster not well formed", "cluster", infinispan.Name)
 		// No need to requeue request here as the Infinispan watch ensures that a request is queued when the cluster is updated
 		return ctrl.Result{}, nil
 	}
 
 	if infinispan.IsCache() {
-		reqLogger.Info("Ignoring Cache CR as cluster is marked as CacheService")
+		reqLogger.V(1).Info("Ignoring Cache CR as cluster is marked as CacheService")
 		return ctrl.Result{}, nil
 	}
 
@@ -209,6 +208,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 			if err := ispnClient.Cache(cacheName).Delete(); err != nil {
 				return ctrl.Result{}, err
 			}
+			reqLogger.Info("Deleted cache from server", "cache", cacheName)
 			return ctrl.Result{}, cache.removeFinalizer()
 		}
 		return ctrl.Result{}, nil
@@ -232,6 +232,7 @@ func (r *CacheReconciler) Reconcile(ctx context.Context, request ctrl.Request) (
 		// Add finalizer so that the Cache is removed on the server when the Cache CR is deleted
 		if !controllerutil.ContainsFinalizer(instance, constants.InfinispanFinalizer) {
 			controllerutil.AddFinalizer(instance, constants.InfinispanFinalizer)
+			reqLogger.V(1).Info("Added finalizer")
 		}
 		return nil
 	})
@@ -260,6 +261,7 @@ func (r *cacheRequest) removeFinalizer() error {
 	if controllerutil.ContainsFinalizer(r.cache, constants.InfinispanFinalizer) {
 		return r.update(func() error {
 			controllerutil.RemoveFinalizer(r.cache, constants.InfinispanFinalizer)
+			r.reqLogger.V(1).Info("Removed finalizer")
 			return nil
 		})
 	}
@@ -272,9 +274,7 @@ func (r *cacheRequest) ispnCreateOrUpdate() (*ctrl.Result, error) {
 
 	cacheExists, err := cacheClient.Exists()
 	if err != nil {
-		err := fmt.Errorf("unable to determine if cache exists: %w", err)
-		r.reqLogger.Error(err, "")
-		return &ctrl.Result{}, err
+		return &ctrl.Result{}, fmt.Errorf("unable to determine if cache exists: %w", err)
 	}
 
 	err = r.reconcileDataGrid(cacheExists, cacheClient)
@@ -306,7 +306,7 @@ func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) erro
 			return fmt.Errorf("unable to determine if configuration has changed: %w", err)
 		}
 		if !configUpdated {
-			r.log.Info("configuration has not changed, ignoring update")
+			r.reqLogger.V(1).Info("Configuration has not changed, ignoring update")
 			return nil
 		}
 
@@ -315,13 +315,14 @@ func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) erro
 			if err := cache.UpdateConfig(spec.Template, mime.GuessMarkup(spec.Template)); err != nil {
 				return fmt.Errorf("unable to update cache template at runtime: %w", err)
 			}
+			r.reqLogger.Info("Updated cache configuration", "cache", r.cache.GetCacheName())
 			return nil
 		}
 
 		// Recreate strategy
 		// Update the cache configuration at runtime if possible, retaining data, otherwise delete
 		if err := cache.UpdateConfig(spec.Template, mime.GuessMarkup(spec.Template)); err != nil {
-			r.log.Info("unable to update cache template at runtime, recreating", "error", err)
+			r.reqLogger.V(1).Info("Unable to update cache template at runtime, recreating", "reason", err.Error())
 
 			// Add an annotation to indicate to the ConfigListener that a remote-cache event should be expected for this CR
 			// Required in order to prevent the Cache CR that's being reconciled from being
@@ -359,8 +360,8 @@ func (r *cacheRequest) reconcileDataGrid(cacheExists bool, cache api.Cache) erro
 		}
 	}
 
-	if err != nil {
-		r.reqLogger.Error(err, "Unable to create Cache")
+	if err == nil {
+		r.reqLogger.Info("Created cache", "cache", r.cache.GetCacheName())
 	}
 	return err
 }

@@ -20,16 +20,19 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var (
-	log              = ctrl.Log.WithName("webhook").WithName("Infinispan")
 	eventRec         record.EventRecorder
 	ServingCertsMode string
 	versionManager   *version.Manager
 )
+
+type infinispanDefaulter struct{}
+
+type infinispanValidator struct{}
 
 func (i *Infinispan) SetupWebhookWithManager(mgr ctrl.Manager) (err error) {
 	kubernetes := kube.NewKubernetesFromController(mgr)
@@ -44,15 +47,23 @@ func (i *Infinispan) SetupWebhookWithManager(mgr ctrl.Manager) (err error) {
 
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(i).
+		WithDefaulter(&infinispanDefaulter{}).
+		WithValidator(&infinispanValidator{}).
 		Complete()
 }
 
 // +kubebuilder:webhook:path=/mutate-infinispan-org-v1-infinispan,mutating=true,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=infinispans,verbs=create;update,versions=v1,name=minfinispan.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Defaulter = &Infinispan{}
+var _ admission.CustomDefaulter = &infinispanDefaulter{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (i *Infinispan) Default() {
+func (d *infinispanDefaulter) Default(ctx context.Context, obj runtime.Object) error {
+	i := obj.(*Infinispan)
+	i.ApplyDefaults()
+	return nil
+}
+
+// ApplyDefaults sets default values on the Infinispan resource.
+func (i *Infinispan) ApplyDefaults() {
 	if i.Spec.Version == "" {
 		i.Spec.Version = versionManager.Latest().Ref()
 	}
@@ -169,21 +180,21 @@ func (i *Infinispan) Default() {
 
 // +kubebuilder:webhook:path=/validate-infinispan-org-v1-infinispan,mutating=false,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=infinispans,verbs=create;update,versions=v1,name=vinfinispan.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Validator = &Infinispan{}
+var _ admission.CustomValidator = &infinispanValidator{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateCreate() (admission.Warnings, error) {
-	return i.validate()
+func (v *infinispanValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	i := obj.(*Infinispan)
+	return v.validate(ctx, i)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) (admission.Warnings, error) {
-	if w, err := i.validate(); err != nil {
+func (v *infinispanValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	i := newObj.(*Infinispan)
+	if w, err := v.validate(ctx, i); err != nil {
 		return w, err
 	}
 
 	var allErrs field.ErrorList
-	old := oldRuntimeObj.(*Infinispan)
+	old := oldObj.(*Infinispan)
 	if old.Spec.Version != "" {
 		// We know the versions must be valid as they have already been validated, so the error will always be nil
 		operand, _ := versionManager.WithRef(i.Spec.Version)
@@ -253,13 +264,12 @@ func minorStreamMatch(operand1, operand2 version.Operand) bool {
 	return majorMatch && minorMatch
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateDelete() (admission.Warnings, error) {
-	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
+func (v *infinispanValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	return nil, nil
 }
 
-func (i *Infinispan) validate() (admission.Warnings, error) {
+func (v *infinispanValidator) validate(ctx context.Context, i *Infinispan) (admission.Warnings, error) {
+	logger := log.FromContext(ctx)
 	var allErrs field.ErrorList
 
 	operand, err := versionManager.WithRef(i.Spec.Version)
@@ -292,7 +302,7 @@ func (i *Infinispan) validate() (admission.Warnings, error) {
 		} else if size.Cmp(memLimit) < 0 {
 			errMsg := "Persistent volume size is less than memory size. Graceful shutdown may not work."
 			eventRec.Event(i, corev1.EventTypeWarning, "LowPersistenceStorage", errMsg)
-			log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+			logger.Info(errMsg)
 		}
 	}
 
@@ -404,7 +414,7 @@ func (i *Infinispan) validate() (admission.Warnings, error) {
 	if i.IsEphemeralStorage() {
 		errMsg := "Ephemeral storage configured. All data will be lost on cluster shutdown and restart."
 		eventRec.Event(i, corev1.EventTypeWarning, "EphemeralStorageEnables", "Ephemeral storage configured. All data will be lost on cluster shutdown and restart.")
-		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+		logger.Info(errMsg)
 	}
 
 	// validate Gossip Router resources requests
@@ -469,7 +479,7 @@ func (i *Infinispan) validate() (admission.Warnings, error) {
 		if i.IsSiteTLSEnabled() && i.Spec.Service.Sites.Local.Encryption.TrustStore == nil {
 			errMsg := "The Trust Store for Cross-Site Encryption is recommended but it is not configured. It will fallback to the JVM default Trust Store."
 			eventRec.Event(i, corev1.EventTypeWarning, "CrossSiteTrustStoreMissing", errMsg)
-			log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+			logger.Info(errMsg)
 		}
 
 		if !i.IsSiteTLSEnabled() && i.Spec.Service.Sites.Local.Expose.Type == CrossSiteExposeTypeRoute {
@@ -480,7 +490,7 @@ func (i *Infinispan) validate() (admission.Warnings, error) {
 	if i.Spec.CloudEvents != nil && operand.UpstreamVersion.GTE(semver.Version{Major: 15}) {
 		errMsg := "CloudEvents have been removed since Infinispan 15.0.0, ignoring configuration."
 		eventRec.Event(i, corev1.EventTypeWarning, "CloudEventsRemoved", errMsg)
-		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+		logger.Info(errMsg)
 	}
 
 	validateProbes := func(c *ContainerProbeSpec, path *field.Path, readinessProbe bool) {

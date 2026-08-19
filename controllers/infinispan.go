@@ -23,6 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -30,7 +31,7 @@ import (
 // InfinispanReconciler reconciles a Infinispan object
 type InfinispanReconciler struct {
 	client.Client
-	log                logr.Logger
+	setupLog           logr.Logger
 	contextProvider    infinispan.ContextProvider
 	defaultLabels      map[string]string
 	defaultAnnotations map[string]string
@@ -42,7 +43,7 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 	kubernetes := kube.NewKubernetesFromController(mgr)
 
 	r.Client = mgr.GetClient()
-	r.log = ctrl.Log.WithName("controllers").WithName("Infinispan")
+	r.setupLog = ctrl.Log.WithName("controllers").WithName("infinispan")
 	r.contextProvider = pipelineContext.Provider(
 		r.Client,
 		mgr.GetScheme(),
@@ -84,7 +85,7 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 		// Validate that GroupVersionKind is supported on runtime platform
 		ok, err := kubernetes.IsGroupVersionKindSupported(gvk)
 		if err != nil {
-			r.log.Error(err, fmt.Sprintf("failed to check if GVK '%s' is supported", gvk))
+			r.setupLog.Error(err, "failed to check if GVK is supported", "gvk", gvk)
 			continue
 		}
 		if ok {
@@ -97,7 +98,7 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 	if err != nil {
 		return err
 	}
-	r.versionManager.Log(r.log)
+	r.versionManager.Log(r.setupLog)
 
 	// Initialize default operator labels and annotations
 	if defaultLabels, defaultAnnotations, err := infinispanv1.LoadDefaultLabelsAndAnnotations(); err != nil {
@@ -105,10 +106,17 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 	} else {
 		r.defaultLabels = defaultLabels
 		r.defaultAnnotations = defaultAnnotations
-		r.log.Info("Defaults:", "Annotations", defaultAnnotations, "Labels", defaultLabels)
+		r.setupLog.V(2).Info("Default labels and annotations", "annotations", defaultAnnotations, "labels", defaultLabels)
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infinispanv1.Infinispan{}).
+		WithLogConstructor(func(req *reconcile.Request) logr.Logger {
+			log := mgr.GetLogger().WithValues("controller", "infinispan")
+			if req != nil {
+				log = log.WithValues("namespace", req.Namespace, "name", req.Name)
+			}
+			return log
+		}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{},
 			builder.WithPredicates(
@@ -149,7 +157,7 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 						for _, field := range []string{"spec.security.endpointSecretName", "spec.security.credentialStoreSecretName", "spec.security.endpointEncryption.certSecretName", "spec.security.endpointEncryption.clientCertSecretName"} {
 							ispnList := &infinispanv1.InfinispanList{}
 							if err := kubernetes.ResourcesListByField(a.GetNamespace(), field, a.GetName(), ispnList, watchCtx); err != nil {
-								r.log.Error(err, "failed to list Infinispan CR")
+								r.setupLog.Error(err, "failed to list Infinispan CR")
 							}
 							for _, item := range ispnList.Items {
 								requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}})
@@ -171,7 +179,7 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 					if !kube.IsControlledByGVK(a.GetOwnerReferences(), infinispanv1.SchemeBuilder.GroupVersion.WithKind(reflect.TypeOf(infinispanv1.Infinispan{}).Name())) {
 						ispnList := &infinispanv1.InfinispanList{}
 						if err := kubernetes.ResourcesListByField(a.GetNamespace(), "spec.configMapName", a.GetName(), ispnList, watchCtx); err != nil {
-							r.log.Error(err, "failed to list Infinispan CR")
+							r.setupLog.Error(err, "failed to list Infinispan CR")
 						}
 						for _, item := range ispnList.Items {
 							requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}})
@@ -211,12 +219,12 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 
 // Reconcile the Infinispan CR resource
 func (r *InfinispanReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.Request) (ctrl.Result, error) {
-	reqLogger := r.log.WithValues("infinispan", ctrlRequest.NamespacedName)
+	reqLogger := log.FromContext(ctx)
 	// Fetch the Infinispan instance
 	instance := &infinispanv1.Infinispan{}
 	if err := r.Get(ctx, ctrlRequest.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
-			r.log.Info("Infinispan CR not found")
+			reqLogger.V(1).Info("Infinispan CR not found")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -225,7 +233,7 @@ func (r *InfinispanReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.R
 
 	// Don't reconcile Infinispan CRs marked for deletion
 	if instance.GetDeletionTimestamp() != nil {
-		reqLogger.Info(fmt.Sprintf("Ignoring Infinispan CR '%s:%s' marked for deletion", instance.Namespace, instance.Name))
+		reqLogger.V(1).Info("Ignoring CR marked for deletion")
 		return reconcile.Result{}, nil
 	}
 
@@ -240,6 +248,5 @@ func (r *InfinispanReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.R
 		Build()
 
 	retry, delay, err := pipeline.Process(ctx)
-	reqLogger.Info("Done", "requeue", retry, "requeueAfter", delay, "error", err)
 	return ctrl.Result{Requeue: retry, RequeueAfter: delay}, err
 }
