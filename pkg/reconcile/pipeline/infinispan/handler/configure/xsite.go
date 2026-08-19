@@ -68,7 +68,7 @@ func XSite(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		xSite.MaxRelayNodes = i.Spec.Service.Sites.Local.MaxRelayNodes
 	}
 	ctx.ConfigFiles().XSite = xSite
-	ctx.Log().Info("x-site configured", "configuration", xSite)
+	ctx.Log().V(2).Info("x-site configured", "configuration", xSite)
 }
 
 func searchRemoteSites(i *ispnv1.Infinispan, ctx pipeline.Context, xSite *pipeline.XSite) error {
@@ -119,8 +119,7 @@ func appendRemoteLocation(i *ispnv1.Infinispan, ctx pipeline.Context, xSite *pip
 
 	remoteKubernetes, err := kube.NewKubernetesFromConfig(restConfig, ctx.Kubernetes().Client.Scheme())
 	if err != nil {
-		logger.Error(err, "could not connect to remote location URL", "URL", remoteLocation.URL)
-		return err
+		return fmt.Errorf("could not connect to remote site %q: %w", remoteLocation.URL, err)
 	}
 
 	remoteLocationName := remoteLocation.Name
@@ -130,54 +129,44 @@ func appendRemoteLocation(i *ispnv1.Infinispan, ctx pipeline.Context, xSite *pip
 
 	routeSupported, err := remoteKubernetes.IsGroupVersionSupported(pipeline.RouteGVK.GroupVersion().String(), pipeline.RouteGVK.Kind)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("failed to check if GVK '%s' is supported", pipeline.RouteGVK))
-		return err
+		return fmt.Errorf("failed to check if Route GVK is supported: %w", err)
 	}
 
 	if routeSupported {
 		// Note: we need to lookup the Route first because, even if Route is enabled, the service exists with "ClusterIP".
-		logger.Info("Lookup cross-site route", "Name", remoteRouteName, "Namespace", remoteNamespace)
+		logger.V(1).Info("Lookup cross-site route", "name", remoteRouteName, "namespace", remoteNamespace)
 		siteRoute := &routev1.Route{}
 		if err := remoteKubernetes.Client.Get(ctx.Ctx(), types.NamespacedName{Name: remoteRouteName, Namespace: remoteNamespace}, siteRoute); err == nil {
 			// Route found
-			logger.Info("Remote route found!", "host", siteRoute.Spec.Host)
+			logger.V(1).Info("Remote route found", "host", siteRoute.Spec.Host)
 			appendBackupSite(remoteLocationName, siteRoute.Spec.Host, 443, xSite, false)
 			return nil
 		} else if client.IgnoreNotFound(err) != nil {
-			logger.Error(err, "could not get x-site Route in remote cluster", "site route name", remoteRouteName, "site namespace", remoteNamespace)
-			return err
+			return fmt.Errorf("could not get x-site Route %s/%s in remote cluster: %w", remoteNamespace, remoteRouteName, err)
 		}
 	}
 
 	// No Route object found, try the Service
-	logger.Info("Lookup cross-site service", "Name", remoteServiceName, "Namespace", remoteNamespace)
+	logger.V(1).Info("Lookup cross-site service", "name", remoteServiceName, "namespace", remoteNamespace)
 	siteService := &corev1.Service{}
 	err = remoteKubernetes.Client.Get(ctx.Ctx(), types.NamespacedName{Name: remoteServiceName, Namespace: remoteNamespace}, siteService)
 	if err != nil {
-		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
-		return err
+		return fmt.Errorf("could not get x-site service %s/%s in remote cluster: %w", remoteNamespace, remoteServiceName, err)
 	}
 
 	if siteService.Spec.Type == corev1.ServiceTypeClusterIP {
-		// If we reach this point, we have a remote API URL to a different cluster.
-		// ClusterIP service won't work because we will be unable to connect to the internal IP address
-		err = fmt.Errorf("ClusterIP service type not supported")
-		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
-		return err
+		return fmt.Errorf("ClusterIP service type not supported for x-site service %s/%s in remote cluster", remoteNamespace, remoteServiceName)
 	}
 
 	host, port, err := getCrossSiteServiceHostPort(siteService, ctx, remoteKubernetes, "XSiteRemoteServiceUnsupported")
 	if err != nil {
-		logger.Error(err, "error retrieving remote x-site service information")
-		return err
+		return fmt.Errorf("error retrieving remote x-site service information: %w", err)
 	}
 	if host == "" {
-		err = fmt.Errorf("remote x-site service host not yet available")
-		logger.Error(err, "could not get x-site service in remote cluster", "site service name", remoteServiceName, "site namespace", remoteNamespace)
-		return err
+		return fmt.Errorf("remote x-site service %s/%s host not yet available", remoteNamespace, remoteServiceName)
 	}
 
-	logger.Info("remote site service", "host", host, "port", port)
+	logger.V(1).Info("Remote site service found", "host", host, "port", port)
 	appendBackupSite(remoteLocationName, host, port, xSite, false)
 
 	return nil
@@ -290,11 +279,11 @@ func TransportTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		Type:     consts.GetWithDefault(string(keyStoreSecret.Data["type"]), "pkcs12"),
 	}
 
-	log.Info("Transport TLS Configured.", "Keystore", keyStoreFileName, "Secret Name", keyStoreSecret.Name)
+	log.V(1).Info("Transport TLS configured", "keystore", keyStoreFileName, "secret", keyStoreSecret.Name)
 
 	// do not attempt to load the trust store secret if not configured
 	if i.GetSiteTrustoreSecretName() == "" {
-		log.Info("Truststore not configured.")
+		log.V(1).Info("Truststore not configured")
 		return
 	}
 
@@ -313,7 +302,7 @@ func TransportTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		ctx.Stop(err)
 		return
 	}
-	log.Info("Found Truststore.", "Truststore", trustStoreFileName, "Secret Name", trustStoreSecret.Name)
+	log.V(1).Info("Truststore found", "truststore", trustStoreFileName, "secret", trustStoreSecret.Name)
 	configFiles.Transport.Truststore = &pipeline.Truststore{
 		File:     trustStoreSecret.Data[trustStoreFileName],
 		Path:     fmt.Sprintf("%s/%s", consts.SiteTrustStoreRoot, trustStoreFileName),
@@ -337,8 +326,8 @@ func GossipRouterTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
-	log := ctx.Log().WithName("GossipRouter")
-	log.Info("TLS Configured.", "Keystore", filename, "Secret Name", keyStoreSecret.Name)
+	log := ctx.Log().WithName("gossipRouter")
+	log.V(1).Info("TLS configured", "keystore", filename, "secret", keyStoreSecret.Name)
 
 	configFiles := ctx.ConfigFiles()
 	gossipRouter := &configFiles.XSite.GossipRouter
@@ -354,7 +343,7 @@ func GossipRouterTLS(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		// between the two to allow this to change in the future without having to update the provisioning handlers
 		gossipRouter.Truststore = configFiles.Transport.Truststore
 	} else {
-		log.Info("No TrustStore secret found")
+		log.V(1).Info("No truststore secret found")
 	}
 }
 

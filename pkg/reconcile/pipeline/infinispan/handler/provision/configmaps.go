@@ -22,7 +22,9 @@ func InfinispanConfigMap(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		configmap.Labels = i.Labels("infinispan-configmap-configuration")
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(configmap, true, mutateFn, pipeline.RetryOnErr)
+	if _, err := ctx.Resources().CreateOrUpdate(configmap, true, mutateFn, pipeline.RetryOnErr); err == nil {
+		ctx.Log().V(1).Info("Created ConfigMap", "configMap", configmap.Name)
+	}
 }
 
 func PopulateServerConfigMap(baseConfig, adminConfig, zeroConfig, log4jConfig string, cm *corev1.ConfigMap) {

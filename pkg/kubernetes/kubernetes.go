@@ -197,14 +197,12 @@ func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace str
 
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
-		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
-		return nil, err
+		return nil, fmt.Errorf("unable to create REST configuration for %s: %w", masterURL, err)
 	}
 
 	secret, err := k.GetSecret(secretName, namespace, ctx)
 	if err != nil {
-		logger.Error(err, "unable to find Secret", "secret name", secretName)
-		return nil, err
+		return nil, fmt.Errorf("unable to find secret %s: %w", secretName, err)
 	}
 
 	for _, secretKey := range []string{"certificate-authority", "client-certificate", "client-key"} {
@@ -223,8 +221,7 @@ func (k Kubernetes) GetKubernetesRESTConfig(masterURL, secretName, namespace str
 func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace string, logger logr.Logger, ctx context.Context) (*rest.Config, error) {
 	config, err := clientcmd.BuildConfigFromFlags(masterURL, "")
 	if err != nil {
-		logger.Error(err, "unable to create REST configuration", "master URL", masterURL)
-		return nil, err
+		return nil, fmt.Errorf("unable to create REST configuration for %s: %w", masterURL, err)
 	}
 
 	// Skip-tls for accessing other OpenShift clusters
@@ -232,8 +229,7 @@ func (k Kubernetes) GetOpenShiftRESTConfig(masterURL, secretName, namespace stri
 
 	secret, err := k.GetSecret(secretName, namespace, ctx)
 	if err != nil {
-		logger.Error(err, "unable to find Secret", "secret name", secretName)
-		return nil, err
+		return nil, fmt.Errorf("unable to find secret %s: %w", secretName, err)
 	}
 
 	if token, ok := secret.Data["token"]; ok {
@@ -281,7 +277,7 @@ func (k Kubernetes) GetNodeHost(logger logr.Logger, ctx context.Context) (string
 			if nodeCondition.Type == corev1.NodeReady && nodeCondition.Status == corev1.ConditionTrue && len(nodeStatus.Addresses) > 0 {
 				for _, addressType := range []corev1.NodeAddressType{corev1.NodeExternalIP, corev1.NodeInternalIP} {
 					if host := getNodeAddress(node, addressType); host != "" {
-						logger.Info("Found ready worker node.", "Host", host)
+						logger.Info("Found ready worker node", "host", host)
 						return host, nil
 					}
 				}

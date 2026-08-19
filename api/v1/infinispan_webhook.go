@@ -20,12 +20,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var (
-	log              = ctrl.Log.WithName("webhook").WithName("Infinispan")
 	eventRec         record.EventRecorder
 	ServingCertsMode string
 	versionManager   *version.Manager
@@ -190,16 +190,16 @@ type InfinispanCustomValidator struct{}
 var _ webhook.CustomValidator = &InfinispanCustomValidator{}
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type
-func (v *InfinispanCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *InfinispanCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	i, ok := obj.(*Infinispan)
 	if !ok {
 		return nil, fmt.Errorf("expected an Infinispan object but got %T", obj)
 	}
-	return i.validate()
+	return i.validate(ctx)
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type
-func (v *InfinispanCustomValidator) ValidateUpdate(_ context.Context, oldRuntimeObj, newRuntimeObj runtime.Object) (admission.Warnings, error) {
+func (v *InfinispanCustomValidator) ValidateUpdate(ctx context.Context, oldRuntimeObj, newRuntimeObj runtime.Object) (admission.Warnings, error) {
 	i, ok := newRuntimeObj.(*Infinispan)
 	if !ok {
 		return nil, fmt.Errorf("expected an Infinispan object but got %T", newRuntimeObj)
@@ -209,7 +209,7 @@ func (v *InfinispanCustomValidator) ValidateUpdate(_ context.Context, oldRuntime
 		return nil, fmt.Errorf("expected an Infinispan object but got %T", oldRuntimeObj)
 	}
 
-	if w, err := i.validate(); err != nil {
+	if w, err := i.validate(ctx); err != nil {
 		return w, err
 	}
 
@@ -289,7 +289,8 @@ func (v *InfinispanCustomValidator) ValidateDelete(_ context.Context, _ runtime.
 	return nil, nil
 }
 
-func (i *Infinispan) validate() (admission.Warnings, error) {
+func (i *Infinispan) validate(ctx context.Context) (admission.Warnings, error) {
+	logger := log.FromContext(ctx)
 	var allErrs field.ErrorList
 
 	operand, err := versionManager.WithRef(i.Spec.Version)
@@ -322,7 +323,7 @@ func (i *Infinispan) validate() (admission.Warnings, error) {
 		} else if size.Cmp(memLimit) < 0 {
 			errMsg := "Persistent volume size is less than memory size. Graceful shutdown may not work."
 			eventRec.Event(i, corev1.EventTypeWarning, "LowPersistenceStorage", errMsg)
-			log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+			logger.Info(errMsg)
 		}
 	}
 
@@ -434,7 +435,7 @@ func (i *Infinispan) validate() (admission.Warnings, error) {
 	if i.IsEphemeralStorage() {
 		errMsg := "Ephemeral storage configured. All data will be lost on cluster shutdown and restart."
 		eventRec.Event(i, corev1.EventTypeWarning, "EphemeralStorageEnables", "Ephemeral storage configured. All data will be lost on cluster shutdown and restart.")
-		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+		logger.Info(errMsg)
 	}
 
 	// validate Gossip Router resources requests
@@ -499,7 +500,7 @@ func (i *Infinispan) validate() (admission.Warnings, error) {
 		if i.IsSiteTLSEnabled() && i.Spec.Service.Sites.Local.Encryption.TrustStore == nil {
 			errMsg := "The Trust Store for Cross-Site Encryption is recommended but it is not configured. It will fallback to the JVM default Trust Store."
 			eventRec.Event(i, corev1.EventTypeWarning, "CrossSiteTrustStoreMissing", errMsg)
-			log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+			logger.Info(errMsg)
 		}
 
 		if !i.IsSiteTLSEnabled() && i.Spec.Service.Sites.Local.Expose.Type == CrossSiteExposeTypeRoute {
@@ -510,7 +511,7 @@ func (i *Infinispan) validate() (admission.Warnings, error) {
 	if i.Spec.CloudEvents != nil && operand.UpstreamVersion.GTE(semver.Version{Major: 15}) {
 		errMsg := "CloudEvents have been removed since Infinispan 15.0.0, ignoring configuration."
 		eventRec.Event(i, corev1.EventTypeWarning, "CloudEventsRemoved", errMsg)
-		log.Info(errMsg, "Request.Namespace", i.Namespace, "Request.Name", i.Name)
+		logger.Info(errMsg)
 	}
 
 	validateProbes := func(c *ContainerProbeSpec, path *field.Path, readinessProbe bool) {

@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // +kubebuilder:rbac:groups=infinispan.org,namespace=infinispan-operator-system,resources=restores;restores/status;restores/finalizers,verbs=get;list;watch;create;update;patch
@@ -143,6 +144,7 @@ func (r *restore) Exec(client api.Infinispan) error {
 	}
 
 	if status == api.StatusNotFound {
+		log.FromContext(r.ctx).Info("Initiating restore", "restore", instance.Name)
 		return client.Container().Restores().Create(instance.Name, config)
 	}
 	return nil
