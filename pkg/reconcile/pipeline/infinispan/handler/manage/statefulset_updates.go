@@ -57,7 +57,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if memRequests.Cmp(previousMemRequests) != 0 || memLimits.Cmp(previousMemLimits) != 0 {
 			res.Requests["memory"] = memRequests
 			res.Limits["memory"] = memLimits
-			log.Info("memory changed, update i", "memLim", memLimits, "cpuReq", memRequests, "previous cpuLim", previousMemLimits, "previous cpuReq", previousMemRequests)
+			log.Info("Memory resources changed", "memoryLimit", memLimits, "memoryRequest", memRequests, "previousMemoryLimit", previousMemLimits, "previousMemoryRequest", previousMemRequests)
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateReasons = append(updateReasons, "memory changed")
 		}
@@ -69,7 +69,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if cpuReq.Cmp(previousCPUReq) != 0 || cpuLim.Cmp(previousCPULim) != 0 {
 			res.Requests["cpu"] = cpuReq
 			res.Limits["cpu"] = cpuLim
-			log.Info("cpu changed, update i", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
+			log.Info("CPU resources changed", "cpuLimit", cpuLim, "cpuRequest", cpuReq, "previousCpuLimit", previousCPULim, "previousCpuRequest", previousCPUReq)
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
 			updateReasons = append(updateReasons, "cpu changed")
 		}
@@ -250,9 +250,8 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			labelsForPod[consts.StatefulSetPodLabel] = i.GetStatefulSetName()
 			statefulSet.Spec.Template.Labels = labelsForPod
 		}
-		err := ctx.Resources().Update(statefulSet, pipeline.RetryOnErr)
-		if err != nil {
-			log.Error(err, "failed to update StatefulSet", "StatefulSet.Name", statefulSet.Name)
+		if err := ctx.Resources().Update(statefulSet, pipeline.RetryOnErr); err != nil {
+			return
 		}
 	}
 }

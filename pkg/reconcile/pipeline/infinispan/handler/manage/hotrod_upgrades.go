@@ -32,7 +32,7 @@ type HotRodRollingUpgradeRequest struct {
 var nameRegexp = regexp.MustCompile(`(.*)-([\d]+$)`)
 
 func hotRodRollingUpgradeLog(log logr.Logger) logr.Logger {
-	return log.WithName("HotRodRollingUpgrade")
+	return log.WithName("hotRodRollingUpgrade")
 }
 
 func subMapOf(f, s map[string]string) bool {
@@ -52,7 +52,7 @@ func ScheduleHotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	requestedOperand := ctx.Operand()
-	log.Info(fmt.Sprintf("Scheduling an Upgrade to Operand %s", requestedOperand.Ref()))
+	log.Info("Scheduling upgrade to new operand", "version", requestedOperand.Ref())
 
 	err := ctx.UpdateInfinispan(func() {
 		i.Status.HotRodRollingUpgradeStatus = &ispnv1.HotRodRollingUpgradeStatus{
@@ -66,7 +66,7 @@ func ScheduleHotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if err != nil {
 		log.Error(err, "unable to create initial Hot Rod status")
 	}
-	ctx.Requeue(nil)
+	ctx.Requeue(err)
 }
 
 // HotRodRollingUpgrade handles all stages of a Hot Rod Rolling upgrade. Throughout the execution we use RequeueEventually
@@ -81,7 +81,7 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	podList, err := ctx.InfinispanPods()
 	if err != nil || len(podList.Items) == 0 {
-		log.Info("No pods found")
+		log.V(1).Info("No pods found")
 		return
 	}
 
@@ -109,14 +109,14 @@ func HotRodRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if !subMapOf(ctx.DefaultLabels(), i.ObjectMeta.Labels) || !subMapOf(ctx.DefaultAnnotations(), i.Annotations) {
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
-				ctx.Log().Info("Updating Labels", "Labels: ", ctx.DefaultLabels())
+				ctx.Log().Info("Updating Labels", "labels", ctx.DefaultLabels())
 				i.ApplyOperatorMeta(ctx.DefaultLabels(), ctx.DefaultAnnotations())
 			}))
 		return
 	}
 
 	if err := req.handleMigration(); err != nil {
-		ctx.Log().Error(err, fmt.Sprintf("%s failed, retrying", upgradeStatus.Stage))
+		ctx.Log().Error(err, "Upgrade stage failed, retrying", "stage", string(upgradeStatus.Stage))
 		ctx.RequeueEventually(0)
 	}
 }
@@ -125,22 +125,22 @@ func (r *HotRodRollingUpgradeRequest) handleMigration() error {
 	status := r.i.Status.HotRodRollingUpgradeStatus
 	switch status.Stage {
 	case ispnv1.HotRodRollingStageStart:
-		r.log.Info(string(ispnv1.HotRodRollingStageStart))
+		r.log.V(2).Info("Hot Rod rolling upgrade stage", "stage", string(ispnv1.HotRodRollingStageStart))
 		return r.createNewStatefulSet()
 	case ispnv1.HotRodRollingStagePrepare:
-		r.log.Info(string(ispnv1.HotRodRollingStagePrepare))
+		r.log.V(2).Info("Hot Rod rolling upgrade stage", "stage", string(ispnv1.HotRodRollingStagePrepare))
 		return r.prepare()
 	case ispnv1.HotRodRollingStageRedirect:
-		r.log.Info(string(ispnv1.HotRodRollingStageRedirect))
+		r.log.V(2).Info("Hot Rod rolling upgrade stage", "stage", string(ispnv1.HotRodRollingStageRedirect))
 		return r.redirectService()
 	case ispnv1.HotRodRollingStageSync:
-		r.log.Info(string(ispnv1.HotRodRollingStageSync))
+		r.log.V(2).Info("Hot Rod rolling upgrade stage", "stage", string(ispnv1.HotRodRollingStageSync))
 		return r.syncData()
 	case ispnv1.HotRodRollingStageStatefulSetReplace:
-		r.log.Info(string(ispnv1.HotRodRollingStageStatefulSetReplace))
+		r.log.V(2).Info("Hot Rod rolling upgrade stage", "stage", string(ispnv1.HotRodRollingStageStatefulSetReplace))
 		return r.replaceStatefulSet()
 	case ispnv1.HotRodRollingStageCleanup:
-		r.log.Info(string(ispnv1.HotRodRollingStageCleanup))
+		r.log.V(2).Info("Hot Rod rolling upgrade stage", "stage", string(ispnv1.HotRodRollingStageCleanup))
 		return r.cleanup()
 	default:
 		return nil
@@ -197,6 +197,7 @@ func (r *HotRodRollingUpgradeRequest) changeSelector(serviceName string, selecto
 	if err != nil {
 		return fmt.Errorf("failed to update service: %w", err)
 	}
+	r.ctx.Log().V(1).Info("Patched service selector for upgrade")
 	return nil
 }
 
@@ -302,6 +303,7 @@ func (r *HotRodRollingUpgradeRequest) reconcileNewPingService() error {
 	if err := resources.Create(newPingService, true); err != nil {
 		return fmt.Errorf("error creating new ping service '%s' : %w", newPingServiceName, err)
 	}
+	r.ctx.Log().V(1).Info("Created target cluster resources")
 	return nil
 }
 
@@ -380,6 +382,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 		if err = ctx.Resources().Create(targetStatefulSet, true); err != nil {
 			return fmt.Errorf("failed to create new statefulSet '%s': %w", targetStatefulSetName, err)
 		}
+		r.ctx.Log().Info("Created target StatefulSet for rolling upgrade")
 		r.ctx.RequeueEventually(constants.DefaultWaitOnCluster)
 		return nil
 	}
@@ -391,7 +394,7 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 
 	for _, pod := range podList.Items {
 		if !kube.IsPodReady(pod) {
-			log.Info(fmt.Sprintf("Pod '%s' not ready", pod.Name))
+			log.Info("Pod not ready", "pod", pod.Name)
 			r.ctx.RequeueEventually(constants.DefaultWaitOnCluster)
 			return nil
 		}
@@ -399,9 +402,9 @@ func (r *HotRodRollingUpgradeRequest) createNewStatefulSet() error {
 
 	// Check if cluster is well-formed
 	wellFormed := wellFormedCondition(r.i, r.ctx, podList)
-	log.Info(fmt.Sprintf("Cluster WellFormed: %v", wellFormed))
+	log.Info("Cluster well-formed check", "wellFormed", wellFormed.Status)
 	if wellFormed.Status != metav1.ConditionTrue {
-		log.Info(fmt.Sprintf("Cluster from Statefulset '%s' not well formed", targetStatefulSet.Name))
+		log.Info("Cluster from StatefulSet not well formed", "statefulSet", targetStatefulSet.Name)
 		ctx.RequeueEventually(constants.DefaultWaitClusterNotWellFormed)
 		return nil
 	}
@@ -513,6 +516,7 @@ func (r *HotRodRollingUpgradeRequest) replaceStatefulSet() error {
 // cleanup Dispose a statefulSet from an Infinispan CRD and its dependencies
 func (r *HotRodRollingUpgradeRequest) cleanup() error {
 	ctx := r.ctx
+	r.ctx.Log().Info("Cleaning up rolling upgrade resources")
 	// Wait for cluster with new statefulSet stability
 	if !r.i.IsWellFormed() {
 		ctx.RequeueEventually(constants.DefaultWaitOnCreateResource)

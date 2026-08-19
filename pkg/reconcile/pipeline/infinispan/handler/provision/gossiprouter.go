@@ -16,10 +16,11 @@ import (
 
 func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	r := ctx.Resources()
-	log := ctx.Log().WithName("GossipRouter")
+	log := ctx.Log().WithName("gossipRouter")
 
 	if !i.HasSites() {
 		_ = ctx.Resources().Delete(i.GetGossipRouterDeploymentName(), &appsv1.Deployment{}, pipeline.RetryOnErr)
+		ctx.Log().V(1).Info("Ensured no GossipRouter deployment")
 		return
 	}
 
@@ -28,6 +29,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if err := r.Delete(oldRouterDeployment, &appsv1.Deployment{}, pipeline.RetryOnErr); err != nil {
 		return
 	}
+	ctx.Log().V(1).Info("Ensured no legacy GossipRouter deployment", "deployment", oldRouterDeployment)
 
 	if !i.IsGossipRouterEnabled() {
 		if i.Spec.Replicas == 0 {
@@ -187,16 +189,14 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	result, err := r.CreateOrUpdate(router, true, mutateFn, pipeline.RetryOnErr)
 	if err != nil {
-		log.Error(err, "Failed to configure Cross-Site Deployment")
 		return
 	}
 	if result != pipeline.OperationResultNone {
-		log.Info(fmt.Sprintf("Cross-site deployment '%s' %s", router.Name, string(result)))
+		log.Info("Cross-site deployment reconciled", "deployment", router.Name, "result", string(result))
 	}
 
 	pods := &corev1.PodList{}
 	if err := r.List(i.GossipRouterPodSelectorLabels(), pods, pipeline.RetryOnErr); err != nil {
-		log.Error(err, "Failed to fetch Gossip Router pod")
 		return
 	}
 
