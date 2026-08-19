@@ -58,13 +58,13 @@ func OperatorStatusChecks(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if ctx.Operand().Deprecated {
 			msg := fmt.Sprintf("Infinispan version '%s' will be removed in a subsequent Operator release. You must upgrade to a non-deprecated release before upgrading the Operator.", i.Spec.Version)
 			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "DeprecatedOperandVersion", msg)
-			ctx.Log().Error(nil, msg)
+			ctx.Log().Info(msg)
 		}
 
 		if i.Spec.Autoscale != nil {
 			errMsg := "Autoscale is no longer supported. Please remove spec.autoscale field."
 			ctx.EventRecorder().Event(i, corev1.EventTypeWarning, "AutoscaleNotSupported", errMsg)
-			ctx.Log().Error(fmt.Errorf("AutoscaleNotSupported"), errMsg)
+			ctx.Log().Info(errMsg, "reason", "autoscaleNotSupported")
 		}
 		ctx.Requeue(
 			ctx.UpdateInfinispan(func() {
@@ -91,7 +91,7 @@ func PodStatus(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			starting = append(starting, pod.GetName())
 		}
 	}
-	ctx.Log().Info("Found deployments with status ", "starting", starting, "ready", ready)
+	ctx.Log().V(1).Info("Pod status", "starting", starting, "ready", ready)
 	_ = ctx.UpdateInfinispan(func() {
 		i.Status.PodStatus = ispnv1.DeploymentStatus{
 			Starting: starting,
@@ -112,6 +112,7 @@ func AwaitWellFormedCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
+	previouslyWellFormed := i.IsConditionTrue(ispnv1.ConditionWellFormed)
 	wellFormed := wellFormedCondition(i, ctx, podList)
 	if err := ctx.UpdateInfinispan(func() {
 		i.SetConditions(wellFormed)
@@ -122,9 +123,12 @@ func AwaitWellFormedCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
+	if wellFormed.Status == metav1.ConditionTrue && !previouslyWellFormed {
+		ctx.Log().Info("Infinispan cluster is well-formed", "replicas", len(podList.Items))
+	}
+
 	if i.NotClusterFormed(len(podList.Items), int(i.Spec.Replicas)) {
-		ctx.Log().Info("Cluster not well-formed, retrying ...")
-		ctx.Log().Info(fmt.Sprintf("podList.Items=%d, i.Spec.Replicas=%d", len(podList.Items), int(i.Spec.Replicas)))
+		ctx.Log().V(1).Info("Cluster not well-formed, retrying", "pods", len(podList.Items), "replicas", int(i.Spec.Replicas))
 		ctx.RequeueAfter(consts.DefaultWaitClusterNotWellFormed, nil)
 	}
 }
@@ -196,11 +200,13 @@ func XSiteViewCondition(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		k8s := ctx.Kubernetes()
 		logs, err := k8s.Logs(provision.InfinispanContainer, podName, i.Namespace, false, ctx.Ctx())
 		if err != nil {
-			ctx.Log().Error(err, fmt.Sprintf("Unable to retrive logs for i pod %s", podName))
+			ctx.Log().Error(err, "Unable to retrieve logs for pod", "pod", podName)
 		}
 		if strings.Contains(logs, "ISPN000643") {
 			if err := ctx.InfinispanClientForPod(podName).Container().Xsite().PushAllState(); err != nil {
 				ctx.Log().Error(err, "Unable to push xsite state after SFS data recovery")
+			} else {
+				ctx.Log().Info("Pushed xsite state after recovery")
 			}
 		}
 	}
