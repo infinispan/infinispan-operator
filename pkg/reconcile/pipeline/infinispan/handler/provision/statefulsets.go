@@ -67,6 +67,7 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if err := ctx.Resources().Create(statefulSet, true, pipeline.RetryOnErr); err != nil {
 		return
 	}
+	ctx.Log().Info("Created StatefulSet", "statefulSet", statefulSet.Name)
 
 	selector, err := metav1.LabelSelectorAsSelector(statefulSet.Spec.Selector)
 
@@ -79,6 +80,7 @@ func ClusterStatefulSet(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		i.Status.StatefulSetName = statefulSet.Name
 		i.Status.Selector = selector.String()
 	})
+	ctx.Log().V(1).Info("Set initial replica status", "replicas", i.Spec.Replicas)
 }
 
 func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pipeline.Context) (*appsv1.StatefulSet, error) {

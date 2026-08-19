@@ -36,7 +36,9 @@ func PingService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		servicePort.Port = consts.InfinispanPingPort
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr)
+	if _, err := ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr); err == nil {
+		ctx.Log().V(1).Info("Created service", "service", svc.Name)
+	}
 }
 
 func ClusterService(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -69,7 +71,9 @@ func ClusterService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr)
+	if _, err := ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr); err == nil {
+		ctx.Log().V(1).Info("Created service", "service", svc.Name)
+	}
 }
 
 func AdminService(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -103,7 +107,9 @@ func AdminService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr)
+	if _, err := ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr); err == nil {
+		ctx.Log().V(1).Info("Created service", "service", svc.Name)
+	}
 }
 
 func ExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -128,6 +134,7 @@ func ExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					if err := ctx.Resources().Delete(svc.Name, &svc, pipeline.RetryOnErr); err != nil {
 						return
 					}
+					ctx.Log().Info("Deleted resource on expose type change", "resource", svc.Name)
 				}
 			case pipeline.RouteGVK:
 				routeList := &routev1.RouteList{}
@@ -138,6 +145,7 @@ func ExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					if err := ctx.Resources().Delete(route.Name, &route, pipeline.RetryOnErr); err != nil {
 						return
 					}
+					ctx.Log().Info("Deleted resource on expose type change", "resource", route.Name)
 				}
 			case pipeline.IngressGVK:
 				ingressList := &ingressv1.IngressList{}
@@ -148,6 +156,7 @@ func ExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					if err := ctx.Resources().Delete(ingress.Name, &ingress, pipeline.RetryOnErr); err != nil {
 						return
 					}
+					ctx.Log().Info("Deleted resource on expose type change", "resource", route.Name)
 				}
 			}
 		}
@@ -215,7 +224,15 @@ func defineExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr)
+	result, err := ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr)
+	if err == nil {
+		switch result {
+		case pipeline.OperationResultCreated:
+			ctx.Log().Info("Created external endpoint", "service", svc.Name)
+		case pipeline.OperationResultUpdated:
+			ctx.Log().V(1).Info("Updated external endpoint", "service", svc.Name)
+		}
+	}
 }
 
 func defineExternalRoute(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -237,7 +254,15 @@ func defineExternalRoute(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(route, true, mutateFn, pipeline.RetryOnErr)
+	result, err := ctx.Resources().CreateOrUpdate(route, true, mutateFn, pipeline.RetryOnErr)
+	if err == nil {
+		switch result {
+		case pipeline.OperationResultCreated:
+			ctx.Log().Info("Created external endpoint", "route", route.Name)
+		case pipeline.OperationResultUpdated:
+			ctx.Log().V(1).Info("Updated external endpoint", "route", route.Name)
+		}
+	}
 }
 
 func defineExternalIngress(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -286,19 +311,29 @@ func defineExternalIngress(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(ingress, true, mutateFn, pipeline.RetryOnErr)
+	result, err := ctx.Resources().CreateOrUpdate(ingress, true, mutateFn, pipeline.RetryOnErr)
+	if err == nil {
+		switch result {
+		case pipeline.OperationResultCreated:
+			ctx.Log().Info("Created external endpoint", "ingress", ingress.Name)
+		case pipeline.OperationResultUpdated:
+			ctx.Log().V(1).Info("Updated external endpoint", "ingress", ingress.Name)
+		}
+	}
 }
 
 func XSiteService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if !i.HasSites() || !i.IsGossipRouterEnabled() {
 		_ = ctx.Resources().Delete(i.GetSiteServiceName(), &corev1.Service{}, pipeline.RetryOnErr, pipeline.IgnoreNotFound)
+		ctx.Log().V(1).Info("Ensured no xsite endpoint", "service", i.GetSiteServiceName())
 		ok, err := ctx.Kubernetes().IsGroupVersionKindSupported(pipeline.RouteGVK)
 		if err != nil {
-			ctx.Log().Error(err, fmt.Sprintf("failed to check if GVK '%s' is supported", pipeline.RouteGVK))
+			ctx.Log().Error(err, "failed to check if GVK is supported", "gvk", pipeline.RouteGVK)
 			return
 		}
 		if ok {
 			_ = ctx.Resources().Delete(i.GetSiteRouteName(), &routev1.Route{}, pipeline.RetryOnErr, pipeline.IgnoreNotFound)
+			ctx.Log().V(1).Info("Ensured no xsite endpoint", "route", i.GetSiteRouteName())
 		}
 		return
 	}
@@ -351,8 +386,15 @@ func XSiteService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return nil
 	}
 
-	if _, err := ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr); err != nil {
+	result, err := ctx.Resources().CreateOrUpdate(svc, true, mutateFn, pipeline.RetryOnErr)
+	if err != nil {
 		return
+	}
+	switch result {
+	case pipeline.OperationResultCreated:
+		ctx.Log().Info("Created xsite endpoint", "service", svc.Name)
+	case pipeline.OperationResultUpdated:
+		ctx.Log().V(1).Info("Updated xsite endpoint", "service", svc.Name)
 	}
 
 	if exposeType == ispnv1.CrossSiteExposeTypeRoute {
@@ -374,7 +416,15 @@ func XSiteService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			}
 			return nil
 		}
-		_, _ = ctx.Resources().CreateOrUpdate(route, true, mutateFn, pipeline.RetryOnErr)
+		routeResult, routeErr := ctx.Resources().CreateOrUpdate(route, true, mutateFn, pipeline.RetryOnErr)
+		if routeErr == nil {
+			switch routeResult {
+			case pipeline.OperationResultCreated:
+				ctx.Log().Info("Created xsite endpoint", "route", route.Name)
+			case pipeline.OperationResultUpdated:
+				ctx.Log().V(1).Info("Updated xsite endpoint", "route", route.Name)
+			}
+		}
 	}
 }
 

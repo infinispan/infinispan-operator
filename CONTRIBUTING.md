@@ -101,6 +101,56 @@ If you use generative AI to assist with your contribution, all the following are
 * You disclose AI agents usage. Include a note in the PR description indicating the usage of AI agents for generating complete solutions from a prompt (i.e. you do not need to mention a simple AI autocomplete). This helps reviewers calibrate their review.
 * You ensure licensing compliance. All generated code must be released under the Apache License, Version 2.0, the same license as the Infinispan Operator. You are responsible for verifying that the tools you use do not introduce additional licensing restrictions.
 
+## Logging Conventions
+
+The operator uses `logr.Logger` from controller-runtime. Follow these conventions for consistent, useful logs.
+
+### Logger source
+
+In `Reconcile` methods and anything called from them, always use `log.FromContext(ctx)`:
+
+```go
+import "sigs.k8s.io/controller-runtime/pkg/log"
+
+func (r *FooReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+    logger := log.FromContext(ctx)
+}
+```
+
+The context logger already includes `namespace`, `name`, `controller`, and `reconcileID` — never add these manually. Pipeline handlers use `ctx.Log()`.
+
+Use `r.setupLog` only in `SetupWithManager` (setup-time logging).
+
+### Log levels
+
+| Level | Use for | Example |
+|-------|---------|---------|
+| `Error(err, msg)` | Real errors requiring attention, always with a non-nil `error` | `logger.Error(err, "Failed to create StatefulSet")` |
+| `Info` / `V(0)` | Production-visible state changes, config changes, create/delete of resources | `logger.Info("Created StatefulSet", "statefulSet", name)` |
+| `V(1)` | Development diagnostics: lifecycle, lookups, no-op paths, waiting messages | `logger.V(1).Info("Waiting for cluster to form")` |
+| `V(2)` | Deep debugging: raw configs, per-pod iteration details | `logger.V(2).Info("Remote store configuration", "config", cfg)` |
+
+### Field keys
+
+All keys must be **lowercase camelCase**: `"pod"`, `"statefulSet"`, `"memoryLimit"`. Never dotted (`"Pod.Name"`), spaced (`"Secret Name"`), or capitalized (`"Namespace"`).
+
+### Message format
+
+- No `fmt.Sprintf` — use structured key-value pairs instead
+- No decorative delimiters (`"+++++"`, `"-----"`)
+- Messages describe what happened, not Go expressions
+- Lowercase, no trailing periods or exclamation marks
+
+### Either log or return an error, never both
+
+If an error is returned (or requeued), controller-runtime logs it. Adding `log.Error` before returning causes double-logging. Pick one:
+- **Return the error** (preferred) — wrap with `fmt.Errorf` for context
+- **Log and handle** — log the error, then recover or return nil
+
+### WithName
+
+Use lowercase camelCase: `WithName("gossipRouter")`, not `WithName("GossipRouter")`.
+
 ## Submit
 
 * Push your changes to a topic branch in your fork of the repository.
