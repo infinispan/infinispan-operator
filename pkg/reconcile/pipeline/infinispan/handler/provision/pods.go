@@ -285,7 +285,7 @@ func AddSecretVolume(secretName, volumeName, mountPath string, spec *corev1.PodS
 		*volumeMounts = append(*volumeMounts, volumeMount)
 		updated = true
 	} else {
-		updated = reflect.DeepEqual((*volumeMounts)[index], volumeMount) || updated
+		updated = !reflect.DeepEqual((*volumeMounts)[index], volumeMount) || updated
 		(*volumeMounts)[index] = volumeMount
 	}
 	return

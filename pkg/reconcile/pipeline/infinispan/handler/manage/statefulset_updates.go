@@ -3,6 +3,7 @@ package manage
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
@@ -34,14 +35,14 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
-	updateNeeded := false
 	rollingUpgrade := true
+	var updateReasons []string
 
 	// Changes to podLabels
 	currentLabels := provision.StatefulSetPodLabels(i.GetStatefulSetName(), i)
 	previousLabels := statefulSet.Spec.Template.Labels
 	if !reflect.DeepEqual(currentLabels, previousLabels) {
-		updateNeeded = true
+		updateReasons = append(updateReasons, "labels changed")
 	}
 
 	// Changes to statefulset.spec.template.spec.containers[].resources
@@ -58,7 +59,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			res.Limits["memory"] = memLimits
 			log.Info("memory changed, update i", "memLim", memLimits, "cpuReq", memRequests, "previous cpuLim", previousMemLimits, "previous cpuReq", previousMemRequests)
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
-			updateNeeded = true
+			updateReasons = append(updateReasons, "memory changed")
 		}
 	}
 	if ispnContr.CPU != "" {
@@ -70,7 +71,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			res.Limits["cpu"] = cpuLim
 			log.Info("cpu changed, update i", "cpuLim", cpuLim, "cpuReq", cpuReq, "previous cpuLim", previousCPULim, "previous cpuReq", previousCPUReq)
 			statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
-			updateNeeded = true
+			updateReasons = append(updateReasons, "cpu changed")
 		}
 	}
 
@@ -83,9 +84,11 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		*current = *new
 		return true
 	}
-	updateNeeded = probedChanged(container.LivenessProbe, provision.PodLivenessProbe(i, requestedOperand)) || updateNeeded
-	updateNeeded = probedChanged(container.ReadinessProbe, provision.PodReadinessProbe(i, requestedOperand)) || updateNeeded
-	updateNeeded = probedChanged(container.StartupProbe, provision.PodStartupProbe(i, requestedOperand)) || updateNeeded
+	if probedChanged(container.LivenessProbe, provision.PodLivenessProbe(i, requestedOperand)) ||
+		probedChanged(container.ReadinessProbe, provision.PodReadinessProbe(i, requestedOperand)) ||
+		probedChanged(container.StartupProbe, provision.PodStartupProbe(i, requestedOperand)) {
+		updateReasons = append(updateReasons, "probes changed")
+	}
 
 	// Check if the base-image has been upgraded due to a CVE
 	userProvidedImage := i.Spec.Image != nil
@@ -96,7 +99,7 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	if cveRespin || inPlaceRolling {
 		ctx.Log().Info("New server version requested", "version", requestedOperand.Ref(), "cve", cveRespin)
-		updateNeeded = true
+		updateReasons = append(updateReasons, "image changed")
 		container.Image = requestedOperand.Image
 
 		err := ctx.UpdateInfinispan(func() {
@@ -107,29 +110,34 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
-	if spec.TerminationGracePeriodSeconds != i.TerminationGracePeriodSeconds() {
-		spec.TerminationGracePeriodSeconds = i.TerminationGracePeriodSeconds()
-		updateNeeded = true
+	requestedGracePeriod := i.TerminationGracePeriodSeconds()
+	if requestedGracePeriod == nil {
+		defaultGracePeriod := int64(corev1.DefaultTerminationGracePeriodSeconds)
+		requestedGracePeriod = &defaultGracePeriod
+	}
+	if !reflect.DeepEqual(spec.TerminationGracePeriodSeconds, requestedGracePeriod) {
+		spec.TerminationGracePeriodSeconds = requestedGracePeriod
+		updateReasons = append(updateReasons, "terminationGracePeriod changed")
 	}
 
 	if !reflect.DeepEqual(spec.Affinity, i.Affinity()) {
 		spec.Affinity = i.Affinity()
-		updateNeeded = true
+		updateReasons = append(updateReasons, "affinity changed")
 	}
 
 	if !reflect.DeepEqual(spec.Tolerations, i.Tolerations()) {
 		spec.Tolerations = i.Tolerations()
-		updateNeeded = true
+		updateReasons = append(updateReasons, "tolerations changed")
 	}
 
 	if !reflect.DeepEqual(spec.TopologySpreadConstraints, i.TopologySpreadConstraints()) {
 		spec.TopologySpreadConstraints = i.TopologySpreadConstraints()
-		updateNeeded = true
+		updateReasons = append(updateReasons, "topologySpreadConstraints changed")
 	}
 
 	if spec.PriorityClassName != i.PriorityClassName() {
 		spec.PriorityClassName = i.PriorityClassName()
-		updateNeeded = true
+		updateReasons = append(updateReasons, "priorityClassName changed")
 	}
 
 	// Note: removing serviceAccountName entirely (setting to "") may not take effect because
@@ -137,43 +145,53 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	// Users can work around this by explicitly setting serviceAccountName to "default".
 	if spec.ServiceAccountName != i.Spec.ServiceAccountName {
 		spec.ServiceAccountName = i.Spec.ServiceAccountName
-		updateNeeded = true
+		updateReasons = append(updateReasons, "serviceAccountName changed")
 	}
 
 	if updateCmdArgs, err := updateStartupArgs(container, configFiles); err != nil {
 		ctx.Requeue(err)
 		return
-	} else {
-		updateNeeded = updateCmdArgs || updateNeeded
+	} else if updateCmdArgs {
+		updateReasons = append(updateReasons, "startup args changed")
 	}
 
 	var hashVal string
 	if configFiles.UserConfig.ServerConfig != "" {
 		hashVal = hash.HashString(configFiles.UserConfig.ServerConfig)
 	}
-	updateNeeded = updateStatefulSetAnnotations(statefulSet, "checksum/overlayConfig", hashVal) || updateNeeded
-	updateNeeded = updateStatefulSetAnnotations(statefulSet, "checksum/credentialStore", hash.HashMap(configFiles.CredentialStoreEntries)) || updateNeeded
+	if updateStatefulSetAnnotations(statefulSet, "checksum/overlayConfig", hashVal) {
+		updateReasons = append(updateReasons, "overlay config changed")
+	}
+	if updateStatefulSetAnnotations(statefulSet, "checksum/credentialStore", hash.HashMap(configFiles.CredentialStoreEntries)) {
+		updateReasons = append(updateReasons, "credential store changed")
+	}
 	podEnvs, podEnvHash := provision.PodEnvsAndHash(i, configFiles)
 	if updateStatefulSetAnnotations(statefulSet, "checksum/podEnvs", podEnvHash) {
-		updateNeeded = true
+		updateReasons = append(updateReasons, "pod envs changed")
 		container.Env = podEnvs
 	}
-	updateNeeded = applyOverlayConfigVolume(container, i.Spec.ConfigMapName, spec) || updateNeeded
+	if applyOverlayConfigVolume(container, i.Spec.ConfigMapName, spec) {
+		updateReasons = append(updateReasons, "config volume changed")
+	}
 
 	externalArtifactsUpd, err := provision.ApplyExternalArtifactsDownload(i, container, spec)
 	if err != nil {
 		ctx.Requeue(err)
 		return
 	}
-	updateNeeded = externalArtifactsUpd || updateNeeded
-	updateNeeded = provision.ApplyExternalDependenciesVolume(i, &container.VolumeMounts, spec) || updateNeeded
+	if externalArtifactsUpd {
+		updateReasons = append(updateReasons, "external artifacts changed")
+	}
+	if provision.ApplyExternalDependenciesVolume(i, &container.VolumeMounts, spec) {
+		updateReasons = append(updateReasons, "external dependencies changed")
+	}
 
 	// Validate identities Secret name changes
 	if secretName, secretIndex := findSecretInVolume(spec, provision.IdentitiesVolumeName); secretIndex >= 0 && secretName != i.GetSecretName() {
 		// Update new Secret name inside StatefulSet.Spec.Template
 		statefulSet.Spec.Template.Spec.Volumes[secretIndex].Secret.SecretName = i.GetSecretName()
 		statefulSet.Spec.Template.Annotations["updateDate"] = time.Now().String()
-		updateNeeded = true
+		updateReasons = append(updateReasons, "identities secret changed")
 	}
 
 	if i.IsAuthenticationEnabled() {
@@ -181,28 +199,38 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			container.Env = append(container.Env,
 				corev1.EnvVar{Name: "IDENTITIES_HASH", Value: hash.HashByte(configFiles.UserIdentities)},
 			)
-			updateNeeded = true
+			updateReasons = append(updateReasons, "auth volume added")
 		} else {
 			// Validate Secret changes (by the hash of the identities.yaml key value)
-			updateNeeded = updateStatefulSetEnv(container, statefulSet, "IDENTITIES_HASH", hash.HashByte(configFiles.UserIdentities)) || updateNeeded
-		}
-	}
-
-	if i.IsEncryptionEnabled() {
-		updateNeeded = provision.AddVolumesForEncryption(i, spec) || updateNeeded
-
-		// Only trigger a StatefulSet rolling upgrade for Keystore and Truststore updates from 15.0.7 onwards as
-		// Infinispan and JGroups automatically reload certificate changes
-		if requestedOperand.UpstreamVersion.LT(consts.MinVersionAutomaticCertificateReloading) {
-			updateNeeded = updateStatefulSetEnv(container, statefulSet, "KEYSTORE_HASH", hash.HashByte(configFiles.Keystore.PemFile)+hash.HashByte(configFiles.Keystore.File)) || updateNeeded
-
-			if i.IsClientCertEnabled() {
-				updateNeeded = updateStatefulSetEnv(container, statefulSet, "TRUSTSTORE_HASH", hash.HashByte(configFiles.Truststore.File)) || updateNeeded
+			if updateStatefulSetEnv(container, statefulSet, "IDENTITIES_HASH", hash.HashByte(configFiles.UserIdentities)) {
+				updateReasons = append(updateReasons, "identities hash changed")
 			}
 		}
 	}
 
-	updateNeeded = provision.AddXSiteTLSVolumes(ctx, i, statefulSet) || updateNeeded
+	if i.IsEncryptionEnabled() {
+		if provision.AddVolumesForEncryption(i, spec) {
+			updateReasons = append(updateReasons, "encryption volumes changed")
+		}
+
+		// Only trigger a StatefulSet rolling upgrade for Keystore and Truststore updates from 15.0.7 onwards as
+		// Infinispan and JGroups automatically reload certificate changes
+		if requestedOperand.UpstreamVersion.LT(consts.MinVersionAutomaticCertificateReloading) {
+			if updateStatefulSetEnv(container, statefulSet, "KEYSTORE_HASH", hash.HashByte(configFiles.Keystore.PemFile)+hash.HashByte(configFiles.Keystore.File)) {
+				updateReasons = append(updateReasons, "keystore hash changed")
+			}
+
+			if i.IsClientCertEnabled() {
+				if updateStatefulSetEnv(container, statefulSet, "TRUSTSTORE_HASH", hash.HashByte(configFiles.Truststore.File)) {
+					updateReasons = append(updateReasons, "truststore hash changed")
+				}
+			}
+		}
+	}
+
+	if provision.AddXSiteTLSVolumes(ctx, i, statefulSet) {
+		updateReasons = append(updateReasons, "xsite TLS volumes changed")
+	}
 
 	// Ensure the deployment size is the same as the spec
 	replicas := i.Spec.Replicas
@@ -210,14 +238,14 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if previousReplicas != replicas {
 		statefulSet.Spec.Replicas = &replicas
 		log.Info("Replicas changed", "requested", replicas, "current", previousReplicas)
-		rollingUpgrade = updateNeeded
-		updateNeeded = true
+		rollingUpgrade = len(updateReasons) > 0
+		updateReasons = append(updateReasons, "replicas changed")
 	}
 
-	if updateNeeded {
+	if len(updateReasons) > 0 {
 		// If updating the parameters results in a rolling upgrade, we can update the labels here too
 		if rollingUpgrade {
-			log.Info("Triggering StatefulSet Rolling upgrade")
+			log.Info("StatefulSet spec changed, triggering rolling update", "reason", strings.Join(updateReasons, ", "))
 			labelsForPod := i.PodLabels()
 			labelsForPod[consts.StatefulSetPodLabel] = i.GetStatefulSetName()
 			statefulSet.Spec.Template.Labels = labelsForPod
