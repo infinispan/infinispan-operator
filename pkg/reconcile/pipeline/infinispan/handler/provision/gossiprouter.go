@@ -91,7 +91,6 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			args = append(args, []string{
 				"-nio", "false", // NIO does not work with TLS
 				"-tls_protocol", i.GetSiteTLSProtocol(),
-				"-tls_keystore_password", ks.Password,
 				"-tls_keystore_type", ks.Type,
 				"-tls_keystore_alias", ks.Alias,
 				"-tls_keystore_path", ks.Path,
@@ -102,7 +101,6 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ts := ctx.ConfigFiles().XSite.GossipRouter.Truststore
 			if ts != nil {
 				args = append(args, []string{
-					"-tls_truststore_password", ts.Password,
 					"-tls_truststore_type", ts.Type,
 					"-tls_truststore_path", ts.Path,
 				}...)
@@ -139,12 +137,31 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 		router.Labels = routerLabels
 
+		command := []string{"/opt/gossiprouter/bin/launch.sh"}
+		env := []corev1.EnvVar{
+			{Name: "ROUTER_JAVA_OPTIONS", Value: i.Spec.Container.RouterExtraJvmOpts},
+		}
+
+		if i.IsSiteTLSEnabled() {
+			// Passwords are injected via env vars from secretKeyRef so they don't
+			// appear in the Pod spec. A shell wrapper expands them at runtime.
+			env = append(env, envFromSecret("TLS_KEYSTORE_PASSWORD", i.GetSiteRouterSecretName(), "password"))
+			shellCmd := `exec /opt/gossiprouter/bin/launch.sh "$@" -tls_keystore_password "$TLS_KEYSTORE_PASSWORD"`
+
+			if addTruststoreVolume {
+				env = append(env, envFromSecret("TLS_TRUSTSTORE_PASSWORD", i.GetSiteTrustoreSecretName(), "password"))
+				shellCmd += ` -tls_truststore_password "$TLS_TRUSTSTORE_PASSWORD"`
+			}
+
+			command = []string{"/bin/sh", "-c", shellCmd, "--"}
+		}
+
 		container := &corev1.Container{
 			Name:           GossipRouterContainer,
 			Image:          i.ImageName(),
-			Command:        []string{"/opt/gossiprouter/bin/launch.sh"},
+			Command:        command,
 			Args:           args,
-			Env:            []corev1.EnvVar{{Name: "ROUTER_JAVA_OPTIONS", Value: i.Spec.Container.RouterExtraJvmOpts}},
+			Env:            env,
 			Ports:          containerPorts,
 			LivenessProbe:  TcpProbe(probePort, 5, 5, 0, 1, 60),
 			ReadinessProbe: TcpProbe(probePort, 5, 5, 0, 1, 60),
@@ -252,4 +269,18 @@ func gossipRouterPodResources(spec *ispnv1.DiscoverySiteSpec) (*corev1.ResourceR
 		req.Limits[corev1.ResourceCPU] = cpuLimits
 	}
 	return req, nil
+}
+
+func envFromSecret(name, secretName, key string) corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: name,
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secretName,
+				},
+				Key: key,
+			},
+		},
+	}
 }
