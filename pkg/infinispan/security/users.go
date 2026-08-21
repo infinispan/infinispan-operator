@@ -29,10 +29,8 @@ type IdentitiesYaml struct {
 	Credentials []Credentials `yaml:"credentials"`
 }
 
-// TODO certain characters having issues, so reduce sample for now
-// var acceptedChars = []byte(",-./=@\\abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-var acceptedChars = []byte("123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-var alphaChars = acceptedChars[8:]
+var acceptedChars = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var alphaChars = acceptedChars[10:]
 
 // getRandomStringForAuth generate a random string that can be used as a
 // user or pass for Infinispan
@@ -44,7 +42,7 @@ func getRandomStringForAuth(size int) (string, error) {
 	}
 	b[0] = char
 	for i := 1; i < len(b); i++ {
-		char, err := getRandomChar(alphaChars)
+		char, err := getRandomChar(acceptedChars)
 		if err != nil {
 			return "", err
 		}
@@ -54,7 +52,7 @@ func getRandomStringForAuth(size int) (string, error) {
 }
 
 func getRandomChar(availableChars []byte) (byte, error) {
-	max := big.NewInt(int64(len(alphaChars)))
+	max := big.NewInt(int64(len(availableChars)))
 	r, err := rand.Int(rand.Reader, max)
 	if err != nil {
 		return 0, err
