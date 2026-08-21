@@ -84,6 +84,10 @@ func (reconciler *BatchReconciler) Reconcile(ctx context.Context, ctrlRequest ct
 		return reconcile.Result{}, err
 	}
 
+	if paused, err := HandleReconciliationPause(ctx, instance, reconciler.Client, reconciler.eventRec, reqLogger); err != nil || paused {
+		return reconcile.Result{}, err
+	}
+
 	batch := &batchRequest{
 		BatchReconciler: reconciler,
 		ctx:             ctx,

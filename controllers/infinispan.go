@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -36,6 +37,7 @@ type InfinispanReconciler struct {
 	defaultAnnotations map[string]string
 	supportedTypes     map[schema.GroupVersionKind]struct{}
 	versionManager     *version.Manager
+	eventRec           record.EventRecorder
 }
 
 func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
@@ -43,11 +45,12 @@ func (r *InfinispanReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 
 	r.Client = mgr.GetClient()
 	r.log = ctrl.Log.WithName("controllers").WithName("Infinispan")
+	r.eventRec = mgr.GetEventRecorderFor("controller-infinispan")
 	r.contextProvider = pipelineContext.Provider(
 		r.Client,
 		mgr.GetScheme(),
 		kubernetes,
-		mgr.GetEventRecorderFor("controller-infinispan"),
+		r.eventRec,
 	)
 
 	var err error
@@ -221,6 +224,10 @@ func (r *InfinispanReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.R
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, fmt.Errorf("unable to fetch Infinispan CR %w", err)
+	}
+
+	if paused, err := HandleReconciliationPause(ctx, instance, r.Client, r.eventRec, reqLogger); err != nil || paused {
+		return reconcile.Result{}, err
 	}
 
 	// Don't reconcile Infinispan CRs marked for deletion

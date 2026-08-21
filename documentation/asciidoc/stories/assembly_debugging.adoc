@@ -1,0 +1,48 @@
+ifdef::context[:parent-context: {context}]
+[id='debugging']
+:context: debugging
+= Debugging operand issues
+
+[role="_abstract"]
+{ispn_operator} lets you temporarily pause reconciliation on individual custom resources (CRs) in case you need to debug the operand.
+When reconciliation is paused, the operator does not apply spec changes to managed resources, which allows you to inspect and modify the operand state manually.
+
+== Pausing reconciliation
+
+To pause reconciliation, set the `infinispan.org/paused` annotation to `"true"` on the CR:
+
+[source,bash,options="nowrap",subs=attributes+]
+----
+kubectl annotate <resource-type> <resource-name> infinispan.org/paused=true
+----
+
+For example, to pause reconciliation on an `Infinispan` CR named `example-infinispan`:
+
+[source,bash,options="nowrap",subs=attributes+]
+----
+kubectl annotate infinispan example-infinispan infinispan.org/paused=true
+----
+
+When paused, the operator skips all reconciliation logic for the annotated resource.
+
+[NOTE]
+====
+Pausing reconciliation also prevents deletion processing. If you delete
+a paused CR that has finalizers, it will remain in `Terminating` state
+until you remove the `infinispan.org/paused` annotation.
+====
+
+== Resuming reconciliation
+
+To resume reconciliation, remove the annotation or set it to any value other than `"true"`:
+
+[source,bash,options="nowrap",subs=attributes+]
+----
+kubectl annotate <resource-type> <resource-name> infinispan.org/paused-
+----
+
+When resumed, normal reconciliation proceeds immediately.
+
+// Restore the parent context.
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]

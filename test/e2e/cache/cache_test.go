@@ -174,8 +174,8 @@ func TestUpdateCacheCR(t *testing.T) {
 	testifyAssert.Equal(t, int64(3), cache.GetGeneration())
 
 	// Wait for the Cache CR to become unready as the spec.Template cannot be reconciled with the server
-	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
-		Type:   v2alpha1.CacheConditionReady,
+	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.Condition{
+		Type:   v2alpha1.ConditionReady,
 		Status: metav1.ConditionFalse,
 	})
 
@@ -448,8 +448,8 @@ func TestCacheClusterRecreate(t *testing.T) {
 	testKube.DeleteInfinispan(ispn)
 
 	// Wait for the Cache CR to become unready as the the Infinispan CR no longer exists
-	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.CacheCondition{
-		Type:   v2alpha1.CacheConditionReady,
+	testKube.WaitForCacheCondition(cacheName, ispn.Name, tutils.Namespace, v2alpha1.Condition{
+		Type:   v2alpha1.ConditionReady,
 		Status: metav1.ConditionFalse,
 	})
 

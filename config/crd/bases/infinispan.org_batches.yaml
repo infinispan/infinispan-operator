@@ -67,6 +67,26 @@ spec:
                 description: The UUID of the Infinispan instance that the Batch is
                   associated with
                 type: string
+              conditions:
+                description: Conditions list for this batch
+                items:
+                  description: Condition defines a status condition for a resource.
+                  properties:
+                    message:
+                      description: Human-readable message indicating details about
+                        last transition.
+                      type: string
+                    status:
+                      description: Status is the status of the condition.
+                      type: string
+                    type:
+                      description: Type is the type of the condition.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
               phase:
                 description: Current phase of the batch operation
                 type: string
