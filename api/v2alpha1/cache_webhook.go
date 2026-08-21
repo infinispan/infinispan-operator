@@ -9,33 +9,39 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-var log = ctrl.Log.WithName("webhook").WithName("Cache")
+type cacheDefaulter struct{}
 
 func (c *Cache) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(c).
+		WithDefaulter(&cacheDefaulter{}).
 		Complete()
 }
 
 // +kubebuilder:webhook:path=/mutate-infinispan-org-v2alpha1-cache,mutating=true,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=caches,verbs=create;update,versions=v2alpha1,name=mcache.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Defaulter = &Cache{}
+var _ admission.CustomDefaulter = &cacheDefaulter{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (c *Cache) Default() {
+func (d *cacheDefaulter) Default(ctx context.Context, obj runtime.Object) error {
+	c := obj.(*Cache)
 	if c.Spec.AdminAuth != nil {
-		log.Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
+		log.FromContext(ctx).Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
 		c.Spec.AdminAuth = nil
 	}
+	c.ApplyDefaults()
+	return nil
+}
 
+func (c *Cache) ApplyDefaults() {
 	if c.Spec.Updates == nil {
 		c.Spec.Updates = &CacheUpdateSpec{
 			Strategy: CacheUpdateRetain,

@@ -21,6 +21,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -35,7 +36,7 @@ const (
 // BatchReconciler reconciles a Batch object
 type BatchReconciler struct {
 	client.Client
-	log        logr.Logger
+	setupLog   logr.Logger
 	scheme     *runtime.Scheme
 	kubernetes *kube.Kubernetes
 	eventRec   record.EventRecorder
@@ -53,7 +54,7 @@ type batchRequest struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *BatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
-	r.log = ctrl.Log.WithName("controllers").WithName("Batch")
+	r.setupLog = ctrl.Log.WithName("controllers").WithName("batch")
 	r.scheme = mgr.GetScheme()
 	r.kubernetes = kube.NewKubernetesFromController(mgr)
 	r.eventRec = mgr.GetEventRecorderFor("batch-controller")
@@ -67,8 +68,7 @@ func (r *BatchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=batch,namespace=infinispan-operator-system,resources=jobs,verbs=get;list;watch;create;update;delete
 
 func (reconciler *BatchReconciler) Reconcile(ctx context.Context, ctrlRequest ctrl.Request) (ctrl.Result, error) {
-	reqLogger := reconciler.log.WithValues("Request.Namespace", ctrlRequest.Namespace, "Request.Name", ctrlRequest.Name)
-	reqLogger.Info("Reconciling Batch")
+	reqLogger := log.FromContext(ctx)
 
 	// Fetch the Batch instance
 	instance := &v2.Batch{}
@@ -118,7 +118,7 @@ func (r *batchRequest) initializeResources() (reconcile.Result, error) {
 	}
 
 	if err := infinispan.EnsureClusterStability(); err != nil {
-		r.log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", spec.Cluster, err.Error()))
+		r.reqLogger.V(1).Info("Infinispan cluster not ready", "cluster", spec.Cluster, "reason", err.Error())
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
@@ -138,6 +138,7 @@ func (r *batchRequest) initializeResources() (reconcile.Result, error) {
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to create ConfigMap '%s': %w", configMap.Name, err)
 		}
+		r.reqLogger.V(1).Info("Created batch ConfigMap", "configMap", configMap.Name)
 	}
 
 	_, err := r.update(func() error {
@@ -231,6 +232,7 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("unable to create batch job '%s': %w", batch.Name, err)
 	}
+	r.reqLogger.Info("Created batch Job", "job", batch.Name)
 	return reconcile.Result{}, r.UpdatePhase(v2.BatchRunning, nil)
 }
 

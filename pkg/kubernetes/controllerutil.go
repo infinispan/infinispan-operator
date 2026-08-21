@@ -39,7 +39,7 @@ func LookupResource(name, namespace string, resource, caller client.Object, clie
 					eventRec.Event(caller, corev1.EventTypeWarning, EventReasonResourceNotReady, fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name))
 				}
 			}
-			logger.Info(fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(resource).Elem().Name(), name))
+			logger.Info("Resource not ready", "kind", reflect.TypeOf(resource).Elem().Name(), "name", name)
 			return &reconcile.Result{RequeueAfter: consts.DefaultWaitOnCreateResource}, nil
 		}
 		return &reconcile.Result{}, err

@@ -32,8 +32,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	} else {
 		// If env not explicitly set, use the Operator image
 		if image, err := kube.GetOperatorImage(ctx.Ctx(), ctx.Kubernetes().Client); err != nil {
-			ctx.Log().Error(err, "unable to create ConfigListener deployment")
-			ctx.Requeue(err)
+			ctx.Requeue(fmt.Errorf("unable to create ConfigListener deployment: %w", err))
 			return
 		} else {
 			configListenerImage = image
@@ -189,6 +188,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if err := createOrUpdate(roleBinding); err != nil {
 			return
 		}
+		ctx.Log().V(1).Info("Created ConfigListener RBAC")
 	}
 
 	operandVersions, err := ctx.Operands().Json()
@@ -288,6 +288,7 @@ func RemoveConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			return
 		}
 	}
+	ctx.Log().Info("Removed ConfigListener resources")
 
 	// Remove any Cache CR instances owned by Infinispan as these were created by the Listener
 	cacheList := &v2alpha1.CacheList{}
@@ -319,9 +320,9 @@ func ScaleConfigListener(replicas int32, i *ispnv1.Infinispan, ctx pipeline.Cont
 	})
 
 	if err != nil {
-		ctx.Log().Error(err, "unable to scale ConfigListener Deployment")
+		return fmt.Errorf("unable to scale ConfigListener deployment: %w", err)
 	}
-	return err
+	return nil
 }
 
 func UpdateConfigListenerDeployment(i *ispnv1.Infinispan, ctx pipeline.Context, mutate func(deployment *appsv1.Deployment)) error {
@@ -339,5 +340,8 @@ func UpdateConfigListenerDeployment(i *ispnv1.Infinispan, ctx pipeline.Context, 
 		mutate(deployment)
 		return nil
 	})
+	if err == nil {
+		ctx.Log().Info("Created ConfigListener deployment")
+	}
 	return err
 }
