@@ -1,0 +1,23 @@
+[id='updating-schemas_{context}']
+= Updating Protobuf schemas
+
+[role="_abstract"]
+You can update the Protobuf schema definition in existing `Schema` CRs.
+When you modify the `spec.schema` field, {ispn_operator} updates the schema on the {brandname} server.
+
+.Procedure
+
+. Modify the `spec.schema` field in your `Schema` CR.
+. Apply the changes, for example:
++
+[source,options="nowrap",subs=attributes+]
+----
+{oc_apply_cr} person-schema.yaml
+schema.infinispan.org/person-schema configured
+----
+
+[IMPORTANT]
+====
+The `spec.clusterName` and `spec.name` fields are immutable.
+You cannot change these fields after you create the `Schema` CR.
+====
