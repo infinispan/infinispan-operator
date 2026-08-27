@@ -340,7 +340,7 @@ func cacheCR(cacheName string, template string, i *v1.Infinispan) *v2alpha1.Cach
 			Template:    template,
 		},
 	}
-	cache.Default()
+	_ = (&v2alpha1.CacheCustomDefaulter{}).Default(context.TODO(), cache)
 	return cache
 }
 

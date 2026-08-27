@@ -274,7 +274,7 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 
 	// Apply the defaults last
 	if RunLocalOperator == "TRUE" {
-		infinispan.Default()
+		_ = (&ispnv1.InfinispanCustomDefaulter{}).Default(context.TODO(), infinispan)
 	}
 
 	return infinispan

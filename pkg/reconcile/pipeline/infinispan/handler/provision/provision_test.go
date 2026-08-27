@@ -1,6 +1,7 @@
 package provision
 
 import (
+	"context"
 	"testing"
 
 	"github.com/blang/semver"
@@ -61,7 +62,7 @@ var _ = Describe("Provision", func() {
 				Version: "IGNORED. Required so we can call Default()",
 			},
 		}
-		ispn.Default()
+		Expect((&ispnv1.InfinispanCustomDefaulter{}).Default(context.TODO(), ispn)).To(Succeed())
 
 		// Assert PriorityClassName set when specified
 		ss, err := ClusterStatefulSetSpec("statefulset", ispn, ctx)
@@ -108,7 +109,7 @@ var _ = Describe("Provision", func() {
 				Version: "IGNORED. Required so we can call Default()",
 			},
 		}
-		ispn.Default()
+		Expect((&ispnv1.InfinispanCustomDefaulter{}).Default(context.TODO(), ispn)).To(Succeed())
 
 		ss, err := ClusterStatefulSetSpec("statefulset", ispn, ctx)
 		Expect(err).Should(BeNil())

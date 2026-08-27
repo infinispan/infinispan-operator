@@ -1,6 +1,7 @@
 package v2alpha1
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -16,15 +17,26 @@ import (
 func (b *Batch) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(b).
+		WithValidator(&BatchCustomValidator{}).
 		Complete()
 }
 
 // +kubebuilder:webhook:path=/validate-infinispan-org-v2alpha1-batch,mutating=false,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=batches,verbs=create;update,versions=v2alpha1,name=vbatch.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Validator = &Batch{}
+// BatchCustomValidator validates Batch resources. It implements the
+// webhook.CustomValidator interface.
+// +kubebuilder:object:generate=false
+type BatchCustomValidator struct{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (b *Batch) ValidateCreate() (admission.Warnings, error) {
+var _ webhook.CustomValidator = &BatchCustomValidator{}
+
+// ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *BatchCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	b, ok := obj.(*Batch)
+	if !ok {
+		return nil, fmt.Errorf("expected a Batch object but got %T", obj)
+	}
+
 	var allErrs field.ErrorList
 	if err := b.validate(); err != nil {
 		return nil, err
@@ -37,17 +49,31 @@ func (b *Batch) ValidateCreate() (admission.Warnings, error) {
 	return nil, b.StatusError(allErrs)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (b *Batch) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *BatchCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	b, ok := newObj.(*Batch)
+	if !ok {
+		return nil, fmt.Errorf("expected a Batch object but got %T", newObj)
+	}
+	oldBatch, ok := oldObj.(*Batch)
+	if !ok {
+		return nil, fmt.Errorf("expected a Batch object but got %T", oldObj)
+	}
+
 	var allErrs field.ErrorList
 	if err := b.validate(); err != nil {
 		return nil, err
 	}
-	oldBatch := old.(*Batch)
 	if !reflect.DeepEqual(b.Spec, oldBatch.Spec) {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec"), "The Batch spec is immutable and cannot be updated after initial Batch creation"))
 	}
 	return nil, b.StatusError(allErrs)
+}
+
+// ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *BatchCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
+	return nil, nil
 }
 
 func (b *Batch) validate() error {
@@ -88,12 +114,6 @@ func errorListToError(b *Batch, allErrs field.ErrorList) error {
 			b.Name, allErrs)
 	}
 	return nil
-}
-
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (b *Batch) ValidateDelete() (admission.Warnings, error) {
-	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-	return nil, nil
 }
 
 func (b *Batch) StatusError(allErrs field.ErrorList) error {
