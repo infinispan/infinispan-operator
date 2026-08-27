@@ -44,15 +44,27 @@ func (i *Infinispan) SetupWebhookWithManager(mgr ctrl.Manager) (err error) {
 
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(i).
+		WithDefaulter(&InfinispanCustomDefaulter{}).
+		WithValidator(&InfinispanCustomValidator{}).
 		Complete()
 }
 
 // +kubebuilder:webhook:path=/mutate-infinispan-org-v1-infinispan,mutating=true,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=infinispans,verbs=create;update,versions=v1,name=minfinispan.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Defaulter = &Infinispan{}
+// InfinispanCustomDefaulter applies defaults to Infinispan resources. It implements
+// the webhook.CustomDefaulter interface.
+// +kubebuilder:object:generate=false
+type InfinispanCustomDefaulter struct{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (i *Infinispan) Default() {
+var _ webhook.CustomDefaulter = &InfinispanCustomDefaulter{}
+
+// Default implements webhook.CustomDefaulter so a webhook will be registered for the type
+func (d *InfinispanCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
+	i, ok := obj.(*Infinispan)
+	if !ok {
+		return fmt.Errorf("expected an Infinispan object but got %T", obj)
+	}
+
 	if i.Spec.Version == "" {
 		i.Spec.Version = versionManager.Latest().Ref()
 	}
@@ -165,25 +177,43 @@ func (i *Infinispan) Default() {
 	if i.Spec.Jmx == nil {
 		i.Spec.Jmx = &JmxSpec{}
 	}
+	return nil
 }
 
 // +kubebuilder:webhook:path=/validate-infinispan-org-v1-infinispan,mutating=false,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=infinispans,verbs=create;update,versions=v1,name=vinfinispan.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Validator = &Infinispan{}
+// InfinispanCustomValidator validates Infinispan resources. It implements the
+// webhook.CustomValidator interface.
+// +kubebuilder:object:generate=false
+type InfinispanCustomValidator struct{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateCreate() (admission.Warnings, error) {
+var _ webhook.CustomValidator = &InfinispanCustomValidator{}
+
+// ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *InfinispanCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	i, ok := obj.(*Infinispan)
+	if !ok {
+		return nil, fmt.Errorf("expected an Infinispan object but got %T", obj)
+	}
 	return i.validate()
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateUpdate(oldRuntimeObj runtime.Object) (admission.Warnings, error) {
+// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *InfinispanCustomValidator) ValidateUpdate(_ context.Context, oldRuntimeObj, newRuntimeObj runtime.Object) (admission.Warnings, error) {
+	i, ok := newRuntimeObj.(*Infinispan)
+	if !ok {
+		return nil, fmt.Errorf("expected an Infinispan object but got %T", newRuntimeObj)
+	}
+	old, ok := oldRuntimeObj.(*Infinispan)
+	if !ok {
+		return nil, fmt.Errorf("expected an Infinispan object but got %T", oldRuntimeObj)
+	}
+
 	if w, err := i.validate(); err != nil {
 		return w, err
 	}
 
 	var allErrs field.ErrorList
-	old := oldRuntimeObj.(*Infinispan)
 	if old.Spec.Version != "" {
 		// We know the versions must be valid as they have already been validated, so the error will always be nil
 		operand, _ := versionManager.WithRef(i.Spec.Version)
@@ -253,8 +283,8 @@ func minorStreamMatch(operand1, operand2 version.Operand) bool {
 	return majorMatch && minorMatch
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (i *Infinispan) ValidateDelete() (admission.Warnings, error) {
+// ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *InfinispanCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 	return nil, nil
 }

@@ -217,7 +217,7 @@ func backupSpec(testName, name, namespace, cluster string) *v2alpha1.Backup {
 			Cluster: cluster,
 		},
 	}
-	spec.Default()
+	_ = (&v2alpha1.BackupCustomDefaulter{}).Default(context.TODO(), spec)
 	return spec
 }
 
@@ -237,7 +237,7 @@ func restoreSpec(testName, name, namespace, backup, cluster string) *v2alpha1.Re
 			Cluster: cluster,
 		},
 	}
-	spec.Default()
+	_ = (&v2alpha1.RestoreCustomDefaulter{}).Default(context.TODO(), spec)
 	return spec
 }
 

@@ -225,7 +225,7 @@ func verifyStatefulSetUpdate(ispn ispnv1.Infinispan, modifier func(*ispnv1.Infin
 	tutils.ExpectNoError(testKube.UpdateInfinispan(&ispn, func() {
 		modifier(&ispn)
 		// Explicitly call Default to replicate the defaulting webhook
-		ispn.Default()
+		_ = (&ispnv1.InfinispanCustomDefaulter{}).Default(context.TODO(), &ispn)
 	}))
 
 	// Wait for a new generation to appear
