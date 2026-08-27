@@ -2,13 +2,11 @@ package v2alpha1
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
-	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -20,88 +18,51 @@ import (
 func (s *Schema) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(s).
+		WithDefaulter(&SchemaCustomDefaulter{}).
+		WithValidator(&SchemaCustomValidator{client: mgr.GetClient()}).
 		Complete()
 }
 
 // +kubebuilder:webhook:path=/mutate-infinispan-org-v2alpha1-schema,mutating=true,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=schemas,verbs=create;update,versions=v2alpha1,name=mschema.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Defaulter = &Schema{}
+// SchemaCustomDefaulter applies defaults to Schema resources. It implements the
+// webhook.CustomDefaulter interface.
+// +kubebuilder:object:generate=false
+type SchemaCustomDefaulter struct{}
 
-func (s *Schema) Default() {
+var _ webhook.CustomDefaulter = &SchemaCustomDefaulter{}
+
+// Default implements webhook.CustomDefaulter so a webhook will be registered for the type
+func (d *SchemaCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
+	s, ok := obj.(*Schema)
+	if !ok {
+		return fmt.Errorf("expected a Schema object but got %T", obj)
+	}
+
 	if s.Spec.Name != "" && !strings.HasSuffix(s.Spec.Name, ".proto") {
 		s.Spec.Name = s.Spec.Name + ".proto"
 	}
+	return nil
 }
 
 // +kubebuilder:webhook:path=/validate-infinispan-org-v2alpha1-schema,mutating=false,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=schemas,verbs=create;update,versions=v2alpha1,name=vschema.kb.io,admissionReviewVersions={v1,v1beta1}
 
-// RegisterSchemaValidatingWebhook explicitly adds the validating webhook to the Webhook Server
-func RegisterSchemaValidatingWebhook(mgr ctrl.Manager) {
-	hookServer := mgr.GetWebhookServer()
-	validator := &schemaValidator{
-		client: mgr.GetClient(),
-	}
-	decoder := admission.NewDecoder(mgr.GetScheme())
-	_ = validator.InjectDecoder(decoder)
-
-	wh := &admission.Webhook{
-		Handler: validator,
-	}
-	hookServer.Register("/validate-infinispan-org-v2alpha1-schema", wh)
+// SchemaCustomValidator validates Schema resources. It implements the
+// webhook.CustomValidator interface.
+// +kubebuilder:object:generate=false
+type SchemaCustomValidator struct {
+	client runtimeClient.Client
 }
 
-type schemaValidator struct {
-	client  runtimeClient.Client
-	decoder admission.Decoder
-}
+var _ webhook.CustomValidator = &SchemaCustomValidator{}
 
-var _ admission.Handler = &schemaValidator{}
-
-func (sv *schemaValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	s := &Schema{}
-	if req.Operation == admissionv1.Create {
-		if err := sv.decoder.Decode(req, s); err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		if err := sv.Create(ctx, s); err != nil {
-			var apiStatus apierrors.APIStatus
-			if errors.As(err, &apiStatus) {
-				return validationResponseFromStatus(false, apiStatus.Status())
-			}
-			return admission.Denied(err.Error())
-		}
+// ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *SchemaCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	s, ok := obj.(*Schema)
+	if !ok {
+		return nil, fmt.Errorf("expected a Schema object but got %T", obj)
 	}
 
-	if req.Operation == admissionv1.Update {
-		oldSchema := &Schema{}
-		if err := sv.decoder.DecodeRaw(req.Object, s); err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		if err := sv.decoder.DecodeRaw(req.OldObject, oldSchema); err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		if err := sv.Update(s, oldSchema); err != nil {
-			var apiStatus apierrors.APIStatus
-			if errors.As(err, &apiStatus) {
-				return validationResponseFromStatus(false, apiStatus.Status())
-			}
-			return admission.Denied(err.Error())
-		}
-	}
-	return admission.Allowed("")
-}
-
-func (sv *schemaValidator) InjectClient(c runtimeClient.Client) error {
-	sv.client = c
-	return nil
-}
-
-func (sv *schemaValidator) InjectDecoder(d admission.Decoder) error {
-	sv.decoder = d
-	return nil
-}
-
-func (sv *schemaValidator) Create(ctx context.Context, s *Schema) error {
 	var allErrs field.ErrorList
 	if s.Spec.ClusterName == "" {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("clusterName"), "'spec.clusterName' must be configured"))
@@ -111,7 +72,7 @@ func (sv *schemaValidator) Create(ctx context.Context, s *Schema) error {
 	}
 
 	list := &SchemaList{}
-	if err := sv.client.List(ctx, list, &runtimeClient.ListOptions{Namespace: s.Namespace}); err != nil {
+	if err := v.client.List(ctx, list, &runtimeClient.ListOptions{Namespace: s.Namespace}); err != nil {
 		allErrs = append(allErrs, field.InternalError(field.NewPath("spec").Child("name"), err))
 	} else {
 		newSchemaName := s.GetSchemaName()
@@ -122,10 +83,20 @@ func (sv *schemaValidator) Create(ctx context.Context, s *Schema) error {
 			}
 		}
 	}
-	return schemaStatusError(s, allErrs)
+	return nil, schemaStatusError(s, allErrs)
 }
 
-func (sv *schemaValidator) Update(s *Schema, oldSchema *Schema) error {
+// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *SchemaCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	s, ok := newObj.(*Schema)
+	if !ok {
+		return nil, fmt.Errorf("expected a Schema object but got %T", newObj)
+	}
+	oldSchema, ok := oldObj.(*Schema)
+	if !ok {
+		return nil, fmt.Errorf("expected a Schema object but got %T", oldObj)
+	}
+
 	var allErrs field.ErrorList
 	if oldSchema.Spec.ClusterName != s.Spec.ClusterName {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("clusterName"), "Schema clusterName is immutable and cannot be updated after initial Schema creation"))
@@ -133,7 +104,13 @@ func (sv *schemaValidator) Update(s *Schema, oldSchema *Schema) error {
 	if oldSchema.GetSchemaName() != s.GetSchemaName() {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("name"), "Schema name is immutable and cannot be updated after initial Schema creation"))
 	}
-	return schemaStatusError(s, allErrs)
+	return nil, schemaStatusError(s, allErrs)
+}
+
+// ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *SchemaCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
+	return nil, nil
 }
 
 func schemaStatusError(s *Schema, allErrs field.ErrorList) error {
