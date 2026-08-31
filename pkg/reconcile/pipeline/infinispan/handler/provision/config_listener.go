@@ -138,7 +138,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			Rules: []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{v2alpha1.GroupVersion.Group},
-					Resources: []string{"caches", "caches/status", "schemas", "schemas/status"},
+					Resources: []string{"caches", "schemas"},
 					Verbs: []string{
 						"create",
 						"delete",
