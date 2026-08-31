@@ -244,7 +244,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	// Don't contact the Infinispan server for resources created by the ConfigListener
+	// Don't push to the Infinispan server for resources created by the ConfigListener
 	// When bidirectional sync is not available, always reconcile on server
 	if !bidirectionalSync || s.reconcileOnServer() {
 		if result, err := s.createOrUpdate(); result != nil {
@@ -256,6 +256,18 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 			}
 			return *result, err
 		}
+	}
+
+	// Always verify schema status on the server (the Operator is the sole owner of status)
+	if err := s.checkSchemaStatus(); err != nil {
+		reqLogger.Error(err, "Schema has server-side errors")
+		return ctrl.Result{}, s.update(func() error {
+			instance.SetCondition(v2alpha1.ConditionReady, metav1.ConditionFalse, err.Error())
+			if !controllerutil.ContainsFinalizer(instance, constants.InfinispanFinalizer) {
+				controllerutil.AddFinalizer(instance, constants.InfinispanFinalizer)
+			}
+			return nil
+		})
 	}
 
 	err = s.update(func() error {
@@ -331,21 +343,21 @@ func (r *schemaRequest) createOrUpdate() (*ctrl.Result, error) {
 		return &ctrl.Result{}, err
 	}
 
-	// Re-check the schema status after registration as the server may mark it invalid
-	// after revalidating the entire serialization context (e.g. duplicate package/message)
+	return nil, nil
+}
+
+func (r *schemaRequest) checkSchemaStatus() error {
+	schemaName := r.schema.GetSchemaName()
 	schemas, err := r.ispnClient.Schemas().Names()
 	if err != nil {
-		return &ctrl.Result{Requeue: true}, fmt.Errorf("unable to verify schema '%s' status: %w", schemaName, err)
+		return fmt.Errorf("unable to verify schema '%s' status: %w", schemaName, err)
 	}
 	for _, s := range schemas {
 		if s.Name == schemaName && s.Error != nil {
-			err = fmt.Errorf("'%s', %s", s.Error.Message, s.Error.Cause)
-			r.reqLogger.Error(err, "Schema validation error after registration")
-			return &ctrl.Result{}, err
+			return fmt.Errorf("'%s', %s", s.Error.Message, s.Error.Cause)
 		}
 	}
-
-	return nil, nil
+	return nil
 }
 
 // SchemaListener methods for SSE event handling
@@ -385,6 +397,9 @@ func (sl *SchemaListener) RemoveStaleResources(podName string) error {
 		_, schemaExists := serverSchemaSet[s.GetSchemaName()]
 		sl.Log.Debugf("Checking if Schema CR '%s' is stale. ListenerCreated=%t. SchemaExists=%t", s.Name, listenerCreated, schemaExists)
 		if listenerCreated && !schemaExists {
+			if s.Annotations == nil {
+				s.Annotations = make(map[string]string, 1)
+			}
 			s.Annotations[constants.ListenerAnnotationDelete] = "true"
 			sl.Log.Infof("Marking stale Schema resource '%s' for deletion", s.Name)
 			if err := k8s.Client.Update(sl.Ctx, &s); err != nil {
@@ -447,13 +462,6 @@ func (sl *SchemaListener) CreateOrUpdate(data []byte) error {
 
 		if schemaErrors != "" {
 			sl.Log.Warnf("Schema '%s' has server-side errors: %s", schemaName, schemaErrors)
-			if err := updateSchema(s, sl.Ctx, k8sClient, func() error {
-				s.Annotations[constants.ListenerAnnotationGeneration] = strconv.FormatInt(s.GetGeneration()+1, 10)
-				s.SetCondition(v2alpha1.ConditionReady, metav1.ConditionFalse, schemaErrors)
-				return nil
-			}); err != nil {
-				return err
-			}
 		}
 	} else {
 		// Update existing Schema CR
@@ -495,13 +503,6 @@ func (sl *SchemaListener) CreateOrUpdate(data []byte) error {
 
 		if schemaErrors != "" {
 			sl.Log.Warnf("Schema '%s' has server-side errors: %s", schemaName, schemaErrors)
-			if err := updateSchema(existingSchema, sl.Ctx, k8sClient, func() error {
-				existingSchema.Annotations[constants.ListenerAnnotationGeneration] = strconv.FormatInt(existingSchema.GetGeneration()+1, 10)
-				existingSchema.SetCondition(v2alpha1.ConditionReady, metav1.ConditionFalse, schemaErrors)
-				return nil
-			}); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
