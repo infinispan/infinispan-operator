@@ -115,7 +115,7 @@ func FindPassword(usr string, descriptor []byte) (string, error) {
 func passwordFromSecret(user, secretName, namespace string, k *kube.Kubernetes, ctx context.Context) (string, error) {
 	secret, err := k.GetSecret(secretName, namespace, ctx)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	descriptor := secret.Data[consts.ServerIdentitiesFilename]
