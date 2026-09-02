@@ -185,7 +185,8 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 					Annotations: infinispan.PodAnnotations(),
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: infinispan.Spec.ServiceAccountName,
+					ServiceAccountName:           infinispan.Spec.ServiceAccountName,
+					AutomountServiceAccountToken: ptr.To(false),
 					Containers: []corev1.Container{{
 						Name:    BatchContainer,
 						Image:   infinispan.ImageName(),
