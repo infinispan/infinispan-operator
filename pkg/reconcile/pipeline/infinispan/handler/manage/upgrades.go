@@ -129,10 +129,8 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 	// Initiate the GracefulShutdown if it's not already in progress
 	if i.Spec.Replicas == 0 {
-		logger.Info(".Spec.Replicas==0")
 		replicas := *statefulSet.Spec.Replicas
 		if replicas != 0 {
-			logger.Info("StatefulSet.Spec.Replicas!=0")
 			// Only send a GracefulShutdown request to the server if it hasn't succeeded already
 			if !i.IsConditionTrue(ispnv1.ConditionStopping) {
 				logger.Info("Sending GracefulShutdown request to the Infinispan cluster")
@@ -159,7 +157,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					if err != nil {
 						if shutdown, state := containerAlreadyShutdown(err); shutdown {
 							serverMeta.skip, serverMeta.state = true, state
-							logger.Info("At least one cache-container has already been shutdown by the Operator, resuming shutdown", "pod", pod.Name, "state", state)
+							logger.V(1).Info("At least one cache-container has already been shutdown by the Operator, resuming shutdown", "pod", pod.Name, "state", state)
 							shutdownAlreadyInitiated = true
 							// Continue processing other pods here as it's possible that one or more pods still haven't
 							// been shutdown and we need to initiate the client
@@ -238,7 +236,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				for _, pod := range podList.Items {
 					serverMeta := serverMetaMap[pod.Name]
 					if serverMeta.skip {
-						logger.Info("Skipping pod whose cache-container has already been shutdown by the Operator", "pod", pod, "state", serverMeta.state)
+						logger.V(1).Info("Skipping pod whose cache-container has already been shutdown by the Operator", "pod", pod, "state", serverMeta.state)
 						continue
 					}
 					ispnClient := serverMeta.client
@@ -251,6 +249,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 							ctx.Requeue(fmt.Errorf("unable to disable rebalancing: %w", err))
 							return
 						}
+						ctx.Log().Info("Disabled cluster rebalancing")
 						rebalanceDisabled = true
 					}
 
@@ -258,7 +257,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						ctx.Requeue(fmt.Errorf("error encountered on container shutdown: %w", err))
 						return
 					} else {
-						logger.Info("Executed Container Shutdown on pod: ", "Pod.Name", pod.Name)
+						logger.V(1).Info("Container shutdown executed", "pod", pod.Name)
 					}
 				}
 
@@ -279,6 +278,7 @@ func GracefulShutdown(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				ctx.Requeue(err)
 			} else {
 				statefulSet.Spec.Replicas = ptr.To(int32(0))
+				ctx.Log().Info("Scaling StatefulSet to zero for graceful shutdown")
 				// GracefulShutdown in progress, but we must wait until the StatefulSet has scaled down before proceeding
 				ctx.Requeue(ctx.Resources().Update(statefulSet))
 			}
@@ -372,14 +372,14 @@ func EnableRebalanceAfterScaleUp(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ctx.Requeue(err)
 			return
 		} else if len(podList.Items) != int(i.Spec.Replicas) {
-			ctx.Log().Info("Waiting on cluster pods to be provisioned", "pods", len(podList.Items), "spec.replicas", i.Spec.Replicas)
+			ctx.Log().V(1).Info("Waiting on cluster pods to be provisioned", "pods", len(podList.Items), "spec.replicas", i.Spec.Replicas)
 			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
 			return
 		}
 
 		ispnClient, err := ctx.InfinispanClient()
 		if err != nil {
-			ctx.Log().Info("Waiting on at least one ready pod", "err", err)
+			ctx.Log().V(1).Info("Waiting on at least one ready pod", "reason", err.Error())
 			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
 			return
 		}
@@ -388,7 +388,7 @@ func EnableRebalanceAfterScaleUp(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			ctx.Requeue(fmt.Errorf("unable to retrieve cluster information on scale up: %w", err))
 			return
 		} else if info.ClusterSize != i.Spec.Replicas {
-			ctx.Log().Info("waiting for cluster to form", "replicas", i.Spec.Replicas)
+			ctx.Log().V(1).Info("Waiting for cluster to form", "replicas", i.Spec.Replicas)
 			ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
 			return
 		}
@@ -409,12 +409,12 @@ func EnableRebalanceAfterScaleUp(i *ispnv1.Infinispan, ctx pipeline.Context) {
 
 func AwaitUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	if i.IsUpgradeCondition() {
-		ctx.Log().Info("IsUpgradeCondition")
 		ctx.Requeue(nil)
 	}
 }
 
 func destroyResources(i *ispnv1.Infinispan, ctx pipeline.Context) {
+	ctx.Log().Info("Destroying cluster resources")
 
 	type resource struct {
 		name string

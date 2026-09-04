@@ -23,6 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -74,7 +75,7 @@ type zeroCapacityController struct {
 	Name           string
 	Reconciler     zeroCapacityReconciler
 	Kube           *kube.Kubernetes
-	Log            logr.Logger
+	setupLog       logr.Logger
 	Scheme         *runtime.Scheme
 	EventRec       record.EventRecorder
 	VersionManager *version.Manager
@@ -110,7 +111,7 @@ func newZeroCapacityController(name string, reconciler zeroCapacityReconciler, m
 		Client:         mgr.GetClient(),
 		Reconciler:     reconciler,
 		Kube:           kube.NewKubernetesFromController(mgr),
-		Log:            ctrl.Log.WithName("controllers").WithName(name),
+		setupLog:       ctrl.Log.WithName("controllers").WithName(name),
 		Scheme:         mgr.GetScheme(),
 		EventRec:       mgr.GetEventRecorderFor(strings.ToLower(name) + "-controller"),
 		VersionManager: versionManager,
@@ -127,10 +128,6 @@ func (z *zeroCapacityController) Reconcile(ctx context.Context, request reconcil
 	resource := reflect.TypeOf(reconciler.Type()).Elem().Name()
 	namespace := request.Namespace
 
-	reqLogger := z.Log.WithValues("Request.Namespace", namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling " + resource)
-	defer reqLogger.Info("----- End Reconciling " + resource)
-
 	instance, err := reconciler.ResourceInstance(ctx, request.NamespacedName, z)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -144,7 +141,7 @@ func (z *zeroCapacityController) Reconcile(ctx context.Context, request reconcil
 	}
 
 	if pausable, ok := instance.AsMeta().(Pausable); ok {
-		if paused, err := HandleReconciliationPause(ctx, pausable, z.Client, z.EventRec, reqLogger); err != nil || paused {
+		if paused, err := HandleReconciliationPause(ctx, pausable, z.Client, z.EventRec, log.FromContext(ctx)); err != nil || paused {
 			return reconcile.Result{}, err
 		}
 	}
@@ -188,7 +185,7 @@ func (z *zeroCapacityController) Reconcile(ctx context.Context, request reconcil
 		return z.cleanupResources(ispnClient, request, ctx)
 	default:
 		// Phase must be ZeroRunning, so wait for execution to complete
-		return z.waitForExecutionToComplete(ispnClient, request, instance)
+		return z.waitForExecutionToComplete(ctx, ispnClient, request, instance)
 	}
 }
 
@@ -201,9 +198,11 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 		Name:      clusterName,
 	}
 
+	logger := log.FromContext(ctx)
+
 	infinispan := &v1.Infinispan{}
 	if err := z.Get(ctx, clusterKey, infinispan); err != nil {
-		z.Log.Info(fmt.Sprintf("Unable to load Infinispan Cluster '%s': %s", clusterName, err))
+		logger.V(1).Info("Unable to load Infinispan cluster", "cluster", clusterName, "reason", err.Error())
 		if errors.IsNotFound(err) {
 			return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 		}
@@ -211,15 +210,14 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 	}
 
 	if err := infinispan.EnsureClusterStability(); err != nil {
-		z.Log.Info(fmt.Sprintf("Infinispan '%s' not ready: %s", clusterName, err.Error()))
+		logger.V(1).Info("Infinispan cluster not ready", "cluster", clusterName, "reason", err.Error())
 		return reconcile.Result{RequeueAfter: consts.DefaultWaitOnCluster}, nil
 	}
 
 	podList := &corev1.PodList{}
 	podLabels := infinispan.PodSelectorLabels()
 	if err := z.Kube.ResourcesList(infinispan.Namespace, podLabels, podList, ctx); err != nil {
-		z.Log.Error(err, "Failed to list pods")
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("failed to list pods: %w", err)
 	}
 	podSecurityCtx := podList.Items[0].Spec.SecurityContext
 
@@ -254,6 +252,7 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 		if err := z.Create(ctx, pod); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to create zero-capacity pod: %w", err)
 		}
+		log.FromContext(ctx).Info("Created zero-capacity pod", "pod", name)
 	}
 
 	// Update status
@@ -266,19 +265,23 @@ func (z *zeroCapacityController) execute(ispnClient api.Infinispan, request reco
 	}
 
 	if err := instance.Exec(ispnClient); err != nil {
-		z.Log.Error(err, "unable to execute action on zero-capacity pod", "request.Name", request.Name)
+		log.FromContext(ctx).Error(err, "unable to execute action on zero-capacity pod")
 		return reconcile.Result{}, instance.UpdatePhase(ZeroFailed, err)
 	}
 
 	return reconcile.Result{}, instance.UpdatePhase(ZeroRunning, nil)
 }
 
-func (z *zeroCapacityController) waitForExecutionToComplete(ispnClient api.Infinispan, request reconcile.Request, instance zeroCapacityResource) (reconcile.Result, error) {
+func (z *zeroCapacityController) waitForExecutionToComplete(ctx context.Context, ispnClient api.Infinispan, request reconcile.Request, instance zeroCapacityResource) (reconcile.Result, error) {
 	phase, err := instance.ExecStatus(ispnClient)
 
-	if err != nil || phase == ZeroFailed {
-		z.Log.Error(err, "execution failed", "request.Name", request.Name)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "execution failed")
 		return reconcile.Result{}, instance.UpdatePhase(ZeroFailed, err)
+	}
+	if phase == ZeroFailed {
+		log.FromContext(ctx).Info("execution failed")
+		return reconcile.Result{}, instance.UpdatePhase(ZeroFailed, nil)
 	}
 
 	if phase == ZeroSucceeded {
@@ -293,10 +296,9 @@ func (z *zeroCapacityController) cleanupResources(ispnClient api.Infinispan, req
 	// Stop the zero-capacity server so that it leaves the Infinispan cluster
 	if z.isZeroPodReady(request, ctx) {
 		if err := ispnClient.Server().Stop(); err != nil {
-			err = fmt.Errorf("unable to stop zero-capacity server: %w", err)
-			z.Log.Error(err, "error encountered when cleaning up zero-capacity pod")
-			return reconcile.Result{}, err
+			return reconcile.Result{}, fmt.Errorf("unable to stop zero-capacity server: %w", err)
 		}
+		log.FromContext(ctx).Info("Stopped zero-capacity server", "pod", request.Name)
 	}
 	return reconcile.Result{}, nil
 }

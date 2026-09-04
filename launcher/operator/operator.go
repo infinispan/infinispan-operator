@@ -3,7 +3,6 @@ package operator
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"os"
 	"strings"
 
@@ -181,7 +180,7 @@ func NewWithContext(ctx context.Context, p Parameters) {
 		os.Exit(1)
 	}
 
-	setupLog.Info(fmt.Sprintf("Starting Infinispan Operator Version: %s", launcher.Version))
+	setupLog.Info("Starting Infinispan Operator", "version", launcher.Version)
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
