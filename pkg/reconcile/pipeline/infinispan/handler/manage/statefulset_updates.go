@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/ptr"
 )
 
 func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -35,7 +36,6 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
-	rollingUpgrade := true
 	var updateReasons []string
 
 	// Changes to podLabels
@@ -232,13 +232,15 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		updateReasons = append(updateReasons, "xsite TLS volumes changed")
 	}
 
+	// Any update reason prior to this point will result in rollout
+	rollingUpgrade := len(updateReasons) > 0
+
 	// Ensure the deployment size is the same as the spec
 	replicas := i.Spec.Replicas
 	previousReplicas := *statefulSet.Spec.Replicas
 	if previousReplicas != replicas {
 		statefulSet.Spec.Replicas = &replicas
 		log.Info("Replicas changed", "requested", replicas, "current", previousReplicas)
-		rollingUpgrade = len(updateReasons) > 0
 		updateReasons = append(updateReasons, "replicas changed")
 	}
 
@@ -249,6 +251,9 @@ func StatefulSetRollingUpgrade(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			labelsForPod := i.PodLabels()
 			labelsForPod[consts.StatefulSetPodLabel] = i.GetStatefulSetName()
 			statefulSet.Spec.Template.Labels = labelsForPod
+
+			// Configure new defaults when the user change results in rollout
+			spec.AutomountServiceAccountToken = ptr.To(false)
 		}
 		err := ctx.Resources().Update(statefulSet, pipeline.RetryOnErr)
 		if err != nil {

@@ -169,8 +169,9 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					Annotations: routerAnnotations,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: i.Spec.ServiceAccountName,
-					Containers:         []corev1.Container{*container},
+					ServiceAccountName:           i.Spec.ServiceAccountName,
+					AutomountServiceAccountToken: ptr.To(false),
+					Containers:                   []corev1.Container{*container},
 				},
 			},
 			Replicas: replicas,
