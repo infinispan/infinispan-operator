@@ -55,7 +55,7 @@ type zeroCapacitySpec struct {
 	// The VolumeSpec to utilise on the zero-capacity pod
 	Volume zeroCapacityVolumeSpec
 	// The spec to be used by the zero-capacity pod
-	Container v1.InfinispanContainerSpec
+	Container v1.ContainerSpec
 	// The labels to apply to the zero-capacity pod
 	PodLabels map[string]string
 }
@@ -221,7 +221,13 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 		z.Log.Error(err, "Failed to list pods")
 		return reconcile.Result{}, err
 	}
+	// The zero-capacity pod inherits the same pod- and container-level securityContext
+	// as a running server pod (which already carries the merged defaults).
 	podSecurityCtx := podList.Items[0].Spec.SecurityContext
+	var containerSecurityCtx *corev1.SecurityContext
+	if sourceContainer := kube.GetContainer(provision.InfinispanContainer, &podList.Items[0].Spec); sourceContainer != nil {
+		containerSecurityCtx = sourceContainer.SecurityContext
+	}
 
 	spec, err := instance.Init()
 	if err != nil {
@@ -230,7 +236,7 @@ func (z *zeroCapacityController) initializeResources(request reconcile.Request, 
 
 	err = z.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &corev1.Pod{})
 	if errors.IsNotFound(err) {
-		pod, err := z.zeroPodSpec(name, namespace, podSecurityCtx, infinispan, spec)
+		pod, err := z.zeroPodSpec(name, namespace, podSecurityCtx, containerSecurityCtx, infinispan, spec)
 		if err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to compute Spec for zero-capacity pod: %w", err)
 		}
@@ -309,7 +315,7 @@ func (z *zeroCapacityController) isZeroPodReady(request reconcile.Request, ctx c
 	return kube.IsPodReady(*pod)
 }
 
-func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurityCtx *corev1.PodSecurityContext, ispn *v1.Infinispan, zeroSpec *zeroCapacitySpec) (*corev1.Pod, error) {
+func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurityCtx *corev1.PodSecurityContext, containerSecurityCtx *corev1.SecurityContext, ispn *v1.Infinispan, zeroSpec *zeroCapacitySpec) (*corev1.Pod, error) {
 	operand, _ := z.VersionManager.WithRef(ispn.Spec.Version)
 	podResources, err := provision.PodResources(zeroSpec.Container)
 	if err != nil {
@@ -332,11 +338,12 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 			ServiceAccountName: ispn.Spec.ServiceAccountName,
 			SecurityContext:    podSecurityCtx,
 			Containers: []corev1.Container{{
-				Image:         ispn.ImageName(),
-				Name:          provision.InfinispanContainer,
-				Env:           provision.PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename}}),
-				Lifecycle:     provision.PodLifecycle(),
-				LivenessProbe: provision.PodLivenessProbe(ispn, operand),
+				Image:           ispn.ImageName(),
+				Name:            provision.InfinispanContainer,
+				Env:             provision.PodEnv(ispn, &[]corev1.EnvVar{{Name: "IDENTITIES_BATCH", Value: consts.ServerOperatorSecurity + "/" + consts.ServerIdentitiesBatchFilename}}),
+				SecurityContext: containerSecurityCtx,
+				Lifecycle:       provision.PodLifecycle(),
+				LivenessProbe:   provision.PodLivenessProbe(ispn, operand),
 				Ports: []corev1.ContainerPort{
 					{ContainerPort: consts.InfinispanAdminPort, Name: consts.InfinispanAdminPortName, Protocol: corev1.ProtocolTCP},
 					{ContainerPort: consts.InfinispanPingPort, Name: consts.InfinispanPingPortName, Protocol: corev1.ProtocolTCP},
@@ -400,6 +407,11 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 
 	if zeroSpec.Volume.UpdatePermissions {
 		provision.AddVolumeChmodInitContainer("backup-chmod-pv", name, zeroSpec.Volume.MountPath, &pod.Spec)
+	}
+
+	// Init containers (chmod PV) must also satisfy the inherited container securityContext.
+	for idx := range pod.Spec.InitContainers {
+		pod.Spec.InitContainers[idx].SecurityContext = containerSecurityCtx.DeepCopy()
 	}
 	return pod, nil
 }

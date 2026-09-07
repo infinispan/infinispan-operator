@@ -133,7 +133,7 @@ func TcpProbe(port, failureThreshold, initialDelay, period, successThreshold, ti
 	}
 }
 
-func PodResources(spec ispnv1.InfinispanContainerSpec) (*corev1.ResourceRequirements, error) {
+func PodResources(spec ispnv1.ContainerSpec) (*corev1.ResourceRequirements, error) {
 	memRequests, memLimits, err := spec.GetMemoryResources()
 	if err != nil {
 		return nil, err
