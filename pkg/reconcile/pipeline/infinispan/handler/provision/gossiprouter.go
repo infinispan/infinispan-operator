@@ -189,6 +189,12 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					ServiceAccountName:           i.Spec.ServiceAccountName,
 					AutomountServiceAccountToken: ptr.To(false),
 					Containers:                   []corev1.Container{*container},
+					// Only NodeAffinity is propagated here: Pod(Anti)Affinity rules rely on Pod
+					// labels which the Gossip Router Pod does not share with the Infinispan cluster Pods,
+					// and TopologySpreadConstraints are meaningless for a single-replica Deployment.
+					Affinity:          i.NodeAffinity(),
+					Tolerations:       i.Tolerations(),
+					PriorityClassName: i.PriorityClassName(),
 				},
 			},
 			Replicas: replicas,
