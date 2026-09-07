@@ -15,7 +15,7 @@ type BackupSpec struct {
 	// +optional
 	Resources *BackupResources `json:"resources,omitempty"`
 	// +optional
-	Container v1.InfinispanContainerSpec `json:"container,omitempty"`
+	Container v1.ContainerSpec `json:"container,omitempty"`
 }
 
 type BackupVolumeSpec struct {

@@ -15,8 +15,11 @@ import (
 	ispnClient "github.com/infinispan/infinispan-operator/pkg/infinispan/client"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/stretchr/testify/assert"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -34,7 +37,7 @@ func TestBatchInlineConfig(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	infinispan := createCluster(t)
+	infinispan := createCluster(t, nil)
 	testBatchInlineConfig(t, infinispan)
 }
 
@@ -56,7 +59,7 @@ func TestBatchConfigMap(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	infinispan := createCluster(t)
+	infinispan := createCluster(t, nil)
 	configMap := helper.CreateBatchCM(infinispan)
 	defer testKube.DeleteConfigMap(configMap)
 
@@ -75,7 +78,7 @@ func TestBatchFail(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	infinispan := createCluster(t)
+	infinispan := createCluster(t, nil)
 
 	batchScript := "SOME INVALID BATCH CMD!"
 	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, &batchScript, nil, nil)
@@ -89,7 +92,7 @@ func TestBatchWithResources(t *testing.T) {
 	t.Parallel()
 	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
 
-	infinispan := createCluster(t)
+	infinispan := createCluster(t, nil)
 	batchScript := batchString()
 	bcSpec := &v2.BatchContainerSpec{Memory: "1Gi:1Gi", CPU: "500m:500m"}
 	podRes := batchCtrl.BatchResources(bcSpec)
@@ -110,13 +113,48 @@ func TestBatchWithResources(t *testing.T) {
 	waitForK8sResourceCleanup(infinispan.Name)
 }
 
+// TestBatchSecurityContext verifies that the Batch Job pod and container inherit the target
+// Infinispan cluster's securityContext.
+func TestBatchSecurityContext(t *testing.T) {
+	t.Parallel()
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	// Configure the cluster's securityContext; the Batch pod must inherit it.
+	infinispan := createCluster(t, func(i *v1.Infinispan) {
+		i.Spec.SecurityContext = &corev1.PodSecurityContext{SupplementalGroups: []int64{1000}}
+		i.Spec.Container.SecurityContext = &corev1.SecurityContext{ReadOnlyRootFilesystem: ptr.To(false)}
+	})
+
+	batchScript := batchString()
+	batch := helper.CreateBatch(t, infinispan.Name, infinispan.Name, &batchScript, nil, nil)
+
+	helper.WaitForValidBatchPhase(infinispan.Name, v2.BatchRunning)
+
+	job := testKube.GetJob(infinispan.Name, tutils.Namespace)
+	podContext := job.Spec.Template.Spec.SecurityContext
+	if assert.NotNil(t, podContext) {
+		assert.Equal(t, []int64{1000}, podContext.SupplementalGroups) // inherited override
+		assert.Equal(t, ptr.To(true), podContext.RunAsNonRoot)        // default preserved
+	}
+	containerCtx := job.Spec.Template.Spec.Containers[0].SecurityContext
+	if assert.NotNil(t, containerCtx) {
+		assert.Equal(t, ptr.To(false), containerCtx.ReadOnlyRootFilesystem)   // inherited override
+		assert.Equal(t, ptr.To(false), containerCtx.AllowPrivilegeEscalation) // default preserved
+		if assert.NotNil(t, containerCtx.Capabilities) {
+			assert.Equal(t, []corev1.Capability{"ALL"}, containerCtx.Capabilities.Drop) // default preserved
+		}
+	}
+	testKube.DeleteBatch(batch)
+	waitForK8sResourceCleanup(infinispan.Name)
+}
+
 func batchString() string {
 	batchScript := `create counter --concurrency-level=1 --initial-value=5 --storage=VOLATILE --type=weak batch-counter`
 	return strings.ReplaceAll(batchScript, "\t", "")
 }
 
-func createCluster(t *testing.T) *v1.Infinispan {
-	infinispan := tutils.DefaultSpec(t, testKube, nil)
+func createCluster(t *testing.T, initializer func(*v1.Infinispan)) *v1.Infinispan {
+	infinispan := tutils.DefaultSpec(t, testKube, initializer)
 	testKube.Create(infinispan)
 	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
 	return infinispan

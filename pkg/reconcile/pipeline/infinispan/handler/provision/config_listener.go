@@ -90,6 +90,30 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 						return
 					}
 				}
+
+				// Reconcile securityContext drift
+				desiredPodContext, err := i.PodSecurityContext()
+				if err != nil {
+					ctx.Requeue(fmt.Errorf("unable to compute ConfigListener pod securityContext: %w", err))
+					return
+				}
+				desiredContainerContext, err := i.ContainerSecurityContext()
+				if err != nil {
+					ctx.Requeue(fmt.Errorf("unable to compute ConfigListener container securityContext: %w", err))
+					return
+				}
+				podSecurityContextDiffers := !reflect.DeepEqual(deployment.Spec.Template.Spec.SecurityContext, desiredPodContext)
+				containerSecurityContextDiffers := !reflect.DeepEqual(container.SecurityContext, desiredContainerContext)
+				if podSecurityContextDiffers || containerSecurityContextDiffers {
+					err := UpdateConfigListenerDeployment(i, ctx, func(deployment *appsv1.Deployment) {
+						deployment.Spec.Template.Spec.SecurityContext = desiredPodContext
+						kube.GetContainer(InfinispanListenerContainer, &deployment.Spec.Template.Spec).SecurityContext = desiredContainerContext
+					})
+					if err != nil {
+						ctx.Requeue(fmt.Errorf("unable to update ConfigListener securityContext: %w", err))
+						return
+					}
+				}
 				// The Deployment already exists with the expected spec, do nothing
 			} else {
 				// Deployed configListener has different image, redeploying...
@@ -218,6 +242,19 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		container.Resources = *podResources
 	}
 
+	containerSecurityContext, err := i.ContainerSecurityContext()
+	if err != nil {
+		ctx.Requeue(fmt.Errorf("unable to compute ConfigListener container securityContext: %w", err))
+		return
+	}
+	container.SecurityContext = containerSecurityContext
+
+	podSecurityContext, err := i.PodSecurityContext()
+	if err != nil {
+		ctx.Requeue(fmt.Errorf("unable to compute ConfigListener pod securityContext: %w", err))
+		return
+	}
+
 	// The deployment doesn't exist, create it
 	labels := i.PodLabels()
 	labels["app"] = "infinispan-config-listener-pod"
@@ -234,6 +271,7 @@ func ConfigListener(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				Spec: corev1.PodSpec{
 					Containers:         []corev1.Container{*container},
 					ServiceAccountName: saName,
+					SecurityContext:    podSecurityContext,
 				},
 			},
 		},
