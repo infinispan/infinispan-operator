@@ -275,8 +275,10 @@ var _ = Describe("Infinispan Webhooks", func() {
 				Spec: InfinispanSpec{
 					Replicas: 1,
 					Container: InfinispanContainerSpec{
-						Memory: "1Gi:5Gi",
-						CPU:    "1000m:2000m",
+						ContainerSpec: ContainerSpec{
+							Memory: "1Gi:5Gi",
+							CPU:    "1000m:2000m",
+						},
 					},
 					ConfigListener: &ConfigListenerSpec{
 						Enabled: true,

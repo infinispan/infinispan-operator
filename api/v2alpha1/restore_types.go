@@ -16,7 +16,7 @@ type RestoreSpec struct {
 	// +optional
 	Resources *RestoreResources `json:"resources,omitempty"`
 	// +optional
-	Container v1.InfinispanContainerSpec `json:"container,omitempty"`
+	Container v1.ContainerSpec `json:"container,omitempty"`
 }
 
 type RestoreResources struct {
