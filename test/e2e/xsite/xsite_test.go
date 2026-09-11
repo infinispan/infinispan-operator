@@ -928,7 +928,7 @@ func backupSpec(testName, name, namespace, cluster string) *ispnv2.Backup {
 			Cluster: cluster,
 		},
 	}
-	spec.Default()
+	_ = (&ispnv2.BackupCustomDefaulter{}).Default(context.TODO(), spec)
 	return spec
 }
 

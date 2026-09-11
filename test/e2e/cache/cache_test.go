@@ -603,6 +603,6 @@ func cacheCR(cacheName string, i *v1.Infinispan) *v2alpha1.Cache {
 			Name:        cacheName,
 		},
 	}
-	cache.Default()
+	_ = (&v2alpha1.CacheCustomDefaulter{}).Default(context.TODO(), cache)
 	return cache
 }

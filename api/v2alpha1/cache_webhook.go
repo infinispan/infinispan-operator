@@ -2,13 +2,10 @@ package v2alpha1
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 
-	admissionv1 "k8s.io/api/admission/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,15 +19,27 @@ var log = ctrl.Log.WithName("webhook").WithName("Cache")
 func (c *Cache) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(c).
+		WithDefaulter(&CacheCustomDefaulter{}).
+		WithValidator(&CacheCustomValidator{client: mgr.GetClient()}).
 		Complete()
 }
 
 // +kubebuilder:webhook:path=/mutate-infinispan-org-v2alpha1-cache,mutating=true,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=caches,verbs=create;update,versions=v2alpha1,name=mcache.kb.io,admissionReviewVersions={v1,v1beta1}
 
-var _ webhook.Defaulter = &Cache{}
+// CacheCustomDefaulter applies defaults to Cache resources. It implements the
+// webhook.CustomDefaulter interface.
+// +kubebuilder:object:generate=false
+type CacheCustomDefaulter struct{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (c *Cache) Default() {
+var _ webhook.CustomDefaulter = &CacheCustomDefaulter{}
+
+// Default implements webhook.CustomDefaulter so a webhook will be registered for the type
+func (d *CacheCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
+	c, ok := obj.(*Cache)
+	if !ok {
+		return fmt.Errorf("expected a Cache object but got %T", obj)
+	}
+
 	if c.Spec.AdminAuth != nil {
 		log.Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
 		c.Spec.AdminAuth = nil
@@ -45,88 +54,29 @@ func (c *Cache) Default() {
 	if c.Spec.Updates.Strategy == "" {
 		c.Spec.Updates.Strategy = CacheUpdateRetain
 	}
+	return nil
 }
 
 // +kubebuilder:webhook:path=/validate-infinispan-org-v2alpha1-cache,mutating=false,failurePolicy=fail,sideEffects=None,groups=infinispan.org,resources=caches,verbs=create;update,versions=v2alpha1,name=vcache.kb.io,admissionReviewVersions={v1,v1beta1}
 
-// RegisterCacheValidatingWebhook explicitly adds the validating webhook to the Webhook Server
-// This is necessary as we need to implement admission.Handler interface directly so that the request context can be
-// used by the runtime client
-func RegisterCacheValidatingWebhook(mgr ctrl.Manager) {
-	hookServer := mgr.GetWebhookServer()
-	validator := &cacheValidator{
-		client: mgr.GetClient(),
-	}
-	decoder := admission.NewDecoder(mgr.GetScheme())
-	_ = validator.InjectDecoder(decoder)
-
-	wh := &admission.Webhook{
-		Handler: validator,
-	}
-	hookServer.Register("/validate-infinispan-org-v2alpha1-cache", wh)
+// CacheCustomValidator validates Cache resources. It implements the
+// webhook.CustomValidator interface. Unlike the other CRDs, Cache validation
+// requires the runtime client (and the request context) in order to ensure that
+// no other Cache CR already exists in the namespace with the same spec.Name.
+// +kubebuilder:object:generate=false
+type CacheCustomValidator struct {
+	client runtimeClient.Client
 }
 
-type cacheValidator struct {
-	client  runtimeClient.Client
-	decoder admission.Decoder
-}
+var _ webhook.CustomValidator = &CacheCustomValidator{}
 
-func (cv *cacheValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	// Get the object in the request
-	cache := &Cache{}
-	if req.Operation == admissionv1.Create {
-		err := cv.decoder.Decode(req, cache)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-
-		err = cv.Create(ctx, cache)
-		if err != nil {
-			var apiStatus apierrors.APIStatus
-			if errors.As(err, &apiStatus) {
-				return validationResponseFromStatus(false, apiStatus.Status())
-			}
-			return admission.Denied(err.Error())
-		}
+// ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *CacheCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	c, ok := obj.(*Cache)
+	if !ok {
+		return nil, fmt.Errorf("expected a Cache object but got %T", obj)
 	}
 
-	if req.Operation == admissionv1.Update {
-		oldCache := &Cache{}
-
-		err := cv.decoder.DecodeRaw(req.Object, cache)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		err = cv.decoder.DecodeRaw(req.OldObject, oldCache)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-
-		err = cv.Update(cache, oldCache)
-		if err != nil {
-			var apiStatus apierrors.APIStatus
-			if errors.As(err, &apiStatus) {
-				return validationResponseFromStatus(false, apiStatus.Status())
-			}
-			return admission.Denied(err.Error())
-		}
-	}
-	return admission.Allowed("")
-}
-
-// InjectClient injects the client.
-func (cv *cacheValidator) InjectClient(c runtimeClient.Client) error {
-	cv.client = c
-	return nil
-}
-
-// InjectDecoder injects the decoder.
-func (cv *cacheValidator) InjectDecoder(d admission.Decoder) error {
-	cv.decoder = d
-	return nil
-}
-
-func (cv *cacheValidator) Create(ctx context.Context, c *Cache) error {
 	var allErrs field.ErrorList
 	if c.Spec.ClusterName == "" {
 		allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("clusterName"), "'spec.clusterName' must be configured"))
@@ -134,7 +84,7 @@ func (cv *cacheValidator) Create(ctx context.Context, c *Cache) error {
 
 	// Ensure that a Cache CR does not already exist in this namespace with the same spec.Name
 	list := &CacheList{}
-	if err := cv.client.List(ctx, list, &runtimeClient.ListOptions{Namespace: c.Namespace}); err != nil {
+	if err := v.client.List(ctx, list, &runtimeClient.ListOptions{Namespace: c.Namespace}); err != nil {
 		allErrs = append(allErrs, field.InternalError(field.NewPath("spec").Child("name"), err))
 	} else {
 		for _, cache := range list.Items {
@@ -144,10 +94,20 @@ func (cv *cacheValidator) Create(ctx context.Context, c *Cache) error {
 			}
 		}
 	}
-	return StatusError(c, allErrs)
+	return nil, StatusError(c, allErrs)
 }
 
-func (cv *cacheValidator) Update(c *Cache, oldCache *Cache) error {
+// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *CacheCustomValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	c, ok := newObj.(*Cache)
+	if !ok {
+		return nil, fmt.Errorf("expected a Cache object but got %T", newObj)
+	}
+	oldCache, ok := oldObj.(*Cache)
+	if !ok {
+		return nil, fmt.Errorf("expected a Cache object but got %T", oldObj)
+	}
+
 	var allErrs field.ErrorList
 	if oldCache.Spec.ClusterName != c.Spec.ClusterName {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("clusterName"), "Cache clusterName is immutable and cannot be updated after initial Cache creation"))
@@ -155,7 +115,13 @@ func (cv *cacheValidator) Update(c *Cache, oldCache *Cache) error {
 	if oldCache.Spec.Name != c.Spec.Name {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("name"), "Cache name is immutable and cannot be updated after initial Cache creation"))
 	}
-	return StatusError(c, allErrs)
+	return nil, StatusError(c, allErrs)
+}
+
+// ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type
+func (v *CacheCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+	// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
+	return nil, nil
 }
 
 func StatusError(c *Cache, allErrs field.ErrorList) error {
@@ -165,14 +131,4 @@ func StatusError(c *Cache, allErrs field.ErrorList) error {
 			c.Name, allErrs)
 	}
 	return nil
-}
-
-// validationResponseFromStatus returns a response for admitting a request with provided Status object.
-func validationResponseFromStatus(allowed bool, status metav1.Status) admission.Response {
-	return admission.Response{
-		AdmissionResponse: admissionv1.AdmissionResponse{
-			Allowed: allowed,
-			Result:  &status,
-		},
-	}
 }

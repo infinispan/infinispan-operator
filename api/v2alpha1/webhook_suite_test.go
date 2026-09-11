@@ -96,8 +96,6 @@ var _ = BeforeSuite(func(ginkgoCtx SpecContext) {
 	err = (&Cache{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
-	RegisterCacheValidatingWebhook(mgr)
-
 	err = (&Backup{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
