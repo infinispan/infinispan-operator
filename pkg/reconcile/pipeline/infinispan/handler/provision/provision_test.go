@@ -58,10 +58,10 @@ var _ = Describe("Provision", func() {
 						EphemeralStorage: true,
 					},
 				},
-				Version: "IGNORED. Required so we can call Default()",
+				Version: "IGNORED. Required so we can call ApplyDefaults()",
 			},
 		}
-		ispn.Default()
+		ispn.ApplyDefaults()
 
 		// Assert PriorityClassName set when specified
 		ss, err := ClusterStatefulSetSpec("statefulset", ispn, ctx)
@@ -105,10 +105,10 @@ var _ = Describe("Provision", func() {
 						EphemeralStorage: true,
 					},
 				},
-				Version: "IGNORED. Required so we can call Default()",
+				Version: "IGNORED. Required so we can call ApplyDefaults()",
 			},
 		}
-		ispn.Default()
+		ispn.ApplyDefaults()
 
 		ss, err := ClusterStatefulSetSpec("statefulset", ispn, ctx)
 		Expect(err).Should(BeNil())

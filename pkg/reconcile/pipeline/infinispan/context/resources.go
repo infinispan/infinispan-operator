@@ -132,9 +132,10 @@ func (r resources) load(name string, obj client.Object, load func() error, opts 
 		}
 
 		if isNotFound && !config.SkipEventRec {
-			msg := fmt.Sprintf("%s resource '%s' not ready", reflect.TypeOf(obj).Elem().Name(), name)
-			r.Log().Info(msg)
-			r.EventRecorder().Event(r.infinispan, corev1.EventTypeWarning, "ResourceNotReady", msg)
+			kind := reflect.TypeOf(obj).Elem().Name()
+			r.Log().V(1).Info("Resource not ready", "kind", kind, "resource", name)
+			r.EventRecorder().Event(r.infinispan, corev1.EventTypeNormal, "ResourceNotReady",
+				fmt.Sprintf("%s resource '%s' not ready", kind, name))
 		}
 		return err
 	}

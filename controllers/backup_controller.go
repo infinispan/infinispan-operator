@@ -17,6 +17,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // +kubebuilder:rbac:groups=infinispan.org,namespace=infinispan-operator-system,resources=backups;backups/status;backups/finalizers,verbs=get;list;watch;create;update;patch
@@ -173,6 +174,7 @@ func (r *backupResource) getOrCreatePvc() error {
 	if err = r.client.Create(r.ctx, pvc); err != nil {
 		return fmt.Errorf("unable to create pvc: %w", err)
 	}
+	log.FromContext(r.ctx).Info("Created backup PVC", "pvc", pvc.Name)
 	return nil
 }
 
@@ -201,6 +203,7 @@ func (r *backupResource) Exec(client api.Infinispan) error {
 	}
 
 	if status == api.StatusNotFound {
+		log.FromContext(r.ctx).Info("Initiating backup", "backup", instance.Name)
 		return client.Container().Backups().Create(instance.Name, config)
 	}
 	return nil
