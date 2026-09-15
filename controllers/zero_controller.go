@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -329,8 +330,9 @@ func (z *zeroCapacityController) zeroPodSpec(name, namespace string, podSecurity
 			Annotations: ispn.PodAnnotations(),
 		},
 		Spec: corev1.PodSpec{
-			ServiceAccountName: ispn.Spec.ServiceAccountName,
-			SecurityContext:    podSecurityCtx,
+			ServiceAccountName:           ispn.Spec.ServiceAccountName,
+			AutomountServiceAccountToken: ptr.To(false),
+			SecurityContext:              podSecurityCtx,
 			Containers: []corev1.Container{{
 				Image:         ispn.ImageName(),
 				Name:          provision.InfinispanContainer,
