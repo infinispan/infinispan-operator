@@ -6,14 +6,6 @@ ifdef::context[:parent-context: {context}]
 [role="_abstract"]
 {ispn_operator} lets you upgrade {brandname} clusters from one version to another without downtime or data loss.
 
-//Community content
-ifdef::community[]
-[NOTE]
-====
-{ispn_operator} requires the Operator Lifecycle Manager to perform cluster upgrades.
-====
-endif::community[]
-
 //Downstream content
 ifdef::downstream[]
 [IMPORTANT]
