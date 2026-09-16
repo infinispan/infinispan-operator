@@ -11,7 +11,7 @@ jobs:
           git config --global user.name "infinispan-qe-bot"
           git config --global user.email "q*@infinispan.org"
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: operator
           ref: '${{ env.REF }}'
