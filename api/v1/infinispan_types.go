@@ -94,15 +94,15 @@ type EndpointEncryption struct {
 
 // InfinispanServiceContainerSpec resource requirements specific for service
 type InfinispanServiceContainerSpec struct {
-	// The amount of storage for the persistent volume claim.
+	// The amount of storage for the persistent volume claim. This field is immutable and cannot be updated after initial Infinispan creation.
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Size",xDescriptors="urn:alm:descriptor:text"
 	Storage *string `json:"storage,omitempty"`
-	// Enable/disable container ephemeral storage
+	// Enable/disable container ephemeral storage. This field is immutable and cannot be updated after initial Infinispan creation.
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Container Ephemeral Storage",xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
 	EphemeralStorage bool `json:"ephemeralStorage,omitempty"`
-	// The storage class object for persistent volume claims
+	// The storage class object for persistent volume claims. This field is immutable and cannot be updated after initial Infinispan creation.
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Class Name",xDescriptors={"urn:alm:descriptor:io.kubernetes:StorageClass", "urn:alm:descriptor:com.tectonic.ui:fieldDependency:service.container.ephemeralStorage:false"}
 	StorageClassName string `json:"storageClassName,omitempty"`

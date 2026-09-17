@@ -718,6 +718,47 @@ var _ = Describe("Infinispan Webhooks", func() {
 			)
 		})
 
+		It("Should prevent spec.service.container.storageClassName immutable field being updated", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+					Service: InfinispanServiceSpec{
+						Container: &InfinispanServiceContainerSpec{
+							StorageClassName: "some-storage-class",
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, key, ispn)).Should(Succeed())
+			ispn.Spec.Service.Container.StorageClassName = "another-storage-class"
+			expectInvalidErrStatus(k8sClient.Update(ctx, ispn),
+				statusDetailCause{"FieldValueForbidden", "spec.service.container.storageClassName", "StorageClassName is immutable and cannot be updated after initial Infinispan creation"},
+			)
+		})
+
+		It("Should prevent spec.service.container.ephemeralStorage immutable field being updated", func() {
+			ispn := &Infinispan{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      key.Name,
+					Namespace: key.Namespace,
+				},
+				Spec: InfinispanSpec{
+					Replicas: 1,
+				},
+			}
+			Expect(k8sClient.Create(ctx, ispn)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, key, ispn)).Should(Succeed())
+			ispn.Spec.Service.Container.EphemeralStorage = true // Default is false
+			expectInvalidErrStatus(k8sClient.Update(ctx, ispn),
+				statusDetailCause{"FieldValueForbidden", "spec.service.container.ephemeralStorage", "EphemeralStorage is immutable and cannot be updated after initial Infinispan creation"},
+			)
+		})
+
 		It("Should prevent incompatible TLS configuration", func() {
 			ispn := &Infinispan{
 				ObjectMeta: metav1.ObjectMeta{

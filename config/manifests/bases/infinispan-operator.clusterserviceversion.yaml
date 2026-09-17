@@ -175,17 +175,20 @@ spec:
         x-descriptors:
         - urn:alm:descriptor:io.kubernetes:Secret
         - urn:alm:descriptor:com.tectonic.ui:fieldDependency:security.endpointAuthentication:true
-      - description: Enable/disable container ephemeral storage
+      - description: Enable/disable container ephemeral storage. This field is immutable
+          and cannot be updated after initial Infinispan creation.
         displayName: Container Ephemeral Storage
         path: service.container.ephemeralStorage
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
-      - description: The amount of storage for the persistent volume claim.
+      - description: The amount of storage for the persistent volume claim. This field
+          is immutable and cannot be updated after initial Infinispan creation.
         displayName: Storage Size
         path: service.container.storage
         x-descriptors:
         - urn:alm:descriptor:text
-      - description: The storage class object for persistent volume claims
+      - description: The storage class object for persistent volume claims. This field
+          is immutable and cannot be updated after initial Infinispan creation.
         displayName: Storage Class Name
         path: service.container.storageClassName
         x-descriptors:
