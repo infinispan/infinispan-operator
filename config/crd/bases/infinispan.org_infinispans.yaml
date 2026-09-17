@@ -2484,7 +2484,9 @@ spec:
                       specific for service
                     properties:
                       ephemeralStorage:
-                        description: Enable/disable container ephemeral storage
+                        description: Enable/disable container ephemeral storage. This
+                          field is immutable and cannot be updated after initial Infinispan
+                          creation.
                         type: boolean
                       livenessProbe:
                         description: |-
@@ -2581,11 +2583,13 @@ spec:
                         type: object
                       storage:
                         description: The amount of storage for the persistent volume
-                          claim.
+                          claim. This field is immutable and cannot be updated after
+                          initial Infinispan creation.
                         type: string
                       storageClassName:
                         description: The storage class object for persistent volume
-                          claims
+                          claims. This field is immutable and cannot be updated after
+                          initial Infinispan creation.
                         type: string
                       terminationGracePeriodSeconds:
                         description: TerminationGracePeriodSeconds specifies the duration

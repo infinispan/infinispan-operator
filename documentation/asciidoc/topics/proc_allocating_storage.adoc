@@ -10,6 +10,13 @@ However you should adjust the amount of storage available to {datagridservice} p
 If available container storage is less than the amount of available memory, data loss can occur.
 ====
 
+[IMPORTANT]
+====
+The `spec.service.container.storage`, `spec.service.container.ephemeralStorage`, and `spec.service.container.storageClassName` fields are immutable.
+You cannot change these values after you create your {brandname} cluster.
+To use different storage configuration you must delete the existing cluster and create a new one.
+====
+
 .Procedure
 
 . Allocate storage resources with the `spec.service.container.storage` field.

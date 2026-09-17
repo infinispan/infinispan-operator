@@ -264,8 +264,18 @@ func (v *InfinispanCustomValidator) ValidateUpdate(_ context.Context, oldRuntime
 		allErrs = append(allErrs, err)
 	}
 
-	if i.Spec.Service.Container != nil && i.Spec.Service.Container.Storage != nil && *old.Spec.Service.Container.Storage != *i.Spec.Service.Container.Storage {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("service").Child("container").Child("storage"), "Storage configuration is immutable and cannot be updated after initial Infinispan creation"))
+	if i.Spec.Service.Container != nil && old.Spec.Service.Container != nil {
+		if !ptr.Equal(old.Spec.Service.Container.Storage, i.Spec.Service.Container.Storage) {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("service").Child("container").Child("storage"), "Storage configuration is immutable and cannot be updated after initial Infinispan creation"))
+		}
+
+		if old.Spec.Service.Container.StorageClassName != i.Spec.Service.Container.StorageClassName {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("service").Child("container").Child("storageClassName"), "StorageClassName is immutable and cannot be updated after initial Infinispan creation"))
+		}
+
+		if old.Spec.Service.Container.EphemeralStorage != i.Spec.Service.Container.EphemeralStorage {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("service").Child("container").Child("ephemeralStorage"), "EphemeralStorage is immutable and cannot be updated after initial Infinispan creation"))
+		}
 	}
 
 	return errorListToError(i, allErrs)
