@@ -89,7 +89,7 @@ jobs:
       - name: Free Disk Space
         # No need to free up disk space if only the latest Operator bundle is installed
         if: inputs.upgradeDepth != 0
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
 
       - name: Install Dependencies
         uses: ./.github/actions/dependencies
