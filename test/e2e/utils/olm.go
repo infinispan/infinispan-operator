@@ -55,7 +55,7 @@ func (env OLMEnv) PrintManifest() {
 	fmt.Println("Starting CSV: " + env.SubStartingCSV)
 }
 
-// Returns last
+// Returns last release name
 func (k TestKubernetes) GetLatestReleasedCSV() string {
 	catalogSource := constants.GetEnvWithDefault("SUBSCRIPTION_CATALOG_SOURCE_GA", "operatorhubio-catalog")
 	subPackage := constants.GetEnvWithDefault("SUBSCRIPTION_PACKAGE", "infinispan")
