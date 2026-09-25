@@ -126,7 +126,7 @@ func (m *Manager) Log(log logr.Logger) {
 	if bytes, err := json.MarshalIndent(m.Operands, "", "  "); err != nil {
 		log.Error(err, "unable to log VersionManager content")
 	} else {
-		log.Info(fmt.Sprintf("Loaded Operand Versions:\n%s", bytes))
+		log.Info("Loaded operand versions", "operands", string(bytes))
 	}
 }
 
