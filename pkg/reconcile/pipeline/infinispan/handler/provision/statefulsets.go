@@ -95,8 +95,18 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 	annotationsForPod["updateDate"] = time.Now().String()
 
 	// We can ignore the err here as the validating webhook ensures that the resources are valid
-	podResources, _ := PodResources(i.Spec.Container)
+	podResources, _ := PodResources(i.Spec.Container.ContainerSpec)
 	operand := ctx.Operand()
+
+	podSecurityContext, err := i.PodSecurityContext()
+	if err != nil {
+		return nil, err
+	}
+	containerSecurityContext, err := i.ContainerSecurityContext()
+	if err != nil {
+		return nil, err
+	}
+
 	statefulSet := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -125,17 +135,19 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 					Affinity:                      i.Affinity(),
 					Tolerations:                   i.Tolerations(),
 					TopologySpreadConstraints:     i.TopologySpreadConstraints(),
+					SecurityContext:               podSecurityContext,
 					Containers: []corev1.Container{{
-						Image:          i.ImageName(),
-						Args:           BuildServerContainerArgs(ctx.ConfigFiles()),
-						Name:           InfinispanContainer,
-						Env:            podEnvs,
-						Lifecycle:      PodLifecycle(),
-						LivenessProbe:  PodLivenessProbe(i, operand),
-						Ports:          PodPortsWithXsite(i),
-						ReadinessProbe: PodReadinessProbe(i, operand),
-						StartupProbe:   PodStartupProbe(i, operand),
-						Resources:      *podResources,
+						Image:           i.ImageName(),
+						Args:            BuildServerContainerArgs(ctx.ConfigFiles()),
+						Name:            InfinispanContainer,
+						Env:             podEnvs,
+						SecurityContext: containerSecurityContext,
+						Lifecycle:       PodLifecycle(),
+						LivenessProbe:   PodLivenessProbe(i, operand),
+						Ports:           PodPortsWithXsite(i),
+						ReadinessProbe:  PodReadinessProbe(i, operand),
+						StartupProbe:    PodStartupProbe(i, operand),
+						Resources:       *podResources,
 						VolumeMounts: []corev1.VolumeMount{{
 							Name:      ConfigVolumeName,
 							MountPath: OperatorConfMountPath,
@@ -182,6 +194,13 @@ func ClusterStatefulSetSpec(statefulSetName string, i *ispnv1.Infinispan, ctx pi
 	addUserConfigVolumes(ctx, i, statefulSet)
 	addTLS(ctx, i, statefulSet)
 	AddXSiteTLSVolumes(ctx, i, statefulSet)
+
+	// Init containers (chmod PV, external artifacts download) must also satisfy the hardened
+	// container securityContext.
+	initContainers := statefulSet.Spec.Template.Spec.InitContainers
+	for idx := range initContainers {
+		initContainers[idx].SecurityContext = containerSecurityContext.DeepCopy()
+	}
 	return statefulSet, nil
 }
 

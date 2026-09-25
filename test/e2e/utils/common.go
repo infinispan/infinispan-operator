@@ -235,7 +235,9 @@ func DefaultSpec(t *testing.T, testKube *TestKubernetes, initializer func(*ispnv
 				},
 			},
 			Container: ispnv1.InfinispanContainerSpec{
-				Memory: Memory,
+				ContainerSpec: ispnv1.ContainerSpec{
+					Memory: Memory,
+				},
 			},
 			Replicas: 1,
 			Expose:   ExposeServiceSpec(testKube),

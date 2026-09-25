@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
+	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -459,12 +460,12 @@ func (ispn *Infinispan) GetTruststoreSecretName() string {
 }
 
 // GetCpuResources returns the CPU request and limit values to be used by pods
-func (spec *InfinispanContainerSpec) GetCpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+func (spec *ContainerSpec) GetCpuResources() (requests resource.Quantity, limits resource.Quantity, err error) {
 	return GetRequestLimits(spec.CPU)
 }
 
 // GetMemoryResources returns the Memory request and limit values to be used by pods
-func (spec *InfinispanContainerSpec) GetMemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
+func (spec *ContainerSpec) GetMemoryResources() (requests resource.Quantity, limits resource.Quantity, err error) {
 	return GetRequestLimits(spec.Memory)
 }
 
@@ -1006,6 +1007,26 @@ func (ispn *Infinispan) Tolerations() []corev1.Toleration {
 
 func (ispn *Infinispan) TopologySpreadConstraints() []corev1.TopologySpreadConstraint {
 	return ispn.Spec.Scheduling.TopologySpreadConstraints
+}
+
+// PodSecurityContext returns the hardened pod-level securityContext defaults with any user-provided
+// spec.securityContext deep-merged on top.
+func (ispn *Infinispan) PodSecurityContext() (*corev1.PodSecurityContext, error) {
+	return kube.MergePodSecurityContext(ispn.Spec.SecurityContext)
+}
+
+// ContainerSecurityContext returns the hardened container-level securityContext defaults with any
+// user-provided spec.container.securityContext deep-merged on top.
+func (ispn *Infinispan) ContainerSecurityContext() (*corev1.SecurityContext, error) {
+	return kube.MergeContainerSecurityContext(ispn.Spec.Container.SecurityContext)
+}
+
+func (ispn *Infinispan) HasPodSecurityContext() bool {
+	return ispn.Spec.SecurityContext != nil
+}
+
+func (ispn *Infinispan) HasContainerSecurityContext() bool {
+	return ispn.Spec.Container.SecurityContext != nil
 }
 
 func (c *ContainerProbeSpec) AssignDefaults(failureThreshold, initialDelay, period, successThreshold, timeout int32) {

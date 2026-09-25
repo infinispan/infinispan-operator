@@ -172,6 +172,17 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 		labels[k] = v
 	}
 
+	// The Batch pod inherits the cluster's securityContext (merged over the hardened defaults)
+	// rather than exposing its own configurable fields
+	podSecurityContext, err := infinispan.PodSecurityContext()
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("unable to compute Batch pod securityContext: %w", err)
+	}
+	containerSecurityContext, err := infinispan.ContainerSecurityContext()
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("unable to compute Batch container securityContext: %w", err)
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      batch.Name,
@@ -186,10 +197,12 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: infinispan.Spec.ServiceAccountName,
+					SecurityContext:    podSecurityContext,
 					Containers: []corev1.Container{{
-						Name:    BatchContainer,
-						Image:   infinispan.ImageName(),
-						Command: []string{"/opt/infinispan/bin/cli.sh", cliArgs},
+						Name:            BatchContainer,
+						Image:           infinispan.ImageName(),
+						Command:         []string{"/opt/infinispan/bin/cli.sh", cliArgs},
+						SecurityContext: containerSecurityContext,
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      BatchVolumeName,
@@ -228,7 +241,7 @@ func (r *batchRequest) execute() (reconcile.Result, error) {
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, job, func() error {
+	_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, job, func() error {
 		return controllerutil.SetControllerReference(batch, job, r.scheme)
 	})
 

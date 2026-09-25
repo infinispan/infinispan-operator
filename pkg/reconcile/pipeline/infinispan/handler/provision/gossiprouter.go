@@ -157,6 +157,14 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			container.Resources = *podResources
 		}
 
+		podSecurityContext, err := i.PodSecurityContext()
+		if err != nil {
+			return err
+		}
+		if container.SecurityContext, err = i.ContainerSecurityContext(); err != nil {
+			return err
+		}
+
 		router.Spec = appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: routerLabels,
@@ -170,6 +178,7 @@ func GossipRouter(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: i.Spec.ServiceAccountName,
+					SecurityContext:    podSecurityContext,
 					Containers:         []corev1.Container{*container},
 				},
 			},
