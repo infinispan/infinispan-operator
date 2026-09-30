@@ -20,8 +20,7 @@ func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, tar
 		return fmt.Errorf("failed to get cache names from the source cluster: %w", err)
 	}
 
-	logger.Info(fmt.Sprintf("Cache names in the source cluster '%s'", names))
-	logger.Info("Creating caches in the target cluster")
+	logger.Info("Creating caches in the target cluster", "sourceCaches", names)
 	configType := mime.ApplicationJson
 	for _, cacheName := range names {
 		targetCache := targetClient.Cache(cacheName)
@@ -39,9 +38,9 @@ func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, tar
 				if err = targetCache.Create(config, configType); err != nil {
 					return fmt.Errorf("failed to create cache '%s': %w", cacheName, err)
 				}
-				logger.Info(fmt.Sprintf("Cache '%s' created", cacheName))
+				logger.Info("Cache created", "cache", cacheName)
 			} else {
-				logger.Info(fmt.Sprintf("Cache '%s' already exists", cacheName))
+				logger.Info("Cache already exists", "cache", cacheName)
 			}
 		}
 
@@ -57,12 +56,12 @@ func ConnectCaches(user, adminPasswordSource, sourceIp string, sourceClient, tar
 			if err != nil {
 				return fmt.Errorf("failed to generate remote store config '%s': %w", cacheName, err)
 			}
-			logger.Info(remoteStoreCfg)
+			logger.V(2).Info("Remote store configuration", "config", remoteStoreCfg)
 			if err = rollingUpgrade.AddSource(remoteStoreCfg, configType); err != nil {
 				return fmt.Errorf("failed to add remote store to cache '%s': %w", cacheName, err)
 			}
 		} else {
-			logger.Info(fmt.Sprintf("Cache '%s' already connected to remote cluster", cacheName))
+			logger.Info("Cache already connected to remote cluster", "cache", cacheName)
 		}
 
 	}
@@ -75,7 +74,7 @@ func SyncCaches(sourceClient, targetClient api.Infinispan, logger logr.Logger) e
 	if err != nil {
 		return fmt.Errorf("failed to get cache names from the target cluster: %w", err)
 	}
-	logger.Info(fmt.Sprintf("Cache names in the target cluster '%s'", names))
+	logger.Info("Syncing caches from target cluster", "caches", names)
 
 	for _, cacheName := range names {
 		upgrade := targetClient.Cache(cacheName).RollingUpgrade()
@@ -83,7 +82,7 @@ func SyncCaches(sourceClient, targetClient api.Infinispan, logger logr.Logger) e
 		if err != nil {
 			return fmt.Errorf("failed to sync data for cache'%s': %w", cacheName, err)
 		}
-		logger.Info(fmt.Sprintf("Sync result for '%s' %s:'", cacheName, count))
+		logger.Info("Sync completed", "cache", cacheName, "count", count)
 
 		if err = upgrade.DisconnectSource(); err != nil {
 			return fmt.Errorf("failed to disconnect source for cache'%s': %w", cacheName, err)

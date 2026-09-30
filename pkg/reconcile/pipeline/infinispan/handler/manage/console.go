@@ -55,7 +55,7 @@ func ConsoleUrl(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					ctx.RequeueAfter(consts.DefaultWaitOnCluster, nil)
 					return
 				}
-				log.Info("LoadBalancer address not ready yet. Waiting on value in reconcile loop")
+				log.V(1).Info("LoadBalancer address not ready yet")
 				ctx.RequeueAfter(consts.DefaultWaitOnCluster, nil)
 				return
 			}
@@ -85,4 +85,7 @@ func ConsoleUrl(i *ispnv1.Infinispan, ctx pipeline.Context) {
 			i.Status.ConsoleUrl = ptr.To(fmt.Sprintf("%s://%s/console", i.GetEndpointScheme(), exposeAddress))
 		}
 	})
+	if i.Status.ConsoleUrl != nil {
+		ctx.Log().V(1).Info("Updated console URL in status", "url", *i.Status.ConsoleUrl)
+	}
 }

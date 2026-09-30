@@ -9,7 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // ForceRunModeEnv indicates if the operator should be forced to run in either local
@@ -32,8 +32,6 @@ const (
 	// which is the name of the current pod.
 	PodNameEnvVar = "POD_NAME"
 )
-
-var log = logf.Log.WithName("k8sutil")
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
 func GetWatchNamespace() (string, error) {
@@ -65,7 +63,7 @@ func getOperatorNamespace() (string, error) {
 		return "", err
 	}
 	ns := strings.TrimSpace(string(nsBytes))
-	log.V(1).Info("Found namespace", "Namespace", ns)
+	log.Log.V(1).Info("Found namespace", "namespace", ns)
 	return ns, nil
 }
 
@@ -112,14 +110,14 @@ func GetPod(ctx context.Context, client crclient.Client, ns string) (*corev1.Pod
 		return nil, fmt.Errorf("required env %s not set, please configure downward API", PodNameEnvVar)
 	}
 
-	log.V(1).Info("Found podname", "Pod.Name", podName)
+	logger := log.FromContext(ctx)
+	logger.V(1).Info("Found podname", "pod", podName)
 
 	pod := &corev1.Pod{}
 	key := crclient.ObjectKey{Namespace: ns, Name: podName}
 	err := client.Get(ctx, key, pod)
 	if err != nil {
-		log.Error(err, "Failed to get Pod", "Pod.Namespace", ns, "Pod.Name", podName)
-		return nil, err
+		return nil, fmt.Errorf("failed to get pod %s: %w", podName, err)
 	}
 
 	// .Get() clears the APIVersion and Kind,
@@ -127,7 +125,7 @@ func GetPod(ctx context.Context, client crclient.Client, ns string) (*corev1.Pod
 	pod.APIVersion = "v1"
 	pod.Kind = "Pod"
 
-	log.V(1).Info("Found Pod", "Pod.Namespace", ns, "Pod.Name", pod.Name)
+	logger.V(1).Info("Found Pod", "pod", pod.Name)
 
 	return pod, nil
 }
