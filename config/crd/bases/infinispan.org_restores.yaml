@@ -46,8 +46,8 @@ spec:
                 description: Infinispan cluster name
                 type: string
               container:
-                description: InfinispanContainerSpec specify resource requirements
-                  per container
+                description: ContainerSpec specifies the resource requirements per
+                  container.
                 properties:
                   cliExtraJvmOpts:
                     type: string

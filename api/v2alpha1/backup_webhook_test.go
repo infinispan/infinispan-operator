@@ -111,7 +111,7 @@ var _ = Describe("Backup Webhook", func() {
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 
 			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())
-			updated.Spec.Container = v1.InfinispanContainerSpec{CPU: "1"}
+			updated.Spec.Container = v1.ContainerSpec{CPU: "1"}
 			expectInvalidErrStatus(k8sClient.Update(ctx, updated), cause)
 
 			Expect(k8sClient.Get(ctx, key, updated)).Should(Succeed())

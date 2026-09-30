@@ -1,0 +1,31 @@
+[id='security-context_{context}']
+= Security context defaults
+
+[role="_abstract"]
+{ispn_operator} applies a hardened _security context_ to every pod and container that it provisions, including {brandname} server pods, the Gossip Router, the {brandname} config listener, backup and restore pods, and batch jobs.
+A security context defines privilege and access control settings that reduce the attack surface of your workloads.
+
+{ispn_operator} applies the following pod-level defaults:
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/security_context_pod_defaults.yaml[]
+----
+
+{ispn_operator} applies the following container-level defaults:
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/security_context_container_defaults.yaml[]
+----
+
+[discrete]
+== Merge behavior
+
+If you do not configure a security context, {ispn_operator} applies the defaults and does not store any security context in your custom resources (CRs).
+
+If you configure a security context, {ispn_operator} deep-merges your configuration over the defaults.
+Fields that you set take precedence, while fields that you do not set fall back to the defaults.
+
+If you remove a security context from a CR, {ispn_operator} applies the defaults to any resources that it subsequently provisions.
+To avoid unnecessary restarts of existing clusters, {brandname} server pods retain their current security context until another configuration change rolls out the {brandname} `StatefulSet`.

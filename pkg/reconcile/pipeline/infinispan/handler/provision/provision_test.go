@@ -48,7 +48,9 @@ var _ = Describe("Provision", func() {
 			Spec: ispnv1.InfinispanSpec{
 				Replicas: 1,
 				Container: ispnv1.InfinispanContainerSpec{
-					Memory: "1Gi",
+					ContainerSpec: ispnv1.ContainerSpec{
+						Memory: "1Gi",
+					},
 				},
 				Scheduling: &ispnv1.SchedulingSpec{
 					PriorityClassName: "example-priority-class",
@@ -98,7 +100,9 @@ var _ = Describe("Provision", func() {
 				Replicas:           1,
 				ServiceAccountName: "custom-sa",
 				Container: ispnv1.InfinispanContainerSpec{
-					Memory: "1Gi",
+					ContainerSpec: ispnv1.ContainerSpec{
+						Memory: "1Gi",
+					},
 				},
 				Service: ispnv1.InfinispanServiceSpec{
 					Type: ispnv1.ServiceTypeDataGrid,
