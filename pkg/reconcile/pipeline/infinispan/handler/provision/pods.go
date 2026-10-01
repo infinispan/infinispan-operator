@@ -6,7 +6,7 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	ispnv1 "github.com/infinispan/infinispan-operator/api/v1"
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
