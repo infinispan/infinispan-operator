@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/version"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

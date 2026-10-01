@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 )
 
 type PluginList []GrafanaPlugin
