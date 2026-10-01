@@ -46,7 +46,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	httpClient "github.com/infinispan/infinispan-operator/pkg/http"
 	"github.com/infinispan/infinispan-operator/pkg/infinispan/client/api"
 	v14 "github.com/infinispan/infinispan-operator/pkg/infinispan/client/v14"
