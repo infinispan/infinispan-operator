@@ -1,0 +1,2 @@
+docker buildx imagetools inspect {operator_image}:{ispn_operator_version}.0 \
+  --format '{{ json (index .SBOM "linux/amd64").SPDX }}' > sbom.json

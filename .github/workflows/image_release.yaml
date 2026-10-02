@@ -86,6 +86,8 @@ jobs:
     permissions:
       contents: write
       packages: write
+    env:
+      IMAGE_PLATFORMS: linux/amd64,linux/arm64
     steps:
       - name: Configure Git
         run: |
@@ -132,14 +134,37 @@ jobs:
           password: ${{ secrets.QUAY_TOKEN }}
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: operator
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ env.IMAGE_PLATFORMS }}
           push: true
+          # Attach an SBOM to the image as an OCI attestation
+          sbom: true
           tags: quay.io/infinispan/operator:${{ steps.bump_tag.outputs.new_tag }}
           build-args: |
             OPERATOR_VERSION=${{ steps.bump_tag.outputs.new_tag }}
+
+      - name: Verify SBOM attestation
+        env:
+          IMAGE: quay.io/infinispan/operator@${{ steps.build.outputs.digest }}
+          SBOM_FILE: ${{ runner.temp }}/sbom.json
+        run: |
+          set -o pipefail
+          # `imagetools` keys `.SBOM` by platform for multi-platform images and returns a
+          # single document otherwise, so normalize both shapes to a map before checking.
+          docker buildx imagetools inspect "$IMAGE" --format '{{ json .SBOM }}' \
+            | jq --arg platforms "$IMAGE_PLATFORMS" \
+              'if has("SPDX") then {($platforms): .} else . end' > "$SBOM_FILE"
+          for platform in ${IMAGE_PLATFORMS//,/ }; do
+            packages=$(jq --arg platform "$platform" '.[$platform].SPDX.packages | length' "$SBOM_FILE")
+            echo "$platform SBOM contains $packages package(s)"
+            if [ "$packages" -eq 0 ]; then
+              echo "::error::No SBOM attestation was pushed for $platform"
+              exit 1
+            fi
+          done
 
       - name: Create OLM Bundle
         working-directory: operator

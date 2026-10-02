@@ -1,0 +1,1 @@
+jq -r '.packages[] | "\(.name) \(.versionInfo)"' sbom.json
