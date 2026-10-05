@@ -1,0 +1,31 @@
+[id='retrieving-operator-sbom_{context}']
+= Retrieving the Software Bill of Materials for {ispn_operator}
+
+[role="_abstract"]
+Retrieve the _Software Bill of Materials_ (SBOM) for {ispn_operator} to audit the contents of the image before you install it.
+Each {ispn_operator} release image carries an SPDX SBOM for every architecture it supports.
+The SBOM is attached to the image as an OCI attestation, so you do not need to download or run the image to inspect it.
+
+.Prerequisites
+
+* Install link:https://docs.docker.com/reference/cli/docker/buildx/[Docker Buildx].
+
+.Procedure
+
+. Retrieve the SBOM for the architecture that you want to audit.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/docker_inspect_operator_sbom.adoc[]
+----
+. List the packages that the image contains.
++
+[source,options="nowrap",subs=attributes+]
+----
+include::cmd_examples/docker_list_operator_sbom_packages.adoc[]
+----
+
+[NOTE]
+====
+Replace `linux/amd64` with `linux/arm64` to audit the 64-bit ARM image.
+====
