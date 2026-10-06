@@ -11,6 +11,8 @@ import (
 	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	routev1 "github.com/openshift/api/route/v1"
+	ingressv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -121,4 +123,62 @@ var _ = Describe("Provision", func() {
 		Expect(err).Should(BeNil())
 		Expect(ss.Spec.Template.Spec.ServiceAccountName).Should(BeEmpty())
 	})
+
+	// Regression test for https://github.com/infinispan/infinispan-operator/issues/2632: when expose.type=Route is
+	// backed by an Ingress (plain K8s cluster without the Route API), the Ingress must not be deleted on every reconcile.
+	It("should not delete the Ingress backing expose.type=Route when the Route API is unavailable", func() {
+		mockCtrl := gomock.NewController(GinkgoT())
+		resources := infinispan.NewMockResources(mockCtrl)
+
+		ctx := infinispan.NewMockContext(mockCtrl)
+		ctx.EXPECT().Resources().AnyTimes().Return(resources)
+		ctx.EXPECT().IsTypeSupported(infinispan.ServiceGVK).AnyTimes().Return(false)
+		ctx.EXPECT().IsTypeSupported(infinispan.RouteGVK).AnyTimes().Return(false)
+		ctx.EXPECT().IsTypeSupported(infinispan.IngressGVK).AnyTimes().Return(true)
+
+		// The Ingress must be reconciled in place; no Delete call is registered, so any deletion fails the test.
+		resources.EXPECT().
+			CreateOrUpdate(gomock.AssignableToTypeOf(&ingressv1.Ingress{}), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(infinispan.OperationResultUpdated, nil)
+
+		ExternalService(exposedInfinispan(key, ispnv1.ExposeTypeRoute), ctx)
+	})
+
+	// On OpenShift (Route API available) expose.type=Route is backed by a Route, and a stale Ingress should be cleaned up.
+	It("should keep the Route and delete a stale Ingress when the Route API is available", func() {
+		mockCtrl := gomock.NewController(GinkgoT())
+		resources := infinispan.NewMockResources(mockCtrl)
+
+		ctx := infinispan.NewMockContext(mockCtrl)
+		ctx.EXPECT().Resources().AnyTimes().Return(resources)
+		ctx.EXPECT().IsTypeSupported(infinispan.ServiceGVK).AnyTimes().Return(false)
+		ctx.EXPECT().IsTypeSupported(infinispan.RouteGVK).AnyTimes().Return(true)
+		ctx.EXPECT().IsTypeSupported(infinispan.IngressGVK).AnyTimes().Return(true)
+
+		// The stale Ingress is listed for deletion (the list is left empty, so no Delete calls follow)...
+		resources.EXPECT().
+			List(gomock.Any(), gomock.AssignableToTypeOf(&ingressv1.IngressList{}), gomock.Any()).
+			Return(nil)
+		// ...and the Route is reconciled.
+		resources.EXPECT().
+			CreateOrUpdate(gomock.AssignableToTypeOf(&routev1.Route{}), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(infinispan.OperationResultUpdated, nil)
+
+		ExternalService(exposedInfinispan(key, ispnv1.ExposeTypeRoute), ctx)
+	})
 })
+
+func exposedInfinispan(key types.NamespacedName, exposeType ispnv1.ExposeType) *ispnv1.Infinispan {
+	return &ispnv1.Infinispan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+		Spec: ispnv1.InfinispanSpec{
+			Expose: &ispnv1.ExposeSpec{
+				Type: exposeType,
+				Host: "example.host",
+			},
+		},
+	}
+}
