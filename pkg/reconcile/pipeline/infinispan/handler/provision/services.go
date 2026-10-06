@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	ingressv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -110,10 +111,12 @@ func ExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		return
 	}
 
-	// If expose type has changed, ensure that we remove all existing expose definitions
-	exposeType := i.GetExposeType()
+	// If expose type has changed, ensure that we remove all existing expose definitions. We compare against the GVK
+	// that will actually implement the current expose type rather than the expose type string itself, as the
+	// Route expose type is backed by an Ingress when the Route API is unavailable (plain K8s cluster).
+	keep := exposeGVK(i, ctx)
 	for _, gvk := range pipeline.ServiceTypes {
-		if ctx.IsTypeSupported(gvk) && gvk.Kind != string(exposeType) {
+		if ctx.IsTypeSupported(gvk) && gvk != keep {
 			labels := i.ExternalServiceSelectorLabels()
 			switch gvk {
 			case pipeline.ServiceGVK:
@@ -141,8 +144,8 @@ func ExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 				if err := ctx.Resources().List(labels, ingressList); err != nil {
 					ctx.Log().Error(err, "unable to list Ingress' for deletion")
 				}
-				for _, route := range ingressList.Items {
-					if err := ctx.Resources().Delete(route.Name, &route, pipeline.RetryOnErr); err != nil {
+				for _, ingress := range ingressList.Items {
+					if err := ctx.Resources().Delete(ingress.Name, &ingress, pipeline.RetryOnErr); err != nil {
 						return
 					}
 				}
@@ -150,18 +153,36 @@ func ExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 	}
 
-	switch exposeType {
-	case ispnv1.ExposeTypeLoadBalancer, ispnv1.ExposeTypeNodePort:
+	switch keep {
+	case pipeline.ServiceGVK:
 		defineExternalService(i, ctx)
-	case ispnv1.ExposeTypeRoute:
-		if ctx.IsTypeSupported(pipeline.RouteGVK) {
-			defineExternalRoute(i, ctx)
-		} else if ctx.IsTypeSupported(pipeline.IngressGVK) {
-			defineExternalIngress(i, ctx)
-		} else {
+	case pipeline.RouteGVK:
+		defineExternalRoute(i, ctx)
+	case pipeline.IngressGVK:
+		defineExternalIngress(i, ctx)
+	default:
+		if i.GetExposeType() == ispnv1.ExposeTypeRoute {
 			ctx.Stop(fmt.Errorf("unable to expose cluster with type Route, as no implementations are supported"))
 		}
 	}
+}
+
+// exposeGVK returns the GroupVersionKind that will be used to implement the Infinispan's current expose type on the
+// target platform. The Route expose type is backed by an Ingress when the Route API is unavailable (plain K8s cluster).
+// An empty GVK is returned when the expose type cannot be satisfied by any supported resource.
+func exposeGVK(i *ispnv1.Infinispan, ctx pipeline.Context) schema.GroupVersionKind {
+	switch i.GetExposeType() {
+	case ispnv1.ExposeTypeLoadBalancer, ispnv1.ExposeTypeNodePort:
+		return pipeline.ServiceGVK
+	case ispnv1.ExposeTypeRoute:
+		if ctx.IsTypeSupported(pipeline.RouteGVK) {
+			return pipeline.RouteGVK
+		}
+		if ctx.IsTypeSupported(pipeline.IngressGVK) {
+			return pipeline.IngressGVK
+		}
+	}
+	return schema.GroupVersionKind{}
 }
 
 func defineExternalService(i *ispnv1.Infinispan, ctx pipeline.Context) {
