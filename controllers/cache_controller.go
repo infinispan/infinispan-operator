@@ -530,9 +530,6 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("unable to convert cache configuration from '%s' to '%s': %w", mime.ApplicationJson, mime.ApplicationYaml, err)
 		}
-		if err != nil {
-			return err
-		}
 		cache.Spec.Template = configYaml
 
 		controllerutil.AddFinalizer(cache, constants.InfinispanFinalizer)
@@ -548,6 +545,7 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 	} else {
 		// Update existing Cache
 		maxRetries := 5
+		var err error
 		for i := 1; i <= maxRetries; i++ {
 
 			if cache.Spec.Template == "" {
@@ -555,7 +553,11 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 				break
 			}
 
-			configUpdated, err := configChanged(configJson, cache.Spec.Template, cl.Infinispan, ispnClient.Caches(), cl.VersionManager)
+			var configUpdated bool
+			configUpdated, err = configChanged(configJson, cache.Spec.Template, cl.Infinispan, ispnClient.Caches(), cl.VersionManager)
+			if err != nil {
+				return fmt.Errorf("unable to determine if cache '%s' configuration has changed: %w", cache.Name, err)
+			}
 			if !configUpdated {
 				cl.Log.Debugf("Cache '%s' configuration on update has not changed, ignoring update", cache.Name)
 				break
@@ -606,7 +608,7 @@ func (cl *CacheListener) CreateOrUpdate(data []byte) error {
 			cl.Log.Errorf("Conflict encountered on Cache CR '%s' update. Retry %d..%d", cache.Name, i, maxRetries)
 		}
 		if err != nil {
-			return fmt.Errorf("unable to Update Cache CR %s after %d attempts", cache.Name, maxRetries)
+			return fmt.Errorf("unable to Update Cache CR %s after %d attempts: %w", cache.Name, maxRetries, err)
 		}
 	}
 	return nil
@@ -676,11 +678,11 @@ func (cl *CacheListener) Delete(data []byte) error {
 		return nil
 	})
 	// If the CR can't be found, do nothing
-	if !errors.IsNotFound(err) {
+	if errors.IsNotFound(err) {
 		cl.Log.Debugf("Cache CR '%s' not found, nothing todo.", cache.Name)
-		return err
+		return nil
 	}
-	return nil
+	return err
 }
 
 func updateCache(cache *v2alpha1.Cache, ctx context.Context, client client.Client, mutate func() error) error {
