@@ -103,7 +103,11 @@ Key terms:
 - **Off-heap** — always hyphenated when used as an adjective
 - **Query** — use "query" not "search" for looking up information
 - **Reindex** — one word, no hyphen
-- **Add/Remove** — for container membership; **Create/Delete** — for building/destroying objects; **Clear** — delete all elements
+ - **Add/Remove** — for container membership; **Create/Delete** — for building/destroying objects; **Clear** — delete all elements
+
+## Site Synchronization
+
+`.github/workflows/sync_docs.yaml` publishes the rendered documentation to the community website (infinispan.github.io) using [docs-render-action](https://github.com/infinispan/docs-render-action). That action renders with Ruby asciidoctor plus the `asciidoctor-diagram` and `asciidoctor-tabs` extensions, mirroring `make documentation`. When you change how docs are built (new extensions or tool versions), update both the Makefile target and that action so local rendering matches what is published.
 
 ## When Creating New Documentation
 1. Determine if the content is a concept, procedure, or reference — use the correct `con_`/`proc_`/`ref_` prefix
