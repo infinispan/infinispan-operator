@@ -993,6 +993,18 @@ func (ispn *Infinispan) Affinity() *corev1.Affinity {
 	return ispn.Spec.Affinity
 }
 
+// NodeAffinity returns only the NodeAffinity rules of the configured Affinity, if any.
+// PodAffinity/PodAntiAffinity are intentionally excluded as they rely on Pod labels that
+// may not be shared between the Infinispan cluster Pods and other workloads (e.g. the Gossip Router),
+// so blindly reusing them could prevent scheduling entirely.
+func (ispn *Infinispan) NodeAffinity() *corev1.Affinity {
+	affinity := ispn.Affinity()
+	if affinity == nil || affinity.NodeAffinity == nil {
+		return nil
+	}
+	return &corev1.Affinity{NodeAffinity: affinity.NodeAffinity}
+}
+
 func (ispn *Infinispan) PriorityClassName() string {
 	if ispn.Spec.Scheduling != nil {
 		return ispn.Spec.Scheduling.PriorityClassName
