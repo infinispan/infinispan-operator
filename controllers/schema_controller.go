@@ -27,13 +27,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // SchemaReconciler reconciles a Schema object
 type SchemaReconciler struct {
 	client.Client
-	log            logr.Logger
+	setupLog       logr.Logger
 	scheme         *runtime.Scheme
 	kubernetes     *kube.Kubernetes
 	eventRec       record.EventRecorder
@@ -55,13 +56,13 @@ type schemaRequest struct {
 	schema     *v2alpha1.Schema
 	infinispan *v1.Infinispan
 	ispnClient api.Infinispan
-	reqLogger  logr.Logger
+	logger     logr.Logger
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SchemaReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) (err error) {
 	r.Client = mgr.GetClient()
-	r.log = ctrl.Log.WithName("controllers").WithName("Schema")
+	r.setupLog = ctrl.Log.WithName("controllers").WithName("Schema")
 	r.scheme = mgr.GetScheme()
 	r.kubernetes = kube.NewKubernetesFromController(mgr)
 	r.eventRec = mgr.GetEventRecorderFor("schema-controller")
@@ -91,7 +92,7 @@ func (r *SchemaReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manage
 				var requests []reconcile.Request
 				schemaList := &v2alpha1.SchemaList{}
 				if err := r.kubernetes.ResourcesListByField(a.GetNamespace(), "spec.clusterName", a.GetName(), schemaList, watchCtx); err != nil {
-					r.log.Error(err, "watches failed to list Schema CRs")
+					r.setupLog.Error(err, "watches failed to list Schema CRs")
 				}
 
 				for _, item := range schemaList.Items {
@@ -118,15 +119,13 @@ func (r *SchemaReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manage
 // +kubebuilder:rbac:groups=infinispan.org,namespace=infinispan-operator-system,resources=schemas;schemas/status;schemas/finalizers,verbs=get;list;watch;create;update;patch;delete
 
 func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
-	reqLogger := r.log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("+++++ Reconciling Schema.")
-	defer reqLogger.Info("----- End Reconciling Schema.")
+	logger := log.FromContext(ctx)
 
 	// Fetch the Schema instance
 	instance := &v2alpha1.Schema{}
 	if err := r.Get(ctx, request.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Schema resource not found. Ignoring.")
+			// Requested Schema does not exist. Nothing to do.
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -138,33 +137,33 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 		ctx:              ctx,
 		schema:           instance,
 		infinispan:       infinispan,
-		reqLogger:        reqLogger,
+		logger:           logger,
 	}
 
 	if s.markedForDeletion() {
-		reqLogger.Info("Schema CR marked for deletion. Attempting to remove.")
+		logger.Info("Schema CR marked for deletion. Attempting to remove.")
 		if err := s.removeFinalizer(); err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Unable to remove Finalizer as Schema CR not found.")
+				logger.Info("Unable to remove Finalizer as Schema CR not found.")
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
 		}
 		if err := s.kubernetes.Client.Delete(ctx, instance); err != nil {
 			if errors.IsNotFound(err) {
-				reqLogger.Info("Schema CR does not exist, nothing todo.")
+				logger.Info("Schema CR does not exist, nothing todo.")
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
 		}
-		reqLogger.Info("Schema CR Removed.")
+		logger.Info("Schema CR Removed.")
 		return ctrl.Result{}, nil
 	}
 
 	crDeleted := instance.GetDeletionTimestamp() != nil
 
 	if !crDeleted {
-		if paused, err := HandleReconciliationPause(ctx, instance, r.Client, r.eventRec, reqLogger); err != nil || paused {
+		if paused, err := HandleReconciliationPause(ctx, instance, r.Client, r.eventRec, logger); err != nil || paused {
 			return ctrl.Result{}, err
 		}
 	}
@@ -172,7 +171,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 	// Fetch the Infinispan cluster
 	if err := r.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Spec.ClusterName}, infinispan); err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", instance.Spec.ClusterName))
+			logger.Error(err, fmt.Sprintf("Infinispan cluster %s not found", instance.Spec.ClusterName))
 			if crDeleted {
 				return ctrl.Result{}, s.removeFinalizer()
 			}
@@ -186,7 +185,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 
 	// Cluster must be well formed
 	if !infinispan.IsWellFormed() {
-		reqLogger.Info(fmt.Sprintf("Infinispan cluster %s not well formed", infinispan.Name))
+		logger.Info(fmt.Sprintf("Infinispan cluster %s not well formed", infinispan.Name))
 		return ctrl.Result{}, nil
 	}
 
@@ -204,7 +203,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 		} else {
 			msg = "Bidirectional sync requires the ConfigListener to be enabled. Schema changes on the server will not be detected."
 		}
-		reqLogger.Info(msg)
+		logger.Info(msg)
 		if err := s.update(func() error {
 			instance.SetCondition(v2alpha1.ConditionBidirectionalSync, metav1.ConditionFalse, msg)
 			return nil
@@ -228,7 +227,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 			}
 			if len(referencingCaches) > 0 {
 				msg := fmt.Sprintf("Schema is referenced by Cache CRs: %s", referencingCaches)
-				reqLogger.Info(msg)
+				logger.Info(msg)
 				return ctrl.Result{}, s.update(func() error {
 					instance.SetCondition(v2alpha1.ConditionReady, metav1.ConditionFalse, msg)
 					return nil
@@ -239,6 +238,7 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 			if err := ispnClient.Schema(schemaName).Delete(); err != nil {
 				return ctrl.Result{}, err
 			}
+			logger.Info("Removed schema from the server")
 			return ctrl.Result{}, s.removeFinalizer()
 		}
 		return ctrl.Result{}, nil
@@ -256,11 +256,12 @@ func (r *SchemaReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 			}
 			return *result, err
 		}
+		logger.Info("Created/Udated schema on the server")
 	}
 
 	// Always verify schema status on the server (the Operator is the sole owner of status)
 	if err := s.checkSchemaStatus(); err != nil {
-		reqLogger.Error(err, "Schema has server-side errors")
+		logger.Error(err, "Schema has server-side errors")
 		return ctrl.Result{}, s.update(func() error {
 			instance.SetCondition(v2alpha1.ConditionReady, metav1.ConditionFalse, err.Error())
 			if !controllerutil.ContainsFinalizer(instance, constants.InfinispanFinalizer) {
@@ -318,7 +319,10 @@ func (r *schemaRequest) findReferencingCaches() ([]string, error) {
 func (r *schemaRequest) removeFinalizer() error {
 	if controllerutil.ContainsFinalizer(r.schema, constants.InfinispanFinalizer) {
 		return r.update(func() error {
-			controllerutil.RemoveFinalizer(r.schema, constants.InfinispanFinalizer)
+			removed := controllerutil.RemoveFinalizer(r.schema, constants.InfinispanFinalizer)
+			if removed {
+				r.logger.V(1).Info("Finalizer removed from the Schema CR")
+			}
 			return nil
 		})
 	}
@@ -333,13 +337,13 @@ func (r *schemaRequest) createOrUpdate() (*ctrl.Result, error) {
 	response, err := schemaClient.CreateOrUpdate(r.schema.Spec.Schema)
 	if err != nil {
 		err = fmt.Errorf("unable to create or update schema '%s': %w", schemaName, err)
-		r.reqLogger.Error(err, "")
+		r.logger.Error(err, "")
 		return &ctrl.Result{Requeue: true}, err
 	}
 
 	if response.Error != nil {
 		err = fmt.Errorf("'%s', %s", response.Error.Message, response.Error.Cause)
-		r.reqLogger.Error(err, "Schema validation error")
+		r.logger.Error(err, "Schema validation error")
 		return &ctrl.Result{}, err
 	}
 
