@@ -1,0 +1,16 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: infinispan
+spec:
+  replicas: 2
+  service:
+    type: DataGrid
+  securityContext:
+    supplementalGroups:
+      - 1000
+  container:
+    securityContext:
+      capabilities:
+        add:
+          - NET_BIND_SERVICE

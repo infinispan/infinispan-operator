@@ -13,16 +13,20 @@ import (
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
+	"github.com/infinispan/infinispan-operator/pkg/reconcile/pipeline/infinispan/handler/provision"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var testKube = tutils.NewTestKubernetes(os.Getenv("TESTING_CONTEXT"))
@@ -40,6 +44,75 @@ func TestBackupRestore(t *testing.T) {
 
 func TestBackupRestoreNoAuth(t *testing.T) {
 	testBackupRestore(t, datagridServiceNoAuth, 1, 1)
+}
+
+// TestBackupRestoreSecurityContext verifies that the transient backup zero pod inherits both the
+// pod-level and container-level securityContext.
+func TestBackupRestoreSecurityContext(t *testing.T) {
+	defer testKube.CleanNamespaceAndLogOnPanic(t, tutils.Namespace)
+
+	testName := tutils.TestName(t)
+	name := strcase.ToKebab(testName)
+	namespace := tutils.Namespace
+
+	// Create a source cluster with a user-supplied securityContext override.
+	sourceCluster := name + "-source"
+	infinispan := tutils.DefaultSpec(t, testKube, func(i *v1.Infinispan) {
+		i.Name = sourceCluster
+		i.Spec.Replicas = 1
+		i.Spec.SecurityContext = &corev1.PodSecurityContext{SupplementalGroups: []int64{1000}}
+		i.Spec.Container.SecurityContext = &corev1.SecurityContext{ReadOnlyRootFilesystem: ptr.To(false)}
+	})
+	testKube.Create(infinispan)
+	testKube.WaitForInfinispanPods(1, tutils.SinglePodTimeout, infinispan.Name, tutils.Namespace)
+	testKube.WaitForInfinispanCondition(sourceCluster, namespace, v1.ConditionWellFormed)
+
+	// Trigger a backup; the operator spins up a transient zero pod that joins the cluster.
+	backupName := "backup"
+	backupSpec := backupSpec(testName, backupName, namespace, sourceCluster)
+	testKube.Create(backupSpec)
+
+	// Capture the zero pod while it exists and verify the inherited securityContext.
+	zeroPod := &corev1.Pod{}
+	err := wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (bool, error) {
+		podList := &corev1.PodList{}
+		listErr := testKube.Kubernetes.Client.List(context.TODO(), podList, &client.ListOptions{
+			Namespace:     namespace,
+			LabelSelector: labels.SelectorFromSet(map[string]string{"app": "infinispan-zero-pod"}),
+		})
+		if listErr != nil || len(podList.Items) == 0 {
+			return false, nil
+		}
+		zeroPod = &podList.Items[0]
+		return true, nil
+	})
+	tutils.ExpectNoError(err)
+
+	// Pod-level securityContext: inherited override merged in, hardened defaults preserved.
+	podCtx := zeroPod.Spec.SecurityContext
+	if assert.NotNil(t, podCtx, "zero pod securityContext should be set") {
+		assert.Equal(t, []int64{1000}, podCtx.SupplementalGroups)
+		assert.Equal(t, ptr.To(true), podCtx.RunAsNonRoot)
+	}
+
+	// Container-level securityContext on the infinispan container: inherited override merged in, defaults preserved.
+	var container *corev1.Container
+	for i := range zeroPod.Spec.Containers {
+		if zeroPod.Spec.Containers[i].Name == provision.InfinispanContainer {
+			container = &zeroPod.Spec.Containers[i]
+			break
+		}
+	}
+	if assert.NotNil(t, container, "zero pod must contain the %s container", provision.InfinispanContainer) {
+		sc := container.SecurityContext
+		if assert.NotNil(t, sc, "zero pod container securityContext should be set") {
+			assert.Equal(t, ptr.To(false), sc.ReadOnlyRootFilesystem)   // inherited override
+			assert.Equal(t, ptr.To(false), sc.AllowPrivilegeEscalation) // default preserved
+			if assert.NotNil(t, sc.Capabilities) {
+				assert.Equal(t, []corev1.Capability{"ALL"}, sc.Capabilities.Drop)
+			}
+		}
+	}
 }
 
 func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEntries int) {

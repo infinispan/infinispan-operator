@@ -87,7 +87,9 @@ func crossSiteSpec(name string, replicas int32, primarySite, backupSite, siteNam
 				},
 			},
 			Container: ispnv1.InfinispanContainerSpec{
-				Memory: tutils.Memory,
+				ContainerSpec: ispnv1.ContainerSpec{
+					Memory: tutils.Memory,
+				},
 			},
 			ConfigListener: &ispnv1.ConfigListenerSpec{
 				// Disable the ConfigListener to reduce the total number of resources required
