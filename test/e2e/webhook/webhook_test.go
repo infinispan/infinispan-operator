@@ -133,7 +133,9 @@ func TestInfinispanValidatingWebhook(t *testing.T) {
 		},
 		Spec: ispnv1.InfinispanSpec{
 			Container: ispnv1.InfinispanContainerSpec{
-				Memory: "invalid-value",
+				ContainerSpec: ispnv1.ContainerSpec{
+					Memory: "invalid-value",
+				},
 			},
 		},
 	}

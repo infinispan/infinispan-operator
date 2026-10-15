@@ -47,6 +47,13 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 			return false, fmt.Errorf("unable to calculate dependencies initContainer resources: %w", err)
 		}
 
+		// The external-artifacts download init container runs our own image and must satisfy the
+		// hardened container securityContext.
+		containerSecurityContext, err := ispn.ContainerSecurityContext()
+		if err != nil {
+			return false, fmt.Errorf("unable to compute external artifacts initContainer securityContext: %w", err)
+		}
+
 		serverLibs := serverLibs(ispn)
 		if containerPosition >= 0 {
 			if spec.InitContainers[containerPosition].Env[0].Value != serverLibs {
@@ -55,6 +62,13 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 			}
 			if !reflect.DeepEqual(&spec.InitContainers[containerPosition].Resources, initContainerResources) {
 				spec.InitContainers[containerPosition].Resources = *initContainerResources
+				updated = true
+			}
+			// Reconcile securityContext drift only when the user configured a container securityContext,
+			// mirroring the main container (see manage.StatefulSetRollingUpgrade). This avoids restarting
+			// an existing cluster solely to apply new operator defaults on an operator upgrade.
+			if ispn.HasContainerSecurityContext() && !reflect.DeepEqual(spec.InitContainers[containerPosition].SecurityContext, containerSecurityContext) {
+				spec.InitContainers[containerPosition].SecurityContext = containerSecurityContext
 				updated = true
 			}
 
@@ -72,6 +86,7 @@ func ApplyExternalArtifactsDownload(ispn *ispnv1.Infinispan, ispnContainer *core
 					Name:      ExternalArtifactsVolumeName,
 					MountPath: ExternalArtifactsMountPath,
 				}},
+				SecurityContext: containerSecurityContext,
 			}
 			if initContainerResources != nil {
 				container.Resources = *initContainerResources

@@ -1,0 +1,33 @@
+[id='configuring-security-context_{context}']
+= Configuring the security context
+
+[role="_abstract"]
+Customize the pod-level and container-level security context that {ispn_operator} applies to {brandname} workloads.
+Your configuration is deep-merged over the operator defaults.
+
+.Procedure
+
+. Add the `spec.securityContext` field to your `Infinispan` CR to configure the pod-level security context.
+. Add the `spec.container.securityContext` field to your `Infinispan` CR to configure the container-level security context.
++
+[source,yaml,options="nowrap",subs=attributes+]
+----
+include::yaml/security_context.yaml[]
+----
++
+The preceding example sets `supplementalGroups` at the pod level and adds a capability at the container level.
+All other fields fall back to the operator defaults.
+
+. Apply the changes.
+
+[NOTE]
+====
+Batch jobs, as well as backup and restore pods, inherit the security context of the target {brandname} cluster and do not have configurable security context fields of their own.
+====
+
+[IMPORTANT]
+====
+Because your configuration is deep-merged over the hardened defaults, the resulting security context must be internally consistent or Kubernetes rejects the pod and the cluster cannot start.
+For example, if you set `privileged: true` or `allowPrivilegeEscalation: true`, you must also set `runAsNonRoot: false` explicitly, because these values conflict with the `runAsNonRoot: true` default.
+{ispn_operator} does not validate overrides for such conflicts.
+====
