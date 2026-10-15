@@ -17,7 +17,7 @@ jobs:
       with:
         persist-credentials: false
 
-    - uses: infinispan/docs-render-action@9f3f6b7b25cbf620658a202a061bf01c10893094 # v1
+    - uses: infinispan/docs-render-action@33e5c8585d19acfe6842221b6a79a7c6b2a62cf1 # v1
       with:
         docs_path: documentation/asciidoc/titles
 
