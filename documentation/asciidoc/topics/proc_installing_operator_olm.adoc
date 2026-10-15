@@ -17,7 +17,7 @@ endif::community[]
 
 .Procedure
 
-. Log in to the {osweb}.
+. Log in to the {osweb_openshift}.
 . Navigate to **OperatorHub**.
 . Find and select {ispn_operator}.
 . Select **Install** and continue to **Create Operator Subscription**.

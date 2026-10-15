@@ -1,0 +1,99 @@
+[id='operator-upgrade-impact_{context}']
+= How {ispn_operator} upgrades affect running clusters
+
+[role="_abstract"]
+When you upgrade {ispn_operator}, the new Operator reconciles every resource it manages against the defaults and logic of the new version.
+How that reconciliation affects a running cluster depends on the resource.
+
+[discrete]
+== Server pods
+
+The Operator makes a best-effort attempt not to restart running {brandname} server pods, because rolling a data-grid cluster is costly.
+Depending on the change, an upgrade affects the server `StatefulSet` in one of two ways:
+
+Rendered configuration changes:: If a new Operator version changes the rendered `StatefulSet`, for example the generated server configuration, container environment variables, or health probes, the Operator detects the difference and performs a rolling update when it reconciles the cluster, including after an Operator upgrade. These changes are typically security hardening or a fix for a previous misconfiguration.
+New defaults:: Some new defaults, such as `automountServiceAccountToken`, are applied to the `StatefulSet` only when a rollout is already happening. The Operator does not restart a cluster solely to apply a new default, so a running cluster adopts these defaults on its next rollout.
+
+[discrete]
+[id='operator-upgrade-rollouts']
+== Auxiliary deployments
+
+Unlike the `StatefulSet`, the Operator does not defer changes for the single-pod ConfigListener and GossipRouter deployments.
+It reconciles them on upgrade and re-creates their pods when their specification changes.
+Restarting these pods is fast and does not affect stored data.
+
+[cols="1,1,3",options="header"]
+|===
+| Deployment | Rolled out on upgrade | Reason
+
+| ConfigListener
+| Always
+| By default the ConfigListener runs the current Operator image, so every Operator upgrade changes its image and re-creates the pod.
+
+| GossipRouter (cross-site)
+| When its deployment spec changes
+| The GossipRouter runs the {brandname} server image, so an Operator upgrade does not change its image. It is re-created only when new Operator defaults change its deployment spec. A brief GossipRouter restart interrupts cross-site discovery for a few seconds until the new pod starts; it does not affect data stored in either site.
+|===
+
+ifdef::community[]
+[discrete]
+== Changes that affect running clusters in 2.5.x
+
+The following table lists changes introduced since the last 2.4.x release that roll out automatically on upgrade or introduce a new default.
+A cluster is subject to a change when you upgrade to the listed version or later.
+
+[cols="2,1,1,3",options="header"]
+|===
+| Change | Introduced in | Affected components | Effect on upgrade
+
+| SHA-256 authentication replaces DIGEST
+| 2.5.1
+| Server pods
+| The generated server configuration changes. The Operator detects the change and performs a rolling update.
+
+| Health probes switched to `/health/live` and `/health/ready`
+| 2.5.6
+| Server pods
+| Applies only to clusters running {brandname} 16.x. The probe change triggers a rolling update for those clusters.
+
+| Two container environment variables are no longer set when empty
+| 2.5.10
+| Server pods
+| Corrects previous behavior. The environment change triggers a rolling update.
+
+| Router keystore and truststore passwords are expanded from environment variables
+| 2.5.17
+| GossipRouter
+| The GossipRouter deployment spec changes, so the pod is re-created.
+
+| `automountServiceAccountToken` is disabled on managed pods
+| 2.5.17
+| GossipRouter, server pods
+| Applied automatically to the GossipRouter, which is re-created. The server `StatefulSet` adopts it on its next rollout.
+|===
+endif::community[]
+
+[discrete]
+== Making a running cluster adopt new defaults
+
+To have a running cluster adopt new Operator defaults without waiting for an unrelated change, trigger a `StatefulSet` rollout.
+
+Because {ispn_operator} propagates pod labels from the `Infinispan` CR to the `StatefulSet`, and a change to those labels triggers a rollout, you can force a rollout without changing any functional configuration:
+
+. Declare a label for propagation with the `infinispan.org/podTargetLabels` annotation and set its value under `metadata.labels`.
+. Change the value of that label, for example by incrementing a counter.
+. Apply the `Infinispan` CR.
+
+[source,yaml,options="nowrap",subs=attributes+]
+----
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  annotations:
+    infinispan.org/podTargetLabels: rollout-trigger
+  labels:
+    # Change this value to trigger a rollout that adopts new Operator defaults.
+    rollout-trigger: "1"
+----
+
+When the propagated label changes, the Operator performs a rolling update of the `StatefulSet` and applies the current Operator defaults as part of that rollout.

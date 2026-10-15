@@ -1,0 +1,79 @@
+[id='applying-operator-upgrades_{context}']
+= Applying {ispn_operator} upgrades
+
+[role="_abstract"]
+Upgrade {ispn_operator} through the same mechanism that installed it.
+Every installation method except a manual installation creates an Operator Lifecycle Manager (OLM) subscription that controls upgrades.
+
+[discrete]
+== Before you upgrade
+
+Make sure that no managed cluster runs a deprecated {brandname} server version.
+Deprecated Operands are removed in a later Operator release, so a cluster that runs one can behave unpredictably after the upgrade.
+Pay particular attention when you move to a new minor stream, because that is when previously deprecated Operands are removed.
+
+When a cluster runs a deprecated Operand, {ispn_operator} sets `status.operand.deprecated` to `true` on the `Infinispan` CR and records a `DeprecatedOperandVersion` warning event.
+List any affected clusters before you upgrade:
+
+[source,options="nowrap",subs=attributes+]
+----
+{kube_client} get infinispan -A \
+  -o jsonpath='{range .items[?(@.status.operand.deprecated==true)]}{.metadata.namespace}/{.metadata.name} ({.status.operand.version}){"\n"}{end}'
+----
+
+Change `spec.version` to a supported server version and let the cluster upgrade complete before you upgrade the Operator.
+
+[NOTE]
+====
+Upgrading {ispn_operator} can roll out changes to running clusters.
+Before you upgrade, review xref:operator-upgrade-impact_{context}[How {ispn_operator} upgrades affect running clusters].
+====
+
+[discrete]
+== Upgrading an OLM subscription
+
+The approval strategy on the subscription controls when upgrades apply:
+
+Automatic:: OLM installs new versions from the subscribed channel as soon as they become available.
+Manual:: OLM creates an `InstallPlan` for each new version and waits for approval before upgrading.
+
+To upgrade a subscription that uses the *Manual* approval strategy:
+
+. Check for a pending install plan.
++
+[source,options="nowrap",subs=attributes+]
+----
+{kube_client} get installplan -n {subscription_namespace}
+----
++
+An install plan that is waiting for approval reports `APPROVED` as `false`.
++
+. Approve the install plan to start the upgrade.
++
+[source,options="nowrap",subs=attributes+]
+----
+{kube_client} patch installplan <install_plan_name> -n {subscription_namespace} \
+  --type merge --patch '{"spec":{"approved":true}}'
+----
+
+[TIP]
+====
+On {openshift} you can also approve upgrades from the {osweb_openshift}.
+Navigate to *Operators* > *Installed Operators* > *{ispn_operator}* and select *Upgrade available*, then approve the install plan.
+====
+
+[NOTE]
+====
+OLM upgrades {ispn_operator} directly to the latest release available within the minor stream and skips intermediate patch releases.
+A single upgrade can therefore move across several patch versions at once.
+====
+
+[discrete]
+== Other installation methods
+
+The native CLI plugin and OperatorHub both create an OLM subscription, so their upgrades follow the OLM procedure above.
+The `kubectl-infinispan` plugin installs the Operator but does not provide a command to approve new versions; approve upgrades through the subscription as described.
+
+ifdef::community[]
+If you installed {ispn_operator} manually, apply the manifests for the target version to upgrade it.
+endif::community[]
