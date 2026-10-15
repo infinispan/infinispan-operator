@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"fmt"
 
 	consts "github.com/infinispan/infinispan-operator/controllers/constants"
 	grafanav1alpha1 "github.com/infinispan/infinispan-operator/pkg/apis/integreatly/v1alpha1"
@@ -12,6 +11,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -28,6 +28,7 @@ const (
 
 // reconcileGrafana reconciles grafana object status with the operator configuration settings
 func (r *ReconcileOperatorConfig) reconcileGrafana(ctx context.Context, config, currentConfig map[string]string, operatorNs string) (*reconcile.Result, error) {
+	logger := log.FromContext(ctx)
 	grafanaNs := config[grafanaDashboardNamespaceKey]
 
 	// Delete current grafana dashboard if namespace is changes
@@ -41,11 +42,11 @@ func (r *ReconcileOperatorConfig) reconcileGrafana(ctx context.Context, config, 
 	// detect the GrafanaDashboard resource type resourceExists on the cluster
 	resourceExists, err := r.kubernetes.IsGroupVersionSupported(grafanav1alpha1.SchemeGroupVersion.String(), grafanav1alpha1.GrafanaDashboardKind)
 	if err != nil {
-		r.log.Error(err, "Error checking Grafana support")
+		logger.Error(err, "Error checking Grafana support")
 		return &reconcile.Result{Requeue: true}, nil
 	}
 	if !resourceExists {
-		r.log.Info("Grafana CRD not present - not installing dashboard CR")
+		logger.Info("Grafana CRD not present - not installing dashboard CR")
 		return &reconcile.Result{RequeueAfter: consts.DefaultLongWaitOnCreateResource}, nil
 	}
 	infinispanDashboard := emptyDashboard(config)
@@ -54,22 +55,23 @@ func (r *ReconcileOperatorConfig) reconcileGrafana(ctx context.Context, config, 
 			if grafanaNs == operatorNs {
 				if ownRef, err := kubernetes.GetOperatorPodOwnerRef(operatorNs, r.Client, ctx); err != nil {
 					if errors.Is(err, kubernetes.ErrRunLocal) {
-						r.log.Info(fmt.Sprintf("Not setting controller reference for Grafana Dashboard, cause %s.", err.Error()))
+						logger.Info("Not setting controller reference for Grafana dashboard", "reason", err.Error())
 					} else {
 						return err
 					}
 				} else {
-					r.log.Info("Operator Pod owner found", "Kind", ownRef.Kind, "Name", ownRef.Name)
+					logger.V(1).Info("Operator Pod owner found", "kind", ownRef.Kind, "name", ownRef.Name)
 					infinispanDashboard.SetOwnerReferences([]metav1.OwnerReference{*ownRef})
 				}
 			} else {
-				r.log.Info("Not setting controller reference, cause Infinispan and Grafana are in different namespaces.")
+				logger.Info("Not setting controller reference, Infinispan and Grafana are in different namespaces")
 			}
 		}
 		return populateDashboard(infinispanDashboard, config)
 	}); err != nil {
 		return &reconcile.Result{}, err
 	}
+	logger.Info("Created/Updated Grafana dashboard", "dashboard", infinispanDashboard.Name)
 
 	currentConfig[grafanaDashboardNamespaceKey] = grafanaNs
 	currentConfig[grafanaDashboardNameKey] = config[grafanaDashboardNameKey]
@@ -119,6 +121,7 @@ func (r *ReconcileOperatorConfig) deleteDashboardOnKeyChanged(ctx context.Contex
 		if err := r.kubernetes.Client.Delete(ctx, currGrafana); err != nil && !k8serrors.IsNotFound(err) {
 			return err
 		}
+		log.FromContext(ctx).Info("Deleted Grafana dashboard", "dashboard", currGrafana.Name)
 		currentConfig[grafanaDashboardNamespaceKey] = ""
 		currentConfig[grafanaDashboardNameKey] = ""
 	}
