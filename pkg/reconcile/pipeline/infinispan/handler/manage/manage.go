@@ -22,7 +22,7 @@ func AwaitPodIps(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	}
 
 	if !kube.ArePodIPsReady(podList) {
-		ctx.Log().Info("Pod IPs are not ready yet")
+		ctx.Log().V(1).Info("Pod IPs are not ready yet")
 		ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady,
 			ctx.UpdateInfinispan(func() {
 				i.SetCondition(ispnv1.ConditionWellFormed, metav1.ConditionUnknown, "Pods are not ready")
@@ -51,6 +51,7 @@ func RemoveFailedInitContainers(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					ctx.Requeue(err)
 					return
 				}
+				ctx.Log().Info("Deleted pod with failed init container", "pod", pod.Name)
 			}
 		}
 	}
@@ -90,6 +91,7 @@ func UpdatePodLabels(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		if err != nil {
 			return
 		}
+		ctx.Log().V(1).Info("Updated pod labels", "pod", pod.Name)
 	}
 }
 
@@ -117,6 +119,7 @@ func ConfigureLoggers(infinispan *ispnv1.Infinispan, ctx pipeline.Context) {
 					ctx.Requeue(fmt.Errorf("unable to set logger %s=%s: %w", category, string(level), err))
 					return
 				}
+				ctx.Log().V(1).Info("Set server log level")
 			}
 		}
 	}
@@ -149,7 +152,7 @@ func ClusterScaling(i *ispnv1.Infinispan, ctx pipeline.Context) {
 	scalingDown := i.IsConditionTrue(ispnv1.ConditionScalingDown) && statefulSet.Status.ReadyReplicas > i.Spec.Replicas
 	if scalingUp || scalingDown {
 		// The StatefulSet spec has already been updated to i.spec.replicas, so we must wait for the pods to be updated
-		ctx.Log().Info("waiting for the StatefulSet to scale", string(ispnv1.ConditionScalingUp), scalingUp, string(ispnv1.ConditionScalingDown), scalingDown)
+		ctx.Log().V(1).Info("Waiting for the StatefulSet to scale", "scalingUp", scalingUp, "scalingDown", scalingDown)
 		ctx.RequeueAfter(consts.DefaultWaitClusterPodsNotReady, nil)
 		return
 	}
@@ -173,6 +176,7 @@ func ClusterScaling(i *ispnv1.Infinispan, ctx pipeline.Context) {
 					ctx.Requeue(fmt.Errorf("unable to remove PVC '%s' for old pod: %w", pvc, err))
 					return
 				}
+				ctx.Log().Info("Deleted PVC during scale-down", "pvc", pvc)
 			}
 		}
 	} else {
@@ -194,4 +198,5 @@ func ClusterScaling(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		i.RemoveCondition(ispnv1.ConditionScalingDown)
 		i.RemoveCondition(ispnv1.ConditionScalingUp)
 	})
+	ctx.Log().V(1).Info("Updated replica status", "replicas", i.Spec.Replicas)
 }

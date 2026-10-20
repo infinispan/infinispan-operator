@@ -15,7 +15,9 @@ func UserAuthenticationSecret(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		secret.Data = map[string][]byte{consts.ServerIdentitiesFilename: ctx.ConfigFiles().UserIdentities}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(secret, true, mutateFn, pipeline.RetryOnErr)
+	if _, err := ctx.Resources().CreateOrUpdate(secret, true, mutateFn, pipeline.RetryOnErr); err == nil {
+		ctx.Log().V(1).Info("Created secret", "secret", secret.Name)
+	}
 }
 
 func AdminSecret(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -32,7 +34,9 @@ func AdminSecret(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(secret, true, mutateFn, pipeline.RetryOnErr)
+	if _, err := ctx.Resources().CreateOrUpdate(secret, true, mutateFn, pipeline.RetryOnErr); err == nil {
+		ctx.Log().V(1).Info("Created secret", "secret", secret.Name)
+	}
 }
 
 func InfinispanSecuritySecret(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -49,7 +53,9 @@ func InfinispanSecuritySecret(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(secret, true, mutateFn, pipeline.RetryOnErr)
+	if _, err := ctx.Resources().CreateOrUpdate(secret, true, mutateFn, pipeline.RetryOnErr); err == nil {
+		ctx.Log().V(1).Info("Created secret", "secret", secret.Name)
+	}
 }
 
 func TruststoreSecret(i *ispnv1.Infinispan, ctx pipeline.Context) {
@@ -69,7 +75,9 @@ func TruststoreSecret(i *ispnv1.Infinispan, ctx pipeline.Context) {
 		}
 		return nil
 	}
-	_, _ = ctx.Resources().CreateOrUpdate(secret, false, mutateFn, pipeline.RetryOnErr)
+	if _, err := ctx.Resources().CreateOrUpdate(secret, false, mutateFn, pipeline.RetryOnErr); err == nil {
+		ctx.Log().V(1).Info("Created secret", "secret", secret.Name)
+	}
 }
 
 func newSecret(i *ispnv1.Infinispan, name string) *corev1.Secret {
