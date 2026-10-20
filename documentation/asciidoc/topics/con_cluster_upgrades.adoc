@@ -3,6 +3,13 @@
 
 [role="_abstract"]
 The `spec.upgrades.type` field controls how {ispn_operator} upgrades your {brandname} cluster when new versions become available.
+
+[NOTE]
+====
+This topic covers upgrading the {brandname} *server* version, which you control through the `spec.version` field.
+To upgrade {ispn_operator} itself, and to understand how an Operator upgrade affects running clusters, see xref:upgrading-operator[Upgrading {ispn_operator}].
+====
+
 There are three types of cluster upgrade:
 
 `Shutdown`:: Upgrades {brandname} clusters, with service downtime, by bringing down the original cluster and bringing up a new one in its place. This is the default upgrade type.

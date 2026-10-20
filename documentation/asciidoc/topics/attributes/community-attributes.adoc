@@ -53,6 +53,7 @@
 :openshiftplatform: Red Hat OpenShift Container Platform
 :ocp: OpenShift Container Platform
 :osweb: Kubernetes Dashboard
+:osweb_openshift: OpenShift Web Console
 :k8s: Kubernetes
 :okd: OKD
 
