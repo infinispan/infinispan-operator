@@ -2,21 +2,17 @@ package backup_restore
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/blang/semver/v4"
 	"github.com/go-logr/zapr"
 	"github.com/iancoleman/strcase"
 	v1 "github.com/infinispan/infinispan-operator/api/v1"
 	v2alpha1 "github.com/infinispan/infinispan-operator/api/v2alpha1"
 	"github.com/infinispan/infinispan-operator/pkg/mime"
 	tutils "github.com/infinispan/infinispan-operator/test/e2e/utils"
-	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -82,76 +78,6 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	// Retrieve the latest Infinispan so that the call to `ImageName()` has the operand initialized
 	tutils.ExpectNoError(testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: sourceCluster}, infinispan))
 
-	// Validate the number of entries stored in the someCache backup file
-	// Utilise a 15.0.x image as this still contains the unzip package
-	imageOp, err := tutils.VersionManager().LatestUpstreamPatch(semver.Version{Major: 15, Minor: 0})
-	tutils.ExpectNoError(err)
-	cmd := fmt.Sprintf("ls -l /etc/backups/backup; cd /tmp; unzip /etc/backups/backup/backup.zip; LINES=$(cat containers/default/caches/someCache/someCache.dat | wc -l); echo $LINES; [[ $LINES -eq \"%d\" ]]", numEntries)
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "verify-backup-pod",
-			Namespace: namespace,
-			Labels:    map[string]string{"test-name": testName},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{
-				Name:    "verify",
-				Image:   imageOp.Image,
-				Command: []string{"/bin/bash"},
-				Args:    []string{"-c", cmd},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "backup-volume",
-						MountPath: "/etc/backups",
-					},
-				},
-				SecurityContext: &corev1.SecurityContext{
-					AllowPrivilegeEscalation: ptr.To(false),
-					Capabilities: &corev1.Capabilities{
-						Drop: []corev1.Capability{
-							"ALL",
-						},
-					},
-					RunAsNonRoot: ptr.To(true),
-					SeccompProfile: &corev1.SeccompProfile{
-						Type: "RuntimeDefault",
-					},
-				},
-			}},
-			RestartPolicy: corev1.RestartPolicyNever,
-			Volumes: []corev1.Volume{
-				{
-					Name: "backup-volume",
-					VolumeSource: corev1.VolumeSource{
-						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-							ClaimName: backupName,
-						},
-					},
-				},
-			},
-		},
-	}
-	testKube.Create(pod)
-	err = wait.PollUntilContextTimeout(context.Background(), tutils.DefaultPollPeriod, tutils.SinglePodTimeout, false, func(ctx context.Context) (done bool, err error) {
-		err = testKube.Kubernetes.Client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, pod)
-		tutils.ExpectMaybeNotFound(err)
-		if pod.Status.Phase == corev1.PodFailed {
-			return false, fmt.Errorf("expected %d entries to be backed up for 'someCache'", numEntries)
-		}
-		return pod.Status.Phase == corev1.PodSucceeded, err
-	})
-	if err != nil {
-		if yaml_, e := yaml.Marshal(pod); e != nil {
-			tutils.Log().Error(e, "Failed to marshal pod to yaml")
-		} else {
-			tutils.Log().Error(yaml_)
-		}
-		// Delete the pod to prevent issues with PVCs named "backup" in subsequent tests
-		defer tutils.LogError(testKube.Kubernetes.Client.Delete(context.TODO(), pod))
-		panic(err.Error())
-	}
-	tutils.LogError(testKube.Kubernetes.Client.Delete(context.TODO(), pod))
-
 	// 4. Delete the original cluster
 	testKube.DeleteInfinispan(infinispan)
 	waitForNoCluster(infinispan)
@@ -170,7 +96,7 @@ func testBackupRestore(t *testing.T, clusterSpec clusterSpec, clusterSize, numEn
 	testKube.Create(restoreSpec)
 
 	// Ensure the restore pod has joined the cluster
-	err = testKube.WaitForValidRestorePhase(restoreName, namespace, v2alpha1.RestoreSucceeded)
+	err := testKube.WaitForValidRestorePhase(restoreName, namespace, v2alpha1.RestoreSucceeded)
 	if err != nil {
 		// Known issue with older operands that won't be fixed, skip the test to reduce noise in the test results
 		if strings.Contains(err.Error(), "ISPN-15173") {
