@@ -10,11 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
-
-var log = ctrl.Log.WithName("webhook").WithName("Cache")
 
 func (c *Cache) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
@@ -34,14 +33,14 @@ type CacheCustomDefaulter struct{}
 var _ webhook.CustomDefaulter = &CacheCustomDefaulter{}
 
 // Default implements webhook.CustomDefaulter so a webhook will be registered for the type
-func (d *CacheCustomDefaulter) Default(_ context.Context, obj runtime.Object) error {
+func (d *CacheCustomDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 	c, ok := obj.(*Cache)
 	if !ok {
 		return fmt.Errorf("expected a Cache object but got %T", obj)
 	}
 
 	if c.Spec.AdminAuth != nil {
-		log.Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
+		log.FromContext(ctx).Info("Ignoring and removing 'spec.AdminAuth' field. The operator's admin credentials are now used to perform cache operations")
 		c.Spec.AdminAuth = nil
 	}
 
