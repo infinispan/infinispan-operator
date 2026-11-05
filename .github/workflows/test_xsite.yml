@@ -33,6 +33,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Raise inotify limits, threre's regression in the CI runner: https://github.com/actions/runner-images/issues/15108
+      - name: Raise inotify limits
+        run: sudo sysctl -w fs.inotify.max_user_instances=1280 fs.inotify.max_user_watches=655360
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
