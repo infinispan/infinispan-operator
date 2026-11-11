@@ -17,7 +17,7 @@ jobs:
     steps:
       - if: contains(github.event.pull_request.labels.*.name, '2.3.x')
         name: 2.3.x Backport
-        uses: kiegroup/git-backporting@17bab14ff4b362d044e12c18e491b4ef8e69a4b1 # v4.10.0
+        uses: kiegroup/git-backporting@b69251c55a7fba1a44ccbc9494c4c38ba95567e8 # v5.0.0
         with:
           target-branch: 2.3.x
           pull-request: ${{ github.event.pull_request.url }}
@@ -26,7 +26,7 @@ jobs:
 
       - if: contains(github.event.pull_request.labels.*.name, '2.4.x')
         name: 2.4.x Backport
-        uses: kiegroup/git-backporting@17bab14ff4b362d044e12c18e491b4ef8e69a4b1 # v4.10.0
+        uses: kiegroup/git-backporting@b69251c55a7fba1a44ccbc9494c4c38ba95567e8 # v5.0.0
         with:
           target-branch: 2.4.x
           pull-request: ${{ github.event.pull_request.url }}
@@ -35,7 +35,7 @@ jobs:
 
       - if: contains(github.event.pull_request.labels.*.name, 'stable')
         name: Stable Backport
-        uses: kiegroup/git-backporting@17bab14ff4b362d044e12c18e491b4ef8e69a4b1 # v4.10.0
+        uses: kiegroup/git-backporting@b69251c55a7fba1a44ccbc9494c4c38ba95567e8 # v5.0.0
         with:
           target-branch: stable
           pull-request: ${{ github.event.pull_request.url }}
