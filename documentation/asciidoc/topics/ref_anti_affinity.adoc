@@ -61,3 +61,14 @@ The following example uses the zone strategy only when scheduling {brandname} re
 ----
 include::yaml/affinity_zones_require.yaml[]
 ----
+
+[discrete]
+== Scheduling the Gossip Router
+
+[role="_abstract"]
+When cross-site replication is enabled, {ispn_operator} also deploys a Gossip Router pod. The `spec.scheduling.tolerations` and `spec.scheduling.priorityClassName` fields are applied to the Gossip Router pod in the same way as to {brandname} replica pods.
+
+[NOTE]
+====
+Only the `nodeAffinity` rules configured in `spec.scheduling.affinity` are applied to the Gossip Router pod. `podAffinity`, `podAntiAffinity`, and `spec.scheduling.topologySpreadConstraints` are not propagated because the Gossip Router pod does not share the same labels as {brandname} replica pods, and because the Gossip Router runs as a single replica.
+====
