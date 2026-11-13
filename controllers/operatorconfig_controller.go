@@ -5,8 +5,6 @@ import (
 
 	"github.com/go-logr/logr"
 	kube "github.com/infinispan/infinispan-operator/pkg/kubernetes"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,6 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -26,14 +25,14 @@ var currentConfig map[string]string = make(map[string]string)
 type ReconcileOperatorConfig struct {
 	Client     client.Client
 	scheme     *runtime.Scheme
-	log        logr.Logger
+	setupLog   logr.Logger
 	kubernetes *kube.Kubernetes
 }
 
 func (r *ReconcileOperatorConfig) SetupWithManager(mgr ctrl.Manager) error {
 	name := "config"
 	r.Client = mgr.GetClient()
-	r.log = ctrl.Log.WithName("controllers").WithName(cases.Title(language.Und).String(name))
+	r.setupLog = ctrl.Log.WithName("controllers").WithName(name)
 	r.scheme = mgr.GetScheme()
 	r.kubernetes = kube.NewKubernetesFromController(mgr)
 
@@ -64,16 +63,18 @@ func (r *ReconcileOperatorConfig) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ReconcileOperatorConfig) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	logger := log.FromContext(ctx)
+
 	operatorNs, err := kube.GetOperatorNamespace()
 	if err != nil {
-		r.log.Error(err, "Error getting operator runtime namespace")
+		logger.Error(err, "Error getting operator runtime namespace")
 		return reconcile.Result{Requeue: true}, nil
 	}
 
 	configMap := &corev1.ConfigMap{}
 	err = r.Client.Get(ctx, types.NamespacedName{Namespace: operatorNs, Name: configMapName}, configMap)
 	if err != nil && !errors.IsNotFound(err) {
-		r.log.Error(err, "Error getting operator configuration resource")
+		logger.Error(err, "Error getting operator configuration resource")
 		return reconcile.Result{Requeue: true}, nil
 	}
 

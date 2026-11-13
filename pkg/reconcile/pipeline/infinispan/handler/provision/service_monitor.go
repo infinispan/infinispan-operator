@@ -25,6 +25,7 @@ func ServiceMonitor(i *iv1.Infinispan, ctx pipeline.Context) {
 		if err := ctx.Resources().Delete(i.GetServiceMonitorName(), &monitoringv1.ServiceMonitor{}, pipeline.IgnoreNotFound, pipeline.RetryOnErr); err != nil {
 			return
 		}
+		ctx.Log().V(1).Info("Deleted ServiceMonitor")
 		return
 	}
 
@@ -100,5 +101,7 @@ func ServiceMonitor(i *iv1.Infinispan, ctx pipeline.Context) {
 
 	if _, err := ctx.Resources().CreateOrUpdate(serviceMonitor, true, mutateFn); err != nil {
 		ctx.Requeue(fmt.Errorf("unable to createOrUpdate ServiceMonitor: %w", err))
+	} else {
+		ctx.Log().V(1).Info("Created ServiceMonitor")
 	}
 }
