@@ -101,6 +101,28 @@ If you use generative AI to assist with your contribution, all the following are
 * You disclose AI agents usage. Include a note in the PR description indicating the usage of AI agents for generating complete solutions from a prompt (i.e. you do not need to mention a simple AI autocomplete). This helps reviewers calibrate their review.
 * You ensure licensing compliance. All generated code must be released under the Apache License, Version 2.0, the same license as the Infinispan Operator. You are responsible for verifying that the tools you use do not introduce additional licensing restrictions.
 
+## Pull Request Labels
+
+Labels control how your PR appears in the automated release notes generated for each release.
+Apply **one** of the following labels before your PR is merged:
+
+| Label | Release notes section |
+|---|---|
+| `breaking-change` | 💥 Breaking Changes |
+| `enhancement`, `feature` | 🚀 Features & Enhancements |
+| `bug`, `fix` | 🐛 Bug Fixes |
+| `dependencies`, `chore`, `security`, `CVE` | 🧰 Maintenance & Dependencies |
+| `documentation` | 📚 Documentation |
+| `skip-changelog`, `ignore`, `ci` | Excluded entirely (use for typo fixes, bot PRs, etc.) |
+
+If no label is applied the PR is listed under **🧹 Other Changes**. This is a safe fallback — the
+release notes will still be generated correctly, but applying the right label helps readers find
+relevant changes faster.
+
+PRs opened by `dependabot[bot]` are excluded automatically regardless of labels.
+
+The full category configuration lives in [`.github/release.yml`](.github/release.yml).
+
 ## Submit
 
 * Push your changes to a topic branch in your fork of the repository.
