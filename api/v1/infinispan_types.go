@@ -540,6 +540,12 @@ type InfinispanSpec struct {
 	ConfigListener *ConfigListenerSpec `json:"configListener,omitempty"`
 	// +optional
 	Jmx *JmxSpec `json:"jmx,omitempty"`
+	// Scheduling configures where Kubernetes schedules Infinispan server pods.
+	// Tolerations and PriorityClassName are also applied to the Gossip Router Deployment when
+	// cross-site replication is enabled. Only the NodeAffinity rules configured in Affinity are
+	// propagated to the Gossip Router Pod; PodAffinity, PodAntiAffinity and TopologySpreadConstraints
+	// are not, since the Gossip Router Pod does not share labels with Infinispan server pods and runs
+	// as a single replica.
 	// +optional
 	Scheduling *SchedulingSpec `json:"scheduling,omitempty"`
 	// The name of the ServiceAccount to be used by Infinispan server, GossipRouter, Batch, Backup, and Restore pods

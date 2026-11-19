@@ -1269,6 +1269,13 @@ spec:
                 format: int32
                 type: integer
               scheduling:
+                description: |-
+                  Scheduling configures where Kubernetes schedules Infinispan server pods.
+                  Tolerations and PriorityClassName are also applied to the Gossip Router Deployment when
+                  cross-site replication is enabled. Only the NodeAffinity rules configured in Affinity are
+                  propagated to the Gossip Router Pod; PodAffinity, PodAntiAffinity and TopologySpreadConstraints
+                  are not, since the Gossip Router Pod does not share labels with Infinispan server pods and runs
+                  as a single replica.
                 properties:
                   PriorityClassName:
                     type: string
