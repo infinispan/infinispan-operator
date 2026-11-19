@@ -77,6 +77,22 @@ func (o Operand) LT(other Operand) bool {
 	return o.UpstreamVersion.LT(*other.UpstreamVersion)
 }
 
+func (o Operand) keyValues() []any {
+	kvs := []any{
+		"upstreamVersion", o.UpstreamVersion,
+		"image", o.Image,
+		"cve", o.CVE,
+		"deprecated", o.Deprecated,
+	}
+	if o.DownstreamVersion != nil {
+		dkvs := []any{
+			"downstreamVersion", o.DownstreamVersion,
+		}
+		kvs = append(dkvs, kvs...)
+	}
+	return kvs
+}
+
 func NewUnknownError(v *semver.Version) error {
 	return &UnknownError{v}
 }
@@ -123,10 +139,8 @@ func (m *Manager) Oldest() Operand {
 }
 
 func (m *Manager) Log(log logr.Logger) {
-	if bytes, err := json.MarshalIndent(m.Operands, "", "  "); err != nil {
-		log.Error(err, "unable to log VersionManager content")
-	} else {
-		log.Info(fmt.Sprintf("Loaded Operand Versions:\n%s", bytes))
+	for _, operand := range m.Operands {
+		log.Info("Loaded operand", operand.keyValues()...)
 	}
 }
 
